@@ -4,7 +4,13 @@ export enum Env {
   PRD = 'prd',
 }
 
-const ENV_URLS = {
+type EnvUrlsEntry = {
+  authApiUrl: string;
+  oidcApiUrl: string;
+  userStorageApiUrl: string;
+};
+
+const ENV_URLS: Record<Env, EnvUrlsEntry> = {
   dev: {
     authApiUrl: 'https://authentication.dev-api.cx.metamask.io',
     oidcApiUrl: 'https://oidc.dev-api.cx.metamask.io',
@@ -29,7 +35,7 @@ const ENV_URLS = {
  * @returns the correct environment url
  * @throws on invalid environment passed
  */
-export function getEnvUrls(env: Env) {
+export function getEnvUrls(env: Env): EnvUrlsEntry {
   if (!ENV_URLS[env]) {
     throw new Error('invalid environment configuration');
   }

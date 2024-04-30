@@ -11,6 +11,18 @@ import { MESSAGE_SIGNING_SNAP } from './messaging-signing-snap';
 
 const SESSION_LIFETIME_MS = 45 * 60 * 1000; // 45 minutes in milliseconds
 
+export const NONCE_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
+
+export const OIDC_TOKEN_URL = (env: Env) =>
+  `${getEnvUrls(env).oidcApiUrl}/oauth2/token`;
+
+export const SRP_LOGIN_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/srp/login`;
+
+export const SIWE_LOGIN_URL = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
+
 export enum AuthType {
   /* sign in using a private key derived from your secret recovery phrase (SRP). 
        Uses message signing snap to perform this operation */
@@ -25,15 +37,19 @@ export type AuthConfig = {
   type: AuthType;
 };
 
+export type AuthSigningOptions = {
+  signMessage: (message: string) => Promise<string>;
+  getIdentifier: () => Promise<string>;
+};
+
+export type AuthStorageOptions = {
+  getLoginResponse: () => Promise<LoginResponse | null>;
+  setLoginResponse: (val: LoginResponse) => Promise<void>;
+};
+
 export type AuthOptions = {
-  signing?: {
-    signMessage: (message: string) => Promise<string>;
-    getIdentifier: () => Promise<string>;
-  };
-  storage: {
-    getLoginResponse: () => Promise<LoginResponse | null>;
-    setLoginResponse: (val: LoginResponse) => Promise<void>;
-  };
+  signing?: AuthSigningOptions;
+  storage: AuthStorageOptions;
 };
 
 export type AccessToken = {
@@ -83,10 +99,10 @@ export abstract class BaseAuth {
 
   protected siweLogin: SiweLogin | null = null;
 
-  protected envUrls: { authApiUrl: string; oidcApiUrl: string };
+  protected env: Env;
 
   constructor(config: AuthConfig, options: AuthOptions) {
-    this.envUrls = getEnvUrls(config.env);
+    this.env = config.env;
     this.config = config;
     this.options = options;
   }
@@ -98,7 +114,7 @@ export abstract class BaseAuth {
   protected abstract login(): Promise<LoginResponse>;
 
   protected async getNonce(id: string): Promise<NonceResponse> {
-    const nonceUrl = new URL(`${this.envUrls.authApiUrl}/api/v2/nonce`);
+    const nonceUrl = new URL(NONCE_URL(this.env));
     nonceUrl.searchParams.set('identifier', id);
 
     try {
@@ -119,7 +135,9 @@ export abstract class BaseAuth {
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
-      throw new NonceRetrievalError(`failed to generate nonce ${errorMessage}`);
+      throw new NonceRetrievalError(
+        `failed to generate nonce: ${errorMessage}`,
+      );
     }
   }
 
@@ -170,7 +188,7 @@ export class JwtBearerAuth extends BaseAuth {
     urlEncodedBody.append('assertion', jwtToken);
 
     try {
-      const response = await fetch(`${this.envUrls.oidcApiUrl}/oauth2/token`, {
+      const response = await fetch(OIDC_TOKEN_URL(this.env), {
         method: 'POST',
         headers,
         body: urlEncodedBody.toString(),
@@ -195,7 +213,7 @@ export class JwtBearerAuth extends BaseAuth {
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
-      throw new SignInError(`unable to get access token ${errorMessage}`);
+      throw new SignInError(`unable to get access token: ${errorMessage}`);
     }
   }
 
@@ -278,19 +296,16 @@ export class JwtBearerAuth extends BaseAuth {
     signature: string,
   ): Promise<Authentication> {
     try {
-      const response = await fetch(
-        `${this.envUrls.authApiUrl}/api/v2/srp/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            signature,
-            raw_message: rawMessage,
-          }),
+      const response = await fetch(SRP_LOGIN_URL(this.env), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          signature,
+          raw_message: rawMessage,
+        }),
+      });
 
       if (!response.ok) {
         const responseBody = (await response.json()) as ErrorMessage;
@@ -312,7 +327,7 @@ export class JwtBearerAuth extends BaseAuth {
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
-      throw new SignInError(`unable to perform SRP login ${errorMessage}`);
+      throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
     }
   }
 
@@ -321,19 +336,16 @@ export class JwtBearerAuth extends BaseAuth {
     signature: string,
   ): Promise<Authentication> {
     try {
-      const response = await fetch(
-        `${this.envUrls.authApiUrl}/api/v2/siwe/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            signature,
-            raw_message: rawMessage,
-          }),
+      const response = await fetch(SIWE_LOGIN_URL(this.env), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          signature,
+          raw_message: rawMessage,
+        }),
+      });
 
       if (!response.ok) {
         const responseBody = (await response.json()) as ErrorMessage;
@@ -355,7 +367,7 @@ export class JwtBearerAuth extends BaseAuth {
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
-      throw new SignInError(`unable to perform siwe login ${errorMessage}`);
+      throw new SignInError(`unable to perform siwe login: ${errorMessage}`);
     }
   }
 
@@ -384,7 +396,7 @@ export class JwtBearerAuth extends BaseAuth {
     return new SiweMessage({
       domain: this.siweLogin?.domain,
       address: this.siweLogin?.address,
-      uri: `${this.envUrls.authApiUrl}/api/v2/siwe/login`,
+      uri: SIWE_LOGIN_URL(this.env),
       version: '1',
       chainId: this.siweLogin?.chainId,
       nonce,

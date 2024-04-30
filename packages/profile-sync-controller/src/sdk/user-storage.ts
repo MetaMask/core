@@ -9,16 +9,21 @@ import {
   ValidationError,
 } from './errors';
 
+export const STORAGE_URL = (env: Env, feature: string, entry: string) =>
+  `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${feature}/${entry}`;
+
 export type UserStorageConfig = {
   env: Env;
   auth: BaseAuth;
 };
 
+export type StorageOptions = {
+  getStorageKey: () => Promise<string | null>;
+  setStorageKey: (val: string) => Promise<void>;
+};
+
 export type UserStorageOptions = {
-  storage: {
-    getStorageKey: () => Promise<string | null>;
-    setStorageKey: (val: string) => Promise<void>;
-  };
+  storage: StorageOptions;
 };
 
 type ErrorMessage = {
@@ -31,10 +36,10 @@ export class UserStorage {
 
   protected options: UserStorageOptions;
 
-  protected envUrls: { userStorageApiUrl: string };
+  protected env: Env;
 
   constructor(config: UserStorageConfig, options: UserStorageOptions) {
-    this.envUrls = getEnvUrls(config.env);
+    this.env = config.env;
     this.config = config;
     this.options = options;
   }
@@ -84,9 +89,7 @@ export class UserStorage {
       const storageKey = await this.#getStorageKey();
       const encryptedData = encryption.encryptString(data, storageKey);
       const url = new URL(
-        `${
-          this.envUrls.userStorageApiUrl
-        }/api/v1/userstorage/${this.#getEntryPath(feature, key, storageKey)}`,
+        STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
       );
 
       const response = await fetch(url.toString(), {
@@ -118,9 +121,7 @@ export class UserStorage {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.#getStorageKey();
       const url = new URL(
-        `${
-          this.envUrls.userStorageApiUrl
-        }/api/v1/userstorage/${this.#getEntryPath(feature, key, storageKey)}`,
+        STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
       );
 
       const response = await fetch(url.toString(), {
@@ -159,9 +160,9 @@ export class UserStorage {
     }
   }
 
-  #getEntryPath(feature: string, key: string, storageKey: string): string {
+  #createEntryKey(key: string, storageKey: string): string {
     const hashedKey = createSHA256Hash(key + storageKey);
-    return `${feature}/${hashedKey}`;
+    return hashedKey;
   }
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {

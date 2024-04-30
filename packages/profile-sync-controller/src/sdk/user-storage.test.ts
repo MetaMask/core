@@ -1,17 +1,20 @@
-import { HttpResponse } from 'msw';
-
-import { MOCK_JWT, handleMockOAuth2Token } from './__fixtures__/mock-auth';
 import {
+  handleMockNonce,
+  handleMockOAuth2Token,
+  handleMockSiweLogin,
+  handleMockSrpLogin,
+} from './__fixtures__/mock-auth';
+import {
+  MOCK_NOTIFICATIONS_DATA,
   MOCK_STORAGE_KEY,
   handleMockUserStorageGet,
   handleMockUserStoragePut,
 } from './__fixtures__/mock-userstorage';
-import { server } from './__fixtures__/msw';
-import type { LoginResponse } from './authentication';
-import { AuthType, JwtBearerAuth } from './authentication';
-import { createSHA256Hash } from './encryption';
+import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
+import type { JwtBearerAuth } from './authentication';
 import { Env } from './env';
 import { NotFoundError, UserStorageError } from './errors';
+import type { StorageOptions } from './user-storage';
 import { UserStorage } from './user-storage';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
@@ -19,360 +22,139 @@ const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
 describe('User Storage', () => {
   it('get/set key using SRP', async () => {
-    const authInstance = new JwtBearerAuth(
-      {
-        env: Env.DEV,
-        type: AuthType.SRP,
-      },
-      {
-        storage: {
-          getLoginResponse: (): Promise<LoginResponse | null> => {
-            return Promise.resolve(null);
-          },
-          setLoginResponse: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-        signing: {
-          getIdentifier: (): Promise<string> => {
-            return Promise.resolve(MOCK_SRP);
-          },
-          signMessage: (): Promise<string> => {
-            return Promise.resolve('MOCK_SRP_SIGNATURE');
-          },
-        },
-      },
-    );
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
 
-    const userStorageInstance = new UserStorage(
-      {
-        auth: authInstance,
-        env: Env.DEV,
-      },
-      {
-        storage: {
-          getStorageKey: (): Promise<string | null> => {
-            return Promise.resolve(MOCK_STORAGE_KEY);
-          },
-          setStorageKey: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-      },
-    );
+    const mockPut = handleMockUserStoragePut();
+    const mockGet = handleMockUserStorageGet();
 
-    server.use(
-      handleMockOAuth2Token({
-        async inspect(ctx) {
-          const body = await ctx.request.formData();
-          expect(body.get('assertion')).toBe(MOCK_JWT);
-        },
-      }),
-    );
+    // Test Set
+    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    await userStorage.setItem('notifications', 'ui_settings', data);
+    expect(mockPut.isDone()).toBe(true);
+    expect(mockGet.isDone()).toBe(false);
 
-    server.use(
-      handleMockUserStorageGet({
-        inspect(ctx) {
-          expect(ctx.request.url).toContain(
-            createSHA256Hash(`ui_settings${MOCK_STORAGE_KEY}`),
-          );
-        },
-      }),
-    );
-
-    const expected = JSON.stringify({ is_compact: false });
-    await userStorageInstance.setItem('notifications', 'ui_settings', expected);
-    const response = await userStorageInstance.getItem(
-      'notifications',
-      'ui_settings',
-    );
-    expect(response).toBe(expected);
+    // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
+    const response = await userStorage.getItem('notifications', 'ui_settings');
+    expect(mockGet.isDone()).toBe(true);
+    expect(response).toBe(data);
   });
 
   it('get/set key using SiWE', async () => {
-    const authInstance = new JwtBearerAuth(
-      {
-        env: Env.DEV,
-        type: AuthType.SiWE,
-      },
-      {
-        storage: {
-          getLoginResponse: (): Promise<LoginResponse | null> => {
-            return Promise.resolve(null);
-          },
-          setLoginResponse: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-        signing: {
-          getIdentifier: (): Promise<string> => {
-            return Promise.resolve(MOCK_SRP);
-          },
-          signMessage: (): Promise<string> => {
-            return Promise.resolve('MOCK_SiWE_SIGNATURE');
-          },
-        },
-      },
-    );
-    authInstance.initialize({
+    const { auth } = arrangeAuth('SIWE', MOCK_ADDRESS);
+    auth.initialize({
       address: MOCK_ADDRESS,
       chainId: 1,
       domain: 'https://metamask.io',
     });
 
-    const userStorageInstance = new UserStorage(
-      {
-        auth: authInstance,
-        env: Env.DEV,
-      },
-      {
-        storage: {
-          getStorageKey: (): Promise<string | null> => {
-            return Promise.resolve(MOCK_STORAGE_KEY);
-          },
-          setStorageKey: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-      },
-    );
+    const { userStorage } = arrangeUserStorage(auth);
 
-    server.use(
-      handleMockOAuth2Token({
-        async inspect(ctx) {
-          const body = await ctx.request.formData();
-          expect(body.get('assertion')).toBe(MOCK_JWT);
-        },
-      }),
-    );
+    const mockPut = handleMockUserStoragePut();
+    const mockGet = handleMockUserStorageGet();
 
-    const expected = JSON.stringify({ is_compact: false });
-    await userStorageInstance.setItem('notifications', 'ui_settings', expected);
-    const response = await userStorageInstance.getItem(
-      'notifications',
-      'ui_settings',
-    );
-    expect(response).toBe(expected);
+    // Test Set
+    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    await userStorage.setItem('notifications', 'ui_settings', data);
+    expect(mockPut.isDone()).toBe(true);
+    expect(mockGet.isDone()).toBe(false);
+
+    // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
+    const response = await userStorage.getItem('notifications', 'ui_settings');
+    expect(mockGet.isDone()).toBe(true);
+    expect(response).toBe(data);
   });
 
   it('user storage: failed to set key', async () => {
-    const authInstance = new JwtBearerAuth(
-      {
-        env: Env.DEV,
-        type: AuthType.SiWE,
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    handleMockUserStoragePut({
+      status: 500,
+      body: {
+        message: 'failed to insert storage entry',
+        error: 'generic-error',
       },
-      {
-        storage: {
-          getLoginResponse: (): Promise<LoginResponse | null> => {
-            return Promise.resolve(null);
-          },
-          setLoginResponse: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-        signing: {
-          getIdentifier: (): Promise<string> => {
-            return Promise.resolve(MOCK_SRP);
-          },
-          signMessage: (): Promise<string> => {
-            return Promise.resolve('MOCK_SiWE_SIGNATURE');
-          },
-        },
-      },
-    );
-    authInstance.initialize({
-      address: MOCK_ADDRESS,
-      chainId: 1,
-      domain: 'https://metamask.io',
     });
 
-    const userStorageInstance = new UserStorage(
-      {
-        auth: authInstance,
-        env: Env.DEV,
-      },
-      {
-        storage: {
-          getStorageKey: (): Promise<string | null> => {
-            return Promise.resolve(MOCK_STORAGE_KEY);
-          },
-          setStorageKey: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-      },
-    );
-
-    server.use(
-      handleMockOAuth2Token({
-        async inspect(ctx) {
-          const body = await ctx.request.formData();
-          expect(body.get('assertion')).toBe(MOCK_JWT);
-        },
-      }),
-    );
-
-    server.use(
-      handleMockUserStoragePut({
-        callback: () =>
-          HttpResponse.json(
-            {
-              message: 'failed to insert storage entry',
-              error: 'generic-error',
-            },
-            { status: 500, statusText: `Internal` },
-          ),
-      }),
-    );
-
-    const expected = JSON.stringify({ is_compact: false });
+    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     await expect(
-      userStorageInstance.setItem('notifications', 'ui_settings', expected),
+      userStorage.setItem('notifications', 'ui_settings', data),
     ).rejects.toThrow(UserStorageError);
   });
 
-  it('user storage: failed to get key', async () => {
-    const authInstance = new JwtBearerAuth(
-      {
-        env: Env.DEV,
-        type: AuthType.SRP,
-      },
-      {
-        storage: {
-          getLoginResponse: (): Promise<LoginResponse | null> => {
-            return Promise.resolve(null);
-          },
-          setLoginResponse: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-        signing: {
-          getIdentifier: (): Promise<string> => {
-            return Promise.resolve(MOCK_SRP);
-          },
-          signMessage: (): Promise<string> => {
-            return Promise.resolve('MOCK_SRP_SIGNATURE');
-          },
-        },
-      },
-    );
+  it('user storage: failed to get storage entry', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
 
-    const userStorageInstance = new UserStorage(
-      {
-        auth: authInstance,
-        env: Env.DEV,
+    handleMockUserStorageGet({
+      status: 500,
+      body: {
+        message: 'failed to get storage entry',
+        error: 'generic-error',
       },
-      {
-        storage: {
-          getStorageKey: (): Promise<string | null> => {
-            return Promise.resolve(MOCK_STORAGE_KEY);
-          },
-          setStorageKey: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-      },
-    );
-
-    server.use(
-      handleMockOAuth2Token({
-        async inspect(ctx) {
-          const body = await ctx.request.formData();
-          expect(body.get('assertion')).toBe(MOCK_JWT);
-        },
-      }),
-    );
-
-    server.use(
-      handleMockUserStorageGet({
-        callback: () =>
-          HttpResponse.json(
-            {
-              message: 'failed to get storage entry',
-              error: 'generic-error',
-            },
-            { status: 500, statusText: `Internal` },
-          ),
-      }),
-    );
+    });
 
     await expect(
-      userStorageInstance.getItem('notifications', 'ui_settings'),
+      userStorage.getItem('notifications', 'ui_settings'),
     ).rejects.toThrow(UserStorageError);
   });
 
   it('user storage: key not found', async () => {
-    const authInstance = new JwtBearerAuth(
-      {
-        env: Env.DEV,
-        type: AuthType.SiWE,
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    handleMockUserStorageGet({
+      status: 404,
+      body: {
+        message: 'key not found',
+        error: 'cannot get key',
       },
-      {
-        storage: {
-          getLoginResponse: (): Promise<LoginResponse | null> => {
-            return Promise.resolve(null);
-          },
-          setLoginResponse: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-        signing: {
-          getIdentifier: (): Promise<string> => {
-            return Promise.resolve(MOCK_SRP);
-          },
-          signMessage: (): Promise<string> => {
-            return Promise.resolve('MOCK_SiWE_SIGNATURE');
-          },
-        },
-      },
-    );
-    authInstance.initialize({
-      address: MOCK_ADDRESS,
-      chainId: 1,
-      domain: 'https://metamask.io',
     });
 
-    const userStorageInstance = new UserStorage(
-      {
-        auth: authInstance,
-        env: Env.DEV,
-      },
-      {
-        storage: {
-          getStorageKey: (): Promise<string | null> => {
-            return Promise.resolve(MOCK_STORAGE_KEY);
-          },
-          setStorageKey: (): Promise<void> => {
-            return Promise.resolve();
-          },
-        },
-      },
-    );
-
-    server.use(
-      handleMockOAuth2Token({
-        async inspect(ctx) {
-          const body = await ctx.request.formData();
-          expect(body.get('assertion')).toBe(MOCK_JWT);
-        },
-      }),
-    );
-
-    server.use(
-      handleMockUserStorageGet({
-        callback: () =>
-          HttpResponse.json(
-            {
-              message: 'key not found',
-              error: 'cannot get key',
-            },
-            { status: 404, statusText: `Not Found` },
-          ),
-      }),
-    );
-
     await expect(
-      userStorageInstance.getItem('notifications', 'ui_settings'),
+      userStorage.getItem('notifications', 'ui_settings'),
     ).rejects.toThrow(NotFoundError);
   });
 });
+
+/**
+ * Mock Utility - Arrange User Storage for testing
+ *
+ * @param auth - mock auth to pass in
+ * @returns User Storage Instance and mocks
+ */
+function arrangeUserStorage(auth: JwtBearerAuth) {
+  const mockGetStorageKey =
+    typedMockFn<StorageOptions['getStorageKey']>().mockResolvedValue(
+      MOCK_STORAGE_KEY,
+    );
+
+  const mockSetStorageKey =
+    typedMockFn<StorageOptions['setStorageKey']>().mockResolvedValue();
+
+  const userStorage = new UserStorage(
+    {
+      auth,
+      env: Env.DEV,
+    },
+    {
+      storage: {
+        getStorageKey: mockGetStorageKey,
+        setStorageKey: mockSetStorageKey,
+      },
+    },
+  );
+
+  // Mock Auth API Calls (SRP & SIWE)
+  handleMockNonce();
+  handleMockSrpLogin();
+  handleMockSiweLogin();
+  handleMockOAuth2Token();
+
+  return {
+    userStorage,
+    mockGetStorageKey,
+    mockSetStorageKey,
+  };
+}
