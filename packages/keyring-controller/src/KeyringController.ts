@@ -159,6 +159,14 @@ export type KeyringControllerSignUserOperationAction = {
   handler: KeyringController['signUserOperation'];
 };
 
+export type KeyringControllerWithKeyringAction<
+  K extends EthKeyring<Json> = never,
+  T = never,
+> = {
+  type: `${typeof name}:withKeyring`;
+  handler: typeof KeyringController.prototype.withKeyring<K, T>;
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -192,6 +200,7 @@ export type KeyringControllerActions =
   | KeyringControllerDecryptMessageAction
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerGetAccountsAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerPersistAllKeyringsAction
@@ -1615,6 +1624,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:signUserOperation`,
       this.signUserOperation.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:withKeyring`,
+      this.withKeyring.bind(this),
     );
   }
 
