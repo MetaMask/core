@@ -552,18 +552,18 @@ describe('AccountTrackerController', () => {
     await advanceTime({ clock, duration: 0 });
     expect(refreshSpy).toHaveBeenNthCalledWith(3, 'networkClientId2');
     expect(refreshSpy).toHaveBeenCalledTimes(3);
+    controller.stopPollingByPollingToken(pollToken);
+
     await advanceTime({ clock, duration: 100 });
     expect(refreshSpy).toHaveBeenNthCalledWith(4, 'networkClientId1');
     expect(refreshSpy).toHaveBeenNthCalledWith(5, 'networkClientId2');
     expect(refreshSpy).toHaveBeenCalledTimes(5);
 
-    controller.stopPollingByPollingToken(pollToken);
+    controller.stopAllPolling();
 
     await advanceTime({ clock, duration: 100 });
     expect(refreshSpy).toHaveBeenNthCalledWith(6, 'networkClientId1');
     expect(refreshSpy).toHaveBeenCalledTimes(6);
-
-    controller.stopAllPolling();
 
     await advanceTime({ clock, duration: 100 });
 

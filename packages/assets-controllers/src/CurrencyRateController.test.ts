@@ -195,9 +195,9 @@ describe('CurrencyRateController', () => {
 
     controller.startPollingByNetworkClientId('sepolia');
 
-    await advanceTime({ clock, duration: 0 });
-
     controller.stopAllPolling();
+
+    await advanceTime({ clock, duration: 0 });
 
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
@@ -219,9 +219,9 @@ describe('CurrencyRateController', () => {
       messenger,
     });
     controller.startPollingByNetworkClientId('sepolia');
-    await advanceTime({ clock, duration: 0 });
-
     controller.stopAllPolling();
+
+    await advanceTime({ clock, duration: 0 });
 
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);

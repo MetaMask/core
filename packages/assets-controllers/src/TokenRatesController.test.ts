@@ -1573,10 +1573,10 @@ describe('TokenRatesController', () => {
       );
 
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      controller.stopPollingByPollingToken(pollingToken);
+
       await advanceTime({ clock, duration: 0 });
       expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
-
-      controller.stopPollingByPollingToken(pollingToken);
 
       await advanceTime({ clock, duration: interval });
       expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
