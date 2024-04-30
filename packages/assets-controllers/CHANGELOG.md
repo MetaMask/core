@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [28.1.0]
+## [29.0.0]
 
 ### Added
 
@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-controller` to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
+- **BREAKING** Bump `@metamask/keyring-controller` to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
+- **BREAKING** Bump `@metamask/accounts-controller` to ^14.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
+- **BREAKING** Bump `@metamask/preferences-controller` to ^11.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
 - Bump `@metamask/keyring-api` to 6.0.0, `@metamask/eth-snap-keyring` to 4.0.0 and snap dependencies ([#4193](https://github.com/MetaMask/core/pull/4193))
 
 ### Fixed
@@ -768,8 +770,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@28.1.0...HEAD
-[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@28.0.0...@metamask/assets-controllers@28.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@29.0.0...HEAD
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@28.0.0...@metamask/assets-controllers@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.2.0...@metamask/assets-controllers@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.1.0...@metamask/assets-controllers@27.2.0
 [27.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.0.1...@metamask/assets-controllers@27.1.0
