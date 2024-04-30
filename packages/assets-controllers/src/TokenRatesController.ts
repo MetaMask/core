@@ -75,8 +75,32 @@ export interface ContractExchangeRates {
 
 export type ContractInformations = {
   contractExchangeRates: ContractExchangeRates;
-  contractPercentChange1d: ContractExchangeRates;
-  priceChange1d: ContractExchangeRates;
+  marketData: Record<
+    Hex,
+    {
+      tokenAddress: `0x${string}`;
+      value: number;
+      currency: string;
+      allTimeHigh: number;
+      allTimeLow: number;
+      circulatingSupply: number;
+      dilutedMarketCap: number;
+      high1d: number;
+      low1d: number;
+      marketCap: number;
+      marketCapPercentChange1d: number;
+      price: number;
+      priceChange1d: number;
+      pricePercentChange1d: number;
+      pricePercentChange1h: number;
+      pricePercentChange1y: number;
+      pricePercentChange7d: number;
+      pricePercentChange14d: number;
+      pricePercentChange30d: number;
+      pricePercentChange200d: number;
+      totalVolume: number;
+    }
+  >;
 };
 
 enum PollState {
@@ -100,12 +124,34 @@ export interface TokenRatesState extends BaseState {
     Hex,
     Record<string, ContractExchangeRates>
   >;
-  oneDayPriceChange: Record<
+  marketData: Record<
     Hex,
-    {
-      priceChange1d: ContractExchangeRates;
-      contractPercentChange1d: ContractExchangeRates;
-    }
+    Record<
+      Hex,
+      {
+        tokenAddress: `0x${string}`;
+        value: number;
+        currency: string;
+        allTimeHigh: number;
+        allTimeLow: number;
+        circulatingSupply: number;
+        dilutedMarketCap: number;
+        high1d: number;
+        low1d: number;
+        marketCap: number;
+        marketCapPercentChange1d: number;
+        price: number;
+        priceChange1d: number;
+        pricePercentChange1d: number;
+        pricePercentChange1h: number;
+        pricePercentChange1y: number;
+        pricePercentChange7d: number;
+        pricePercentChange14d: number;
+        pricePercentChange30d: number;
+        pricePercentChange200d: number;
+        totalVolume: number;
+      }
+    >
   >;
 }
 
@@ -234,7 +280,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     this.defaultState = {
       contractExchangeRates: {},
       contractExchangeRatesByChainId: {},
-      oneDayPriceChange: {},
+      marketData: {},
     };
     this.initialize();
     this.setIntervalLength(interval);
@@ -278,7 +324,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         this.config.chainId !== chainId ||
         this.config.nativeCurrency !== ticker
       ) {
-        this.update({ contractExchangeRates: {} });
+        this.update({ marketData: {} });
         this.configure({ chainId, nativeCurrency: ticker });
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
@@ -404,14 +450,9 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       const newContractExchangeRates =
         contractInformations.contractExchangeRates;
 
-      const newOneDayPriceChange = {
+      const marketData = {
         [chainId]: {
-          contractPercentChange1d: {
-            ...(contractInformations?.contractPercentChange1d ?? {}),
-          },
-          priceChange1d: {
-            ...(contractInformations?.priceChange1d ?? {}),
-          },
+          ...(contractInformations.marketData ?? {}),
         },
       };
 
@@ -438,7 +479,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       this.update({
         contractExchangeRates: updatedContractExchangeRates,
         contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
-        oneDayPriceChange: newOneDayPriceChange,
+        marketData,
       });
       updateSucceeded();
     } catch (error: unknown) {
@@ -481,25 +522,20 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
       return tokenAddresses.reduce(
         (obj, tokenAddress) => {
-          return {
-            contractExchangeRates: {
-              ...obj.contractExchangeRates,
-              [tokenAddress]: undefined,
-            },
-            contractPercentChange1d: {
-              ...obj.contractPercentChange1d,
-              [tokenAddress]: undefined,
-            },
-            priceChange1d: {
-              ...obj.priceChange1d,
-              [tokenAddress]: undefined,
-            },
+          obj.marketData = {
+            ...obj.marketData,
+            [tokenAddress]: undefined,
           };
+          obj.contractExchangeRates = {
+            ...obj.contractExchangeRates,
+            [tokenAddress]: undefined,
+          };
+
+          return obj;
         },
         {
           contractExchangeRates: {},
-          contractPercentChange1d: {},
-          priceChange1d: {},
+          marketData: {},
         },
       );
     }
@@ -590,12 +626,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       contractNativeInformations = {
         [ZERO_ADDRESS]: {
           currency: nativeCurrency,
-          priceChange1d:
-            contractNativeInformationsNative[ZERO_ADDRESS]?.priceChange1d,
-          pricePercentChange1d:
-            contractNativeInformationsNative[ZERO_ADDRESS]?.priceChange1d,
-          tokenAddress: ZERO_ADDRESS,
-          value: contractNativeInformationsNative[ZERO_ADDRESS]?.value,
+          ...contractNativeInformationsNative[ZERO_ADDRESS],
         },
       };
     }
@@ -605,20 +636,17 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
           ...obj.contractExchangeRates,
           [tokenAddress.toLowerCase()]: tokenPrice?.value,
         };
-        obj.contractPercentChange1d = {
-          ...obj.contractPercentChange1d,
-          [tokenAddress.toLowerCase()]: tokenPrice?.pricePercentChange1d,
+
+        obj.marketData = {
+          ...obj.marketData,
+          [tokenAddress.toLowerCase()]: { ...tokenPrice },
         };
-        obj.priceChange1d = {
-          ...obj.priceChange1d,
-          [tokenAddress.toLowerCase()]: tokenPrice?.priceChange1d,
-        };
+
         return obj;
       },
       {
         contractExchangeRates: {},
-        contractPercentChange1d: {},
-        priceChange1d: {},
+        marketData: {},
       },
     );
   }
@@ -660,27 +688,40 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     if (fallbackCurrencyToNativeCurrencyConversionRate === null) {
       return {
         contractExchangeRates: {},
-        contractPercentChange1d: {},
-        priceChange1d: {},
+        marketData: {},
       };
     }
 
     const updatedContractExchangeRates = Object.entries(
-      contractExchangeInformations.contractExchangeRates,
-    ).reduce((obj, [tokenAddress, tokenValue]) => {
-      return {
-        ...obj,
-        [tokenAddress]: tokenValue
-          ? tokenValue * fallbackCurrencyToNativeCurrencyConversionRate
-          : undefined,
-      };
-    }, {});
+      contractExchangeInformations.marketData,
+    ).reduce(
+      (obj, [tokenAddress, tokenValue]) => {
+        obj.contractExchangeRates = {
+          ...obj.contractExchangeRates,
+          [tokenAddress.toLowerCase()]: tokenValue.value
+            ? tokenValue.value * fallbackCurrencyToNativeCurrencyConversionRate
+            : undefined,
+        };
 
-    // Update the original object
-    contractExchangeInformations.contractExchangeRates =
-      updatedContractExchangeRates;
+        obj.marketData = {
+          ...obj.marketData,
+          [tokenAddress]: {
+            ...tokenValue,
+            value: tokenValue.value
+              ? tokenValue.value *
+                fallbackCurrencyToNativeCurrencyConversionRate
+              : undefined,
+          },
+        };
+        return obj;
+      },
+      {
+        contractExchangeRates: {},
+        marketData: {},
+      },
+    );
 
-    return contractExchangeInformations;
+    return updatedContractExchangeRates;
   }
 }
 

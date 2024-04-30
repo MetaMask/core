@@ -390,15 +390,29 @@ export class CodefiTokenPricesServiceV2
         const lowercasedTokenAddress =
           tokenAddress.toLowerCase() as Lowercase<Hex>;
 
-        const price =
-          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.price;
+        const tokenData =
+          pricesByCurrencyByTokenAddress[lowercasedTokenAddress] || {};
 
-        const pricePercentChange1d =
-          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]
-            ?.pricePercentChange1d;
-
-        const priceChange1d =
-          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.priceChange1d;
+        const {
+          price,
+          pricePercentChange1d,
+          priceChange1d,
+          allTimeHigh,
+          allTimeLow,
+          circulatingSupply,
+          dilutedMarketCap,
+          high1d,
+          marketCap,
+          totalVolume,
+          low1d,
+          marketCapPercentChange1d,
+          pricePercentChange1h,
+          pricePercentChange7d,
+          pricePercentChange14d,
+          pricePercentChange30d,
+          pricePercentChange200d,
+          pricePercentChange1y,
+        } = tokenData;
 
         const tokenPrice: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
@@ -406,6 +420,21 @@ export class CodefiTokenPricesServiceV2
           currency,
           pricePercentChange1d,
           priceChange1d,
+          allTimeHigh,
+          allTimeLow,
+          circulatingSupply,
+          dilutedMarketCap,
+          high1d,
+          marketCap,
+          totalVolume,
+          low1d,
+          marketCapPercentChange1d,
+          pricePercentChange1h,
+          pricePercentChange7d,
+          pricePercentChange14d,
+          pricePercentChange30d,
+          pricePercentChange200d,
+          pricePercentChange1y,
         };
 
         return {
