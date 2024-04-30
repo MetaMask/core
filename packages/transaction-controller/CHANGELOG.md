@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- fix: simulation should handle NFT mints ([#4217](https://github.com/MetaMask/core/pull/4217))
+- Fixed simulating minting NFTs where the nft owner was checked before minting, causing a revert. ([#4217](https://github.com/MetaMask/core/pull/4217))
 
 ## [28.1.0]
 
