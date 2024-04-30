@@ -93,7 +93,8 @@ We, the maintainers of the permission controller, impose this requirement for tw
 
 Consumers may supply a caveat merger function when specifying a caveat.
 This is required to support [incremental permission requests](#requestpermissionsincremental).
-Caveat values must be merged in the fashion of a right-biased union.
+Caveat values must be merged in the fashion of a right-biased union, and the merger must
+handle the possibility that the left-hand side is `undefined`.
 This operation is _like_ a union in set theory, except the right-hand operand overwrites
 values of the left-hand operand in case of collisions.
 
@@ -109,29 +110,56 @@ Then the following must be true:
 - `C = A ⊕ B`
 - `C ⊇ B`
 - `A` and `C` may have all, some, or no values in common.
+- If `A = ∅`, then `C = B`
 
-Or, to exemplify in JavaScript:
+In addition to merging caveat values, the caveat merger implementation must supply
+the difference between `C` and `A`, expressed in the caveat's value type.
+This is necessary so that other parts of the application, especially the UI, can
+understand how authority has changed.
+
+If `Δ` the difference between `C` and `A`, then:
+
+- `Δ = C - A`
+  - `Δ ∩ A = ∅`
+  - `Δ ⊆ C`
+- `Δ ⊆ B`
+- If `A = ∅`, then `Δ = C = B`
+
+> [!TIP]
+> You have correctly calculated a diff `Δ` if `A ⊕ Δ = C`.
+
+To exemplify the above in JavaScript:
 
 ```js
+// A is empty.
+A = undefined;
+B = { foo: 'bar' };
+C = { foo: 'bar' };
+Delta = { foo: 'bar' };
+
 // A and B are the same.
 A = { foo: 'bar' };
 B = { foo: 'bar' };
 C = { foo: 'bar' };
+Delta = undefined;
 
 // A and B have no values in common.
 A = { foo: 'bar' };
 B = { life: 42 };
 C = { foo: 'bar', life: 42 };
+Delta = { life: 42 };
 
 // B overwrites A completely.
 A = { foo: 'bar' };
 B = { foo: 'baz' };
 C = { foo: 'baz' };
+Delta = { foo: 'baz' };
 
 // B partially overwrites A.
 A = { foo: 'bar', life: 42 };
 B = { foo: 'baz' };
 C = { foo: 'baz', life: 42 };
+Delta = { foo: 'baz' };
 ```
 
 ### Requesting permissions

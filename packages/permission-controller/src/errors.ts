@@ -6,8 +6,9 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 
+import type { CaveatConstraint } from './Caveat';
 import type { PermissionType } from './Permission';
-import type { PermissionsDiff } from './PermissionController';
+import type { PermissionDiffMap } from './PermissionController';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
@@ -111,14 +112,26 @@ export class CaveatMergerDoesNotExistError extends Error {
   }
 }
 
+export class InvalidEmptyCaveatMergeError extends Error {
+  constructor(caveatType: string) {
+    super(
+      `Merger with empty left-hand side of caveat "${caveatType}" produced undefined caveat or diff.`,
+    );
+  }
+}
+
 export class InvalidMergedPermissionsError extends Error {
   public cause: Error;
 
   public data: {
-    diff: PermissionsDiff;
+    diff: PermissionDiffMap<string, CaveatConstraint>;
   };
 
-  constructor(origin: string, cause: Error, diff: PermissionsDiff) {
+  constructor(
+    origin: string,
+    cause: Error,
+    diff: PermissionDiffMap<string, CaveatConstraint>,
+  ) {
     super(
       `Invalid merged permissions for subject "${origin}":\n${cause.message}`,
     );

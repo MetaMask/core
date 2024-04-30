@@ -107,34 +107,48 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
 ) => void;
 
 /**
- * A function that merges two caveats of the same type. The values
- * must be merged in the fashion of a right-biased union.
- *
- * @see `ARCHITECTURE.md` for more details.
- * @template ParentCaveat - The caveat type associated with this merger.
- * @param leftCaveat - The left-hand caveat.
- * @param rightCaveat - The right-hand caveat.
- * @returns The merged caveat.
+ * The diff between two caveat values, expressed in the caveat's value type.
  */
-export type CaveatMerger<ParentCaveat extends CaveatConstraint> = (
-  leftCaveat: ParentCaveat,
-  rightCaveat: ParentCaveat,
-) => ParentCaveat;
+export type CaveatDiff<Value extends Json> = Value;
 
 /**
- * A function that merges two caveat values of the same type. The values
- * must be merged in the fashion of a right-biased union.
+ * A map of caveat type strings to {@link CaveatDiff} values.
+ */
+export type CaveatDiffMap<ParentCaveat extends CaveatConstraint> = {
+  [CaveatType in ParentCaveat['type']]: CaveatDiff<ParentCaveat['value']>;
+};
+
+/**
+ * A function that merges two caveat values of the same type. The values must be
+ * merged in the fashion of a right-biased union, and the implementation must
+ * handle the possibility that the left-hand side is undefined.
  *
  * @see `ARCHITECTURE.md` for more details.
  * @template Value - The type of the values to merge.
  * @param leftValue - The left-hand value.
  * @param rightValue - The right-hand value.
- * @returns The merged value.
+ * @returns The merged value and the diff between the result and the left value.
  */
 export type CaveatValueMerger<Value extends Json> = (
-  leftValue: Value,
+  leftValue: Value | undefined,
   rightValue: Value,
-) => Value;
+) => [Value, CaveatDiff<Value>] | [];
+
+/**
+ * A function that merges two caveats of the same type. The caveats must be merged
+ * in the fashion of a right-biased union, and the implementation must handle the
+ * possibility that the left-hand side is undefined.
+ *
+ * @see `ARCHITECTURE.md` for more details.
+ * @template ParentCaveat - The caveat type associated with this merger.
+ * @param leftCaveat - The left-hand caveat.
+ * @param rightCaveat - The right-hand caveat.
+ * @returns The merged caveat and the diff between the result and the left caveat.
+ */
+export type CaveatMerger<ParentCaveat extends CaveatConstraint> = (
+  leftCaveat: ParentCaveat | undefined,
+  rightCaveat: ParentCaveat,
+) => [ParentCaveat, CaveatDiff<ParentCaveat['value']>] | [];
 
 /**
  * Makes a {@link CaveatMerger} function for a specific caveat type.
@@ -146,19 +160,26 @@ export type CaveatValueMerger<Value extends Json> = (
 export function makeCaveatMerger<ParentCaveat extends CaveatConstraint>(
   mergeValues: CaveatValueMerger<ParentCaveat['value']>,
 ): CaveatMerger<ParentCaveat> {
-  return (leftCaveat: ParentCaveat, rightCaveat: ParentCaveat) => {
+  return (leftCaveat: ParentCaveat | undefined, rightCaveat: ParentCaveat) => {
     // It should be impossible for this to happen via the permission controller's
     // API, but it's a small price to pay for sound sleep.
-    if (leftCaveat.type !== rightCaveat.type) {
+    if (leftCaveat !== undefined && leftCaveat.type !== rightCaveat.type) {
       throw new Error(
         `Cannot merge caveats of different types: "${leftCaveat.type}" and "${rightCaveat.type}".`,
       );
     }
 
-    return {
-      type: leftCaveat.type,
-      value: mergeValues(leftCaveat.value, rightCaveat.value),
-    } as ParentCaveat;
+    const [value, diff] = mergeValues(leftCaveat?.value, rightCaveat.value);
+
+    return value !== undefined && diff !== undefined
+      ? [
+          {
+            type: rightCaveat.type,
+            value,
+          } as ParentCaveat,
+          diff,
+        ]
+      : [];
   };
 }
 

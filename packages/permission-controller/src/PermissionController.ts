@@ -24,12 +24,13 @@ import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
-import type { Patch } from 'immer';
-import { castDraft, produceWithPatches, type Draft } from 'immer';
+import { castDraft, produce as immerProduce, type Draft } from 'immer';
 import { nanoid } from 'nanoid';
 
 import type {
   CaveatConstraint,
+  CaveatDiffMap,
+  CaveatMerger,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
   ExtractCaveat,
@@ -56,6 +57,7 @@ import {
   InvalidCaveatFieldsError,
   InvalidCaveatsPropertyError,
   InvalidCaveatTypeError,
+  InvalidEmptyCaveatMergeError,
   InvalidMergedPermissionsError,
   invalidParams,
   InvalidSubjectIdentifierError,
@@ -111,21 +113,30 @@ export type PermissionsRequestMetadata = PermissionSubjectMetadata & {
 /**
  * A diff produced by an incremental permissions request.
  */
-export type PermissionsDiff = (Omit<Patch, 'value'> & { value: Json })[];
+export type PermissionDiffMap<
+  TargetName extends string,
+  AllowedCaveats extends CaveatConstraint,
+> = Record<TargetName, CaveatDiffMap<AllowedCaveats>>;
 
 /**
  * Used for prompting the user about a proposed new permission.
- * Includes information about the grantee subject, requested permissions, and
- * any additional information added by the consumer.
+ * Includes information about the grantee subject, requested permissions, the
+ * diff relative to the previously granted permissions (if relevant), and any
+ * additional information added by the consumer.
  *
- * All properties except `permissions` are passed to any factories found for
- * the requested permissions.
+ * All properties except `diff` and `permissions` are passed to any factories
+ * for the requested permissions.
  */
 export type PermissionsRequest = {
   metadata: PermissionsRequestMetadata;
   permissions: RequestedPermissions;
   [key: string]: Json;
-} & { diff?: PermissionsDiff };
+} & {
+  diff?: {
+    currentPermissions: SubjectPermissions<PermissionConstraint>;
+    permissionDiffMap: PermissionDiffMap<string, CaveatConstraint>;
+  };
+};
 
 /**
  * Metadata associated with an approved permission request.
@@ -676,6 +687,24 @@ export class PermissionController<
     CaveatType extends ControllerCaveatSpecification['type'],
   >(caveatType: CaveatType) {
     return this._caveatSpecifications[caveatType];
+  }
+
+  /**
+   * Gets the merger function for the specified caveat. Throws if no
+   * merger exists.
+   *
+   * @param caveatType - The type of the caveat whose merger to get.
+   * @returns The caveat merger function for the specified caveat type.
+   */
+  #expectGetCaveatMerger<
+    CaveatType extends ControllerCaveatSpecification['type'],
+  >(caveatType: CaveatType): CaveatMerger<CaveatConstraint> {
+    const { merger } = this.getCaveatSpecification(caveatType);
+
+    if (merger === undefined) {
+      throw new CaveatMergerDoesNotExistError(caveatType);
+    }
+    return merger;
   }
 
   /**
@@ -1905,7 +1934,7 @@ export class PermissionController<
       origin,
     };
 
-    const permissionsRequest = {
+    const permissionsRequest: PermissionsRequest = {
       metadata,
       permissions: requestedPermissions,
     };
@@ -1962,19 +1991,31 @@ export class PermissionController<
     const { id = nanoid() } = options;
     this.validateRequestedPermissions(origin, requestedPermissions);
 
-    const [newPermissions, permissionsDiff] = this.#mergeIncrementalPermissions(
-      origin,
-      requestedPermissions,
-    );
+    const currentPermissions = this.getPermissions(origin) ?? {};
+    const [newPermissions, permissionDiffMap] =
+      this.#mergeIncrementalPermissions(
+        currentPermissions,
+        requestedPermissions,
+      );
+
+    // The second undefined check is just for type narrowing purposes. These values
+    // will always be jointly defined or undefined.
+    if (newPermissions === undefined || permissionDiffMap === undefined) {
+      return [];
+    }
 
     try {
       // It does not spark joy to run this validation again after the merger operation.
-      // But, doing something about it is probably not worth it, especially considering
-      // that the worst-case scenario for validation is precisely as bad as this.
+      // But, optimizing this procedure is probably not worth it, especially considering
+      // that the worst-case scenario for validation degrades to the below function call.
       this.validateRequestedPermissions(origin, newPermissions);
     } catch (error) {
       if (error instanceof Error) {
-        throw new InvalidMergedPermissionsError(origin, error, permissionsDiff);
+        throw new InvalidMergedPermissionsError(
+          origin,
+          error,
+          permissionDiffMap,
+        );
       }
       /* istanbul ignore next: This should be impossible */
       throw internalError('Unrecognized error type', { error });
@@ -1986,10 +2027,13 @@ export class PermissionController<
       origin,
     };
 
-    const permissionsRequest = {
+    const permissionsRequest: PermissionsRequest = {
       metadata,
       permissions: newPermissions,
-      diff: permissionsDiff,
+      diff: {
+        currentPermissions,
+        permissionDiffMap,
+      },
     };
 
     const approvedRequest = await this.requestUserApproval(permissionsRequest);
@@ -2070,18 +2114,33 @@ export class PermissionController<
    * permissions are the left-hand side, and the incrementally requested permissions are
    * the right-hand side.
    *
-   * @param origin - The origin of the subject.
+   * @param existingPermissions - The subject's existing permissions.
    * @param incrementalRequestedPermissions - The requested permissions to merge.
    * @returns The merged permissions and the resulting diff.
    */
   #mergeIncrementalPermissions(
-    origin: OriginString,
+    existingPermissions: Exclude<
+      ReturnType<typeof this.getPermissions>,
+      undefined
+    >,
     incrementalRequestedPermissions: RequestedPermissions,
-  ) {
-    const [newPermissions, permissionsDiff] = produceWithPatches(
-      this.getPermissions(origin) ?? {},
-      (existingPermissions) => {
-        const leftPermissions = existingPermissions as RequestedPermissions;
+  ):
+    | [
+        SubjectPermissions<
+          ValidPermission<string, ExtractCaveats<ControllerCaveatSpecification>>
+        >,
+        PermissionDiffMap<string, CaveatConstraint>,
+      ]
+    | [] {
+    const permissionDiffMap: PermissionDiffMap<string, CaveatConstraint> = {};
+
+    // Use immer's produce as a convenience for calculating the new permissions
+    // without mutating the existing permissions or committing the results to state.
+    const newPermissions = immerProduce(
+      existingPermissions,
+      (draftExistingPermissions) => {
+        const leftPermissions =
+          draftExistingPermissions as RequestedPermissions;
 
         Object.entries(incrementalRequestedPermissions).forEach(
           ([targetName, rightPermission]) => {
@@ -2092,26 +2151,41 @@ export class PermissionController<
                 targetName,
               )
             ) {
-              leftPermissions[targetName] = rightPermission;
-            } else {
-              const leftPermission = leftPermissions[targetName];
-              leftPermissions[targetName] = this.#mergePermission(
-                leftPermission,
+              const [newPermission, caveatsDiff] = this.#mergePermission(
+                {},
                 rightPermission,
               );
+
+              leftPermissions[targetName] = newPermission;
+              permissionDiffMap[targetName] = caveatsDiff;
+            } else {
+              const [newPermission, caveatsDiff] = this.#mergePermission(
+                leftPermissions[targetName],
+                rightPermission,
+              );
+
+              if (Object.keys(caveatsDiff).length > 0) {
+                leftPermissions[targetName] = newPermission;
+                permissionDiffMap[targetName] = caveatsDiff;
+              }
+              // Otherwise, leave the left permission as-is; its authority has
+              // not changed.
             }
           },
         );
       },
     );
 
-    return [newPermissions, permissionsDiff as PermissionsDiff] as const;
+    if (Object.keys(permissionDiffMap).length === 0) {
+      return [];
+    }
+    return [newPermissions, permissionDiffMap];
   }
 
   /**
    * Performs a right-biased union between two permissions. The task of merging caveats
-   * with the same type between the two permissions is delegated to the corresponding
-   * caveat's merger implementation.
+   * of the same type between the two permissions is delegated to the corresponding
+   * caveat type's merger implementation.
    *
    * Throws if the left-hand and right-hand permissions both have a caveat whose
    * specification does not provide a caveat merger function.
@@ -2123,39 +2197,62 @@ export class PermissionController<
   #mergePermission(
     leftPermission: Partial<PermissionConstraint>,
     rightPermission: Partial<PermissionConstraint>,
-  ) {
-    const { caveatPairs, uniqueCaveats } = this.#collectUniqueAndPairedCaveats(
-      leftPermission,
-      rightPermission,
+  ): [Partial<PermissionConstraint>, CaveatDiffMap<CaveatConstraint>] {
+    const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
+      this.#collectUniqueAndPairedCaveats(leftPermission, rightPermission);
+
+    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce(
+      ([caveats, diffMap], [leftCaveat, rightCaveat]) => {
+        const merger = this.#expectGetCaveatMerger(leftCaveat.type);
+
+        const [newCaveat, diff] = merger(leftCaveat, rightCaveat);
+        if (newCaveat !== undefined && diff !== undefined) {
+          caveats.push(newCaveat);
+          diffMap[newCaveat.type] = diff;
+        } else {
+          caveats.push(leftCaveat);
+        }
+
+        return [caveats, diffMap];
+      },
+      [[], {}] as [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>],
     );
 
-    const mergedCaveats = caveatPairs.map(([leftCaveat, rightCaveat]) => {
-      const { merger } = this.getCaveatSpecification(leftCaveat.type);
-      if (!merger) {
-        throw new CaveatMergerDoesNotExistError(leftCaveat.type);
-      }
+    const mergedRightUniqueCaveats = rightUniqueCaveats.map((caveat) => {
+      const merger = this.#expectGetCaveatMerger(caveat.type);
+      const [newCaveat, diff] = merger(undefined, caveat);
 
-      return merger(leftCaveat, rightCaveat);
+      if (newCaveat !== undefined && diff !== undefined) {
+        caveatDiffMap[newCaveat.type] = diff;
+        return newCaveat;
+      }
+      throw new InvalidEmptyCaveatMergeError(caveat.type);
     });
 
-    const allCaveats = [...mergedCaveats, ...uniqueCaveats];
+    const allCaveats = [
+      ...mergedCaveats,
+      ...leftUniqueCaveats,
+      ...mergedRightUniqueCaveats,
+    ];
 
-    return {
+    const newPermission = {
       ...leftPermission,
       ...rightPermission,
       ...(allCaveats.length > 0
         ? { caveats: allCaveats as NonEmptyArray<CaveatConstraint> }
         : {}),
     };
+
+    return [newPermission, caveatDiffMap];
   }
 
   /**
-   * Given two permission objects, computes two sets:
-   * - The set of caveats that are unique to either permission.
+   * Given two permission objects, computes 3 sets:
    * - The set of caveat pairs that are common to both permissions.
+   * - The set of caveats that are unique to the existing permission.
+   * - The set of caveats that are unique to the requested permission.
    *
-   * Assumes that the caveat arrays of both permissions do not contain duplicate
-   * caveats.
+   * Assumes that the caveat arrays of both permissions are valid.
    *
    * @param leftPermission - The left-hand permission.
    * @param rightPermission - The right-hand permission.
@@ -2167,26 +2264,27 @@ export class PermissionController<
   ) {
     const leftCaveats = leftPermission.caveats ?? [];
     const rightCaveats = rightPermission.caveats ?? [];
-    const uniqueCaveats: CaveatConstraint[] = [];
+    const leftUniqueCaveats: CaveatConstraint[] = [];
     const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];
 
-    // Collect unique caveats and caveat pairs
     leftCaveats.forEach((leftCaveat) => {
       const rightCaveatIndex = rightCaveats.findIndex(
         (rightCaveat) => rightCaveat.type === leftCaveat.type,
       );
 
       if (rightCaveatIndex === -1) {
-        uniqueCaveats.push(leftCaveat);
+        leftUniqueCaveats.push(leftCaveat);
       } else {
         caveatPairs.push([leftCaveat, rightCaveats[rightCaveatIndex]]);
         rightCaveats.splice(rightCaveatIndex, 1);
       }
     });
 
-    uniqueCaveats.push(...rightCaveats);
-
-    return { caveatPairs, uniqueCaveats };
+    return {
+      caveatPairs,
+      leftUniqueCaveats,
+      rightUniqueCaveats: [...rightCaveats],
+    };
   }
 
   /**
