@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Removed fee history fallback ([#4210](https://github.com/MetaMask/core/pull/4210))
+- Remove fee history fallback in favour of `eth_gasPrice` call ([#4210](https://github.com/MetaMask/core/pull/4210))
 
 ## [15.1.0]
 
