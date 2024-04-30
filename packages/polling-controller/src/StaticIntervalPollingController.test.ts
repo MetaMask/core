@@ -1,9 +1,9 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { createDeferredPromise } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
 import { StaticIntervalPollingController } from './StaticIntervalPollingController';
-import { createDeferredPromise } from '@metamask/utils';
 
 const TICK_TIME = 5;
 
@@ -18,18 +18,18 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any
 > {
-  executePollPromises: Array<{reject: (err: unknown) => void, resolve: () => void}> = []
+  executePollPromises: {
+    reject: (err: unknown) => void;
+    resolve: () => void;
+  }[] = [];
+
   _executePoll = jest.fn().mockImplementation(() => {
-    const {
-      promise,
-      reject,
-      resolve,
-    } = createDeferredPromise({
+    const { promise, reject, resolve } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
-    this.executePollPromises.push({reject, resolve})
-    return promise
-  })
+    this.executePollPromises.push({ reject, resolve });
+    return promise;
+  });
 }
 
 describe('StaticIntervalPollingController', () => {
@@ -56,7 +56,7 @@ describe('StaticIntervalPollingController', () => {
 
   afterEach(() => {
     clock.restore();
-    controller.executePollPromises = []
+    controller.executePollPromises = [];
   });
 
   describe('startPollingByNetworkClientId', () => {
@@ -64,7 +64,7 @@ describe('StaticIntervalPollingController', () => {
       controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      controller.executePollPromises[0].resolve()
+      controller.executePollPromises[0].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
       controller.stopAllPolling();
@@ -78,11 +78,11 @@ describe('StaticIntervalPollingController', () => {
       await advanceTime({ clock, duration: 0 });
 
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      controller.executePollPromises[0].resolve()
+      controller.executePollPromises[0].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
-      controller.executePollPromises[1].resolve()
+      controller.executePollPromises[1].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
-      controller.executePollPromises[2].resolve()
+      controller.executePollPromises[2].resolve();
 
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
       controller.stopAllPolling();
@@ -101,8 +101,8 @@ describe('StaticIntervalPollingController', () => {
           ['rinkeby', {}],
         ]);
 
-        controller.executePollPromises[0].resolve()
-        controller.executePollPromises[1].resolve()
+        controller.executePollPromises[0].resolve();
+        controller.executePollPromises[1].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -112,8 +112,8 @@ describe('StaticIntervalPollingController', () => {
           ['rinkeby', {}],
         ]);
 
-        controller.executePollPromises[2].resolve()
-        controller.executePollPromises[3].resolve()
+        controller.executePollPromises[2].resolve();
+        controller.executePollPromises[3].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -135,7 +135,7 @@ describe('StaticIntervalPollingController', () => {
         expect(controller._executePoll.mock.calls).toMatchObject([
           ['mainnet', {}],
         ]);
-        controller.executePollPromises[0].resolve()
+        controller.executePollPromises[0].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         controller.startPollingByNetworkClientId('sepolia');
@@ -146,7 +146,7 @@ describe('StaticIntervalPollingController', () => {
           ['sepolia', {}],
         ]);
 
-        controller.executePollPromises[1].resolve()
+        controller.executePollPromises[1].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -155,7 +155,7 @@ describe('StaticIntervalPollingController', () => {
           ['mainnet', {}],
         ]);
 
-        controller.executePollPromises[2].resolve()
+        controller.executePollPromises[2].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -165,7 +165,7 @@ describe('StaticIntervalPollingController', () => {
           ['sepolia', {}],
         ]);
 
-        controller.executePollPromises[3].resolve()
+        controller.executePollPromises[3].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -176,7 +176,7 @@ describe('StaticIntervalPollingController', () => {
           ['mainnet', {}],
         ]);
 
-        controller.executePollPromises[4].resolve()
+        controller.executePollPromises[4].resolve();
         await advanceTime({ clock, duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
@@ -196,7 +196,7 @@ describe('StaticIntervalPollingController', () => {
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
       await advanceTime({ clock, duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      controller.executePollPromises[0].resolve()
+      controller.executePollPromises[0].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
       controller.stopPollingByPollingToken(pollingToken);
       await advanceTime({ clock, duration: TICK_TIME });
@@ -210,10 +210,10 @@ describe('StaticIntervalPollingController', () => {
 
       controller.startPollingByNetworkClientId('mainnet');
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      controller.executePollPromises[0].resolve()
+      controller.executePollPromises[0].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
       controller.stopPollingByPollingToken(pollingToken1);
-      controller.executePollPromises[1].resolve()
+      controller.executePollPromises[1].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
       controller.stopAllPolling();
@@ -227,12 +227,12 @@ describe('StaticIntervalPollingController', () => {
       controller.stopAllPolling();
     });
 
-    // TODO: fix this
-    it.skip('should start and stop polling sessions for different networkClientIds with the same options', async () => {
+    it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
       controller.setIntervalLength(TICK_TIME);
       const pollToken1 = controller.startPollingByNetworkClientId('mainnet', {
         address: '0x1',
       });
+      await advanceTime({ clock, duration: 0 });
       controller.startPollingByNetworkClientId('mainnet', { address: '0x2' });
       await advanceTime({ clock, duration: 0 });
 
@@ -245,9 +245,9 @@ describe('StaticIntervalPollingController', () => {
         ['sepolia', { address: '0x2' }],
       ]);
 
-      controller.executePollPromises[0].resolve()
-      controller.executePollPromises[1].resolve()
-      controller.executePollPromises[2].resolve()
+      controller.executePollPromises[0].resolve();
+      controller.executePollPromises[1].resolve();
+      controller.executePollPromises[2].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
@@ -258,7 +258,12 @@ describe('StaticIntervalPollingController', () => {
         ['mainnet', { address: '0x2' }],
         ['sepolia', { address: '0x2' }],
       ]);
+      controller.executePollPromises[3].resolve();
+      await advanceTime({ clock, duration: 0 });
       controller.stopPollingByPollingToken(pollToken1);
+
+      controller.executePollPromises[4].resolve();
+      controller.executePollPromises[5].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
@@ -274,16 +279,16 @@ describe('StaticIntervalPollingController', () => {
     });
 
     // TODO: fix this
-    // it('should correctly stop the polling session immediately after it is started', async () => {
-    //   const pollingToken = controller.startPollingByNetworkClientId('mainnet');
-    //   clock.tick(0)
-    //   expect(controller._executePoll).toHaveBeenCalledTimes(1);
-    //   // await advanceTime({ clock, duration: 0 });
-    //   controller.stopPollingByPollingToken(pollingToken)
-    //   await advanceTime({ clock, duration: TICK_TIME });
-    //   expect(controller._executePoll).toHaveBeenCalledTimes(1);
-    //   controller.stopAllPolling();
-    // });
+    it.skip('should correctly stop the polling session immediately after it is started', async () => {
+      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      await advanceTime({ clock, duration: 0 });
+      controller.stopPollingByPollingToken(pollingToken);
+      controller.executePollPromises[0].resolve();
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      controller.stopAllPolling();
+    });
   });
 
   describe('onPollingCompleteByNetworkClientId', () => {
