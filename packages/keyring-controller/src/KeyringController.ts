@@ -124,11 +124,21 @@ export type KeyringControllerGetEncryptionPublicKeyAction = {
   handler: KeyringController['getEncryptionPublicKey'];
 };
 
+/**
+ * @deprecated Use of this method is discouraged as actions executed directly on
+ * keyrings are not being reflected in the KeyringController state and not
+ * persisted in the vault. Use `KeyringController:withKeyring` instead.
+ */
 export type KeyringControllerGetKeyringsByTypeAction = {
   type: `${typeof name}:getKeyringsByType`;
   handler: KeyringController['getKeyringsByType'];
 };
 
+/**
+ * @deprecated Use of this method is discouraged as actions executed directly on
+ * keyrings are not being reflected in the KeyringController state and not
+ * persisted in the vault. Use `KeyringController:withKeyring` instead.
+ */
 export type KeyringControllerGetKeyringForAccountAction = {
   type: `${typeof name}:getKeyringForAccount`;
   handler: KeyringController['getKeyringForAccount'];
@@ -139,6 +149,10 @@ export type KeyringControllerGetAccountsAction = {
   handler: KeyringController['getAccounts'];
 };
 
+/**
+ * @deprecated This action is being phased out in favor of
+ * `KeyringController:withKeyring`.
+ */
 export type KeyringControllerPersistAllKeyringsAction = {
   type: `${typeof name}:persistAllKeyrings`;
   handler: KeyringController['persistAllKeyrings'];
