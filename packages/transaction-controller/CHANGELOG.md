@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [28.1.1]
 
-### Uncategorized
+### Changed
+
+- Bump `@metamask/gas-fee-controller` to ^15.1.0 ([#4220](https://github.com/MetaMask/core/pull/4220))
+
+### Fixed
 
 - fix: simulation should handle NFT mints ([#4217](https://github.com/MetaMask/core/pull/4217))
-- Release/144.0.0 ([#4220](https://github.com/MetaMask/core/pull/4220))
 
 ## [28.1.0]
 
