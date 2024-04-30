@@ -13,10 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
 
-### Fixed
-
-- Fix misnamed parameter name ([#4108](https://github.com/MetaMask/core/pull/4108))
-
 ## [5.0.1]
 
 ### Fixed
