@@ -364,6 +364,15 @@ export type ExportableKeyEncryptor = GenericEncryptor & {
   importKey: (key: string) => Promise<unknown>;
 };
 
+export type KeyringSelector =
+  | {
+      type: string;
+      index?: number;
+    }
+  | {
+      address: Hex;
+    };
+
 /**
  * A function executed within a mutually exclusive lock, with
  * a mutex releaser in its option bag.
@@ -845,7 +854,7 @@ export class KeyringController extends BaseController<
    *
    * @deprecated Use of this method is discouraged as actions executed directly on
    * keyrings are not being reflected in the KeyringController state and not
-   * persisted in the vault.
+   * persisted in the vault. Use `withKeyring` instead.
    * @param account - An account address.
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
@@ -888,7 +897,7 @@ export class KeyringController extends BaseController<
    *
    * @deprecated Use of this method is discouraged as actions executed directly on
    * keyrings are not being reflected in the KeyringController state and not
-   * persisted in the vault.
+   * persisted in the vault. Use `withKeyring` instead.
    * @param type - Keyring type name.
    * @returns An array of keyrings of the given type.
    */
@@ -899,6 +908,7 @@ export class KeyringController extends BaseController<
   /**
    * Persist all serialized keyrings in the vault.
    *
+   * @deprecated This method is being phased out in favor of `withKeyring`.
    * @returns Promise resolving with `true` value when the
    * operation completes.
    */
@@ -1297,6 +1307,110 @@ export class KeyringController extends BaseController<
     });
 
     return seedWords;
+  }
+
+  /**
+   * Select a keyring and execute the given operation with
+   * the selected keyring, as a mutually exclusive atomic
+   * operation.
+   *
+   * The method automatically persists changes at the end of the
+   * function execution, or rolls back the changes if an error
+   * is thrown.
+   *
+   * @param selector - Keyring selector object.
+   * @param operation - Function to execute with the selected keyring.
+   * @param options - Additional options.
+   * @param options.createIfMissing - Whether to create a new keyring if the selected one is missing.
+   * @param options.createWithData - Optional data to use when creating a new keyring.
+   * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   * @deprecated This method overload is deprecated. Use `withKeyring` without options instead.
+   */
+  async withKeyring<
+    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    // eslint-disable-next-line @typescript-eslint/unified-signatures
+    options:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown },
+  ): Promise<CallbackResult>;
+
+  /**
+   * Select a keyring and execute the given operation with
+   * the selected keyring, as a mutually exclusive atomic
+   * operation.
+   *
+   * The method automatically persists changes at the end of the
+   * function execution, or rolls back the changes if an error
+   * is thrown.
+   *
+   * @param selector - Keyring selector object.
+   * @param operation - Function to execute with the selected keyring.
+   * @returns Promise resolving to the result of the function execution.
+   * @template SelectedKeyring - The type of the selected keyring.
+   * @template CallbackResult - The type of the value resolved by the callback function.
+   */
+  async withKeyring<
+    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+  ): Promise<CallbackResult>;
+
+  async withKeyring<
+    SelectedKeyring extends EthKeyring<Json> = EthKeyring<Json>,
+    CallbackResult = void,
+  >(
+    selector: KeyringSelector,
+    operation: (keyring: SelectedKeyring) => Promise<CallbackResult>,
+    options:
+      | { createIfMissing?: false }
+      | { createIfMissing: true; createWithData?: unknown } = {
+      createIfMissing: false,
+    },
+  ): Promise<CallbackResult> {
+    return this.#persistOrRollback(async () => {
+      let keyring: SelectedKeyring | undefined;
+
+      if ('address' in selector) {
+        keyring = (await this.getKeyringForAccount(selector.address)) as
+          | SelectedKeyring
+          | undefined;
+      } else {
+        keyring = this.getKeyringsByType(selector.type)[selector.index || 0] as
+          | SelectedKeyring
+          | undefined;
+
+        if (!keyring && options.createIfMissing) {
+          keyring = (await this.#newKeyring(
+            selector.type,
+            options.createWithData,
+          )) as SelectedKeyring;
+        }
+      }
+
+      if (!keyring) {
+        throw new Error(KeyringControllerError.KeyringNotFound);
+      }
+
+      const result = await operation(keyring);
+
+      if (Object.is(result, keyring)) {
+        // Access to a keyring instance outside of controller safeguards
+        // should be discouraged, as it can lead to unexpected behavior.
+        // This error is thrown to prevent consumers using `withKeyring`
+        // as a way to get a reference to a keyring instance.
+        throw new Error(KeyringControllerError.UnsafeDirectKeyringAccess);
+      }
+
+      return result;
+    });
   }
 
   // QR Hardware related methods
