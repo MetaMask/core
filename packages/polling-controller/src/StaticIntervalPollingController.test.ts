@@ -56,7 +56,6 @@ describe('StaticIntervalPollingController', () => {
 
   afterEach(() => {
     clock.restore();
-    controller.executePollPromises = [];
   });
 
   describe('startPollingByNetworkClientId', () => {
@@ -228,7 +227,6 @@ describe('StaticIntervalPollingController', () => {
     });
 
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
-      controller.setIntervalLength(TICK_TIME);
       const pollToken1 = controller.startPollingByNetworkClientId('mainnet', {
         address: '0x1',
       });
@@ -258,10 +256,8 @@ describe('StaticIntervalPollingController', () => {
         ['mainnet', { address: '0x2' }],
         ['sepolia', { address: '0x2' }],
       ]);
-      controller.executePollPromises[3].resolve();
-      await advanceTime({ clock, duration: 0 });
       controller.stopPollingByPollingToken(pollToken1);
-
+      controller.executePollPromises[3].resolve();
       controller.executePollPromises[4].resolve();
       controller.executePollPromises[5].resolve();
       await advanceTime({ clock, duration: TICK_TIME });
@@ -278,13 +274,14 @@ describe('StaticIntervalPollingController', () => {
       ]);
     });
 
-    // TODO: fix this
-    it.skip('should correctly stop the polling session immediately after it is started', async () => {
+    it('should stop polling session after current iteration if stop is requested while current iteration is still executing', async () => {
       const pollingToken = controller.startPollingByNetworkClientId('mainnet');
-      expect(controller._executePoll).toHaveBeenCalledTimes(1);
       await advanceTime({ clock, duration: 0 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
       controller.stopPollingByPollingToken(pollingToken);
       controller.executePollPromises[0].resolve();
+      await advanceTime({ clock, duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
       await advanceTime({ clock, duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
       controller.stopAllPolling();
