@@ -7,7 +7,8 @@ import {
   UnsupportedAuthTypeError,
   ValidationError,
 } from './errors';
-import { MESSAGE_SIGNING_SNAP } from './messaging-signing-snap';
+import { getMetaMaskProviderEIP6963 } from './utils/eip-6963-metamask-provider';
+import { MESSAGE_SIGNING_SNAP } from './utils/messaging-signing-snap-requests';
 
 const SESSION_LIFETIME_MS = 45 * 60 * 1000; // 45 minutes in milliseconds
 
@@ -144,29 +145,43 @@ export abstract class BaseAuth {
   public async signMessage(message: string): Promise<string> {
     if (this.options.signing) {
       return this.options.signing.signMessage(message);
-    } else if (!this.options.signing && this.config.type === AuthType.SiWE) {
+    }
+
+    if (!this.options.signing && this.config.type === AuthType.SiWE) {
       throw new ValidationError(
         'SiWE login requires signMessage callback to be set',
       );
     }
 
-    // in order to use the automatic message signing snap,
-    // all messages have to start with "metamask:" prefix
+    // Use built-in signing mechanism
+    const provider = await getMetaMaskProviderEIP6963();
+    if (!provider) {
+      throw new ValidationError('No MetaMask wallet connected');
+    }
+
     if (!message.startsWith('metamask:')) {
       throw new ValidationError('message must start with "metamask:"');
     }
 
     const formattedMessage = message as `metamask:${string}`;
-    return MESSAGE_SIGNING_SNAP.signMessage(formattedMessage);
+    return await MESSAGE_SIGNING_SNAP.signMessage(provider, formattedMessage);
   }
 
   public async getIdentifier(): Promise<string> {
     if (this.options.signing) {
       return this.options.signing.getIdentifier();
-    } else if (this.config.type === AuthType.SiWE) {
+    }
+
+    if (this.config.type === AuthType.SiWE) {
       return this.siweLogin?.address || '';
     }
-    return MESSAGE_SIGNING_SNAP.getPublicKey();
+
+    // Use built-in signing mechanism
+    const provider = await getMetaMaskProviderEIP6963();
+    if (!provider) {
+      throw new ValidationError('No MetaMask wallet connected');
+    }
+    return await MESSAGE_SIGNING_SNAP.getPublicKey(provider);
   }
 
   public initialize(login: SiweLogin) {

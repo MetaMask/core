@@ -1,8 +1,5 @@
+import type { MockVariable } from './__fixtures__/test-utils';
 import { getEnvUrls, Env } from './env';
-
-// We are mocking fields with ANY to test runtime safety.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type MockVariable = any;
 
 describe('getEnvUrls', () => {
   it('should return URLs if given a valid environment', () => {

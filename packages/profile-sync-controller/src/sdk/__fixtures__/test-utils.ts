@@ -2,6 +2,10 @@ import type { AuthSigningOptions, AuthStorageOptions } from '../authentication';
 import { AuthType, JwtBearerAuth } from '../authentication';
 import { Env } from '../env';
 
+// Alias mocking variables with ANY to test runtime safety.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type MockVariable = any;
+
 // Utility for mocking, the generics will constrain values
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const typedMockFn = <Fn extends (...args: any[]) => any>() =>

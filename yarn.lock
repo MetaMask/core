@@ -2728,7 +2728,7 @@ __metadata:
     deepmerge: ^4.2.2
     ethers: ^6.12.0
     jest: ^27.5.1
-    jest-environment-node: ^27.5.1
+    jest-environment-jsdom: ^27.5.1
     nock: ^13.5.4
     siwe: ^2.3.2
     ts-jest: ^27.1.4
@@ -6540,8 +6540,8 @@ __metadata:
   linkType: hard
 
 "ethers@npm:^6.12.0":
-  version: 6.12.0
-  resolution: "ethers@npm:6.12.0"
+  version: 6.12.1
+  resolution: "ethers@npm:6.12.1"
   dependencies:
     "@adraffy/ens-normalize": 1.10.1
     "@noble/curves": 1.2.0
@@ -6550,7 +6550,7 @@ __metadata:
     aes-js: 4.0.0-beta.5
     tslib: 2.4.0
     ws: 8.5.0
-  checksum: a9fa6937f57be00f217cac045752113f0be6ecbef77b90d653202f4127930023e86d20f06631cc4114bdbcf28fcb7dcb5244a88e2e430df1dfcb623e93c23366
+  checksum: ddf398c91f584b9e643740ec17a9c82b4a1c4ea3fb6efd00f1a043b89d1ec6f9427aa80894f75850ee805722e91b8d054bce18579a2c621226302c096774df90
   languageName: node
   linkType: hard
 
