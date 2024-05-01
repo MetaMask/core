@@ -50,6 +50,7 @@ import { v1 as random } from 'uuid';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
+import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
@@ -70,6 +71,7 @@ import type {
   SecurityAlertResponse,
   GasFeeFlow,
   SimulationData,
+  GasFeeEstimates,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -233,7 +235,7 @@ export type TransactionControllerActions = TransactionControllerGetStateAction;
  * @property isResubmitEnabled - Whether transaction publishing is automatically retried.
  */
 export type PendingTransactionOptions = {
-  isResubmitEnabled?: boolean;
+  isResubmitEnabled?: () => boolean;
 };
 
 /**
@@ -875,8 +877,9 @@ export class TransactionController extends BaseController<
       },
     });
 
-    gasFeePoller.hub.on('transaction-updated', (transactionMeta) =>
-      this.#updateTransactionInternal(transactionMeta, { skipHistory: true }),
+    gasFeePoller.hub.on(
+      'transaction-updated',
+      this.#onGasFeePollerTransactionUpdate.bind(this),
     );
 
     // when transactionsController state changes
@@ -895,6 +898,7 @@ export class TransactionController extends BaseController<
     });
 
     this.onBootCleanup();
+    this.#checkForPendingTransactionAndStartPolling();
   }
 
   /**
@@ -1552,10 +1556,12 @@ export class TransactionController extends BaseController<
    * @param note - A note or update reason to include in the transaction history.
    */
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
-    this.#updateTransactionInternal(transactionMeta, {
-      note,
-      skipHistory: this.isHistoryDisabled,
-    });
+    const { id: transactionId } = transactionMeta;
+
+    this.#updateTransactionInternal(
+      { transactionId, note, skipHistory: this.isHistoryDisabled },
+      () => ({ ...transactionMeta }),
+    );
   }
 
   /**
@@ -2258,23 +2264,28 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Utility method to get the layer 1 gas fee for given transaction params.
+   * Determine the layer 1 gas fee for the given transaction parameters.
    *
-   * @param chainId - Estimated transaction chainId.
-   * @param networkClientId - Estimated transaction networkClientId.
-   * @param transactionParams - The transaction params to estimate layer 1 gas fee for.
+   * @param request - The request object.
+   * @param request.transactionParams - The transaction parameters to estimate the layer 1 gas fee for.
+   * @param request.chainId - The ID of the chain where the transaction will be executed.
+   * @param request.networkClientId - The ID of a specific network client to process the transaction.
    */
-  async getLayer1GasFee(
-    chainId: Hex,
-    networkClientId: NetworkClientId,
-    transactionParams: TransactionParams,
-  ): Promise<Hex | undefined> {
+  async getLayer1GasFee({
+    transactionParams,
+    chainId,
+    networkClientId,
+  }: {
+    transactionParams: TransactionParams;
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }): Promise<Hex | undefined> {
     const provider = this.#multichainTrackingHelper.getProvider({
       networkClientId,
       chainId,
     });
 
-    const layer1GasFee = await getTransactionLayer1GasFee({
+    return await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.layer1GasFeeFlows,
       provider,
       transactionMeta: {
@@ -2282,7 +2293,6 @@ export class TransactionController extends BaseController<
         chainId,
       } as TransactionMeta,
     });
-    return layer1GasFee;
   }
 
   private async signExternalTransaction(
@@ -3527,42 +3537,55 @@ export class TransactionController extends BaseController<
   }
 
   #getLayer1GasFeeFlows(): Layer1GasFeeFlow[] {
-    return [new OptimismLayer1GasFeeFlow()];
+    return [new OptimismLayer1GasFeeFlow(), new ScrollLayer1GasFeeFlow()];
   }
 
   #updateTransactionInternal(
-    transactionMeta: TransactionMeta,
-    { note, skipHistory }: { note?: string; skipHistory?: boolean },
+    {
+      transactionId,
+      note,
+      skipHistory,
+    }: { transactionId: string; note?: string; skipHistory?: boolean },
+    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ) {
-    const normalizedTransaction = {
-      ...transactionMeta,
-      txParams: normalizeTransactionParams(transactionMeta.txParams),
-    };
-
-    validateTxParams(normalizedTransaction.txParams);
-
-    const updatedTransactionParams = this.#checkIfTransactionParamsUpdated(
-      normalizedTransaction,
-    );
-
-    const transactionWithUpdatedHistory =
-      skipHistory === true
-        ? normalizedTransaction
-        : updateTransactionHistory(
-            normalizedTransaction,
-            note ?? 'Transaction updated',
-          );
+    let updatedTransactionParams: (keyof TransactionParams)[] = [];
 
     this.update((state) => {
       const index = state.transactions.findIndex(
-        ({ id }) => transactionMeta.id === id,
+        ({ id }) => id === transactionId,
       );
-      state.transactions[index] = transactionWithUpdatedHistory;
+
+      let transactionMeta = state.transactions[index];
+
+      // eslint-disable-next-line n/callback-return
+      transactionMeta = callback(transactionMeta) ?? transactionMeta;
+
+      transactionMeta.txParams = normalizeTransactionParams(
+        transactionMeta.txParams,
+      );
+
+      validateTxParams(transactionMeta.txParams);
+
+      updatedTransactionParams =
+        this.#checkIfTransactionParamsUpdated(transactionMeta);
+
+      if (skipHistory !== true) {
+        transactionMeta = updateTransactionHistory(
+          transactionMeta,
+          note ?? 'Transaction updated',
+        );
+      }
+
+      state.transactions[index] = transactionMeta;
     });
+
+    const transactionMeta = this.getTransaction(
+      transactionId,
+    ) as TransactionMeta;
 
     if (updatedTransactionParams.length > 0) {
       this.#onTransactionParamsUpdated(
-        normalizedTransaction,
+        transactionMeta,
         updatedTransactionParams,
       );
     }
@@ -3610,7 +3633,7 @@ export class TransactionController extends BaseController<
   }
 
   async #updateSimulationData(transactionMeta: TransactionMeta) {
-    const { id, chainId, txParams } = transactionMeta;
+    const { id: transactionId, chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
     let simulationData: SimulationData = {
@@ -3623,8 +3646,10 @@ export class TransactionController extends BaseController<
 
     if (this.#isSimulationEnabled()) {
       this.#updateTransactionInternal(
-        { ...transactionMeta, simulationData: undefined },
-        { skipHistory: true },
+        { transactionId, skipHistory: true },
+        (txMeta) => {
+          txMeta.simulationData = undefined;
+        },
       );
 
       simulationData = await getSimulationData({
@@ -3636,23 +3661,57 @@ export class TransactionController extends BaseController<
       });
     }
 
-    const finalTransactionMeta = this.getTransaction(id);
+    const finalTransactionMeta = this.getTransaction(transactionId);
 
     if (!finalTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
-        id,
+        transactionId,
         simulationData,
       );
 
       return;
     }
 
-    this.updateTransaction(
-      { ...finalTransactionMeta, simulationData },
-      'TransactionController#updateSimulationData - Update simulation data',
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateSimulationData - Update simulation data',
+      },
+      (txMeta) => {
+        txMeta.simulationData = simulationData;
+      },
     );
 
-    log('Updated simulation data', id, simulationData);
+    log('Updated simulation data', transactionId, simulationData);
+  }
+
+  #onGasFeePollerTransactionUpdate({
+    transactionId,
+    gasFeeEstimates,
+    gasFeeEstimatesLoaded,
+    layer1GasFee,
+  }: {
+    transactionId: string;
+    gasFeeEstimates?: GasFeeEstimates;
+    gasFeeEstimatesLoaded?: boolean;
+    layer1GasFee?: Hex;
+  }) {
+    this.#updateTransactionInternal(
+      { transactionId, skipHistory: true },
+      (txMeta) => {
+        if (gasFeeEstimates) {
+          txMeta.gasFeeEstimates = gasFeeEstimates;
+        }
+
+        if (gasFeeEstimatesLoaded !== undefined) {
+          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+        }
+
+        if (layer1GasFee) {
+          txMeta.layer1GasFee = layer1GasFee;
+        }
+      },
+    );
   }
 }
