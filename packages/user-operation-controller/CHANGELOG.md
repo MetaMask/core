@@ -14,7 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** Bump `@metamask/keyring-controller` peer dependency to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
 - Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
 - Bump `@metamask/transaction-controller` to `^28.1.1` ([#4229](https://github.com/MetaMask/core/pull/4229))
-- Bump `@metamask/gas-fee-controller` to `^15.1.0` ([#4220](https://github.com/MetaMask/core/pull/4220))
+- Bump `@metamask/gas-fee-controller` to `^15.1.1` ([#4220](https://github.com/MetaMask/core/pull/4220), [#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/approval-controller` to `^6.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/polling-controller` to `^6.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
 
 ## [8.0.1]
 
