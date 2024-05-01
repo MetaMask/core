@@ -27,7 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Changed `setLocked` return type to `Promise<void>`
   - Changed `submitEncryptionKey` return type to `Promise<void>`
   - Changed `submitPassword` return type to `Promise<void>`
-- Bump `@metamask/keyring-api` to 6.0.0, `@metamask/eth-snap-keyring` to 4.0.0 and snap dependencies ([#4193](https://github.com/MetaMask/core/pull/4193))
+- Bump `@metamask/keyring-api` to `^6.0.0` ([#4193](https://github.com/MetaMask/core/pull/4193))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
 
 ### Fixed
 

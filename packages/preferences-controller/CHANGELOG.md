@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.0]
 
+### Added
+
+- Export `ETHERSCAN_SUPPORTED_CHAIN_IDS` constant ([#4233](https://github.com/MetaMask/core/pull/4233))
+
 ### Changed
 
 - **BREAKING** Bump `@metamask/keyring-controller` to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
 
 ## [10.0.0]
 
