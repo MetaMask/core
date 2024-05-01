@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
+### Changed
+
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/keyring-api` to 6.0.0, `@metamask/eth-snap-keyring` to 4.0.0 and snap dependencies ([#4193](https://github.com/MetaMask/core/pull/4193))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
 ## [13.0.0]
 
 ### Changed
@@ -163,7 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@13.0.0...@metamask/accounts-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.1...@metamask/accounts-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.0...@metamask/accounts-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@11.0.0...@metamask/accounts-controller@12.0.0
