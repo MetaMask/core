@@ -58,11 +58,11 @@ export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
 } from './token-prices-service';
-export { BtcRateController } from './BtcRateController';
+export { RatesController } from './RatesController';
 export type {
-  BtcRateState,
-  BtcRateStateChange,
-  BtcRateControllerEvents,
-  GetBtcRateState,
-  BtcRateControllerActions,
-} from './BtcRateController';
+  RatesState,
+  RatesStateChange,
+  RatesControllerEvents,
+  GetRatesState,
+  RatesControllerActions,
+} from './RatesController';

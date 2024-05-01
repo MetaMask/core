@@ -10,7 +10,7 @@ import { fetchExchangeRate as defaultFetchExchangeRate } from '../crypto-compare
 /**
  * Represents the state structure for the BtcRateController.
  */
-export type BtcRateState = {
+export type RatesState = {
   currency: string;
   rates: Record<
     string,
@@ -22,32 +22,29 @@ export type BtcRateState = {
   >;
 };
 
-const name = 'BtcRateController';
+const name = 'RatesController';
 
 /**
  * Type definition for BtcRateController state change events.
  */
-export type BtcRateStateChange = ControllerStateChangeEvent<
+export type RatesStateChange = ControllerStateChangeEvent<
   typeof name,
-  BtcRateState
+  RatesState
 >;
 
-export type BtcRateControllerEvents = BtcRateStateChange;
+export type RatesControllerEvents = RatesStateChange;
 
 /**
  * Type definition for getting the BtcRateController.
  */
-export type GetBtcRateState = ControllerGetStateAction<
-  typeof name,
-  BtcRateState
->;
+export type GetRatesState = ControllerGetStateAction<typeof name, RatesState>;
 
-export type BtcRateControllerActions = GetBtcRateState;
+export type RatesControllerActions = GetRatesState;
 
-type BtcRateMessenger = RestrictedControllerMessenger<
+type RatesMessenger = RestrictedControllerMessenger<
   typeof name,
-  BtcRateControllerActions,
-  BtcRateControllerEvents,
+  RatesControllerActions,
+  RatesControllerEvents,
   never,
   never
 >;
@@ -70,12 +67,13 @@ const defaultState = {
 
 const DEFAULT_CURRENCIES = {
   btc: 'BTC',
+  sol: 'SOL',
 };
 
-export class BtcRateController extends BaseController<
+export class RatesController extends BaseController<
   typeof name,
-  BtcRateState,
-  BtcRateMessenger
+  RatesState,
+  RatesMessenger
 > {
   readonly #fetchExchangeRate;
 
@@ -112,8 +110,8 @@ export class BtcRateController extends BaseController<
   }: {
     includeUsdRate?: boolean;
     interval?: number;
-    messenger: BtcRateMessenger;
-    state?: Partial<BtcRateState>;
+    messenger: RatesMessenger;
+    state?: Partial<RatesState>;
     fetchExchangeRate?: typeof defaultFetchExchangeRate;
     onStart?: () => Promise<unknown>;
     onStop?: () => Promise<unknown>;
@@ -145,9 +143,12 @@ export class BtcRateController extends BaseController<
    */
   async #updateRates(): Promise<void> {
     const { currency } = this.state;
+    // const cryptoCurrencies: string =
+    //   Object.values(DEFAULT_CURRENCIES).join(',');
     const response = await this.#fetchExchangeRate(
       currency,
       DEFAULT_CURRENCIES.btc,
+      this.#includeUsdRate,
     );
     const { conversionRate, usdConversionRate } = response;
     this.update(() => {
