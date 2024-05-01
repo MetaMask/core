@@ -19,8 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING** Changed `NftDetectionController` constructor `options` argument ([#4178](https://github.com/MetaMask/core/pull/4178))
   - Added `options.disabled` and `options.selectedAddress` properties
 - **BREAKING** Bump `@metamask/keyring-controller` peer dependency to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
-- **BREAKING** Bump `@metamask/accounts-controller` peer dependency to ^14.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
-- **BREAKING** Bump `@metamask/preferences-controller` peer dependency to ^11.0.0 ([#4234](https://github.com/MetaMask/core/pull/4171))
+- **BREAKING** Bump `@metamask/accounts-controller` peer dependency to ^14.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
+- **BREAKING** Bump `@metamask/preferences-controller` peer dependency to ^11.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
 - Bump `@metamask/keyring-api` to `^6.0.0` ([#4193](https://github.com/MetaMask/core/pull/4193))
 - Lower number of tokens returned by API calls ([#4207](https://github.com/MetaMask/core/pull/4207))
   - Limit changed from `200` to `50`
