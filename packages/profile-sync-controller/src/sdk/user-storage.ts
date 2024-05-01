@@ -60,12 +60,6 @@ export class UserStorage {
 
   async #getStorageKey(): Promise<string> {
     const userProfile = await this.config.auth.getUserProfile();
-    if (!userProfile) {
-      throw new SignInError(
-        'unable to create storage key: user profile missing',
-      );
-    }
-
     const storageKey = await this.options.storage.getStorageKey();
     if (storageKey) {
       return storageKey;
@@ -102,12 +96,16 @@ export class UserStorage {
       });
 
       if (!response.ok) {
-        const responseBody = (await response.json()) as ErrorMessage;
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
         throw new Error(
           `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
         );
       }
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
@@ -151,6 +149,7 @@ export class UserStorage {
         throw e;
       }
 
+      /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
 

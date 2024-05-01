@@ -15,14 +15,14 @@ module.exports = merge(baseConfig, {
   displayName,
 
   // An object that configures minimum threshold enforcement for coverage results
-  // coverageThreshold: {
-  //   global: {
-  //     branches: 100,
-  //     functions: 100,
-  //     lines: 100,
-  //     statements: 100,
-  //   },
-  // },
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
 
   // These tests rely on the Crypto API
   testEnvironment: '<rootDir>/jest.environment.js',

@@ -1,4 +1,4 @@
-export enum Env {
+export const enum Env {
   DEV = 'dev',
   UAT = 'uat',
   PRD = 'prd',

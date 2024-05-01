@@ -1,5 +1,9 @@
-import type { AuthSigningOptions, AuthStorageOptions } from '../authentication';
-import { AuthType, JwtBearerAuth } from '../authentication';
+import type {
+  AuthSigningOptions,
+  AuthStorageOptions,
+  AuthType,
+} from '../authentication';
+import { JwtBearerAuth } from '../authentication';
 import { Env } from '../env';
 
 // Alias mocking variables with ANY to test runtime safety.
@@ -11,55 +15,70 @@ export type MockVariable = any;
 export const typedMockFn = <Fn extends (...args: any[]) => any>() =>
   jest.fn<ReturnType<Fn>, Parameters<Fn>>();
 
+const mockAuthOptions = () => {
+  const mockGetLoginResponse =
+    typedMockFn<AuthStorageOptions['getLoginResponse']>();
+
+  const mockSetLoginResponse =
+    typedMockFn<AuthStorageOptions['setLoginResponse']>();
+
+  const mockGetIdentifier = typedMockFn<AuthSigningOptions['getIdentifier']>();
+
+  const mockSignMessage = typedMockFn<AuthSigningOptions['signMessage']>();
+
+  return {
+    mockGetLoginResponse,
+    mockSetLoginResponse,
+    mockGetIdentifier,
+    mockSignMessage,
+  };
+};
+
 /**
  * Mock Utility - Arrange Auth
  *
  * @param type - choose SIWE or SRP Auth instance
  * @param mockPublicKey - provide the mock public key
+ * @param authOptionsOverride - overrides
+ * @param authOptionsOverride.signing - override auth signing
  * @returns Auth instance
  */
-export function arrangeAuth(type: 'SIWE' | 'SRP', mockPublicKey: string) {
-  const mockGetLoginResponse =
-    typedMockFn<AuthStorageOptions['getLoginResponse']>().mockResolvedValue(
-      null,
-    );
-
-  const mockSetLoginResponse =
-    typedMockFn<AuthStorageOptions['setLoginResponse']>().mockResolvedValue();
-
-  const mockGetIdentifier =
-    typedMockFn<AuthSigningOptions['getIdentifier']>().mockResolvedValue(
-      mockPublicKey,
-    );
-
-  const mockSignMessage = typedMockFn<
-    AuthSigningOptions['signMessage']
-  >().mockResolvedValue(
+export function arrangeAuth(
+  type: `${AuthType}`,
+  mockPublicKey: string,
+  authOptionsOverride?: {
+    signing?: AuthSigningOptions;
+  },
+) {
+  const authOptionsMock = mockAuthOptions();
+  authOptionsMock.mockGetLoginResponse.mockResolvedValue(null);
+  authOptionsMock.mockSetLoginResponse.mockResolvedValue();
+  authOptionsMock.mockGetIdentifier.mockResolvedValue(mockPublicKey);
+  authOptionsMock.mockSignMessage.mockResolvedValue(
     type === 'SRP' ? 'MOCK_SRP_SIGNATURE' : 'MOCK_SIWE_SIGNATURE',
   );
 
   const auth = new JwtBearerAuth(
     {
       env: Env.DEV,
-      type: type === 'SRP' ? AuthType.SRP : AuthType.SiWE,
+      type: type as AuthType,
     },
     {
       storage: {
-        getLoginResponse: mockGetLoginResponse,
-        setLoginResponse: mockSetLoginResponse,
+        getLoginResponse: authOptionsMock.mockGetLoginResponse,
+        setLoginResponse: authOptionsMock.mockSetLoginResponse,
       },
-      signing: {
-        getIdentifier: mockGetIdentifier,
-        signMessage: mockSignMessage,
-      },
+      signing: authOptionsOverride
+        ? authOptionsOverride.signing
+        : {
+            getIdentifier: authOptionsMock.mockGetIdentifier,
+            signMessage: authOptionsMock.mockSignMessage,
+          },
     },
   );
 
   return {
     auth,
-    mockGetLoginResponse,
-    mockSetLoginResponse,
-    mockGetIdentifier,
-    mockSignMessage,
+    ...authOptionsMock,
   };
 }

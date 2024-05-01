@@ -24,7 +24,7 @@ export const SRP_LOGIN_URL = (env: Env) =>
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
 
-export enum AuthType {
+export const enum AuthType {
   /* sign in using a private key derived from your secret recovery phrase (SRP). 
        Uses message signing snap to perform this operation */
   SRP = 'SRP',
@@ -103,6 +103,10 @@ export abstract class BaseAuth {
   protected env: Env;
 
   constructor(config: AuthConfig, options: AuthOptions) {
+    if (config.type !== AuthType.SRP && config.type !== AuthType.SiWE) {
+      throw new UnsupportedAuthTypeError('unsupported auth type');
+    }
+
     this.env = config.env;
     this.config = config;
     this.options = options;
@@ -134,6 +138,7 @@ export abstract class BaseAuth {
         expiresIn: nonceJson.expires_in,
       };
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new NonceRetrievalError(
@@ -226,6 +231,7 @@ export class JwtBearerAuth extends BaseAuth {
         obtainedAt: Date.now(),
       };
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new SignInError(`unable to get access token: ${errorMessage}`);
@@ -239,9 +245,6 @@ export class JwtBearerAuth extends BaseAuth {
     }
 
     const loginResponse = await this.login();
-    if (!loginResponse || !loginResponse.token) {
-      throw new SignInError('login failed: access token not received');
-    }
     return loginResponse.token;
   }
 
@@ -252,9 +255,6 @@ export class JwtBearerAuth extends BaseAuth {
     }
 
     const loginResponse = await this.login();
-    if (!loginResponse || !loginResponse.profile) {
-      throw new SignInError('login failed: user profile not received');
-    }
     return loginResponse.profile;
   }
 
@@ -264,6 +264,7 @@ export class JwtBearerAuth extends BaseAuth {
         return this.#handleSrpLogin();
       case AuthType.SiWE:
         return this.#handleSiweLogin();
+      /* istanbul ignore next */
       default:
         throw new UnsupportedAuthTypeError('unsupported login type');
     }
@@ -340,6 +341,7 @@ export class JwtBearerAuth extends BaseAuth {
         },
       };
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new SignInError(`unable to perform SRP login: ${errorMessage}`);
@@ -380,6 +382,7 @@ export class JwtBearerAuth extends BaseAuth {
         },
       };
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new SignInError(`unable to perform siwe login: ${errorMessage}`);
@@ -423,10 +426,13 @@ export class JwtBearerAuth extends BaseAuth {
     switch (env) {
       case Env.DEV:
         return 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3';
+      /* istanbul ignore next */
       case Env.UAT:
         return 'a9de167c-c9a6-43d8-af39-d301fd44c485';
+      /* istanbul ignore next */
       case Env.PRD:
         return '1132f10a-b4e5-4390-a5f2-d9c6022db564';
+      /* istanbul ignore next */
       default:
         throw new ValidationError(
           'invalid env: cannot determine oidc client id',

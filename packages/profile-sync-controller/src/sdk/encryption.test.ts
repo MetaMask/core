@@ -35,4 +35,17 @@ describe('encryption tests', () => {
     const hash2 = createSHA256Hash(DATA);
     expect(hash1).toBe(hash2);
   });
+
+  it('throws error when given bad data to decrypt', () => {
+    expect(() =>
+      encryption.decryptString(
+        JSON.stringify({ v: 'unsupported version' }),
+        PASSWORD,
+      ),
+    ).toThrow(Error);
+  });
+
+  it('throws error when given bad data to encrypt', () => {
+    expect(() => encryption.encryptString('', PASSWORD)).toThrow(Error);
+  });
 });

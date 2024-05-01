@@ -102,3 +102,22 @@ export const handleMockOAuth2Token = (mockReply?: MockReply) => {
 
   return mockTokenEndpoint;
 };
+
+export const arrangeAuthAPIs = (options?: {
+  mockNonceUrl?: MockReply;
+  mockOAuth2TokenUrl?: MockReply;
+  mockSrpLoginUrl?: MockReply;
+  mockSiweLoginUrl?: MockReply;
+}) => {
+  const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
+  const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
+  const mockSrpLoginUrl = handleMockSrpLogin(options?.mockSrpLoginUrl);
+  const mockSiweLoginUrl = handleMockSiweLogin(options?.mockSiweLoginUrl);
+
+  return {
+    mockNonceUrl,
+    mockOAuth2TokenUrl,
+    mockSrpLoginUrl,
+    mockSiweLoginUrl,
+  };
+};

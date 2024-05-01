@@ -1,9 +1,4 @@
-import {
-  handleMockNonce,
-  handleMockOAuth2Token,
-  handleMockSiweLogin,
-  handleMockSrpLogin,
-} from './__fixtures__/mock-auth';
+import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
 import {
   MOCK_NOTIFICATIONS_DATA,
   MOCK_STORAGE_KEY,
@@ -13,12 +8,21 @@ import {
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { JwtBearerAuth } from './authentication';
 import { Env } from './env';
-import { NotFoundError, UserStorageError } from './errors';
+import { NotFoundError, UserStorageError, ValidationError } from './errors';
 import type { StorageOptions } from './user-storage';
-import { UserStorage } from './user-storage';
+import { STORAGE_URL, UserStorage } from './user-storage';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
+
+describe('User Storage - STORAGE_URL()', () => {
+  it('generates an example url path for User Storage', () => {
+    const result = STORAGE_URL(Env.DEV, 'my-feature', 'my-hashed-entry');
+    expect(result).toBeDefined();
+    expect(result).toContain('my-feature');
+    expect(result).toContain('my-hashed-entry');
+  });
+});
 
 describe('User Storage', () => {
   it('get/set key using SRP', async () => {
@@ -41,7 +45,7 @@ describe('User Storage', () => {
   });
 
   it('get/set key using SiWE', async () => {
-    const { auth } = arrangeAuth('SIWE', MOCK_ADDRESS);
+    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
     auth.initialize({
       address: MOCK_ADDRESS,
       chainId: 1,
@@ -70,7 +74,7 @@ describe('User Storage', () => {
     const { userStorage } = arrangeUserStorage(auth);
 
     handleMockUserStoragePut({
-      status: 500,
+      status: 401,
       body: {
         message: 'failed to insert storage entry',
         error: 'generic-error',
@@ -88,7 +92,7 @@ describe('User Storage', () => {
     const { userStorage } = arrangeUserStorage(auth);
 
     handleMockUserStorageGet({
-      status: 500,
+      status: 401,
       body: {
         message: 'failed to get storage entry',
         error: 'generic-error',
@@ -115,6 +119,37 @@ describe('User Storage', () => {
     await expect(
       userStorage.getItem('notifications', 'ui_settings'),
     ).rejects.toThrow(NotFoundError);
+  });
+
+  it('get/set fails when given empty feature or keys', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    handleMockUserStoragePut();
+    handleMockUserStorageGet();
+
+    // Test Set Error
+    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    await expect(userStorage.setItem('', '', data)).rejects.toThrow(
+      ValidationError,
+    );
+
+    // Test Get Error
+    await expect(userStorage.getItem('', '')).rejects.toThrow(ValidationError);
+  });
+
+  it('get/sets using a newly generated storage key (not in storage)', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage, mockGetStorageKey } = arrangeUserStorage(auth);
+    mockGetStorageKey.mockResolvedValue(null);
+    const mockAuthSignMessage = jest
+      .spyOn(auth, 'signMessage')
+      .mockResolvedValue(MOCK_STORAGE_KEY);
+
+    handleMockUserStoragePut();
+
+    await userStorage.setItem('notifications', 'ui_settings', 'some fake data');
+    expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key
   });
 });
 
@@ -147,10 +182,7 @@ function arrangeUserStorage(auth: JwtBearerAuth) {
   );
 
   // Mock Auth API Calls (SRP & SIWE)
-  handleMockNonce();
-  handleMockSrpLogin();
-  handleMockSiweLogin();
-  handleMockOAuth2Token();
+  arrangeAuthAPIs();
 
   return {
     userStorage,

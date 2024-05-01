@@ -51,6 +51,20 @@ describe('getSnap() tests', () => {
     const mockSnap: Snap = { id: 'A differentSnap' } as MockVariable;
     mockRequest.mockResolvedValue({ diffSnap: mockSnap });
 
+    const result1 = await getSnap(mockProvider);
+    expect(mockRequest).toHaveBeenCalled();
+    expect(result1).toBeUndefined();
+
+    // Another test in case the wallet request returns null
+    mockRequest.mockResolvedValue(null);
+    const result2 = await getSnap(mockProvider);
+    expect(result2).toBeUndefined();
+  });
+
+  it('returns undefined if an error is thrown when making provider request', async () => {
+    const { mockProvider, mockRequest } = arrangeMockProvider();
+    mockRequest.mockRejectedValue(new Error('MOCK ERROR'));
+
     const result = await getSnap(mockProvider);
     expect(mockRequest).toHaveBeenCalled();
     expect(result).toBeUndefined();

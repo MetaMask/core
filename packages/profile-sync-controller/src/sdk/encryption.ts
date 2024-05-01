@@ -51,8 +51,13 @@ class EncryptorDecryptor {
 
   encryptString(plaintext: string, password: string): string {
     try {
+      if (plaintext.trim().length === 0) {
+        throw new Error('No plain text provided');
+      }
+
       return this.#encryptStringV1(plaintext, password);
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage = e instanceof Error ? e.message : String(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
     }
@@ -68,6 +73,7 @@ class EncryptorDecryptor {
         `Unsupported encrypted data payload - ${JSON.stringify(encryptedData)}`,
       );
     } catch (e) {
+      /* istanbul ignore next */
       const errorMessage = e instanceof Error ? e.message : String(e);
       throw new Error(`Unable to decrypt string - ${errorMessage}`);
     }
