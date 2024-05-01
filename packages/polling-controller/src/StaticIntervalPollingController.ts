@@ -66,7 +66,11 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
     }
 
     _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
-      delete this.#intervalIds[key];
+      const intervalId = this.#intervalIds[key];
+      if (intervalId) {
+        clearTimeout(intervalId);
+        delete this.#intervalIds[key];
+      }
     }
   }
 
