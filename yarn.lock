@@ -1658,6 +1658,7 @@ __metadata:
     ethereum-cryptography: ^2.1.2
     immer: ^9.0.6
     jest: ^27.5.1
+    superstruct: ^1.0.3
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0

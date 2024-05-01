@@ -51,6 +51,7 @@
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
     "immer": "^9.0.6",
+    "superstruct": "^1.0.3",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
