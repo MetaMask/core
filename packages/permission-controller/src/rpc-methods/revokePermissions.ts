@@ -24,7 +24,7 @@ export const revokePermissionsHandler: PermittedHandlerExport<
   },
 };
 
-type RevokePermissionArgs = Record<
+export type RevokePermissionArgs = Record<
   PermissionConstraint['parentCapability'],
   Json
 >;

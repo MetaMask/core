@@ -38,7 +38,7 @@ At present, there are two permission / target types.
 
 #### JSON-RPC Methods
 
-Restricting access to JSON-RPC methods was the motivating and only supported use case for the original permission system, and remains the predominant kind of permission to this day.
+Restricting access to JSON-RPC methods was the motivating and only supported use case for the original permission system, and its successor also implements this feature.
 The `PermissionController` provides patterns for creating restricted JSON-RPC method implementations and caveats, and a `json-rpc-engine` middleware function factory.
 To permission a JSON-RPC server, every JSON-RPC method must be enumerated and designated as either "restricted" or "unrestricted", and a permission middleware function must be added to the `json-rpc-engine` middleware stack.
 Unrestricted methods can always be called by anyone.
@@ -54,12 +54,10 @@ Once the permission middleware is injected into the middleware stack, every JSON
 
 #### Endowments
 
-The name "endowment" comes from the endowments that you may provide to a [Secure EcmaScript (SES) `Compartment`](https://github.com/endojs/endo/tree/26d991afb01cf824827db0c958c50970e038112f/packages/ses#compartment) when it is constructed.
+We inherit the name "endowment" from the endowments that you may provide to a [Secure EcmaScript (SES) `Compartment`](https://github.com/endojs/endo/tree/26d991afb01cf824827db0c958c50970e038112f/packages/ses#compartment) when it is constructed.
 SES endowments are simply names that appear in the compartment's global scope.
 In the context of the `PermissionController`, endowments are simply "things" that subjects should not be able to access by default.
 They _could_ be the names of endowments that are to be made available to a particular SES `Compartment`, but they could also be any JavaScript value, and it is the host's responsibility to make sense of them.
-
-At present, endowment permissions may not have any caveats, but caveat support may be added in the future.
 
 ### Caveats
 
@@ -192,8 +190,7 @@ applyEndowments(origin, endowments);
 ### Requesting and Getting Permissions
 
 ```typescript
-// From the perspective of subjects, requesting and getting permissions
-// works the same as it does with `rpc-cap`.
+// This requests the `wallet_getSecretArray` permission.
 const approvedPermissions = await ethereum.request({
   method: 'wallet_requestPermissions',
   params: [{
@@ -201,9 +198,20 @@ const approvedPermissions = await ethereum.request({
   }]
 })
 
+// This gets the subject's existing permissions.
 const existingPermissions = await ethereum.request({
   method: 'wallet_getPermissions',
 )
+console.log(existingPermissions)
+// [
+//   {
+//     "id": "DZ_a31y3E8FKQfBqLwIcN",
+//     "parentCapability": "wallet_getSecretArray",
+//     "invoker": "https://subject.io",
+//     "caveats": [/* ... */],
+//     "date": 1713279475396
+//   }
+// ]
 ```
 
 ### Restricted Method Caveat Decorators
