@@ -1,3 +1,4 @@
+import type { InternalAccount } from '@metamask/keyring-api';
 import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 
@@ -86,6 +87,25 @@ describe('ChainController', () => {
 
       snapClient.submitRequest.mockResolvedValue(response);
       const result = await controller.getBalances(scope, [address], [asset]);
+
+      expect(providerSpy).toHaveBeenCalledWith(scope, [address], [asset]);
+      expect(result).toStrictEqual(response);
+    });
+
+    it('is successful (getBalancesFromAccount)', async () => {
+      const controller = makeController();
+
+      const provider = controller.registerProvider(scope, snapId);
+      const providerSpy = jest.spyOn(provider, 'getBalances');
+
+      const account = {
+        address,
+      } as unknown as InternalAccount;
+
+      snapClient.submitRequest.mockResolvedValue(response);
+      const result = await controller.getBalancesFromAccount(scope, account, [
+        asset,
+      ]);
 
       expect(providerSpy).toHaveBeenCalledWith(scope, [address], [asset]);
       expect(result).toStrictEqual(response);
