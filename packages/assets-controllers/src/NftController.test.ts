@@ -1,5 +1,11 @@
 import type { Network } from '@ethersproject/providers';
 import type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import { createMockInternalAccount } from '@metamask/accounts-controller/src/tests/mocks';
+import type {
   AddApprovalRequest,
   ApprovalStateChange,
 } from '@metamask/approval-controller';
@@ -17,6 +23,7 @@ import {
   NetworksTicker,
   NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkState,
   ProviderConfig,
@@ -48,6 +55,11 @@ const ERC721_DEPRESSIONIST_ADDRESS =
   '0x18E8E76aeB9E2d9FA2A2b88DD9CF3C8ED45c3660';
 const ERC721_DEPRESSIONIST_ID = '36';
 const OWNER_ADDRESS = '0x5a3CA5cD63807Ce5e4d7841AB32Ce6B6d9BbBa2D';
+const OWNER_ID = '54d1e7bc-1dce-4220-a15f-2f454bae7869';
+const OWNER_ACCOUNT = createMockInternalAccount({
+  id: OWNER_ID,
+  address: OWNER_ADDRESS,
+});
 const SECOND_OWNER_ADDRESS = '0x500017171kasdfbou081';
 
 const DEPRESSIONIST_CID_V1 =
@@ -70,8 +82,13 @@ const GOERLI = {
   ticker: NetworksTicker.goerli,
 };
 
-type ApprovalActions = AddApprovalRequest;
-type ApprovalEvents = ApprovalStateChange;
+type ApprovalActions =
+  | AddApprovalRequest
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction;
+type ApprovalEvents =
+  | ApprovalStateChange
+  | AccountsControllerSelectedAccountChangeEvent;
 
 const controllerName = 'NftController' as const;
 
@@ -122,6 +139,20 @@ function setupController(
 
   const messenger = new ControllerMessenger<ApprovalActions, ApprovalEvents>();
 
+  const getInternalAccountMock = jest.fn().mockReturnValue(OWNER_ACCOUNT);
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    getInternalAccountMock,
+  );
+
+  const getSelectedAccountMock = jest.fn().mockReturnValue(OWNER_ACCOUNT);
+
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    getSelectedAccountMock,
+  );
+
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
     allowedActions: [],
@@ -162,11 +193,19 @@ function setupController(
 
   const nftControllerMessenger = messenger.getRestricted<
     typeof controllerName,
-    ApprovalActions['type']
+    ApprovalActions['type'],
+    Extract<
+      ApprovalEvents,
+      AccountsControllerSelectedAccountChangeEvent
+    >['type']
   >({
     name: controllerName,
-    allowedActions: ['ApprovalController:addRequest'],
-    allowedEvents: [],
+    allowedActions: [
+      'ApprovalController:addRequest',
+      'AccountsController:getSelectedAccount',
+      'AccountsController:getAccount',
+    ],
+    allowedEvents: ['AccountsController:selectedAccountChange'],
   });
 
   const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
@@ -197,8 +236,18 @@ function setupController(
   triggerPreferencesStateChange({
     ...getDefaultPreferencesState(),
     openSeaEnabled: true,
-    selectedAddress: OWNER_ADDRESS,
   });
+
+  const triggerSelectedAccountChange = (
+    internalAccount: InternalAccount,
+  ): void => {
+    messenger.publish(
+      'AccountsController:selectedAccountChange',
+      internalAccount,
+    );
+  };
+
+  triggerSelectedAccountChange(OWNER_ACCOUNT);
 
   return {
     nftController,
@@ -206,6 +255,9 @@ function setupController(
     messenger,
     approvalController,
     triggerPreferencesStateChange,
+    triggerSelectedAccountChange,
+    getInternalAccountMock,
+    getSelectedAccountMock,
   };
 }
 
@@ -392,12 +444,17 @@ describe('NftController', () => {
         getERC721OwnerOf: jest.fn().mockImplementation(() => '0x12345abcefg'),
       });
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest.spyOn(messenger, 'call');
 
       await expect(() =>
         nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com'),
       ).rejects.toThrow('Suggested NFT is not owned by the selected account');
-      expect(callActionSpy).toHaveBeenCalledTimes(0);
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).not.toHaveBeenNthCalledWith(
+        2,
+        'ApprovalController:addRequest',
+        expect.any(Object),
+      );
     });
 
     it('should error if the call to isNftOwner fail', async function () {
@@ -420,12 +477,13 @@ describe('NftController', () => {
         getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(0)),
       });
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest.spyOn(messenger, 'call');
 
       await expect(() =>
         nftController.watchNft(ERC1155_NFT, ERC1155, 'https://test-dapp.com'),
       ).rejects.toThrow('Suggested NFT is not owned by the selected account');
-      expect(callActionSpy).toHaveBeenCalledTimes(0);
+      // First call is to get InternalAccount
+      expect(callActionSpy).toHaveBeenCalledTimes(1);
     });
 
     it('should handle ERC721 type and add pending request to ApprovalController with the OpenSea API disabled and IPFS gateway enabled', async function () {
@@ -459,11 +517,17 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        .mockResolvedValueOnce({})
+        .mockReturnValueOnce(OWNER_ACCOUNT);
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -518,11 +582,17 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        .mockResolvedValueOnce({})
+        .mockReturnValueOnce(OWNER_ACCOUNT);
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -577,11 +647,17 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        .mockResolvedValueOnce({})
+        .mockReturnValueOnce(OWNER_ACCOUNT);
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -636,11 +712,17 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        .mockResolvedValueOnce({})
+        .mockReturnValueOnce(OWNER_ACCOUNT);
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -698,15 +780,21 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        .mockResolvedValueOnce({})
+        .mockReturnValueOnce(OWNER_ACCOUNT);
 
       await nftController.watchNft(
         ERC1155_NFT,
         ERC1155,
         'https://etherscan.io',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -756,7 +844,6 @@ describe('NftController', () => {
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
         openSeaEnabled: true,
-        selectedAddress: OWNER_ADDRESS,
       });
       const requestId = 'approval-request-id-1';
 
@@ -764,15 +851,21 @@ describe('NftController', () => {
 
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const callActionSpy = jest.spyOn(messenger, 'call').mockResolvedValue({});
+      const callActionSpy = jest
+        .spyOn(messenger, 'call')
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        .mockResolvedValueOnce({})
+        .mockReturnValue(OWNER_ACCOUNT);
 
       await nftController.watchNft(
         ERC1155_NFT,
         ERC1155,
         'https://etherscan.io',
       );
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
+      // First call is getInternalAccount. Second call is the approval request.
+      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      expect(callActionSpy).toHaveBeenNthCalledWith(
+        2,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -1014,6 +1107,24 @@ describe('NftController', () => {
         "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.",
       );
     });
+
+    it('should return if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const {
+        nftController,
+        triggerSelectedAccountChange,
+        getInternalAccountMock,
+      } = setupController();
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+      triggerSelectedAccountChange(nonEvmAccount);
+
+      const addNftSpy = jest.spyOn(nftController, 'addNft');
+      await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
+
+      expect(addNftSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('addNft', () => {
@@ -1022,7 +1133,7 @@ describe('NftController', () => {
         getERC721AssetName: jest.fn().mockResolvedValue('Name'),
       });
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
         nftMetadata: {
           name: 'name',
@@ -1038,7 +1149,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1055,7 +1166,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: '0x01',
         logo: 'url',
@@ -1117,33 +1228,44 @@ describe('NftController', () => {
     });
 
     it('should add NFT by selected address', async () => {
-      const { nftController, triggerPreferencesStateChange } =
-        setupController();
+      const {
+        nftController,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+        getInternalAccountMock,
+      } = setupController();
       const { chainId } = nftController.config;
       const firstAddress = '0x123';
+      const firstAccount = createMockInternalAccount({ address: firstAddress });
       const secondAddress = '0x321';
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+      });
 
       sinon
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       await nftController.addNft('0x01', '1234');
+      getInternalAccountMock.mockReturnValue(secondAccount);
+      triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: secondAddress,
       });
       await nftController.addNft('0x02', '4321');
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       expect(
         nftController.state.allNfts[firstAddress][chainId][0],
@@ -1160,7 +1282,7 @@ describe('NftController', () => {
 
     it('should update NFT if image is different', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         nftMetadata: {
@@ -1173,7 +1295,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1196,7 +1318,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1211,7 +1333,7 @@ describe('NftController', () => {
 
     it('should not duplicate NFT nor NFT contract if already added', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft('0x01', '1', {
         nftMetadata: {
           name: 'name',
@@ -1233,11 +1355,11 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
     });
 
@@ -1251,10 +1373,10 @@ describe('NftController', () => {
           .mockRejectedValue(new Error('Not an ERC1155 contract')),
       });
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'Description',
@@ -1305,12 +1427,12 @@ describe('NftController', () => {
           description: 'Kudos Description (directly from tokenURI)',
         });
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         image: 'Kudos Image (directly from tokenURI)',
@@ -1325,7 +1447,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         name: 'KudosToken',
@@ -1356,11 +1478,11 @@ describe('NftController', () => {
           image: 'image (directly from tokenURI)',
           animation_url: null,
         });
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
         image: 'image (directly from tokenURI)',
@@ -1395,7 +1517,7 @@ describe('NftController', () => {
           name: 'Kudos Name (directly from tokenURI)',
           description: 'Kudos Description (directly from tokenURI)',
         });
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       sinon
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1405,7 +1527,7 @@ describe('NftController', () => {
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         image: 'Kudos Image (directly from tokenURI)',
@@ -1420,7 +1542,7 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
         name: 'KudosToken',
@@ -1431,7 +1553,6 @@ describe('NftController', () => {
 
     it('should add NFT by provider type', async () => {
       const { nftController, changeNetwork } = setupController();
-      const { selectedAddress } = nftController.config;
       sinon
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1444,11 +1565,15 @@ describe('NftController', () => {
       changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[ChainId[GOERLI.type]],
+        nftController.state.allNfts[OWNER_ACCOUNT.address]?.[
+          ChainId[GOERLI.type]
+        ],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNfts[selectedAddress][ChainId[SEPOLIA.type]][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][
+          ChainId[SEPOLIA.type]
+        ][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -1465,7 +1590,7 @@ describe('NftController', () => {
       const { nftController } = setupController({
         onNftAdded: mockOnNftAdded,
       });
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'getNftContractInformation' as any).returns({
@@ -1490,7 +1615,7 @@ describe('NftController', () => {
       await nftController.addNft('0x01234abcdefg', '1234');
 
       expect(nftController.state.allNftContracts).toStrictEqual({
-        [selectedAddress]: {
+        [OWNER_ACCOUNT.address]: {
           [chainId]: [
             {
               address: '0x01234abcdefg',
@@ -1500,7 +1625,7 @@ describe('NftController', () => {
       });
 
       expect(nftController.state.allNfts).toStrictEqual({
-        [selectedAddress]: {
+        [OWNER_ACCOUNT.address]: {
           [chainId]: [
             {
               address: '0x01234abcdefg',
@@ -1640,31 +1765,31 @@ describe('NftController', () => {
           image_url: 'Kudos logo (from proxy API)',
         }); */
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
         {
-          userAddress: selectedAddress,
+          userAddress: OWNER_ACCOUNT.address,
           source: Source.Detected,
         },
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress]?.[chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address]?.[chainId],
       ).toBeUndefined();
 
       expect(
-        nftController.state.allNftContracts[selectedAddress]?.[chainId],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address]?.[chainId],
       ).toBeUndefined();
 
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
-        userAddress: selectedAddress,
+        userAddress: OWNER_ACCOUNT.address,
         source: Source.Detected,
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
@@ -1685,7 +1810,7 @@ describe('NftController', () => {
       ]);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId],
       ).toStrictEqual([
         {
           address: ERC721_KUDOSADDRESS,
@@ -1721,18 +1846,16 @@ describe('NftController', () => {
         )
         .replyWithError(new Error('Failed to fetch'));
 
-      const { selectedAddress } = nftController.config;
-
       await nftController.addNft(
         '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
         '123',
         {
-          userAddress: selectedAddress,
+          userAddress: OWNER_ACCOUNT.address,
           source: Source.Detected,
         },
       );
       await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
-        userAddress: selectedAddress,
+        userAddress: OWNER_ACCOUNT.address,
         source: Source.Detected,
       });
 
@@ -1743,7 +1866,7 @@ describe('NftController', () => {
 
     it('should not add duplicate NFTs to the ignoredNfts list', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         nftMetadata: {
@@ -1764,13 +1887,13 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(2);
       expect(nftController.state.ignoredNfts).toHaveLength(0);
 
       nftController.removeAndIgnoreNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
 
@@ -1784,13 +1907,13 @@ describe('NftController', () => {
       });
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(2);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
 
       nftController.removeAndIgnoreNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
       expect(nftController.state.ignoredNfts).toHaveLength(1);
     });
@@ -1816,7 +1939,7 @@ describe('NftController', () => {
       nftController.configure({
         ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       });
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
@@ -1824,7 +1947,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId][0],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_DEPRESSIONIST_ADDRESS,
         name: "Maltjik.jpg's Depressionists",
@@ -1832,7 +1955,7 @@ describe('NftController', () => {
         schemaName: 'ERC721',
       });
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_DEPRESSIONIST_ADDRESS,
         tokenId: '36',
@@ -1855,12 +1978,12 @@ describe('NftController', () => {
         )
         .replyWithError(new Error('Failed to fetch'));
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft(ERC721_NFT_ADDRESS, ERC721_NFT_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC721_NFT_ADDRESS,
         image: null,
@@ -2101,14 +2224,42 @@ describe('NftController', () => {
         },
       ]);
     });
+
+    it('should return if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const {
+        nftController,
+        triggerSelectedAccountChange,
+        getInternalAccountMock,
+      } = setupController();
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+      triggerSelectedAccountChange(nonEvmAccount);
+
+      await nftController.addNft('0x01', '1234');
+      expect(nftController.state.allNfts).toStrictEqual({});
+    });
   });
 
   describe('addNftVerifyOwnership', () => {
     it('should verify ownership by selected address and add NFT', async () => {
-      const { nftController, triggerPreferencesStateChange } =
-        setupController();
+      const {
+        nftController,
+        getInternalAccountMock,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController();
       const firstAddress = '0x123';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+        id: '22c022b5-309c-45e4-a82d-64bb11fc0e74',
+      });
       const secondAddress = '0x321';
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+        id: 'f9a42417-6071-4b51-8ecd-f7b14abd8851',
+      });
       const { chainId } = nftController.config;
 
       // TODO: Replace `any` with type
@@ -2120,25 +2271,28 @@ describe('NftController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       await nftController.addNftVerifyOwnership('0x01', '1234');
+      getInternalAccountMock.mockReturnValue(secondAccount);
+      triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: secondAddress,
       });
       await nftController.addNftVerifyOwnership('0x02', '4321');
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       expect(
-        nftController.state.allNfts[firstAddress][chainId][0],
+        nftController.state.allNfts[firstAccount.address][chainId][0],
       ).toStrictEqual({
         address: '0x01',
         description: 'description',
@@ -2151,16 +2305,25 @@ describe('NftController', () => {
     });
 
     it('should throw an error if selected address is not owner of input NFT', async () => {
-      const { nftController, triggerPreferencesStateChange } =
-        setupController();
+      const {
+        nftController,
+        getInternalAccountMock,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+      } = setupController();
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sinon.stub(nftController, 'isNftOwner' as any).returns(false);
       const firstAddress = '0x123';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+        id: '22c022b5-309c-45e4-a82d-64bb11fc0e74',
+      });
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       const result = async () =>
         await nftController.addNftVerifyOwnership('0x01', '1234');
@@ -2169,11 +2332,23 @@ describe('NftController', () => {
     });
 
     it('should verify ownership by selected address and add NFT by the correct chainId when passed networkClientId', async () => {
-      const { nftController, triggerPreferencesStateChange } =
-        setupController();
+      const {
+        nftController,
+        getInternalAccountMock,
+        triggerSelectedAccountChange,
+        triggerPreferencesStateChange,
+      } = setupController();
 
       const firstAddress = '0x123';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+        id: '22c022b5-309c-45e4-a82d-64bb11fc0e74',
+      });
       const secondAddress = '0x321';
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+        id: 'f9a42417-6071-4b51-8ecd-f7b14abd8851',
+      });
 
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -2184,18 +2359,20 @@ describe('NftController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       await nftController.addNftVerifyOwnership('0x01', '1234', {
         networkClientId: 'sepolia',
       });
+      getInternalAccountMock.mockReturnValue(secondAccount);
+      triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: secondAddress,
       });
       await nftController.addNftVerifyOwnership('0x02', '4321', {
         networkClientId: 'goerli',
@@ -2279,12 +2456,29 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
       });
     });
+
+    it('should return if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const {
+        nftController,
+        triggerSelectedAccountChange,
+        getInternalAccountMock,
+      } = setupController();
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+      triggerSelectedAccountChange(nonEvmAccount);
+
+      const isNftOwnerSpy = jest.spyOn(nftController, 'isNftOwner');
+      await nftController.addNftVerifyOwnership('0x01', '1234');
+      expect(isNftOwnerSpy).not.toHaveBeenCalled();
+    });
   });
 
   describe('removeNft', () => {
     it('should remove NFT and NFT contract', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         nftMetadata: {
@@ -2296,17 +2490,17 @@ describe('NftController', () => {
       });
       nftController.removeNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(0);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(0);
     });
 
     it('should not remove NFT contract if NFT still exists', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft('0x01', '1', {
         nftMetadata: {
@@ -2327,17 +2521,21 @@ describe('NftController', () => {
       });
       nftController.removeNft('0x01', '1');
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
 
       expect(
-        nftController.state.allNftContracts[selectedAddress][chainId],
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
     });
 
     it('should remove NFT by selected address', async () => {
-      const { nftController, triggerPreferencesStateChange } =
-        setupController();
+      const {
+        nftController,
+        getInternalAccountMock,
+        triggerSelectedAccountChange,
+        triggerPreferencesStateChange,
+      } = setupController();
       const { chainId } = nftController.config;
       sinon
         // TODO: Replace `any` with type
@@ -2345,27 +2543,38 @@ describe('NftController', () => {
         .stub(nftController, 'getNftInformation' as any)
         .returns({ name: 'name', image: 'url', description: 'description' });
       const firstAddress = '0x123';
+      const firstAccount = createMockInternalAccount({
+        address: firstAddress,
+        id: '22c022b5-309c-45e4-a82d-64bb11fc0e74',
+      });
       const secondAddress = '0x321';
+      const secondAccount = createMockInternalAccount({
+        address: secondAddress,
+        id: 'f9a42417-6071-4b51-8ecd-f7b14abd8851',
+      });
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       await nftController.addNft('0x02', '4321');
+      getInternalAccountMock.mockReturnValue(secondAccount);
+      triggerSelectedAccountChange(secondAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: secondAddress,
       });
       await nftController.addNft('0x01', '1234');
       nftController.removeNft('0x01', '1234');
       expect(nftController.state.allNfts[secondAddress][chainId]).toHaveLength(
         0,
       );
+      getInternalAccountMock.mockReturnValue(firstAccount);
+      triggerSelectedAccountChange(firstAccount);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: firstAddress,
       });
       expect(
         nftController.state.allNfts[firstAddress][chainId][0],
@@ -2382,7 +2591,6 @@ describe('NftController', () => {
 
     it('should remove NFT by provider type', async () => {
       const { nftController, changeNetwork } = setupController();
-      const { selectedAddress } = nftController.config;
 
       sinon
         // TODO: Replace `any` with type
@@ -2395,13 +2603,13 @@ describe('NftController', () => {
       await nftController.addNft('0x01', '1234');
       nftController.removeNft('0x01', '1234');
       expect(
-        nftController.state.allNfts[selectedAddress][GOERLI.chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][GOERLI.chainId],
       ).toHaveLength(0);
 
       changeNetwork(SEPOLIA);
 
       expect(
-        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0x02',
         description: 'description',
@@ -2414,17 +2622,31 @@ describe('NftController', () => {
     });
 
     it('should remove correct NFT and NFT contract when passed networkClientId and userAddress in options', async () => {
-      const { nftController, changeNetwork, triggerPreferencesStateChange } =
-        setupController();
+      const {
+        nftController,
+        changeNetwork,
+        triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
+        getInternalAccountMock,
+      } = setupController();
 
       const userAddress1 = '0x123';
+      const userAccount1 = createMockInternalAccount({
+        address: userAddress1,
+        id: '5fd59cae-95d3-4a1d-ba97-657c8f83c300',
+      });
       const userAddress2 = '0x321';
+      const userAccount2 = createMockInternalAccount({
+        address: userAddress2,
+        id: '9ea40063-a95c-4f79-a4b6-0c065549245e',
+      });
 
       changeNetwork(SEPOLIA);
+      getInternalAccountMock.mockReturnValue(userAccount1);
+      triggerSelectedAccountChange(userAccount1);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: userAddress1,
       });
 
       await nftController.addNft('0x01', '1', {
@@ -2450,10 +2672,11 @@ describe('NftController', () => {
       });
 
       changeNetwork(GOERLI);
+      getInternalAccountMock.mockReturnValue(userAccount2);
+      triggerSelectedAccountChange(userAccount2);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: userAddress2,
       });
 
       // now remove the nft after changing to a different network and account from the one where it was added
@@ -2470,11 +2693,34 @@ describe('NftController', () => {
         nftController.state.allNftContracts[userAddress1][SEPOLIA.chainId],
       ).toHaveLength(0);
     });
+
+    it('should return if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const { nftController, getInternalAccountMock } = setupController();
+
+      getInternalAccountMock.mockReturnValue(OWNER_ACCOUNT);
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+        },
+      });
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+      nftController.removeNft('0x01', '1');
+
+      expect(
+        Object.values(nftController.state.allNfts[OWNER_ACCOUNT.address]),
+      ).toHaveLength(1);
+    });
   });
 
   it('should be able to clear the ignoredNfts list', async () => {
     const { nftController } = setupController();
-    const { selectedAddress, chainId } = nftController.config;
+    const { chainId } = nftController.config;
 
     await nftController.addNft('0x02', '1', {
       nftMetadata: {
@@ -2486,15 +2732,15 @@ describe('NftController', () => {
       },
     });
 
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
-      1,
-    );
+    expect(
+      nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
+    ).toHaveLength(1);
     expect(nftController.state.ignoredNfts).toHaveLength(0);
 
     nftController.removeAndIgnoreNft('0x02', '1');
-    expect(nftController.state.allNfts[selectedAddress][chainId]).toHaveLength(
-      0,
-    );
+    expect(
+      nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
+    ).toHaveLength(0);
     expect(nftController.state.ignoredNfts).toHaveLength(1);
 
     nftController.clearIgnoredNfts();
@@ -2633,12 +2879,12 @@ describe('NftController', () => {
         .stub(nftController, 'getNftURIAndStandard' as any)
         .returns(['ipfs://*', ERC1155]);
 
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
 
       await nftController.addNft(ERC1155_NFT_ADDRESS, ERC1155_NFT_ID);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual({
         address: ERC1155_NFT_ADDRESS,
         name: null,
@@ -2656,7 +2902,7 @@ describe('NftController', () => {
   describe('updateNftFavoriteStatus', () => {
     it('should not set NFT as favorite if nft not found', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2670,7 +2916,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2681,7 +2927,7 @@ describe('NftController', () => {
     });
     it('should set NFT as favorite', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2695,7 +2941,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2707,7 +2953,7 @@ describe('NftController', () => {
 
     it('should set NFT as favorite and then unset it', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2721,7 +2967,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2737,7 +2983,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2749,7 +2995,7 @@ describe('NftController', () => {
 
     it('should keep the favorite status as true after updating metadata', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2763,7 +3009,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2786,7 +3032,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           image: 'new_image',
@@ -2800,13 +3046,13 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
     });
 
     it('should keep the favorite status as false after updating metadata', async () => {
       const { nftController } = setupController();
-      const { selectedAddress, chainId } = nftController.config;
+      const { chainId } = nftController.config;
       await nftController.addNft(
         ERC721_DEPRESSIONIST_ADDRESS,
         ERC721_DEPRESSIONIST_ID,
@@ -2814,7 +3060,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2837,7 +3083,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           image: 'new_image',
@@ -2851,22 +3097,36 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId],
       ).toHaveLength(1);
     });
 
     it('should set NFT as favorite when passed networkClientId and userAddress in options', async () => {
-      const { nftController, triggerPreferencesStateChange, changeNetwork } =
-        setupController();
+      const {
+        nftController,
+        triggerPreferencesStateChange,
+        changeNetwork,
+        triggerSelectedAccountChange,
+        getInternalAccountMock,
+      } = setupController();
 
       const userAddress1 = '0x123';
+      const userAccount1 = createMockInternalAccount({
+        address: userAddress1,
+        id: '0a2a9a41-2b35-4863-8f36-baceec4e9686',
+      });
       const userAddress2 = '0x321';
+      const userAccount2 = createMockInternalAccount({
+        address: userAddress2,
+        id: '09b239a4-c229-4a2b-9739-1cb4b9dea7b9',
+      });
 
       changeNetwork(SEPOLIA);
+      getInternalAccountMock.mockReturnValue(userAccount1);
+      triggerSelectedAccountChange(userAccount1);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: userAddress1,
       });
 
       await nftController.addNft(
@@ -2876,7 +3136,7 @@ describe('NftController', () => {
       );
 
       expect(
-        nftController.state.allNfts[userAddress1][SEPOLIA.chainId][0],
+        nftController.state.allNfts[userAccount1.address][SEPOLIA.chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2886,10 +3146,11 @@ describe('NftController', () => {
       );
 
       changeNetwork(GOERLI);
+      getInternalAccountMock.mockReturnValue(userAccount2);
+      triggerSelectedAccountChange(userAccount2);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         openSeaEnabled: true,
-        selectedAddress: userAddress2,
       });
 
       // now favorite the nft after changing to a different account from the one where it was added
@@ -2899,12 +3160,12 @@ describe('NftController', () => {
         true,
         {
           networkClientId: SEPOLIA.type,
-          userAddress: userAddress1,
+          userAddress: userAccount1.address,
         },
       );
 
       expect(
-        nftController.state.allNfts[userAddress1][SEPOLIA.chainId][0],
+        nftController.state.allNfts[userAccount1.address][SEPOLIA.chainId][0],
       ).toStrictEqual(
         expect.objectContaining({
           address: ERC721_DEPRESSIONIST_ADDRESS,
@@ -2912,6 +3173,21 @@ describe('NftController', () => {
           favorite: true,
         }),
       );
+    });
+
+    it('should return if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const { nftController, getInternalAccountMock } = setupController();
+
+      const updateSpy = jest.spyOn(nftController, 'update');
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+      nftController.updateNftFavoriteStatus(
+        ERC721_DEPRESSIONIST_ADDRESS,
+        ERC721_DEPRESSIONIST_ID,
+        true,
+      );
+      expect(updateSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -2923,7 +3199,7 @@ describe('NftController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(false);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
           nftMetadata: {
             name: 'name',
@@ -2935,13 +3211,13 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus();
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(false);
       });
@@ -2952,7 +3228,7 @@ describe('NftController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sinon.stub(nftController, 'isNftOwner' as any).returns(true);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
           nftMetadata: {
             name: 'name',
@@ -2964,13 +3240,13 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus();
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
       });
@@ -2983,7 +3259,7 @@ describe('NftController', () => {
           .stub(nftController, 'isNftOwner' as any)
           .throws(new Error('Unable to verify ownership'));
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
           nftMetadata: {
             name: 'name',
@@ -2995,13 +3271,13 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
         await nftController.checkAndUpdateAllNftsOwnershipStatus();
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
       });
@@ -3013,11 +3289,10 @@ describe('NftController', () => {
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           openSeaEnabled: true,
-          selectedAddress: OWNER_ADDRESS,
         });
         changeNetwork(SEPOLIA);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         await nftController.addNft('0x02', '1', {
           nftMetadata: {
             name: 'name',
@@ -3029,7 +3304,7 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -3040,7 +3315,6 @@ describe('NftController', () => {
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           openSeaEnabled: true,
-          selectedAddress: SECOND_OWNER_ADDRESS,
         });
         changeNetwork(GOERLI);
 
@@ -3054,12 +3328,30 @@ describe('NftController', () => {
             .isCurrentlyOwned,
         ).toBe(false);
       });
+
+      it('should return if the selected account is a non evm account', async () => {
+        // @ts-expect-error creating a non evm account
+        const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+        const { nftController, getInternalAccountMock } = setupController();
+
+        const checkAndUpdateSingleNftOwnershipStatusSpy = jest.spyOn(
+          nftController,
+          'checkAndUpdateSingleNftOwnershipStatus',
+        );
+        getInternalAccountMock.mockReturnValue(nonEvmAccount);
+        await nftController.checkAndUpdateAllNftsOwnershipStatus({
+          networkClientId: 'sepolia',
+        });
+        expect(
+          checkAndUpdateSingleNftOwnershipStatusSpy,
+        ).not.toHaveBeenCalled();
+      });
     });
 
     describe('checkAndUpdateSingleNftOwnershipStatus', () => {
-      it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and update its isCurrentlyOwned property in state if batch is false and isNftOwner returns false', async () => {
+      it('should check whether the passed NFT is still owned by the the current address of the selected account/chainId combination and update its isCurrentlyOwned property in state if batch is false and isNftOwner returns false', async () => {
         const { nftController } = setupController();
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         const nft = {
           address: '0x02',
           tokenId: '1',
@@ -3075,7 +3367,7 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -3086,14 +3378,14 @@ describe('NftController', () => {
         await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, false);
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(false);
       });
 
       it('should check whether the passed NFT is still owned by the the current selectedAddress/chainId combination and return the updated NFT object without updating state if batch is true', async () => {
         const { nftController } = setupController();
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         const nft = {
           address: '0x02',
           tokenId: '1',
@@ -3109,7 +3401,7 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -3121,11 +3413,11 @@ describe('NftController', () => {
           await nftController.checkAndUpdateSingleNftOwnershipStatus(nft, true);
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
-        expect(updatedNft.isCurrentlyOwned).toBe(false);
+        expect(updatedNft?.isCurrentlyOwned).toBe(false);
       });
 
       it('should check whether the passed NFT is still owned by the the selectedAddress/chainId combination passed in the accountParams argument and update its isCurrentlyOwned property in state, when the currently configured selectedAddress/chainId are different from those passed', async () => {
@@ -3139,7 +3431,7 @@ describe('NftController', () => {
         });
         changeNetwork(SEPOLIA);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         const nft = {
           address: '0x02',
           tokenId: '1',
@@ -3155,7 +3447,7 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -3192,7 +3484,7 @@ describe('NftController', () => {
         });
         changeNetwork(SEPOLIA);
 
-        const { selectedAddress, chainId } = nftController.config;
+        const { chainId } = nftController.config;
         const nft = {
           address: '0x02',
           tokenId: '1',
@@ -3208,7 +3500,7 @@ describe('NftController', () => {
         });
 
         expect(
-          nftController.state.allNfts[selectedAddress][chainId][0]
+          nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
             .isCurrentlyOwned,
         ).toBe(true);
 
@@ -3244,6 +3536,34 @@ describe('NftController', () => {
         ).toBe(false);
       });
     });
+
+    it('should throw error if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const { nftController, getInternalAccountMock } = setupController();
+
+      const nft = {
+        address: '0x02',
+        tokenId: '1',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        favorite: false,
+      };
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+      await expect(
+        async () =>
+          await nftController.checkAndUpdateSingleNftOwnershipStatus(
+            nft,
+            false,
+            {
+              networkClientId: SEPOLIA.type,
+            },
+          ),
+      ).rejects.toThrow('Non EVM Account selected');
+    });
   });
 
   describe('findNftByAddressAndTokenId', () => {
@@ -3257,14 +3577,14 @@ describe('NftController', () => {
       favorite: false,
     };
     const { nftController } = setupController();
-    const { selectedAddress, chainId } = nftController.config;
+    const { chainId } = nftController.config;
 
     it('should return null if the NFT does not exist in the state', async () => {
       expect(
         nftController.findNftByAddressAndTokenId(
           mockNft.address,
           mockNft.tokenId,
-          selectedAddress,
+          OWNER_ACCOUNT.address,
           chainId,
         ),
       ).toBeNull();
@@ -3272,14 +3592,14 @@ describe('NftController', () => {
 
     it('should return the NFT by the address and tokenId', () => {
       nftController.state.allNfts = {
-        [selectedAddress]: { [chainId]: [mockNft] },
+        [OWNER_ACCOUNT.address]: { [chainId]: [mockNft] },
       };
 
       expect(
         nftController.findNftByAddressAndTokenId(
           mockNft.address,
           mockNft.tokenId,
-          selectedAddress,
+          OWNER_ACCOUNT.address,
           chainId,
         ),
       ).toStrictEqual({ nft: mockNft, index: 0 });
@@ -3311,11 +3631,11 @@ describe('NftController', () => {
       transactionId: mockTransactionId,
     };
 
-    const { selectedAddress, chainId } = nftController.config;
+    const { chainId } = nftController.config;
 
     it('should update the NFT if the NFT exist', async () => {
       nftController.state.allNfts = {
-        [selectedAddress]: { [chainId]: [mockNft] },
+        [OWNER_ACCOUNT.address]: { [chainId]: [mockNft] },
       };
 
       nftController.updateNft(
@@ -3323,12 +3643,12 @@ describe('NftController', () => {
         {
           transactionId: mockTransactionId,
         },
-        selectedAddress,
+        OWNER_ACCOUNT.address,
         chainId,
       );
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0],
       ).toStrictEqual(expectedMockNft);
     });
 
@@ -3339,7 +3659,7 @@ describe('NftController', () => {
           {
             transactionId: mockTransactionId,
           },
-          selectedAddress,
+          OWNER_ACCOUNT.address,
           chainId,
         ),
       ).toBeUndefined();
@@ -3363,13 +3683,13 @@ describe('NftController', () => {
       transactionId: mockTransactionId,
     };
 
-    const { selectedAddress, chainId } = nftController.config;
+    const { chainId } = nftController.config;
 
     it('should not update any NFT state and should return false when passed a transaction id that does not match that of any NFT', async () => {
       expect(
         nftController.resetNftTransactionStatusByTransactionId(
           nonExistTransactionId,
-          selectedAddress,
+          OWNER_ACCOUNT.address,
           chainId,
         ),
       ).toBe(false);
@@ -3377,23 +3697,25 @@ describe('NftController', () => {
 
     it('should set the transaction id of an NFT in state to undefined, and return true when it has successfully updated this state', async () => {
       nftController.state.allNfts = {
-        [selectedAddress]: { [chainId]: [mockNft] },
+        [OWNER_ACCOUNT.address]: { [chainId]: [mockNft] },
       };
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0].transactionId,
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
+          .transactionId,
       ).toBe(mockTransactionId);
 
       expect(
         nftController.resetNftTransactionStatusByTransactionId(
           mockTransactionId,
-          selectedAddress,
+          OWNER_ACCOUNT.address,
           chainId,
         ),
       ).toBe(true);
 
       expect(
-        nftController.state.allNfts[selectedAddress][chainId][0].transactionId,
+        nftController.state.allNfts[OWNER_ACCOUNT.address][chainId][0]
+          .transactionId,
       ).toBeUndefined();
     });
   });
@@ -3401,7 +3723,6 @@ describe('NftController', () => {
   describe('updateNftMetadata', () => {
     it('should update Nft metadata successfully', async () => {
       const { nftController } = setupController();
-      const { selectedAddress } = nftController.config;
       const spy = jest.spyOn(nftController, 'updateNft');
       const testNetworkClientId = 'sepolia';
       await nftController.addNft('0xtest', '3', {
@@ -3437,7 +3758,7 @@ describe('NftController', () => {
       expect(spy).toHaveBeenCalledTimes(1);
 
       expect(
-        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0xtest',
         description: 'description pudgy',
@@ -3453,7 +3774,6 @@ describe('NftController', () => {
 
     it('should not update metadata when calls to fetch metadata fail', async () => {
       const { nftController } = setupController();
-      const { selectedAddress } = nftController.config;
       const spy = jest.spyOn(nftController, 'updateNft');
       const testNetworkClientId = 'sepolia';
       await nftController.addNft('0xtest', '3', {
@@ -3489,7 +3809,7 @@ describe('NftController', () => {
 
       expect(spy).toHaveBeenCalledTimes(0);
       expect(
-        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][SEPOLIA.chainId][0],
       ).toStrictEqual({
         address: '0xtest',
         description: '',
@@ -3504,7 +3824,6 @@ describe('NftController', () => {
 
     it('should update metadata when some calls to fetch metadata succeed', async () => {
       const { nftController } = setupController();
-      const { selectedAddress } = nftController.config;
       const spy = jest.spyOn(nftController, 'updateNft');
       const testNetworkClientId = 'sepolia';
       // Add nfts
@@ -3595,7 +3914,7 @@ describe('NftController', () => {
 
       expect(spy).toHaveBeenCalledTimes(2);
       expect(
-        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId],
+        nftController.state.allNfts[OWNER_ACCOUNT.address][SEPOLIA.chainId],
       ).toStrictEqual([
         {
           address: '0xtest1',
@@ -3743,6 +4062,101 @@ describe('NftController', () => {
       });
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return if the selected account is a non evm account', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const { nftController, getInternalAccountMock } = setupController();
+
+      getInternalAccountMock.mockReturnValue(OWNER_ACCOUNT);
+
+      await nftController.addNft('0xtest', '1', {
+        nftMetadata: {
+          name: '',
+          description: '',
+          image: '',
+          standard: 'ERC721',
+        },
+        userAddress: OWNER_ADDRESS,
+      });
+
+      sinon
+        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
+        .onFirstCall()
+        .returns({
+          name: 'name pudgy 1',
+          image: 'url pudgy 1',
+          description: 'description pudgy 2',
+        })
+        .onSecondCall()
+        .returns({
+          name: 'name pudgy 2',
+          image: 'url pudgy 2',
+          description: 'description pudgy 2',
+        })
+        .onThirdCall()
+        .rejects(new Error('Error'));
+
+      const testInputNfts: Nft[] = [
+        {
+          address: '0xtest1',
+          description: null,
+          favorite: false,
+          image: null,
+          isCurrentlyOwned: true,
+          name: null,
+          standard: 'ERC721',
+          tokenId: '1',
+        },
+        {
+          address: '0xtest2',
+          description: null,
+          favorite: false,
+          image: null,
+          isCurrentlyOwned: true,
+          name: null,
+          standard: 'ERC721',
+          tokenId: '2',
+        },
+        {
+          address: '0xtest3',
+          description: null,
+          favorite: false,
+          image: null,
+          isCurrentlyOwned: true,
+          name: null,
+          standard: 'ERC721',
+          tokenId: '3',
+        },
+      ];
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+
+      const updateNftSpy = jest.spyOn(nftController, 'updateNft');
+
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+      });
+
+      expect(updateNftSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('removeAndIgnoreNft', () => {
+    it('should return if the account is non evm', async () => {
+      // @ts-expect-error creating a non evm account
+      const nonEvmAccount = createMockInternalAccount({ type: 'bip122' });
+      const { nftController, getInternalAccountMock } = setupController();
+
+      getInternalAccountMock.mockReturnValue(nonEvmAccount);
+
+      // should not update state
+      const updateSpy = jest.spyOn(nftController, 'update');
+
+      nftController.removeAndIgnoreNft('0xtest', '1');
+
+      expect(updateSpy).not.toHaveBeenCalled();
     });
   });
 });
