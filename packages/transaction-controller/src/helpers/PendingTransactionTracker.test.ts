@@ -1049,6 +1049,7 @@ describe('PendingTransactionTracker', () => {
           expect(options.approveTransaction).toHaveBeenCalledTimes(1);
           expect(options.approveTransaction).toHaveBeenCalledWith(
             TRANSACTION_SUBMITTED_MOCK.id,
+            true, // isResubmission
           );
         });
       });
