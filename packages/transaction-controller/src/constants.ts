@@ -3,14 +3,9 @@ import { TransactionType } from './types';
 export const CHAIN_IDS = {
   MAINNET: '0x1',
   GOERLI: '0x5',
-  BASE: '0x2105',
-  BASE_TESTNET: '0x14a33',
   BSC: '0x38',
   BSC_TESTNET: '0x61',
   OPTIMISM: '0xa',
-  OPTIMISM_TESTNET: '0x1a4',
-  OPBNB: '0xcc',
-  OPBNB_TESTNET: '0x15eb',
   OPTIMISM_SEPOLIA: '0xaa37dc',
   POLYGON: '0x89',
   POLYGON_TESTNET: '0x13881',
@@ -26,11 +21,6 @@ export const CHAIN_IDS = {
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
-  ARBITRUM: '0xa4b1',
-  ZKSYNC_ERA: '0x144',
-  ZORA: '0x76adf1',
-  SCROLL: '0x82750',
-  SCROLL_SEPOLIA: '0x8274f',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
@@ -51,11 +41,11 @@ export const ETHERSCAN_SUPPORTED_NETWORKS = {
   },
   [CHAIN_IDS.LINEA_GOERLI]: {
     domain: 'lineascan.build',
-    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-goerli`,
+    subdomain: 'goerli',
   },
   [CHAIN_IDS.LINEA_SEPOLIA]: {
     domain: 'lineascan.build',
-    subdomain: `${DEFAULT_ETHERSCAN_SUBDOMAIN_PREFIX}-sepolia`,
+    subdomain: 'sepolia',
   },
   [CHAIN_IDS.LINEA_MAINNET]: {
     domain: 'lineascan.build',
@@ -132,52 +122,4 @@ export const VALID_UNAPPROVED_TRANSACTION_TYPES = [
   TransactionType.tokenMethodTransfer,
   TransactionType.tokenMethodTransferFrom,
   TransactionType.contractInteraction,
-];
-
-/** Extract of the Wrapped ERC-20 ABI required for simulation. */
-export const ABI_SIMULATION_ERC20_WRAPPED = [
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: 'to', type: 'address' },
-      { indexed: false, name: 'wad', type: 'uint256' },
-    ],
-    name: 'Deposit',
-    type: 'event',
-  },
-  {
-    anonymous: false,
-    inputs: [
-      { indexed: true, name: 'from', type: 'address' },
-      { indexed: false, name: 'wad', type: 'uint256' },
-    ],
-    name: 'Withdrawal',
-    type: 'event',
-  },
-];
-
-/** Extract of the legacy ERC-721 ABI required for simulation. */
-export const ABI_SIMULATION_ERC721_LEGACY = [
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        name: '_from',
-        type: 'address',
-      },
-      {
-        indexed: false,
-        name: '_to',
-        type: 'address',
-      },
-      {
-        indexed: false,
-        name: '_tokenId',
-        type: 'uint256',
-      },
-    ],
-    name: 'Transfer',
-    type: 'event',
-  },
 ];
