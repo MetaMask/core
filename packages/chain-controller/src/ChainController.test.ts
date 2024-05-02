@@ -1,5 +1,7 @@
+import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 
+import type { ChainControllerMessenger } from './ChainController';
 import { ChainController } from './ChainController';
 
 describe('ChainController', () => {
@@ -8,13 +10,13 @@ describe('ChainController', () => {
     submitRequest: jest.fn(),
   };
   const snapController = {
-    handleRequest: (request) => {
+    handleRequest: (request: { snapId: SnapId }) => {
       if (request.snapId === snapId) {
         return snapClient.submitRequest(request);
       }
       throw new Error(`Unknown Snap: ${request.snapId as string}`);
     },
-  };
+  } as unknown as SnapController;
 
   const messenger = {
     call: jest.fn(() => ({
@@ -24,12 +26,12 @@ describe('ChainController', () => {
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     subscribe: jest.fn(),
-  };
+  } as unknown as ChainControllerMessenger;
 
   const makeController = () => {
     return new ChainController({
       state: {
-        dummy: false,
+        dummy: '',
       },
       messenger,
       getSnapController: () => snapController,
