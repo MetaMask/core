@@ -61,6 +61,7 @@ import type {
   SubmitHistoryEntry,
   GasFeeFlow,
   SimulationData,
+  GasFeeEstimates,
 } from './types';
 import {
   TransactionType,
@@ -398,7 +399,7 @@ export class TransactionController extends BaseController<
 
     gasFeePoller.hub.on(
       'transaction-updated',
-      this.updateTransaction.bind(this),
+      this.#onGasFeePollerTransactionUpdate.bind(this),
     );
 
     onNetworkStateChange(() => {
@@ -2165,6 +2166,30 @@ export class TransactionController extends BaseController<
         updatedTransactionParams,
       );
     }
+  }
+
+  #onGasFeePollerTransactionUpdate({
+    transactionId,
+    gasFeeEstimates,
+    gasFeeEstimatesLoaded,
+  }: {
+    transactionId: string;
+    gasFeeEstimates?: GasFeeEstimates;
+    gasFeeEstimatesLoaded?: boolean;
+    layer1GasFee?: Hex;
+  }) {
+    this.#updateTransactionInternal(
+      { transactionId, skipHistory: true },
+      (txMeta) => {
+        if (gasFeeEstimates) {
+          txMeta.gasFeeEstimates = gasFeeEstimates;
+        }
+
+        if (gasFeeEstimatesLoaded !== undefined) {
+          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+        }
+      },
+    );
   }
 }
 
