@@ -94,8 +94,8 @@ describe('ChainController', () => {
 
       // We do not register any provider
 
-      await expect(async () =>
-        await controller.getBalances(scope, [address], [asset]),
+      await expect(
+        async () => await controller.getBalances(scope, [address], [asset]),
       ).rejects.toThrow(`No Chain provider found for scope: "${scope}"`);
     });
   });
