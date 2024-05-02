@@ -1211,7 +1211,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@npm:^5.0.1":
+"@metamask/base-controller@npm:^5.0.1, @metamask/base-controller@npm:^5.0.2":
   version: 5.0.2
   resolution: "@metamask/base-controller@npm:5.0.2"
   dependencies:
@@ -1221,7 +1221,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^9.0.1, @metamask/controller-utils@npm:^9.0.2, @metamask/controller-utils@npm:^9.1.0":
+"@metamask/controller-utils@npm:^9.0.2, @metamask/controller-utils@npm:^9.1.0":
   version: 9.1.0
   resolution: "@metamask/controller-utils@npm:9.1.0"
   dependencies:
@@ -1502,7 +1502,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@npm:^18.0.1, @metamask/network-controller@npm:^18.1.0":
+"@metamask/network-controller@npm:^18.1.0":
   version: 18.1.0
   resolution: "@metamask/network-controller@npm:18.1.0"
   dependencies:
@@ -1535,19 +1535,19 @@ __metadata:
   linkType: hard
 
 "@metamask/polling-controller@npm:^6.0.1":
-  version: 6.0.1
-  resolution: "@metamask/polling-controller@npm:6.0.1"
+  version: 6.0.2
+  resolution: "@metamask/polling-controller@npm:6.0.2"
   dependencies:
-    "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.1
-    "@metamask/network-controller": ^18.0.1
+    "@metamask/base-controller": ^5.0.2
+    "@metamask/controller-utils": ^9.1.0
+    "@metamask/network-controller": ^18.1.0
     "@metamask/utils": ^8.3.0
     "@types/uuid": ^8.3.0
     fast-json-stable-stringify: ^2.1.0
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^18.0.0
-  checksum: 9c862ba3d149ff16bfced3b14b8a082cdb28fe661000889915635177a955fe42de6d3589e448a73b259a7a184b5984ea5f1086d9fe2bfe52e6348aa25711679d
+  checksum: 900b4365c0992bd8cb4e134d513296e0c8fc7c4c6df75ea2572a2d6e3cb9b48a98283bb3db6b7d618c87cd937143a44961bcc85fba49e46299ae059ff7275bc3
   languageName: node
   linkType: hard
 
