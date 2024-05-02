@@ -1870,13 +1870,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chain-api@file:../../../chain-api::locator=%40metamask%2Fchain-controller%40workspace%3Apackages%2Fchain-controller":
-  version: 0.0.0
-  resolution: "@metamask/chain-api@file:../../../chain-api#../../../chain-api::hash=a63019&locator=%40metamask%2Fchain-controller%40workspace%3Apackages%2Fchain-controller"
+"@metamask/chain-api@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "@metamask/chain-api@npm:0.0.1"
   dependencies:
     "@metamask/utils": ^8.4.0
     superstruct: 1.0.3
-  checksum: 3bf6b7e59d5278eb49d3cc2b6215b6b60c870535032be9b2a86a32516387d84f8b08fe603e4c08a95629f69edd7cdb09ba5e9ff8a22af72e527259ad42cc9862
+  checksum: b8e3c8562e4ae5d84971ff778497a179e0765b3f0ddbb27ba8536b93090637279be8d6add6e89ec9b2408e75aee1a4430e4b49304715536b8b4839eaff6aaa92
   languageName: node
   linkType: hard
 
@@ -1886,7 +1886,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.1
-    "@metamask/chain-api": "file:../../../chain-api"
+    "@metamask/chain-api": ^0.0.1
     "@metamask/keyring-api": ^6.0.0
     "@metamask/snaps-controllers": ^6.0.4
     "@metamask/snaps-sdk": ^4.0.1
