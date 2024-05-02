@@ -6,7 +6,7 @@ import {
   handleMockUserStoragePut,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
-import type { JwtBearerAuth } from './authentication';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { Env } from './env';
 import { NotFoundError, UserStorageError, ValidationError } from './errors';
 import type { StorageOptions } from './user-storage';
@@ -45,10 +45,11 @@ describe('User Storage', () => {
   });
 
   it('get/set key using SiWE', async () => {
-    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
-    auth.initialize({
+    const { auth, mockSignMessage } = arrangeAuth('SiWE', MOCK_ADDRESS);
+    auth.prepare({
       address: MOCK_ADDRESS,
       chainId: 1,
+      signMessage: mockSignMessage,
       domain: 'https://metamask.io',
     });
 
@@ -159,7 +160,7 @@ describe('User Storage', () => {
  * @param auth - mock auth to pass in
  * @returns User Storage Instance and mocks
  */
-function arrangeUserStorage(auth: JwtBearerAuth) {
+function arrangeUserStorage(auth: IBaseAuth) {
   const mockGetStorageKey =
     typedMockFn<StorageOptions['getStorageKey']>().mockResolvedValue(
       MOCK_STORAGE_KEY,

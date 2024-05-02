@@ -1,9 +1,9 @@
+import { JwtBearerAuth } from '../authentication';
 import type {
   AuthSigningOptions,
   AuthStorageOptions,
-  AuthType,
-} from '../authentication';
-import { JwtBearerAuth } from '../authentication';
+} from '../authentication-jwt-bearer/types';
+import { AuthType } from '../authentication-jwt-bearer/types';
 import { Env } from '../env';
 
 // Alias mocking variables with ANY to test runtime safety.
@@ -58,27 +58,45 @@ export function arrangeAuth(
     type === 'SRP' ? 'MOCK_SRP_SIGNATURE' : 'MOCK_SIWE_SIGNATURE',
   );
 
-  const auth = new JwtBearerAuth(
-    {
-      env: Env.DEV,
-      type: type as AuthType,
-    },
-    {
-      storage: {
-        getLoginResponse: authOptionsMock.mockGetLoginResponse,
-        setLoginResponse: authOptionsMock.mockSetLoginResponse,
+  if (type === 'SRP') {
+    const auth = new JwtBearerAuth(
+      {
+        env: Env.DEV,
+        type: AuthType.SRP,
       },
-      signing: authOptionsOverride
-        ? authOptionsOverride.signing
-        : {
-            getIdentifier: authOptionsMock.mockGetIdentifier,
-            signMessage: authOptionsMock.mockSignMessage,
-          },
-    },
-  );
+      {
+        storage: {
+          getLoginResponse: authOptionsMock.mockGetLoginResponse,
+          setLoginResponse: authOptionsMock.mockSetLoginResponse,
+        },
+        signing: authOptionsOverride
+          ? authOptionsOverride.signing
+          : {
+              getIdentifier: authOptionsMock.mockGetIdentifier,
+              signMessage: authOptionsMock.mockSignMessage,
+            },
+      },
+    );
 
-  return {
-    auth,
-    ...authOptionsMock,
-  };
+    return { auth, ...authOptionsMock };
+  }
+
+  if (type === 'SiWE') {
+    const auth = new JwtBearerAuth(
+      {
+        env: Env.DEV,
+        type: AuthType.SiWE,
+      },
+      {
+        storage: {
+          getLoginResponse: authOptionsMock.mockGetLoginResponse,
+          setLoginResponse: authOptionsMock.mockSetLoginResponse,
+        },
+      },
+    );
+
+    return { auth, ...authOptionsMock };
+  }
+
+  throw new Error('Unable to arrange auth mock for invalid auth type');
 }

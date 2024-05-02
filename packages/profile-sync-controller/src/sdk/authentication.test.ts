@@ -5,6 +5,9 @@ import {
 } from './__fixtures__/mock-auth';
 import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth } from './__fixtures__/test-utils';
+import { JwtBearerAuth } from './authentication';
+import type { LoginResponse } from './authentication-jwt-bearer/types';
+import { Env } from './env';
 import {
   NonceRetrievalError,
   SignInError,
@@ -19,7 +22,13 @@ const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 describe('Authentication - constructor()', () => {
   it('errors on invalid auth type', async () => {
     expect(() => {
-      arrangeAuth('FakeType' as MockVariable, MOCK_SRP);
+      new JwtBearerAuth(
+        {
+          env: Env.PRD,
+          type: 'some fake type' as MockVariable,
+        },
+        {} as MockVariable,
+      );
     }).toThrow(UnsupportedAuthTypeError);
   });
 });
@@ -32,8 +41,8 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
       arrangeAuthAPIs();
 
     // Token
-    const tokenResponse = await auth.getAccessToken();
-    expect(tokenResponse.accessToken).toBe(MOCK_ACCESS_JWT);
+    const accessToken = await auth.getAccessToken();
+    expect(accessToken).toBe(MOCK_ACCESS_JWT);
 
     // User Profile
     const profileResponse = await auth.getUserProfile();
@@ -120,72 +129,81 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
     expect(mockOAuth2TokenUrl.isDone()).toBe(true);
   });
 
-  it('uses authenticates a new token if current token is out of date', async () => {
-    const { auth, mockGetLoginResponse } = arrangeAuth('SRP', MOCK_SRP);
+  it('authenticates a new token if current token is out of date', async () => {
+    const { auth, mockGetLoginResponse, mockSetLoginResponse } = arrangeAuth(
+      'SRP',
+      MOCK_SRP,
+    );
 
     const prevDate = new Date();
     prevDate.setDate(prevDate.getDate() - 1); // token is 1 day old (should have expired)
-    mockGetLoginResponse.mockResolvedValue({
-      token: {
-        accessToken: MOCK_SRP_LOGIN_RESPONSE.token,
-        expiresIn: MOCK_SRP_LOGIN_RESPONSE.expires_in,
-        obtainedAt: prevDate.getTime(),
-      },
-      profile: {
-        identifierId: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
-        profileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
-        metaMetricsId: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
-      },
-    });
-
-    arrangeAuthAPIs();
-
-    const result = await auth.getAccessToken();
-    expect(result.obtainedAt > prevDate.getTime()).toBe(true);
-  });
-
-  it('uses current token if in date', async () => {
-    const { auth, mockGetLoginResponse } = arrangeAuth('SRP', MOCK_SRP);
-
-    const currentTokenDate = Date.now();
-
-    mockGetLoginResponse.mockResolvedValue({
-      token: {
-        accessToken: MOCK_SRP_LOGIN_RESPONSE.token,
-        expiresIn: MOCK_SRP_LOGIN_RESPONSE.expires_in,
-        obtainedAt: currentTokenDate,
-      },
-      profile: {
-        identifierId: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
-        profileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
-        metaMetricsId: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
-      },
-    });
+    const mockStoredLogin = createMockStoredProfile();
+    mockStoredLogin.token.obtainedAt = prevDate.getTime();
+    mockGetLoginResponse.mockResolvedValue(mockStoredLogin);
 
     arrangeAuthAPIs();
 
     const result = await auth.getAccessToken();
     expect(result).toBeDefined();
-    expect(result.obtainedAt).toBe(currentTokenDate);
+
+    // Check that the newly stored session is different
+    expect(mockSetLoginResponse).toHaveBeenCalled();
+    const newlyStoredSession = mockSetLoginResponse.mock.calls[0][0];
+    expect(newlyStoredSession.token.obtainedAt > prevDate.getTime()).toBe(true);
+  });
+
+  it('getAccessToken() uses stored access token', async () => {
+    const { auth, mockGetLoginResponse, mockSetLoginResponse } = arrangeAuth(
+      'SRP',
+      MOCK_SRP,
+    );
+    arrangeAuthAPIs();
+
+    const mockStoredLogin = createMockStoredProfile();
+    mockGetLoginResponse.mockResolvedValue(mockStoredLogin);
+
+    const result = await auth.getAccessToken();
+    expect(result).toBeDefined();
+
+    // Not calling new session, so should not be called
+    expect(mockSetLoginResponse).not.toHaveBeenCalled();
+  });
+
+  it('getUserProfile() uses stored profile', async () => {
+    const { auth, mockGetLoginResponse, mockSetLoginResponse } = arrangeAuth(
+      'SRP',
+      MOCK_SRP,
+    );
+    arrangeAuthAPIs();
+
+    const mockStoredLogin = createMockStoredProfile();
+    mockGetLoginResponse.mockResolvedValue(mockStoredLogin);
+
+    const result = await auth.getUserProfile();
+    expect(result).toBeDefined();
+
+    // Not calling new session, so should not be called
+    expect(mockSetLoginResponse).not.toHaveBeenCalled();
   });
 });
 
 describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signMessage()', () => {
   it('the SiWE signIn success', async () => {
-    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+    const { auth, mockSignMessage } = arrangeAuth('SiWE', MOCK_ADDRESS);
 
     const { mockNonceUrl, mockSiweLoginUrl, mockOAuth2TokenUrl } =
       arrangeAuthAPIs();
 
-    auth.initialize({
+    auth.prepare({
       address: MOCK_ADDRESS,
       chainId: 1,
+      signMessage: mockSignMessage,
       domain: 'https://metamask.io',
     });
 
     // Token
-    const tokenResponse = await auth.getAccessToken();
-    expect(tokenResponse.accessToken).toBe(MOCK_ACCESS_JWT);
+    const accessToken = await auth.getAccessToken();
+    expect(accessToken).toBe(MOCK_ACCESS_JWT);
 
     // User Profile
     const userProfile = await auth.getUserProfile();
@@ -198,7 +216,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
   });
 
   it('the SIWE signIn failed: nonce error', async () => {
-    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+    const { auth, mockSignMessage } = arrangeAuth('SiWE', MOCK_ADDRESS);
 
     const { mockNonceUrl, mockSiweLoginUrl, mockOAuth2TokenUrl } =
       arrangeAuthAPIs({
@@ -208,9 +226,10 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
         },
       });
 
-    auth.initialize({
+    auth.prepare({
       address: MOCK_ADDRESS,
       chainId: 1,
+      signMessage: mockSignMessage,
       domain: 'https://metamask.io',
     });
 
@@ -227,7 +246,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
   });
 
   it('the SIWE signIn failed: auth error', async () => {
-    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+    const { auth, mockSignMessage } = arrangeAuth('SiWE', MOCK_ADDRESS);
 
     const { mockNonceUrl, mockSiweLoginUrl, mockOAuth2TokenUrl } =
       arrangeAuthAPIs({
@@ -240,9 +259,10 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
         },
       });
 
-    auth.initialize({
+    auth.prepare({
       address: MOCK_ADDRESS,
       chainId: 1,
+      signMessage: mockSignMessage,
       domain: 'https://metamask.io',
     });
 
@@ -259,7 +279,7 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
   });
 
   it('the SIWE signIn failed: oauth2 error', async () => {
-    const { auth } = arrangeAuth('SiWE', MOCK_ADDRESS);
+    const { auth, mockSignMessage } = arrangeAuth('SiWE', MOCK_ADDRESS);
 
     const { mockNonceUrl, mockSiweLoginUrl, mockOAuth2TokenUrl } =
       arrangeAuthAPIs({
@@ -272,9 +292,10 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
         },
       });
 
-    auth.initialize({
+    auth.prepare({
       address: MOCK_ADDRESS,
       chainId: 1,
+      signMessage: mockSignMessage,
       domain: 'https://metamask.io',
     });
 
@@ -303,6 +324,72 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
     await expect(auth.signMessage('metamask:test message')).rejects.toThrow(
       ValidationError,
     );
+  });
+
+  it('authenticates a new token if current token is out of date', async () => {
+    const {
+      auth,
+      mockGetLoginResponse,
+      mockSetLoginResponse,
+      mockSignMessage,
+    } = arrangeAuth('SiWE', MOCK_ADDRESS);
+
+    auth.prepare({
+      address: MOCK_ADDRESS,
+      chainId: 1,
+      signMessage: mockSignMessage,
+      domain: 'https://metamask.io',
+    });
+
+    const prevDate = new Date();
+    prevDate.setDate(prevDate.getDate() - 1); // token is 1 day old (should have expired)
+    const mockStoredLogin = createMockStoredProfile();
+    mockStoredLogin.token.obtainedAt = prevDate.getTime();
+    mockGetLoginResponse.mockResolvedValue(mockStoredLogin);
+
+    arrangeAuthAPIs();
+
+    const result = await auth.getAccessToken();
+    expect(result).toBeDefined();
+
+    // Check that the newly stored session is different
+    expect(mockSetLoginResponse).toHaveBeenCalled();
+    const newlyStoredSession = mockSetLoginResponse.mock.calls[0][0];
+    expect(newlyStoredSession.token.obtainedAt > prevDate.getTime()).toBe(true);
+  });
+
+  it('getAccessToken() uses stored access token', async () => {
+    const { auth, mockGetLoginResponse, mockSetLoginResponse } = arrangeAuth(
+      'SiWE',
+      MOCK_ADDRESS,
+    );
+    arrangeAuthAPIs();
+
+    const mockStoredLogin = createMockStoredProfile();
+    mockGetLoginResponse.mockResolvedValue(mockStoredLogin);
+
+    const result = await auth.getAccessToken();
+    expect(result).toBeDefined();
+
+    // Not calling new session, so should not be called
+    expect(mockSetLoginResponse).not.toHaveBeenCalled();
+  });
+
+  it('getUserProfile() uses stored profile', async () => {
+    const { auth, mockGetLoginResponse, mockSetLoginResponse } = arrangeAuth(
+      'SiWE',
+      MOCK_ADDRESS,
+    );
+    arrangeAuthAPIs();
+
+    const mockStoredLogin = createMockStoredProfile();
+    mockGetLoginResponse.mockResolvedValue(mockStoredLogin);
+
+    const result = await auth.getUserProfile();
+    expect(result).toBeDefined();
+
+    // Not calling new session, so should not be called
+    expect(mockSetLoginResponse).not.toHaveBeenCalled();
   });
 });
 
@@ -370,3 +457,23 @@ describe('Authentication - SRP Default Flow - signMessage() & getIdentifier()', 
     expect(message).toBeDefined();
   });
 });
+
+/**
+ * Mock Utility to create a mock stored profile
+ *
+ * @returns mock Login Response
+ */
+function createMockStoredProfile(): LoginResponse {
+  return {
+    token: {
+      accessToken: MOCK_SRP_LOGIN_RESPONSE.token,
+      expiresIn: MOCK_SRP_LOGIN_RESPONSE.expires_in,
+      obtainedAt: Date.now(),
+    },
+    profile: {
+      identifierId: MOCK_SRP_LOGIN_RESPONSE.profile.identifier_id,
+      profileId: MOCK_SRP_LOGIN_RESPONSE.profile.profile_id,
+      metaMetricsId: MOCK_SRP_LOGIN_RESPONSE.profile.metametrics_id,
+    },
+  };
+}

@@ -41,3 +41,25 @@ export function getEnvUrls(env: Env): EnvUrlsEntry {
   }
   return ENV_URLS[env];
 }
+
+/**
+ * Returns the valid OIDC Client ID (used during authorization)
+ *
+ * @param env - environment field
+ * @returns the OIDC client id for the environment
+ */
+export function getOidcClientId(env: Env): string {
+  switch (env) {
+    case Env.DEV:
+      return 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3';
+    /* istanbul ignore next */
+    case Env.UAT:
+      return 'a9de167c-c9a6-43d8-af39-d301fd44c485';
+    /* istanbul ignore next */
+    case Env.PRD:
+      return '1132f10a-b4e5-4390-a5f2-d9c6022db564';
+    /* istanbul ignore next */
+    default:
+      throw new Error('invalid env: cannot determine oidc client id');
+  }
+}

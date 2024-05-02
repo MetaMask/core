@@ -24,6 +24,11 @@ module.exports = merge(baseConfig, {
     },
   },
 
+  coveragePathIgnorePatterns: [
+    ...baseConfig.coveragePathIgnorePatterns,
+    '/__fixtures__/',
+  ],
+
   // These tests rely on the Crypto API
   testEnvironment: '<rootDir>/jest.environment.js',
 });

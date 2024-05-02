@@ -1,20 +1,15 @@
-import type { BaseAuth } from './authentication';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import encryption, { createSHA256Hash } from './encryption';
 import type { Env } from './env';
 import { getEnvUrls } from './env';
-import {
-  NotFoundError,
-  SignInError,
-  UserStorageError,
-  ValidationError,
-} from './errors';
+import { NotFoundError, UserStorageError, ValidationError } from './errors';
 
 export const STORAGE_URL = (env: Env, feature: string, entry: string) =>
   `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${feature}/${entry}`;
 
 export type UserStorageConfig = {
   env: Env;
-  auth: BaseAuth;
+  auth: Pick<IBaseAuth, 'getAccessToken' | 'getUserProfile' | 'signMessage'>;
 };
 
 export type StorageOptions = {
@@ -23,7 +18,7 @@ export type StorageOptions = {
 };
 
 export type UserStorageOptions = {
-  storage: StorageOptions;
+  storage?: StorageOptions;
 };
 
 type ErrorMessage = {
@@ -58,18 +53,18 @@ export class UserStorage {
     return this.#getUserStorage(feature, key);
   }
 
-  async #getStorageKey(): Promise<string> {
-    const userProfile = await this.config.auth.getUserProfile();
-    const storageKey = await this.options.storage.getStorageKey();
+  async getStorageKey(): Promise<string> {
+    const storageKey = await this.options.storage?.getStorageKey();
     if (storageKey) {
       return storageKey;
     }
 
+    const userProfile = await this.config.auth.getUserProfile();
     const storageKeySignature = await this.config.auth.signMessage(
       `metamask:${userProfile.profileId}`,
     );
     const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
-    await this.options.storage.setStorageKey(hashedStorageKeySignature);
+    await this.options.storage?.setStorageKey(hashedStorageKeySignature);
     return hashedStorageKeySignature;
   }
 
@@ -80,7 +75,7 @@ export class UserStorage {
   ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.#getStorageKey();
+      const storageKey = await this.getStorageKey();
       const encryptedData = encryption.encryptString(data, storageKey);
       const url = new URL(
         STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
@@ -117,7 +112,7 @@ export class UserStorage {
   async #getUserStorage(feature: string, key: string): Promise<string> {
     try {
       const headers = await this.#getAuthorizationHeader();
-      const storageKey = await this.#getStorageKey();
+      const storageKey = await this.getStorageKey();
       const url = new URL(
         STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
       );
@@ -166,9 +161,6 @@ export class UserStorage {
 
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken();
-    if (!accessToken) {
-      throw new SignInError('access token is missing, unable to authenticate.');
-    }
-    return { Authorization: `Bearer ${accessToken.accessToken}` };
+    return { Authorization: `Bearer ${accessToken}` };
   }
 }

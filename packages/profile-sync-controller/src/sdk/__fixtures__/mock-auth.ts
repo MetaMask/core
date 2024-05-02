@@ -5,7 +5,7 @@ import {
   SIWE_LOGIN_URL,
   SRP_LOGIN_URL,
   OIDC_TOKEN_URL,
-} from '../authentication';
+} from '../authentication-jwt-bearer/services';
 import { Env } from '../env';
 
 type MockReply = {
