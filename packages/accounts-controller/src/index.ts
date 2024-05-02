@@ -8,6 +8,7 @@ export type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountExpectAction,
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
