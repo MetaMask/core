@@ -1453,15 +1453,15 @@ __metadata:
   linkType: hard
 
 "@metamask/gas-fee-controller@npm:^15.0.0":
-  version: 15.1.0
-  resolution: "@metamask/gas-fee-controller@npm:15.1.0"
+  version: 15.1.1
+  resolution: "@metamask/gas-fee-controller@npm:15.1.1"
   dependencies:
-    "@metamask/base-controller": ^5.0.1
+    "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
     "@metamask/network-controller": ^18.1.0
-    "@metamask/polling-controller": ^6.0.1
+    "@metamask/polling-controller": ^6.0.2
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
     "@types/uuid": ^8.3.0
@@ -1469,7 +1469,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^18.0.0
-  checksum: cdfd4b435a265ccad79f1e6444a6ea4b68ce40cce4868a35e68ea00b23f0f36cfd873f6eb5461cd17d30cc0a210ecd6714237ff683db54b9bb2837a131a46d36
+  checksum: 0014e4c7e60c5a871bb1e421fd4b099538ed016e3442af0407dfe0ef6a90fac128f0da3637179fe34dd904c41b47b988e23e279a9b69cc958c469c62423a5440
   languageName: node
   linkType: hard
 
@@ -1534,7 +1534,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/polling-controller@npm:^6.0.1":
+"@metamask/polling-controller@npm:^6.0.1, @metamask/polling-controller@npm:^6.0.2":
   version: 6.0.2
   resolution: "@metamask/polling-controller@npm:6.0.2"
   dependencies:
