@@ -1,3 +1,4 @@
+import type { InternalAccount } from '@metamask/keyring-api';
 import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -35,7 +36,7 @@ export class IncomingTransactionHelper {
 
   #blockTracker: BlockTracker;
 
-  #getCurrentAccount: () => string;
+  #getCurrentAccount: () => InternalAccount;
 
   #getLastFetchedBlockNumbers: () => Record<string, number>;
 
@@ -72,7 +73,7 @@ export class IncomingTransactionHelper {
     updateTransactions,
   }: {
     blockTracker: BlockTracker;
-    getCurrentAccount: () => string;
+    getCurrentAccount: () => InternalAccount;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
     getChainId: () => Hex;
@@ -142,9 +143,15 @@ export class IncomingTransactionHelper {
 
       const additionalLastFetchedKeys =
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
-
+      const currentAccount = this.#getCurrentAccount();
+      if (
+        currentAccount.type !== 'eip155:eoa' &&
+        currentAccount.type !== 'eip155:erc4337'
+      ) {
+        return;
+      }
       const fromBlock = this.#getFromBlock(latestBlockNumber);
-      const address = this.#getCurrentAccount();
+
       const currentChainId = this.#getChainId();
 
       let remoteTransactions = [];
@@ -152,7 +159,7 @@ export class IncomingTransactionHelper {
       try {
         remoteTransactions =
           await this.#remoteTransactionSource.fetchTransactions({
-            address,
+            address: currentAccount.address,
             currentChainId,
             fromBlock,
             limit: this.#transactionLimit,
@@ -165,7 +172,9 @@ export class IncomingTransactionHelper {
       }
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
-          (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
+          (tx) =>
+            tx.txParams.to?.toLowerCase() ===
+            currentAccount.address.toLowerCase(),
         );
       }
 
@@ -301,9 +310,13 @@ export class IncomingTransactionHelper {
 
   #getBlockNumberKey(additionalKeys: string[]): string {
     const currentChainId = this.#getChainId();
-    const currentAccount = this.#getCurrentAccount()?.toLowerCase();
+    const currentAccount = this.#getCurrentAccount();
 
-    return [currentChainId, currentAccount, ...additionalKeys].join('#');
+    return [
+      currentChainId,
+      currentAccount.address.toLowerCase(),
+      ...additionalKeys,
+    ].join('#');
   }
 
   #canStart(): boolean {

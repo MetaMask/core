@@ -16,8 +16,6 @@ export type {
   AccountsControllerMessenger,
 } from './AccountsController';
 export { AccountsController } from './AccountsController';
-export {
-  isEVMAccount,
-  keyringTypeToName,
-  getUUIDFromAddressOfNormalAccount,
-} from './utils';
+export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';
+export { isEVMAccount } from './utils';
+export { createMockInternalAccount } from './tests/mocks';

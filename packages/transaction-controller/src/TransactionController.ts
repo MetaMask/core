@@ -22,6 +22,7 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -289,7 +290,7 @@ export type TransactionControllerOptions = {
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  getSelectedAddress: () => string;
+  getSelectedAccount: () => InternalAccount;
   incomingTransactions?: IncomingTransactionOptions;
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
@@ -594,7 +595,7 @@ export class TransactionController extends BaseController<
 
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
-  private readonly getSelectedAddress: () => string;
+  private readonly getSelectedAccount: () => InternalAccount;
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -711,7 +712,7 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.getSelectedAccount - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
@@ -738,7 +739,7 @@ export class TransactionController extends BaseController<
     getNetworkState,
     getPermittedAccounts,
     getSavedGasFees,
-    getSelectedAddress,
+    getSelectedAccount,
     incomingTransactions = {},
     isMultichainEnabled = false,
     isSimulationEnabled,
@@ -778,7 +779,7 @@ export class TransactionController extends BaseController<
     this.getGasFeeEstimates =
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
-    this.getSelectedAddress = getSelectedAddress;
+    this.getSelectedAccount = getSelectedAccount;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -986,6 +987,14 @@ export class TransactionController extends BaseController<
   ): Promise<Result> {
     log('Adding transaction', txParams);
 
+    const selectedAccount = this.getSelectedAccount();
+    if (
+      selectedAccount.type !== 'eip155:eoa' &&
+      selectedAccount.type !== 'eip155:erc4337'
+    ) {
+      throw new Error('Selected account is not an EVM account');
+    }
+
     txParams = normalizeTransactionParams(txParams);
     if (
       networkClientId &&
@@ -1005,7 +1014,7 @@ export class TransactionController extends BaseController<
     if (origin) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
-        this.getSelectedAddress(),
+        selectedAccount.address,
         txParams.from,
         origin,
       );
@@ -3353,7 +3362,7 @@ export class TransactionController extends BaseController<
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
-      getCurrentAccount: this.getSelectedAddress,
+      getCurrentAccount: this.getSelectedAccount,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,

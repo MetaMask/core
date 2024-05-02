@@ -16,6 +16,7 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
+import { EthAccountType } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkController,
@@ -552,7 +553,21 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientRegistry: () => ({} as any),
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
-      getSelectedAddress: () => ACCOUNT_MOCK,
+      getSelectedAccount: () => {
+        return {
+          id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
+          address: ACCOUNT_MOCK,
+          type: EthAccountType.Eoa,
+          options: {},
+          methods: [],
+          metadata: {
+            name: 'Account 1',
+            keyring: { type: 'HD Key Tree' },
+            importTime: 1631619180000,
+            lastSelected: 1631619180000,
+          },
+        };
+      },
       isMultichainEnabled: false,
       hooks: {},
       onNetworkStateChange: network.subscribe,
