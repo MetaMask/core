@@ -85,7 +85,7 @@
   },
   "peerDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/accounts-controller": "^13.0.0",
+    "@metamask/accounts-controller": "^14.0.0",
     "@metamask/approval-controller": "^6.0.0",
     "@metamask/gas-fee-controller": "^15.0.0",
     "@metamask/network-controller": "^18.0.0"
