@@ -443,6 +443,7 @@ const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_META_MOCK = {
   hash: '0x1',
   id: '1',
+  chainId: CHAIN_ID_MOCK,
   status: TransactionStatus.confirmed as const,
   time: 123456789,
   txParams: {
@@ -510,6 +511,10 @@ describe('TransactionController', () => {
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
 
   let mockEthQuery: EthQuery;
+  let approveTransactionCallback: (
+    transactionId: string,
+    isResubmission?: boolean,
+  ) => Promise<unknown>;
   let getNonceLockSpy: jest.Mock;
   let incomingTransactionHelperMock: jest.Mocked<IncomingTransactionHelper>;
   let pendingTransactionTrackerMock: jest.Mocked<PendingTransactionTracker>;
@@ -765,20 +770,23 @@ describe('TransactionController', () => {
       return incomingTransactionHelperMock;
     });
 
-    pendingTransactionTrackerClassMock.mockImplementation(() => {
-      pendingTransactionTrackerMock = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        startIfPendingTransactions: jest.fn(),
-        hub: {
-          on: jest.fn(),
-          removeAllListeners: jest.fn(),
-        },
-        onStateChange: jest.fn(),
-        forceCheckTransaction: jest.fn(),
-      } as unknown as jest.Mocked<PendingTransactionTracker>;
-      return pendingTransactionTrackerMock;
-    });
+    pendingTransactionTrackerClassMock.mockImplementation(
+      ({ approveTransaction }) => {
+        approveTransactionCallback = approveTransaction;
+        pendingTransactionTrackerMock = {
+          start: jest.fn(),
+          stop: jest.fn(),
+          startIfPendingTransactions: jest.fn(),
+          hub: {
+            on: jest.fn(),
+            removeAllListeners: jest.fn(),
+          },
+          onStateChange: jest.fn(),
+          forceCheckTransaction: jest.fn(),
+        } as unknown as jest.Mocked<PendingTransactionTracker>;
+        return pendingTransactionTrackerMock;
+      },
+    );
 
     multichainTrackingHelperClassMock.mockImplementation(({ provider }) => {
       multichainTrackingHelperMock = {
@@ -4247,6 +4255,58 @@ describe('TransactionController', () => {
           retryCount: 123,
         },
       ]);
+    });
+  });
+
+  describe('approveTransaction', () => {
+    it('fails transaction if not a resubmission and the error is already known', async () => {
+      const { messenger } = setupController({
+        options: { state: { transactions: [TRANSACTION_META_MOCK] } },
+      });
+
+      // Set up the mock to throw the 'already known' error
+      jest
+        .spyOn(mockEthQuery, 'sendRawTransaction')
+        .mockImplementation((_transaction, callback) => {
+          callback(new Error('already known'));
+        });
+
+      // Spy on the messaging system's publish method
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Call approveTransaction with isResubmission=false
+      await approveTransactionCallback(TRANSACTION_META_MOCK.id, false);
+
+      // Ensure that 'TransactionController:transactionFailed' event is published
+      expect(publishSpy).toHaveBeenCalledWith(
+        'TransactionController:transactionFailed',
+        expect.anything(),
+      );
+    });
+
+    it('does not fail transaction if it is a resubmission and the error is already known', async () => {
+      const { messenger } = setupController({
+        options: { state: { transactions: [TRANSACTION_META_MOCK] } },
+      });
+
+      // Set up the mock to throw the 'already known' error
+      jest
+        .spyOn(mockEthQuery, 'sendRawTransaction')
+        .mockImplementation((_transaction, callback) => {
+          callback(new Error('already known'));
+        });
+
+      // Spy on the messaging system's publish method
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      // Call approveTransaction with isResubmission=true
+      await approveTransactionCallback(TRANSACTION_META_MOCK.id, true);
+
+      // Ensure that 'TransactionController:transactionFailed' event is not published
+      expect(publishSpy).not.toHaveBeenCalledWith(
+        'TransactionController:transactionFailed',
+        expect.anything(),
+      );
     });
   });
 

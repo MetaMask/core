@@ -1,6 +1,5 @@
 import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
-import type { TypedTransaction } from '@ethereumjs/tx';
-import { TransactionFactory } from '@ethereumjs/tx';
+import { TransactionFactory, type TypedTransaction } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
 import type {
   AcceptResultCallbacks,
@@ -36,9 +35,13 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
-import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
-import type { Hex } from '@metamask/utils';
-import { add0x } from '@metamask/utils';
+import {
+  errorCodes,
+  rpcErrors,
+  providerErrors,
+  type JsonRpcError,
+} from '@metamask/rpc-errors';
+import { add0x, type Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
@@ -122,6 +125,9 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
+
+// Some networks are returning original error in the data field
+type RpcError = JsonRpcError<{ message?: string; code?: number } | undefined>;
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
@@ -2621,8 +2627,12 @@ export class TransactionController extends BaseController<
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
    * @param transactionId - The ID of the transaction to approve.
+   * @param isResubmission - If we are in the process of resubmitting a transaction.
    */
-  private async approveTransaction(transactionId: string) {
+  private async approveTransaction(
+    transactionId: string,
+    isResubmission = false,
+  ) {
     const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
     const index = transactions.findIndex(({ id }) => transactionId === id);
@@ -2768,6 +2778,10 @@ export class TransactionController extends BaseController<
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
+      if (isResubmission && this.isTransactionAlreadyKnownError(error)) {
+        log('Resubmit: Transaction is already in the mempool', transactionMeta);
+        return ApprovalState.NotApproved;
+      }
       this.failTransaction(transactionMeta, error);
       return ApprovalState.NotApproved;
     } finally {
@@ -3442,9 +3456,7 @@ export class TransactionController extends BaseController<
     const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
 
     const pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: async (transactionId: string) => {
-        await this.approveTransaction(transactionId);
-      },
+      approveTransaction: this.approveTransaction.bind(this),
       blockTracker,
       getChainId,
       getEthQuery: () => ethQuery,
@@ -3567,7 +3579,7 @@ export class TransactionController extends BaseController<
       const hash = await this.publishTransaction(ethQuery, rawTx);
       return hash;
     } catch (error: unknown) {
-      if (this.isTransactionAlreadyConfirmedError(error as Error)) {
+      if (this.isTransactionAlreadyConfirmedError(error as RpcError)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
           transactionMeta,
         );
@@ -3583,13 +3595,25 @@ export class TransactionController extends BaseController<
    * @param error - The error to check
    * @returns Whether or not the error is a nonce issue
    */
-  // TODO: Replace `any` with type
-  // Some networks are returning original error in the data field
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private isTransactionAlreadyConfirmedError(error: any): boolean {
+  private isTransactionAlreadyConfirmedError(error: RpcError): boolean {
     return (
       error?.message?.includes('nonce too low') ||
-      error?.data?.message?.includes('nonce too low')
+      error?.data?.message?.includes('nonce too low') ||
+      false
+    );
+  }
+
+  /**
+   * Test for error indicating transaction with the same hash is already in the mempool.
+   *
+   * @param error - The error to check
+   * @returns True if error is a transaction already known error
+   */
+  private isTransactionAlreadyKnownError(error: RpcError): boolean {
+    return (
+      error?.message?.includes('already known') ||
+      error?.data?.message?.includes('already known') ||
+      false
     );
   }
 

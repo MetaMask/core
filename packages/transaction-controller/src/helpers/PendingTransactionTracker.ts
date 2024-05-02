@@ -32,6 +32,11 @@ const KNOWN_TRANSACTION_ERRORS = [
 
 const log = createModuleLogger(projectLogger, 'pending-transactions');
 
+type ApproveTransactionCallback = (
+  transactionId: string,
+  isResubmission?: boolean,
+) => Promise<unknown>;
+
 type SuccessfulTransactionReceipt = TransactionReceipt & {
   blockNumber: string;
   blockHash: string;
@@ -59,7 +64,7 @@ export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #approveTransaction: (transactionId: string) => Promise<void>;
+  #approveTransaction: ApproveTransactionCallback;
 
   #blockTracker: BlockTracker;
 
@@ -98,7 +103,7 @@ export class PendingTransactionTracker {
     publishTransaction,
     hooks,
   }: {
-    approveTransaction: (transactionId: string) => Promise<void>;
+    approveTransaction: ApproveTransactionCallback;
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
@@ -286,7 +291,7 @@ export class PendingTransactionTracker {
 
     if (!rawTx?.length) {
       log('Approving transaction as no raw value');
-      await this.#approveTransaction(txMeta.id);
+      await this.#approveTransaction(txMeta.id, true);
       return;
     }
 
