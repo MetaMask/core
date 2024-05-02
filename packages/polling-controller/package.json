@@ -1,6 +1,6 @@
 {
   "name": "@metamask/polling-controller",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "description": "Polling Controller is the base for controllers that polling by networkClientId",
   "keywords": [
     "MetaMask",
@@ -41,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.1",
+    "@metamask/base-controller": "^5.0.2",
     "@metamask/controller-utils": "^9.1.0",
     "@metamask/network-controller": "^18.1.0",
     "@metamask/utils": "^8.3.0",
