@@ -898,11 +898,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     }
     const addressLowerCase = address.toLowerCase();
     if (ignoreNetwork) {
-      this.#wipeSmartTransactionsPerChainId({
-        chainId: this.config.chainId,
-        addressLowerCase,
-      });
-    } else {
       const { smartTransactions } = this.state.smartTransactionsState;
       Object.keys(smartTransactions).forEach((chainId) => {
         const chainIdHex: Hex = chainId as Hex;
@@ -910,6 +905,11 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           chainId: chainIdHex,
           addressLowerCase,
         });
+      });
+    } else {
+      this.#wipeSmartTransactionsPerChainId({
+        chainId: this.config.chainId,
+        addressLowerCase,
       });
     }
   }

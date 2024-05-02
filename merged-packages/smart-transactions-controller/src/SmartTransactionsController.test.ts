@@ -19,7 +19,7 @@ import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
 import { advanceTime, flushPromises } from './test-helpers';
-import type { SmartTransaction, UnsignedTransaction } from './types';
+import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
 import { SmartTransactionStatuses } from './types';
 import * as utils from './utils';
 import packageJson from '../package.json';
@@ -1415,11 +1415,28 @@ describe('SmartTransactionsController', () => {
       expect(smartTransactionsController.state).toStrictEqual(prevState);
     });
 
-    it('removes transactions from current chainId if ignoreNetwork is true', () => {
+    it('removes transactions from all chains saved in the smartTransactionsState if ignoreNetwork is true', () => {
       const address = '0x123';
       smartTransactionsController.wipeSmartTransactions({
         address,
         ignoreNetwork: true,
+      });
+      const { smartTransactions } =
+        smartTransactionsController.state.smartTransactionsState;
+      Object.keys(smartTransactions).forEach((chainId) => {
+        const chainIdHex: Hex = chainId as Hex;
+        expect(
+          smartTransactionsController.state.smartTransactionsState
+            .smartTransactions[chainIdHex],
+        ).not.toContainEqual({ txParams: { from: address } });
+      });
+    });
+
+    it('removes transactions only from the current chainId if ignoreNetwork is false', () => {
+      const address = '0x123';
+      smartTransactionsController.wipeSmartTransactions({
+        address,
+        ignoreNetwork: false,
       });
       expect(
         smartTransactionsController.state.smartTransactionsState
@@ -1435,20 +1452,44 @@ describe('SmartTransactionsController', () => {
       );
     });
 
-    it('removes transactions from all supported chainIds if ignoreNetwork is false', () => {
+    it('removes transactions from the current chainId (even if it is not in supportedChainIds) if ignoreNetwork is false', () => {
       const address = '0x123';
+      smartTransactionsController.config.supportedChainIds = [ChainId.mainnet];
+      smartTransactionsController.config.chainId = ChainId.sepolia;
       smartTransactionsController.wipeSmartTransactions({
         address,
         ignoreNetwork: false,
       });
-      smartTransactionsController.config.supportedChainIds.forEach(
-        (chainId) => {
-          expect(
-            smartTransactionsController.state.smartTransactionsState
-              .smartTransactions[chainId],
-          ).not.toContainEqual({ txParams: { from: address } });
-        },
+      expect(
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[smartTransactionsController.config.chainId],
+      ).not.toContainEqual({ txParams: { from: address } });
+      expect(
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[ChainId.mainnet],
+      ).toContainEqual(
+        expect.objectContaining({
+          txParams: expect.objectContaining({ from: address }),
+        }),
       );
+    });
+
+    it('removes transactions from all chains (even if they are not in supportedChainIds) if ignoreNetwork is true', () => {
+      const address = '0x123';
+      smartTransactionsController.config.supportedChainIds = [];
+      smartTransactionsController.wipeSmartTransactions({
+        address,
+        ignoreNetwork: true,
+      });
+      const { smartTransactions } =
+        smartTransactionsController.state.smartTransactionsState;
+      Object.keys(smartTransactions).forEach((chainId) => {
+        const chainIdHex: Hex = chainId as Hex;
+        expect(
+          smartTransactionsController.state.smartTransactionsState
+            .smartTransactions[chainIdHex],
+        ).not.toContainEqual({ txParams: { from: address } });
+      });
     });
   });
 });
