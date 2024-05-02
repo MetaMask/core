@@ -29,7 +29,7 @@ describe('SnapControllerClient', () => {
 
     const { method, params } = request.request;
 
-    it('should call the listAccounts method and return the result', async () => {
+    it('should call a method and return the result', async () => {
       const client = new SnapControllerClient({
         controller: snapController as unknown as SnapController,
         snapId,
@@ -41,7 +41,7 @@ describe('SnapControllerClient', () => {
       expect(accounts).toStrictEqual(response);
     });
 
-    it('should call the listAccounts method and return the result (withSnapId)', async () => {
+    it('should call a method and return the result (withSnapId)', async () => {
       const client = new SnapControllerClient({
         controller: snapController as unknown as SnapController,
       });
