@@ -1452,7 +1452,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/gas-fee-controller@npm:^15.0.0":
+"@metamask/gas-fee-controller@npm:^15.1.0":
   version: 15.1.1
   resolution: "@metamask/gas-fee-controller@npm:15.1.1"
   dependencies:
@@ -1625,8 +1625,8 @@ __metadata:
   linkType: hard
 
 "@metamask/transaction-controller@npm:^28.1.0":
-  version: 28.1.0
-  resolution: "@metamask/transaction-controller@npm:28.1.0"
+  version: 28.1.1
+  resolution: "@metamask/transaction-controller@npm:28.1.1"
   dependencies:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
@@ -1638,7 +1638,7 @@ __metadata:
     "@metamask/base-controller": ^5.0.1
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
-    "@metamask/gas-fee-controller": ^15.0.0
+    "@metamask/gas-fee-controller": ^15.1.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.0
     "@metamask/rpc-errors": ^6.2.1
@@ -1655,7 +1655,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.0
     "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/network-controller": ^18.0.0
-  checksum: 83c40827b2ddf962e5da7553a1141da92f73ab677a5cd466c68f48e90b510f3c86ecb4a2e3f241bf112c4c524f6bfd5ae9d9013c04a79784d76fc2a12bfaac50
+  checksum: 04e532ef0caeaafce950ff3299cc52dbdf4e57e100288d1dbd8b3169826974d3b7ab5a9b70f218fc14f40d4f780ea47d1d52a737ec5c9889d5048911c8787ef5
   languageName: node
   linkType: hard
 
