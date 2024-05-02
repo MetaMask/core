@@ -559,6 +559,61 @@ describe('Simulation Utils', () => {
         });
       });
 
+      it('on NFT mint', async () => {
+        mockParseLog({
+          erc721: {
+            ...PARSED_ERC721_TRANSFER_EVENT_MOCK,
+            args: [
+              '0x0000000000000000000000000000000000000000',
+              USER_ADDRESS_MOCK,
+              TOKEN_ID_MOCK,
+            ],
+          },
+        });
+
+        simulateTransactionsMock
+          .mockResolvedValueOnce(
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+          )
+          .mockResolvedValueOnce(
+            createBalanceOfResponse([], [USER_ADDRESS_MOCK]),
+          );
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(2);
+        // The second call should only simulate the minting of the NFT and
+        // check the balance after, and not before.
+        expect(simulateTransactionsMock).toHaveBeenNthCalledWith(
+          2,
+          REQUEST_MOCK.chainId,
+          {
+            transactions: [
+              REQUEST_MOCK,
+              {
+                from: REQUEST_MOCK.from,
+                to: CONTRACT_ADDRESS_MOCK,
+                data: expect.any(String),
+              },
+            ],
+          },
+        );
+        expect(simulationData).toStrictEqual({
+          nativeBalanceChange: undefined,
+          tokenBalanceChanges: [
+            {
+              standard: SimulationTokenStandard.erc721,
+              address: CONTRACT_ADDRESS_MOCK,
+              id: TOKEN_ID_MOCK,
+              previousBalance: '0x0',
+              newBalance: '0x1',
+              difference: '0x1',
+              isDecrease: false,
+            },
+          ],
+        });
+      });
+
       it('as empty if events cannot be parsed', async () => {
         mockParseLog({});
 
