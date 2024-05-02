@@ -1,2 +1,1 @@
-const foo = 'hello world';
-export default foo;
+export * from './sdk';

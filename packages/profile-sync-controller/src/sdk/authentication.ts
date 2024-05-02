@@ -76,3 +76,4 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
 export { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 export { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
+export * from './authentication-jwt-bearer/types';
