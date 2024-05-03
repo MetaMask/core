@@ -21,7 +21,10 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   BlockTracker,
@@ -52,6 +55,7 @@ import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
@@ -73,6 +77,7 @@ import type {
   GasFeeFlow,
   SimulationData,
   GasFeeEstimates,
+  GasFeeFlowResponse,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -83,6 +88,7 @@ import {
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
+import { getGasFeeFlow } from './utils/gas-flow';
 import {
   addInitialHistorySnapshot,
   updateTransactionHistory,
@@ -285,7 +291,9 @@ export type TransactionControllerOptions = {
     address: string,
     chainId?: string,
   ) => NonceTrackerTransaction[];
-  getGasFeeEstimates?: () => Promise<GasFeeState>;
+  getGasFeeEstimates?: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
@@ -305,6 +313,7 @@ export type TransactionControllerOptions = {
     transactionMeta?: TransactionMeta,
   ) => Promise<TypedTransaction>;
   state?: Partial<TransactionControllerState>;
+  testGasFeeFlows?: boolean;
   transactionHistoryLimit: number;
   hooks: {
     afterSign?: (
@@ -591,7 +600,9 @@ export class TransactionController extends BaseController<
     networkClientId?: NetworkClientId,
   ) => Promise<boolean>;
 
-  private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
+  private readonly getGasFeeEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
 
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
@@ -619,6 +630,8 @@ export class TransactionController extends BaseController<
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
+
+  #testGasFeeFlows: boolean;
 
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
@@ -723,6 +736,7 @@ export class TransactionController extends BaseController<
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
+   * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
    * @param options.transactionHistoryLimit - Transaction history limit.
    * @param options.hooks - The controller hooks.
    */
@@ -750,6 +764,7 @@ export class TransactionController extends BaseController<
     securityProviderRequest,
     sign,
     state,
+    testGasFeeFlows,
     transactionHistoryLimit = 40,
     hooks,
   }: TransactionControllerOptions) {
@@ -787,6 +802,7 @@ export class TransactionController extends BaseController<
     this.#pendingTransactionOptions = pendingTransactions;
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
+    this.#testGasFeeFlows = testGasFeeFlows === true;
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -805,17 +821,19 @@ export class TransactionController extends BaseController<
       blockTracker,
     });
 
+    const findNetworkClientIdByChainId = (chainId: Hex) => {
+      return this.messagingSystem.call(
+        `NetworkController:findNetworkClientIdByChainId`,
+        chainId,
+      );
+    };
+
     this.#multichainTrackingHelper = new MultichainTrackingHelper({
       isMultichainEnabled,
       provider,
       nonceTracker: this.nonceTracker,
       incomingTransactionOptions: incomingTransactions,
-      findNetworkClientIdByChainId: (chainId: Hex) => {
-        return this.messagingSystem.call(
-          `NetworkController:findNetworkClientIdByChainId`,
-          chainId,
-        );
-      },
+      findNetworkClientIdByChainId,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
         return this.messagingSystem.call(
           `NetworkController:getNetworkClientById`,
@@ -860,8 +878,8 @@ export class TransactionController extends BaseController<
     this.layer1GasFeeFlows = this.#getLayer1GasFeeFlows();
 
     const gasFeePoller = new GasFeePoller({
-      // Default gas fee polling is not yet supported by the clients
-      gasFeeFlows: this.gasFeeFlows.slice(0, -1),
+      findNetworkClientIdByChainId,
+      gasFeeFlows: this.gasFeeFlows,
       getGasFeeControllerEstimates: this.getGasFeeEstimates,
       getProvider: (chainId, networkClientId) =>
         this.#multichainTrackingHelper.getProvider({
@@ -968,7 +986,7 @@ export class TransactionController extends BaseController<
       sendFlowHistory,
       swaps = {},
       type,
-      networkClientId,
+      networkClientId: requestNetworkClientId,
     }: {
       actionId?: string;
       deviceConfirmedOn?: WalletDevice;
@@ -997,13 +1015,16 @@ export class TransactionController extends BaseController<
 
     txParams = normalizeTransactionParams(txParams);
     if (
-      networkClientId &&
-      !this.#multichainTrackingHelper.has(networkClientId)
+      requestNetworkClientId &&
+      !this.#multichainTrackingHelper.has(requestNetworkClientId)
     ) {
       throw new Error(
         'The networkClientId for this transaction could not be found',
       );
     }
+
+    const networkClientId =
+      requestNetworkClientId ?? this.#getGlobalNetworkClientId();
 
     const isEIP1559Compatible = await this.getEIP1559Compatibility(
       networkClientId,
@@ -2272,6 +2293,48 @@ export class TransactionController extends BaseController<
     return filteredTransactions;
   }
 
+  async estimateGasFee({
+    transactionParams,
+    chainId,
+    networkClientId: requestNetworkClientId,
+  }: {
+    transactionParams: TransactionParams;
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }): Promise<GasFeeFlowResponse> {
+    const networkClientId = this.#getNetworkClientId({
+      networkClientId: requestNetworkClientId,
+      chainId,
+    });
+
+    const transactionMeta = {
+      txParams: transactionParams,
+      chainId,
+      networkClientId,
+    } as TransactionMeta;
+
+    // Guaranteed as the default gas fee flow matches all transactions.
+    const gasFeeFlow = getGasFeeFlow(
+      transactionMeta,
+      this.gasFeeFlows,
+    ) as GasFeeFlow;
+
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId,
+      chainId,
+    });
+
+    const gasFeeControllerData = await this.getGasFeeEstimates({
+      networkClientId,
+    });
+
+    return gasFeeFlow.getGasFees({
+      ethQuery,
+      gasFeeControllerData,
+      transactionMeta,
+    });
+  }
+
   /**
    * Determine the layer 1 gas fee for the given transaction parameters.
    *
@@ -2389,12 +2452,7 @@ export class TransactionController extends BaseController<
 
     const { networkClientId, chainId } = transactionMeta;
 
-    const isCustomNetwork = networkClientId
-      ? this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        ).configuration.type === NetworkClientType.Custom
-      : this.getNetworkState().providerConfig.type === NetworkType.rpc;
+    const isCustomNetwork = this.#isCustomNetwork(networkClientId);
 
     const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId,
@@ -2898,14 +2956,17 @@ export class TransactionController extends BaseController<
   }
 
   private getChainId(networkClientId?: NetworkClientId): Hex {
-    if (networkClientId) {
-      return this.messagingSystem.call(
-        `NetworkController:getNetworkClientById`,
-        networkClientId,
-      ).configuration.chainId;
+    const globalChainId = this.#getGlobalChainId();
+    const globalNetworkClientId = this.#getGlobalNetworkClientId();
+
+    if (!networkClientId || networkClientId === globalNetworkClientId) {
+      return globalChainId;
     }
-    const { providerConfig } = this.getNetworkState();
-    return providerConfig.chainId;
+
+    return this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      networkClientId,
+    ).configuration.chainId;
   }
 
   private prepareUnsignedEthTx(
@@ -3542,6 +3603,10 @@ export class TransactionController extends BaseController<
   }
 
   #getGasFeeFlows(): GasFeeFlow[] {
+    if (this.#testGasFeeFlows) {
+      return [new TestGasFeeFlow()];
+    }
+
     return [new LineaGasFeeFlow(), new DefaultGasFeeFlow()];
   }
 
@@ -3721,6 +3786,53 @@ export class TransactionController extends BaseController<
           txMeta.layer1GasFee = layer1GasFee;
         }
       },
+    );
+  }
+
+  #getNetworkClientId({
+    networkClientId: requestNetworkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  }) {
+    const globalChainId = this.#getGlobalChainId();
+    const globalNetworkClientId = this.#getGlobalNetworkClientId();
+
+    if (requestNetworkClientId) {
+      return requestNetworkClientId;
+    }
+
+    if (!chainId || chainId === globalChainId) {
+      return globalNetworkClientId;
+    }
+
+    return this.messagingSystem.call(
+      `NetworkController:findNetworkClientIdByChainId`,
+      chainId,
+    );
+  }
+
+  #getGlobalNetworkClientId() {
+    return this.getNetworkState().selectedNetworkClientId;
+  }
+
+  #getGlobalChainId() {
+    return this.getNetworkState().providerConfig.chainId;
+  }
+
+  #isCustomNetwork(networkClientId?: NetworkClientId) {
+    const globalNetworkClientId = this.#getGlobalNetworkClientId();
+
+    if (!networkClientId || networkClientId === globalNetworkClientId) {
+      return this.getNetworkState().providerConfig.type === NetworkType.rpc;
+    }
+
+    return (
+      this.messagingSystem.call(
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      ).configuration.type === NetworkClientType.Custom
     );
   }
 }
