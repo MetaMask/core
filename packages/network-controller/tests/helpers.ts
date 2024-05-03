@@ -1,6 +1,6 @@
-import type { InfuraNetworkType } from '@metamask/controller-utils';
 import {
   BUILT_IN_NETWORKS,
+  InfuraNetworkType,
   isInfuraNetworkType,
   toHex,
 } from '@metamask/controller-utils';
@@ -70,8 +70,33 @@ export function buildMockGetNetworkClientById(
   mockNetworkClientConfigurationsByNetworkClientId: Record<
     NetworkClientId,
     NetworkClientConfiguration
-  >,
+  > = {},
 ): NetworkController['getNetworkClientById'] {
+  // Since we might want to access these network client IDs so often in tests,
+  // register the network client configurations for all Infura networks by
+  // default. This does introduce a bit of magic as we don't expect to actually
+  // have a NetworkController in a test, but if we did, then we'd be able to
+  // make the same assumption anyway (i.e., that we'd be able to access any
+  // Infura network without having to add it explicitly to the controller). So
+  // pre-registering these network client IDs provides consistency from a mental
+  // model perspective at the expense of debuggability.
+  const defaultMockNetworkClientConfigurationsByNetworkClientId = Object.values(
+    InfuraNetworkType,
+  ).reduce((obj, infuraNetworkType) => {
+    return {
+      ...obj,
+      [infuraNetworkType]:
+        buildInfuraNetworkClientConfiguration(infuraNetworkType),
+    };
+  }, {});
+  const mergedMockNetworkClientConfigurationsByNetworkClientId: Record<
+    NetworkClientId,
+    NetworkClientConfiguration
+  > = {
+    ...defaultMockNetworkClientConfigurationsByNetworkClientId,
+    ...mockNetworkClientConfigurationsByNetworkClientId,
+  };
+
   function getNetworkClientById(
     networkClientId: BuiltInNetworkClientId,
   ): AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
@@ -81,7 +106,7 @@ export function buildMockGetNetworkClientById(
   // eslint-disable-next-line jsdoc/require-jsdoc
   function getNetworkClientById(networkClientId: string): NetworkClient {
     const mockNetworkClientConfiguration =
-      mockNetworkClientConfigurationsByNetworkClientId[networkClientId];
+      mergedMockNetworkClientConfigurationsByNetworkClientId[networkClientId];
 
     if (mockNetworkClientConfiguration === undefined) {
       throw new Error(
@@ -135,11 +160,17 @@ export function buildInfuraNetworkClientConfiguration(
 export function buildCustomNetworkClientConfiguration(
   overrides: Partial<CustomNetworkClientConfiguration> = {},
 ): CustomNetworkClientConfiguration {
-  return {
-    chainId: toHex(1337),
-    rpcUrl: 'https://example.test',
-    ticker: 'TEST',
-    ...overrides,
-    type: NetworkClientType.Custom,
-  };
+  // `Object.assign` allows for properties to be `undefined` in `overrides`,
+  // and will copy them over
+  return Object.assign(
+    {
+      chainId: toHex(1337),
+      rpcUrl: 'https://example.test',
+      ticker: 'TEST',
+    },
+    overrides,
+    {
+      type: NetworkClientType.Custom,
+    },
+  );
 }
