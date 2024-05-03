@@ -58,6 +58,7 @@ type UnrestrictedMessenger = ControllerMessenger<
 const ContractMock = jest.mocked(Contract);
 const uuidV1Mock = jest.mocked(uuidV1);
 const ERC20StandardMock = jest.mocked(ERC20Standard);
+const ERC1155StandardMock = jest.mocked(ERC1155Standard);
 
 const SEPOLIA = {
   chainId: toHex(11155111),
@@ -1316,9 +1317,9 @@ describe('TokensController', () => {
         ContractMock.mockReturnValue(
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
-        jest
-          .spyOn(ERC1155Standard.prototype, 'contractSupportsBase1155Interface')
-          .mockResolvedValue(true);
+        ERC1155StandardMock.mockReturnValue(
+          buildMockERC1155Standard({ contractSupportsBase1155Interface: true }),
+        );
 
         const result = controller.watchAsset({
           asset: buildToken({
@@ -2472,13 +2473,13 @@ function buildTokenWithName(
 }
 
 /**
- * Builds a mock ERC20 ABI wrapper.
+ * Builds a mock ERC20 standard.
  *
  * @param args - The arguments to this function.
  * @param args.tokenName - The desired return value of getTokenName.
  * @param args.tokenSymbol - The desired return value of getTokenSymbol.
  * @param args.tokenDecimals - The desired return value of getTokenDecimals.
- * @returns The mock ERC20 ABI wrapper.
+ * @returns The mock ERC20 standard.
  */
 function buildMockERC20Standard({
   tokenName = 'Some Token',
@@ -2499,10 +2500,10 @@ function buildMockERC20Standard({
 }
 
 /**
- * Builds a mock ERC20 ABI wrapper from a Token object.
+ * Builds a mock ERC20 standard from a Token object.
  *
  * @param token - The token to use. The token must have a name.
- * @returns The mock ERC20 ABI wrapper.
+ * @returns The mock ERC20 standard.
  */
 function buildMockERC20StandardFromToken(
   token: Token & { name: string },
@@ -2513,6 +2514,27 @@ function buildMockERC20StandardFromToken(
     getTokenName: async () => token.name,
     getTokenSymbol: async () => token.symbol,
     getTokenDecimals: async () => token.decimals.toString(),
+  };
+}
+
+/**
+ * Builds a mock ERC1155 standard.
+ *
+ * @param args - The arguments to this function.
+ * @param args.contractSupportsBase1155Interface - The desired return value of
+ * contractSupportsBase1155Interface.
+ * @returns The mock ERC20 standard.
+ */
+function buildMockERC1155Standard({
+  contractSupportsBase1155Interface,
+}: {
+  contractSupportsBase1155Interface: boolean;
+}): ERC1155Standard {
+  // @ts-expect-error This intentionally does not support all of the methods
+  // for the standard, only the ones we care about
+  return {
+    contractSupportsBase1155Interface: async () =>
+      contractSupportsBase1155Interface,
   };
 }
 
