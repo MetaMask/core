@@ -21,6 +21,8 @@ export const CHAIN_IDS = {
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
   GNOSIS: '0x64',
+  ARBITRUM: '0xa4b1',
+  ZKSYNC_ERA: '0x144',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';

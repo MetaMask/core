@@ -1,4 +1,5 @@
 /* eslint-disable jest/expect-expect */
+import { TransactionFactory } from '@ethereumjs/tx';
 import {
   ChainId,
   NetworkType,
@@ -2408,5 +2409,305 @@ describe('TransactionController', () => {
       expect(transaction?.userEditedGasLimit).toBe(userEditedGasLimit);
       expect(transaction?.userFeeLevel).toBe(userFeeLevel);
     });
+  });
+
+  describe('approveTransactionsWithSameNonce', () => {
+    it('throws error if no sign method', async () => {
+      const controller = newController({
+        config: {
+          sign: undefined,
+        },
+      });
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      await expect(
+        controller.approveTransactionsWithSameNonce([mockTransactionParam2]),
+      ).rejects.toThrow('No sign method defined.');
+    });
+
+    it('returns empty string if no transactions are provided', async () => {
+      const controller = newController();
+      const result = await controller.approveTransactionsWithSameNonce([]);
+      expect(result).toBe('');
+    });
+
+    it('return empty string if transaction is already being signed', async () => {
+      const controller = newController({
+        config: {
+          // We never resolve this promise, so the transaction is always in the process of being signed
+          sign: async () =>
+            new Promise(() => {
+              /* noop */
+            }),
+        },
+      });
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x5208',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      // Send the transaction to put it in the process of being signed
+      controller.approveTransactionsWithSameNonce([mockTransactionParam]);
+
+      // Now send it one more time to test that it doesn't get signed again
+      const result = await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+      ]);
+
+      expect(result).toBe('');
+    });
+
+    it('signs transactions and return raw transactions', async () => {
+      const signMock = jest
+        .fn()
+        .mockImplementation(async (transactionParams) =>
+          Promise.resolve(TransactionFactory.fromTxData(transactionParams)),
+        );
+      const controller = newController({
+        config: {
+          sign: signMock,
+        },
+      });
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      const result = await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
+
+      expect(result).toHaveLength(2);
+      expect(result).toStrictEqual([expect.any(String), expect.any(String)]);
+    });
+
+    it('throws if error while signing transaction', async () => {
+      const mockSignError = 'Error while signing transaction';
+
+      const signMock = jest
+        .fn()
+        .mockImplementation(async () =>
+          Promise.reject(new Error(mockSignError)),
+        );
+      const controller = newController({
+        config: {
+          sign: signMock,
+        },
+      });
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      await expect(
+        controller.approveTransactionsWithSameNonce([
+          mockTransactionParam,
+          mockTransactionParam2,
+        ]),
+      ).rejects.toThrow(mockSignError);
+    });
+
+    it('does not create nonce lock if hasNonce set', async () => {
+      const controller = newController();
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      await controller.approveTransactionsWithSameNonce(
+        [mockTransactionParam, mockTransactionParam2],
+        { hasNonce: true },
+      );
+
+      expect(getNonceLockSpy).not.toHaveBeenCalled();
+    });
+
+    it('uses the nonceTracker for the networkClientId matching the chainId', async () => {
+      const controller = newController();
+
+      const mockTransactionParam = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x111',
+        to: ACCOUNT_2_MOCK,
+        value: '0x0',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      const mockTransactionParam2 = {
+        from: ACCOUNT_MOCK,
+        nonce: '0x1',
+        gas: '0x222',
+        to: ACCOUNT_2_MOCK,
+        value: '0x1',
+        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+      };
+
+      await controller.approveTransactionsWithSameNonce([
+        mockTransactionParam,
+        mockTransactionParam2,
+      ]);
+
+      expect(getNonceLockSpy).toHaveBeenCalledWith(ACCOUNT_MOCK);
+    });
+  });
+
+  const mockSendFlowHistory = [
+    {
+      entry:
+        'sendFlow - user selected transfer to my accounts on recipient screen',
+      timestamp: 1650663928211,
+    },
+  ];
+
+  it('add securityAlertResponse to transaction meta', async () => {
+    const transactionMetaId = '123';
+    const status = TransactionStatus.submitted;
+    const controller = newController();
+    controller.state.transactions.push({
+      id: transactionMetaId,
+      status,
+      txParams: {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      },
+      history: mockSendFlowHistory,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    expect(controller.state.transactions[0]).toBeDefined();
+    controller.updateSecurityAlertResponse(transactionMetaId, {
+      reason: 'NA',
+      result_type: 'Benign',
+    });
+
+    expect(
+      controller.state.transactions[0].securityAlertResponse,
+    ).toBeDefined();
+  });
+
+  it('should throw error if transactionMetaId is not defined', async () => {
+    const transactionMetaId = '123';
+    const status = TransactionStatus.submitted;
+    const controller = newController();
+    controller.state.transactions.push({
+      id: transactionMetaId,
+      status,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    expect(controller.state.transactions[0]).toBeDefined();
+
+    expect(() =>
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      controller.updateSecurityAlertResponse(undefined as any, {
+        reason: 'NA',
+        result_type: 'Benign',
+      }),
+    ).toThrow(
+      'Cannot update security alert response as no transaction metadata found',
+    );
+  });
+
+  it('should throw error if securityAlertResponse is not defined', async () => {
+    const transactionMetaId = '123';
+    const status = TransactionStatus.submitted;
+    const controller = newController();
+    controller.state.transactions.push({
+      id: transactionMetaId,
+      status,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    expect(controller.state.transactions[0]).toBeDefined();
+
+    expect(() =>
+      controller.updateSecurityAlertResponse(
+        transactionMetaId,
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        undefined as any,
+      ),
+    ).toThrow(
+      'updateSecurityAlertResponse: securityAlertResponse should not be null',
+    );
+  });
+
+  it('should throw error if transaction with given id does not exist', async () => {
+    const transactionMetaId = '123';
+    const status = TransactionStatus.submitted;
+    const controller = newController();
+    controller.state.transactions.push({
+      id: transactionMetaId,
+      status,
+      txParams: {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_2_MOCK,
+      },
+      history: mockSendFlowHistory,
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    expect(controller.state.transactions[0]).toBeDefined();
+
+    expect(() =>
+      controller.updateSecurityAlertResponse('456', {
+        reason: 'NA',
+        result_type: 'Benign',
+      }),
+    ).toThrow(
+      'Cannot update security alert response as no transaction metadata found',
+    );
   });
 });
