@@ -1,7 +1,6 @@
 import {
   BUILT_IN_NETWORKS,
   InfuraNetworkType,
-  isInfuraNetworkType,
   toHex,
 } from '@metamask/controller-utils';
 
@@ -112,15 +111,6 @@ export function buildMockGetNetworkClientById(
       throw new Error(
         `Unknown network client ID '${networkClientId}'. Please add it to mockNetworkClientConfigurationsByNetworkClientId.`,
       );
-    }
-
-    if (
-      mockNetworkClientConfiguration.type === NetworkClientType.Infura &&
-      isInfuraNetworkType(networkClientId)
-    ) {
-      return buildFakeNetworkClient({
-        configuration: mockNetworkClientConfiguration,
-      });
     }
 
     return buildFakeNetworkClient({
