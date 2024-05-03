@@ -11,7 +11,6 @@ import {
   ChainId,
   ORIGIN_METAMASK,
   convertHexToDecimal,
-  InfuraNetworkType,
   NetworkType,
   toHex,
   NetworksTicker,
@@ -35,7 +34,6 @@ import type {
 } from '../../base-controller/tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
-  buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
@@ -2393,25 +2391,9 @@ async function withController<ReturnValue>(
     });
   };
 
-  const getNetworkClientById = buildMockGetNetworkClientById({
-    // Since we access these networks so often in these tests, register
-    // configurations for all Infura networks by default. This does introduce a
-    // bit of magic as we don't actually have a NetworkController, but if we did
-    // have a NetworkController, then we'd be able to make the same assumption
-    // (i.e., that we'd be able to access any Infura network without having to
-    // add it), so this pre-registration code provides consistency from a mental
-    // model perspective at the expense of debuggability.
-    [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
-      InfuraNetworkType.mainnet,
-    ),
-    [InfuraNetworkType.sepolia]: buildInfuraNetworkClientConfiguration(
-      InfuraNetworkType.sepolia,
-    ),
-    [InfuraNetworkType.goerli]: buildInfuraNetworkClientConfiguration(
-      InfuraNetworkType.goerli,
-    ),
-    ...mockNetworkClientConfigurationsByNetworkClientId,
-  });
+  const getNetworkClientById = buildMockGetNetworkClientById(
+    mockNetworkClientConfigurationsByNetworkClientId,
+  );
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     getNetworkClientById,
