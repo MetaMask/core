@@ -41,6 +41,7 @@ import type {
   Collection,
   Attributes,
   LastSale,
+  GetCollectionsResponse,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -304,15 +305,32 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       includeAttributes: 'true',
       includeLastSale: 'true',
     }).toString();
-    const nftInformation: ReservoirResponse | undefined =
-      await fetchWithErrorHandling({
+    const getCollectionParams = new URLSearchParams({
+      chainIds: '1',
+      contract: `${contractAddress}`,
+    }).toString();
+    const [nftInformation, collectionInformation]: [
+      ReservoirResponse | undefined,
+      GetCollectionsResponse,
+    ] = await Promise.all([
+      fetchWithErrorHandling({
         url: `${this.getNftApi()}?${urlParams}`,
         options: {
           headers: {
             Version: '1',
           },
         },
-      });
+      }),
+      fetchWithErrorHandling({
+        url: `${NFT_API_BASE_URL}/collections?${getCollectionParams}`,
+        options: {
+          headers: {
+            Version: '1',
+          },
+        },
+      }),
+    ]);
+
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation?.tokens?.[0]?.token) {
       return {
@@ -346,7 +364,6 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       { name: name || null },
       { description: description || null },
       { image: image || null },
-      collection?.creator && { creator: collection.creator },
       imageOriginal && { imageOriginal },
       imageSmall && { imageThumbnail: imageSmall },
       kind && { standard: kind.toUpperCase() },
@@ -358,6 +375,16 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       rarityRank && { rarityRank },
       rarity && { rarity },
       collection && { collection },
+      collectionInformation && {
+        collection: {
+          ...(collection || {}),
+          creator: collectionInformation.collections[0].creator,
+          openseaVerificationStatus:
+            collectionInformation.collections[0].openseaVerificationStatus,
+          contractDeployedAt:
+            collectionInformation.collections[0].contractDeployedAt,
+        },
+      },
     );
 
     return nftMetadata;

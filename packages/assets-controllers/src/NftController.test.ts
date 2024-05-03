@@ -1250,6 +1250,25 @@ describe('NftController', () => {
           .fn()
           .mockRejectedValue(new Error('Not an ERC1155 contract')),
       });
+      const testCollectionsResponse = {
+        collections: [
+          {
+            chainId: 1,
+            id: 'Ox1',
+            name: 'test1',
+            symbol: 'test1',
+            contractDeployedAt: '2024-04-29T11:34:26.416Z',
+            openseaVerificationStatus: 'verified',
+            magicedenVerificationStatus: null,
+            description: 'test',
+            creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+          },
+        ],
+      };
+
+      nock(`${NFT_API_BASE_URL}`)
+        .get('/collections?chainIds=1&contract=0x01')
+        .reply(200, testCollectionsResponse);
 
       const { selectedAddress, chainId } = nftController.config;
       await nftController.addNft('0x01', '1');
@@ -1265,12 +1284,16 @@ describe('NftController', () => {
         favorite: false,
         isCurrentlyOwned: true,
         tokenURI: '',
-        creator: 'Oxaddress',
-        collection: { creator: 'Oxaddress', tokenCount: 0 },
+        collection: {
+          tokenCount: 0,
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+          openseaVerificationStatus: 'verified',
+        },
       });
     });
 
-    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API', async () => {
+    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API - When call to getCollections succeeds', async () => {
       const { nftController } = setupController({
         getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
         getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
@@ -1280,6 +1303,100 @@ describe('NftController', () => {
             'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
           ),
       });
+      const testCollectionsResponse = {
+        collections: [
+          {
+            chainId: 1,
+            id: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+            name: 'test1',
+            symbol: 'test1',
+            contractDeployedAt: '2024-04-29T11:34:26.416Z',
+            openseaVerificationStatus: 'verified',
+            magicedenVerificationStatus: null,
+            description: 'test',
+            creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+          },
+        ],
+      };
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/collections?chainIds=1&contract=0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`,
+        )
+        .reply(200, testCollectionsResponse);
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
+        )
+        .reply(200, {
+          tokens: [
+            {
+              token: {
+                kind: 'erc721',
+                name: 'Kudos Name',
+                description: 'Kudos Description',
+                image: 'url',
+              },
+            },
+          ],
+        });
+
+      nock('https://ipfs.gitcoin.co:443')
+        .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
+        .reply(200, {
+          image: 'Kudos Image (directly from tokenURI)',
+          name: 'Kudos Name (directly from tokenURI)',
+          description: 'Kudos Description (directly from tokenURI)',
+        });
+
+      const { selectedAddress, chainId } = nftController.config;
+
+      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC721_KUDOSADDRESS,
+        image: 'Kudos Image (directly from tokenURI)',
+        name: 'Kudos Name (directly from tokenURI)',
+        description: 'Kudos Description (directly from tokenURI)',
+        tokenId: ERC721_KUDOS_TOKEN_ID,
+        standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI:
+          'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+        collection: {
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+          openseaVerificationStatus: 'verified',
+        },
+      });
+
+      expect(
+        nftController.state.allNftContracts[selectedAddress][chainId][0],
+      ).toStrictEqual({
+        address: ERC721_KUDOSADDRESS,
+        name: 'KudosToken',
+        symbol: 'KDO',
+        schemaName: 'ERC721',
+      });
+    });
+
+    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API - When call to getCollections fails', async () => {
+      const { nftController } = setupController({
+        getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
+        getERC721TokenURI: jest
+          .fn()
+          .mockResolvedValue(
+            'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+          ),
+      });
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/collections?chainIds=1&contract=0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`,
+        )
+        .replyWithError(new Error('Failed to fetch'));
       nock(NFT_API_BASE_URL)
         .get(
           `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
@@ -1603,6 +1720,27 @@ describe('NftController', () => {
           .fn()
           .mockRejectedValue(new Error('Failed to fetch')),
       });
+      const testCollectionsResponse = {
+        collections: [
+          {
+            chainId: 1,
+            id: '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163',
+            name: 'test1',
+            symbol: 'test1',
+            contractDeployedAt: '2024-04-29T11:34:26.416Z',
+            openseaVerificationStatus: 'verified',
+            magicedenVerificationStatus: null,
+            description: 'test',
+            creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+          },
+        ],
+      };
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/collections?chainIds=1&contract=0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163`,
+        )
+        .reply(200, testCollectionsResponse);
+
       nock(NFT_API_BASE_URL)
         .get(
           `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
@@ -1680,6 +1818,9 @@ describe('NftController', () => {
             tokenCount: '10',
             image: 'Kudos logo (from proxy API)',
             name: 'Kudos',
+            openseaVerificationStatus: 'verified',
+            creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+            contractDeployedAt: '2024-04-29T11:34:26.416Z',
           },
         },
       ]);

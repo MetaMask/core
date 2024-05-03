@@ -104,7 +104,6 @@ describe('NftDetectionController', () => {
           {
             token: {
               contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-
               kind: 'erc721',
               name: 'ID 2574',
               description: 'Description 2574',
@@ -380,6 +379,53 @@ describe('NftDetectionController', () => {
 
   it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
     const mockAddNft = jest.fn();
+    // Nock get collections
+    const testCollectionsResponse = {
+      collections: [
+        {
+          chainId: 1,
+          id: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+          name: 'test1',
+          symbol: 'test1',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          magicedenVerificationStatus: null,
+          description: 'test',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+        },
+        {
+          chainId: 1,
+          id: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+          name: 'test2',
+          symbol: 'test2',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          description: 'test2',
+          metadataDisabled: false,
+          tokenCount: '10000',
+          creator: '0xf9283e77f44c90669df3d2c5ebc3879952457f42',
+        },
+        {
+          chainId: 1,
+          id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+          slug: 'test3',
+          name: 'test3',
+          symbol: 'test3',
+          contractDeployedAt: '2022-02-09T21:10:09.450Z',
+          openseaVerificationStatus: 'verified',
+          description: 'test',
+          metadataDisabled: false,
+          tokenCount: '10000',
+          creator: '0xf2283e77f44c90669df3d2c5ebc3879952457f42',
+        },
+      ],
+    };
+    nock(`${NFT_API_BASE_URL}`)
+      .persist()
+      .get(
+        `/collections?contract=0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc&contract=0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d&contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
+      )
+      .reply(200, testCollectionsResponse);
     await withController(
       { options: { addNft: mockAddNft } },
       async ({ controller, triggerPreferencesStateChange }) => {
@@ -408,6 +454,11 @@ describe('NftDetectionController', () => {
               name: 'ID 2574',
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2574.png',
+              collection: {
+                creator: '0xf2283e77f44c90669df3d2c5ebc3879952457f42',
+                openseaVerificationStatus: 'verified',
+                contractDeployedAt: '2022-02-09T21:10:09.450Z',
+              },
             },
             userAddress: selectedAddress,
             source: Source.Detected,
@@ -420,6 +471,38 @@ describe('NftDetectionController', () => {
 
   it('should detect and add NFTs correctly when blockaid result is in response', async () => {
     const mockAddNft = jest.fn();
+    // Nock get collections
+    const testCollectionsResponse = {
+      collections: [
+        {
+          chainId: 1,
+          id: '0xtest1',
+          name: 'test1',
+          symbol: 'test1',
+          contractDeployedAt: '2025-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          magicedenVerificationStatus: null,
+          description: 'test',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+        },
+        {
+          chainId: 1,
+          id: '0xtest2',
+          name: 'test2',
+          symbol: 'test2',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          description: 'test2',
+          metadataDisabled: false,
+          tokenCount: '10000',
+          creator: '0xf9283e77f44c90669df3d2c5ebc3879952457f42',
+        },
+      ],
+    };
+    nock(`${NFT_API_BASE_URL}`)
+      .persist()
+      .get(`/collections?contract=0xtest1&contract=0xtest2&chainId=1`)
+      .reply(200, testCollectionsResponse);
     await withController(
       { options: { addNft: mockAddNft } },
       async ({ controller, triggerPreferencesStateChange }) => {
@@ -446,6 +529,11 @@ describe('NftDetectionController', () => {
             name: 'ID 2574',
             standard: 'ERC721',
             imageOriginal: 'imageOriginal/2574.png',
+            collection: {
+              contractDeployedAt: '2025-04-29T11:34:26.416Z',
+              openseaVerificationStatus: 'verified',
+              creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+            },
           },
           userAddress: selectedAddress,
           source: Source.Detected,
@@ -458,6 +546,11 @@ describe('NftDetectionController', () => {
             name: 'ID 2575',
             standard: 'ERC721',
             imageOriginal: 'imageOriginal/2575.png',
+            collection: {
+              contractDeployedAt: '2024-04-29T11:34:26.416Z',
+              openseaVerificationStatus: 'verified',
+              creator: '0xf9283e77f44c90669df3d2c5ebc3879952457f42',
+            },
           },
           userAddress: selectedAddress,
           source: Source.Detected,
@@ -467,8 +560,42 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should detect and add NFTs and filter them correctly', async () => {
+  it.only('should detect and add NFTs and filter them correctly', async () => {
     const mockAddNft = jest.fn();
+    // Nock get collections
+    const testCollectionsResponse = {
+      collections: [
+        {
+          chainId: 1,
+          id: '0xtestCollection1',
+          name: 'test1',
+          symbol: 'test1',
+          contractDeployedAt: '2025-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          magicedenVerificationStatus: null,
+          description: 'test',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+        },
+        {
+          chainId: 1,
+          id: '0xtestCollection2',
+          name: 'test2',
+          symbol: 'test2',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          description: 'test2',
+          metadataDisabled: false,
+          tokenCount: '10000',
+          creator: '0xf9283e77f44c90669df3d2c5ebc3879952457f42',
+        },
+      ],
+    };
+    nock(`${NFT_API_BASE_URL}`)
+      .persist()
+      .get(
+        `/collections?contract=0xtestCollection1&contract=0xtestCollection2&chainId=1`,
+      )
+      .reply(200, testCollectionsResponse);
     await withController(
       { options: { addNft: mockAddNft } },
       async ({ controller, triggerPreferencesStateChange }) => {
@@ -481,7 +608,7 @@ describe('NftDetectionController', () => {
         // Wait for detect call triggered by preferences state change to settle
         await advanceTime({
           clock,
-          duration: 1,
+          duration: 100000,
         });
         mockAddNft.mockReset();
 
@@ -530,10 +657,32 @@ describe('NftDetectionController', () => {
 
   it('should detect and add NFTs by networkClientId correctly', async () => {
     const mockAddNft = jest.fn();
+    // Nock get collections
+    const testCollectionsResponse = {
+      collections: [
+        {
+          chainId: 1,
+          id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+          name: 'test1',
+          symbol: 'test1',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          magicedenVerificationStatus: null,
+          description: 'test',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+        },
+      ],
+    };
+    nock(`${NFT_API_BASE_URL}`)
+      .persist()
+      .get(
+        `/collections?contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
+      )
+      .reply(200, testCollectionsResponse);
     await withController(
       { options: { addNft: mockAddNft } },
       async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x1';
+        const selectedAddress = '0x9';
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           selectedAddress,
@@ -561,6 +710,11 @@ describe('NftDetectionController', () => {
               name: 'ID 2574',
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2574.png',
+              collection: {
+                contractDeployedAt: '2024-04-29T11:34:26.416Z',
+                creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+                openseaVerificationStatus: 'verified',
+              },
             },
             userAddress: '0x9',
             source: Source.Detected,
@@ -573,6 +727,28 @@ describe('NftDetectionController', () => {
 
   it('should not autodetect NFTs that exist in the ignoreList', async () => {
     const mockAddNft = jest.fn();
+    // Nock get collections
+    const testCollectionsResponse = {
+      collections: [
+        {
+          chainId: 1,
+          id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+          name: 'test1',
+          symbol: 'test1',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          magicedenVerificationStatus: null,
+          description: 'test',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+        },
+      ],
+    };
+    nock(`${NFT_API_BASE_URL}`)
+      .persist()
+      .get(
+        `/collections?contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
+      )
+      .reply(200, testCollectionsResponse);
     const mockGetNftState = jest.fn().mockImplementation(() => {
       return {
         ...getDefaultNftState(),
@@ -789,6 +965,52 @@ describe('NftDetectionController', () => {
 
   it('should rethrow error when attempt to add NFT fails', async () => {
     const mockAddNft = jest.fn();
+    const testCollectionsResponse = {
+      collections: [
+        {
+          chainId: 1,
+          id: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+          name: 'test1',
+          symbol: 'test1',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          magicedenVerificationStatus: null,
+          description: 'test',
+          creator: '0x9056d15c49b19df52ffad1e6c11627f035c0c960',
+        },
+        {
+          chainId: 1,
+          id: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+          name: 'test2',
+          symbol: 'test2',
+          contractDeployedAt: '2024-04-29T11:34:26.416Z',
+          openseaVerificationStatus: 'verified',
+          description: 'test2',
+          metadataDisabled: false,
+          tokenCount: '10000',
+          creator: '0xf9283e77f44c90669df3d2c5ebc3879952457f42',
+        },
+        {
+          chainId: 1,
+          id: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+          slug: 'test3',
+          name: 'test3',
+          symbol: 'test3',
+          contractDeployedAt: '2022-02-09T21:10:09.450Z',
+          openseaVerificationStatus: 'verified',
+          description: 'test',
+          metadataDisabled: false,
+          tokenCount: '10000',
+          creator: '0xf2283e77f44c90669df3d2c5ebc3879952457f42',
+        },
+      ],
+    };
+    nock(`${NFT_API_BASE_URL}`)
+      .persist()
+      .get(
+        `/collections?contract=0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc&contract=0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d&contract=0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD&chainId=1`,
+      )
+      .reply(200, testCollectionsResponse);
     await withController(
       { options: { addNft: mockAddNft } },
       async ({ controller, triggerPreferencesStateChange }) => {

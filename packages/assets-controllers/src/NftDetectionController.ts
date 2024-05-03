@@ -15,6 +15,7 @@ import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller'
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
+import { reduceInBatchesSerially } from './assetsUtil';
 import { Source } from './constants';
 import {
   type NftController,
@@ -152,6 +153,22 @@ export interface NftDetectionConfig extends BaseConfig {
 export type ReservoirResponse = {
   tokens: TokensResponse[];
   continuation?: string;
+};
+
+export type GetCollectionsResponse = {
+  collections: CollectionResponse[];
+};
+
+export type CollectionResponse = {
+  id: string;
+  slug: string;
+  name: string;
+  symbol: string;
+  image: string;
+  openseaVerificationStatus: string;
+  contractDeployedAt: string;
+  creator: string;
+  sampleImages: string[];
 };
 
 export type TokensResponse = {
@@ -294,6 +311,7 @@ export type Collection = {
   floorAskPrice?: Price;
   royaltiesBps?: number;
   royalties?: Royalties[];
+  contractDeployedAt?: string;
 };
 
 export type Royalties = {
@@ -347,6 +365,8 @@ export type Metadata = {
   tokenURI?: string;
 };
 
+const MAX_GET_COLLECTION_BATCH_SIZE = 20;
+
 /**
  * Controller that passively polls on a set interval for NFT auto detection
  */
@@ -395,6 +415,62 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
             ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
             : true),
       );
+
+      // Retrieve collections from newNfts
+      const collections = newNfts.reduce<string[]>((acc, currValue) => {
+        if (!acc.includes(currValue.token.contract)) {
+          acc.push(currValue.token.contract);
+        }
+        return acc;
+      }, []);
+
+      // The api accept a max of 20 contracts
+      const collectionResponse: GetCollectionsResponse =
+        await reduceInBatchesSerially({
+          values: collections,
+          batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
+          eachBatch: async (allResponses, batch) => {
+            const params = new URLSearchParams(
+              batch.map((s) => ['contract', s]),
+            );
+            params.append('chainId', '1'); // Adding chainId 1 because we are only detecting for mainnet
+            const collectionResponseForBatch = await fetchWithErrorHandling({
+              url: `${NFT_API_BASE_URL}/collections?${params.toString()}`,
+              options: {
+                headers: {
+                  Version: '1',
+                },
+              },
+              timeout: 15000,
+            });
+
+            return {
+              ...allResponses,
+              ...collectionResponseForBatch,
+            };
+          },
+          initialResult: {},
+        });
+      // Add collections response fields to  newnfts
+      newNfts.map((singleNFT) => {
+        const found = collectionResponse.collections.find(
+          (elm) =>
+            elm.id.toLowerCase() ===
+            singleNFT.token.contract.toLocaleLowerCase(),
+        );
+        if (found) {
+          singleNFT.token = {
+            ...singleNFT.token,
+            collection: {
+              ...(singleNFT.token.collection ? singleNFT.token.collection : {}),
+              creator: found.creator,
+              openseaVerificationStatus: found.openseaVerificationStatus,
+              contractDeployedAt: found.contractDeployedAt,
+            },
+          };
+        }
+        return singleNFT;
+      });
 
       nfts = [...nfts, ...newNfts];
     } while ((next = nftApiResponse.continuation));
@@ -637,7 +713,6 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
           rarityScore && { rarityScore },
           collection && { collection },
         );
-
         await this.addNft(contract, token_id, {
           nftMetadata,
           userAddress,
