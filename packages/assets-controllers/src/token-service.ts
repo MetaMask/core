@@ -1,4 +1,8 @@
-import { convertHexToDecimal, timeoutFetch } from '@metamask/controller-utils';
+import {
+  ChainId,
+  convertHexToDecimal,
+  timeoutFetch,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
@@ -14,9 +18,10 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex) {
+  const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
 }
 
 /**

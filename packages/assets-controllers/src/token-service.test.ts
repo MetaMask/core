@@ -1,4 +1,4 @@
-import { toHex } from '@metamask/controller-utils';
+import { ChainId, toHex } from '@metamask/controller-utils';
 import nock from 'nock';
 
 import {
@@ -148,6 +148,23 @@ describe('Token service', () => {
         .persist();
 
       const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should call the tokens api and return the list of tokens on linea mainnet', async () => {
+      const { signal } = new AbortController();
+      const lineaChainId = 59144;
+      const lineaHexChain = toHex(lineaChainId);
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
+        .reply(200, sampleTokenList)
+        .persist();
+
+      const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
 
       expect(tokens).toStrictEqual(sampleTokenList);
     });
