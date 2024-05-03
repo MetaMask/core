@@ -48,6 +48,7 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
 
       const key = getKey(networkClientId, options);
       const existingInterval = this.#intervalIds[key];
+      this._stopPollingByPollingTokenSetId(key);
 
       // eslint-disable-next-line no-multi-assign
       const intervalId = (this.#intervalIds[key] = setTimeout(
