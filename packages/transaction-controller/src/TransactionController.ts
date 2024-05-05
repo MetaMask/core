@@ -1366,9 +1366,7 @@ export class TransactionController extends BaseController<
 
     log('Creating speed up transaction', transactionId, gasValues);
 
-    const transactionMeta = this.state.transactions.find(
-      ({ id }) => id === transactionId,
-    );
+    const transactionMeta = this.getTransaction(transactionId);
     /* istanbul ignore next */
     if (!transactionMeta) {
       return;
@@ -1447,7 +1445,7 @@ export class TransactionController extends BaseController<
       transactionMeta.txParams.from,
     );
 
-    const transactionMetaWithRsv = await this.updateTransactionMetaRSV(
+    const transactionMetaWithRsv = this.updateTransactionMetaRSV(
       transactionMeta,
       signedTx,
     );
@@ -2126,13 +2124,13 @@ export class TransactionController extends BaseController<
       {},
       transactionMeta,
       pickBy({ hash, status }),
-    );
+    ) as TransactionMeta;
 
-    if (status === TransactionStatus.submitted) {
+    if (updatedTransactionMeta.status === TransactionStatus.submitted) {
       updatedTransactionMeta.submittedTime = new Date().getTime();
     }
 
-    if (status === TransactionStatus.failed) {
+    if (updatedTransactionMeta.status === TransactionStatus.failed) {
       updatedTransactionMeta.error = normalizeTxError(new Error(errorMessage));
     }
 
@@ -2623,30 +2621,19 @@ export class TransactionController extends BaseController<
    * @param transactionId - The ID of the transaction to approve.
    */
   private async approveTransaction(transactionId: string) {
-    const { transactions } = this.state;
     const releaseLock = await this.mutex.acquire();
-    const index = transactions.findIndex(({ id }) => transactionId === id);
-    const transactionMeta = transactions[index];
-    const updatedTransactionMeta = cloneDeep(transactionMeta);
-
-    const {
-      txParams: { from },
-      networkClientId,
-    } = transactionMeta;
-
     let releaseNonceLock: (() => void) | undefined;
+
+    let txMeta = this.getTransactionOrThrow(transactionId);
 
     try {
       if (!this.sign) {
         releaseLock();
-        this.failTransaction(
-          transactionMeta,
-          new Error('No sign method defined.'),
-        );
+        this.failTransaction(txMeta, new Error('No sign method defined.'));
         return ApprovalState.NotApproved;
-      } else if (!transactionMeta.chainId) {
+      } else if (!txMeta.chainId) {
         releaseLock();
-        this.failTransaction(transactionMeta, new Error('No chainId defined.'));
+        this.failTransaction(txMeta, new Error('No chainId defined.'));
         return ApprovalState.NotApproved;
       }
 
@@ -2655,53 +2642,70 @@ export class TransactionController extends BaseController<
         return ApprovalState.NotApproved;
       }
 
-      const [nonce, releaseNonce] = await getNextNonce(
-        transactionMeta,
+      const [nonce, tmpReleaseNonce] = await getNextNonce(
+        txMeta,
         (address: string) =>
-          this.#multichainTrackingHelper.getNonceLock(address, networkClientId),
+          this.#multichainTrackingHelper.getNonceLock(
+            address,
+            txMeta.networkClientId,
+          ),
       );
 
-      releaseNonceLock = releaseNonce;
+      releaseNonceLock = tmpReleaseNonce;
 
-      updatedTransactionMeta.status = TransactionStatus.approved;
-      updatedTransactionMeta.txParams = {
-        ...updatedTransactionMeta.txParams,
-        nonce,
-        chainId: transactionMeta.chainId,
-      };
+      const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+        networkClientId: txMeta.networkClientId,
+        chainId: txMeta.chainId,
+      });
 
-      const baseTxParams = {
-        ...updatedTransactionMeta.txParams,
-        gasLimit: updatedTransactionMeta.txParams.gas,
-      };
+      const shouldUpdatePreTxBalance = txMeta.type === TransactionType.swap;
 
-      this.updateTransaction(
-        updatedTransactionMeta,
-        'TransactionController#approveTransaction - Transaction approved',
-      );
+      let preTxBalance: string | undefined;
 
-      this.onTransactionStatusChange(updatedTransactionMeta);
+      if (shouldUpdatePreTxBalance) {
+        log('Determining pre-transaction balance');
 
-      const isEIP1559 = isEIP1559Transaction(updatedTransactionMeta.txParams);
+        preTxBalance = await query(ethQuery, 'getBalance', [
+          txMeta.txParams.from,
+        ]);
+      }
 
-      const txParams: TransactionParams = isEIP1559
-        ? {
-            ...baseTxParams,
-            estimatedBaseFee: updatedTransactionMeta.txParams.estimatedBaseFee,
-            type: TransactionEnvelopeType.feeMarket,
+      txMeta = this.#updateTransactionInternal(
+        {
+          transactionId,
+          note: 'TransactionController#approveTransaction - Transaction approved',
+        },
+        (draftTxMeta) => {
+          const { txParams, chainId } = draftTxMeta;
+          const isEIP1559 = isEIP1559Transaction(txParams);
+
+          draftTxMeta.status = TransactionStatus.approved;
+          draftTxMeta.txParams = {
+            ...txParams,
+            nonce,
+            chainId,
+            gasLimit: txParams.gas,
+            ...(isEIP1559 && {
+              estimatedBaseFee: txParams.estimatedBaseFee,
+              type: TransactionEnvelopeType.feeMarket,
+            }),
+          };
+          if (shouldUpdatePreTxBalance) {
+            draftTxMeta.preTxBalance = preTxBalance;
+            log('Updated pre-transaction balance', preTxBalance);
           }
-        : baseTxParams;
-
-      const rawTx = await this.signTransaction(
-        updatedTransactionMeta,
-        txParams,
+        },
       );
 
-      if (!this.beforePublish(updatedTransactionMeta)) {
+      this.onTransactionStatusChange(txMeta);
+
+      const rawTx = await this.signTransaction(txMeta, txMeta.txParams);
+
+      if (!this.beforePublish(txMeta)) {
         log('Skipping publishing transaction based on hook');
         this.messagingSystem.publish(
           `${controllerName}:transactionPublishingSkipped`,
-          updatedTransactionMeta,
+          txMeta,
         );
         return ApprovalState.SkippedViaBeforePublishHook;
       }
@@ -2710,30 +2714,9 @@ export class TransactionController extends BaseController<
         return ApprovalState.NotApproved;
       }
 
-      const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-        networkClientId: transactionMeta.networkClientId,
-        chainId: transactionMeta.chainId,
-      });
+      log('Publishing transaction', txMeta.txParams);
 
-      if (transactionMeta.type === TransactionType.swap) {
-        log('Determining pre-transaction balance');
-
-        const preTxBalance = await query(ethQuery, 'getBalance', [from]);
-
-        updatedTransactionMeta.preTxBalance = preTxBalance;
-
-        log(
-          'Updated pre-transaction balance',
-          updatedTransactionMeta.preTxBalance,
-        );
-      }
-
-      log('Publishing transaction', txParams);
-
-      let { transactionHash: hash } = await this.publish(
-        updatedTransactionMeta,
-        rawTx,
-      );
+      let { transactionHash: hash } = await this.publish(txMeta, rawTx);
 
       if (hash === undefined) {
         hash = await this.publishTransaction(ethQuery, rawTx);
@@ -2741,34 +2724,34 @@ export class TransactionController extends BaseController<
 
       log('Publish successful', hash);
 
-      updatedTransactionMeta.hash = hash;
-      updatedTransactionMeta.status = TransactionStatus.submitted;
-      updatedTransactionMeta.submittedTime = new Date().getTime();
-
-      this.updateTransaction(
-        updatedTransactionMeta,
-        'TransactionController#approveTransaction - Transaction submitted',
+      txMeta = this.#updateTransactionInternal(
+        {
+          transactionId,
+          note: 'TransactionController#approveTransaction - Transaction submitted',
+        },
+        (draftTxMeta) => {
+          draftTxMeta.hash = hash;
+          draftTxMeta.status = TransactionStatus.submitted;
+          draftTxMeta.submittedTime = new Date().getTime();
+        },
       );
 
       this.messagingSystem.publish(`${controllerName}:transactionSubmitted`, {
-        transactionMeta: updatedTransactionMeta,
+        transactionMeta: txMeta,
       });
 
       this.messagingSystem.publish(
         `${controllerName}:transactionFinished`,
-        updatedTransactionMeta,
+        txMeta,
       );
-      this.#internalEvents.emit(
-        `${updatedTransactionMeta.id}:finished`,
-        updatedTransactionMeta,
-      );
+      this.#internalEvents.emit(`${transactionId}:finished`, txMeta);
 
-      this.onTransactionStatusChange(updatedTransactionMeta);
+      this.onTransactionStatusChange(txMeta);
       return ApprovalState.Approved;
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      this.failTransaction(transactionMeta, error);
+      this.failTransaction(txMeta, error);
       return ApprovalState.NotApproved;
     } finally {
       this.inProcessOfSigning.delete(transactionId);
@@ -2922,9 +2905,24 @@ export class TransactionController extends BaseController<
     )) as Promise<AddResult>;
   }
 
-  private getTransaction(transactionId: string): TransactionMeta | undefined {
+  private getTransaction(
+    transactionId: string,
+  ): Readonly<TransactionMeta> | undefined {
     const { transactions } = this.state;
     return transactions.find(({ id }) => id === transactionId);
+  }
+
+  private getTransactionOrThrow(
+    transactionId: string,
+    errorMessagePrefix = 'TransactionController',
+  ): Readonly<TransactionMeta> {
+    const txMeta = this.getTransaction(transactionId);
+    if (!txMeta) {
+      throw new Error(
+        `${errorMessagePrefix}: No transaction found with id ${transactionId}`,
+      );
+    }
+    return txMeta;
   }
 
   private getApprovalId(txMeta: TransactionMeta) {
@@ -3211,11 +3209,12 @@ export class TransactionController extends BaseController<
    *
    * @param transactionMeta - The TransactionMeta object to update.
    * @param signedTx - The encompassing type for all transaction types containing r, s, and v values.
+   * @returns The updated TransactionMeta object.
    */
-  private async updateTransactionMetaRSV(
+  private updateTransactionMetaRSV(
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
-  ): Promise<TransactionMeta> {
+  ): TransactionMeta {
     const transactionMetaWithRsv = cloneDeep(transactionMeta);
 
     for (const key of ['r', 's', 'v'] as const) {
@@ -3287,7 +3286,7 @@ export class TransactionController extends BaseController<
     }
 
     const transactionMetaWithRsv = {
-      ...(await this.updateTransactionMetaRSV(transactionMeta, signedTx)),
+      ...this.updateTransactionMetaRSV(transactionMeta, signedTx),
       status: TransactionStatus.signed as const,
     };
 
@@ -3611,8 +3610,8 @@ export class TransactionController extends BaseController<
       note,
       skipHistory,
     }: { transactionId: string; note?: string; skipHistory?: boolean },
-    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
-  ) {
+    mutationFn: (transactionMeta: TransactionMeta) => TransactionMeta | void,
+  ): Readonly<TransactionMeta> {
     let updatedTransactionParams: (keyof TransactionParams)[] = [];
 
     this.update((state) => {
@@ -3622,8 +3621,7 @@ export class TransactionController extends BaseController<
 
       let transactionMeta = state.transactions[index];
 
-      // eslint-disable-next-line n/callback-return
-      transactionMeta = callback(transactionMeta) ?? transactionMeta;
+      transactionMeta = mutationFn(transactionMeta) ?? transactionMeta;
 
       transactionMeta.txParams = normalizeTransactionParams(
         transactionMeta.txParams,
@@ -3640,7 +3638,6 @@ export class TransactionController extends BaseController<
           note ?? 'Transaction updated',
         );
       }
-
       state.transactions[index] = transactionMeta;
     });
 
@@ -3654,6 +3651,8 @@ export class TransactionController extends BaseController<
         updatedTransactionParams,
       );
     }
+
+    return transactionMeta;
   }
 
   #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
