@@ -2825,7 +2825,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@^12.0.1, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@npm:^12.0.1":
+  version: 12.0.1
+  resolution: "@metamask/selected-network-controller@npm:12.0.1"
+  dependencies:
+    "@metamask/base-controller": ^5.0.1
+    "@metamask/json-rpc-engine": ^8.0.1
+    "@metamask/network-controller": ^18.1.0
+    "@metamask/permission-controller": ^9.0.2
+    "@metamask/swappable-obj-proxy": ^2.2.0
+    "@metamask/utils": ^8.3.0
+  peerDependencies:
+    "@metamask/network-controller": ^18.0.0
+    "@metamask/permission-controller": ^9.0.0
+  checksum: 24938d39c65f5953a2de77d9d137673f0286cc1b46517b4a97d2aa98ee676c6024ee730adb097de7fe599a9bcbaf52d4ee493046743d79bd47b535d2583ec9f2
+  languageName: node
+  linkType: hard
+
+"@metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
