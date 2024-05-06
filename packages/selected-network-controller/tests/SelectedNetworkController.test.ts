@@ -298,6 +298,34 @@ describe('SelectedNetworkController', () => {
     });
 
     describe('when the useRequestQueue is true', () => {
+      describe('when the requesting domain is a snap (starts with "npm:" or "local:"', () => {
+        it('skips setting the networkClientId for the passed in domain', () => {
+          const { controller, mockHasPermissions } = setup({
+            state: { domains: {} },
+            useRequestQueuePreference: true,
+          });
+          mockHasPermissions.mockReturnValue(true);
+          const snapDomainOne = 'npm:@metamask/bip32-example-snap';
+          const snapDomainTwo = 'local:@metamask/bip32-example-snap';
+          const nonSnapDomain = 'example.com';
+          const networkClientId = 'network1';
+          controller.setNetworkClientIdForDomain(
+            nonSnapDomain,
+            networkClientId,
+          );
+          controller.setNetworkClientIdForDomain(
+            snapDomainOne,
+            networkClientId,
+          );
+          controller.setNetworkClientIdForDomain(
+            snapDomainTwo,
+            networkClientId,
+          );
+          expect(controller.state.domains).toStrictEqual({
+            [nonSnapDomain]: networkClientId,
+          });
+        });
+      });
       describe('when the requesting domain has existing permissions', () => {
         it('sets the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
