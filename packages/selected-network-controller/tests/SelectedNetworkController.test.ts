@@ -310,6 +310,7 @@ describe('SelectedNetworkController', () => {
           const snapDomainTwo = 'local:@metamask/bip32-example-snap';
           const nonSnapDomain = 'example.com';
           const networkClientId = 'network1';
+
           controller.setNetworkClientIdForDomain(
             nonSnapDomain,
             networkClientId,
@@ -322,6 +323,7 @@ describe('SelectedNetworkController', () => {
             snapDomainTwo,
             networkClientId,
           );
+
           expect(controller.state.domains).toStrictEqual({
             [nonSnapDomain]: networkClientId,
           });
