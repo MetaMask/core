@@ -24,7 +24,11 @@ import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
+import {
+  getUUIDFromAddressOfNormalAccount,
+  isNormalKeyringType,
+  keyringTypeToName,
+} from './utils';
 
 const controllerName = 'AccountsController';
 
@@ -453,6 +457,12 @@ export class AccountsController extends BaseController<
         address,
       );
 
+      const keyringType = (keyring as Keyring<Json>).type;
+      if (!isNormalKeyringType(keyringType as KeyringTypes)) {
+        // We only consider "normal accounts" here, so keep looping
+        continue;
+      }
+
       const id = getUUIDFromAddressOfNormalAccount(address);
 
       internalAccounts.push({
@@ -480,9 +490,7 @@ export class AccountsController extends BaseController<
       });
     }
 
-    return internalAccounts.filter(
-      (account) => account.metadata.keyring.type !== KeyringTypes.snap,
-    );
+    return internalAccounts;
   }
 
   /**
