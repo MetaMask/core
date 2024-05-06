@@ -317,13 +317,8 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    const snapAccounts: InternalAccount[] = await this.#listSnapAccounts();
-    const normalAccounts = (await this.#listNormalAccounts()).filter(
-      (account) =>
-        !snapAccounts.find(
-          (snapAccount) => snapAccount.address === account.address,
-        ),
-    );
+    const snapAccounts = await this.#listSnapAccounts();
+    const normalAccounts = await this.#listNormalAccounts();
 
     // keyring type map.
     const keyringTypes = new Map<string, number>();
