@@ -6,7 +6,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { CaipAssetType, BalancesResult, Chain } from '@metamask/chain-api';
 import type { InternalAccount } from '@metamask/keyring-api';
-import type { SnapController } from '@metamask/snaps-controllers';
+import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { CaipChainId, Json } from '@metamask/utils';
 
@@ -22,7 +22,7 @@ export type ChainControllerGetStateAction = ControllerGetStateAction<
   ChainControllerState
 >;
 
-export type AllowedActions = never;
+export type AllowedActions = SnapControllerHandleSnapRequestAction;
 
 export type ChainControllerActions = never;
 
@@ -71,11 +71,9 @@ export class ChainController
   constructor({
     messenger,
     state,
-    getSnapController,
   }: {
     messenger: ChainControllerMessenger;
     state: ChainControllerState;
-    getSnapController: () => SnapController;
   }) {
     super({
       messenger,
@@ -88,7 +86,12 @@ export class ChainController
     });
 
     this.#snapClient = new SnapControllerClient({
-      controller: getSnapController(),
+      handler: (request) => {
+        return this.messagingSystem.call(
+          'SnapController:handleRequest',
+          request,
+        );
+      },
     });
 
     this.#providers = {};

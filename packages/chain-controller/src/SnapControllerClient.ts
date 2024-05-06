@@ -7,6 +7,11 @@ import type { Json } from '@metamask/utils';
 import { v4 as uuid } from 'uuid';
 
 /**
+ * Handler for Snap requests.
+ */
+export type Handler = SnapController['handleRequest'];
+
+/**
  * Implementation of the `Sender` interface that can be used to send requests
  * to a snap through a `SnapController`.
  */
@@ -15,28 +20,28 @@ class SnapControllerSender implements Sender {
 
   #origin: string;
 
-  #controller: SnapController;
+  #handler: Handler;
 
-  #handler: HandlerType;
+  #handlerType: HandlerType;
 
   /**
    * Create a new instance of `SnapControllerSender`.
    *
-   * @param controller - The `SnapController` instance to send requests to.
    * @param snapId - The ID of the snap to use.
    * @param origin - The sender's origin.
-   * @param handler - The handler type.
+   * @param handler - The `SnapController` handler to send requests to.
+   * @param handlerType - The handler type.
    */
   constructor(
-    controller: SnapController,
+    handler: Handler,
+    handlerType: HandlerType,
     snapId: SnapId,
     origin: string,
-    handler: HandlerType,
   ) {
-    this.#controller = controller;
     this.#snapId = snapId;
     this.#origin = origin;
     this.#handler = handler;
+    this.#handlerType = handlerType;
   }
 
   /**
@@ -46,10 +51,10 @@ class SnapControllerSender implements Sender {
    * @returns A promise that resolves to the response of the request.
    */
   async send(request: JsonRpcRequest): Promise<Json> {
-    return this.#controller.handleRequest({
+    return this.#handler({
       snapId: this.#snapId,
       origin: this.#origin,
-      handler: this.#handler,
+      handler: this.#handlerType,
       request,
     }) as Promise<Json>;
   }
@@ -59,26 +64,26 @@ class SnapControllerSender implements Sender {
  * Snap client to submit requests through the `SnapController`.
  */
 export class SnapControllerClient {
-  #controller: SnapController;
+  #handler: Handler;
 
   #sender: SnapControllerSender;
 
   constructor({
-    controller,
+    handler,
     // Follow same pattern than for @metamask/keyring-api
     snapId = 'undefined' as SnapId,
     origin = 'metamask',
   }: {
-    controller: SnapController;
+    handler: Handler;
     snapId?: SnapId;
     origin?: string;
   }) {
-    this.#controller = controller;
+    this.#handler = handler;
     this.#sender = new SnapControllerSender(
-      controller,
+      handler,
+      HandlerType.OnRpcRequest,
       snapId,
       origin,
-      HandlerType.OnRpcRequest,
     );
   }
 
@@ -92,18 +97,9 @@ export class SnapControllerClient {
    */
   withSnapId(snapId: SnapId): SnapControllerClient {
     return new SnapControllerClient({
-      controller: this.#controller,
+      handler: this.#handler,
       snapId,
     });
-  }
-
-  /**
-   * Get the `SnapController` instance used by this client.
-   *
-   * @returns The `SnapController` instance used by this client.
-   */
-  getController(): SnapController {
-    return this.#controller;
   }
 
   submitRequest = async (

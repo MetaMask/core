@@ -1,6 +1,7 @@
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
+import type { SnapRpcHookArgs } from '@metamask/snaps-utils';
 
 import type { ChainControllerMessenger } from './ChainController';
 import { ChainController } from './ChainController';
@@ -11,7 +12,7 @@ describe('ChainController', () => {
     submitRequest: jest.fn(),
   };
   const snapController = {
-    handleRequest: (request: { snapId: SnapId }) => {
+    handleRequest: async (request: { snapId: SnapId }) => {
       if (request.snapId === snapId) {
         return snapClient.submitRequest(request);
       }
@@ -20,9 +21,20 @@ describe('ChainController', () => {
   } as unknown as SnapController;
 
   const messenger = {
-    call: jest.fn(() => ({
-      catch: jest.fn(),
-    })),
+    call: jest.fn(
+      async (
+        action: string,
+        request: SnapRpcHookArgs & { snapId: SnapId },
+      ): Promise<unknown> => {
+        switch (action) {
+          case `SnapController:handleRequest`:
+            return await snapController.handleRequest(request);
+
+          default:
+            throw new Error(`Unknown action: ${action}`);
+        }
+      },
+    ),
     registerActionHandler: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
@@ -33,7 +45,6 @@ describe('ChainController', () => {
     return new ChainController({
       state: {},
       messenger,
-      getSnapController: () => snapController,
     });
   };
 

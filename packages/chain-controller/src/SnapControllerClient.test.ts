@@ -5,10 +5,12 @@ import { HandlerType } from '@metamask/snaps-utils';
 import { SnapControllerClient } from './SnapControllerClient';
 
 describe('SnapControllerClient', () => {
+  const handleRequest = jest.fn();
+
   const snapId = 'local:localhost:3000' as SnapId;
   const snapController = {
-    handleRequest: jest.fn(),
-  };
+    handleRequest,
+  } as unknown as SnapController;
 
   describe('submitRequest', () => {
     const request = {
@@ -31,11 +33,11 @@ describe('SnapControllerClient', () => {
 
     it('should call a method and return the result', async () => {
       const client = new SnapControllerClient({
-        controller: snapController as unknown as SnapController,
+        handler: snapController.handleRequest,
         snapId,
       });
 
-      snapController.handleRequest.mockResolvedValue(response);
+      handleRequest.mockResolvedValue(response);
       const accounts = await client.submitRequest(method, params);
       expect(snapController.handleRequest).toHaveBeenCalledWith(request);
       expect(accounts).toStrictEqual(response);
@@ -43,10 +45,10 @@ describe('SnapControllerClient', () => {
 
     it('should call a method and return the result (withSnapId)', async () => {
       const client = new SnapControllerClient({
-        controller: snapController as unknown as SnapController,
+        handler: snapController.handleRequest,
       });
 
-      snapController.handleRequest.mockResolvedValue(response);
+      handleRequest.mockResolvedValue(response);
       const accounts = await client
         .withSnapId(snapId)
         .submitRequest(method, params);
@@ -56,25 +58,15 @@ describe('SnapControllerClient', () => {
 
     it('should call the default snapId value ("undefined")', async () => {
       const client = new SnapControllerClient({
-        controller: snapController as unknown as SnapController,
+        handler: snapController.handleRequest,
       });
 
-      snapController.handleRequest.mockResolvedValue(response);
+      handleRequest.mockResolvedValue(response);
       await client.submitRequest(method, params);
-      expect(snapController.handleRequest).toHaveBeenCalledWith({
+      expect(handleRequest).toHaveBeenCalledWith({
         ...request,
         snapId: 'undefined',
       });
-    });
-  });
-
-  describe('getController', () => {
-    it('should return the controller', () => {
-      const client = new SnapControllerClient({
-        controller: snapController as unknown as SnapController,
-      });
-
-      expect(client.getController()).toBe(snapController);
     });
   });
 });

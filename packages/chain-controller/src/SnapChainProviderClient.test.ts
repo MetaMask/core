@@ -8,12 +8,14 @@ import { SnapChainProviderClient } from './SnapChainProviderClient';
 import { SnapControllerClient } from './SnapControllerClient';
 
 describe('SnapChainProviderClient', () => {
+  const handleRequest = jest.fn();
+
   const snapId = 'local:localhost:3000' as SnapId;
   const snapController = {
-    handleRequest: jest.fn(),
+    handleRequest,
   };
   const snapClient = new SnapControllerClient({
-    controller: snapController as unknown as SnapController,
+    handler: handleRequest,
     snapId,
   });
 
