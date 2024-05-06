@@ -559,6 +559,7 @@ describe('SelectedNetworkController', () => {
         });
       });
     });
+    // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
     describe('when the domain is a snap (starts with "npm:" or "local:")', () => {
       it('returns a proxied globally selected networkClient and does not create a new proxy in the domainProxyMap', () => {
         const { controller, domainProxyMap, messenger } = setup({
@@ -569,7 +570,9 @@ describe('SelectedNetworkController', () => {
         });
         jest.spyOn(messenger, 'call');
         const snapDomain = 'npm:@metamask/bip32-example-snap';
+
         const result = controller.getProviderAndBlockTracker(snapDomain);
+
         expect(domainProxyMap.get(snapDomain)).toBeUndefined();
         expect(messenger.call).toHaveBeenCalledWith(
           'NetworkController:getSelectedNetworkClient',
@@ -586,7 +589,9 @@ describe('SelectedNetworkController', () => {
           useRequestQueuePreference: true,
         });
         jest.spyOn(messenger, 'call');
+
         const result = controller.getProviderAndBlockTracker(METAMASK_DOMAIN);
+
         expect(result).toBeDefined();
         expect(domainProxyMap.get(METAMASK_DOMAIN)).toBeUndefined();
         expect(messenger.call).toHaveBeenCalledWith(
