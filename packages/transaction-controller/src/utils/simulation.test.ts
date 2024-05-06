@@ -2,20 +2,20 @@ import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 
 import {
-  SimulationInvalidResponseError,
-  SimulationRevertedError,
-} from '../errors';
-import { SimulationErrorCode, SimulationTokenStandard } from '../types';
-import {
   getSimulationData,
   SupportedToken,
   type GetSimulationDataRequest,
 } from './simulation';
-import type { SimulationResponseLog } from './simulation-api';
-import {
-  simulateTransactions,
+import { simulateTransactions } from './simulation-api';
+import type {
+  SimulationResponseLog,
   type SimulationResponse,
 } from './simulation-api';
+import {
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 
 jest.mock('./simulation-api');
 

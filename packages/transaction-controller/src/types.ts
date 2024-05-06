@@ -717,7 +717,6 @@ export type GasFeeEstimates =
   | LegacyGasFeeEstimates
   | GasPriceGasFeeEstimates;
 
-
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
   /** An EthQuery instance to enable queries to the associated RPC provider. */

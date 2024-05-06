@@ -4,6 +4,14 @@ import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
+import { simulateTransactions } from './simulation-api';
+import type {
+  SimulationResponseLog,
+  SimulationRequestTransaction,
+  SimulationResponse,
+  SimulationResponseCallTrace,
+  SimulationResponseTransaction,
+} from './simulation-api';
 import {
   ABI_SIMULATION_ERC20_WRAPPED,
   ABI_SIMULATION_ERC721_LEGACY,
@@ -21,14 +29,6 @@ import type {
   SimulationToken,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
-import { simulateTransactions } from './simulation-api';
-import type {
-  SimulationResponseLog,
-  SimulationRequestTransaction,
-  SimulationResponse,
-  SimulationResponseCallTrace,
-  SimulationResponseTransaction,
-} from './simulation-api';
 
 export enum SupportedToken {
   ERC20 = 'erc20',

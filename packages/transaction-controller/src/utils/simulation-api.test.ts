@@ -1,6 +1,6 @@
-import { CHAIN_IDS } from '../constants';
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
+import { CHAIN_IDS } from '../constants';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
