@@ -6,15 +6,15 @@ import type {
 import { ChainRpcMethod } from '@metamask/chain-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import type { SnapControllerClient } from './SnapControllerClient';
+import type { SnapHandlerClient } from './SnapHandlerClient';
 
 /**
  * Snap client to submit requests through the `SnapController`.
  */
 export class SnapChainProviderClient implements Chain {
-  #client: SnapControllerClient;
+  #client: SnapHandlerClient;
 
-  constructor(client: SnapControllerClient) {
+  constructor(client: SnapHandlerClient) {
     this.#client = client;
   }
 

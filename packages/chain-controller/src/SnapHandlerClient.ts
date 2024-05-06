@@ -15,7 +15,7 @@ export type Handler = SnapController['handleRequest'];
  * Implementation of the `Sender` interface that can be used to send requests
  * to a snap through a `SnapController`.
  */
-class SnapControllerSender implements Sender {
+class SnapHandlerSender implements Sender {
   #snapId: SnapId;
 
   #origin: string;
@@ -61,12 +61,13 @@ class SnapControllerSender implements Sender {
 }
 
 /**
- * Snap client to submit requests through the `SnapController`.
+ * Snap client to submit requests through a handler that submit requests to
+ * a Snap.
  */
-export class SnapControllerClient {
+export class SnapHandlerClient {
   #handler: Handler;
 
-  #sender: SnapControllerSender;
+  #sender: SnapHandlerSender;
 
   constructor({
     handler,
@@ -79,7 +80,7 @@ export class SnapControllerClient {
     origin?: string;
   }) {
     this.#handler = handler;
-    this.#sender = new SnapControllerSender(
+    this.#sender = new SnapHandlerSender(
       handler,
       HandlerType.OnRpcRequest,
       snapId,
@@ -95,8 +96,8 @@ export class SnapControllerClient {
    * @returns A new instance of `KeyringSnapControllerClient` with the
    * specified snap ID.
    */
-  withSnapId(snapId: SnapId): SnapControllerClient {
-    return new SnapControllerClient({
+  withSnapId(snapId: SnapId): SnapHandlerClient {
+    return new SnapHandlerClient({
       handler: this.#handler,
       snapId,
     });

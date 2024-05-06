@@ -2,9 +2,9 @@ import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 
-import { SnapControllerClient } from './SnapControllerClient';
+import { SnapHandlerClient } from './SnapHandlerClient';
 
-describe('SnapControllerClient', () => {
+describe('SnapHandlerClient', () => {
   const handleRequest = jest.fn();
 
   const snapId = 'local:localhost:3000' as SnapId;
@@ -32,7 +32,7 @@ describe('SnapControllerClient', () => {
     const { method, params } = request.request;
 
     it('should call a method and return the result', async () => {
-      const client = new SnapControllerClient({
+      const client = new SnapHandlerClient({
         handler: snapController.handleRequest,
         snapId,
       });
@@ -44,7 +44,7 @@ describe('SnapControllerClient', () => {
     });
 
     it('should call a method and return the result (withSnapId)', async () => {
-      const client = new SnapControllerClient({
+      const client = new SnapHandlerClient({
         handler: snapController.handleRequest,
       });
 
@@ -57,7 +57,7 @@ describe('SnapControllerClient', () => {
     });
 
     it('should call the default snapId value ("undefined")', async () => {
-      const client = new SnapControllerClient({
+      const client = new SnapHandlerClient({
         handler: snapController.handleRequest,
       });
 

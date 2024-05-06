@@ -11,7 +11,7 @@ import type { SnapId } from '@metamask/snaps-sdk';
 import type { CaipChainId, Json } from '@metamask/utils';
 
 import { SnapChainProviderClient } from './SnapChainProviderClient';
-import { SnapControllerClient } from './SnapControllerClient';
+import { SnapHandlerClient } from './SnapHandlerClient';
 
 const controllerName = 'ChainController';
 
@@ -58,7 +58,7 @@ export class ChainController
 {
   #providers: Record<CaipChainId, SnapChainProviderClient>;
 
-  #snapClient: SnapControllerClient;
+  #snapClient: SnapHandlerClient;
 
   /**
    * Constructor for ChainController.
@@ -85,7 +85,7 @@ export class ChainController
       },
     });
 
-    this.#snapClient = new SnapControllerClient({
+    this.#snapClient = new SnapHandlerClient({
       handler: (request) => {
         return this.messagingSystem.call(
           'SnapController:handleRequest',

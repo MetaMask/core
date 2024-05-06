@@ -5,7 +5,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { Json } from '@metamask/utils';
 
 import { SnapChainProviderClient } from './SnapChainProviderClient';
-import { SnapControllerClient } from './SnapControllerClient';
+import { SnapHandlerClient } from './SnapHandlerClient';
 
 describe('SnapChainProviderClient', () => {
   const handleRequest = jest.fn();
@@ -14,7 +14,7 @@ describe('SnapChainProviderClient', () => {
   const snapController = {
     handleRequest,
   };
-  const snapClient = new SnapControllerClient({
+  const snapClient = new SnapHandlerClient({
     handler: handleRequest,
     snapId,
   });
