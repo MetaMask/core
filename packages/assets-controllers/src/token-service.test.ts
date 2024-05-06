@@ -266,9 +266,8 @@ describe('Token service', () => {
         .persist();
 
       const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
-      const expectedLineaTeamtokens = sampleTokenListLinea.slice(0, 4);
 
-      expect(tokens).toStrictEqual(expectedLineaTeamtokens);
+      expect(tokens).toStrictEqual(sampleTokenListLinea);
     });
 
     it('should return undefined if the fetch is aborted', async () => {

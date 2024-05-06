@@ -63,7 +63,10 @@ export async function fetchTokenListByChainId(
   if (response) {
     const result = await parseJsonResponse(response);
     if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
-      return result.filter((elm) => elm.aggregators.includes('lineaTeam'));
+      return result.filter(
+        (elm) =>
+          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
+      );
     }
     return result;
   }
