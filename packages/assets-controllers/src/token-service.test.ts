@@ -1,4 +1,4 @@
-import { ChainId, toHex } from '@metamask/controller-utils';
+import { toHex } from '@metamask/controller-utils';
 import nock from 'nock';
 
 import {
