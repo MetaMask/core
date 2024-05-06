@@ -1,0 +1,8 @@
+Patch for @metamask/keyring-controller v16.0.0
+
+The method `#addQRKeyring` has been updated to fix the extension issue 23804, The intial code added
+a empty accounts as argument when creating a new QR keyring. cause the new Keystone MetamaskKeyring
+default properties all are undefined during deserialise() process. Please refer to PR 23903 for
+detail.
+
+This patch can be found on the core branch `keyring-controller-v16-patch`
