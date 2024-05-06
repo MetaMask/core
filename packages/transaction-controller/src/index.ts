@@ -33,7 +33,12 @@ export {
 export type {
   DappSuggestedGasFees,
   DefaultGasEstimates,
+  FeeMarketGasFeeEstimateForLevel,
+  FeeMarketGasFeeEstimates,
+  GasFeeEstimates,
+  GasPriceGasFeeEstimates,
   InferTransactionTypeResult,
+  LegacyGasFeeEstimates,
   Log,
   RemoteTransactionSource,
   RemoteTransactionSourceRequest,
@@ -54,6 +59,9 @@ export type {
   TransactionReceipt,
 } from './types';
 export {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  SimulationErrorCode,
   SimulationTokenStandard,
   TransactionEnvelopeType,
   TransactionStatus,

@@ -1,4 +1,6 @@
-import { OPENSEA_PROXY_URL, ChainId, toHex } from '@metamask/controller-utils';
+import { NFT_API_BASE_URL, ChainId, toHex } from '@metamask/controller-utils';
+import { NetworkClientType } from '@metamask/network-controller';
+import type { NetworkClient } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -6,12 +8,15 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { Source } from './constants';
 import { getDefaultNftState, type NftState } from './NftController';
 import {
   type NftDetectionConfig,
   NftDetectionController,
+  BlockaidResultType,
 } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -22,108 +27,244 @@ describe('NftDetectionController', () => {
   beforeEach(async () => {
     clock = sinon.useFakeTimers();
 
-    nock(OPENSEA_PROXY_URL)
+    nock(NFT_API_BASE_URL)
       .persist()
-      .get(`/chain/ethereum/account/0x1/nfts?limit=200&next=`)
+      .get(
+        `/users/0x1/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
       .reply(200, {
-        nfts: [
+        tokens: [
           {
-            contract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
-            collection: 'Collection 2577',
-            token_standard: 'erc721',
-            name: 'ID 2577',
-            description: 'Description 2577',
-            image_url: 'image/2577.png',
-            identifier: '2577',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              chainId: 1,
+              contract: '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+              tokenId: '2577',
+              kind: 'erc721',
+              name: 'Remilio 632',
+              image: 'https://imgtest',
+              imageSmall: 'https://imgSmall',
+              imageLarge: 'https://imglarge',
+              metadata: {
+                imageOriginal: 'https://remilio.org/remilio/632.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'https://remilio.org/remilio/json/632',
+              },
+              description:
+                "Redacted Remilio Babies is a collection of 10,000 neochibi pfpNFT's expanding the Milady Maker paradigm with the introduction of young J.I.T. energy and schizophrenic reactionary aesthetics. We are #REMILIONAIREs.",
+              rarityScore: 343.443,
+              rarityRank: 8872,
+              supply: '1',
+              isSpam: false,
+            },
           },
           {
-            contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
-            collection: 'Collection 2577',
-            token_standard: 'erc721',
-            name: 'ID 2578',
-            description: 'Description 2578',
-            image_url: 'image/2578.png',
-            identifier: '2578',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              contract: '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+              kind: 'erc721',
+              name: 'ID 2578',
+              description: 'Description 2578',
+              image: 'https://imgtest',
+              imageSmall: 'https://imgSmall',
+              imageLarge: 'https://imglarge',
+              tokenId: '2578',
+              metadata: {
+                imageOriginal: 'https://remilio.org/remilio/632.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'https://remilio.org/remilio/json/632',
+              },
+              rarityScore: 343.443,
+              rarityRank: 8872,
+              supply: '1',
+              isSpam: false,
+            },
           },
           {
-            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-            collection: 'Collection 2574',
-            token_standard: 'erc721',
-            name: 'ID 2574',
-            description: 'Description 2574',
-            image_url: 'image/2574.png',
-            identifier: '2574',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
           },
         ],
       })
-      .get(`/chain/ethereum/account/0x9/nfts?limit=200&next=`)
+      .get(
+        `/users/0x9/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
       .reply(200, {
-        nfts: [
+        tokens: [
           {
-            contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-            collection: 'Collection 2574',
-            token_standard: 'erc721',
-            name: 'ID 2574',
-            description: 'Description 2574',
-            image_url: 'image/2574.png',
-            identifier: '2574',
-            metadata_url: '',
-            updated_at: '',
-            is_disabled: false,
-            is_nsfw: false,
+            token: {
+              contract: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+        ],
+      })
+      .get(
+        `/users/0x123/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              contract: '0xtest1',
+              kind: 'erc721',
+              name: 'ID 2574',
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              tokenId: '2574',
+              metadata: {
+                imageOriginal: 'imageOriginal/2574.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+          {
+            token: {
+              contract: '0xtest2',
+              kind: 'erc721',
+              name: 'ID 2575',
+              description: 'Description 2575',
+              image: 'image/2575.png',
+              tokenId: '2575',
+              metadata: {
+                imageOriginal: 'imageOriginal/2575.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+        ],
+      })
+      .get(
+        `/users/0x12345/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+      )
+      .reply(200, {
+        tokens: [
+          {
+            token: {
+              contract: '0xtestCollection1',
+              kind: 'erc721',
+              name: 'ID 1',
+              description: 'Description 1',
+              image: 'image/1.png',
+              tokenId: '1',
+              metadata: {
+                imageOriginal: 'imageOriginal/1.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+          {
+            token: {
+              contract: '0xtestCollection2',
+              kind: 'erc721',
+              name: 'ID 2',
+              description: 'Description 2',
+              image: 'image/2.png',
+              tokenId: '2',
+              metadata: {
+                imageOriginal: 'imageOriginal/2.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+          },
+          {
+            token: {
+              contract: '0xtestCollection3',
+              kind: 'erc721',
+              name: 'ID 3',
+              description: 'Description 3',
+              image: 'image/3.png',
+              tokenId: '3',
+              metadata: {
+                imageOriginal: 'imageOriginal/3.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: false,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Malicious,
+            },
+          },
+          {
+            token: {
+              contract: '0xtestCollection4',
+              kind: 'erc721',
+              name: 'ID 4',
+              description: 'Description 4',
+              image: 'image/4.png',
+              tokenId: '4',
+              metadata: {
+                imageOriginal: 'imageOriginal/4.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: true,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Benign,
+            },
+          },
+          {
+            token: {
+              contract: '0xtestCollection5',
+              kind: 'erc721',
+              name: 'ID 5',
+              description: 'Description 5',
+              image: 'image/5.png',
+              tokenId: '5',
+              metadata: {
+                imageOriginal: 'imageOriginal/5.png',
+                imageMimeType: 'image/png',
+                tokenURI: 'tokenURITest',
+              },
+              isSpam: true,
+            },
+            blockaidResult: {
+              result_type: BlockaidResultType.Malicious,
+            },
           },
         ],
       });
-
-    nock(OPENSEA_PROXY_URL)
-      .persist()
-      .get(
-        `/chain/ethereum/contract/0x1d963688FE2209A98dB35C67A041524822Cf04ff`,
-      )
-      .reply(200, {
-        address: '0x1d963688FE2209A98dB35C67A041524822Cf04ff',
-        chain: 'ethereum',
-        collection: 'Name',
-        contract_standard: 'erc721',
-        name: 'Name',
-        total_supply: 0,
-      })
-      .get(
-        `/chain/ethereum/contract/0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD`,
-      )
-      .reply(200, {
-        address: '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
-        chain: 'ethereum',
-        collection: 'Name HH',
-        contract_standard: 'erc721',
-        name: 'Name HH',
-        total_supply: 10,
-      })
-      .get(`/collections/Name%20HH`)
-      .reply(200, {
-        description: 'Description HH',
-        image_url: 'url HH',
-      })
-      .get(
-        `/chain/ethereum/contract/0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc`,
-      )
-      .replyWithError(new Error('Failed to fetch'))
-      .get(
-        `/chain/ethereum/contract/0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d`,
-      )
-      .replyWithError(new Error('Failed to fetch'));
+    console.log(nock.activeMocks());
   });
 
   afterEach(() => {
@@ -237,7 +378,7 @@ describe('NftDetectionController', () => {
     });
   });
 
-  it('should detect and add NFTs correctly', async () => {
+  it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
     const mockAddNft = jest.fn();
     await withController(
       { options: { addNft: mockAddNft } },
@@ -266,11 +407,117 @@ describe('NftDetectionController', () => {
               image: 'image/2574.png',
               name: 'ID 2574',
               standard: 'ERC721',
-              creator: {
-                user: { username: '' },
-                profile_img_url: '',
-                address: '',
-              },
+              imageOriginal: 'imageOriginal/2574.png',
+            },
+            userAddress: selectedAddress,
+            source: Source.Detected,
+            networkClientId: undefined,
+          },
+        );
+      },
+    );
+  });
+
+  it('should detect and add NFTs correctly when blockaid result is in response', async () => {
+    const mockAddNft = jest.fn();
+    await withController(
+      { options: { addNft: mockAddNft } },
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const selectedAddress = '0x123';
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress,
+          useNftDetection: true,
+        });
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+        mockAddNft.mockReset();
+
+        await controller.detectNfts();
+
+        // Expect to be called twice
+        expect(mockAddNft).toHaveBeenNthCalledWith(1, '0xtest1', '2574', {
+          nftMetadata: {
+            description: 'Description 2574',
+            image: 'image/2574.png',
+            name: 'ID 2574',
+            standard: 'ERC721',
+            imageOriginal: 'imageOriginal/2574.png',
+          },
+          userAddress: selectedAddress,
+          source: Source.Detected,
+          networkClientId: undefined,
+        });
+        expect(mockAddNft).toHaveBeenNthCalledWith(2, '0xtest2', '2575', {
+          nftMetadata: {
+            description: 'Description 2575',
+            image: 'image/2575.png',
+            name: 'ID 2575',
+            standard: 'ERC721',
+            imageOriginal: 'imageOriginal/2575.png',
+          },
+          userAddress: selectedAddress,
+          source: Source.Detected,
+          networkClientId: undefined,
+        });
+      },
+    );
+  });
+
+  it('should detect and add NFTs and filter them correctly', async () => {
+    const mockAddNft = jest.fn();
+    await withController(
+      { options: { addNft: mockAddNft } },
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const selectedAddress = '0x12345';
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress,
+          useNftDetection: true,
+        });
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+        mockAddNft.mockReset();
+
+        await controller.detectNfts();
+
+        expect(mockAddNft).toHaveBeenCalledTimes(2);
+        // In this test we mocked that reservoir returned 5 NFTs
+        // the only NFTs we want to add are when isSpam=== false and (either no blockaid result returned or blockaid says "Benign")
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          1,
+          '0xtestCollection1',
+          '1',
+          {
+            nftMetadata: {
+              description: 'Description 1',
+              image: 'image/1.png',
+              name: 'ID 1',
+              standard: 'ERC721',
+              imageOriginal: 'imageOriginal/1.png',
+            },
+            userAddress: selectedAddress,
+            source: Source.Detected,
+            networkClientId: undefined,
+          },
+        );
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          2,
+          '0xtestCollection2',
+          '2',
+          {
+            nftMetadata: {
+              description: 'Description 2',
+              image: 'image/2.png',
+              name: 'ID 2',
+              standard: 'ERC721',
+              imageOriginal: 'imageOriginal/2.png',
             },
             userAddress: selectedAddress,
             source: Source.Detected,
@@ -313,11 +560,7 @@ describe('NftDetectionController', () => {
               image: 'image/2574.png',
               name: 'ID 2574',
               standard: 'ERC721',
-              creator: {
-                user: { username: '' },
-                profile_img_url: '',
-                address: '',
-              },
+              imageOriginal: 'imageOriginal/2574.png',
             },
             userAddress: '0x9',
             source: Source.Detected,
@@ -371,13 +614,71 @@ describe('NftDetectionController', () => {
     const mockAddNft = jest.fn();
     await withController(
       { options: { addNft: mockAddNft } },
-      async ({ controller }) => {
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const selectedAddress = ''; // Emtpy selected address
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress,
+          useNftDetection: true, // auto-detect is enabled so it proceeds to check userAddress
+        });
+
         // confirm that default selected address is an empty string
         expect(controller.config.selectedAddress).toBe('');
 
         await controller.detectNfts();
 
         expect(mockAddNft).not.toHaveBeenCalled();
+      },
+    );
+  });
+
+  it('should return true if mainnet is detected', async () => {
+    const mockAddNft = jest.fn();
+    const mockNetworkClient: NetworkClient = {
+      configuration: {
+        chainId: toHex(1),
+        rpcUrl: 'https://test.network',
+        ticker: 'TEST',
+        type: NetworkClientType.Custom,
+      },
+      provider: new FakeProvider(),
+      blockTracker: new FakeBlockTracker(),
+      destroy: () => {
+        // do nothing
+      },
+    };
+    await withController(
+      { options: { addNft: mockAddNft } },
+      async ({ controller }) => {
+        const result = controller.isMainnetByNetworkClientId(mockNetworkClient);
+        expect(result).toBe(true);
+      },
+    );
+  });
+
+  it('should not detectNfts when disabled is false and useNftDetection is true', async () => {
+    await withController(
+      { config: { interval: 10 }, options: { disabled: false } },
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const mockNfts = sinon.stub(controller, 'detectNfts');
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+
+        expect(mockNfts.calledOnce).toBe(false);
+
+        await advanceTime({
+          clock,
+          duration: 10,
+        });
+
+        expect(mockNfts.calledTwice).toBe(false);
       },
     );
   });
@@ -407,11 +708,16 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should do nothing when the request to the OpenSea proxy server fails', async () => {
+  it('should do nothing when the request to Nft API fails', async () => {
     const selectedAddress = '0x3';
-    nock(OPENSEA_PROXY_URL)
-      .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '200' })
+    nock(NFT_API_BASE_URL)
+      .get(`/users/${selectedAddress}/tokens`)
+      .query({
+        continuation: '',
+        limit: '50',
+        chainIds: '1',
+        includeTopBid: true,
+      })
       .replyWithError(new Error('Failed to fetch'))
       .persist();
     const mockAddNft = jest.fn();
@@ -437,16 +743,21 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should rethrow error when OpenSea proxy server fails with error other than fetch failure', async () => {
+  it('should rethrow error when Nft APi server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
     await withController(
       async ({ controller, triggerPreferencesStateChange }) => {
         // This mock is for the initial detect call after preferences change
-        nock(OPENSEA_PROXY_URL)
-          .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-          .query({ next: '', limit: '200' })
+        nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/tokens`)
+          .query({
+            continuation: '',
+            limit: '50',
+            chainIds: '1',
+            includeTopBid: true,
+          })
           .reply(200, {
-            nfts: [],
+            tokens: [],
           });
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
@@ -459,9 +770,14 @@ describe('NftDetectionController', () => {
           duration: 1,
         });
         // This mock is for the call under test
-        nock(OPENSEA_PROXY_URL)
-          .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-          .query({ next: '', limit: '200' })
+        nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/tokens`)
+          .query({
+            continuation: '',
+            limit: '50',
+            chainIds: '1',
+            includeTopBid: true,
+          })
           .replyWithError(new Error('UNEXPECTED ERROR'));
 
         await expect(() => controller.detectNfts()).rejects.toThrow(
@@ -493,80 +809,6 @@ describe('NftDetectionController', () => {
         await expect(async () => await controller.detectNfts()).rejects.toThrow(
           'UNEXPECTED ERROR',
         );
-      },
-    );
-  });
-
-  it('should fetch the original image url if image_url is null but theres metadata', async () => {
-    const selectedAddress = '0x1994';
-    const nftContract = '0x26B4a381D694c1AC6812eA80C3f3d088572802db';
-    const nftId = '123';
-    nock(OPENSEA_PROXY_URL)
-      .persist()
-      .get(`/chain/ethereum/account/${selectedAddress}/nfts`)
-      .query({ next: '', limit: '200' })
-      .reply(200, {
-        nfts: [
-          {
-            identifier: nftId,
-            contract: nftContract,
-            image_url: null,
-            token_standard: 'erc721',
-            metadata_url: 'https://example.com',
-          },
-        ],
-      })
-      .get(`/chain/ethereum/contract/${nftContract}/nfts/${nftId}`)
-      .reply(200, { nft: { image_url: 'https://example.com/image.gif' } });
-    const mockAddNft = jest.fn();
-    await withController(
-      {
-        options: {
-          addNft: mockAddNft,
-          getNftApi: jest
-            .fn()
-            .mockImplementation(
-              ({
-                contractAddress,
-                tokenId,
-              }: {
-                contractAddress: string;
-                tokenId: string;
-              }) =>
-                `${OPENSEA_PROXY_URL}/chain/ethereum/contract/${contractAddress}/nfts/${tokenId}`,
-            ),
-        },
-      },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress,
-          useNftDetection: true,
-        });
-        // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
-          duration: 1,
-        });
-        mockAddNft.mockReset();
-
-        await controller.detectNfts();
-
-        expect(mockAddNft).toHaveBeenCalledWith(nftContract, nftId, {
-          nftMetadata: {
-            imageOriginal: 'https://example.com/image.gif',
-            name: undefined,
-            standard: 'ERC721',
-            creator: {
-              user: { username: '' },
-              profile_img_url: '',
-              address: '',
-            },
-          },
-          userAddress: selectedAddress,
-          source: Source.Detected,
-          networkClientId: undefined,
-        });
       },
     );
   });
@@ -661,6 +903,8 @@ async function withController<ReturnValue>(
       getNftApi: jest.fn(),
       getNetworkClientById,
       getNftState: getDefaultNftState,
+      disabled: true,
+      selectedAddress: '',
       ...options,
     },
     config,

@@ -140,4 +140,13 @@ describe('CryptoCompare', () => {
       'Market does not exist for this coin pair',
     );
   });
+
+  it('should override native symbol when the CryptoCompare identifier is different', async () => {
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=MANTLE&tsyms=USD')
+      .reply(200, { USD: 123 });
+
+    const { conversionRate } = await fetchExchangeRate('USD', 'MNT');
+    expect(conversionRate).toBe(123);
+  });
 });
