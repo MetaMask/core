@@ -1,7 +1,4 @@
-import {
-  isEVMAccount,
-  type AccountsControllerGetSelectedAccountAction,
-} from '@metamask/accounts-controller';
+import { type AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import {
   type RestrictedControllerMessenger,
   type ControllerGetStateAction,
@@ -9,6 +6,8 @@ import {
   BaseController,
 } from '@metamask/base-controller';
 import { safelyExecute, toHex } from '@metamask/controller-utils';
+import type { InternalAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
 
 import type { AssetsContractController } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
@@ -201,7 +200,9 @@ export class TokenBalancesController extends BaseController<
     const selectedInternalAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
-    if (!isEVMAccount(selectedInternalAccount)) {
+    if (
+      !isEvmAccountType(selectedInternalAccount.type as InternalAccountType)
+    ) {
       return;
     }
 

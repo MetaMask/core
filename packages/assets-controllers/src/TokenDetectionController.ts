@@ -2,7 +2,6 @@ import {
   type AccountsControllerGetSelectedAccountAction,
   type AccountsControllerGetAccountAction,
   type AccountsControllerSelectedAccountChangeEvent,
-  isEVMAccount,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
@@ -11,6 +10,8 @@ import type {
 } from '@metamask/base-controller';
 import contractMap from '@metamask/contract-metadata';
 import { ChainId, safelyExecute } from '@metamask/controller-utils';
+import type { InternalAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -457,7 +458,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'AccountsController:getAccount',
       selectedAccountId ?? this.#selectedAccountId,
     );
-    if (!internalAccount || !isEVMAccount(internalAccount)) {
+    if (
+      !internalAccount ||
+      !isEvmAccountType(internalAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
@@ -491,7 +495,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    if (!selectedInternalAccount || !isEVMAccount(selectedInternalAccount)) {
+    if (
+      !selectedInternalAccount ||
+      !isEvmAccountType(selectedInternalAccount.type as InternalAccountType)
+    ) {
       return;
     }
 

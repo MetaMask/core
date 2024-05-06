@@ -4,7 +4,6 @@ import type {
   AccountsControllerGetAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import { isEVMAccount } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   BaseConfig,
@@ -24,6 +23,8 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
+import type { InternalAccountType } from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
@@ -266,7 +267,7 @@ export class TokensController extends BaseControllerV1<
       'AccountsController:selectedAccountChange',
       (internalAccount) => {
         this.configure({ selectedAccountId: internalAccount.id });
-        if (!isEVMAccount(internalAccount)) {
+        if (!isEvmAccountType(internalAccount.type as InternalAccountType)) {
           return;
         }
         const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
@@ -297,7 +298,7 @@ export class TokensController extends BaseControllerV1<
         this.configure({ chainId });
         if (
           !selectedInternalAccount ||
-          !isEVMAccount(selectedInternalAccount)
+          !isEvmAccountType(selectedInternalAccount.type as InternalAccountType)
         ) {
           return;
         }
@@ -367,7 +368,10 @@ export class TokensController extends BaseControllerV1<
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!internalAccount || !isEVMAccount(internalAccount)) {
+    if (
+      !internalAccount ||
+      !isEvmAccountType(internalAccount.type as InternalAccountType)
+    ) {
       releaseLock();
       return [];
     }
@@ -585,7 +589,10 @@ export class TokensController extends BaseControllerV1<
       'AccountsController:getAccount',
       this.config.selectedAccountId,
     );
-    if (!internalAccount || !isEVMAccount(internalAccount)) {
+    if (
+      !internalAccount ||
+      !isEvmAccountType(internalAccount.type as InternalAccountType)
+    ) {
       releaseLock();
       return;
     }
@@ -668,7 +675,10 @@ export class TokensController extends BaseControllerV1<
         currentAccountId,
       );
 
-      if (!currentInternalAccount || !isEVMAccount(currentInternalAccount)) {
+      if (
+        !currentInternalAccount ||
+        !isEvmAccountType(currentInternalAccount.type as InternalAccountType)
+      ) {
         releaseLock();
         return;
       }
@@ -834,7 +844,10 @@ export class TokensController extends BaseControllerV1<
       'AccountsController:getAccount',
       this.config.selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       throw new Error(`Account is not an EVM account`);
     }
 
@@ -977,7 +990,10 @@ export class TokensController extends BaseControllerV1<
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedInternalAccount || !isEVMAccount(selectedInternalAccount)) {
+    if (
+      !selectedInternalAccount ||
+      !isEvmAccountType(selectedInternalAccount.type as InternalAccountType)
+    ) {
       return {
         newAllTokens: allTokens,
         newAllIgnoredTokens: allIgnoredTokens,

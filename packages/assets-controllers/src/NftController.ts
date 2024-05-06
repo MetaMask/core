@@ -3,7 +3,6 @@ import {
   type AccountsControllerSelectedAccountChangeEvent,
   type AccountsControllerGetAccountAction,
   type AccountsControllerGetSelectedAccountAction,
-  isEVMAccount,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
@@ -24,7 +23,11 @@ import {
   ApprovalType,
   NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import {
+  type InternalAccountType,
+  type InternalAccount,
+  isEvmAccountType,
+} from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -1071,7 +1074,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           selectedAccountId: newSelectedAccount.id,
         });
 
-        if (isEVMAccount(newSelectedAccount)) {
+        if (isEvmAccountType(newSelectedAccount.type as InternalAccountType)) {
           const needsUpdateNftMetadata =
             (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
@@ -1198,7 +1201,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
@@ -1333,7 +1339,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
     userAddress = userAddress ?? selectedAccount.address;
@@ -1384,7 +1393,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
     userAddress = userAddress ?? selectedAccount.address;
@@ -1446,7 +1458,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       this.config.selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
@@ -1511,7 +1526,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
@@ -1552,7 +1570,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
@@ -1605,7 +1626,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       throw new Error('Non EVM Account selected');
     }
 
@@ -1664,7 +1688,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
@@ -1717,7 +1744,10 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       'AccountsController:getAccount',
       selectedAccountId,
     );
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 

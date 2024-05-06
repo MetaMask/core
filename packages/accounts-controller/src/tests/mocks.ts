@@ -1,5 +1,14 @@
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import type {
+  InternalAccount,
+  InternalAccountType,
+} from '@metamask/keyring-api';
+import {
+  BtcAccountType,
+  BtcMethod,
+  EthAccountType,
+  EthErc4337Method,
+  EthMethod,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { v4 } from 'uuid';
 
@@ -15,7 +24,7 @@ export const createMockInternalAccount = ({
 }: {
   id?: string;
   address?: string;
-  type?: EthAccountType;
+  type?: InternalAccountType;
   name?: string;
   keyringType?: KeyringTypes;
   snap?: {
@@ -26,21 +35,32 @@ export const createMockInternalAccount = ({
   importTime?: number;
   lastSelected?: number;
 } = {}): InternalAccount => {
-  const methods =
-    type === EthAccountType.Eoa
-      ? [
-          EthMethod.PersonalSign,
-          EthMethod.Sign,
-          EthMethod.SignTransaction,
-          EthMethod.SignTypedDataV1,
-          EthMethod.SignTypedDataV3,
-          EthMethod.SignTypedDataV4,
-        ]
-      : [
-          EthMethod.PatchUserOperation,
-          EthMethod.PrepareUserOperation,
-          EthMethod.SignUserOperation,
-        ];
+  let methods;
+
+  switch (type) {
+    case EthAccountType.Eoa:
+      methods = [
+        EthMethod.PersonalSign,
+        EthMethod.Sign,
+        EthMethod.SignTransaction,
+        EthMethod.SignTypedDataV1,
+        EthMethod.SignTypedDataV3,
+        EthMethod.SignTypedDataV4,
+      ];
+      break;
+    case EthAccountType.Erc4337:
+      methods = [
+        EthErc4337Method.PatchUserOperation,
+        EthErc4337Method.PrepareUserOperation,
+        EthErc4337Method.SignUserOperation,
+      ];
+      break;
+    case BtcAccountType.P2wpkh:
+      methods = [BtcMethod.SendMany];
+      break;
+    default:
+      methods = [] as EthMethod[];
+  }
 
   return {
     id,
@@ -55,5 +75,5 @@ export const createMockInternalAccount = ({
       lastSelected,
       snap: snap && snap,
     },
-  };
+  } as InternalAccount;
 };

@@ -1,9 +1,12 @@
-import { isEVMAccount } from '@metamask/accounts-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { query, safelyExecuteWithTimeout } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
-import type { InternalAccount } from '@metamask/keyring-api';
+import {
+  InternalAccountType,
+  isEvmAccountType,
+  type InternalAccount,
+} from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -260,7 +263,10 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    */
   refresh = async (networkClientId?: NetworkClientId) => {
     const selectedAccount = this.getSelectedAccount();
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 

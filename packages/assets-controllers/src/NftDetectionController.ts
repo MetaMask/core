@@ -1,4 +1,3 @@
-import { isEVMAccount } from '@metamask/accounts-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
   fetchWithErrorHandling,
@@ -6,7 +5,11 @@ import {
   ChainId,
   NFT_API_BASE_URL,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type {
+  InternalAccount,
+  InternalAccountType,
+} from '@metamask/keyring-api';
+import { isEvmAccountType } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -613,7 +616,9 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
   } = {}) {
     const { selectedAccountId } = this.config;
     const selectedInternalAccount = this.getInternalAccount(selectedAccountId);
-    if (!isEVMAccount(selectedInternalAccount)) {
+    if (
+      !isEvmAccountType(selectedInternalAccount.type as InternalAccountType)
+    ) {
       return;
     }
 

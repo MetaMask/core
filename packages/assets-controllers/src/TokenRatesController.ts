@@ -1,4 +1,3 @@
-import { isEVMAccount } from '@metamask/accounts-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import {
   safelyExecute,
@@ -6,7 +5,11 @@ import {
   FALL_BACK_VS_CURRENCY,
   toHex,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import {
+  isEvmAccountType,
+  type InternalAccount,
+  type InternalAccountType,
+} from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -285,7 +288,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   #getTokenAddresses(chainId: Hex): Hex[] {
     const { allTokens, allDetectedTokens, selectedAccountId } = this.config;
     const internalAccount = this.getInternalAccount(selectedAccountId);
-    if (!internalAccount || !isEVMAccount(internalAccount)) {
+    if (
+      !internalAccount ||
+      !isEvmAccountType(internalAccount.type as InternalAccountType)
+    ) {
       return [];
     }
     const tokens = allTokens[chainId]?.[internalAccount.address] || [];
@@ -346,7 +352,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   async updateExchangeRates() {
     const { chainId, nativeCurrency, selectedAccountId } = this.config;
     const selectedAccount = this.getInternalAccount(selectedAccountId);
-    if (!selectedAccount || !isEVMAccount(selectedAccount)) {
+    if (
+      !selectedAccount ||
+      !isEvmAccountType(selectedAccount.type as InternalAccountType)
+    ) {
       return;
     }
 
