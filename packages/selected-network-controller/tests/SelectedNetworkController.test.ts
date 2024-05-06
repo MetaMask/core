@@ -593,6 +593,18 @@ describe('SelectedNetworkController', () => {
           'NetworkController:getSelectedNetworkClient',
         );
       });
+      it('throws an error if the globally selected network client is not initialized', () => {
+        const { controller, mockGetSelectedNetworkClient } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: false,
+        });
+        mockGetSelectedNetworkClient.mockReturnValue(undefined);
+        expect(() =>
+          controller.getProviderAndBlockTracker(METAMASK_DOMAIN),
+        ).toThrow('Selected network not initialized');
+      });
     });
   });
 
