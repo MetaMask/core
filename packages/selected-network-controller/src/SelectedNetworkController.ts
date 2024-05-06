@@ -342,8 +342,11 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
-    // If the domain is a snap domain, return the selected network client
-    if (snapsPrefixes.some((prefix) => domain.startsWith(prefix))) {
+    // If the domain is 'metamask' or a snap, return the NetworkController's globally selected network client proxy
+    if (
+      domain === METAMASK_DOMAIN ||
+      snapsPrefixes.some((prefix) => domain.startsWith(prefix))
+    ) {
       const networkClient = this.messagingSystem.call(
         'NetworkController:getSelectedNetworkClient',
       );
