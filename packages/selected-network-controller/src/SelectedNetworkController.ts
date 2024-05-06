@@ -307,6 +307,13 @@ export class SelectedNetworkController extends BaseController<
       );
     }
 
+    // Snaps should be excluded from the domain state
+    // npm and local are currently the only valid prefixes for snap domains
+    // https://github.com/MetaMask/snaps/blob/2beee7803bfe9e540788a3558b546b9f55dc3cb4/packages/snaps-utils/src/types.ts#L120
+    if (domain.startsWith('npm:') || domain.startsWith('local:')) {
+      return;
+    }
+
     if (!this.#domainHasPermissions(domain)) {
       throw new Error(
         'NetworkClientId for domain cannot be called with a domain that has not yet been granted permissions',
