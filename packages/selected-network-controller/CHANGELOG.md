@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Now when `setNetworkClientIdForDomain` is called with a snap's domain (identified as starting with `npm:` or `local:`), the `domain` will not be added to state and no proxy will be created for this domain in the `domainProxyMap` ([#4258](https://github.com/MetaMask/core/pull/4258))
   - In order to remove snaps that made it into `domains` state prior to this change, consumers will need to run a migration.
 
-
 ## [12.0.1]
 
 ### Fixed
