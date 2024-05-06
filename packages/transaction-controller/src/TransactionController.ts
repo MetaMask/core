@@ -2169,17 +2169,17 @@ export class TransactionController extends BaseController<
   }
 
   #onGasFeePollerTransactionUpdate({
-    transactionId,
+    id,
     gasFeeEstimates,
     gasFeeEstimatesLoaded,
   }: {
-    transactionId: string;
+    id: string;
     gasFeeEstimates?: GasFeeEstimates;
     gasFeeEstimatesLoaded?: boolean;
     layer1GasFee?: Hex;
   }) {
     this.#updateTransactionInternal(
-      { transactionId, skipHistory: true },
+      { transactionId: id, skipHistory: true },
       (txMeta) => {
         if (gasFeeEstimates) {
           txMeta.gasFeeEstimates = gasFeeEstimates;
