@@ -9,7 +9,7 @@ import type { CaipChainId } from '@metamask/utils';
 import type { SnapHandlerClient } from './SnapHandlerClient';
 
 /**
- * Snap client to submit requests through the `SnapController`.
+ * Snap client to submit requests through a Snap request handler.
  */
 export class SnapChainProviderClient implements Chain {
   #client: SnapHandlerClient;
