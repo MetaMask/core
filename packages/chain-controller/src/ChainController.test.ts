@@ -31,9 +31,7 @@ describe('ChainController', () => {
 
   const makeController = () => {
     return new ChainController({
-      state: {
-        dummy: '',
-      },
+      state: {},
       messenger,
       getSnapController: () => snapController,
     });

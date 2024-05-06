@@ -8,16 +8,14 @@ import type { CaipAssetType, BalancesResult, Chain } from '@metamask/chain-api';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import type { CaipChainId } from '@metamask/utils';
+import type { CaipChainId, Json } from '@metamask/utils';
 
 import { SnapChainProviderClient } from './SnapChainProviderClient';
 import { SnapControllerClient } from './SnapControllerClient';
 
 const controllerName = 'ChainController';
 
-export type ChainControllerState = {
-  dummy: string;
-};
+export type ChainControllerState = Record<string, Json>;
 
 export type ChainControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -45,9 +43,7 @@ export type ChainControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
-const defaultState: ChainControllerState = {
-  dummy: '',
-};
+const defaultState: ChainControllerState = {};
 
 /**
  * Controller that manages chain-agnostic providers throught the chain API.
@@ -84,12 +80,7 @@ export class ChainController
     super({
       messenger,
       name: controllerName,
-      metadata: {
-        dummy: {
-          persist: false,
-          anonymous: false,
-        },
-      },
+      metadata: {},
       state: {
         ...defaultState,
         ...state,
