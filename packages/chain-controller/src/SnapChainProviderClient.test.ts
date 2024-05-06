@@ -1,5 +1,4 @@
 import { ChainRpcMethod } from '@metamask/chain-api';
-import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { Json } from '@metamask/utils';

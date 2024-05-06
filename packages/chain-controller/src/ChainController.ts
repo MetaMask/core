@@ -66,7 +66,6 @@ export class ChainController
    * @param options - The controller options.
    * @param options.messenger - The messenger object.
    * @param options.state - Initial state to set on this controller
-   * @param options.getSnapController - Snaps controller.
    */
   constructor({
     messenger,

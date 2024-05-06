@@ -27,10 +27,10 @@ class SnapHandlerSender implements Sender {
   /**
    * Create a new instance of `SnapControllerSender`.
    *
-   * @param snapId - The ID of the snap to use.
-   * @param origin - The sender's origin.
    * @param handler - The `SnapController` handler to send requests to.
    * @param handlerType - The handler type.
+   * @param snapId - The ID of the snap to use.
+   * @param origin - The sender's origin.
    */
   constructor(
     handler: Handler,
