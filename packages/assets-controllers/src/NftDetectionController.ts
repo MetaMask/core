@@ -4,27 +4,18 @@ import {
   BaseConfig,
   BaseState,
 } from '@metamask/base-controller';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkState,
+  NetworkClientId,
+} from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import {
-  OPENSEA_PROXY_URL,
+  NFT_API_BASE_URL,
   fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
-  safelyExecute,
-  timeoutFetch,
 } from '@metamask/controller-utils';
-import { mapOpenSeaNftV2ToV1 } from './assetsUtil';
-import {
-  OpenSeaV2ChainIds,
-  type OpenSeaV2GetNftResponse,
-} from './NftController';
-import type {
-  NftController,
-  NftState,
-  NftMetadata,
-  OpenSeaV2ListNftsResponse,
-} from './NftController';
+import type { NftController, NftState, NftMetadata } from './NftController';
 import { Source } from './constants';
 
 const DEFAULT_INTERVAL = 180000;
@@ -93,6 +84,7 @@ export interface ApiNftContract {
   collection: {
     name: string | null;
     image_url?: string | null;
+    tokenCount?: string | null;
   };
 }
 
@@ -138,6 +130,204 @@ export interface NftDetectionConfig extends BaseConfig {
   selectedAddress: string;
 }
 
+export type ReservoirResponse = {
+  tokens: TokensResponse[];
+  continuation?: string;
+};
+
+export type TokensResponse = {
+  token: TokenResponse;
+  ownership: Ownership;
+  market?: Market;
+  blockaidResult?: Blockaid;
+};
+
+export enum BlockaidResultType {
+  Benign = 'Benign',
+  Spam = 'Spam',
+  Warning = 'Warning',
+  Malicious = 'Malicious',
+}
+
+export type Blockaid = {
+  contract: string;
+  chainId: number;
+  result_type: BlockaidResultType;
+  malicious_score: string;
+  attack_types: object;
+};
+
+export type Market = {
+  floorAsk?: FloorAsk;
+  topBid?: TopBid;
+};
+
+export type TokenResponse = {
+  chainId: number;
+  contract: string;
+  tokenId: string;
+  kind?: string;
+  name?: string;
+  image?: string;
+  imageSmall?: string;
+  imageLarge?: string;
+  metadata?: Metadata;
+  description?: string;
+  supply?: number;
+  remainingSupply?: number;
+  rarityScore?: number;
+  rarity?: number;
+  rarityRank?: number;
+  media?: string;
+  isFlagged?: boolean;
+  isSpam?: boolean;
+  isNsfw?: boolean;
+  metadataDisabled?: boolean;
+  lastFlagUpdate?: string;
+  lastFlagChange?: string;
+  collection?: Collection;
+  lastSale?: LastSale;
+  topBid?: TopBid;
+  lastAppraisalValue?: number;
+  attributes?: Attributes[];
+};
+
+export type TopBid = {
+  id?: string;
+  price?: Price;
+  source?: {
+    id?: string;
+    domain?: string;
+    name?: string;
+    icon?: string;
+    url?: string;
+  };
+};
+
+export type LastSale = {
+  saleId?: string;
+  token?: {
+    contract?: string;
+    tokenId?: string;
+    name?: string;
+    image?: string;
+    collection?: {
+      id?: string;
+      name?: string;
+    };
+  };
+  orderSource?: string;
+  orderSide?: 'ask' | 'bid';
+  orderKind?: string;
+  orderId?: string;
+  from?: string;
+  to?: string;
+  amount?: string;
+  fillSource?: string;
+  block?: number;
+  txHash?: string;
+  logIndex?: number;
+  batchIndex?: number;
+  timestamp?: number;
+  price?: Price;
+  washTradingScore?: number;
+  royaltyFeeBps?: number;
+  marketplaceFeeBps?: number;
+  paidFullRoyalty?: boolean;
+  feeBreakdown?: FeeBreakdown[];
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type FeeBreakdown = {
+  kind?: string;
+  bps?: number;
+  recipient?: string;
+  source?: string;
+  rawAmount?: string;
+};
+
+export type Attributes = {
+  key?: string;
+  kind?: string;
+  value: string;
+  tokenCount?: number;
+  onSaleCount?: number;
+  floorAskPrice?: Price | null;
+  topBidValue?: number | null;
+  createdAt?: string;
+};
+
+export type Collection = {
+  id?: string;
+  name?: string;
+  slug?: string;
+  symbol?: string;
+  imageUrl?: string;
+  image?: string;
+  isSpam?: boolean;
+  isNsfw?: boolean;
+  creator?: string;
+  tokenCount?: string;
+  metadataDisabled?: boolean;
+  openseaVerificationStatus?: string;
+  floorAskPrice?: Price;
+  royaltiesBps?: number;
+  royalties?: Royalties[];
+};
+
+export type Royalties = {
+  bps?: number;
+  recipient?: string;
+};
+
+export type Ownership = {
+  tokenCount?: string;
+  onSaleCount?: string;
+  floorAsk?: FloorAsk;
+  acquiredAt?: string;
+};
+
+export type FloorAsk = {
+  id?: string;
+  price?: Price;
+  maker?: string;
+  kind?: string;
+  validFrom?: number;
+  validUntil?: number;
+  source?: Source;
+  rawData?: Metadata;
+  isNativeOffChainCancellable?: boolean;
+};
+
+export type Price = {
+  currency?: {
+    contract?: string;
+    name?: string;
+    symbol?: string;
+    decimals?: number;
+    chainId?: number;
+  };
+  amount?: {
+    raw?: string;
+    decimal?: number;
+    usd?: number;
+    native?: number;
+  };
+  netAmount?: {
+    raw?: string;
+    decimal?: number;
+    usd?: number;
+    native?: number;
+  };
+};
+
+export type Metadata = {
+  imageOriginal?: string;
+  tokenURI?: string;
+};
+
 /**
  * Controller that passively polls on a set interval for NFT auto detection
  */
@@ -154,51 +344,39 @@ export class NftDetectionController extends BaseController<
     address: string;
     next?: string;
   }) {
-    return `${OPENSEA_PROXY_URL}/chain/${
-      OpenSeaV2ChainIds.ethereum
-    }/account/${address}/nfts?limit=200&next=${next ?? ''}`;
+    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
+      next ?? ''
+    }`;
   }
 
   private async getOwnerNfts(address: string) {
-    let nftApiResponse: OpenSeaV2ListNftsResponse;
-    let nfts: ApiNft[] = [];
+    let nftApiResponse: ReservoirResponse;
+    let nfts: TokensResponse[] = [];
     let next;
     do {
       nftApiResponse = await fetchWithErrorHandling({
         url: this.getOwnerNftApi({ address, next }),
+        options: {
+          headers: {
+            Version: '1',
+          },
+        },
         timeout: 15000,
       });
 
       if (!nftApiResponse) {
         return nfts;
       }
-      const newNfts = await Promise.all(
-        nftApiResponse.nfts.map(async (nftV2) => {
-          const nftV1 = mapOpenSeaNftV2ToV1(nftV2);
-
-          // If the image hasn't been processed into OpenSea's CDN, the image_url will be null.
-          // Try fetching the NFT individually, which returns the original image url from metadata if available.
-          if (!nftV1.image_url && nftV2.metadata_url) {
-            const nftDetails: OpenSeaV2GetNftResponse | undefined =
-              await safelyExecute(() =>
-                timeoutFetch(
-                  this.getNftApi({
-                    contractAddress: nftV2.contract,
-                    tokenId: nftV2.identifier,
-                  }),
-                  undefined,
-                  1000,
-                ).then((r) => r.json()),
-              );
-
-            nftV1.image_original_url = nftDetails?.nft?.image_url ?? null;
-          }
-          return nftV1;
-        }),
+      const newNfts = nftApiResponse.tokens.filter(
+        (elm) =>
+          elm.token.isSpam === false &&
+          (elm.blockaidResult?.result_type
+            ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
+            : true),
       );
 
       nfts = [...nfts, ...newNfts];
-    } while ((next = nftApiResponse.next));
+    } while ((next = nftApiResponse.continuation));
 
     return nfts;
   }
@@ -342,38 +520,47 @@ export class NftDetectionController extends BaseController<
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added.
+   * @param options - Options bag.
+   * @param options.networkClientId - The network client ID to detect NFTs on.
+   * @param options.userAddress - The address to detect NFTs for.
    */
-  async detectNfts() {
+  async detectNfts(
+    {
+      networkClientId,
+      userAddress,
+    }: {
+      networkClientId?: NetworkClientId;
+      userAddress: string;
+    } = { userAddress: this.config.selectedAddress },
+  ) {
     /* istanbul ignore if */
     if (!this.isMainnet() || this.disabled) {
       return;
     }
-    const { selectedAddress, chainId } = this.config;
 
     /* istanbul ignore else */
-    if (!selectedAddress) {
+    if (!userAddress) {
       return;
     }
 
-    const apiNfts = await this.getOwnerNfts(selectedAddress);
-    const addNftPromises = apiNfts.map(async (nft: ApiNft) => {
+    const apiNfts = await this.getOwnerNfts(userAddress);
+    const addNftPromises = apiNfts.map(async (nft) => {
       const {
-        token_id,
-        num_sales,
-        background_color,
-        image_url,
-        image_preview_url,
-        image_thumbnail_url,
-        image_original_url,
-        animation_url,
-        animation_original_url,
+        tokenId: token_id,
+        contract,
+        kind,
+        image: image_url,
+        imageSmall: image_thumbnail_url,
+        metadata: { imageOriginal: image_original_url } = {},
         name,
         description,
-        external_link,
-        creator,
-        asset_contract: { address, schema_name },
-        last_sale,
-      } = nft;
+        attributes,
+        topBid,
+        lastSale,
+        rarityRank,
+        rarityScore,
+        collection,
+      } = nft.token;
 
       let ignored;
       /* istanbul ignore else */
@@ -382,7 +569,7 @@ export class NftDetectionController extends BaseController<
         ignored = ignoredNfts.find((c) => {
           /* istanbul ignore next */
           return (
-            c.address === toChecksumHexAddress(address) &&
+            c.address === toChecksumHexAddress(contract) &&
             c.tokenId === token_id
           );
         });
@@ -394,28 +581,24 @@ export class NftDetectionController extends BaseController<
         const nftMetadata: NftMetadata = Object.assign(
           {},
           { name },
-          creator && { creator },
           description && { description },
           image_url && { image: image_url },
-          num_sales && { numberOfSales: num_sales },
-          background_color && { backgroundColor: background_color },
-          image_preview_url && { imagePreview: image_preview_url },
           image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
           image_original_url && { imageOriginal: image_original_url },
-          animation_url && { animation: animation_url },
-          animation_original_url && {
-            animationOriginal: animation_original_url,
-          },
-          schema_name && { standard: schema_name },
-          external_link && { externalLink: external_link },
-          last_sale && { lastSale: last_sale },
+          kind && { standard: kind.toUpperCase() },
+          lastSale && { lastSale },
+          attributes && { attributes },
+          topBid && { topBid },
+          rarityRank && { rarityRank },
+          rarityScore && { rarityScore },
+          collection && { collection },
         );
 
-        await this.addNft(address, token_id, {
+        await this.addNft(contract, token_id, {
           nftMetadata,
-          userAddress: selectedAddress,
-          chainId,
+          userAddress,
           source: Source.Detected,
+          networkClientId,
         });
       }
     });
