@@ -1,57 +1,20 @@
-import { TransactionFactory } from '@ethereumjs/tx';
-import { Contract } from '@ethersproject/contracts';
-import type { Provider } from '@metamask/network-controller';
-
 import { CHAIN_IDS } from '../constants';
-import type { Layer1GasFeeFlowRequest, TransactionMeta } from '../types';
+import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';
 import { OptimismLayer1GasFeeFlow } from './OptimismLayer1GasFeeFlow';
-
-jest.mock('@ethersproject/contracts', () => ({
-  Contract: jest.fn(),
-}));
-
-jest.mock('../utils/layer1-gas-fee-flow', () => ({
-  buildUnserializedTransaction: jest.fn(),
-}));
-
-jest.mock('@ethersproject/providers');
-
-const TRANSACTION_PARAMS_MOCK = {
-  from: '0x123',
-  gas: '0x1234',
-};
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: CHAIN_IDS.OPTIMISM,
   status: TransactionStatus.unapproved,
   time: 0,
-  txParams: TRANSACTION_PARAMS_MOCK,
+  txParams: {
+    from: '0x123',
+    gas: '0x1234',
+  },
 };
-const OPTIMISIM_LAYER_1_GAS_FEE_RESPONSE_MOCK = '0x123';
 
 describe('OptimismLayer1GasFeeFlow', () => {
-  const contractMock = jest.mocked(Contract);
-  const contractGetL1FeeMock: jest.MockedFn<
-    () => Promise<{ toHexString: () => string }>
-  > = jest.fn();
-  let request: Layer1GasFeeFlowRequest;
-
-  beforeEach(() => {
-    request = {
-      provider: {} as Provider,
-      transactionMeta: TRANSACTION_META_MOCK,
-    };
-
-    contractGetL1FeeMock.mockResolvedValue({
-      toHexString: () => OPTIMISIM_LAYER_1_GAS_FEE_RESPONSE_MOCK,
-    });
-    contractMock.mockReturnValue({
-      getL1Fee: contractGetL1FeeMock,
-    } as unknown as Contract);
-  });
-
   describe('matchesTransaction', () => {
     it.each([
       ['Optimisim mainnet', CHAIN_IDS.OPTIMISM],
@@ -65,49 +28,6 @@ describe('OptimismLayer1GasFeeFlow', () => {
       };
 
       expect(flow.matchesTransaction(transaction)).toBe(true);
-    });
-  });
-
-  describe('getLayer1GasFee', () => {
-    it('returns layer 1 gas fee', async () => {
-      const txFactorySpy = jest.spyOn(TransactionFactory, 'fromTxData');
-      const flow = new OptimismLayer1GasFeeFlow();
-      const response = await flow.getLayer1Fee(request);
-
-      expect(contractGetL1FeeMock).toHaveBeenCalledTimes(1);
-      expect(txFactorySpy).toHaveBeenCalledWith(
-        {
-          from: TRANSACTION_PARAMS_MOCK.from,
-          gasLimit: TRANSACTION_PARAMS_MOCK.gas,
-        },
-        expect.anything(),
-      );
-
-      expect(response).toStrictEqual({
-        layer1Fee: OPTIMISIM_LAYER_1_GAS_FEE_RESPONSE_MOCK,
-      });
-    });
-
-    describe('throws', () => {
-      it('if getL1Fee fails', async () => {
-        contractGetL1FeeMock.mockRejectedValue(new Error('error'));
-
-        const flow = new OptimismLayer1GasFeeFlow();
-        await expect(flow.getLayer1Fee(request)).rejects.toThrow(
-          'Failed to get Optimism layer 1 gas fee',
-        );
-      });
-
-      it('if getL1Fee returns undefined', async () => {
-        contractGetL1FeeMock.mockResolvedValue(
-          undefined as unknown as ReturnType<typeof contractGetL1FeeMock>,
-        );
-
-        const flow = new OptimismLayer1GasFeeFlow();
-        await expect(flow.getLayer1Fee(request)).rejects.toThrow(
-          'Failed to get Optimism layer 1 gas fee',
-        );
-      });
     });
   });
 });

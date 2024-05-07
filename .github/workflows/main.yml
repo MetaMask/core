@@ -35,7 +35,7 @@ jobs:
       - id: is-release
         uses: MetaMask/action-is-release@dc4672b05e3b1d464cdaf783579b04a4e43f8b02
         with:
-          commit-starts-with: 'Release [version],Release/[version]'
+          commit-starts-with: 'Release [version],Release v[version],Release/[version],Release/v[version]'
 
   publish-release:
     name: Publish release

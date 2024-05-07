@@ -30,7 +30,7 @@ describe('NftDetectionController', () => {
     nock(NFT_API_BASE_URL)
       .persist()
       .get(
-        `/users/0x1/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x1/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -97,7 +97,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x9/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x9/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -121,7 +121,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x123/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x123/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -166,7 +166,7 @@ describe('NftDetectionController', () => {
         ],
       })
       .get(
-        `/users/0x12345/tokens?chainIds=1&limit=200&includeTopBid=true&continuation=`,
+        `/users/0x12345/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
       )
       .reply(200, {
         tokens: [
@@ -656,6 +656,33 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should not detectNfts when disabled is false and useNftDetection is true', async () => {
+    await withController(
+      { config: { interval: 10 }, options: { disabled: false } },
+      async ({ controller, triggerPreferencesStateChange }) => {
+        const mockNfts = sinon.stub(controller, 'detectNfts');
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+
+        expect(mockNfts.calledOnce).toBe(false);
+
+        await advanceTime({
+          clock,
+          duration: 10,
+        });
+
+        expect(mockNfts.calledTwice).toBe(false);
+      },
+    );
+  });
+
   it('should not detect and add NFTs if preferences controller useNftDetection is set to false', async () => {
     const mockAddNft = jest.fn();
     await withController(
@@ -687,7 +714,7 @@ describe('NftDetectionController', () => {
       .get(`/users/${selectedAddress}/tokens`)
       .query({
         continuation: '',
-        limit: '200',
+        limit: '50',
         chainIds: '1',
         includeTopBid: true,
       })
@@ -725,7 +752,7 @@ describe('NftDetectionController', () => {
           .get(`/users/${selectedAddress}/tokens`)
           .query({
             continuation: '',
-            limit: '200',
+            limit: '50',
             chainIds: '1',
             includeTopBid: true,
           })
@@ -747,7 +774,7 @@ describe('NftDetectionController', () => {
           .get(`/users/${selectedAddress}/tokens`)
           .query({
             continuation: '',
-            limit: '200',
+            limit: '50',
             chainIds: '1',
             includeTopBid: true,
           })
@@ -876,6 +903,8 @@ async function withController<ReturnValue>(
       getNftApi: jest.fn(),
       getNetworkClientById,
       getNftState: getDefaultNftState,
+      disabled: true,
+      selectedAddress: '',
       ...options,
     },
     config,

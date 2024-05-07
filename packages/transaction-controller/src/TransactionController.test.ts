@@ -34,6 +34,7 @@ import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
+import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
@@ -52,8 +53,11 @@ import type {
   TransactionHistoryEntry,
   TransactionError,
   SimulationData,
+  GasFeeFlow,
+  GasFeeFlowResponse,
 } from './types';
 import {
+  GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
   TransactionStatus,
@@ -62,6 +66,7 @@ import {
 } from './types';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
+import { getGasFeeFlow } from './utils/gas-flow';
 import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
@@ -89,16 +94,17 @@ const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 jest.mock('@metamask/eth-query');
 jest.mock('./gas-flows/DefaultGasFeeFlow');
 jest.mock('./gas-flows/LineaGasFeeFlow');
+jest.mock('./gas-flows/TestGasFeeFlow');
 jest.mock('./helpers/GasFeePoller');
 jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
+jest.mock('./utils/gas-flow');
 jest.mock('./utils/swaps');
 jest.mock('./utils/layer1-gas-fee-flow');
 jest.mock('./utils/simulation');
-
 jest.mock('uuid');
 
 // TODO: Replace `any` with type
@@ -246,6 +252,17 @@ function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
   const fakeBlockTracker = new FakeBlockTracker();
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
+}
+
+/**
+ * Builds a mock gas fee flow.
+ * @returns The mocked gas fee flow.
+ */
+function buildMockGasFeeFlow(): jest.Mocked<GasFeeFlow> {
+  return {
+    matchesTransaction: jest.fn(),
+    getGasFees: jest.fn(),
+  };
 }
 
 /**
@@ -420,6 +437,8 @@ const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
+const CHAIN_ID_MOCK = MOCK_NETWORK.state.providerConfig.chainId;
+const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 
 const TRANSACTION_META_MOCK = {
   hash: '0x1',
@@ -462,6 +481,13 @@ const SIMULATION_DATA_MOCK: SimulationData = {
   ],
 };
 
+const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
+  estimates: {
+    type: GasFeeEstimateType.GasPrice,
+    gasPrice: '0x1',
+  },
+};
+
 describe('TransactionController', () => {
   const uuidModuleMock = jest.mocked(uuidModule);
   const EthQueryMock = jest.mocked(EthQuery);
@@ -475,8 +501,13 @@ describe('TransactionController', () => {
   );
   const defaultGasFeeFlowClassMock = jest.mocked(DefaultGasFeeFlow);
   const lineaGasFeeFlowClassMock = jest.mocked(LineaGasFeeFlow);
+  const testGasFeeFlowClassMock = jest.mocked(TestGasFeeFlow);
   const gasFeePollerClassMock = jest.mocked(GasFeePoller);
   const getSimulationDataMock = jest.mocked(getSimulationData);
+  const getTransactionLayer1GasFeeMock = jest.mocked(
+    getTransactionLayer1GasFee,
+  );
+  const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -485,6 +516,7 @@ describe('TransactionController', () => {
   let multichainTrackingHelperMock: jest.Mocked<MultichainTrackingHelper>;
   let defaultGasFeeFlowMock: jest.Mocked<DefaultGasFeeFlow>;
   let lineaGasFeeFlowMock: jest.Mocked<LineaGasFeeFlow>;
+  let testGasFeeFlowMock: jest.Mocked<TestGasFeeFlow>;
   let gasFeePollerMock: jest.Mocked<GasFeePoller>;
   let timeCounter = 0;
 
@@ -778,6 +810,13 @@ describe('TransactionController', () => {
       return lineaGasFeeFlowMock;
     });
 
+    testGasFeeFlowClassMock.mockImplementation(() => {
+      testGasFeeFlowMock = {
+        matchesTransaction: () => false,
+      } as unknown as jest.Mocked<TestGasFeeFlow>;
+      return testGasFeeFlowMock;
+    });
+
     gasFeePollerClassMock.mockImplementation(() => {
       gasFeePollerMock = {
         hub: {
@@ -812,7 +851,22 @@ describe('TransactionController', () => {
       expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
       expect(gasFeePollerClassMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          gasFeeFlows: [lineaGasFeeFlowMock],
+          gasFeeFlows: [lineaGasFeeFlowMock, defaultGasFeeFlowMock],
+        }),
+      );
+    });
+
+    it('provides only test flow if option set', () => {
+      setupController({
+        options: {
+          testGasFeeFlows: true,
+        },
+      });
+
+      expect(gasFeePollerClassMock).toHaveBeenCalledTimes(1);
+      expect(gasFeePollerClassMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gasFeeFlows: [testGasFeeFlowMock],
         }),
       );
     });
@@ -1390,10 +1444,10 @@ describe('TransactionController', () => {
       const expectedInitialSnapshot = {
         actionId: undefined,
         chainId: expect.any(String),
-        networkClientId: undefined,
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
+        networkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
         origin: undefined,
         securityAlertResponse: undefined,
         sendFlowHistory: expect.any(Array),
@@ -1409,22 +1463,6 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].history).toStrictEqual([
         expectedInitialSnapshot,
       ]);
-    });
-
-    it('only reads the current chain id to filter to initially populate the metadata', async () => {
-      const getNetworkStateMock = jest.fn().mockReturnValue(MOCK_NETWORK.state);
-      const { controller } = setupController({
-        options: { getNetworkState: getNetworkStateMock },
-      });
-
-      await controller.addTransaction({
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_MOCK,
-      });
-
-      // First call comes from getting the chainId to populate the initial unapproved transaction
-      // Second call comes from getting the network type to populate the initial gas estimates
-      expect(getNetworkStateMock).toHaveBeenCalledTimes(2);
     });
 
     describe('adds dappSuggestedGasFees to transaction', () => {
@@ -4449,7 +4487,7 @@ describe('TransactionController', () => {
 
       expect(signSpy).toHaveBeenCalledTimes(1);
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(3);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
@@ -4493,7 +4531,7 @@ describe('TransactionController', () => {
       await wait(0);
 
       expect(signSpy).toHaveBeenCalledTimes(1);
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
     });
 
     it('adds a transaction, signs and skips publish the transaction', async () => {
@@ -4519,7 +4557,7 @@ describe('TransactionController', () => {
 
       expect(signSpy).toHaveBeenCalledTimes(1);
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(3);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
@@ -5001,61 +5039,6 @@ describe('TransactionController', () => {
           },
           false,
         );
-      });
-
-      it('only reads the current chain id to filter for unapproved transactions', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          chainId: toHex(5),
-          status: TransactionStatus.unapproved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-
-        const mockedTransactions = [
-          {
-            id: '123',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '123' }],
-          },
-          {
-            id: '1234',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '1234' }],
-          },
-          {
-            id: '12345',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '12345' }],
-            isUserOperation: true,
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const getNetworkStateMock = jest
-          .fn()
-          .mockReturnValue(MOCK_NETWORK.state);
-
-        const { controller } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-            getNetworkState: getNetworkStateMock,
-          },
-        });
-
-        controller.initApprovals();
-        await flushPromises();
-
-        expect(getNetworkStateMock).toHaveBeenCalledTimes(1);
       });
 
       it('catches error without code property in error object while creating approval', async () => {
@@ -5659,31 +5642,66 @@ describe('TransactionController', () => {
   });
 
   describe('getLayer1GasFee', () => {
-    it('calls getLayer1GasFee with the correct parameters', async () => {
+    it('calls getTransactionLayer1GasFee with the correct parameters', async () => {
       const chainIdMock = '0x1';
       const networkClientIdMock = 'mainnet';
-      const transactionParamsMock = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        gas: '0x0',
-        gasPrice: '0x50fd51da',
-        value: '0x0',
-      };
       const layer1GasFeeMock = '0x12356';
-      (getTransactionLayer1GasFee as jest.Mock).mockResolvedValueOnce(
-        layer1GasFeeMock,
-      );
+
+      getTransactionLayer1GasFeeMock.mockResolvedValueOnce(layer1GasFeeMock);
 
       const { controller } = setupController();
 
-      expect(
-        await controller.getLayer1GasFee(
-          chainIdMock,
-          networkClientIdMock,
-          transactionParamsMock,
-        ),
-      ).toBe(layer1GasFeeMock);
+      const result = await controller.getLayer1GasFee({
+        transactionParams: TRANSACTION_META_MOCK.txParams,
+        chainId: chainIdMock,
+        networkClientId: networkClientIdMock,
+      });
+
+      expect(result).toBe(layer1GasFeeMock);
       expect(getTransactionLayer1GasFee).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('estimateGasFee', () => {
+    it('returns estimates from gas fee flow', async () => {
+      const gasFeeFlowMock = buildMockGasFeeFlow();
+
+      gasFeeFlowMock.getGasFees.mockResolvedValueOnce(GAS_FEE_ESTIMATES_MOCK);
+      getGasFeeFlowMock.mockReturnValueOnce(gasFeeFlowMock);
+
+      const { controller } = setupController();
+
+      const result = await controller.estimateGasFee({
+        transactionParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result).toStrictEqual(GAS_FEE_ESTIMATES_MOCK);
+    });
+
+    it('calls flow with transaction metadata matching args', async () => {
+      const gasFeeFlowMock = buildMockGasFeeFlow();
+
+      gasFeeFlowMock.getGasFees.mockResolvedValueOnce(GAS_FEE_ESTIMATES_MOCK);
+      getGasFeeFlowMock.mockReturnValueOnce(gasFeeFlowMock);
+
+      const { controller } = setupController();
+
+      await controller.estimateGasFee({
+        transactionParams: TRANSACTION_META_MOCK.txParams,
+        chainId: CHAIN_ID_MOCK,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+
+      expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledTimes(1);
+      expect(gasFeeFlowMock.getGasFees).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactionMeta: {
+            txParams: TRANSACTION_META_MOCK.txParams,
+            chainId: CHAIN_ID_MOCK,
+            networkClientId: NETWORK_CLIENT_ID_MOCK,
+          },
+        }),
+      );
     });
   });
 });

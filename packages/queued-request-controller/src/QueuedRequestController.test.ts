@@ -10,6 +10,7 @@ import { cloneDeep } from 'lodash';
 
 import type {
   AllowedActions,
+  AllowedEvents,
   QueuedRequestControllerActions,
   QueuedRequestControllerEvents,
   QueuedRequestControllerMessenger,
@@ -26,6 +27,7 @@ describe('QueuedRequestController', () => {
     const options: QueuedRequestControllerOptions = {
       messenger: buildQueuedRequestControllerMessenger(),
       methodsRequiringNetworkSwitch: [],
+      clearPendingConfirmations: jest.fn(),
     };
 
     const controller = new QueuedRequestController(options);
@@ -80,6 +82,7 @@ describe('QueuedRequestController', () => {
       const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
         methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+        clearPendingConfirmations: jest.fn(),
       });
 
       await controller.enqueueRequest(
@@ -801,6 +804,124 @@ describe('QueuedRequestController', () => {
         expect(request3).toHaveBeenCalled();
       });
     });
+
+    it('rejects requests for an origin when the SelectedNetworkController "domains" state for that origin has changed, but preserves requests for other origins', async () => {
+      const { messenger } = buildControllerMessenger();
+
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(messenger),
+        methodsRequiringNetworkSwitch: ['eth_sendTransaction'],
+        clearPendingConfirmations: jest.fn(),
+      };
+
+      const controller = new QueuedRequestController(options);
+
+      const request1 = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        messenger.publish(
+          'SelectedNetworkController:stateChange',
+          { domains: {} },
+          [
+            {
+              op: 'replace',
+              path: ['domains', 'https://abc.123'],
+            },
+            {
+              op: 'add',
+              path: ['domains', 'https://abc.123'],
+            },
+          ],
+        );
+      });
+
+      const request2 = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      const request3 = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+
+      // Enqueue the requests
+      const promise1 = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          method: 'wallet_switchEthereumChain',
+          origin: 'https://abc.123',
+        },
+        request1,
+      );
+      const promise2 = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          method: 'eth_sendTransaction',
+          origin: 'https://foo.bar',
+        },
+        request2,
+      );
+      const promise3 = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          method: 'eth_sendTransaction',
+          origin: 'https://abc.123',
+        },
+        request3,
+      );
+
+      expect(
+        await Promise.allSettled([promise1, promise2, promise3]),
+      ).toStrictEqual([
+        { status: 'fulfilled', value: undefined },
+        { status: 'fulfilled', value: undefined },
+        {
+          status: 'rejected',
+          reason: new Error(
+            'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+          ),
+        },
+      ]);
+      expect(request1).toHaveBeenCalled();
+      expect(request2).toHaveBeenCalled();
+      expect(request3).not.toHaveBeenCalled();
+    });
+
+    it('calls clearPendingConfirmations when the SelectedNetworkController "domains" state for that origin has been removed', async () => {
+      const { messenger } = buildControllerMessenger();
+
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(messenger),
+        methodsRequiringNetworkSwitch: ['eth_sendTransaction'],
+        clearPendingConfirmations: jest.fn(),
+      };
+
+      const controller = new QueuedRequestController(options);
+
+      const request1 = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        messenger.publish(
+          'SelectedNetworkController:stateChange',
+          { domains: {} },
+          [
+            {
+              op: 'remove',
+              path: ['domains', 'https://abc.123'],
+            },
+          ],
+        );
+      });
+
+      await controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          method: 'wallet_revokePermissions',
+          origin: 'https://abc.123',
+        },
+        request1,
+      );
+      expect(options.clearPendingConfirmations).toHaveBeenCalledTimes(1);
+    });
   });
 });
 
@@ -828,7 +949,7 @@ function buildControllerMessenger({
 } = {}): {
   messenger: ControllerMessenger<
     QueuedRequestControllerActions | AllowedActions,
-    QueuedRequestControllerEvents
+    QueuedRequestControllerEvents | AllowedEvents
   >;
   mockNetworkControllerGetState: jest.Mocked<
     NetworkControllerGetStateAction['handler']
@@ -842,7 +963,7 @@ function buildControllerMessenger({
 } {
   const messenger = new ControllerMessenger<
     QueuedRequestControllerActions | AllowedActions,
-    QueuedRequestControllerEvents
+    QueuedRequestControllerEvents | AllowedEvents
   >();
 
   const mockNetworkControllerGetState =
@@ -891,7 +1012,7 @@ function buildQueuedRequestControllerMessenger(
       'NetworkController:setActiveNetwork',
       'SelectedNetworkController:getNetworkClientIdForDomain',
     ],
-    allowedEvents: [],
+    allowedEvents: ['SelectedNetworkController:stateChange'],
   });
 }
 
@@ -907,6 +1028,7 @@ function buildQueuedRequestController(
   const options: QueuedRequestControllerOptions = {
     messenger: buildQueuedRequestControllerMessenger(),
     methodsRequiringNetworkSwitch: [],
+    clearPendingConfirmations: jest.fn(),
     ...overrideOptions,
   };
 

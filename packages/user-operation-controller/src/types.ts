@@ -3,6 +3,7 @@ import type {
   TransactionType,
   UserFeeLevel,
 } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 /**
  * A complete user operation to be submitted to a bundler.
@@ -315,10 +316,10 @@ export type SmartContractAccount = {
  */
 export type UserOperationReceipt = {
   /** Confirmed total cost of the gas for the user operation. */
-  actualGasCost: string;
+  actualGasCost: Hex | number;
 
   /** Confirmed total amount of gas used by the user operation. */
-  actualGasUsed: string;
+  actualGasUsed: Hex | number;
 
   /** True if the user operation was successfully confirmed on chain. */
   success: boolean;
