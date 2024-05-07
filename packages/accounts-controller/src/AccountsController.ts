@@ -24,7 +24,11 @@ import type { Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
+import {
+  getUUIDFromAddressOfNormalAccount,
+  isNormalKeyringType,
+  keyringTypeToName,
+} from './utils';
 
 const controllerName = 'AccountsController';
 
@@ -313,13 +317,8 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    const snapAccounts: InternalAccount[] = await this.#listSnapAccounts();
-    const normalAccounts = (await this.#listNormalAccounts()).filter(
-      (account) =>
-        !snapAccounts.find(
-          (snapAccount) => snapAccount.address === account.address,
-        ),
-    );
+    const snapAccounts = await this.#listSnapAccounts();
+    const normalAccounts = await this.#listNormalAccounts();
 
     // keyring type map.
     const keyringTypes = new Map<string, number>();
@@ -453,6 +452,12 @@ export class AccountsController extends BaseController<
         address,
       );
 
+      const keyringType = (keyring as Keyring<Json>).type;
+      if (!isNormalKeyringType(keyringType as KeyringTypes)) {
+        // We only consider "normal accounts" here, so keep looping
+        continue;
+      }
+
       const id = getUUIDFromAddressOfNormalAccount(address);
 
       internalAccounts.push({
@@ -480,9 +485,7 @@ export class AccountsController extends BaseController<
       });
     }
 
-    return internalAccounts.filter(
-      (account) => account.metadata.keyring.type !== KeyringTypes.snap,
-    );
+    return internalAccounts;
   }
 
   /**
