@@ -8,14 +8,14 @@ import type { CaipAssetType, BalancesResult, Chain } from '@metamask/chain-api';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { HandleSnapRequest as SnapControllerHandleSnapRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import type { CaipChainId, Json } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 
 import { SnapChainProviderClient } from './SnapChainProviderClient';
 import { SnapHandlerClient } from './SnapHandlerClient';
 
 const controllerName = 'ChainController';
 
-export type ChainControllerState = Record<string, Json>;
+export type ChainControllerState = Record<string, never>;
 
 export type ChainControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
