@@ -1,4 +1,3 @@
-import { type Sender } from '@metamask/keyring-api';
 import type { JsonRpcRequest } from '@metamask/keyring-api/dist/JsonRpcRequest';
 import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -15,7 +14,7 @@ export type Handler = SnapController['handleRequest'];
  * Implementation of the `Sender` interface that can be used to send requests
  * to a snap through a Snap request handler.
  */
-class SnapHandlerSender implements Sender {
+class SnapHandlerSender {
   #snapId: SnapId;
 
   #origin: string;
@@ -50,13 +49,13 @@ class SnapHandlerSender implements Sender {
    * @param request - JSON-RPC request to send to the snap.
    * @returns A promise that resolves to the response of the request.
    */
-  async send(request: JsonRpcRequest): Promise<Json> {
+  async send(request: JsonRpcRequest): Promise<unknown> {
     return this.#handler({
       snapId: this.#snapId,
       origin: this.#origin,
       handler: this.#handlerType,
       request,
-    }) as Promise<Json>;
+    });
   }
 }
 
@@ -106,7 +105,7 @@ export class SnapHandlerClient {
   submitRequest = async (
     method: string,
     params: Json[] | Record<string, Json>,
-  ): Promise<Json> =>
+  ): Promise<unknown> =>
     await this.#sender.send({
       jsonrpc: '2.0',
       method,
