@@ -41,11 +41,9 @@ describe('SnapChainProviderClient', () => {
   describe('getBalances', () => {
     it('dispatch chain_getBalances', async () => {
       const client = new SnapChainProviderClient(snapClient);
-
       const address = 'bc1qrp0yzgkf8rawkuvdlhnjfj2fnjwm0m8727kgah';
       const scope = 'bip122:000000000019d6689c085ae165831e93';
       const asset = `${scope}/asset:0`;
-
       const request = makeRequest({
         method: ChainRpcMethod.GetBalances,
         params: {
@@ -54,7 +52,6 @@ describe('SnapChainProviderClient', () => {
           assets: [asset],
         },
       });
-
       const response = {
         balances: {
           [address]: {
@@ -64,9 +61,10 @@ describe('SnapChainProviderClient', () => {
           },
         },
       };
-
       snapController.handleRequest.mockResolvedValue(response);
+
       const result = await client.getBalances(scope, [address], [asset]);
+
       expect(snapController.handleRequest).toHaveBeenCalledWith(request);
       expect(result).toStrictEqual(response);
     });
