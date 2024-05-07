@@ -11,8 +11,7 @@ import { v4 as uuid } from 'uuid';
 export type Handler = SnapController['handleRequest'];
 
 /**
- * Implementation of the `Sender` interface that can be used to send requests
- * to a snap through a Snap request handler.
+ * Send requests to a Snap through a Snap request handler.
  */
 class SnapHandlerSender {
   #snapId: SnapId;
@@ -24,7 +23,7 @@ class SnapHandlerSender {
   #handlerType: HandlerType;
 
   /**
-   * Create a new instance of `SnapHandlerSender`.
+   * Constructor for `SnapHandlerSender`.
    *
    * @param handler - The Snap request handler to send requests to.
    * @param handlerType - The handler type.
@@ -44,7 +43,7 @@ class SnapHandlerSender {
   }
 
   /**
-   * Send a request to the snap and return the response.
+   * Sends a request to the snap and return the response.
    *
    * @param request - JSON-RPC request to send to the snap.
    * @returns A promise that resolves to the response of the request.
@@ -68,6 +67,15 @@ export class SnapHandlerClient {
 
   #sender: SnapHandlerSender;
 
+  /**
+   * Constructor for SnapHandlerClient.
+   *
+   * @param options - The client options.
+   * @param options.handler - A function to submit requests to the Snap handler
+   * (this should call the SnapController.handleRequest)
+   * @param options.snapId - The Snap ID.
+   * @param options.origin - The origin from which the Snap is being invoked.
+   */
   constructor({
     handler,
     // Follow same pattern than for @metamask/keyring-api
@@ -102,6 +110,13 @@ export class SnapHandlerClient {
     });
   }
 
+  /**
+   * Submit a request to the underlying SnapHandlerSender.
+   *
+   * @param method - The RPC handler method to be called.
+   * @param params - The RPC handler parameters.
+   * @returns The RPC handler response.
+   */
   submitRequest = async (
     method: string,
     params: Json[] | Record<string, Json>,
