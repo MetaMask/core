@@ -3,6 +3,7 @@ module.exports = {
   extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
   ignorePatterns: [
     '!.eslintrc.js',
+    '!.prettierrc.js',
     '!jest.config.js',
     'node_modules',
     '**/dist',
@@ -126,6 +127,9 @@ module.exports = {
   settings: {
     'import/resolver': {
       typescript: {},
+    },
+    jsdoc: {
+      mode: 'typescript',
     },
   },
 };
