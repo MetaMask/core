@@ -659,7 +659,7 @@ describe('TokenListController', () => {
     );
     onNetworkStateChangeCallback({
       selectedNetworkClientId,
-      networkConfigurations: {},
+      networkConfigurationsByChainId: {},
       networksMetadata: {},
       // @ts-expect-error This property isn't used and will get removed later.
       providerConfig: {},
@@ -997,7 +997,7 @@ describe('TokenListController', () => {
       'NetworkController:stateChange',
       {
         selectedNetworkClientId: InfuraNetworkType.goerli,
-        networkConfigurations: {},
+        networkConfigurationsByChainId: {},
         networksMetadata: {},
         // @ts-expect-error This property isn't used and will get removed later.
         providerConfig: {},
@@ -1018,7 +1018,7 @@ describe('TokenListController', () => {
       'NetworkController:stateChange',
       {
         selectedNetworkClientId: selectedCustomNetworkClientId,
-        networkConfigurations: {},
+        networkConfigurationsByChainId: {},
         networksMetadata: {},
         // @ts-expect-error This property isn't used and will get removed later.
         providerConfig: {},
@@ -1098,7 +1098,7 @@ describe('TokenListController', () => {
       'NetworkController:stateChange',
       {
         selectedNetworkClientId: InfuraNetworkType.mainnet,
-        networkConfigurations: {},
+        networkConfigurationsByChainId: {},
         networksMetadata: {},
         // @ts-expect-error This property isn't used and will get removed later.
         providerConfig: {},
@@ -1148,7 +1148,7 @@ describe('TokenListController', () => {
         'NetworkController:stateChange',
         {
           selectedNetworkClientId: selectedCustomNetworkClientId,
-          networkConfigurations: {},
+          networkConfigurationsByChainId: {},
           networksMetadata: {},
           // @ts-expect-error This property isn't used and will get removed later.
           providerConfig: {},

@@ -81,7 +81,6 @@ async function setupAssetContractControllers({
   const networkController = new NetworkController({
     infuraProjectId,
     messenger,
-    trackMetaMetricsEvent: jest.fn(),
   });
   if (useNetworkControllerProvider) {
     await networkController.initializeProvider();

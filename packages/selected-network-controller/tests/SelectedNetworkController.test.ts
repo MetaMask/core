@@ -244,7 +244,7 @@ describe('SelectedNetworkController', () => {
             'NetworkController:stateChange',
             {
               selectedNetworkClientId: 'goerli',
-              networkConfigurations: {},
+              networkConfigurationsByChainId: {},
               networksMetadata: {},
             },
             [

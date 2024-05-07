@@ -16,6 +16,10 @@ import type {
 import type { Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 
+import {
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+} from '../../network-controller/tests/helpers';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   fetchGasEstimates,
@@ -80,7 +84,6 @@ const setupNetworkController = async ({
     messenger: restrictedMessenger,
     state,
     infuraProjectId: '123',
-    trackMetaMetricsEvent: jest.fn(),
   });
 
   if (initializeProvider) {
@@ -336,13 +339,15 @@ describe('GasFeeController', () => {
               .fn()
               .mockReturnValue(true),
             networkControllerState: {
-              networkConfigurations: {
-                'AAAA-BBBB-CCCC-DDDD': {
-                  id: 'AAAA-BBBB-CCCC-DDDD',
+              networkConfigurationsByChainId: {
+                [toHex(1337)]: buildCustomNetworkConfiguration({
                   chainId: toHex(1337),
-                  rpcUrl: 'http://some/url',
-                  ticker: 'TEST',
-                },
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                    }),
+                  ],
+                }),
               },
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             },
@@ -400,13 +405,15 @@ describe('GasFeeController', () => {
               .fn()
               .mockReturnValue(true),
             networkControllerState: {
-              networkConfigurations: {
-                'AAAA-BBBB-CCCC-DDDD': {
-                  id: 'AAAA-BBBB-CCCC-DDDD',
+              networkConfigurationsByChainId: {
+                [toHex(1337)]: buildCustomNetworkConfiguration({
                   chainId: toHex(1337),
-                  rpcUrl: 'http://some/url',
-                  ticker: 'TEST',
-                },
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                    }),
+                  ],
+                }),
               },
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             },
@@ -753,13 +760,15 @@ describe('GasFeeController', () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           networkControllerState: {
-            networkConfigurations: {
-              'AAAA-BBBB-CCCC-DDDD': {
-                id: 'AAAA-BBBB-CCCC-DDDD',
+            networkConfigurationsByChainId: {
+              [toHex(1337)]: buildCustomNetworkConfiguration({
                 chainId: toHex(1337),
-                rpcUrl: 'http://some/url',
-                ticker: 'TEST',
-              },
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                  }),
+                ],
+              }),
             },
             selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
           },
@@ -907,13 +916,15 @@ describe('GasFeeController', () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
           networkControllerState: {
-            networkConfigurations: {
-              'AAAA-BBBB-CCCC-DDDD': {
-                id: 'AAAA-BBBB-CCCC-DDDD',
+            networkConfigurationsByChainId: {
+              [toHex(1337)]: buildCustomNetworkConfiguration({
                 chainId: toHex(1337),
-                rpcUrl: 'http://some/url',
-                ticker: 'TEST',
-              },
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                  }),
+                ],
+              }),
             },
             selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
           },

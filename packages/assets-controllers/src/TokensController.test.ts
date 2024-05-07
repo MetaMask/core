@@ -17,7 +17,7 @@ import type {
   NetworkClientConfiguration,
   NetworkClientId,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
@@ -2258,7 +2258,7 @@ async function withController<ReturnValue>(
     selectedNetworkClientId: NetworkClientId;
   }) => {
     messenger.publish('NetworkController:networkDidChange', {
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       selectedNetworkClientId,
     });
   };

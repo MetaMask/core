@@ -5,7 +5,7 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 
 import type {
   ExtractAvailableAction,
@@ -189,7 +189,7 @@ describe('EnsController', () => {
       provider: getProvider(),
       onNetworkDidChange: (listener) => {
         listener({
-          ...defaultNetworkState,
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: InfuraNetworkType.mainnet,
         });
       },
@@ -502,7 +502,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -527,7 +527,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
           });
         },
@@ -555,7 +555,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -581,7 +581,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -606,7 +606,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -634,7 +634,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -662,7 +662,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -692,7 +692,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -721,7 +721,7 @@ describe('EnsController', () => {
         provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },

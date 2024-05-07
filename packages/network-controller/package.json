@@ -54,6 +54,7 @@
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.5.0",
     "immer": "^9.0.6",
+    "uri-js": "^4.4.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BlockExplorerUrl` for looking up the block explorer URL for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `NetworkNickname` for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `Partialize` for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4286))
+- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4286))
+
 ## [11.0.0]
 
 ### Added

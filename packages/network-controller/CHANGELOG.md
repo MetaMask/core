@@ -7,15 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add `networkConfigurationsByChainId` to `NetworkState` (type: `Record<Hex, NetworkConfiguration>`) ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - This property replaces `networkConfigurations`, and, as its name implies, organizes network configurations by chain ID rather than network client ID.
+  - If no initial state or this property is not included in initial state, the default value of this property will now include configurations for known Infura networks (Mainnet, Goerli, Sepolia, Linea Goerli, Linea Sepolia, and Linea Mainnet) by default.
+- Add `getNetworkConfigurationByChainId` method and `NetworkController:getNetworkConfigurationByChainId` messenger action ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `addNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to add new network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `updateNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to recreate the network clients for an existing chain based on an updated configuration ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `removeNetwork`, which replaces `removeNetworkConfiguration` and can be used to remove existing network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `getDefaultNetworkControllerState` function, which replaces `defaultState` and matches patterns in other controllers ([#4268](https://github.com/MetaMask/core/pull/4286))
+
 ### Changed
 
 - **BREAKING:** Update `networksMetadata` state property so that the keys in the object will only ever be network client IDs and not RPC URLs ([#4254](https://github.com/MetaMask/core/pull/4254))
   - Some keys could have been RPC URLs if the initial network controller state had a `providerConfig` with an empty `id`, but since `providerConfig` is being removed, that won't happen anymore.
+- **BREAKING:** Replace `NetworkConfiguration` type with a new definition ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - A network configuration no longer represents a single RPC endpoint but rather a collection of RPC endpoints that can all be used to interface with a single chain.
+  - The only property that has been retained on this type is `chainId`.
+  - `ticker` has been renamed to `nativeTokenName`.
+  - `nickname` has been renamed to `name`.
+  - `blockExplorerUrl` has been pulled out of `rpcPrefs`.
+  - `rpcEndpoints` has been added as well. This is an an array of objects, where each object has properties `name`, `networkClientId` (optional), `type`, and `url`.
+  - `defaultRpcEndpointUrl` has been added. This must point to an entry in `rpcEndpoints`.
+  - `id` has been removed. Previously, this represented the ID of the network client associated with the network configuration. Since network clients are now created from RPC endpoints, the equivalent to this is the `networkClientId` property on an `RpcEndpoint`.
+- **BREAKING:** The network controller messenger must now allow the action `NetworkController:getNetworkConfigurationByChainId` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** The network controller messenger must now allow the event `NetworkController:networkAdded` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** The `NetworkController` constructor will now throw if the initial state provided is invalid ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - `networkConfigurationsByChainId` cannot be empty.
+  - The `chainId` of a network configuration in `networkConfigurationsByChainId` must match the chain ID it is filed under.
+  - The `defaultRpcEndpointUrl` of a network configuration in `networkConfigurationsByChainId` must match an entry in its `rpcEndpoints`.
+  - `selectedNetworkClientId` must match the `networkClientId` of an RPC endpoint in `networkConfigurationsByChainId`.
+- **BREAKING:** Update `getNetworkConfigurationByNetworkClientId` so that when given an Infura network name (that is, a value from `InfuraNetworkType`), it will return a masked version of the RPC endpoint URL for the associated Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - If you want the unmasked version, you'll need the `url` property from the network _client_ configuration, which you can get by calling `getNetworkClientById` and then accessing the `configuration` property off of the network client.
+- **BREAKING:** Update `loadBackup` to take and update `networkConfigurationsByChainId` instead of `networkConfigurations` ([#4268](https://github.com/MetaMask/core/pull/4286))
 
 ### Removed
 
 - **BREAKING:** Remove `providerConfig` property from state along with `ProviderConfig` type and `NetworkController:getProviderConfig` messenger action ([#4254](https://github.com/MetaMask/core/pull/4254))
   - The best way to obtain the equivalent configuration object, e.g. to access the chain ID of the currently selected network, is to get `selectedNetworkClientId` from state, pass this to the `NetworkController:getNetworkClientId` messenger action, and then use the `configuration` property on the network client.
+- **BREAKING:** Remove `networkConfigurations` from `NetworkState`, which has been replaced with `networkConfigurationsByChainId` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** Remove `upsertNetworkConfiguration` and `removeNetworkConfiguration`, which have been replaced with `addNetwork`, `updateNetwork`, and `removeNetwork` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** Remove `defaultState`, which has been replaced with `getDefaultNetworkControllerState` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** Remove `trackMetaMetricsEvent` option from the NetworkController constructor ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - Previously, this was used in `upsertNetworkConfiguration` to create a MetaMetrics event when a new network was added. This can now be achieved by subscribing to the `NetworkController:networkAdded` event.
 
 ## [19.0.0]
 
