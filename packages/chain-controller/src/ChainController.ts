@@ -69,10 +69,10 @@ export class ChainController
    */
   constructor({
     messenger,
-    state,
+    state = {},
   }: {
     messenger: ChainControllerMessenger;
-    state: ChainControllerState;
+    state?: ChainControllerState;
   }) {
     super({
       messenger,
