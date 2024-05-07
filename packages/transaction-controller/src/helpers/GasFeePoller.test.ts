@@ -94,7 +94,7 @@ describe('GasFeePoller', () => {
       onStateChange: (listener: () => void) => {
         triggerOnStateChange = listener;
       },
-      getProvider: () => ({} as Provider),
+      getProvider: () => ({}) as Provider,
     };
   });
 

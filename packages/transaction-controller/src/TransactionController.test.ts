@@ -580,7 +580,7 @@ describe('TransactionController', () => {
       getNetworkState: () => network.state,
       // TODO: Replace with a real type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      getNetworkClientRegistry: () => ({} as any),
+      getNetworkClientRegistry: () => ({}) as any,
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
       getSelectedAddress: () => ACCOUNT_MOCK,
       isMultichainEnabled: false,

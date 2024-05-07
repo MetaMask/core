@@ -97,7 +97,7 @@ const createMessengerMock = () =>
     call: jest.fn(),
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any as jest.Mocked<SignatureControllerMessenger>);
+  }) as any as jest.Mocked<SignatureControllerMessenger>;
 
 const addUnapprovedMessageMock = jest.fn();
 const waitForFinishStatusMock = jest.fn();

@@ -806,9 +806,8 @@ export class NetworkController extends BaseController<
     let updatedIsEIP1559Compatible: boolean | undefined;
 
     try {
-      updatedIsEIP1559Compatible = await this.#determineEIP1559Compatibility(
-        networkClientId,
-      );
+      updatedIsEIP1559Compatible =
+        await this.#determineEIP1559Compatibility(networkClientId);
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       if (isErrorWithCode(error)) {
@@ -1169,9 +1168,7 @@ export class NetworkController extends BaseController<
     networkClientId: NetworkClientId,
   ): NetworkConfiguration | undefined {
     if (isInfuraNetworkType(networkClientId)) {
-      const rpcUrl = `https://${networkClientId}.infura.io/v3/${
-        this.#infuraProjectId
-      }`;
+      const rpcUrl = `https://${networkClientId}.infura.io/v3/${this.#infuraProjectId}`;
       return {
         rpcUrl,
         ...BUILT_IN_NETWORKS[networkClientId],

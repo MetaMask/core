@@ -83,7 +83,7 @@ async function setupAssetContractControllers() {
         provider,
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any),
+      }) as any,
   });
 
   return {
@@ -721,9 +721,8 @@ describe('AssetsContractController', () => {
         },
       ],
     });
-    const symbol = await assetsContract.getERC721AssetSymbol(
-      ERC721_GODS_ADDRESS,
-    );
+    const symbol =
+      await assetsContract.getERC721AssetSymbol(ERC721_GODS_ADDRESS);
     expect(symbol).toBe('GODS');
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
@@ -761,9 +760,8 @@ describe('AssetsContractController', () => {
         },
       ],
     });
-    const decimals = await assetsContract.getERC20TokenDecimals(
-      ERC20_SAI_ADDRESS,
-    );
+    const decimals =
+      await assetsContract.getERC20TokenDecimals(ERC20_SAI_ADDRESS);
     expect(Number(decimals)).toBe(18);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });

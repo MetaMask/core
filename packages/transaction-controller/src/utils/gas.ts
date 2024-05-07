@@ -53,9 +53,8 @@ export async function estimateGas(
   const request = { ...txParams };
   const { data, value } = request;
 
-  const { gasLimit: gasLimitHex, number: blockNumber } = await getLatestBlock(
-    ethQuery,
-  );
+  const { gasLimit: gasLimitHex, number: blockNumber } =
+    await getLatestBlock(ethQuery);
 
   const gasLimitBN = hexToBN(gasLimitHex);
 
