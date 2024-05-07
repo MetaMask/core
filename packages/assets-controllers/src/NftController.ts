@@ -1416,13 +1416,37 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         };
       }),
     );
+    const successfulNewFetchedNfts = nftMetadataResults.filter(
+      (result): result is PromiseFulfilledResult<NftUpdate> =>
+        result.status === 'fulfilled',
+    );
+    // We want to avoid updating the state if the state and fetched nft info are the same
+    const nftsWithDifferentMetadata: PromiseFulfilledResult<NftUpdate>[] = [];
+    const { allNfts } = this.state;
+    const stateNfts = allNfts[userAddress]?.[chainId] || [];
 
-    nftMetadataResults
-      .filter(
-        (result): result is PromiseFulfilledResult<NftUpdate> =>
-          result.status === 'fulfilled',
-      )
-      .forEach((elm) =>
+    successfulNewFetchedNfts.forEach((singleNft) => {
+      const existingEntry: Nft | undefined = stateNfts.find(
+        (nft) =>
+          nft.address.toLowerCase() ===
+            singleNft.value.nft.address.toLowerCase() &&
+          nft.tokenId === singleNft.value.nft.tokenId,
+      );
+
+      if (existingEntry) {
+        const differentMetadata = compareNftMetadata(
+          singleNft.value.newMetadata,
+          existingEntry,
+        );
+
+        if (differentMetadata) {
+          nftsWithDifferentMetadata.push(singleNft);
+        }
+      }
+    });
+
+    if (nftsWithDifferentMetadata.length !== 0) {
+      nftsWithDifferentMetadata.forEach((elm) =>
         this.updateNft(
           elm.value.nft,
           elm.value.newMetadata,
@@ -1430,6 +1454,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           chainId,
         ),
       );
+    }
   }
 
   /**
