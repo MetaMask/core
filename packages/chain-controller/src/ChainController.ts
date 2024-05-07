@@ -137,7 +137,7 @@ export class ChainController
     snapId: SnapId,
   ): SnapChainProviderClient {
     // TODO: Should this be idempotent?
-    const client = this.#snapClient.withSnapId(snapId as SnapId);
+    const client = this.#snapClient.withSnapId(snapId);
     const provider = new SnapChainProviderClient(client);
 
     if (this.hasProviderFor(scope)) {
