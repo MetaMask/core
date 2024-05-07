@@ -299,12 +299,12 @@ function validateCustomProviderConfig(
 /**
  * The string that uniquely identifies an Infura network client.
  */
-type BuiltInNetworkClientId = InfuraNetworkType;
+export type BuiltInNetworkClientId = InfuraNetworkType;
 
 /**
  * The string that uniquely identifies a custom network client.
  */
-type CustomNetworkClientId = string;
+export type CustomNetworkClientId = string;
 
 /**
  * The string that uniquely identifies a network client.
