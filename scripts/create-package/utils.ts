@@ -21,11 +21,10 @@ const allPlaceholdersRegex = new RegExp(
 );
 
 // Our lint config really hates this, but it works.
-// eslint-disable-next-line
-const prettierRc = require(path.join(
-  REPO_ROOT,
-  '.prettierrc.js',
-) as PrettierOptions;
+// eslint-disable-next-line @typescript-eslint/no-require-imports,@typescript-eslint/no-var-requires,import/no-dynamic-require
+const prettierRc: PrettierOptions = require(
+  path.join(REPO_ROOT, '.prettierrc.js'),
+);
 
 /**
  * The data necessary to create a new package.
