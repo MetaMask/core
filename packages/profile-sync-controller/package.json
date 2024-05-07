@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/queued-request-controller",
-  "version": "0.10.0",
-  "description": "Includes a controller and middleware that implements a request queue",
+  "name": "@metamask/profile-sync-controller",
+  "version": "0.1.0",
+  "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/queued-request-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/profile-sync-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -32,8 +32,8 @@
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/queued-request-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-sync-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
@@ -41,32 +41,22 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.2",
-    "@metamask/controller-utils": "^9.1.0",
-    "@metamask/json-rpc-engine": "^8.0.2",
-    "@metamask/rpc-errors": "^6.2.1",
-    "@metamask/swappable-obj-proxy": "^2.2.0",
-    "@metamask/utils": "^8.3.0"
+    "@noble/ciphers": "^0.5.2",
+    "@noble/hashes": "^1.4.0",
+    "ethers": "^6.12.0",
+    "siwe": "^2.3.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^18.1.0",
-    "@metamask/selected-network-controller": "^13.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
-    "immer": "^9.0.6",
     "jest": "^27.5.1",
-    "lodash": "^4.17.21",
+    "jest-environment-jsdom": "^27.5.1",
     "nock": "^13.3.1",
-    "sinon": "^9.2.4",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.9.5"
-  },
-  "peerDependencies": {
-    "@metamask/network-controller": "^18.0.0",
-    "@metamask/selected-network-controller": "^13.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
