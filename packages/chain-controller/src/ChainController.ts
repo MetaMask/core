@@ -98,6 +98,14 @@ export class ChainController
     this.#registerMessageHandlers();
   }
 
+  /**
+   * Get a SnapChainProviderClient for a given scope.
+   *
+   * @private
+   * @param scope - CAIP-2 chain ID.
+   * @throws If no chain provider has been registered for this scope.
+   * @returns The associated SnapChainProviderClient.
+   */
   #getProviderClient(scope: CaipChainId): SnapChainProviderClient {
     if (scope in this.#providers) {
       return this.#providers[scope];
@@ -108,6 +116,14 @@ export class ChainController
     throw new Error(error);
   }
 
+  /**
+   * Fetches asset balances for each given accounts.
+   *
+   * @param scope - CAIP-2 chain ID that must compatible with `accounts`.
+   * @param accounts - Accounts (addresses).
+   * @param assets - List of CAIP-19 asset identifiers to fetch balances from.
+   * @returns Assets balances for each accounts.
+   */
   getBalances = async (
     scope: CaipChainId,
     accounts: string[],
@@ -120,6 +136,14 @@ export class ChainController
     );
   };
 
+  /**
+   * Fetches asset balances for a given internal account.
+   *
+   * @param scope - CAIP-2 chain ID that must compatible with `accounts`.
+   * @param account - The internal account.
+   * @param assets - List of CAIP-19 asset identifiers to fetch balances from.
+   * @returns Assets balances for the internal accounts.
+   */
   getBalancesFromAccount = async (
     scope: CaipChainId,
     account: InternalAccount,
@@ -128,10 +152,23 @@ export class ChainController
     return this.getBalances(scope, [account.address], assets);
   };
 
+  /**
+   * Checks whether a chain provider has been registered for a given scope.
+   *
+   * @param scope - CAIP-2 chain ID.
+   * @returns True if there is a registerd provider, false otherwise.
+   */
   hasProviderFor(scope: CaipChainId): boolean {
     return scope in this.#providers;
   }
 
+  /**
+   * Registers a Snap chain provider for a given scope.
+   *
+   * @param scope - CAIP-2 chain ID.
+   * @param snapId - Snap ID that implements the Chain API methods.
+   * @returns A SnapChainProviderClient for this Snap.
+   */
   registerProvider(
     scope: CaipChainId,
     snapId: SnapId,
