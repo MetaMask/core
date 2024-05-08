@@ -1,10 +1,14 @@
 import { handleFetch } from '@metamask/controller-utils';
 
+import type { Rate, ConversionRates } from '../RatesController/types';
+
 /**
  * A map from native currency symbol to CryptoCompare identifier.
  * This is only needed when the values don't match.
  */
 const nativeSymbolOverrides = new Map([['MNT', 'MANTLE']]);
+
+const CRYPTO_COMPARE_DOMAIN = 'https://min-api.cryptocompare.com';
 
 /**
  * Get the CryptoCompare API URL for getting the conversion rate from the given native currency to
@@ -25,10 +29,45 @@ function getPricingURL(
   nativeCurrency = nativeCurrency.toUpperCase();
   const fsym = nativeSymbolOverrides.get(nativeCurrency) ?? nativeCurrency;
   return (
-    `https://min-api.cryptocompare.com/data/price?fsym=` +
+    `${CRYPTO_COMPARE_DOMAIN}/data/price?fsym=` +
     `${fsym}&tsyms=${currentCurrency.toUpperCase()}` +
     `${includeUSDRate && currentCurrency.toUpperCase() !== 'USD' ? ',USD' : ''}`
   );
+}
+
+/**
+ * Get the CryptoCompare API URL for getting the conversion rate from a given array of native currencies
+ * to the given currency. Optionally, the conversion rate from the native currency to USD can also be
+ * included in the response.
+ *
+ * @param fsyms - The native currencies to get conversion rates for.
+ * @param tsyms - The currency to convert to.
+ * @param includeUSDRate - Whether or not the native currency to USD conversion rate should be included.
+ * @returns The API URL for getting the conversion rates.
+ */
+function getMultiPricingURL(
+  fsyms: string,
+  tsyms: string,
+  includeUSDRate?: boolean,
+) {
+  const updatedTsyms =
+    includeUSDRate && !tsyms.includes('USD') ? `${tsyms},USD` : tsyms;
+  return `${CRYPTO_COMPARE_DOMAIN}/data/pricemulti?fsyms=${fsyms}&tsyms=${updatedTsyms}`;
+}
+
+/**
+ * Handles an error response from the CryptoCompare API.
+ * Expected error response format
+ * { Response: "Error", Message: "...", HasWarning: false }
+ *
+ * @param json - The JSON response from the CryptoCompare API.
+ * @param json.Response - The response status.
+ * @param json.Message - The error message.
+ */
+function handleErrorResponse(json: { Response?: string; Message?: string }) {
+  if (json.Response === 'Error') {
+    throw new Error(json.Message);
+  }
 }
 
 /**
@@ -51,18 +90,7 @@ export async function fetchExchangeRate(
     getPricingURL(currency, nativeCurrency, includeUSDRate),
   );
 
-  /*
-  Example expected error response (if pair is not found)
-  {
-    Response: "Error",
-    Message: "cccagg_or_exchange market does not exist for this coin pair (ETH-<NON_EXISTENT_TOKEN>)",
-    HasWarning: false,
-  }
-  */
-  if (json.Response === 'Error') {
-    throw new Error(json.Message);
-  }
-
+  handleErrorResponse(json);
   const conversionRate = Number(json[currency.toUpperCase()]);
 
   const usdConversionRate = Number(json.USD);
@@ -82,4 +110,36 @@ export async function fetchExchangeRate(
     conversionRate,
     usdConversionRate,
   };
+}
+
+/**
+ * Fetches the exchange rates for multiple currencies.
+ *
+ * @param currency - The currency of the rates (ISO 4217).
+ * @param cryptocurrencies - The cryptocurrencies to get conversion rates for. Min length: 1. Max length: 300.
+ * @param includeUSDRate - Whether to add the USD rate to the fetch.
+ * @returns Promise resolving to exchange rates for given currencies.
+ */
+export async function fetchMultiExchangeRate(
+  currency: string,
+  cryptocurrencies: string[],
+  includeUSDRate?: boolean,
+): Promise<ConversionRates> {
+  const url = getMultiPricingURL(
+    Object.values(cryptocurrencies).join(','),
+    currency,
+    includeUSDRate,
+  );
+  const response = await handleFetch(url);
+  handleErrorResponse(response);
+
+  const rates: ConversionRates = {};
+  for (const [key, value] of Object.entries(response) as [string, Rate][]) {
+    rates[key.toLowerCase()] = {
+      conversionRate: value[currency.toUpperCase()],
+      usdConversionRate: value.USD || null,
+    };
+  }
+
+  return rates;
 }
