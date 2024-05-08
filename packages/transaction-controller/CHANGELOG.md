@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add estimate gas fee method ([#4216](https://github.com/MetaMask/core/pull/4216))
+- Release 147.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Release 146.0.0 ([#4232](https://github.com/MetaMask/core/pull/4232))
+
 ## [28.1.1]
 
 ### Changed

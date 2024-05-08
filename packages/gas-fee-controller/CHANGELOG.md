@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add a metadata property for nonRPCGasFeeApisDisabled ([#4245](https://github.com/MetaMask/core/pull/4245))
+
 ## [15.1.1]
 
 ### Changed
