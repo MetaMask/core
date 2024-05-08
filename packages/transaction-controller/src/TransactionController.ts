@@ -1928,7 +1928,7 @@ export class TransactionController extends BaseController<
     if (
       chain !== RPC &&
       chain !== NetworkType['linea-goerli'] &&
-      chain !== NetworkType['linea-sepolia'] &&
+      chain !== 'linea-sepolia' &&
       chain !== NetworkType['linea-mainnet']
     ) {
       return new Common({ chain, hardfork: HARDFORK });
