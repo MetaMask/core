@@ -1,3 +1,1 @@
-import { fetchExchangeRate } from './crypto-compare';
-
-export { fetchExchangeRate };
+export { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare';

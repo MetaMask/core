@@ -5,21 +5,16 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 
-import { fetchExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
+import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
+import type { ConversionRates } from './types';
 
 /**
  * Represents the state structure for the BtcRateController.
  */
 export type RatesState = {
   currency: string;
-  rates: Record<
-    string,
-    {
-      conversionDate: number | null;
-      conversionRate: number | null;
-      usdConversionRate: number | null;
-    }
-  >;
+  rates: ConversionRates;
+  cryptocurrencyList: string[];
 };
 
 const name = 'RatesController';
@@ -49,9 +44,14 @@ type RatesMessenger = RestrictedControllerMessenger<
   never
 >;
 
+const DEFAULT_CURRENCIES = {
+  btc: 'btc',
+};
+
 const metadata = {
   currency: { persist: true, anonymous: true },
   rates: { persist: true, anonymous: true },
+  cryptocurrencyList: { persist: true, anonymous: true },
 };
 
 const defaultState = {
@@ -63,11 +63,7 @@ const defaultState = {
       usdConversionRate: null,
     },
   },
-};
-
-const DEFAULT_CURRENCIES = {
-  btc: 'BTC',
-  sol: 'SOL',
+  cryptocurrencyList: [DEFAULT_CURRENCIES.btc],
 };
 
 export class RatesController extends BaseController<
@@ -75,7 +71,7 @@ export class RatesController extends BaseController<
   RatesState,
   RatesMessenger
 > {
-  readonly #fetchExchangeRate;
+  readonly #fetchMultiExchangeRate;
 
   readonly #onStart;
 
@@ -95,7 +91,7 @@ export class RatesController extends BaseController<
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.fetchExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
+   * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    * @param options.onStart - Optional callback to be executed when the polling stops.
    * @param options.onStop - Optional callback to be executed when the polling starts.
    */
@@ -104,7 +100,7 @@ export class RatesController extends BaseController<
     messenger,
     state,
     includeUsdRate,
-    fetchExchangeRate = defaultFetchExchangeRate,
+    fetchMultiExchangeRate = defaultFetchExchangeRate,
     onStart,
     onStop,
   }: {
@@ -112,7 +108,7 @@ export class RatesController extends BaseController<
     interval?: number;
     messenger: RatesMessenger;
     state?: Partial<RatesState>;
-    fetchExchangeRate?: typeof defaultFetchExchangeRate;
+    fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
     onStart?: () => Promise<unknown>;
     onStop?: () => Promise<unknown>;
   }) {
@@ -123,7 +119,7 @@ export class RatesController extends BaseController<
       state: { ...defaultState, ...state },
     });
     this.#includeUsdRate = includeUsdRate;
-    this.#fetchExchangeRate = fetchExchangeRate;
+    this.#fetchMultiExchangeRate = fetchMultiExchangeRate;
     this.#onStart = onStart;
     this.#onStop = onStop;
     this.#setIntervalLength(interval);
@@ -142,25 +138,26 @@ export class RatesController extends BaseController<
    * Updates the BTC rates by fetching new data.
    */
   async #updateRates(): Promise<void> {
-    const { currency } = this.state;
-    // const cryptoCurrencies: string =
-    //   Object.values(DEFAULT_CURRENCIES).join(',');
-    const response = await this.#fetchExchangeRate(
+    const { currency, cryptocurrencyList } = this.state;
+    const response = await this.#fetchMultiExchangeRate(
       currency,
-      DEFAULT_CURRENCIES.btc,
+      cryptocurrencyList,
       this.#includeUsdRate,
     );
-    const { conversionRate, usdConversionRate } = response;
+
+    const updatedRates: ConversionRates = {};
+    for (const [key, value] of Object.entries(response)) {
+      updatedRates[key] = {
+        conversionDate: Date.now() / 1000,
+        conversionRate: value.conversionRate,
+        usdconversionRate: value.usdconversionRate || null,
+      };
+    }
+
     this.update(() => {
       return {
-        rates: {
-          btc: {
-            conversionDate: Date.now() / 1000,
-            conversionRate,
-            usdConversionRate,
-          },
-        },
-        currency,
+        ...this.state,
+        rates: updatedRates,
       };
     });
   }
@@ -197,5 +194,19 @@ export class RatesController extends BaseController<
     clearInterval(this.#intervalId);
     this.#intervalId = undefined;
     await this.#onStop?.();
+  }
+
+  getCryptocurrencyList(): string[] {
+    const { cryptocurrencyList } = this.state;
+    return cryptocurrencyList;
+  }
+
+  setCryptocurrencyList(list: string[]): void {
+    this.update(() => {
+      return {
+        ...this.state,
+        cryptocurrencyList: list,
+      };
+    });
   }
 }
