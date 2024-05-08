@@ -9,7 +9,10 @@ import type { PreferencesControllerGetStateAction } from '@metamask/preferences-
 
 import type { AssetsContractController } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
-import type { TokensControllerStateChangeEvent } from './TokensController';
+import type {
+  TokensControllerStateChangeEvent,
+  TokensState,
+} from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -30,6 +33,7 @@ type TokenBalancesControllerOptions = {
   interval?: number;
   tokens?: Token[];
   disabled?: boolean;
+  onTokensStateChange: (listener: (tokensState: TokensState) => void) => void;
   getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
   messenger: TokenBalancesControllerMessenger;
   state?: Partial<TokenBalancesControllerState>;
@@ -114,6 +118,7 @@ export class TokenBalancesController extends BaseController<
    * @param options.interval - Polling interval used to fetch new token balances.
    * @param options.tokens - List of tokens to track balances for.
    * @param options.disabled - If set to true, all tracked tokens contract balances updates are blocked.
+   * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller restricted messenger.
@@ -122,6 +127,7 @@ export class TokenBalancesController extends BaseController<
     interval = DEFAULT_INTERVAL,
     tokens = [],
     disabled = false,
+    onTokensStateChange,
     getERC20BalanceOf,
     messenger,
     state = {},
@@ -140,13 +146,10 @@ export class TokenBalancesController extends BaseController<
     this.#interval = interval;
     this.#tokens = tokens;
 
-    this.messagingSystem.subscribe(
-      'TokensController:stateChange',
-      ({ tokens: newTokens, detectedTokens }) => {
-        this.#tokens = [...newTokens, ...detectedTokens];
-        this.updateBalances();
-      },
-    );
+    onTokensStateChange(async ({ tokens: newTokens, detectedTokens }) => {
+      this.#tokens = [...newTokens, ...detectedTokens];
+      await this.updateBalances();
+    });
 
     this.#getERC20BalanceOf = getERC20BalanceOf;
 
@@ -215,6 +218,16 @@ export class TokenBalancesController extends BaseController<
 
     this.update((state) => {
       state.contractBalances = newContractBalances;
+    });
+  }
+
+  /**
+   * THIS FUNCTIONS IS CURRENTLY PATCHED AND STILL NEEDS TO BE IMPLEMENTED ON THE CORE REPO
+   * Resets to the default state
+   */
+  reset() {
+    this.update((state) => {
+      state.contractBalances = {};
     });
   }
 }
