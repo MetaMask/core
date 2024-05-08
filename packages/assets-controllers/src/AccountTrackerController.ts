@@ -285,9 +285,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
           [chainId]: accountsForChain,
         },
       });
-    } catch (err) {
+    } finally {
       releaseLock();
-      throw err;
     }
   };
 
