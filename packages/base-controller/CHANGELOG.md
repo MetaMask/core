@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Refactor TokensController tests ([#4247](https://github.com/MetaMask/core/pull/4247))
+
 ## [5.0.2]
 
 ### Changed

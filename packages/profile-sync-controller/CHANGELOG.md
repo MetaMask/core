@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Notify 498 publish profile sync sdk ([#4150](https://github.com/MetaMask/core/pull/4150))
+
 [Unreleased]: https://github.com/MetaMask/core/
