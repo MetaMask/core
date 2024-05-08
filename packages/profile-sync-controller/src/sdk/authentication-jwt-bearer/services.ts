@@ -7,6 +7,9 @@ import { AuthType } from './types';
 export const NONCE_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
 
+export const PAIR_IDENTIFIERS = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair`;
+
 export const OIDC_TOKEN_URL = (env: Env) =>
   `${getEnvUrls(env).oidcApiUrl}/oauth2/token`;
 
@@ -15,6 +18,13 @@ export const SRP_LOGIN_URL = (env: Env) =>
 
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
+
+export type Login = {
+  signature: string;
+  rawMessage: string;
+  encryptedStorageKey: string;
+  identifierType: 'SIWE' | 'SRP';
+};
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -35,6 +45,60 @@ type NonceResponse = {
   identifier: string;
   expiresIn: number;
 };
+
+/**
+ * Pair multiple identifiers under a single profile
+ *
+ * @param nonce - request nonce
+ * @param logins - an array proving the ownership of identifiers
+ * @param accessToken - JWT access token used to access protected resources
+ * @param env - server environment
+ * @returns void.
+ */
+export async function pairIdentifiers(
+  nonce: string,
+  logins: Login[],
+  accessToken: string,
+  env: Env,
+): Promise<void> {
+  const pairUrl = new URL(PAIR_IDENTIFIERS(env));
+
+  // Helper function to convert login fields from camelCase to snake_case
+  const formatLogin = (login: Login) => {
+    return {
+      signature: login.signature,
+      raw_message: login.rawMessage,
+      encrypted_storage_key: login.encryptedStorageKey,
+      identifier_type: login.identifierType,
+    };
+  };
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        nonce,
+        logins: logins.map((login) => formatLogin(login)),
+      }),
+    });
+
+    if (!response.ok) {
+      const responseBody = (await response.json()) as ErrorMessage;
+      throw new Error(
+        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      );
+    }
+  } catch (e) {
+    /* istanbul ignore next */
+    const errorMessage =
+      e instanceof Error ? e.message : JSON.stringify(e ?? '');
+    throw new SignInError(`unable to pair identifiers: ${errorMessage}`);
+  }
+}
 
 /**
  * Service to Get Nonce for JWT Bearer Flow
