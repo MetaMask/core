@@ -44,7 +44,7 @@
     "@ethereumjs/util": "^8.1.0",
     "@metamask/base-controller": "^5.0.2",
     "@metamask/eth-snap-keyring": "^4.0.0",
-    "@metamask/keyring-api": "^6.0.0",
+    "@metamask/keyring-api": "^6.1.0",
     "@metamask/snaps-sdk": "^4.0.1",
     "@metamask/snaps-utils": "^7.1.0",
     "@metamask/utils": "^8.3.0",
