@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.1]
+### Fixed
+- Emit an event with an updated Smart Transaction before confirmation ([#333](https://github.com/MetaMask/smart-transactions-controller/pull/333))
+
 ## [10.0.0]
 ### Fixed
 - **BREAKING**: Flip the behavior of the `wipeSmartTransactions` method's `ignoreNetwork` option ([#323](https://github.com/MetaMask/smart-transactions-controller/pull/323))
@@ -274,7 +278,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.0.0...v10.0.1
 [10.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v9.0.0...v10.0.0
 [9.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.1.0...v9.0.0
 [8.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v8.0.0...v8.1.0
