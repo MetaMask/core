@@ -394,6 +394,13 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       return;
     }
 
+    // We have to emit this event here, because then a txHash is returned to the TransactionController once it's available
+    // and the #doesTransactionNeedConfirmation function will work properly, since it will find the txHash in the regular transactions list.
+    this.eventEmitter.emit(
+      `${smartTransaction.uuid}:smartTransaction`,
+      smartTransaction,
+    );
+
     if (
       (smartTransaction.status === SmartTransactionStatuses.SUCCESS ||
         smartTransaction.status === SmartTransactionStatuses.REVERTED) &&
@@ -426,11 +433,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         },
       });
     }
-
-    this.eventEmitter.emit(
-      `${smartTransaction.uuid}:smartTransaction`,
-      smartTransaction,
-    );
   }
 
   async updateSmartTransactions({
