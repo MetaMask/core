@@ -258,6 +258,12 @@ export class TokensController extends BaseControllerV1<
       getPayload: () => [this.state, []],
     });
 
+    // TODO: Remove once `TokensController` is upgraded to V2.
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getState`,
+      () => this.state,
+    );
+
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addDetectedTokens` as const,
       this.addDetectedTokens.bind(this),
@@ -302,6 +308,16 @@ export class TokensController extends BaseControllerV1<
           this.updateTokensAttribute(tokenList, 'name');
         }
       },
+    );
+  }
+
+  // TODO: Remove once `TokensController` is upgraded to V2.
+  override update(state: Partial<TokensState>, overwrite = false) {
+    super.update(state, overwrite);
+    this.messagingSystem?.publish(
+      `${controllerName}:stateChange`,
+      this.state,
+      [],
     );
   }
 
