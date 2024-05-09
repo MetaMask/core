@@ -252,6 +252,12 @@ export class TokensController extends BaseControllerV1<
 
     this.messagingSystem = messenger;
 
+    // TODO: Remove once `TokensController` is upgraded to V2.
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getState`,
+      () => this.state,
+    );
+
     this.messagingSystem.registerActionHandler(
       `${controllerName}:addDetectedTokens` as const,
       this.addDetectedTokens.bind(this),
