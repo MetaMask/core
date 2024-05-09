@@ -1,48 +1,15 @@
 import { BaseController } from '@metamask/base-controller';
-import type {
-  RestrictedControllerMessenger,
-  ControllerGetStateAction,
-  ControllerStateChangeEvent,
-} from '@metamask/base-controller';
+import { Mutex } from 'async-mutex';
 
 import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
-import type { ConversionRates } from './types';
+import type {
+  ConversionRates,
+  RatesState,
+  RatesMessenger,
+  RatesControllerArgs,
+} from './types';
 
-/**
- * Represents the state structure for the BtcRateController.
- */
-export type RatesState = {
-  currency: string;
-  rates: ConversionRates;
-  cryptocurrencyList: string[];
-};
-
-const name = 'RatesController';
-
-/**
- * Type definition for BtcRateController state change events.
- */
-export type RatesStateChange = ControllerStateChangeEvent<
-  typeof name,
-  RatesState
->;
-
-export type RatesControllerEvents = RatesStateChange;
-
-/**
- * Type definition for getting the BtcRateController.
- */
-export type GetRatesState = ControllerGetStateAction<typeof name, RatesState>;
-
-export type RatesControllerActions = GetRatesState;
-
-type RatesMessenger = RestrictedControllerMessenger<
-  typeof name,
-  RatesControllerActions,
-  RatesControllerEvents,
-  never,
-  never
->;
+export const name = 'RatesController';
 
 const DEFAULT_CURRENCIES = {
   btc: 'btc',
@@ -71,6 +38,8 @@ export class RatesController extends BaseController<
   RatesState,
   RatesMessenger
 > {
+  readonly #mutex = new Mutex();
+
   readonly #fetchMultiExchangeRate;
 
   readonly #onStart;
@@ -81,7 +50,7 @@ export class RatesController extends BaseController<
 
   #intervalId: NodeJS.Timeout | undefined;
 
-  #intervalLength: number | undefined = 1000;
+  #intervalLength: number | undefined;
 
   /**
    * Creates a BtcRateController instance.
@@ -103,15 +72,7 @@ export class RatesController extends BaseController<
     fetchMultiExchangeRate = defaultFetchExchangeRate,
     onStart,
     onStop,
-  }: {
-    includeUsdRate?: boolean;
-    interval?: number;
-    messenger: RatesMessenger;
-    state?: Partial<RatesState>;
-    fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
-    onStart?: () => Promise<unknown>;
-    onStop?: () => Promise<unknown>;
-  }) {
+  }: RatesControllerArgs) {
     super({
       name,
       metadata,
@@ -137,36 +98,42 @@ export class RatesController extends BaseController<
   /**
    * Updates the BTC rates by fetching new data.
    */
-  async #updateRates(): Promise<void> {
+  async updateRates(): Promise<void> {
+    const releaseLock = await this.#mutex.acquire();
     const { currency, cryptocurrencyList } = this.state;
-    const response = await this.#fetchMultiExchangeRate(
-      currency,
-      cryptocurrencyList,
-      this.#includeUsdRate,
-    );
 
-    const updatedRates: ConversionRates = {};
-    for (const [key, value] of Object.entries(response)) {
-      updatedRates[key] = {
-        conversionDate: Date.now() / 1000,
-        conversionRate: value.conversionRate,
-        usdconversionRate: value.usdconversionRate || null,
-      };
+    try {
+      const response = await this.#fetchMultiExchangeRate(
+        currency,
+        cryptocurrencyList,
+        this.#includeUsdRate,
+      );
+
+      const updatedRates: ConversionRates = {};
+      for (const [key, value] of Object.entries(response)) {
+        updatedRates[key] = {
+          conversionDate: Date.now() / 1000,
+          conversionRate: value[currency],
+          usdConversionRate: value.usd || null,
+        };
+      }
+
+      this.update(() => {
+        return {
+          ...this.state,
+          rates: updatedRates,
+        };
+      });
+    } finally {
+      releaseLock();
     }
-
-    this.update(() => {
-      return {
-        ...this.state,
-        rates: updatedRates,
-      };
-    });
   }
 
   /**
    * Executes the polling operation to update rates.
    */
   async #executePoll(): Promise<void> {
-    await this.#updateRates();
+    await this.updateRates();
   }
 
   /**
@@ -208,5 +175,20 @@ export class RatesController extends BaseController<
         cryptocurrencyList: list,
       };
     });
+  }
+
+  async setCurrentCurrency(currentCurrency: string) {
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      this.update(() => {
+        return {
+          ...defaultState,
+          currentCurrency,
+        };
+      });
+    } finally {
+      releaseLock();
+    }
+    await this.updateRates();
   }
 }
