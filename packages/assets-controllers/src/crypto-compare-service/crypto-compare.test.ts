@@ -159,12 +159,16 @@ describe('CryptoCompare', () => {
         SOL: { CAD: 4000.42, USD: 3000.42 },
       });
 
-    const response = await fetchMultiExchangeRate('CAD', 'BTC,ETH,SOL', true);
+    const response = await fetchMultiExchangeRate(
+      'CAD',
+      ['BTC', 'ETH', 'SOL'],
+      true,
+    );
 
     expect(response).toStrictEqual({
-      btc: { conversionRate: 2000.42, usdConversionRate: 1000.42 },
-      eth: { conversionRate: 3000.42, usdConversionRate: 2000.42 },
-      sol: { conversionRate: 4000.42, usdConversionRate: 3000.42 },
+      btc: { cad: 2000.42, usd: 1000.42 },
+      eth: { cad: 3000.42, usd: 2000.42 },
+      sol: { cad: 4000.42, usd: 3000.42 },
     });
   });
 });

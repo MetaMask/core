@@ -136,8 +136,8 @@ export async function fetchMultiExchangeRate(
   const rates: ConversionRates = {};
   for (const [key, value] of Object.entries(response) as [string, Rate][]) {
     rates[key.toLowerCase()] = {
-      conversionRate: value[currency.toUpperCase()],
-      usdConversionRate: value.USD || null,
+      [currency.toLowerCase()]: value[currency.toUpperCase()],
+      usd: value.USD || null,
     };
   }
 
