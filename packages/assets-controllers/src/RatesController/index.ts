@@ -5,4 +5,4 @@ export type {
   RatesControllerEvents,
   GetRatesState,
   RatesControllerActions,
-} from './RatesController';
+} from './types';
