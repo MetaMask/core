@@ -24,7 +24,10 @@ export type Rate = Record<string, number | null>;
 export type ConversionRates = Record<string, Rate>;
 
 /**
- * Represents the state structure for the BtcRateController.
+ * Represents the state structure for the RatesController.
+ * @property {string} currency - The base currency for conversion rates.
+ * @property {ConversionRates} rates - The conversion rates for multiple cryptocurrencies.
+ * @property {string[]} cryptocurrencyList - A list of supported cryptocurrency symbols.
  */
 export type RatesState = {
   currency: string;
@@ -40,6 +43,9 @@ export type RatesStateChange = ControllerStateChangeEvent<
   RatesState
 >;
 
+/**
+ * Defines the events that the RatesController can emit.
+ */
 export type RatesControllerEvents = RatesStateChange;
 
 export type GetRatesState = ControllerGetStateAction<
@@ -47,8 +53,14 @@ export type GetRatesState = ControllerGetStateAction<
   RatesState
 >;
 
+/**
+ * Defines the actions that can be performed to get the state of the RatesController.
+ */
 export type RatesControllerActions = GetRatesState;
 
+/**
+ * Defines the actions that the RatesController can perform.
+ */
 export type RatesMessenger = RestrictedControllerMessenger<
   typeof ratesControllerName,
   RatesControllerActions,
@@ -57,6 +69,16 @@ export type RatesMessenger = RestrictedControllerMessenger<
   never
 >;
 
+/**
+ * The arguments required to initialize a RatesController.
+ * @property {boolean} [includeUsdRate] - Whether to include USD rates in the conversion rates.
+ * @property {number} [interval] - The polling interval in milliseconds.
+ * @property {RatesMessenger} messenger - The messenger instance for communication.
+ * @property {Partial<RatesState>} [state] - The initial state of the controller.
+ * @property {typeof defaultFetchExchangeRate} [fetchMultiExchangeRate] - The function to fetch exchange rates.
+ * @property {() => Promise<unknown>} [onStart] - A function to execute when the controller starts.
+ * @property {() => Promise<unknown>} [onStop] - A function to execute when the controller stops.
+ */
 export type RatesControllerArgs = {
   includeUsdRate?: boolean;
   interval?: number;
