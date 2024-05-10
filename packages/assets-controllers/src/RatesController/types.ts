@@ -25,13 +25,19 @@ export type ConversionRates = Record<string, Rate>;
 
 /**
  * Represents the state structure for the RatesController.
- * @property {string} currency - The base currency for conversion rates.
- * @property {ConversionRates} rates - The conversion rates for multiple cryptocurrencies.
- * @property {string[]} cryptocurrencyList - A list of supported cryptocurrency symbols.
  */
-export type RatesState = {
+export type RatesControllerState = {
+  /**
+   * The base currency for conversion rates.
+   */
   currency: string;
+  /**
+   * The conversion rates for multiple cryptocurrencies.
+   */
   rates: ConversionRates;
+  /**
+   * A list of supported cryptocurrency symbols.
+   */
   cryptocurrencyList: string[];
 };
 
