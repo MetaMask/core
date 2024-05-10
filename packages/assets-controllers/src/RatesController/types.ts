@@ -70,21 +70,35 @@ export type RatesMessenger = RestrictedControllerMessenger<
 >;
 
 /**
- * The arguments required to initialize a RatesController.
- * @property {boolean} [includeUsdRate] - Whether to include USD rates in the conversion rates.
- * @property {number} [interval] - The polling interval in milliseconds.
- * @property {RatesMessenger} messenger - The messenger instance for communication.
- * @property {Partial<RatesState>} [state] - The initial state of the controller.
- * @property {typeof defaultFetchExchangeRate} [fetchMultiExchangeRate] - The function to fetch exchange rates.
- * @property {() => Promise<unknown>} [onStart] - A function to execute when the controller starts.
- * @property {() => Promise<unknown>} [onStop] - A function to execute when the controller stops.
+ * The options required to initialize a RatesController.
  */
-export type RatesControllerArgs = {
+export type RatesControllerOptions = {
+  /**
+   * Whether to include USD rates in the conversion rates.
+   */
   includeUsdRate?: boolean;
+  /**
+   * The polling interval in milliseconds.
+   */
   interval?: number;
+  /**
+   * The messenger instance for communication.
+   */
   messenger: RatesMessenger;
+  /**
+   * The initial state of the controller.
+   */
   state?: Partial<RatesState>;
+  /**
+   * The function to fetch exchange rates.
+   */
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
+  /**
+   * A function to execute when the controller starts.
+   */
   onStart?: () => Promise<unknown>;
+  /**
+   * A function to execute when the controller stops.
+   */
   onStop?: () => Promise<unknown>;
 };
