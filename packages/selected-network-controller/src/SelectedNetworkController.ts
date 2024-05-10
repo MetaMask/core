@@ -25,6 +25,12 @@ const stateMetadata = {
 
 const getDefaultState = () => ({ domains: {} });
 
+// npm and local are currently the only valid prefixes for snap domains
+// TODO: eventually we maybe want to pull this in from snaps-utils to ensure it stays in sync
+// For now it seems like overkill to add a dependency for this one constant
+// https://github.com/MetaMask/snaps/blob/2beee7803bfe9e540788a3558b546b9f55dc3cb4/packages/snaps-utils/src/types.ts#L120
+const snapsPrefixes = ['npm:', 'local:'] as const;
+
 export type Domain = string;
 
 export const METAMASK_DOMAIN = 'metamask' as const;
@@ -307,6 +313,10 @@ export class SelectedNetworkController extends BaseController<
       );
     }
 
+    if (snapsPrefixes.some((prefix) => domain.startsWith(prefix))) {
+      return;
+    }
+
     if (!this.#domainHasPermissions(domain)) {
       throw new Error(
         'NetworkClientId for domain cannot be called with a domain that has not yet been granted permissions',
@@ -332,6 +342,20 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
+    // If the domain is 'metamask' or a snap, return the NetworkController's globally selected network client proxy
+    if (
+      domain === METAMASK_DOMAIN ||
+      snapsPrefixes.some((prefix) => domain.startsWith(prefix))
+    ) {
+      const networkClient = this.messagingSystem.call(
+        'NetworkController:getSelectedNetworkClient',
+      );
+      if (networkClient === undefined) {
+        throw new Error('Selected network not initialized');
+      }
+      return networkClient;
+    }
+
     let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
       let networkClient;
