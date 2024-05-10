@@ -53,7 +53,7 @@ export class RatesController extends BaseController<
   #intervalLength: number | undefined;
 
   /**
-   * Creates a BtcRateController instance.
+   * Creates a RatesController instance.
    *
    * @param options - Constructor options.
    * @param options.includeUsdRate - Keep track of the USD rate in addition to the current currency rate.
