@@ -177,13 +177,16 @@ export class RatesController extends BaseController<
     });
   }
 
-  async setCurrentCurrency(currentCurrency: string) {
+  async setCurrency(currency: string) {
+    if (currency === '') {
+      throw new Error("The currency can't be an empty string");
+    }
     const releaseLock = await this.#mutex.acquire();
     try {
       this.update(() => {
         return {
           ...defaultState,
-          currentCurrency,
+          currency,
         };
       });
     } finally {
