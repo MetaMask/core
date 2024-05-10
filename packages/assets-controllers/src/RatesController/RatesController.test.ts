@@ -16,11 +16,18 @@ import type {
 
 const MOCK_TIMESTAMP = 1709983353;
 
+/**
+ * Returns a stubbed date based on a predefined timestamp.
+ * @returns The stubbed date in milliseconds.
+ */
 const getStubbedDate = () => {
   return new Date(MOCK_TIMESTAMP * 1000).getTime();
 };
 
-// eslint-disable-next-line jsdoc/require-jsdoc
+/**
+ * Builds a new ControllerMessenger instance for RatesController.
+ * @returns A new ControllerMessenger instance.
+ */
 function buildMessenger(): ControllerMessenger<
   RatesControllerActions,
   RatesControllerEvents
@@ -31,7 +38,11 @@ function buildMessenger(): ControllerMessenger<
   >();
 }
 
-// eslint-disable-next-line jsdoc/require-jsdoc
+/**
+ * Builds a restricted messenger for the RatesController.
+ * @param messenger - The base messenger instance.
+ * @returns A restricted messenger for the RatesController.
+ */
 function buildRatesControllerMessenger(
   messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>,
 ): RatesMessenger {
@@ -42,7 +53,17 @@ function buildRatesControllerMessenger(
   });
 }
 
-// eslint-disable-next-line jsdoc/require-jsdoc
+/**
+ * Sets up and returns a new instance of RatesController with the provided configuration.
+ * @param config - The configuration object for the RatesController.
+ * @param config.initialState - Initial state of the controller.
+ * @param config.messenger - ControllerMessenger instance.
+ * @param config.includeUsdRate - Indicates if the USD rate should be included.
+ * @param config.fetchMultiExchangeRate - Callback to fetch rates data.
+ * @param config.onStart - Optional method to be executed when the polling starts.
+ * @param config.onStop - Optional method to be executed when the polling stops.
+ * @returns A new instance of RatesController.
+ */
 function setupRatesController({
   initialState,
   messenger,
@@ -283,6 +304,25 @@ describe('RatesController', () => {
       expect(cryptocurrencyListPostUpdate).toStrictEqual(
         mockCryptocurrencyList,
       );
+    });
+  });
+
+  describe('setCurrentCurrency', () => {
+    it('sets the currency to a new value', async () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const ratesController = setupRatesController({
+        initialState: {},
+        messenger: buildMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+      });
+
+      const currencyPreUpdate = ratesController.state.currency;
+      expect(currencyPreUpdate).toBe('usd');
+
+      await ratesController.setCurrency('eur');
+
+      const currencyPostUpdate = ratesController.state.currency;
+      expect(currencyPostUpdate).toBe('eur');
     });
   });
 });
