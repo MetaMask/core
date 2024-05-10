@@ -36,7 +36,7 @@ export type RatesState = {
 };
 
 /**
- * Type definition for BtcRateController state change events.
+ * Type definition for RatesController state change events.
  */
 export type RatesStateChange = ControllerStateChangeEvent<
   typeof ratesControllerName,
