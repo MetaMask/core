@@ -68,8 +68,6 @@ describe('TokenRatesController', () => {
         tokenPricesService: buildMockTokenPricesService(),
       });
       expect(controller.state).toStrictEqual({
-        contractExchangeRates: {},
-        contractExchangeRatesByChainId: {},
         marketData: {},
       });
     });
@@ -1448,15 +1446,6 @@ describe('TokenRatesController', () => {
           await advanceTime({ clock, duration: 0 });
 
           expect(controller.state).toStrictEqual({
-            contractExchangeRates: {},
-            contractExchangeRatesByChainId: {
-              '0x1': {
-                ETH: {
-                  '0x02': 0.001,
-                  '0x03': 0.002,
-                },
-              },
-            },
             marketData: {
               '0x1': {
                 '0x02': {
@@ -1748,16 +1737,6 @@ describe('TokenRatesController', () => {
         });
 
         expect(controller.state).toStrictEqual({
-          contractExchangeRates: {
-            '0x0000000000000000000000000000000000000000': undefined,
-          },
-          contractExchangeRatesByChainId: {
-            '0x1': {
-              ETH: {
-                '0x0000000000000000000000000000000000000000': undefined,
-              },
-            },
-          },
           marketData: {
             '0x1': {
               '0x0000000000000000000000000000000000000000': { currency: 'ETH' },
@@ -1914,18 +1893,6 @@ describe('TokenRatesController', () => {
 
           expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "contractExchangeRates": Object {
-              "0x0000000000000000000000000000000000000001": 0.001,
-              "0x0000000000000000000000000000000000000002": 0.002,
-            },
-            "contractExchangeRatesByChainId": Object {
-              "0x1": Object {
-                "ETH": Object {
-                  "0x0000000000000000000000000000000000000001": 0.001,
-                  "0x0000000000000000000000000000000000000002": 0.002,
-                },
-              },
-            },
             "marketData": Object {
               "0x1": Object {
                 "0x0000000000000000000000000000000000000001": Object {
@@ -1998,15 +1965,6 @@ describe('TokenRatesController', () => {
 
             expect(controller.state).toMatchInlineSnapshot(`
             Object {
-              "contractExchangeRates": Object {},
-              "contractExchangeRatesByChainId": Object {
-                "0x2": Object {
-                  "ETH": Object {
-                    "0x0000000000000000000000000000000000000001": 0.001,
-                    "0x0000000000000000000000000000000000000002": 0.002,
-                  },
-                },
-              },
               "marketData": Object {
                 "0x2": Object {
                   "0x0000000000000000000000000000000000000001": Object {
@@ -2106,18 +2064,6 @@ describe('TokenRatesController', () => {
           // token value in terms of matic should be (token value in eth) * (eth value in matic)
           expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "contractExchangeRates": Object {
-              "0x0000000000000000000000000000000000000001": 0.0005,
-              "0x0000000000000000000000000000000000000002": 0.001,
-            },
-            "contractExchangeRatesByChainId": Object {
-              "0x89": Object {
-                "UNSUPPORTED": Object {
-                  "0x0000000000000000000000000000000000000001": 0.0005,
-                  "0x0000000000000000000000000000000000000002": 0.001,
-                },
-              },
-            },
             "marketData": Object {
               "0x89": Object {
                 "0x0000000000000000000000000000000000000001": Object {
@@ -2280,18 +2226,6 @@ describe('TokenRatesController', () => {
 
           expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "contractExchangeRates": Object {
-              "0x0000000000000000000000000000000000000001": undefined,
-              "0x0000000000000000000000000000000000000002": undefined,
-            },
-            "contractExchangeRatesByChainId": Object {
-              "0x3e7": Object {
-                "TST": Object {
-                  "0x0000000000000000000000000000000000000001": undefined,
-                  "0x0000000000000000000000000000000000000002": undefined,
-                },
-              },
-            },
             "marketData": Object {
               "0x3e7": Object {
                 "0x0000000000000000000000000000000000000001": undefined,
@@ -2361,18 +2295,6 @@ describe('TokenRatesController', () => {
 
           expect(controller.state).toMatchInlineSnapshot(`
           Object {
-            "contractExchangeRates": Object {
-              "0x0000000000000000000000000000000000000001": 0.001,
-              "0x0000000000000000000000000000000000000002": 0.002,
-            },
-            "contractExchangeRatesByChainId": Object {
-              "0x1": Object {
-                "ETH": Object {
-                  "0x0000000000000000000000000000000000000001": 0.001,
-                  "0x0000000000000000000000000000000000000002": 0.002,
-                },
-              },
-            },
             "marketData": Object {
               "0x1": Object {
                 "0x0000000000000000000000000000000000000001": Object {
