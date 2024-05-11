@@ -183,12 +183,15 @@ export class ERC721Standard {
       throw new Error("This isn't a valid ERC721 contract");
     }
 
+    console.log('721')
+    console.log(address, tokenId)
+
     const [symbol, name, tokenURI] = await Promise.all([
       safelyExecute(() => this.getAssetSymbol(address)),
       safelyExecute(() => this.getAssetName(address)),
       tokenId
         ? safelyExecute(() =>
-            this.getTokenURI(address, tokenId).then((uri) =>
+            this.getTokenURI(address, tokenId).then((uri) => 
               uri.startsWith('ipfs://')
                 ? getFormattedIpfsUrl(ipfsGateway, uri, true)
                 : uri,
