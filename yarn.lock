@@ -1536,7 +1536,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@keystonehq/bc-ur-registry-eth@npm:^0.19.1":
+"@keystonehq/bc-ur-registry-eth@npm:^0.19.0, @keystonehq/bc-ur-registry-eth@npm:^0.19.1":
   version: 0.19.1
   resolution: "@keystonehq/bc-ur-registry-eth@npm:0.19.1"
   dependencies:
@@ -1545,29 +1545,6 @@ __metadata:
     hdkey: ^2.0.1
     uuid: ^8.3.2
   checksum: 51ca3ac78e68bec6b8ba1f1b938734fb7442f8b7b67f1befb8465d3b52ba1254fd5a0cf9f85825ab6a144b1c677cd6efb40a35fe4933f0e2df1fd5c4dda3c2fa
-  languageName: node
-  linkType: hard
-
-"@keystonehq/bc-ur-registry-eth@npm:^0.9.0":
-  version: 0.9.1
-  resolution: "@keystonehq/bc-ur-registry-eth@npm:0.9.1"
-  dependencies:
-    "@keystonehq/bc-ur-registry": ^0.5.0-alpha.5
-    ethereumjs-util: ^7.0.8
-    hdkey: ^2.0.1
-    uuid: ^8.3.2
-  checksum: 7fe8db26767a466e31cb3e48c0943823fae85c83b0390d130bec82ec4e7cd0a39eb72f33a0efb45bbe51541f4d758087e2009ee105ac35b43b0fc8826ec99d40
-  languageName: node
-  linkType: hard
-
-"@keystonehq/bc-ur-registry@npm:^0.5.0-alpha.5":
-  version: 0.5.5
-  resolution: "@keystonehq/bc-ur-registry@npm:0.5.5"
-  dependencies:
-    "@ngraveio/bc-ur": ^1.1.5
-    bs58check: ^2.1.2
-    tslib: ^2.3.0
-  checksum: 0b2dc1dde95caa5f46f2a75bb0062dd7f3fea0a3015a3dde0a8b228e0f5d03d886ca340605911ddfeee5952b50b4186128fd3031a1cc33cc489c0ab134cc65bc
   languageName: node
   linkType: hard
 
@@ -2412,7 +2389,7 @@ __metadata:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
     "@ethereumjs/util": ^8.1.0
-    "@keystonehq/bc-ur-registry-eth": ^0.9.0
+    "@keystonehq/bc-ur-registry-eth": ^0.19.0
     "@keystonehq/metamask-airgapped-keyring": ^0.14.1
     "@lavamoat/allow-scripts": ^3.0.2
     "@metamask/auto-changelog": ^3.4.4
@@ -6496,7 +6473,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ethereumjs-util@npm:^7.0.8, ethereumjs-util@npm:^7.1.2":
+"ethereumjs-util@npm:^7.1.2":
   version: 7.1.5
   resolution: "ethereumjs-util@npm:7.1.5"
   dependencies:
