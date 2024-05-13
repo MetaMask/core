@@ -1453,8 +1453,8 @@ __metadata:
   linkType: hard
 
 "@metamask/gas-fee-controller@npm:^15.1.0":
-  version: 15.1.1
-  resolution: "@metamask/gas-fee-controller@npm:15.1.1"
+  version: 15.1.2
+  resolution: "@metamask/gas-fee-controller@npm:15.1.2"
   dependencies:
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
@@ -1469,7 +1469,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/network-controller": ^18.0.0
-  checksum: 0014e4c7e60c5a871bb1e421fd4b099538ed016e3442af0407dfe0ef6a90fac128f0da3637179fe34dd904c41b47b988e23e279a9b69cc958c469c62423a5440
+  checksum: 5114d63466e0e26f48cd4f1254beb5eedcb6247467e6d0207a47f8617f971904767d00b70485972ee3411716b2f11b97fe015f952de63996fb3cf4582b7690a3
   languageName: node
   linkType: hard
 
