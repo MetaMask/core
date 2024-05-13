@@ -42,10 +42,6 @@ export class RatesController extends BaseController<
 
   readonly #fetchMultiExchangeRate;
 
-  readonly #onStart;
-
-  readonly #onStop;
-
   readonly #includeUsdRate;
 
   #intervalId: NodeJS.Timeout | undefined;
@@ -61,8 +57,6 @@ export class RatesController extends BaseController<
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
    * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
-   * @param options.onStart - Optional callback to be executed when the polling stops.
-   * @param options.onStop - Optional callback to be executed when the polling starts.
    */
   constructor({
     interval = 180000,
@@ -70,8 +64,6 @@ export class RatesController extends BaseController<
     state,
     includeUsdRate,
     fetchMultiExchangeRate = defaultFetchExchangeRate,
-    onStart,
-    onStop,
   }: RatesControllerArgs) {
     super({
       name,
@@ -81,8 +73,6 @@ export class RatesController extends BaseController<
     });
     this.#includeUsdRate = includeUsdRate;
     this.#fetchMultiExchangeRate = fetchMultiExchangeRate;
-    this.#onStart = onStart;
-    this.#onStop = onStop;
     this.#setIntervalLength(interval);
   }
 
@@ -144,7 +134,8 @@ export class RatesController extends BaseController<
       return;
     }
 
-    await this.#onStart?.();
+    this.messagingSystem.publish(`${name}:startPolling`);
+
     this.#intervalId = setInterval(() => {
       this.#executePoll().catch(console.error);
     }, this.#intervalLength);
@@ -160,7 +151,7 @@ export class RatesController extends BaseController<
 
     clearInterval(this.#intervalId);
     this.#intervalId = undefined;
-    await this.#onStop?.();
+    this.messagingSystem.publish(`${name}:stopPolling`);
   }
 
   getCryptocurrencyList(): string[] {

@@ -38,15 +38,28 @@ export type RatesState = {
 /**
  * Type definition for BtcRateController state change events.
  */
-export type RatesStateChange = ControllerStateChangeEvent<
+export type RatesControllerStateChange = ControllerStateChangeEvent<
   typeof ratesControllerName,
   RatesState
 >;
 
+export type RatesControllerStartPolling = {
+  type: `${typeof ratesControllerName}:startPolling`;
+  payload: [];
+};
+
+export type RatesControllerStopPolling = {
+  type: `${typeof ratesControllerName}:stopPolling`;
+  payload: [];
+};
+
 /**
  * Defines the events that the RatesController can emit.
  */
-export type RatesControllerEvents = RatesStateChange;
+export type RatesControllerEvents =
+  | RatesControllerStateChange
+  | RatesControllerStartPolling
+  | RatesControllerStopPolling;
 
 export type GetRatesState = ControllerGetStateAction<
   typeof ratesControllerName,
@@ -85,6 +98,4 @@ export type RatesControllerArgs = {
   messenger: RatesMessenger;
   state?: Partial<RatesState>;
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
-  onStart?: () => Promise<unknown>;
-  onStop?: () => Promise<unknown>;
 };

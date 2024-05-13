@@ -60,8 +60,6 @@ function buildRatesControllerMessenger(
  * @param config.messenger - ControllerMessenger instance.
  * @param config.includeUsdRate - Indicates if the USD rate should be included.
  * @param config.fetchMultiExchangeRate - Callback to fetch rates data.
- * @param config.onStart - Optional method to be executed when the polling starts.
- * @param config.onStop - Optional method to be executed when the polling stops.
  * @returns A new instance of RatesController.
  */
 function setupRatesController({
@@ -69,15 +67,11 @@ function setupRatesController({
   messenger,
   includeUsdRate,
   fetchMultiExchangeRate,
-  onStart,
-  onStop,
 }: {
   initialState: Partial<RatesState>;
   messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>;
   includeUsdRate?: boolean;
   fetchMultiExchangeRate: typeof defaultFetchExchangeRate;
-  onStart?: () => Promise<unknown>;
-  onStop?: () => Promise<unknown>;
 }) {
   const ratesControllerMessenger = buildRatesControllerMessenger(messenger);
   return new RatesController({
@@ -86,8 +80,6 @@ function setupRatesController({
     state: initialState,
     includeUsdRate,
     fetchMultiExchangeRate,
-    onStart,
-    onStop,
   });
 }
 
@@ -201,7 +193,6 @@ describe('RatesController', () => {
         messenger: buildMessenger(),
         includeUsdRate: true,
         fetchMultiExchangeRate: fetchExchangeRateStub,
-        onStart: onStartStub,
       });
 
       await ratesController.start();
@@ -210,7 +201,6 @@ describe('RatesController', () => {
 
       const { rates } = ratesController.state;
       expect(fetchExchangeRateStub).toHaveBeenCalled();
-      expect(onStartStub).toHaveBeenCalled();
       expect(rates).toStrictEqual({
         btc: {
           conversionDate: MOCK_TIMESTAMP,
@@ -243,12 +233,10 @@ describe('RatesController', () => {
 
     it('stops the polling process', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
-      const onStopStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
-        onStop: onStopStub,
       });
 
       await ratesController.start();
@@ -258,8 +246,6 @@ describe('RatesController', () => {
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
       await ratesController.stop();
-
-      expect(onStopStub).toHaveBeenCalled();
 
       await advanceTime({ clock, duration: 200 });
 
