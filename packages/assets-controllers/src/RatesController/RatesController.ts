@@ -159,13 +159,18 @@ export class RatesController extends BaseController<
     return cryptocurrencyList;
   }
 
-  setCryptocurrencyList(list: string[]): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        cryptocurrencyList: list,
-      };
-    });
+  async setCryptocurrencyList(list: string[]): Promise<void> {
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      this.update(() => {
+        return {
+          ...this.state,
+          cryptocurrencyList: list,
+        };
+      });
+    } finally {
+      releaseLock();
+    }
   }
 
   async setCurrency(currency: string) {
