@@ -60,9 +60,11 @@ export {
 } from './token-prices-service';
 export { RatesController } from './RatesController';
 export type {
-  RatesState,
-  RatesStateChange,
+  RatesControllerState,
   RatesControllerEvents,
-  GetRatesState,
   RatesControllerActions,
+  RatesControllerGetStateAction,
+  RatesControllerStopPollingEvent,
+  RatesControllerStateChangeEvent,
+  RatesControllerStartPollingEvent,
 } from './RatesController';

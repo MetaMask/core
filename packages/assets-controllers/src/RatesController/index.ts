@@ -1,8 +1,10 @@
 export { RatesController } from './RatesController';
 export type {
-  RatesState,
-  RatesStateChange,
+  RatesControllerState,
   RatesControllerEvents,
-  GetRatesState,
   RatesControllerActions,
+  RatesControllerGetStateAction,
+  RatesControllerStopPollingEvent,
+  RatesControllerStateChangeEvent,
+  RatesControllerStartPollingEvent,
 } from './types';
