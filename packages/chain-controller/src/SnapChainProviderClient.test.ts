@@ -6,41 +6,48 @@ import type { Json } from '@metamask/utils';
 import { SnapChainProviderClient } from './SnapChainProviderClient';
 import { SnapHandlerClient } from './SnapHandlerClient';
 
-describe('SnapChainProviderClient', () => {
-  const handleRequest = jest.fn();
+const snapId = 'local:localhost:3000' as SnapId;
 
-  const snapId = 'local:localhost:3000' as SnapId;
-  const snapController = {
-    handleRequest,
+/**
+ * Builds a Snap chain API request.
+ *
+ * @param options0 - Chain API request object.
+ * @param options0.method - Chain API method to be called.
+ * @param options0.params - Chain API parameters.
+ * @returns The Snap chain API request object.
+ */
+function makeRequest({ method, params }: { method: string; params: Json }) {
+  return {
+    snapId,
+    origin: 'metamask',
+    handler: HandlerType.OnRpcRequest,
+    request: {
+      id: expect.any(String),
+      jsonrpc: '2.0',
+      method,
+      params,
+    },
   };
-  const snapClient = new SnapHandlerClient({
-    handler: handleRequest,
+}
+
+/**
+ * Constructs a Snap handler client.
+ *
+ * @param handler - Snap request handler
+ * @returns A Snap handler client.
+ */
+function getSnapHandlerClient(handler: jest.Mock) {
+  return new SnapHandlerClient({
+    handler,
     snapId,
   });
+}
 
-  const makeRequest = ({
-    method,
-    params,
-  }: {
-    method: string;
-    params: Json;
-  }) => {
-    return {
-      snapId,
-      origin: 'metamask',
-      handler: HandlerType.OnRpcRequest,
-      request: {
-        id: expect.any(String),
-        jsonrpc: '2.0',
-        method,
-        params,
-      },
-    };
-  };
-
+describe('SnapChainProviderClient', () => {
   describe('getBalances', () => {
     it('dispatch chain_getBalances', async () => {
-      const client = new SnapChainProviderClient(snapClient);
+      const handler = jest.fn();
+      const client = new SnapChainProviderClient(getSnapHandlerClient(handler));
       const address = 'bc1qrp0yzgkf8rawkuvdlhnjfj2fnjwm0m8727kgah';
       const scope = 'bip122:000000000019d6689c085ae165831e93';
       const asset = `${scope}/asset:0`;
@@ -61,11 +68,11 @@ describe('SnapChainProviderClient', () => {
           },
         },
       };
-      snapController.handleRequest.mockResolvedValue(response);
+      handler.mockResolvedValue(response);
 
       const result = await client.getBalances(scope, [address], [asset]);
 
-      expect(snapController.handleRequest).toHaveBeenCalledWith(request);
+      expect(handler).toHaveBeenCalledWith(request);
       expect(result).toStrictEqual(response);
     });
   });
