@@ -11,7 +11,7 @@ import type {
   RatesControllerActions,
   RatesControllerEvents,
   RatesMessenger,
-  RatesState,
+  RatesControllerState,
 } from './types';
 
 const MOCK_TIMESTAMP = 1709983353;
@@ -68,7 +68,7 @@ function setupRatesController({
   includeUsdRate,
   fetchMultiExchangeRate,
 }: {
-  initialState: Partial<RatesState>;
+  initialState: Partial<RatesControllerState>;
   messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>;
   includeUsdRate?: boolean;
   fetchMultiExchangeRate: typeof defaultFetchExchangeRate;
@@ -99,11 +99,11 @@ describe('RatesController', () => {
         includeUsdRate: false,
         fetchMultiExchangeRate: fetchExchangeRateStub,
       });
-      const { currency, rates, cryptocurrencyList } = ratesController.state;
+      const { currency, rates, fromCurrencies } = ratesController.state;
       expect(ratesController).toBeDefined();
       expect(currency).toBe('usd');
       expect(Object.keys(rates)).toStrictEqual(['btc']);
-      expect(cryptocurrencyList).toStrictEqual(['btc']);
+      expect(fromCurrencies).toStrictEqual(['btc']);
     });
   });
 
@@ -183,11 +183,10 @@ describe('RatesController', () => {
           },
         });
       });
-      const onStartStub = jest.fn().mockResolvedValue({});
 
       const ratesController = setupRatesController({
         initialState: {
-          cryptocurrencyList: ['btc', 'sol', 'strk'],
+          fromCurrencies: ['btc', 'sol', 'strk'],
           currency: 'eur',
         },
         messenger: buildMessenger(),
@@ -259,7 +258,7 @@ describe('RatesController', () => {
       const mockCryptocurrencyList = ['btc', 'sol', 'strk'];
       const ratesController = setupRatesController({
         initialState: {
-          cryptocurrencyList: mockCryptocurrencyList,
+          fromCurrencies: mockCryptocurrencyList,
         },
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
