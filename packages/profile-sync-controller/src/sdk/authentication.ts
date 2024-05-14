@@ -61,7 +61,7 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   async pairIdentifiers(
     pairing: Pair[],
     signMessage: (message: string) => Promise<string>,
-  ) {
+  ): Promise<void> {
     const profile = await this.getUserProfile();
     const n = await getNonce(profile.profileId, this.#env);
     const logins = await Promise.all(
@@ -78,7 +78,7 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     );
 
     const accessToken = await this.getAccessToken();
-    await pairIdentifiers(n.nonce, logins, accessToken, this.#env);
+    return pairIdentifiers(n.nonce, logins, accessToken, this.#env);
   }
 
   prepare(signer: {
