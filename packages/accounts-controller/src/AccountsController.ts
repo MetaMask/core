@@ -31,7 +31,7 @@ const controllerName = 'AccountsController';
 export type AccountsControllerState = {
   internalAccounts: {
     accounts: Record<string, InternalAccount>;
-    selectedAccount: string; // id of the selected account
+    selectedAccount: string;
   };
 };
 
@@ -308,7 +308,21 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] = internalAccount;
+
+      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const oldState = JSON.parse(JSON.stringify(currentState));
+
+      const newState: AccountsControllerState = {
+        internalAccounts: {
+          ...oldState.internalAccounts,
+          accounts: {
+            ...oldState.internalAccounts.accounts,
+            [accountId]: internalAccount,
+          },
+        },
+      };
+
+      return newState;
     });
   }
 
@@ -369,8 +383,15 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+      const newState: AccountsControllerState = {
+        ...currentState,
+        internalAccounts: {
+          selectedAccount: currentState.internalAccounts.selectedAccount,
+          accounts,
+        },
+      };
+
+      return newState;
     });
   }
 
@@ -381,9 +402,11 @@ export class AccountsController extends BaseController<
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
+      this.update(() => {
+        const newState: AccountsControllerState = {
+          internalAccounts: backup.internalAccounts,
+        };
+        return newState;
       });
     }
   }
@@ -767,17 +790,29 @@ export class AccountsController extends BaseController<
     const accountName = `${accountPrefix} ${indexToUse}`;
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
-        ...newAccount,
-        metadata: {
-          ...newAccount.metadata,
-          name: accountName,
-          importTime: Date.now(),
-          lastSelected: Date.now(),
+      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const oldState = JSON.parse(JSON.stringify(currentState));
+
+      const newState: AccountsControllerState = {
+        ...oldState,
+        internalAccounts: {
+          ...oldState.internalAccounts,
+          accounts: {
+            ...oldState.internalAccounts.accounts,
+            [newAccount.id]: {
+              ...newAccount,
+              metadata: {
+                ...newAccount.metadata,
+                name: accountName,
+                importTime: Date.now(),
+                lastSelected: Date.now(),
+              },
+            },
+          },
         },
       };
+
+      return newState;
     });
 
     this.setSelectedAccount(newAccount.id);

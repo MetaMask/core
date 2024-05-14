@@ -59,7 +59,7 @@ export const createMockInternalAccount = ({
       methods = [BtcMethod.SendMany];
       break;
     default:
-      methods = [] as EthMethod[];
+      throw new Error(`Unknown account type: ${type as string}`);
   }
 
   return {

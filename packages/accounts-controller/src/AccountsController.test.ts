@@ -145,6 +145,8 @@ class MockNormalAccountUUID {
  * @param props.keyringType - The type of the keyring associated with the account.
  * @param props.snapId - The id of the snap.
  * @param props.snapEnabled - The status of the snap
+ * @param props.lastSelected - The last selected time of the account.
+ * @param props.importTime - The import time of the account.
  * @returns The `InternalAccount` object created from the normal account properties.
  */
 function createExpectedInternalAccount({
@@ -154,6 +156,8 @@ function createExpectedInternalAccount({
   keyringType,
   snapId,
   snapEnabled = true,
+  importTime,
+  lastSelected,
 }: {
   id: string;
   name: string;
@@ -161,6 +165,8 @@ function createExpectedInternalAccount({
   keyringType: string;
   snapId?: string;
   snapEnabled?: boolean;
+  importTime?: number;
+  lastSelected?: number;
 }): InternalAccount {
   const account: InternalAccount = {
     id,
@@ -171,10 +177,8 @@ function createExpectedInternalAccount({
     metadata: {
       name,
       keyring: { type: keyringType },
-      importTime: expect.any(Number),
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      lastSelected: undefined,
+      importTime: importTime || expect.any(Number),
+      lastSelected: lastSelected || undefined,
     },
   };
 
@@ -703,6 +707,8 @@ describe('AccountsController', () => {
           name: 'Custom Name',
           address: mockAccount2.address,
           keyringType: KeyringTypes.hd,
+          importTime: 1955565967656,
+          lastSelected: 1955565967656,
         });
 
         const mockNewKeyringState = {

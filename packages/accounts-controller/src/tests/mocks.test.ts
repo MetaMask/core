@@ -1,4 +1,4 @@
-import { EthAccountType } from '@metamask/keyring-api';
+import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
 
 import { createMockInternalAccount } from './mocks';
 
@@ -48,5 +48,30 @@ describe('createMockInternalAccount', () => {
         snap: customSnap,
       },
     });
+  });
+
+  it('should create a nonevm account', () => {
+    const account = createMockInternalAccount({ type: BtcAccountType.P2wpkh });
+    expect(account).toStrictEqual({
+      id: expect.any(String),
+      address: expect.any(String),
+      type: BtcAccountType.P2wpkh,
+      options: expect.any(Object),
+      methods: expect.any(Array),
+      metadata: {
+        name: expect.any(String),
+        keyring: { type: expect.any(String) },
+        importTime: expect.any(Number),
+        lastSelected: expect.any(Number),
+        snap: undefined,
+      },
+    });
+  });
+
+  it('will throw if an unknown account type was passed', () => {
+    // @ts-expect-error testing unknown account type
+    expect(() => createMockInternalAccount({ type: 'unknown' })).toThrow(
+      'Unknown account type: unknown',
+    );
   });
 });
