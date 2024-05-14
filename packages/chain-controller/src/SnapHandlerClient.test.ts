@@ -4,15 +4,12 @@ import { HandlerType } from '@metamask/snaps-utils';
 
 import { SnapHandlerClient } from './SnapHandlerClient';
 
+const snapId = 'local:localhost:3000' as SnapId;
+
 describe('SnapHandlerClient', () => {
-  const handleRequest = jest.fn();
-
-  const snapId = 'local:localhost:3000' as SnapId;
-  const snapController = {
-    handleRequest,
-  } as unknown as SnapController;
-
   describe('submitRequest', () => {
+    const method = 'chain_method';
+    const params = {};
     const request = {
       snapId,
       origin: 'metamask',
@@ -20,50 +17,50 @@ describe('SnapHandlerClient', () => {
       request: {
         id: expect.any(String),
         jsonrpc: '2.0',
-        method: 'chain_method',
-        params: {},
+        method,
+        params,
       },
     };
-
     const response = {
       success: true,
     };
 
-    const { method, params } = request.request;
-
     it('should call a method and return the result', async () => {
+      const handler = jest.fn();
       const client = new SnapHandlerClient({
-        handler: snapController.handleRequest,
+        handler,
         snapId,
       });
 
-      handleRequest.mockResolvedValue(response);
+      handler.mockResolvedValue(response);
       const accounts = await client.submitRequest(method, params);
-      expect(snapController.handleRequest).toHaveBeenCalledWith(request);
+      expect(handler).toHaveBeenCalledWith(request);
       expect(accounts).toStrictEqual(response);
     });
 
     it('should call a method and return the result (withSnapId)', async () => {
+      const handler = jest.fn();
       const client = new SnapHandlerClient({
-        handler: snapController.handleRequest,
+        handler,
       });
 
-      handleRequest.mockResolvedValue(response);
+      handler.mockResolvedValue(response);
       const accounts = await client
         .withSnapId(snapId)
         .submitRequest(method, params);
-      expect(snapController.handleRequest).toHaveBeenCalledWith(request);
+      expect(handler).toHaveBeenCalledWith(request);
       expect(accounts).toStrictEqual(response);
     });
 
     it('should call the default snapId value ("undefined")', async () => {
+      const handler = jest.fn();
       const client = new SnapHandlerClient({
-        handler: snapController.handleRequest,
+        handler,
       });
 
-      handleRequest.mockResolvedValue(response);
+      handler.mockResolvedValue(response);
       await client.submitRequest(method, params);
-      expect(handleRequest).toHaveBeenCalledWith({
+      expect(handler).toHaveBeenCalledWith({
         ...request,
         snapId: 'undefined',
       });
