@@ -38,7 +38,7 @@ export type RatesControllerState = {
   /**
    * A list of supported cryptocurrency symbols.
    */
-  cryptocurrencyList: string[];
+  fromCurrencies: string[];
 };
 
 /**

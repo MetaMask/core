@@ -20,7 +20,7 @@ const DEFAULT_INTERVAL = 180000;
 const metadata = {
   currency: { persist: true, anonymous: true },
   rates: { persist: true, anonymous: true },
-  cryptocurrencyList: { persist: true, anonymous: true },
+  fromCurrencies: { persist: true, anonymous: true },
 };
 
 const defaultState = {
@@ -32,7 +32,7 @@ const defaultState = {
       usdConversionRate: null,
     },
   },
-  cryptocurrencyList: [DEFAULT_CURRENCIES.btc],
+  fromCurrencies: [DEFAULT_CURRENCIES.btc],
 };
 
 export class RatesController extends BaseController<
@@ -83,12 +83,12 @@ export class RatesController extends BaseController<
    */
   async updateRates(): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
-    const { currency, cryptocurrencyList } = this.state;
+    const { currency, fromCurrencies } = this.state;
 
     try {
       const response = await this.#fetchMultiExchangeRate(
         currency,
-        cryptocurrencyList,
+        fromCurrencies,
         this.#includeUsdRate,
       );
 
@@ -148,8 +148,8 @@ export class RatesController extends BaseController<
   }
 
   getCryptocurrencyList(): string[] {
-    const { cryptocurrencyList } = this.state;
-    return cryptocurrencyList;
+    const { fromCurrencies } = this.state;
+    return fromCurrencies;
   }
 
   async setCryptocurrencyList(list: string[]): Promise<void> {
@@ -158,7 +158,7 @@ export class RatesController extends BaseController<
       this.update(() => {
         return {
           ...this.state,
-          cryptocurrencyList: list,
+          fromCurrencies: list,
         };
       });
     } finally {
