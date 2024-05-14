@@ -96,7 +96,7 @@ export class RatesController extends BaseController<
   }
 
   /**
-   * Updates the BTC rates by fetching new data.
+   * Updates the rates by fetching new data.
    */
   async updateRates(): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
