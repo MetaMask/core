@@ -9,7 +9,7 @@ const snapId = 'local:localhost:3000' as SnapId;
 
 const address = 'bc1qrp0yzgkf8rawkuvdlhnjfj2fnjwm0m8727kgah';
 const scope = 'bip122:000000000019d6689c085ae165831e93';
-const asset = `${scope}/asset:0`;
+const asset = `${scope}/slip44:0`;
 
 const name = 'ChainController';
 
