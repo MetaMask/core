@@ -168,7 +168,7 @@ export class RatesController extends BaseController<
 
   async setCurrency(currency: string) {
     if (currency === '') {
-      throw new Error("The currency can't be an empty string");
+      throw new Error('The currency can not be an empty string');
     }
     const releaseLock = await this.#mutex.acquire();
     try {

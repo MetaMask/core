@@ -118,18 +118,23 @@ describe('RatesController', () => {
     });
 
     it('starts the polling process with default values', async () => {
+      const messenger = buildMessenger();
+      const publishActionSpy = jest.spyOn(messenger, 'publish');
+
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockRateValue = 62235.48;
+      const mockRateValue = 57715.42;
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
-            usd: mockRateValue,
+            eur: mockRateValue,
           },
         });
       });
       const ratesController = setupRatesController({
-        initialState: {},
-        messenger: buildMessenger(),
+        initialState: {
+          currency: 'eur',
+        },
+        messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
       });
 
@@ -145,18 +150,32 @@ describe('RatesController', () => {
 
       await ratesController.start();
 
+      expect(publishActionSpy).toHaveBeenNthCalledWith(
+        1,
+        `${ratesControllerName}:startPolling`,
+      );
+
       await advanceTime({ clock, duration: 200 });
 
       const ratesPosUpdate = ratesController.state.rates;
 
+      // checks for the RatesController:stateChange event
+      expect(publishActionSpy).toHaveBeenCalledTimes(2);
       expect(fetchExchangeRateStub).toHaveBeenCalled();
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
           conversionDate: MOCK_TIMESTAMP,
           conversionRate: mockRateValue,
-          usdConversionRate: mockRateValue,
+          usdConversionRate: null,
         },
       });
+
+      await ratesController.start();
+
+      // since the polling has already started
+      // a second call to the start method should
+      // return immediately and no extra logic is executed
+      expect(publishActionSpy).not.toHaveBeenNthCalledWith(3);
     });
 
     it('starts the polling process with custom values', async () => {
@@ -231,14 +250,21 @@ describe('RatesController', () => {
     });
 
     it('stops the polling process', async () => {
+      const messenger = buildMessenger();
+      const publishActionSpy = jest.spyOn(messenger, 'publish');
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
         initialState: {},
-        messenger: buildMessenger(),
+        messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
       });
 
       await ratesController.start();
+
+      expect(publishActionSpy).toHaveBeenNthCalledWith(
+        1,
+        `${ratesControllerName}:startPolling`,
+      );
 
       await advanceTime({ clock, duration: 200 });
 
@@ -246,9 +272,25 @@ describe('RatesController', () => {
 
       await ratesController.stop();
 
+      // check the 3rd call since the 2nd one is for the
+      // event stateChange
+      expect(publishActionSpy).toHaveBeenNthCalledWith(
+        3,
+        `${ratesControllerName}:stopPolling`,
+      );
+
       await advanceTime({ clock, duration: 200 });
 
       expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
+
+      await ratesController.stop();
+
+      // check if the stop method is called again, it returns early
+      // and no extra logic is executed
+      expect(publishActionSpy).not.toHaveBeenNthCalledWith(
+        4,
+        `${ratesControllerName}:stopPolling`,
+      );
     });
   });
 
@@ -308,6 +350,19 @@ describe('RatesController', () => {
 
       const currencyPostUpdate = ratesController.state.currency;
       expect(currencyPostUpdate).toBe('eur');
+    });
+
+    it('throws if input is an empty string', async () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const ratesController = setupRatesController({
+        initialState: {},
+        messenger: buildMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+      });
+
+      await expect(ratesController.setCurrency('')).rejects.toThrow(
+        'The currency can not be an empty string',
+      );
     });
   });
 });

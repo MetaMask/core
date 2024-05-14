@@ -171,4 +171,26 @@ describe('CryptoCompare', () => {
       sol: { cad: 4000.42, usd: 3000.42 },
     });
   });
+
+  it('should not return USD value if not requested', async () => {
+    nock(cryptoCompareHost)
+      .get('/data/pricemulti?fsyms=BTC,ETH,SOL&tsyms=EUR')
+      .reply(200, {
+        BTC: { EUR: 1000 },
+        ETH: { EUR: 2000 },
+        SOL: { EUR: 3000 },
+      });
+
+    const response = await fetchMultiExchangeRate(
+      'EUR',
+      ['BTC', 'ETH', 'SOL'],
+      false,
+    );
+
+    expect(response).toStrictEqual({
+      btc: { eur: 1000, usd: null },
+      eth: { eur: 2000, usd: null },
+      sol: { eur: 3000, usd: null },
+    });
+  });
 });
