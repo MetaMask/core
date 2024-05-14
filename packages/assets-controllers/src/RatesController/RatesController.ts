@@ -15,6 +15,8 @@ const DEFAULT_CURRENCIES = {
   btc: 'btc',
 };
 
+const DEFAULT_INTERVAL = 180000;
+
 const metadata = {
   currency: { persist: true, anonymous: true },
   rates: { persist: true, anonymous: true },
@@ -59,7 +61,7 @@ export class RatesController extends BaseController<
    * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    */
   constructor({
-    interval = 180000,
+    interval = DEFAULT_INTERVAL,
     messenger,
     state,
     includeUsdRate,
