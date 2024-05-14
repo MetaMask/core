@@ -3,10 +3,10 @@ import { Mutex } from 'async-mutex';
 
 import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import type {
-  ConversionRates,
-  RatesState,
   RatesMessenger,
-  RatesControllerArgs,
+  ConversionRates,
+  RatesControllerState,
+  RatesControllerOptions,
 } from './types';
 
 export const name = 'RatesController';
@@ -37,7 +37,7 @@ const defaultState = {
 
 export class RatesController extends BaseController<
   typeof name,
-  RatesState,
+  RatesControllerState,
   RatesMessenger
 > {
   readonly #mutex = new Mutex();
@@ -66,7 +66,7 @@ export class RatesController extends BaseController<
     state,
     includeUsdRate,
     fetchMultiExchangeRate = defaultFetchExchangeRate,
-  }: RatesControllerArgs) {
+  }: RatesControllerOptions) {
     super({
       name,
       metadata,
