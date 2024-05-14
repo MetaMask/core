@@ -73,16 +73,7 @@ export class RatesController extends BaseController<
     });
     this.#includeUsdRate = includeUsdRate;
     this.#fetchMultiExchangeRate = fetchMultiExchangeRate;
-    this.#setIntervalLength(interval);
-  }
-
-  /**
-   * Sets the interval length for polling.
-   *
-   * @param intervalLength - The length of the interval in milliseconds.
-   */
-  #setIntervalLength(intervalLength: number) {
-    this.#intervalLength = intervalLength;
+    this.#intervalLength = interval;
   }
 
   /**
