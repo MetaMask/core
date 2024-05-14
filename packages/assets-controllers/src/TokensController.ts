@@ -221,6 +221,7 @@ export class TokensController extends BaseControllerV1<
    * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
+   * Does not use patches when publishing `stateChange` event. (TODO: Remove this line once `TokensController` is upgraded to V2.)
    */
   constructor({
     chainId: initialChainId,
