@@ -270,7 +270,7 @@ describe('RatesController', () => {
   });
 
   describe('setCryptocurrencyList', () => {
-    it('updates the cryptocurrency list', () => {
+    it('updates the cryptocurrency list', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const mockCryptocurrencyList = ['btc', 'sol', 'strk'];
       const ratesController = setupRatesController({
@@ -283,7 +283,7 @@ describe('RatesController', () => {
         ratesController.getCryptocurrencyList();
       expect(cryptocurrencyListPreUpdate).toStrictEqual(['btc']);
 
-      ratesController.setCryptocurrencyList(mockCryptocurrencyList);
+      await ratesController.setCryptocurrencyList(mockCryptocurrencyList);
       const cryptocurrencyListPostUpdate =
         ratesController.getCryptocurrencyList();
       expect(cryptocurrencyListPostUpdate).toStrictEqual(
