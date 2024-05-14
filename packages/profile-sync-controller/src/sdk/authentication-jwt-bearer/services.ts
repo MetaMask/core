@@ -1,6 +1,11 @@
 import type { Env } from '../env';
 import { getEnvUrls, getOidcClientId } from '../env';
-import { NonceRetrievalError, SignInError, ValidationError } from '../errors';
+import {
+  NonceRetrievalError,
+  PairError,
+  SignInError,
+  ValidationError,
+} from '../errors';
 import type { AccessToken, ErrorMessage, UserProfile } from './types';
 import { AuthType } from './types';
 
@@ -86,7 +91,7 @@ export async function pairIdentifiers(
     /* istanbul ignore next */
     const errorMessage =
       e instanceof Error ? e.message : JSON.stringify(e ?? '');
-    throw new SignInError(`unable to pair identifiers: ${errorMessage}`);
+    throw new PairError(`unable to pair identifiers: ${errorMessage}`);
   }
 }
 

@@ -63,6 +63,7 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     signMessage: (message: string) => Promise<string>,
   ): Promise<void> {
     const profile = await this.getUserProfile();
+
     const n = await getNonce(profile.profileId, this.#env);
     const logins = await Promise.all(
       pairing.map(async (p) => {
