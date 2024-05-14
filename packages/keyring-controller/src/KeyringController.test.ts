@@ -1948,6 +1948,40 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('setPassword', () => {
+    [false, true].map((cacheEncryptionKey) =>
+      describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
+        it('should encrypt the vault with the new password', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, encryptor }) => {
+              const newPassword = 'new-password';
+              const spiedEncryptionFn = jest.spyOn(
+                encryptor,
+                cacheEncryptionKey ? 'encryptWithDetail' : 'encrypt',
+              );
+
+              await controller.setPassword(newPassword);
+
+              // we pick the first argument of the first call
+              expect(spiedEncryptionFn.mock.calls[0][0]).toBe(newPassword);
+            },
+          );
+        });
+      }),
+    );
+
+    it('should throw error if `isUnlocked` is false', async () => {
+      await withController({}, async ({ controller }) => {
+        await controller.setLocked();
+
+        await expect(controller.setPassword('')).rejects.toThrow(
+          KeyringControllerError.MissingCredentials,
+        );
+      });
+    });
+  });
+
   describe('submitPassword', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
