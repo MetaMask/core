@@ -61,7 +61,7 @@ export type RatesControllerEvents =
   | RatesControllerStartPollingEvent
   | RatesControllerStopPollingEvent;
 
-export type GetRatesState = ControllerGetStateAction<
+export type RatesControllerGetStateAction = ControllerGetStateAction<
   typeof ratesControllerName,
   RatesState
 >;
@@ -69,7 +69,7 @@ export type GetRatesState = ControllerGetStateAction<
 /**
  * Defines the actions that can be performed to get the state of the RatesController.
  */
-export type RatesControllerActions = GetRatesState;
+export type RatesControllerActions = RatesControllerGetStateAction;
 
 /**
  * Defines the actions that the RatesController can perform.
