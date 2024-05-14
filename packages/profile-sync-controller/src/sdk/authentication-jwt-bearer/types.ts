@@ -70,3 +70,9 @@ export type ErrorMessage = {
   message: string;
   error: string;
 };
+
+export type Pair = {
+  identifier: string;
+  encryptedStorageKey: string;
+  identifierType: 'SIWE' | 'SRP';
+};

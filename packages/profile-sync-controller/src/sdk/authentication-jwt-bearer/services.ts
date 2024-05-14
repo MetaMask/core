@@ -19,13 +19,6 @@ export const SRP_LOGIN_URL = (env: Env) =>
 export const SIWE_LOGIN_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
 
-export type Login = {
-  signature: string;
-  rawMessage: string;
-  encryptedStorageKey: string;
-  identifierType: 'SIWE' | 'SRP';
-};
-
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
     case AuthType.SRP:
@@ -46,32 +39,29 @@ type NonceResponse = {
   expiresIn: number;
 };
 
+type PairRequest = {
+  signature: string;
+  raw_message: string;
+  encrypted_storage_key: string;
+  identifier_type: 'SIWE' | 'SRP';
+};
+
 /**
  * Pair multiple identifiers under a single profile
  *
- * @param nonce - request nonce
- * @param logins - an array proving the ownership of identifiers
+ * @param nonce - session nonce
+ * @param logins - pairing request payload
  * @param accessToken - JWT access token used to access protected resources
  * @param env - server environment
  * @returns void.
  */
 export async function pairIdentifiers(
   nonce: string,
-  logins: Login[],
+  logins: PairRequest[],
   accessToken: string,
   env: Env,
 ): Promise<void> {
   const pairUrl = new URL(PAIR_IDENTIFIERS(env));
-
-  // Helper function to convert login fields from camelCase to snake_case
-  const formatLogin = (login: Login) => {
-    return {
-      signature: login.signature,
-      raw_message: login.rawMessage,
-      encrypted_storage_key: login.encryptedStorageKey,
-      identifier_type: login.identifierType,
-    };
-  };
 
   try {
     const response = await fetch(pairUrl, {
@@ -82,7 +72,7 @@ export async function pairIdentifiers(
       },
       body: JSON.stringify({
         nonce,
-        logins: logins.map((login) => formatLogin(login)),
+        logins,
       }),
     });
 
