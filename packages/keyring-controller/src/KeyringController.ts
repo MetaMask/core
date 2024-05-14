@@ -1235,6 +1235,11 @@ export class KeyringController extends BaseController<
       if (!this.state.isUnlocked || !this.#password) {
         throw new Error(KeyringControllerError.MissingCredentials);
       }
+
+      if (!password || !password.length) {
+        throw new Error('Invalid password');
+      }
+
       this.#password = password;
       // We need to clear encryption key and salt from state
       // to force the controller to re-encrypt the vault using

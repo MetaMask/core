@@ -1980,6 +1980,23 @@ describe('KeyringController', () => {
         );
       });
     });
+
+    it('should throw error if the new password is an empty string', async () => {
+      await withController({}, async ({ controller }) => {
+        await expect(controller.setPassword('')).rejects.toThrow(
+          'Invalid password',
+        );
+      });
+    });
+
+    it('should throw error if the new password is undefined', async () => {
+      await withController({}, async ({ controller }) => {
+        // @ts-expect-error we are testing wrong input
+        await expect(controller.setPassword(undefined)).rejects.toThrow(
+          'Invalid password',
+        );
+      });
+    });
   });
 
   describe('submitPassword', () => {
