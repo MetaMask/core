@@ -7,7 +7,7 @@ import {
 import type { UserProfile, Pair } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import type { Env } from './env';
-import { UnsupportedAuthTypeError } from './errors';
+import { PairError, UnsupportedAuthTypeError } from './errors';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 type Compute<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
@@ -58,23 +58,29 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     return await this.#sdk.signMessage(message);
   }
 
-  async pairIdentifiers(
-    pairing: Pair[],
-    signMessage: (message: string) => Promise<string>,
-  ): Promise<void> {
+  async pairIdentifiers(pairing: Pair[]): Promise<void> {
     const profile = await this.getUserProfile();
-
     const n = await getNonce(profile.profileId, this.#env);
+
     const logins = await Promise.all(
       pairing.map(async (p) => {
-        const raw = `metamask:${n.nonce}:${p.identifier}`;
-        const sig = await signMessage(raw);
-        return {
-          signature: sig,
-          raw_message: raw,
-          encrypted_storage_key: p.encryptedStorageKey,
-          identifier_type: p.identifierType,
-        };
+        try {
+          const raw = `metamask:${n.nonce}:${p.identifier}`;
+          const sig = await p.signMessage(raw);
+          return {
+            signature: sig,
+            raw_message: raw,
+            encrypted_storage_key: p.encryptedStorageKey,
+            identifier_type: p.identifierType,
+          };
+        } catch (e) {
+          /* istanbul ignore next */
+          const errorMessage =
+            e instanceof Error ? e.message : JSON.stringify(e ?? '');
+          throw new PairError(
+            `failed to sign pairing message: ${errorMessage}`,
+          );
+        }
       }),
     );
 

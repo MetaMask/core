@@ -32,9 +32,10 @@ describe('Identifier Pairing', () => {
         identifier:
           '0xc89a614e873c2c1f08fc8d72590e13c961ea856cc7a9cd08af4bf3d3fca53046',
         identifierType: 'SRP',
+        signMessage: mockSignMessage,
       },
     ];
-    await auth.pairIdentifiers(pairing, mockSignMessage);
+    await auth.pairIdentifiers(pairing);
 
     // API
     expect(mockSrpLoginUrl.isDone()).toBe(true);
@@ -42,7 +43,7 @@ describe('Identifier Pairing', () => {
     expect(mockPairIdentifiersUrl.isDone()).toBe(true);
   });
 
-  it('should handle pair identifiers errors', async () => {
+  it('should handle pair identifiers API errors', async () => {
     const { auth, mockSignMessage } = arrangeAuth('SRP', MOCK_SRP);
     const { mockNonceUrl, mockPairIdentifiersUrl, mockSrpLoginUrl } =
       arrangeAuthAPIs({
@@ -61,17 +62,43 @@ describe('Identifier Pairing', () => {
         identifier:
           '0xc89a614e873c2c1f08fc8d72590e13c961ea856cc7a9cd08af4bf3d3fca11111',
         identifierType: 'SRP',
+        signMessage: mockSignMessage,
       },
     ];
 
-    await expect(
-      auth.pairIdentifiers(pairing, mockSignMessage),
-    ).rejects.toThrow(PairError);
+    await expect(auth.pairIdentifiers(pairing)).rejects.toThrow(PairError);
 
     // API
     expect(mockSrpLoginUrl.isDone()).toBe(true);
     expect(mockNonceUrl.isDone()).toBe(true);
     expect(mockPairIdentifiersUrl.isDone()).toBe(true);
+  });
+
+  it('should handle sign message errors', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { mockNonceUrl, mockPairIdentifiersUrl, mockSrpLoginUrl } =
+      arrangeAuthAPIs();
+
+    const pairing: Pair[] = [
+      {
+        encryptedStorageKey: 'encrypted<original-storage-key>',
+        identifier:
+          '0xc89a614e873c2c1f08fc8d72590e13c961ea856cc7a9cd08af4bf3d3fca11111',
+        identifierType: 'SRP',
+        signMessage: async (message: string): Promise<string> => {
+          return new Promise((_, reject) => {
+            reject(new Error(`unable to sign message: ${message}`));
+          });
+        },
+      },
+    ];
+
+    await expect(auth.pairIdentifiers(pairing)).rejects.toThrow(PairError);
+
+    // API
+    expect(mockSrpLoginUrl.isDone()).toBe(true);
+    expect(mockNonceUrl.isDone()).toBe(true);
+    expect(mockPairIdentifiersUrl.isDone()).toBe(false);
   });
 
   it('should handle nonce errors', async () => {
@@ -89,12 +116,13 @@ describe('Identifier Pairing', () => {
         encryptedStorageKey: 'encrypted<original-storage-key>',
         identifier: '0x12345',
         identifierType: 'SRP',
+        signMessage: mockSignMessage,
       },
     ];
 
-    await expect(
-      auth.pairIdentifiers(pairing, mockSignMessage),
-    ).rejects.toThrow(NonceRetrievalError);
+    await expect(auth.pairIdentifiers(pairing)).rejects.toThrow(
+      NonceRetrievalError,
+    );
 
     // API
     expect(mockNonceUrl.isDone()).toBe(true);
