@@ -25,22 +25,28 @@ export type ConversionRates = Record<string, Rate>;
 
 /**
  * Represents the state structure for the RatesController.
- * @property {string} currency - The base currency for conversion rates.
- * @property {ConversionRates} rates - The conversion rates for multiple cryptocurrencies.
- * @property {string[]} cryptocurrencyList - A list of supported cryptocurrency symbols.
  */
-export type RatesState = {
+export type RatesControllerState = {
+  /**
+   * The base currency for conversion rates.
+   */
   currency: string;
+  /**
+   * The conversion rates for multiple cryptocurrencies.
+   */
   rates: ConversionRates;
+  /**
+   * A list of supported cryptocurrency symbols.
+   */
   cryptocurrencyList: string[];
 };
 
 /**
- * Type definition for BtcRateController state change events.
+ * Type definition for RatesController state change events.
  */
 export type RatesControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof ratesControllerName,
-  RatesState
+  RatesControllerState
 >;
 
 export type RatesControllerStartPollingEvent = {
@@ -63,7 +69,7 @@ export type RatesControllerEvents =
 
 export type RatesControllerGetStateAction = ControllerGetStateAction<
   typeof ratesControllerName,
-  RatesState
+  RatesControllerState
 >;
 
 /**
@@ -83,19 +89,27 @@ export type RatesMessenger = RestrictedControllerMessenger<
 >;
 
 /**
- * The arguments required to initialize a RatesController.
- * @property {boolean} [includeUsdRate] - Whether to include USD rates in the conversion rates.
- * @property {number} [interval] - The polling interval in milliseconds.
- * @property {RatesMessenger} messenger - The messenger instance for communication.
- * @property {Partial<RatesState>} [state] - The initial state of the controller.
- * @property {typeof defaultFetchExchangeRate} [fetchMultiExchangeRate] - The function to fetch exchange rates.
- * @property {() => Promise<unknown>} [onStart] - A function to execute when the controller starts.
- * @property {() => Promise<unknown>} [onStop] - A function to execute when the controller stops.
+ * The options required to initialize a RatesController.
  */
-export type RatesControllerArgs = {
+export type RatesControllerOptions = {
+  /**
+   * Whether to include USD rates in the conversion rates.
+   */
   includeUsdRate?: boolean;
+  /**
+   * The polling interval in milliseconds.
+   */
   interval?: number;
+  /**
+   * The messenger instance for communication.
+   */
   messenger: RatesMessenger;
-  state?: Partial<RatesState>;
+  /**
+   * The initial state of the controller.
+   */
+  state?: Partial<RatesControllerState>;
+  /**
+   * The function to fetch exchange rates.
+   */
   fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
 };

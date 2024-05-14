@@ -51,7 +51,7 @@ export class RatesController extends BaseController<
   #intervalLength: number | undefined;
 
   /**
-   * Creates a BtcRateController instance.
+   * Creates a RatesController instance.
    *
    * @param options - Constructor options.
    * @param options.includeUsdRate - Keep track of the USD rate in addition to the current currency rate.
@@ -79,7 +79,7 @@ export class RatesController extends BaseController<
   }
 
   /**
-   * Updates the BTC rates by fetching new data.
+   * Updates the rates by fetching new data.
    */
   async updateRates(): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
