@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/keyring-controller",
-  "version": "16.0.0",
-  "description": "Stores identities seen in the wallet and manages interactions such as signing",
+  "name": "@metamask/profile-sync-controller",
+  "version": "0.0.0",
+  "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/keyring-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/profile-sync-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -32,8 +32,8 @@
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/keyring-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/keyring-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-sync-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
@@ -41,37 +41,22 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@ethereumjs/util": "^8.1.0",
-    "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
-    "@metamask/base-controller": "^5.0.2",
-    "@metamask/browser-passworder": "^4.3.0",
-    "@metamask/eth-hd-keyring": "^7.0.1",
-    "@metamask/eth-sig-util": "^7.0.1",
-    "@metamask/eth-simple-keyring": "^6.0.1",
-    "@metamask/keyring-api": "^6.0.0",
-    "@metamask/message-manager": "^8.0.2",
-    "@metamask/utils": "^8.3.0",
-    "async-mutex": "^0.2.6",
-    "ethereumjs-wallet": "^1.0.1",
-    "immer": "^9.0.6"
+    "@noble/ciphers": "^0.5.2",
+    "@noble/hashes": "^1.4.0",
+    "ethers": "^6.12.0",
+    "siwe": "^2.3.2"
   },
   "devDependencies": {
-    "@ethereumjs/common": "^3.2.0",
-    "@ethereumjs/tx": "^4.2.0",
-    "@keystonehq/bc-ur-registry-eth": "^0.19.0",
-    "@lavamoat/allow-scripts": "^3.0.2",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/scure-bip39": "^2.1.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
-    "jest-environment-node": "^27.5.1",
-    "sinon": "^9.2.4",
+    "jest-environment-jsdom": "^27.5.1",
+    "nock": "^13.3.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5",
-    "uuid": "^8.3.2"
+    "typescript": "~4.9.5"
   },
   "engines": {
     "node": ">=16.0.0"
@@ -79,8 +64,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "lavamoat": {
-    "allowScripts": {}
   }
 }
