@@ -183,15 +183,11 @@ export function getIpfsCIDv1AndPath(ipfsUrl: string): {
   cid: string;
   path?: string;
 } {
-  console.log(ipfsUrl)
   const url = removeIpfsProtocolPrefix(ipfsUrl);
-  console.log(url)
 
   // check if there is a path
   // (CID is everything preceding first forward slash, path is everything after)
   const index = url.indexOf('/');
-  console.log(index)
-  console.log(url.substring(index))
   const cid = index !== -1 ? url.substring(0, index) : url;
   const path = index !== -1 ? url.substring(index) : undefined;
 
@@ -217,18 +213,11 @@ export function getFormattedIpfsUrl(
   subdomainSupported: boolean,
 ): string {
   const { host, protocol, origin } = new URL(addUrlProtocolPrefix(ipfsGateway));
-  console.log('HERE')
   if (subdomainSupported) {
     const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
-    console.log('subdomainSupported')
-    console.log(host)
-    console.log(path)
-    console.log(`${protocol}//${cid}.ipfs.${host}${path ?? ''}`)
     return `${protocol}//${cid}.ipfs.${host}${path ?? ''}`;
   }
-  console.log('cidAndPath')
   const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);
-  console.log(`${origin}/ipfs/${cidAndPath}`)
   return `${origin}/ipfs/${cidAndPath}`;
 }
 
