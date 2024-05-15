@@ -42,6 +42,12 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/snaps-sdk@^4.0.0": "git+https://github.com/Metamask/snaps.git#workspace=@metamask/snaps-sdk&commit=a8ed7f6b8b13194783276f89767c71156069d35e",
+    "@metamask/snaps-sdk@^4.0.1": "git+https://github.com/Metamask/snaps.git#workspace=@metamask/snaps-sdk&commit=a8ed7f6b8b13194783276f89767c71156069d35e",
+    "@metamask/snaps-sdk@^4.1.0": "git+https://github.com/Metamask/snaps.git#workspace=@metamask/snaps-sdk&commit=a8ed7f6b8b13194783276f89767c71156069d35e",
+    "@metamask/snaps-sdk@^7.3.0": "git+https://github.com/Metamask/snaps.git#workspace=@metamask/snaps-sdk&commit=a8ed7f6b8b13194783276f89767c71156069d35e",
+    "@metamask/snaps-utils@^7.1.0": "git+https://github.com/Metamask/snaps.git#workspace=@metamask/snaps-utils&commit=a8ed7f6b8b13194783276f89767c71156069d35e",
+    "@metamask/snaps-utils@^7.3.0": "git+https://github.com/Metamask/snaps.git#workspace=@metamask/snaps-utils&commit=a8ed7f6b8b13194783276f89767c71156069d35e",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
