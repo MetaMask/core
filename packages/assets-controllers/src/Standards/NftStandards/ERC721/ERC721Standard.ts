@@ -188,7 +188,7 @@ export class ERC721Standard {
       safelyExecute(() => this.getAssetName(address)),
       tokenId
         ? safelyExecute(() =>
-            this.getTokenURI(address, tokenId).then((uri) => 
+            this.getTokenURI(address, tokenId).then((uri) =>
               uri.startsWith('ipfs://')
                 ? getFormattedIpfsUrl(ipfsGateway, uri, true)
                 : uri,
@@ -206,7 +206,7 @@ export class ERC721Standard {
         if (image?.startsWith('ipfs://')) {
           image = getFormattedIpfsUrl(ipfsGateway, image, true);
         }
-      } catch (e){
+      } catch {
         // ignore
       }
     }
