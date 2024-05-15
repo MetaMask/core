@@ -95,7 +95,7 @@ import {
 } from './Permission';
 import { getPermissionMiddlewareFactory } from './permission-middleware';
 import type { GetSubjectMetadata } from './SubjectMetadataController';
-import { MethodNames } from './utils';
+import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
 
 /**
  * Metadata associated with {@link PermissionController} subjects.
@@ -2191,7 +2191,7 @@ export class PermissionController<
     rightPermission: Partial<PermissionConstraint>,
   ): [Partial<PermissionConstraint>, CaveatDiffMap<CaveatConstraint>] {
     const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
-      this.#collectUniqueAndPairedCaveats(leftPermission, rightPermission);
+      collectUniqueAndPairedCaveats(leftPermission, rightPermission);
 
     const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce(
       ([caveats, diffMap], [leftCaveat, rightCaveat]) => {
@@ -2265,47 +2265,6 @@ export class PermissionController<
           diff,
         ]
       : [];
-  }
-
-  /**
-   * Given two permission objects, computes 3 sets:
-   * - The set of caveat pairs that are common to both permissions.
-   * - The set of caveats that are unique to the existing permission.
-   * - The set of caveats that are unique to the requested permission.
-   *
-   * Assumes that the caveat arrays of both permissions are valid.
-   *
-   * @param leftPermission - The left-hand permission.
-   * @param rightPermission - The right-hand permission.
-   * @returns The sets of caveat pairs and unique caveats.
-   */
-  #collectUniqueAndPairedCaveats(
-    leftPermission: Partial<PermissionConstraint>,
-    rightPermission: Partial<PermissionConstraint>,
-  ) {
-    const leftCaveats = leftPermission.caveats?.slice() ?? [];
-    const rightCaveats = rightPermission.caveats?.slice() ?? [];
-    const leftUniqueCaveats: CaveatConstraint[] = [];
-    const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];
-
-    leftCaveats.forEach((leftCaveat) => {
-      const rightCaveatIndex = rightCaveats.findIndex(
-        (rightCaveat) => rightCaveat.type === leftCaveat.type,
-      );
-
-      if (rightCaveatIndex === -1) {
-        leftUniqueCaveats.push(leftCaveat);
-      } else {
-        caveatPairs.push([leftCaveat, rightCaveats[rightCaveatIndex]]);
-        rightCaveats.splice(rightCaveatIndex, 1);
-      }
-    });
-
-    return {
-      caveatPairs,
-      leftUniqueCaveats,
-      rightUniqueCaveats: [...rightCaveats],
-    };
   }
 
   /**
