@@ -2,8 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "rootDir": "../..",
-    "skipLibCheck": true
+    "rootDir": "../.."
   },
   "references": [
     { "path": "../accounts-controller" },
