@@ -85,7 +85,7 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
     );
 
     const accessToken = await this.getAccessToken();
-    return pairIdentifiers(n.nonce, logins, accessToken, this.#env);
+    await pairIdentifiers(n.nonce, logins, accessToken, this.#env);
   }
 
   prepare(signer: {
