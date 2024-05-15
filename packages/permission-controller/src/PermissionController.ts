@@ -2146,33 +2146,23 @@ export class PermissionController<
 
         Object.entries(incrementalRequestedPermissions).forEach(
           ([targetName, rightPermission]) => {
-            if (
-              !hasProperty(
-                // We type-guard the targetName key out of existence without this cast.
-                leftPermissions as Record<string, unknown>,
-                targetName,
-              )
-            ) {
-              const [newPermission, caveatsDiff] = this.#mergePermission(
-                {},
-                rightPermission,
-              );
+            const leftPermission: Partial<PermissionConstraint> | undefined =
+              leftPermissions[targetName];
 
+            const [newPermission, caveatsDiff] = this.#mergePermission(
+              leftPermission ?? {},
+              rightPermission,
+            );
+
+            if (
+              leftPermission === undefined ||
+              Object.keys(caveatsDiff).length > 0
+            ) {
               leftPermissions[targetName] = newPermission;
               permissionDiffMap[targetName] = caveatsDiff;
-            } else {
-              const [newPermission, caveatsDiff] = this.#mergePermission(
-                leftPermissions[targetName],
-                rightPermission,
-              );
-
-              if (Object.keys(caveatsDiff).length > 0) {
-                leftPermissions[targetName] = newPermission;
-                permissionDiffMap[targetName] = caveatsDiff;
-              }
-              // Otherwise, leave the left permission as-is; its authority has
-              // not changed.
             }
+            // Otherwise, leave the left permission as-is; its authority has
+            // not changed.
           },
         );
       },
