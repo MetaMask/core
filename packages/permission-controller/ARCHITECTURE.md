@@ -94,9 +94,9 @@ We, the maintainers of the permission controller, impose this requirement for tw
 Consumers may supply a caveat merger function when specifying a caveat.
 This is required to support [incremental permission requests](#requestpermissionsincremental).
 Caveat values must be merged in the fashion of a right-biased union, and the merger must
-handle the possibility that the left-hand side is `undefined`.
+handle the possibility that the left-hand value is `undefined`.
 This operation is _like_ a union in set theory, except the right-hand operand overwrites
-values of the left-hand operand in case of collisions.
+the left-hand operand in case of collisions.
 
 Formally, let:
 
@@ -112,8 +112,8 @@ Then the following must be true:
 - `A` and `C` may have all, some, or no values in common.
 - If `A = ∅`, then `C = B`
 
-In addition to merging caveat values, the caveat merger implementation must supply
-the difference between `C` and `A`, expressed in the caveat's value type.
+In addition to merging the values, the caveat merger implementation must supply
+the difference between `C` and `A`, expressed in the type of the merged values.
 This is necessary so that other parts of the application, especially the UI, can
 understand how authority has changed.
 
@@ -221,9 +221,8 @@ const caveatSpecifications = {
     // This function is called if two caveats of this type have to be merged
     // due to an incremental permissions request. The values must be merged
     // in the fashion of a right-biased union.
-    merger: makeCaveatMerger<FilterArrayCaveat>((leftValue, rightValue) =>
+    merger: (leftValue, rightValue) =>
       Array.from(new Set([...leftValue, ...rightValue])),
-    ),
   },
 };
 

@@ -2,7 +2,6 @@ import type { Json } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 
 import {
-  CaveatMergeTypeMismatchError,
   CaveatSpecificationMismatchError,
   UnrecognizedCaveatTypeError,
 } from './errors';
@@ -135,53 +134,6 @@ export type CaveatValueMerger<Value extends Json> = (
   rightValue: Value,
 ) => [Value, CaveatDiff<Value>] | [];
 
-/**
- * A function that merges two caveats of the same type. The caveats must be merged
- * in the fashion of a right-biased union, and the implementation must handle the
- * possibility that the left-hand side is undefined.
- *
- * @see `ARCHITECTURE.md` for more details.
- * @template ParentCaveat - The caveat type associated with this merger.
- * @param leftCaveat - The left-hand caveat.
- * @param rightCaveat - The right-hand caveat.
- * @returns The merged caveat and the diff between the result and the left caveat.
- */
-export type CaveatMerger<ParentCaveat extends CaveatConstraint> = (
-  leftCaveat: ParentCaveat | undefined,
-  rightCaveat: ParentCaveat,
-) => [ParentCaveat, CaveatDiff<ParentCaveat['value']>] | [];
-
-/**
- * Makes a {@link CaveatMerger} function for a specific caveat type.
- *
- * @see `ARCHITECTURE.md` for more details.
- * @param mergeValues - The function to merge the values of two caveats.
- * @returns The {@link CaveatMerger} function.
- */
-export function makeCaveatMerger<ParentCaveat extends CaveatConstraint>(
-  mergeValues: CaveatValueMerger<ParentCaveat['value']>,
-): CaveatMerger<ParentCaveat> {
-  return (leftCaveat: ParentCaveat | undefined, rightCaveat: ParentCaveat) => {
-    // It should be impossible for this to happen via the permission controller's
-    // API, but it's a small price to pay for sound sleep.
-    if (leftCaveat !== undefined && leftCaveat.type !== rightCaveat.type) {
-      throw new CaveatMergeTypeMismatchError(leftCaveat.type, rightCaveat.type);
-    }
-
-    const [value, diff] = mergeValues(leftCaveat?.value, rightCaveat.value);
-
-    return value !== undefined && diff !== undefined
-      ? [
-          {
-            type: rightCaveat.type,
-            value,
-          } as ParentCaveat,
-          diff,
-        ]
-      : [];
-  };
-}
-
 export type CaveatSpecificationBase = {
   /**
    * The string type of the caveat.
@@ -204,15 +156,15 @@ export type CaveatSpecificationBase = {
   validator?: CaveatValidator<any>;
 
   /**
-   * The merger function used to merge caveats of the associated type during
-   * incremental permission requests. The values must be merged in the fashion
+   * The merger function used to merge a pair of values of the associated caveat type
+   * during incremental permission requests. The values must be merged in the fashion
    * of a right-biased union.
    *
    * @see `ARCHITECTURE.md` for more details.
    */
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  merger?: CaveatMerger<any>;
+  merger?: CaveatValueMerger<any>;
 };
 
 export type RestrictedMethodCaveatSpecificationConstraint =

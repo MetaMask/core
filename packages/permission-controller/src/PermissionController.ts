@@ -29,10 +29,11 @@ import { nanoid } from 'nanoid';
 
 import type {
   CaveatConstraint,
+  CaveatDiff,
   CaveatDiffMap,
-  CaveatMerger,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
+  CaveatValueMerger,
   ExtractCaveat,
   ExtractCaveats,
   ExtractCaveatValue,
@@ -46,6 +47,7 @@ import {
   CaveatDoesNotExistError,
   CaveatInvalidJsonError,
   CaveatMergerDoesNotExistError,
+  CaveatMergeTypeMismatchError,
   CaveatMissingValueError,
   CaveatSpecificationMismatchError,
   DuplicateCaveatError,
@@ -698,7 +700,7 @@ export class PermissionController<
    */
   #expectGetCaveatMerger<
     CaveatType extends ControllerCaveatSpecification['type'],
-  >(caveatType: CaveatType): CaveatMerger<CaveatConstraint> {
+  >(caveatType: CaveatType): CaveatValueMerger<Json> {
     const { merger } = this.getCaveatSpecification(caveatType);
 
     if (merger === undefined) {
@@ -2203,9 +2205,8 @@ export class PermissionController<
 
     const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce(
       ([caveats, diffMap], [leftCaveat, rightCaveat]) => {
-        const merger = this.#expectGetCaveatMerger(leftCaveat.type);
+        const [newCaveat, diff] = this.#mergeCaveat(leftCaveat, rightCaveat);
 
-        const [newCaveat, diff] = merger(leftCaveat, rightCaveat);
         if (newCaveat !== undefined && diff !== undefined) {
           caveats.push(newCaveat);
           diffMap[newCaveat.type] = diff;
@@ -2219,8 +2220,7 @@ export class PermissionController<
     );
 
     const mergedRightUniqueCaveats = rightUniqueCaveats.map((caveat) => {
-      const merger = this.#expectGetCaveatMerger(caveat.type);
-      const [newCaveat, diff] = merger(undefined, caveat);
+      const [newCaveat, diff] = this.#mergeCaveat(undefined, caveat);
 
       if (newCaveat !== undefined && diff !== undefined) {
         caveatDiffMap[newCaveat.type] = diff;
@@ -2244,6 +2244,37 @@ export class PermissionController<
     };
 
     return [newPermission, caveatDiffMap];
+  }
+
+  /**
+   * Merges two caveats of the same type. The task of merging the values of the
+   * two caveats is delegated to the corresponding caveat type's merger implementation.
+   *
+   * @param leftCaveat - The left-hand caveat to merge.
+   * @param rightCaveat - The right-hand caveat to merge.
+   * @returns The merged caveat and the diff between the two caveats.
+   */
+  #mergeCaveat(
+    leftCaveat: CaveatConstraint | undefined,
+    rightCaveat: CaveatConstraint,
+  ): [CaveatConstraint, CaveatDiff<Json>] | [] {
+    /* istanbul ignore if: This should be impossible */
+    if (leftCaveat !== undefined && leftCaveat.type !== rightCaveat.type) {
+      throw new CaveatMergeTypeMismatchError(leftCaveat.type, rightCaveat.type);
+    }
+
+    const merger = this.#expectGetCaveatMerger(rightCaveat.type);
+    const [newValue, diff] = merger(leftCaveat?.value, rightCaveat.value);
+
+    return newValue !== undefined && diff !== undefined
+      ? [
+          {
+            type: rightCaveat.type,
+            value: newValue,
+          },
+          diff,
+        ]
+      : [];
   }
 
   /**

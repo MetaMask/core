@@ -1,5 +1,5 @@
-import type { Caveat, CaveatValueMerger, PermissionConstraint } from '.';
-import { makeCaveatMerger, decorateWithCaveats, PermissionType } from '.';
+import type { Caveat, PermissionConstraint } from '.';
+import { decorateWithCaveats, PermissionType } from '.';
 import * as errors from './errors';
 
 describe('decorateWithCaveats', () => {
@@ -171,63 +171,6 @@ describe('decorateWithCaveats', () => {
         caveatSpecifications.reverse,
         PermissionType.RestrictedMethod,
       ),
-    );
-  });
-});
-
-describe('makeCaveatMerger', () => {
-  type MockCaveat = Caveat<'foo', { bar: number }>;
-
-  const makeMockCaveat = (bar: number): MockCaveat => ({
-    type: 'foo' as const,
-    value: { bar },
-  });
-
-  const mergeValue: CaveatValueMerger<MockCaveat['value']> = (
-    leftValue,
-    rightValue,
-  ) =>
-    leftValue?.bar !== rightValue.bar
-      ? [{ ...rightValue }, { ...rightValue }]
-      : [];
-
-  it('merges caveats with different values', () => {
-    const mergeCaveat = makeCaveatMerger<MockCaveat>(mergeValue);
-    const leftCaveat = makeMockCaveat(1);
-    const rightCaveat = makeMockCaveat(42);
-    expect(mergeCaveat(leftCaveat, rightCaveat)).toStrictEqual([
-      makeMockCaveat(42),
-      { ...rightCaveat.value },
-    ]);
-  });
-
-  it("returns the right caveat's value if the left caveat is undefined", () => {
-    const mergeCaveat = makeCaveatMerger<MockCaveat>(mergeValue);
-    const rightCaveat = makeMockCaveat(42);
-    expect(mergeCaveat(undefined, rightCaveat)).toStrictEqual([
-      makeMockCaveat(42),
-      { ...rightCaveat.value },
-    ]);
-  });
-
-  it('returns an empty value if the caveats have the same value', () => {
-    const mergeCaveat = makeCaveatMerger<MockCaveat>(mergeValue);
-    const leftCaveat = makeMockCaveat(42);
-    const rightCaveat = makeMockCaveat(42);
-    expect(mergeCaveat(leftCaveat, rightCaveat)).toStrictEqual([]);
-  });
-
-  it('throws if attemping to merge caveats of different types', () => {
-    const mergeCaveat = makeCaveatMerger<MockCaveat>(mergeValue);
-    const leftCaveat = makeMockCaveat(1);
-    const rightCaveat = {
-      type: 'fizz' as const,
-      value: { bar: 42 },
-    };
-
-    // @ts-expect-error Intentional destructive testing
-    expect(() => mergeCaveat(leftCaveat, rightCaveat)).toThrow(
-      new errors.CaveatMergeTypeMismatchError('foo', 'fizz'),
     );
   });
 });

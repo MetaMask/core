@@ -31,7 +31,6 @@ import type {
   ValidPermission,
 } from '.';
 import {
-  makeCaveatMerger,
   CaveatMutatorOperation,
   constructPermission,
   MethodNames,
@@ -119,7 +118,7 @@ function getDefaultCaveatSpecifications() {
           );
         }
       },
-      merger: makeCaveatMerger<FilterArrayCaveat>(primitiveArrayMerger),
+      merger: primitiveArrayMerger,
     },
     [CaveatTypes.reverseArrayResponse]: {
       type: CaveatTypes.reverseArrayResponse,
@@ -157,7 +156,7 @@ function getDefaultCaveatSpecifications() {
           });
           return result;
         },
-      merger: makeCaveatMerger<FilterObjectCaveat>(primitiveArrayMerger),
+      merger: primitiveArrayMerger,
     },
     [CaveatTypes.noopCaveat]: {
       type: CaveatTypes.noopCaveat,
@@ -177,9 +176,8 @@ function getDefaultCaveatSpecifications() {
           throw new Error('NoopCaveat value must be null');
         }
       },
-      merger: makeCaveatMerger<NoopCaveat>((a, _b) =>
-        a === undefined ? [null, null] : [],
-      ),
+      merger: (a: null | undefined, _b: null) =>
+        a === undefined ? ([null, null] as [null, null]) : ([] as []),
     },
     [CaveatTypes.endowmentCaveat]: {
       type: CaveatTypes.endowmentCaveat,
@@ -4962,14 +4960,16 @@ describe('PermissionController', () => {
         const origin = 'metamask.io';
 
         // @ts-expect-error Intentional destructive testing
-        options.caveatSpecifications[caveatType1].merger =
-          makeCaveatMerger<FilterArrayCaveat>((a, b) => {
-            // This is forbidden.
-            if (a === undefined) {
-              return [];
-            }
-            return primitiveArrayMerger(a, b);
-          });
+        options.caveatSpecifications[caveatType1].merger = (
+          a: string[] | undefined,
+          b: string[],
+        ) => {
+          // This is forbidden.
+          if (a === undefined) {
+            return [];
+          }
+          return primitiveArrayMerger(a, b);
+        };
 
         const controller = getDefaultPermissionController(options);
 
@@ -5051,10 +5051,8 @@ describe('PermissionController', () => {
         ).rejects.toThrow(
           new errors.InvalidMergedPermissionsError(
             origin,
-            new errors.InvalidCaveatError(
-              'foo',
-              origin,
-              PermissionNames.wallet_getSecretArray,
+            new Error(
+              `${CaveatTypes.filterArrayResponse} values must be arrays`,
             ),
             {},
           ),
