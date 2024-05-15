@@ -79,11 +79,11 @@ export class SnapHandlerClient {
   constructor({
     handler,
     // Follow same pattern than for @metamask/keyring-api
-    snapId = 'undefined' as SnapId,
+    snapId,
     origin = 'metamask',
   }: {
     handler: Handler;
-    snapId?: SnapId;
+    snapId: SnapId;
     origin?: string;
   }) {
     this.#handler = handler;
@@ -93,21 +93,6 @@ export class SnapHandlerClient {
       snapId,
       origin,
     );
-  }
-
-  /**
-   * Create a new instance of `SnapHandlerClient` with the specified
-   * `snapId`.
-   *
-   * @param snapId - The ID of the snap to use in the new instance.
-   * @returns A new instance of `SnapHandlerClient` with the
-   * specified snap ID.
-   */
-  withSnapId(snapId: SnapId): SnapHandlerClient {
-    return new SnapHandlerClient({
-      handler: this.#handler,
-      snapId,
-    });
   }
 
   /**

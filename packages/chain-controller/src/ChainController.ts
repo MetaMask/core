@@ -58,8 +58,6 @@ export class ChainController
 {
   #providers: Record<CaipChainId, SnapChainProviderClient>;
 
-  #snapClient: SnapHandlerClient;
-
   /**
    * Constructor for ChainController.
    *
@@ -81,15 +79,6 @@ export class ChainController
       state: {
         ...defaultState,
         ...state,
-      },
-    });
-
-    this.#snapClient = new SnapHandlerClient({
-      handler: (request) => {
-        return this.messagingSystem.call(
-          'SnapController:handleRequest',
-          request,
-        );
       },
     });
 
@@ -174,7 +163,15 @@ export class ChainController
     snapId: SnapId,
   ): SnapChainProviderClient {
     // TODO: Should this be idempotent?
-    const client = this.#snapClient.withSnapId(snapId);
+    const client = new SnapHandlerClient({
+      snapId,
+      handler: (request) => {
+        return this.messagingSystem.call(
+          'SnapController:handleRequest',
+          request,
+        );
+      },
+    });
     const provider = new SnapChainProviderClient(client);
 
     if (this.hasProviderFor(scope)) {

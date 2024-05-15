@@ -36,33 +36,5 @@ describe('SnapHandlerClient', () => {
       expect(handler).toHaveBeenCalledWith(request);
       expect(accounts).toStrictEqual(response);
     });
-
-    it('should call a method and return the result (withSnapId)', async () => {
-      const handler = jest.fn();
-      const client = new SnapHandlerClient({
-        handler,
-      });
-
-      handler.mockResolvedValue(response);
-      const accounts = await client
-        .withSnapId(snapId)
-        .submitRequest(method, params);
-      expect(handler).toHaveBeenCalledWith(request);
-      expect(accounts).toStrictEqual(response);
-    });
-
-    it('should call the default snapId value ("undefined")', async () => {
-      const handler = jest.fn();
-      const client = new SnapHandlerClient({
-        handler,
-      });
-
-      handler.mockResolvedValue(response);
-      await client.submitRequest(method, params);
-      expect(handler).toHaveBeenCalledWith({
-        ...request,
-        snapId: 'undefined',
-      });
-    });
   });
 });
