@@ -2,6 +2,7 @@ import type { Json } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 
 import {
+  CaveatMergeTypeMismatchError,
   CaveatSpecificationMismatchError,
   UnrecognizedCaveatTypeError,
 } from './errors';
@@ -164,9 +165,7 @@ export function makeCaveatMerger<ParentCaveat extends CaveatConstraint>(
     // It should be impossible for this to happen via the permission controller's
     // API, but it's a small price to pay for sound sleep.
     if (leftCaveat !== undefined && leftCaveat.type !== rightCaveat.type) {
-      throw new Error(
-        `Cannot merge caveats of different types: "${leftCaveat.type}" and "${rightCaveat.type}".`,
-      );
+      throw new CaveatMergeTypeMismatchError(leftCaveat.type, rightCaveat.type);
     }
 
     const [value, diff] = mergeValues(leftCaveat?.value, rightCaveat.value);

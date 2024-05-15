@@ -1572,7 +1572,7 @@ export class PermissionController<
    * caveat is stringently validated – including by calling every specification
    * validator – and an error is thrown if any validation fails.
    *
-   * ATTN: This method does **not** prompt the user for approval. Use consent must
+   * ATTN: This method does **not** prompt the user for approval. User consent must
    * first be obtained through some other means.
    *
    * @see {@link PermissionController.requestPermissions} For initiating a
