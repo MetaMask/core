@@ -36,7 +36,8 @@
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
-    "update-readme-content": "ts-node scripts/update-readme-content.ts"
+    "update-readme-content": "ts-node scripts/update-readme-content.ts",
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
