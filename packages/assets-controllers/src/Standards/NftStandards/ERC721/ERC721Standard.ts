@@ -183,9 +183,6 @@ export class ERC721Standard {
       throw new Error("This isn't a valid ERC721 contract");
     }
 
-    console.log('721')
-    console.log(address, tokenId)
-
     const [symbol, name, tokenURI] = await Promise.all([
       safelyExecute(() => this.getAssetSymbol(address)),
       safelyExecute(() => this.getAssetName(address)),
@@ -209,7 +206,7 @@ export class ERC721Standard {
         if (image?.startsWith('ipfs://')) {
           image = getFormattedIpfsUrl(ipfsGateway, image, true);
         }
-      } catch {
+      } catch (e){
         // ignore
       }
     }

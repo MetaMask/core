@@ -221,9 +221,6 @@ export class ERC1155Standard {
 
     let image;
 
-    console.log('1155')
-    console.log(address, tokenId)
-
     const [symbol, name, tokenURI] = await Promise.all([
       safelyExecute(() => this.getAssetSymbol(address)),
       safelyExecute(() => this.getAssetName(address)),
@@ -238,27 +235,21 @@ export class ERC1155Standard {
         : undefined,
     ]);
 
-    console.log('tokenURI')
-    console.log(tokenURI)
-
     if (tokenURI) {
+      // https://docs.openzeppelin.com/contracts/5.x/api/token/erc1155#ERC1155-uri-uint256-
+      // replace the {id} with the token type ID
       const slashIndex = tokenURI.lastIndexOf('/')
       const tokenURIWithId = tokenURI.substring(0, slashIndex) + '/' + tokenId
-      console.log(tokenURIWithId)
       try {
         const response = await timeoutFetch(tokenURIWithId);
         const object = await response.json();
         image = object?.image;
-        console.log(image)
         if (image?.startsWith('ipfs://')) {
           image = getFormattedIpfsUrl(ipfsGateway, image, true);
-          console.log(image)
         }
       } catch (e) {
         // Catch block should be kept empty to ignore exceptions, and
         // pass as much information as possible to the return statement
-        console.log('CAUGHT')
-        console.log(e)
       }
     }
 
