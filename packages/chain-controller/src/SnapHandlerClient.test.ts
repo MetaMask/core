@@ -24,7 +24,7 @@ describe('SnapHandlerClient', () => {
       success: true,
     };
 
-    it('should call a method and return the result', async () => {
+    it('returns a result when a method is called', async () => {
       const handler = jest.fn();
       const client = new SnapHandlerClient({
         handler,
