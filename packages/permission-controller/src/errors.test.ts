@@ -13,12 +13,6 @@ describe('error', () => {
         },
       );
     });
-
-    it('does not add an origin property if no data is provided', () => {
-      expect(
-        new EndowmentPermissionDoesNotExistError('bar').data,
-      ).toBeUndefined();
-    });
   });
 
   describe('EndowmentPermissionDoesNotExistError', () => {
