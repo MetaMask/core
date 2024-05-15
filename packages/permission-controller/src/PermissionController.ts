@@ -2283,8 +2283,8 @@ export class PermissionController<
     leftPermission: Partial<PermissionConstraint>,
     rightPermission: Partial<PermissionConstraint>,
   ) {
-    const leftCaveats = leftPermission.caveats ?? [];
-    const rightCaveats = rightPermission.caveats ?? [];
+    const leftCaveats = leftPermission.caveats?.slice() ?? [];
+    const rightCaveats = rightPermission.caveats?.slice() ?? [];
     const leftUniqueCaveats: CaveatConstraint[] = [];
     const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];
 
