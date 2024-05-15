@@ -92,6 +92,11 @@ type NftUpdate = {
   newMetadata: NftMetadata;
 };
 
+export type NftFetchStatus = {
+  isFetchingInProgress: boolean;
+  lastFetchTimestamp: number;
+};
+
 /**
  * @type NftContract
  *
@@ -169,6 +174,7 @@ export type NftMetadata = {
  * @property allNftContracts - Object containing NFT contract information
  * @property allNfts - Object containing NFTs per account and network
  * @property ignoredNfts - List of NFTs that should be ignored
+ * @property isNftFetchingInProgress - Object containing boolean param indicating whether core finished fetching nfts per account and network
  */
 export type NftControllerState = {
   allNftContracts: {
@@ -182,6 +188,9 @@ export type NftControllerState = {
     };
   };
   ignoredNfts: Nft[];
+  isNftFetchingInProgress: {
+    [key: string]: { [chainId: Hex]: NftFetchStatus };
+  };
 };
 
 const nftControllerMetadata = {
@@ -192,6 +201,7 @@ const nftControllerMetadata = {
 
 const ALL_NFTS_STATE_KEY = 'allNfts';
 const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
+const IS_NFTS_FETCHING_IN_PROGRESS_KEY = 'isNftFetchingInProgress';
 
 type NftAsset = {
   address: string;
@@ -242,6 +252,7 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   allNftContracts: {},
   allNfts: {},
   ignoredNfts: [],
+  isNftFetchingInProgress: {},
 });
 
 /**
@@ -474,6 +485,27 @@ export class NftController extends BaseController<
         [chainId]: newCollection,
       };
       state[baseStateKey] = {
+        ...oldState,
+        [userAddress]: newAddressState,
+      };
+    });
+  }
+
+  #updateNestedNftFetchingProgressStatus(
+    newStatus: boolean,
+    { userAddress, chainId }: { userAddress: string; chainId: Hex },
+  ) {
+    this.update((state) => {
+      const oldState = state[IS_NFTS_FETCHING_IN_PROGRESS_KEY];
+      const addressState = oldState[userAddress] || {};
+      const newAddressState = {
+        ...addressState,
+        [chainId]: {
+          isFetchingInProgress: newStatus,
+          lastFetchTimestamp: Date.now(),
+        },
+      };
+      state[IS_NFTS_FETCHING_IN_PROGRESS_KEY] = {
         ...oldState,
         [userAddress]: newAddressState,
       };
@@ -1809,6 +1841,22 @@ export class NftController extends BaseController<
     this.#updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
       chainId,
       userAddress: selectedAddress,
+    });
+  }
+
+  updateNftFetchingProgressStatus(
+    newValue: boolean,
+    {
+      userAddress = this.#selectedAddress,
+      networkClientId,
+    }: { networkClientId?: NetworkClientId; userAddress?: string } = {
+      userAddress: this.#selectedAddress,
+    },
+  ) {
+    const chainId = this.#getCorrectChainId({ networkClientId });
+    this.#updateNestedNftFetchingProgressStatus(newValue, {
+      userAddress,
+      chainId,
     });
   }
 
