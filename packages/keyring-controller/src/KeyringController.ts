@@ -912,9 +912,7 @@ export class KeyringController extends BaseController<
 
     // Adding more info to the error
     let errorInfo = '';
-    if (!address) {
-      errorInfo = 'The address passed in is invalid/empty';
-    } else if (!candidates.length) {
+    if (!candidates.length) {
       errorInfo = 'There are no keyrings';
     } else if (!winners.length) {
       errorInfo = 'There are keyrings, but none match the address';

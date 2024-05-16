@@ -657,7 +657,7 @@ describe('KeyringController', () => {
               await expect(
                 controller.exportAccount(password, ''),
               ).rejects.toThrow(
-                'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
               );
             });
           });
@@ -799,7 +799,7 @@ describe('KeyringController', () => {
           await expect(
             controller.decryptMessage(messageParams),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1181,7 +1181,7 @@ describe('KeyringController', () => {
           await expect(
             controller.removeAccount('0xDUMMY_INPUT'),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1239,7 +1239,7 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1307,7 +1307,7 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1659,7 +1659,7 @@ describe('KeyringController', () => {
             expect(unsignedEthTx.v).toBeUndefined();
             await controller.signTransaction(unsignedEthTx, '');
           }).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
