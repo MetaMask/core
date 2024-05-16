@@ -331,6 +331,28 @@ describe('KeyringController', () => {
           );
         });
       });
+
+      it('throw an error if account could not be created', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const accountCount = initialState.keyrings[0].accounts.length;
+          const [primaryKeyring] = controller.getKeyringsByType(
+            KeyringTypes.hd,
+          ) as Keyring<Json>[];
+
+          jest
+            .spyOn(primaryKeyring, 'addAccounts')
+            // We actually not adding any new accounts to that keyring to trigger the error.
+            // Instead, we're just returning the existing accounts
+            .mockImplementation(() => primaryKeyring.getAccounts());
+          await expect(
+            async () =>
+              await controller.addNewAccountForKeyring(
+                primaryKeyring,
+                accountCount,
+              ),
+          ).rejects.toThrow('Could not find new created account');
+        });
+      });
     });
   });
 
