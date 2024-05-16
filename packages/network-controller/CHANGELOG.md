@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Exported BuiltInNetworkClientId and CustomNetworkClientId strings ([#4247](https://github.com/MetaMask/core/pull/4247/files#diff-ea0aa37793484e278bd59970b7a6ce8380b75b723b34612081d402fb66261cfd))
+- Export `BuiltInNetworkClientId` and `CustomNetworkClientId` ([#4247](https://github.com/MetaMask/core/pull/4247))
 
 ## [18.1.0]
 
