@@ -1225,12 +1225,12 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Changes the password to encrypt the current vault.
+   * Changes the password used to encrypt the vault.
    *
-   * @param password - The new password to encrypt with.
+   * @param password - The new password.
    * @returns Promise resolving when the operation completes.
    */
-  setPassword(password: string): Promise<void> {
+  changePassword(password: string): Promise<void> {
     return this.#persistOrRollback(async () => {
       if (!this.state.isUnlocked || !this.#password) {
         throw new Error(KeyringControllerError.MissingCredentials);

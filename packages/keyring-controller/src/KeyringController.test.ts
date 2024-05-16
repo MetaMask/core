@@ -1948,7 +1948,7 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('setPassword', () => {
+  describe('changePassword', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
         it('should encrypt the vault with the new password', async () => {
@@ -1961,7 +1961,7 @@ describe('KeyringController', () => {
                 cacheEncryptionKey ? 'encryptWithDetail' : 'encrypt',
               );
 
-              await controller.setPassword(newPassword);
+              await controller.changePassword(newPassword);
 
               // we pick the first argument of the first call
               expect(spiedEncryptionFn.mock.calls[0][0]).toBe(newPassword);
@@ -1975,7 +1975,7 @@ describe('KeyringController', () => {
       await withController({}, async ({ controller }) => {
         await controller.setLocked();
 
-        await expect(controller.setPassword('')).rejects.toThrow(
+        await expect(controller.changePassword('')).rejects.toThrow(
           KeyringControllerError.MissingCredentials,
         );
       });
@@ -1983,7 +1983,7 @@ describe('KeyringController', () => {
 
     it('should throw error if the new password is an empty string', async () => {
       await withController({}, async ({ controller }) => {
-        await expect(controller.setPassword('')).rejects.toThrow(
+        await expect(controller.changePassword('')).rejects.toThrow(
           'Invalid password',
         );
       });
@@ -1992,7 +1992,7 @@ describe('KeyringController', () => {
     it('should throw error if the new password is undefined', async () => {
       await withController({}, async ({ controller }) => {
         // @ts-expect-error we are testing wrong input
-        await expect(controller.setPassword(undefined)).rejects.toThrow(
+        await expect(controller.changePassword(undefined)).rejects.toThrow(
           'Invalid password',
         );
       });
