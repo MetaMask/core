@@ -41,11 +41,11 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.2",
+    "@metamask/base-controller": "^5.0.3",
     "@metamask/controller-utils": "^9.1.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
-    "@metamask/network-controller": "^18.1.0",
+    "@metamask/network-controller": "^18.1.1",
     "@metamask/polling-controller": "^6.0.2",
     "@metamask/utils": "^8.3.0",
     "@types/bn.js": "^5.1.5",

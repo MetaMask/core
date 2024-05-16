@@ -43,7 +43,7 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
-    "@metamask/base-controller": "^5.0.2",
+    "@metamask/base-controller": "^5.0.3",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/eth-hd-keyring": "^7.0.1",
     "@metamask/eth-sig-util": "^7.0.1",
