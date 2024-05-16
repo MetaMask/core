@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "5.0.2",
+  "version": "5.0.3",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",

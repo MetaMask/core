@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- deps(keyring-controller): Bump @keystonehq/metamask-airgapped-keyring to ^0.14.1 ([#4277](https://github.com/MetaMask/core/pull/4277))
-- feat: add patch code from PR 23903 to keyringController. ([#4256](https://github.com/MetaMask/core/pull/4256))
-
 ### Added
 
 - Added `changePassword` method ([#4279](https://github.com/MetaMask/core/pull/4279))
