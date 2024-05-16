@@ -108,15 +108,7 @@ export class UnrecognizedSubjectError extends Error {
 
 export class CaveatMergerDoesNotExistError extends Error {
   constructor(caveatType: string) {
-    super(`Caveat merger does not exist for type: "${caveatType}"`);
-  }
-}
-
-export class InvalidEmptyCaveatMergeError extends Error {
-  constructor(caveatType: string) {
-    super(
-      `Merger with empty left-hand side of caveat "${caveatType}" produced undefined caveat or diff.`,
-    );
+    super(`Caveat value merger does not exist for type: "${caveatType}"`);
   }
 }
 

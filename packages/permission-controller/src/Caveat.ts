@@ -107,32 +107,27 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
 ) => void;
 
 /**
- * The diff between two caveat values, expressed in the caveat's value type.
- */
-export type CaveatDiff<Value extends Json> = Value;
-
-/**
  * A map of caveat type strings to {@link CaveatDiff} values.
  */
 export type CaveatDiffMap<ParentCaveat extends CaveatConstraint> = {
-  [CaveatType in ParentCaveat['type']]: CaveatDiff<ParentCaveat['value']>;
+  [CaveatType in ParentCaveat['type']]: ParentCaveat['value'];
 };
 
 /**
  * A function that merges two caveat values of the same type. The values must be
- * merged in the fashion of a right-biased union, and the implementation must
- * handle the possibility that the left-hand side is undefined.
+ * merged in the fashion of a right-biased union.
  *
  * @see `ARCHITECTURE.md` for more details.
  * @template Value - The type of the values to merge.
  * @param leftValue - The left-hand value.
  * @param rightValue - The right-hand value.
- * @returns The merged value and the diff between the result and the left value.
+ * @returns `[newValue, diff]`, i.e. the merged value and the diff between the left value
+ * and the new value. The diff must be expressed in the same type as the value itself.
  */
 export type CaveatValueMerger<Value extends Json> = (
-  leftValue: Value | undefined,
+  leftValue: Value,
   rightValue: Value,
-) => [Value, CaveatDiff<Value>] | [];
+) => [Value, Value] | [];
 
 export type CaveatSpecificationBase = {
   /**

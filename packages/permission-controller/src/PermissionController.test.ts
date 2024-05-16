@@ -68,10 +68,10 @@ type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
 // A caveat value merger for any caveat whose value is an array of JSON primitives.
 const primitiveArrayMerger = <T extends string | null | number>(
-  a: T[] | undefined,
+  a: T[],
   b: T[],
 ) => {
-  const diff = b.filter((element) => !a?.includes(element));
+  const diff = b.filter((element) => !a.includes(element));
 
   if (diff.length > 0) {
     return [[...(a ?? []), ...diff], diff] as [T[], T[]];
@@ -4950,56 +4950,6 @@ describe('PermissionController', () => {
             CaveatTypes.reverseArrayResponse,
           ),
         );
-
-        expect(callActionSpy).not.toHaveBeenCalled();
-      });
-
-      it('throws if an empty merge returns an undefined diff', async () => {
-        const options = getPermissionControllerOptions();
-        const { messenger } = options;
-        const origin = 'metamask.io';
-
-        // @ts-expect-error Intentional destructive testing
-        options.caveatSpecifications[caveatType1].merger = (
-          a: string[] | undefined,
-          b: string[],
-        ) => {
-          // This is forbidden.
-          if (a === undefined) {
-            return [];
-          }
-          return primitiveArrayMerger(a, b);
-        };
-
-        const controller = getDefaultPermissionController(options);
-
-        controller.grantPermissions({
-          subject: { origin },
-          approvedPermissions: {
-            [PermissionNames.wallet_getSecretArray]: {},
-          },
-        });
-
-        const callActionSpy = jest
-          .spyOn(messenger, 'call')
-          .mockImplementationOnce(async (...args) => {
-            const [, { requestData }] = args as AddPermissionRequestArgs;
-            return {
-              metadata: { ...requestData.metadata },
-              permissions: { ...requestData.permissions },
-            };
-          });
-
-        await expect(
-          controller.requestPermissionsIncremental(
-            { origin },
-            {
-              [PermissionNames.wallet_getSecretArray]: {
-                caveats: [makeCaveat1('a')],
-              },
-            },
-          ),
-        ).rejects.toThrow(new errors.InvalidEmptyCaveatMergeError(caveatType1));
 
         expect(callActionSpy).not.toHaveBeenCalled();
       });

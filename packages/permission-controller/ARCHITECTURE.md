@@ -85,16 +85,15 @@ Instead, such a hypothetical caveat could use `['*']` to represent that all para
 We, the maintainers of the permission controller, impose this requirement for two reasons:
 
 1. We find it more intuitive to reason about caveats structured in this manner.
-2. It leaves the door open for establishing a caveat DSL, and subsequently standardized caveat merger functions in support of [incremental permission requests](#requestpermissionsincremental).
+2. It leaves the door open for establishing a caveat DSL, and subsequently standardized caveat value merger functions in support of [incremental permission requests](#requestpermissionsincremental).
 
 #### Caveat merging
 
 <!-- TODO: Remove the below "if no merger exists" qualifier when mergers are required. -->
 
-Consumers may supply a caveat merger function when specifying a caveat.
+Consumers may supply a caveat value merger function when specifying a caveat.
 This is required to support [incremental permission requests](#requestpermissionsincremental).
-Caveat values must be merged in the fashion of a right-biased union, and the merger must
-handle the possibility that the left-hand value is `undefined`.
+Caveat values must be merged in the fashion of a right-biased union.
 This operation is _like_ a union in set theory, except the right-hand operand overwrites
 the left-hand operand in case of collisions.
 
@@ -112,10 +111,18 @@ Then the following must be true:
 - `A` and `C` may have all, some, or no values in common.
 - If `A = ∅`, then `C = B`
 
-In addition to merging the values, the caveat merger implementation must supply
-the difference between `C` and `A`, expressed in the type of the merged values.
+In addition to merging the values, the caveat value merger implementation must supply
+the difference between `C` and `A`, expressed in the relevant caveat value type.
 This is necessary so that other parts of the application, especially the UI, can
 understand how authority has changed.
+
+> [!IMPORTANT]
+> Caveat value mergers should assume that the left- and right-hand values are always defined.
+> In practice, when the permission controller attempts to merge two permissions, it's possible
+> that the left-hand side does not exist.
+> In this case, the value of the right-hand side will also be the value of the diff, `Δ`.
+> Therefore, it's critical that caveat value mergers also express their diffs in the relevant
+> caveat value type.
 
 If `Δ` the difference between `C` and `A`, then:
 
@@ -362,7 +369,7 @@ await permissionController.requestPermissionsIncremental({
   },
 });
 
-// Assuming that the caveat merger implementation for 'foo' naively merges the
+// Assuming that the caveat value merger implementation for 'foo' naively merges the
 // values of the left- and right-hand sides, we end up with:
 // {
 //   'metamask.io': {

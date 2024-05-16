@@ -29,7 +29,6 @@ import { nanoid } from 'nanoid';
 
 import type {
   CaveatConstraint,
-  CaveatDiff,
   CaveatDiffMap,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
@@ -59,7 +58,6 @@ import {
   InvalidCaveatFieldsError,
   InvalidCaveatsPropertyError,
   InvalidCaveatTypeError,
-  InvalidEmptyCaveatMergeError,
   InvalidMergedPermissionsError,
   invalidParams,
   InvalidSubjectIdentifierError,
@@ -445,6 +443,11 @@ type CaveatMutatorResult =
       >;
     }>;
 
+type MergeCaveatResult<T extends CaveatConstraint | undefined> =
+  T extends undefined
+    ? [CaveatConstraint, CaveatConstraint['value']]
+    : [CaveatConstraint, CaveatConstraint['value']] | [];
+
 /**
  * Extracts the permission(s) specified by the given permission and caveat
  * specifications.
@@ -696,7 +699,7 @@ export class PermissionController<
    * merger exists.
    *
    * @param caveatType - The type of the caveat whose merger to get.
-   * @returns The caveat merger function for the specified caveat type.
+   * @returns The caveat value merger function for the specified caveat type.
    */
   #expectGetCaveatMerger<
     CaveatType extends ControllerCaveatSpecification['type'],
@@ -1958,8 +1961,8 @@ export class PermissionController<
    * Incremental permission request are merged with the subject's existing permissions
    * through a right-biased union, where the incremental permission are the right-hand
    * side of the merger. If both sides of the merger specify the same caveats for a
-   * given permission, the caveats are merged using their specification's caveat merger
-   * property.
+   * given permission, the caveats are merged using their specification's caveat value
+   * merger property.
    *
    * Either this or {@link PermissionController.requestPermissions} should
    * always be used to grant additional permissions to a subject, unless user
@@ -2180,7 +2183,7 @@ export class PermissionController<
    * caveat type's merger implementation.
    *
    * Throws if the left-hand and right-hand permissions both have a caveat whose
-   * specification does not provide a caveat merger function.
+   * specification does not provide a caveat value merger function.
    *
    * @param leftPermission - The left-hand permission to merge.
    * @param rightPermission - The right-hand permission to merge.
@@ -2212,11 +2215,8 @@ export class PermissionController<
     const mergedRightUniqueCaveats = rightUniqueCaveats.map((caveat) => {
       const [newCaveat, diff] = this.#mergeCaveat(undefined, caveat);
 
-      if (newCaveat !== undefined && diff !== undefined) {
-        caveatDiffMap[newCaveat.type] = diff;
-        return newCaveat;
-      }
-      throw new InvalidEmptyCaveatMergeError(caveat.type);
+      caveatDiffMap[newCaveat.type] = diff;
+      return newCaveat;
     });
 
     const allCaveats = [
@@ -2244,17 +2244,27 @@ export class PermissionController<
    * @param rightCaveat - The right-hand caveat to merge.
    * @returns The merged caveat and the diff between the two caveats.
    */
-  #mergeCaveat(
-    leftCaveat: CaveatConstraint | undefined,
-    rightCaveat: CaveatConstraint,
-  ): [CaveatConstraint, CaveatDiff<Json>] | [] {
+  #mergeCaveat<T extends CaveatConstraint, U extends T | undefined>(
+    leftCaveat: U,
+    rightCaveat: T,
+  ): MergeCaveatResult<U> {
     /* istanbul ignore if: This should be impossible */
     if (leftCaveat !== undefined && leftCaveat.type !== rightCaveat.type) {
       throw new CaveatMergeTypeMismatchError(leftCaveat.type, rightCaveat.type);
     }
 
     const merger = this.#expectGetCaveatMerger(rightCaveat.type);
-    const [newValue, diff] = merger(leftCaveat?.value, rightCaveat.value);
+
+    if (leftCaveat === undefined) {
+      return [
+        {
+          ...rightCaveat,
+        },
+        rightCaveat.value,
+      ];
+    }
+
+    const [newValue, diff] = merger(leftCaveat.value, rightCaveat.value);
 
     return newValue !== undefined && diff !== undefined
       ? [
@@ -2264,7 +2274,7 @@ export class PermissionController<
           },
           diff,
         ]
-      : [];
+      : ([] as MergeCaveatResult<U>);
   }
 
   /**
