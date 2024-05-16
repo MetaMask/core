@@ -1232,7 +1232,7 @@ export class KeyringController extends BaseController<
    */
   changePassword(password: string): Promise<void> {
     return this.#persistOrRollback(async () => {
-      if (!this.state.isUnlocked || !this.#password) {
+      if (!this.state.isUnlocked) {
         throw new Error(KeyringControllerError.MissingCredentials);
       }
 
