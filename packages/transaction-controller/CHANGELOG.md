@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [29.0.1]
 
-### Uncategorized
+### Fixed
 
-- fix: transaction-controller – approveTransaction should not throw away raw signed transaction ([#4255](https://github.com/MetaMask/core/pull/4255))
-- Release/150.0.0 ([#4275](https://github.com/MetaMask/core/pull/4275))
+- transaction-controller – approveTransaction was throwing away raw signed transaction ([#4255](https://github.com/MetaMask/core/pull/4255))
 
 ## [29.0.0]
 
