@@ -425,7 +425,7 @@ describe('KeyringController', () => {
             async ({ controller }) => {
               await expect(
                 controller.createNewVaultAndRestore('', uint8ArraySeed),
-              ).rejects.toThrow('Invalid password');
+              ).rejects.toThrow(KeyringControllerError.InvalidEmptyPassword);
             },
           );
         });
@@ -1946,6 +1946,66 @@ describe('KeyringController', () => {
         );
       });
     });
+  });
+
+  describe('changePassword', () => {
+    [false, true].map((cacheEncryptionKey) =>
+      describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
+        it('should encrypt the vault with the new password', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, encryptor }) => {
+              const newPassword = 'new-password';
+              const spiedEncryptionFn = jest.spyOn(
+                encryptor,
+                cacheEncryptionKey ? 'encryptWithDetail' : 'encrypt',
+              );
+
+              await controller.changePassword(newPassword);
+
+              // we pick the first argument of the first call
+              expect(spiedEncryptionFn.mock.calls[0][0]).toBe(newPassword);
+            },
+          );
+        });
+
+        it('should throw error if `isUnlocked` is false', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller }) => {
+              await controller.setLocked();
+
+              await expect(controller.changePassword('')).rejects.toThrow(
+                KeyringControllerError.MissingCredentials,
+              );
+            },
+          );
+        });
+
+        it('should throw error if the new password is an empty string', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller }) => {
+              await expect(controller.changePassword('')).rejects.toThrow(
+                KeyringControllerError.InvalidEmptyPassword,
+              );
+            },
+          );
+        });
+
+        it('should throw error if the new password is undefined', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller }) => {
+              await expect(
+                // @ts-expect-error we are testing wrong input
+                controller.changePassword(undefined),
+              ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+            },
+          );
+        });
+      }),
+    );
   });
 
   describe('submitPassword', () => {
