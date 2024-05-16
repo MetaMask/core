@@ -1574,8 +1574,8 @@ export class PermissionController<
 
   /**
    * Grants _approved_ permissions to the specified subject. Every permission and
-   * caveat is stringently validated – including by calling every specification
-   * validator – and an error is thrown if any validation fails.
+   * caveat is stringently validated—including by calling their specification
+   * validators—and an error is thrown if validation fails.
    *
    * ATTN: This method does **not** prompt the user for approval. User consent must
    * first be obtained through some other means.
@@ -1590,7 +1590,7 @@ export class PermissionController<
    * @param options.preserveExistingPermissions - Whether to preserve the
    * subject's existing permissions.
    * @param options.subject - The subject to grant permissions to.
-   * @returns The granted permissions.
+   * @returns The subject's new permission state. It may or may not have changed.
    */
   grantPermissions({
     approvedPermissions,
@@ -1602,10 +1602,84 @@ export class PermissionController<
     subject: PermissionSubjectMetadata;
     preserveExistingPermissions?: boolean;
     requestData?: Record<string, unknown>;
-  }): SubjectPermissions<
-    ExtractPermission<
-      ControllerPermissionSpecification,
-      ControllerCaveatSpecification
+  }): Partial<
+    SubjectPermissions<
+      ExtractPermission<
+        ControllerPermissionSpecification,
+        ControllerCaveatSpecification
+      >
+    >
+  > {
+    return this.#applyGrantedPermissions({
+      approvedPermissions,
+      subject,
+      mergePermissions: false,
+      preserveExistingPermissions,
+      requestData,
+    });
+  }
+
+  /**
+   * Incrementally grants _approved_ permissions to the specified subject. Every
+   * permission and caveat is stringently validated—including by calling their
+   * specification validators—and an error is thrown if validation fails.
+   *
+   * ATTN: This method does **not** prompt the user for approval. User consent must
+   * first be obtained through some other means.
+   *
+   * @see {@link PermissionController.requestPermissionsIncremental} For initiating
+   * an incremental permissions request requiring user approval.
+   * @param options - Options bag.
+   * @param options.approvedPermissions - The requested permissions approved by
+   * the user.
+   * @param options.requestData - Permission request data. Passed to permission
+   * factory functions.
+   * @param options.subject - The subject to grant permissions to.
+   * @returns The subject's new permission state. It may or may not have changed.
+   */
+  grantPermissionsIncremental({
+    approvedPermissions,
+    requestData,
+    subject,
+  }: {
+    approvedPermissions: RequestedPermissions;
+    subject: PermissionSubjectMetadata;
+    requestData?: Record<string, unknown>;
+  }): Partial<
+    SubjectPermissions<
+      ExtractPermission<
+        ControllerPermissionSpecification,
+        ControllerCaveatSpecification
+      >
+    >
+  > {
+    return this.#applyGrantedPermissions({
+      approvedPermissions,
+      subject,
+      mergePermissions: true,
+      preserveExistingPermissions: true,
+      requestData,
+    });
+  }
+
+  #applyGrantedPermissions({
+    approvedPermissions,
+    subject,
+    mergePermissions,
+    preserveExistingPermissions,
+    requestData,
+  }: {
+    approvedPermissions: RequestedPermissions;
+    subject: PermissionSubjectMetadata;
+    mergePermissions: boolean;
+    preserveExistingPermissions: boolean;
+    requestData?: Record<string, unknown>;
+  }): Partial<
+    SubjectPermissions<
+      ExtractPermission<
+        ControllerPermissionSpecification,
+        ControllerCaveatSpecification
+      >
     >
   > {
     const { origin } = subject;
@@ -1688,7 +1762,15 @@ export class PermissionController<
           performCaveatValidation: false,
         });
       }
-      permissions[targetName] = permission;
+
+      if (mergePermissions) {
+        permissions[targetName] = this.#mergePermission(
+          permissions[targetName],
+          permission,
+        )[0];
+      } else {
+        permissions[targetName] = permission;
+      }
     }
 
     this.setValidatedPermissions(origin, permissions);
@@ -1920,10 +2002,12 @@ export class PermissionController<
     } = {},
   ): Promise<
     [
-      SubjectPermissions<
-        ExtractPermission<
-          ControllerPermissionSpecification,
-          ControllerCaveatSpecification
+      Partial<
+        SubjectPermissions<
+          ExtractPermission<
+            ControllerPermissionSpecification,
+            ControllerCaveatSpecification
+          >
         >
       >,
       ApprovedPermissionsMetadata,
@@ -2189,10 +2273,12 @@ export class PermissionController<
    * @param rightPermission - The right-hand permission to merge.
    * @returns The merged permission.
    */
-  #mergePermission(
-    leftPermission: Partial<PermissionConstraint>,
-    rightPermission: Partial<PermissionConstraint>,
-  ): [Partial<PermissionConstraint>, CaveatDiffMap<CaveatConstraint>] {
+  #mergePermission<
+    T extends Partial<PermissionConstraint> | PermissionConstraint,
+  >(
+    leftPermission: T | undefined,
+    rightPermission: T,
+  ): [T, CaveatDiffMap<CaveatConstraint>] {
     const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
       collectUniqueAndPairedCaveats(leftPermission, rightPermission);
 

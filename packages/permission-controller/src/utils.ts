@@ -91,10 +91,10 @@ export type PermittedHandlerExport<
  * @returns The sets of caveat pairs and unique caveats.
  */
 export function collectUniqueAndPairedCaveats(
-  leftPermission: Partial<PermissionConstraint>,
+  leftPermission: Partial<PermissionConstraint> | undefined,
   rightPermission: Partial<PermissionConstraint>,
 ) {
-  const leftCaveats = leftPermission.caveats?.slice() ?? [];
+  const leftCaveats = leftPermission?.caveats?.slice() ?? [];
   const rightCaveats = rightPermission.caveats?.slice() ?? [];
   const leftUniqueCaveats: CaveatConstraint[] = [];
   const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];

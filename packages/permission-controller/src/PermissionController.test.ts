@@ -2988,6 +2988,133 @@ describe('PermissionController', () => {
     });
   });
 
+  // See requestPermissionsIncremental for further tests
+  describe('grantPermissionsIncremental', () => {
+    it('incrementally grants a permission', () => {
+      const controller = getDefaultPermissionControllerWithState();
+      const origin = 'metamask.io';
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              wallet_getSecretArray: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretArray',
+              }),
+            },
+          },
+        },
+      });
+
+      controller.grantPermissionsIncremental({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_getSecretObject: {},
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: expect.objectContaining({
+              wallet_getSecretArray: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretArray',
+              }),
+              wallet_getSecretObject: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretObject',
+              }),
+            }),
+          },
+        },
+      });
+    });
+
+    it('incrementally grants a caveat to an existing permission', () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+      const caveat1 = { type: CaveatTypes.filterArrayResponse, value: ['foo'] };
+      const caveat2 = {
+        type: CaveatTypes.filterObjectResponse,
+        value: ['bar'],
+      };
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [{ ...caveat1 }],
+          },
+        },
+      });
+
+      controller.grantPermissionsIncremental({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [{ ...caveat2 }],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: expect.objectContaining({
+              wallet_noopWithManyCaveats: getPermissionMatcher({
+                parentCapability: 'wallet_noopWithManyCaveats',
+                caveats: [{ ...caveat1 }, { ...caveat2 }],
+              }),
+            }),
+          },
+        },
+      });
+    });
+
+    it('incrementally updates a caveat of an existing permission', () => {
+      const controller = getDefaultPermissionController();
+      const origin = 'metamask.io';
+      const getCaveat = (...values: string[]) => ({
+        type: CaveatTypes.filterArrayResponse,
+        value: values,
+      });
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [getCaveat('foo')],
+          },
+        },
+      });
+
+      controller.grantPermissionsIncremental({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [getCaveat('foo', 'bar')],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: expect.objectContaining({
+              wallet_noopWithManyCaveats: getPermissionMatcher({
+                parentCapability: 'wallet_noopWithManyCaveats',
+                caveats: [getCaveat('foo', 'bar')],
+              }),
+            }),
+          },
+        },
+      });
+    });
+  });
+
   describe('requesting permissions', () => {
     const getAnyPermissionsDiffMatcher = () =>
       expect.objectContaining({
