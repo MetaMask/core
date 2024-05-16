@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: added pairIdentifiers service ([#4269](https://github.com/MetaMask/core/pull/4269))
+
 [Unreleased]: https://github.com/MetaMask/core/

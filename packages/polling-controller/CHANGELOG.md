@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: Fix `StaticIntervalPollingController` not properly stopping polling if `_executePoll` was still pending ([#4230](https://github.com/MetaMask/core/pull/4230))
+
 ## [6.0.2]
 
 ### Changed
