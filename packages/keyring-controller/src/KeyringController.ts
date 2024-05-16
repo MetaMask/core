@@ -457,6 +457,22 @@ function assertIsExportableKeyEncryptor(
 }
 
 /**
+ * Assert that the provided password is a valid non-empty string.
+ *
+ * @param password - The password to check.
+ * @throws If the password is not a valid string.
+ */
+function assertIsValidPassword(password: unknown): asserts password is string {
+  if (typeof password !== 'string') {
+    throw new Error(KeyringControllerError.WrongPasswordType);
+  }
+
+  if (!password || !password.length) {
+    throw new Error(KeyringControllerError.InvalidEmptyPassword);
+  }
+}
+
+/**
  * Checks if the provided value is a serialized keyrings array.
  *
  * @param array - The value to check.
@@ -686,9 +702,7 @@ export class KeyringController extends BaseController<
     seed: Uint8Array,
   ): Promise<void> {
     return this.#persistOrRollback(async () => {
-      if (!password || !password.length) {
-        throw new Error('Invalid password');
-      }
+      assertIsValidPassword(password);
 
       await this.#createNewVaultWithKeyring(password, {
         type: KeyringTypes.hd,
@@ -1236,9 +1250,7 @@ export class KeyringController extends BaseController<
         throw new Error(KeyringControllerError.MissingCredentials);
       }
 
-      if (!password || !password.length) {
-        throw new Error('Invalid password');
-      }
+      assertIsValidPassword(password);
 
       this.#password = password;
       // We need to clear encryption key and salt from state
@@ -1936,9 +1948,7 @@ export class KeyringController extends BaseController<
           updatedState.encryptionKey = exportedKeyString;
         }
       } else {
-        if (typeof this.#password !== 'string') {
-          throw new TypeError(KeyringControllerError.WrongPasswordType);
-        }
+        assertIsValidPassword(this.#password);
         updatedState.vault = await this.#encryptor.encrypt(
           this.#password,
           serializedKeyrings,
