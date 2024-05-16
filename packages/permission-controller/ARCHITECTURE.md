@@ -116,24 +116,20 @@ the difference between `C` and `A`, expressed in the relevant caveat value type.
 This is necessary so that other parts of the application, especially the UI, can
 understand how authority has changed.
 
-> [!IMPORTANT]
-> Caveat value mergers should assume that the left- and right-hand values are always defined.
-> In practice, when the permission controller attempts to merge two permissions, it's possible
-> that the left-hand side does not exist.
-> In this case, the value of the right-hand side will also be the value of the diff, `Δ`.
-> Therefore, it's critical that caveat value mergers also express their diffs in the relevant
-> caveat value type.
+Caveat value mergers should assume that the left- and right-hand values are always defined.
+In practice, when the permission controller attempts to merge two permissions, it's possible
+that the left-hand side does not exist.
+In this case, the value of the right-hand side will also be the value of the diff, `Δ`.
+Therefore, caveat value mergers **must** express their diffs in the relevant caveat value type.
 
 If `Δ` the difference between `C` and `A`, then:
 
 - `Δ = C - A`
   - `Δ ∩ A = ∅`
   - `Δ ⊆ C`
+  - `A ⊕ Δ = C`
 - `Δ ⊆ B`
 - If `A = ∅`, then `Δ = C = B`
-
-> [!TIP]
-> You have correctly calculated a diff `Δ` if `A ⊕ Δ = C`.
 
 To exemplify the above in JavaScript:
 
