@@ -5899,7 +5899,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('action: PermissionsController:grantPermissions', async () => {
+    it('action: PermissionController:grantPermissions', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5920,7 +5920,7 @@ describe('PermissionController', () => {
       );
     });
 
-    it('action: PermissionsController:requestPermissions', async () => {
+    it('action: PermissionController:grantPermissionsIncremental', async () => {
       const messenger = getUnrestrictedMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
@@ -5930,8 +5930,32 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      // TODO(ritave): requestPermissions calls unregistered action ApprovalController:addRequest that
-      //               can't be easily mocked, thus we mock the whole implementation
+      const result = messenger.call(
+        'PermissionController:grantPermissionsIncremental',
+        {
+          subject: { origin: 'foo' },
+          approvedPermissions: { wallet_getSecretArray: {} },
+        },
+      );
+
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        true,
+      );
+    });
+
+    it('action: PermissionController:requestPermissions', async () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      // requestPermissions calls unregistered action ApprovalController:addRequest that
+      // can't be easily mocked, thus we mock the whole implementation
       const requestPermissionsSpy = jest
         .spyOn(controller, 'requestPermissions')
         .mockImplementation();
@@ -5945,6 +5969,33 @@ describe('PermissionController', () => {
       );
 
       expect(requestPermissionsSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('action: PermissionController:requestPermissionsIncremental', async () => {
+      const messenger = getUnrestrictedMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      // requestPermissionsIncremental calls unregistered action ApprovalController:addRequest
+      // that can't be easily mocked, thus we mock the whole implementation.
+      const requestPermissionsIncrementalSpy = jest
+        .spyOn(controller, 'requestPermissionsIncremental')
+        .mockImplementation();
+
+      await messenger.call(
+        'PermissionController:requestPermissionsIncremental',
+        { origin: 'foo' },
+        {
+          wallet_getSecretArray: {},
+        },
+      );
+
+      expect(requestPermissionsIncrementalSpy).toHaveBeenCalledTimes(1);
     });
 
     it('action: PermissionController:updateCaveat', async () => {

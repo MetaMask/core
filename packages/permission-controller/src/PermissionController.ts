@@ -275,11 +275,27 @@ export type GrantPermissions = {
 };
 
 /**
+ * Directly grants given permissions for a specificed origin without requesting user approval
+ */
+export type GrantPermissionsIncremental = {
+  type: `${typeof controllerName}:grantPermissionsIncremental`;
+  handler: GenericPermissionController['grantPermissionsIncremental'];
+};
+
+/**
  * Requests given permissions for a specified origin
  */
 export type RequestPermissions = {
   type: `${typeof controllerName}:requestPermissions`;
   handler: GenericPermissionController['requestPermissions'];
+};
+
+/**
+ * Requests given permissions for a specified origin
+ */
+export type RequestPermissionsIncremental = {
+  type: `${typeof controllerName}:requestPermissionsIncremental`;
+  handler: GenericPermissionController['requestPermissionsIncremental'];
 };
 
 /**
@@ -343,7 +359,9 @@ export type PermissionControllerActions =
   | HasPermission
   | HasPermissions
   | GrantPermissions
+  | GrantPermissionsIncremental
   | RequestPermissions
+  | RequestPermissionsIncremental
   | RevokeAllPermissions
   | RevokePermissionForAllSubjects
   | RevokePermissions
@@ -820,9 +838,20 @@ export class PermissionController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:grantPermissionsIncremental` as const,
+      this.grantPermissionsIncremental.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:requestPermissions` as const,
       (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
         this.requestPermissions(subject, permissions),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:requestPermissionsIncremental` as const,
+      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
+        this.requestPermissionsIncremental(subject, permissions),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -2073,7 +2102,20 @@ export class PermissionController<
       id?: string;
       metadata?: Record<string, Json>;
     } = {},
-  ) {
+  ): Promise<
+    | [
+        Partial<
+          SubjectPermissions<
+            ExtractPermission<
+              ControllerPermissionSpecification,
+              ControllerCaveatSpecification
+            >
+          >
+        >,
+        ApprovedPermissionsMetadata,
+      ]
+    | []
+  > {
     const { origin } = subject;
     const { id = nanoid() } = options;
     this.validateRequestedPermissions(origin, requestedPermissions);
