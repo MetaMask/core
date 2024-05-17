@@ -148,6 +148,12 @@ export const SUPPORTED_CURRENCIES = [
 ] as const;
 
 /**
+ * The zero address
+ */
+export const ZERO_ADDRESS: Hex =
+  '0x0000000000000000000000000000000000000000' as const;
+
+/**
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
@@ -249,29 +255,85 @@ const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
 
 const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
-type CryptoData = {
+/**
+ * The shape of the data that the /spot-prices endpoint returns.
+ */
+type MarketData = {
+  /**
+   * The all-time highest price of the token.
+   */
   allTimeHigh: number;
+  /**
+   * The all-time lowest price of the token.
+   */
   allTimeLow: number;
+  /**
+   * The number of tokens currently in circulation.
+   */
   circulatingSupply: number;
+  /**
+   * The market cap calculated using the diluted supply.
+   */
   dilutedMarketCap: number;
+  /**
+   * The highest price of the token in the last 24 hours.
+   */
   high1d: number;
+  /**
+   * The lowest price of the token in the last 24 hours.
+   */
   low1d: number;
+  /**
+   * The current market capitalization of the token.
+   */
   marketCap: number;
+  /**
+   * The percentage change in market capitalization over the last 24 hours.
+   */
   marketCapPercentChange1d: number;
+  /**
+   * The current price of the token.
+   */
   price: number;
+  /**
+   * The absolute change in price over the last 24 hours.
+   */
   priceChange1d: number;
+  /**
+   * The percentage change in price over the last 24 hours.
+   */
   pricePercentChange1d: number;
+  /**
+   * The percentage change in price over the last hour.
+   */
   pricePercentChange1h: number;
+  /**
+   * The percentage change in price over the last year.
+   */
   pricePercentChange1y: number;
+  /**
+   * The percentage change in price over the last 7 days.
+   */
   pricePercentChange7d: number;
+  /**
+   * The percentage change in price over the last 14 days.
+   */
   pricePercentChange14d: number;
+  /**
+   * The percentage change in price over the last 30 days.
+   */
   pricePercentChange30d: number;
+  /**
+   * The percentage change in price over the last 200 days.
+   */
   pricePercentChange200d: number;
+  /**
+   * The total trading volume of the token in the last 24 hours.
+   */
   totalVolume: number;
 };
 
-type AddressCryptoDataMap = { [address: Hex]: CryptoData };
-
+type MarketDataByTokenAddress = { [address: Hex]: MarketData };
 /**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
@@ -364,8 +426,6 @@ export class CodefiTokenPricesServiceV2
     currency: SupportedCurrency;
   }): Promise<Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>> {
     const chainIdAsNumber = hexToNumber(chainId);
-    const ZERO_ADDRESS: `0x${string}` =
-      '0x0000000000000000000000000000000000000000';
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
     url.searchParams.append(
@@ -375,7 +435,7 @@ export class CodefiTokenPricesServiceV2
     url.searchParams.append('vsCurrency', currency);
     url.searchParams.append('includeMarketData', 'true');
 
-    const pricesByCurrencyByTokenAddress: AddressCryptoDataMap =
+    const addressCryptoDataMap: MarketDataByTokenAddress =
       await this.#tokenPricePolicy.execute(() =>
         handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
       );
@@ -390,58 +450,24 @@ export class CodefiTokenPricesServiceV2
         const lowercasedTokenAddress =
           tokenAddress.toLowerCase() as Lowercase<Hex>;
 
-        const tokenData =
-          pricesByCurrencyByTokenAddress[lowercasedTokenAddress] || {};
+        const marketData = addressCryptoDataMap[lowercasedTokenAddress];
 
-        const {
-          price,
-          pricePercentChange1d,
-          priceChange1d,
-          allTimeHigh,
-          allTimeLow,
-          circulatingSupply,
-          dilutedMarketCap,
-          high1d,
-          marketCap,
-          totalVolume,
-          low1d,
-          marketCapPercentChange1d,
-          pricePercentChange1h,
-          pricePercentChange7d,
-          pricePercentChange14d,
-          pricePercentChange30d,
-          pricePercentChange200d,
-          pricePercentChange1y,
-        } = tokenData;
+        if (marketData === undefined) {
+          return obj;
+        }
 
-        const tokenPrice: TokenPrice<Hex, SupportedCurrency> = {
+        const { price } = marketData;
+
+        const token: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
           value: price,
           currency,
-          pricePercentChange1d,
-          priceChange1d,
-          allTimeHigh,
-          allTimeLow,
-          circulatingSupply,
-          dilutedMarketCap,
-          high1d,
-          marketCap,
-          totalVolume,
-          low1d,
-          marketCapPercentChange1d,
-          pricePercentChange1h,
-          pricePercentChange7d,
-          pricePercentChange14d,
-          pricePercentChange30d,
-          pricePercentChange200d,
-          pricePercentChange1y,
+          ...marketData,
         };
 
         return {
           ...obj,
-          ...(tokenPrice.value !== undefined
-            ? { [tokenAddress]: tokenPrice }
-            : {}),
+          [tokenAddress]: token,
         };
       },
       {},

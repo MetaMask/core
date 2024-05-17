@@ -109,14 +109,14 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
         });
 
-      const pricedTokensByAddress =
+      const marketDataTokensByAddress =
         await new CodefiTokenPricesServiceV2().fetchTokenPrices({
           chainId: '0x1',
           tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
           currency: 'ETH',
         });
 
-      expect(pricedTokensByAddress).toStrictEqual({
+      expect(marketDataTokensByAddress).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           tokenAddress: '0x0000000000000000000000000000000000000000',
           value: 14,
@@ -129,6 +129,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 14,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -151,6 +152,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 148.17205755299946,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -173,6 +175,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -195,6 +198,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -301,6 +305,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 14,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -323,6 +328,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -345,6 +351,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -418,6 +425,11 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
 
       expect(result).toStrictEqual({
+        '0xAAA': {
+          currency: 'ETH',
+          tokenAddress: '0xAAA',
+          value: undefined,
+        },
         '0xBBB': {
           tokenAddress: '0xBBB',
           value: 33689.98134554716,
@@ -430,6 +442,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -452,6 +465,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -617,7 +631,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
         });
 
-      const pricedTokensByAddress = await new CodefiTokenPricesServiceV2({
+      const marketDataTokensByAddress = await new CodefiTokenPricesServiceV2({
         retries,
       }).fetchTokenPrices({
         chainId: '0x1',
@@ -625,7 +639,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         currency: 'ETH',
       });
 
-      expect(pricedTokensByAddress).toStrictEqual({
+      expect(marketDataTokensByAddress).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           tokenAddress: '0x0000000000000000000000000000000000000000',
           value: 14,
@@ -638,6 +652,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 14,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -660,6 +675,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 148.17205755299946,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -682,6 +698,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -704,6 +721,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           totalVolume: 5155.094053542448,
           high1d: 0.00008020715848194385,
           low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
           circulatingSupply: 1494269733.9526057,
           dilutedMarketCap: 117669.5125951733,
           marketCapPercentChange1d: 0.76671,
@@ -1762,13 +1780,13 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Wait for circuit to move to half-open
         await clock.tickAsync(circuitBreakDuration);
 
-        const pricedTokensByAddress = await fetchTokenPricesWithFakeTimers({
+        const marketDataTokensByAddress = await fetchTokenPricesWithFakeTimers({
           clock,
           fetchTokenPrices,
           retries,
         });
 
-        expect(pricedTokensByAddress).toStrictEqual({
+        expect(marketDataTokensByAddress).toStrictEqual({
           '0x0000000000000000000000000000000000000000': {
             tokenAddress: '0x0000000000000000000000000000000000000000',
             value: 14,
@@ -1781,6 +1799,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             totalVolume: 5155.094053542448,
             high1d: 0.00008020715848194385,
             low1d: 0.00007792083564549064,
+            price: 14,
             circulatingSupply: 1494269733.9526057,
             dilutedMarketCap: 117669.5125951733,
             marketCapPercentChange1d: 0.76671,
@@ -1803,6 +1822,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             totalVolume: 5155.094053542448,
             high1d: 0.00008020715848194385,
             low1d: 0.00007792083564549064,
+            price: 148.17205755299946,
             circulatingSupply: 1494269733.9526057,
             dilutedMarketCap: 117669.5125951733,
             marketCapPercentChange1d: 0.76671,
@@ -1825,6 +1845,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             totalVolume: 5155.094053542448,
             high1d: 0.00008020715848194385,
             low1d: 0.00007792083564549064,
+            price: 33689.98134554716,
             circulatingSupply: 1494269733.9526057,
             dilutedMarketCap: 117669.5125951733,
             marketCapPercentChange1d: 0.76671,
@@ -1847,6 +1868,7 @@ describe('CodefiTokenPricesServiceV2', () => {
             totalVolume: 5155.094053542448,
             high1d: 0.00008020715848194385,
             low1d: 0.00007792083564549064,
+            price: 148.1344197578456,
             circulatingSupply: 1494269733.9526057,
             dilutedMarketCap: 117669.5125951733,
             marketCapPercentChange1d: 0.76671,

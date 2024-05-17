@@ -18,6 +18,7 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
+import { ZERO_ADDRESS } from './token-prices-service/codefi-v2';
 import type { TokensState } from './TokensController';
 
 /**
@@ -73,33 +74,32 @@ export interface ContractExchangeRates {
   [address: string]: number | undefined;
 }
 
-export type ContractInformations = {
-  marketData: Record<
-    Hex,
-    {
-      tokenAddress: `0x${string}`;
-      value: number;
-      currency: string;
-      allTimeHigh: number;
-      allTimeLow: number;
-      circulatingSupply: number;
-      dilutedMarketCap: number;
-      high1d: number;
-      low1d: number;
-      marketCap: number;
-      marketCapPercentChange1d: number;
-      price: number;
-      priceChange1d: number;
-      pricePercentChange1d: number;
-      pricePercentChange1h: number;
-      pricePercentChange1y: number;
-      pricePercentChange7d: number;
-      pricePercentChange14d: number;
-      pricePercentChange30d: number;
-      pricePercentChange200d: number;
-      totalVolume: number;
-    }
-  >;
+type MarketDataDetails = {
+  tokenAddress: `0x${string}`;
+  value: number;
+  currency: string;
+  allTimeHigh: number;
+  allTimeLow: number;
+  circulatingSupply: number;
+  dilutedMarketCap: number;
+  high1d: number;
+  low1d: number;
+  marketCap: number;
+  marketCapPercentChange1d: number;
+  price: number;
+  priceChange1d: number;
+  pricePercentChange1d: number;
+  pricePercentChange1h: number;
+  pricePercentChange1y: number;
+  pricePercentChange7d: number;
+  pricePercentChange14d: number;
+  pricePercentChange30d: number;
+  pricePercentChange200d: number;
+  totalVolume: number;
+};
+
+export type ContractMarketData = {
+  marketData: Record<Hex, MarketDataDetails>;
 };
 
 enum PollState {
@@ -117,35 +117,7 @@ enum PollState {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenRatesState extends BaseState {
-  marketData: Record<
-    Hex,
-    Record<
-      Hex,
-      {
-        tokenAddress: `0x${string}`;
-        value: number;
-        currency: string;
-        allTimeHigh: number;
-        allTimeLow: number;
-        circulatingSupply: number;
-        dilutedMarketCap: number;
-        high1d: number;
-        low1d: number;
-        marketCap: number;
-        marketCapPercentChange1d: number;
-        price: number;
-        priceChange1d: number;
-        pricePercentChange1d: number;
-        pricePercentChange1h: number;
-        pricePercentChange1y: number;
-        pricePercentChange7d: number;
-        pricePercentChange14d: number;
-        pricePercentChange30d: number;
-        pricePercentChange200d: number;
-        totalVolume: number;
-      }
-    >
-  >;
+  marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
 }
 
 /**
@@ -315,7 +287,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         this.config.chainId !== chainId ||
         this.config.nativeCurrency !== ticker
       ) {
-        this.update({ marketData: {} });
+        this.update({ ...this.defaultState });
         this.configure({ chainId, nativeCurrency: ticker });
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
@@ -484,7 +456,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
-  }): Promise<ContractInformations> {
+  }): Promise<ContractMarketData> {
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
       return tokenAddresses.reduce(
         (obj, tokenAddress) => {
@@ -548,7 +520,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
-  }): Promise<ContractInformations> {
+  }): Promise<ContractMarketData> {
     let contractNativeInformations;
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
@@ -575,8 +547,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
 
     // fetch for native token
     if (tokenAddresses.length === 0) {
-      const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-
       const contractNativeInformationsNative =
         await this.#tokenPricesService.fetchTokenPrices({
           tokenAddresses: [ZERO_ADDRESS],
@@ -592,10 +562,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       };
     }
     return Object.entries(contractNativeInformations).reduce(
-      (obj, [tokenAddress, tokenPrice]) => {
+      (obj, [tokenAddress, token]) => {
         obj.marketData = {
           ...obj.marketData,
-          [tokenAddress.toLowerCase()]: { ...tokenPrice },
+          [tokenAddress.toLowerCase()]: { ...token },
         };
 
         return obj;
@@ -624,7 +594,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   }: {
     tokenAddresses: Hex[];
     nativeCurrency: string;
-  }): Promise<ContractInformations> {
+  }): Promise<ContractMarketData> {
     const [
       contractExchangeInformations,
       fallbackCurrencyToNativeCurrencyConversionRate,
@@ -649,18 +619,17 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     const updatedContractExchangeRates = Object.entries(
       contractExchangeInformations.marketData,
     ).reduce(
-      (obj, [tokenAddress, tokenValue]) => {
-        obj.marketData = {
-          ...obj.marketData,
+      (acc, [tokenAddress, token]) => {
+        acc.marketData = {
+          ...acc.marketData,
           [tokenAddress]: {
-            ...tokenValue,
-            value: tokenValue.value
-              ? tokenValue.value *
-                fallbackCurrencyToNativeCurrencyConversionRate
+            ...token,
+            value: token.value
+              ? token.value * fallbackCurrencyToNativeCurrencyConversionRate
               : undefined,
           },
         };
-        return obj;
+        return acc;
       },
       {
         marketData: {},
