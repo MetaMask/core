@@ -11,9 +11,9 @@ const snapId = 'local:localhost:3000' as SnapId;
 /**
  * Builds a Snap chain API request.
  *
- * @param options0 - Chain API request object.
- * @param options0.method - Chain API method to be called.
- * @param options0.params - Chain API parameters.
+ * @param request - Chain API request object.
+ * @param request.method - Chain API method to be called.
+ * @param request.params - Chain API parameters.
  * @returns The Snap chain API request object.
  */
 function makeRequest({ method, params }: { method: string; params: Json }) {
