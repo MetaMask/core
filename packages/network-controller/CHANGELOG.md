@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.1.1]
 
-### Changed
+### Added
 
 - Export `BuiltInNetworkClientId` and `CustomNetworkClientId` ([#4247](https://github.com/MetaMask/core/pull/4247))
+- Bump `@metamask/eth-json-rpc-provider` to `^3.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `@metamask/controller-utils` to `^9.1.0` ([#4153](https://github.com/MetaMask/core/pull/4153))
 
 ## [18.1.0]
 
