@@ -4487,13 +4487,10 @@ describe('TransactionController', () => {
 
       expect(signSpy).toHaveBeenCalledTimes(1);
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
-      expect(updateTransactionSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          txParams: expect.objectContaining(paramsMock),
-        }),
-        'TransactionController#approveTransaction - Transaction approved',
+      expect(transactionMeta.txParams).toStrictEqual(
+        expect.objectContaining(paramsMock),
       );
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
@@ -4518,7 +4515,6 @@ describe('TransactionController', () => {
         },
       });
       const signSpy = jest.spyOn(controller, 'sign');
-      const updateTransactionSpy = jest.spyOn(controller, 'updateTransaction');
 
       await controller.addTransaction(paramsMock, {
         origin: 'origin',
@@ -4531,7 +4527,6 @@ describe('TransactionController', () => {
       await wait(0);
 
       expect(signSpy).toHaveBeenCalledTimes(1);
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
     });
 
     it('adds a transaction, signs and skips publish the transaction', async () => {
@@ -4555,15 +4550,14 @@ describe('TransactionController', () => {
       mockTransactionApprovalRequest.approve();
       await wait(0);
 
-      expect(signSpy).toHaveBeenCalledTimes(1);
+      const transactionMeta = controller.state.transactions[0];
 
-      expect(updateTransactionSpy).toHaveBeenCalledTimes(2);
-      expect(updateTransactionSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          txParams: expect.objectContaining(paramsMock),
-        }),
-        'TransactionController#approveTransaction - Transaction approved',
+      expect(transactionMeta.txParams).toStrictEqual(
+        expect.objectContaining(paramsMock),
       );
+
+      expect(signSpy).toHaveBeenCalledTimes(1);
+      expect(updateTransactionSpy).toHaveBeenCalledTimes(1);
       expect(updateTransactionSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           txParams: expect.objectContaining(paramsMock),
