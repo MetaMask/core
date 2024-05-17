@@ -224,6 +224,51 @@ type TransactionMetaBase = {
    * Whether the transaction is verified on the blockchain.
    */
   verifiedOnBlockchain?: boolean;
+
+  /**
+   * ID of the transaction that approved the swap token transfer.
+   */
+  approvalTxId?: string;
+
+  /**
+   * Account transaction balance after swap.
+   */
+  postTxBalance?: string;
+
+  /**
+   * Account transaction balance before swap.
+   */
+  preTxBalance?: string;
+
+  /**
+   * The address of the token being received of swap transaction.
+   */
+  destinationTokenAddress?: string;
+
+  /**
+   * The symbol of the token being swapped.
+   */
+  sourceTokenSymbol?: string;
+
+  /**
+   * The decimals of the token being received of swap transaction.
+   */
+  destinationTokenDecimals?: number;
+
+  /**
+   * The symbol of the token being received with swap.
+   */
+  destinationTokenSymbol?: string;
+
+  /**
+   * The metadata of the swap transaction.
+   */
+  swapMetaData?: Record<string, any>;
+
+  /**
+   * The value of the token being swapped.
+   */
+  swapTokenValue?: string;
 };
 
 export type SendFlowHistoryEntry = {
@@ -819,3 +864,31 @@ export type SimulationData = {
   /** Data concerning a change to the user's token balances. */
   tokenBalanceChanges: SimulationTokenBalanceChange[];
 };
+
+/**
+ * Specifies the shape of the base transaction parameters.
+ * Added in EIP-2718.
+ */
+export enum TransactionEnvelopeType {
+  /**
+   * A legacy transaction, the very first type.
+   */
+  legacy = '0x0',
+
+  /**
+   * EIP-2930 defined the access list transaction type that allowed for
+   * specifying the state that a transaction would act upon in advance and
+   * theoretically save on gas fees.
+   */
+  accessList = '0x1',
+
+  /**
+   * The type introduced comes from EIP-1559, Fee Market describes the addition
+   * of a baseFee to blocks that will be burned instead of distributed to
+   * miners. Transactions of this type have both a maxFeePerGas (maximum total
+   * amount in gwei per gas to spend on the transaction) which is inclusive of
+   * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
+   * transaction fee to distribute to miner).
+   */
+  feeMarket = '0x2',
+}

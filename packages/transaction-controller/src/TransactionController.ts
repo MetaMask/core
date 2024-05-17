@@ -37,8 +37,11 @@ import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { merge, pickBy, isEqual } from 'lodash';
-import type { NonceLock } from 'nonce-tracker/dist/NonceTracker';
+import { mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
+import type {
+  NonceLock,
+  Transaction as NonceTrackerTransaction,
+} from 'nonce-tracker/dist/NonceTracker';
 import { NonceTracker } from 'nonce-tracker/dist/NonceTracker';
 import { v1 as random } from 'uuid';
 
@@ -64,8 +67,9 @@ import type {
   GasFeeEstimates,
 } from './types';
 import {
-  TransactionType,
+  TransactionEnvelopeType,
   TransactionStatus,
+  TransactionType,
   SimulationErrorCode,
 } from './types';
 import {
@@ -82,6 +86,7 @@ import {
   ESTIMATE_GAS_ERROR,
 } from './utils';
 import { getSimulationData } from './utils/simulation';
+import { updatePostTransactionBalance } from './utils/swaps';
 
 const HARDFORK = Hardfork.London;
 const SUBMIT_HISTORY_LIMIT = 100;
@@ -199,6 +204,8 @@ export class TransactionController extends BaseController<
 
   private readonly mutex = new Mutex();
 
+  private readonly lookupRegistryMutex = new Mutex();
+
   private readonly getNetworkState: () => NetworkState;
 
   private readonly getCurrentAccountEIP1559Compatibility: () => Promise<boolean>;
@@ -216,6 +223,17 @@ export class TransactionController extends BaseController<
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
 
   #isSimulationEnabled: () => boolean;
+
+  private readonly inProcessOfSigning: Set<string> = new Set();
+
+  private readonly publish: (
+    transactionMeta: TransactionMeta,
+    rawTx: string,
+  ) => Promise<{ transactionHash?: string | undefined }>;
+
+  private readonly getExternalPendingTransactions: (
+    address: string,
+  ) => NonceTrackerTransaction[];
 
   private failTransaction(transactionMeta: TransactionMeta, error: Error) {
     const newTransactionMeta = {
@@ -266,6 +284,7 @@ export class TransactionController extends BaseController<
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getSelectedAddress - Gets the address of the currently selected account.
+   * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.incomingTransactions.includeTokenTransfers - Whether or not to include ERC20 token transfers.
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
@@ -275,6 +294,8 @@ export class TransactionController extends BaseController<
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
+   * @param options.hooks - The controller hooks.
+   * @param options.hooks.publish - Alternate logic to publish a transaction.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
@@ -288,11 +309,13 @@ export class TransactionController extends BaseController<
       getGasFeeEstimates,
       getNetworkState,
       getSelectedAddress,
+      getExternalPendingTransactions,
       incomingTransactions = {},
       isSimulationEnabled,
       messenger,
       onNetworkStateChange,
       provider,
+      hooks = {},
     }: {
       blockTracker: BlockTracker;
       disableHistory: boolean;
@@ -302,6 +325,9 @@ export class TransactionController extends BaseController<
       getGasFeeEstimates: () => Promise<GasFeeState>;
       getNetworkState: () => NetworkState;
       getSelectedAddress: () => string;
+      getExternalPendingTransactions?: (
+        address: string,
+      ) => NonceTrackerTransaction[];
       incomingTransactions: {
         includeTokenTransfers?: boolean;
         isEnabled?: () => boolean;
@@ -312,6 +338,11 @@ export class TransactionController extends BaseController<
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
+      hooks: {
+        publish?: (
+          transactionMeta: TransactionMeta,
+        ) => Promise<{ transactionHash: string | undefined }>;
+      };
     },
     config?: Partial<TransactionConfig>,
     state?: Partial<TransactionState>,
@@ -345,14 +376,16 @@ export class TransactionController extends BaseController<
       getCurrentAccountEIP1559Compatibility;
     this.getCurrentNetworkEIP1559Compatibility =
       getCurrentNetworkEIP1559Compatibility;
+    this.getExternalPendingTransactions =
+      getExternalPendingTransactions ?? (() => []);
+    this.publish =
+      hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
-      getPendingTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.submitted,
-      ),
+      getPendingTransactions:
+        this.getNonceTrackerPendingTransactions.bind(this),
       getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
         this,
         TransactionStatus.confirmed,
@@ -431,7 +464,7 @@ export class TransactionController extends BaseController<
    * @returns The method data object corresponding to the given signature prefix.
    */
   async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
-    const releaseLock = await this.mutex.acquire();
+    let releaseLock;
     try {
       const { methodData } = this.state;
       const knownMethod = Object.keys(methodData).find(
@@ -440,13 +473,17 @@ export class TransactionController extends BaseController<
       if (knownMethod) {
         return methodData[fourBytePrefix];
       }
+
+      releaseLock = await this.lookupRegistryMutex.acquire();
       const registry = await this.registryLookup(fourBytePrefix);
       this.update({
         methodData: { ...methodData, ...{ [fourBytePrefix]: registry } },
       });
       return registry;
     } finally {
-      releaseLock();
+      if (releaseLock) {
+        releaseLock();
+      }
     }
   }
 
@@ -1274,6 +1311,180 @@ export class TransactionController extends BaseController<
     return this.getTransaction(transactionId) as TransactionMeta;
   }
 
+  /**
+   * Search transaction metadata for matching entries.
+   *
+   * @param opts - Options bag.
+   * @param opts.searchCriteria - An object containing values or functions for transaction properties to filter transactions with.
+   * @param opts.initialList - The transactions to search. Defaults to the current state.
+   * @param opts.filterToCurrentNetwork - Whether to filter the results to the current network. Defaults to true.
+   * @param opts.limit - The maximum number of transactions to return. No limit by default.
+   * @returns An array of transactions matching the provided options.
+   */
+  getTransactions({
+    searchCriteria = {},
+    initialList,
+    filterToCurrentNetwork = true,
+    limit,
+  }: {
+    // TODO: Replace `any` with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    searchCriteria?: any;
+    initialList?: TransactionMeta[];
+    filterToCurrentNetwork?: boolean;
+    limit?: number;
+  } = {}): TransactionMeta[] {
+    const chainId = this.getChainId();
+    // searchCriteria is an object that might have values that aren't predicate
+    // methods. When providing any other value type (string, number, etc), we
+    // consider this shorthand for "check the value at key for strict equality
+    // with the provided value". To conform this object to be only methods, we
+    // mapValues (lodash) such that every value on the object is a method that
+    // returns a boolean.
+    const predicateMethods = mapValues(searchCriteria, (predicate) => {
+      return typeof predicate === 'function'
+        ? predicate
+        : // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (v: any) => v === predicate;
+    });
+
+    const transactionsToFilter = initialList ?? this.state.transactions;
+
+    // Combine sortBy and pickBy to transform our state object into an array of
+    // matching transactions that are sorted by time.
+    const filteredTransactions = sortBy(
+      pickBy(transactionsToFilter, (transaction) => {
+        if (filterToCurrentNetwork && transaction.chainId !== chainId) {
+          return false;
+        }
+        // iterate over the predicateMethods keys to check if the transaction
+        // matches the searchCriteria
+        for (const [key, predicate] of Object.entries(predicateMethods)) {
+          // We return false early as soon as we know that one of the specified
+          // search criteria do not match the transaction. This prevents
+          // needlessly checking all criteria when we already know the criteria
+          // are not fully satisfied. We check both txParams and the base
+          // object as predicate keys can be either.
+          if (key in transaction.txParams) {
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            if (predicate((transaction.txParams as any)[key]) === false) {
+              return false;
+            }
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } else if (predicate((transaction as any)[key]) === false) {
+            return false;
+          }
+        }
+
+        return true;
+      }),
+      'time',
+    );
+    if (limit !== undefined) {
+      // We need to have all transactions of a given nonce in order to display
+      // necessary details in the UI. We use the size of this set to determine
+      // whether we have reached the limit provided, thus ensuring that all
+      // transactions of nonces we include will be sent to the UI.
+      const nonces = new Set();
+      const txs: TransactionMeta[] = [];
+      // By default, the transaction list we filter from is sorted by time ASC.
+      // To ensure that filtered results prefers the newest transactions we
+      // iterate from right to left, inserting transactions into front of a new
+      // array. The original order is preserved, but we ensure that newest txs
+      // are preferred.
+      for (let i = filteredTransactions.length - 1; i > -1; i--) {
+        const txMeta = filteredTransactions[i];
+        const { nonce } = txMeta.txParams;
+        if (!nonces.has(nonce)) {
+          if (nonces.size < limit) {
+            nonces.add(nonce);
+          } else {
+            continue;
+          }
+        }
+        // Push transaction into the beginning of our array to ensure the
+        // original order is preserved.
+        txs.unshift(txMeta);
+      }
+      return txs;
+    }
+    return filteredTransactions;
+  }
+
+  /**
+   * Signs and returns the raw transaction data for provided transaction params list.
+   *
+   * @param listOfTxParams - The list of transaction params to approve.
+   * @param opts - Options bag.
+   * @param opts.hasNonce - Whether the transactions already have a nonce.
+   * @returns The raw transactions.
+   */
+  async approveTransactionsWithSameNonce(
+    listOfTxParams: TransactionParams[] = [],
+    { hasNonce }: { hasNonce?: boolean } = {},
+  ): Promise<string | string[]> {
+    log('Approving transactions with same nonce', {
+      transactions: listOfTxParams,
+    });
+
+    if (listOfTxParams.length === 0) {
+      return '';
+    }
+
+    const initialTx = listOfTxParams[0];
+    const common = this.getCommonConfiguration();
+
+    const initialTxAsEthTx = TransactionFactory.fromTxData(initialTx, {
+      common,
+    });
+
+    const initialTxAsSerializedHex = bufferToHex(initialTxAsEthTx.serialize());
+
+    if (this.inProcessOfSigning.has(initialTxAsSerializedHex)) {
+      return '';
+    }
+
+    this.inProcessOfSigning.add(initialTxAsSerializedHex);
+
+    let rawTransactions, nonceLock;
+    try {
+      // TODO: we should add a check to verify that all transactions have the same from address
+      const fromAddress = initialTx.from;
+      const requiresNonce = hasNonce !== true;
+
+      nonceLock = requiresNonce
+        ? await this.nonceTracker.getNonceLock(fromAddress)
+        : undefined;
+
+      const nonce = nonceLock
+        ? addHexPrefix(nonceLock.nextNonce.toString(16))
+        : initialTx.nonce;
+
+      if (nonceLock) {
+        log('Using nonce from nonce tracker', nonce, nonceLock.nonceDetails);
+      }
+
+      rawTransactions = await Promise.all(
+        listOfTxParams.map((txParams) => {
+          txParams.nonce = nonce;
+          return this.signExternalTransaction(txParams);
+        }),
+      );
+    } catch (err) {
+      log('Error while signing transactions with same nonce', err);
+      // Must set transaction to submitted/failed before releasing lock
+      // continue with error chain
+      throw err;
+    } finally {
+      nonceLock?.releaseLock();
+      this.inProcessOfSigning.delete(initialTxAsSerializedHex);
+    }
+    return rawTransactions;
+  }
+
   private async processApproval(
     transactionMeta: TransactionMeta,
     {
@@ -1388,6 +1599,11 @@ export class TransactionController extends BaseController<
         return;
       }
 
+      if (this.inProcessOfSigning.has(transactionId)) {
+        log('Skipping approval as signing in progress', transactionId);
+        return;
+      }
+
       const { approved: status } = TransactionStatus;
 
       let nonceToUse = nonce;
@@ -1426,6 +1642,7 @@ export class TransactionController extends BaseController<
       }
 
       const unsignedEthTx = this.prepareUnsignedEthTx(txParams);
+      this.inProcessOfSigning.add(transactionMeta.id);
       const signedTx = await this.sign(unsignedEthTx, from);
       await this.updateTransactionMetaRSV(transactionMeta, signedTx);
       transactionMeta.status = TransactionStatus.signed;
@@ -1441,12 +1658,19 @@ export class TransactionController extends BaseController<
         'TransactionController#approveTransaction - RawTransaction added',
       );
 
-      const hash = await this.publishTransaction(
+      let { transactionHash: hash } = await this.publish(
+        transactionMeta,
         rawTx,
-        txParams,
-        chainId,
-        transactionMeta.origin,
       );
+
+      if (hash === undefined) {
+        hash = await this.publishTransaction(
+          rawTx,
+          txParams,
+          chainId,
+          transactionMeta.origin,
+        );
+      }
 
       transactionMeta.hash = hash;
       transactionMeta.status = TransactionStatus.submitted;
@@ -1459,6 +1683,7 @@ export class TransactionController extends BaseController<
     } catch (error: any) {
       this.failTransaction(transactionMeta, error);
     } finally {
+      this.inProcessOfSigning.delete(transactionId);
       releaseLock();
       if (nonceLock) {
         nonceLock.releaseLock();
@@ -1757,7 +1982,7 @@ export class TransactionController extends BaseController<
     if (
       chain !== RPC &&
       chain !== NetworkType['linea-goerli'] &&
-      chain !== NetworkType['linea-sepolia'] &&
+      chain !== 'linea-sepolia' &&
       chain !== NetworkType['linea-mainnet']
     ) {
       return new Common({ chain, hardfork: HARDFORK });
@@ -2190,6 +2415,76 @@ export class TransactionController extends BaseController<
         }
       },
     );
+  }
+
+  private getNonceTrackerPendingTransactions(address: string) {
+    const standardPendingTransactions = this.getNonceTrackerTransactions(
+      TransactionStatus.submitted,
+      address,
+    );
+
+    const externalPendingTransactions =
+      this.getExternalPendingTransactions(address);
+
+    return [...standardPendingTransactions, ...externalPendingTransactions];
+  }
+
+  private async updatePostBalance(transactionMeta: TransactionMeta) {
+    try {
+      if (transactionMeta.type !== TransactionType.swap) {
+        return;
+      }
+
+      const { updatedTransactionMeta, approvalTransactionMeta } =
+        await updatePostTransactionBalance(transactionMeta, {
+          ethQuery: this.ethQuery,
+          getTransaction: this.getTransaction.bind(this),
+          updateTransaction: this.updateTransaction.bind(this),
+        });
+
+      this.hub.emit('post-transaction-balance-updated', {
+        transactionMeta: updatedTransactionMeta,
+        approvalTransactionMeta,
+      });
+    } catch (error) {
+      console.error('Error while updating post transaction balance', error);
+    }
+  }
+
+  private async signExternalTransaction(
+    transactionParams: TransactionParams,
+  ): Promise<string> {
+    if (!this.sign) {
+      throw new Error('No sign method defined.');
+    }
+
+    const normalizedTransactionParams =
+      normalizeTransactionParams(transactionParams);
+    const chainId = this.getChainId();
+    const type = isEIP1559Transaction(normalizedTransactionParams)
+      ? TransactionEnvelopeType.feeMarket
+      : TransactionEnvelopeType.legacy;
+    const updatedTransactionParams = {
+      ...normalizedTransactionParams,
+      type,
+      gasLimit: normalizedTransactionParams.gas,
+      chainId,
+    };
+
+    const { from } = updatedTransactionParams;
+    const common = this.getCommonConfiguration();
+    const unsignedTransaction = TransactionFactory.fromTxData(
+      updatedTransactionParams,
+      { common },
+    );
+    const signedTransaction = await this.sign(unsignedTransaction, from);
+
+    const rawTransaction = bufferToHex(signedTransaction.serialize());
+    return rawTransaction;
+  }
+
+  private onTransactionStatusChange(transactionMeta: TransactionMeta) {
+    this.hub.emit('transaction-status-update', { transactionMeta });
   }
 }
 
