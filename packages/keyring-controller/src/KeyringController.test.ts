@@ -425,7 +425,7 @@ describe('KeyringController', () => {
             async ({ controller }) => {
               await expect(
                 controller.createNewVaultAndRestore('', uint8ArraySeed),
-              ).rejects.toThrow('Invalid password');
+              ).rejects.toThrow(KeyringControllerError.InvalidEmptyPassword);
             },
           );
         });
@@ -1948,6 +1948,66 @@ describe('KeyringController', () => {
     });
   });
 
+  describe('changePassword', () => {
+    [false, true].map((cacheEncryptionKey) =>
+      describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
+        it('should encrypt the vault with the new password', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller, encryptor }) => {
+              const newPassword = 'new-password';
+              const spiedEncryptionFn = jest.spyOn(
+                encryptor,
+                cacheEncryptionKey ? 'encryptWithDetail' : 'encrypt',
+              );
+
+              await controller.changePassword(newPassword);
+
+              // we pick the first argument of the first call
+              expect(spiedEncryptionFn.mock.calls[0][0]).toBe(newPassword);
+            },
+          );
+        });
+
+        it('should throw error if `isUnlocked` is false', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller }) => {
+              await controller.setLocked();
+
+              await expect(controller.changePassword('')).rejects.toThrow(
+                KeyringControllerError.MissingCredentials,
+              );
+            },
+          );
+        });
+
+        it('should throw error if the new password is an empty string', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller }) => {
+              await expect(controller.changePassword('')).rejects.toThrow(
+                KeyringControllerError.InvalidEmptyPassword,
+              );
+            },
+          );
+        });
+
+        it('should throw error if the new password is undefined', async () => {
+          await withController(
+            { cacheEncryptionKey },
+            async ({ controller }) => {
+              await expect(
+                // @ts-expect-error we are testing wrong input
+                controller.changePassword(undefined),
+              ).rejects.toThrow(KeyringControllerError.WrongPasswordType);
+            },
+          );
+        });
+      }),
+    );
+  });
+
   describe('submitPassword', () => {
     [false, true].map((cacheEncryptionKey) =>
       describe(`when cacheEncryptionKey is ${cacheEncryptionKey}`, () => {
@@ -2215,6 +2275,140 @@ describe('KeyringController', () => {
               KeyringControllerError.VaultError,
             );
           },
+        );
+      });
+    });
+  });
+
+  describe('withKeyring', () => {
+    it('should rollback if an error is thrown', async () => {
+      await withController(async ({ controller, initialState }) => {
+        const selector = { type: KeyringTypes.hd };
+        const fn = async (keyring: EthKeyring<Json>) => {
+          await keyring.addAccounts(1);
+          throw new Error('Oops');
+        };
+
+        await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
+          'Oops',
+        );
+        expect(controller.state.keyrings[0].accounts).toHaveLength(1);
+        expect(await controller.getAccounts()).toStrictEqual(
+          initialState.keyrings[0].accounts,
+        );
+      });
+    });
+
+    describe('when the keyring is selected by type', () => {
+      it('should call the given function with the selected keyring', async () => {
+        await withController(async ({ controller }) => {
+          const fn = jest.fn();
+          const selector = { type: KeyringTypes.hd };
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+
+          await controller.withKeyring(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith(keyring);
+        });
+      });
+
+      it('should return the result of the function', async () => {
+        await withController(async ({ controller }) => {
+          const fn = async () => Promise.resolve('hello');
+          const selector = { type: KeyringTypes.hd };
+
+          expect(await controller.withKeyring(selector, fn)).toBe('hello');
+        });
+      });
+
+      it('should throw an error if the callback returns the selected keyring', async () => {
+        await withController(async ({ controller }) => {
+          await expect(
+            controller.withKeyring(
+              { type: KeyringTypes.hd },
+              async (keyring) => {
+                return keyring;
+              },
+            ),
+          ).rejects.toThrow(KeyringControllerError.UnsafeDirectKeyringAccess);
+        });
+      });
+
+      describe('when the keyring is not found', () => {
+        it('should throw an error if the keyring is not found and `createIfMissing` is false', async () => {
+          await withController(async ({ controller }) => {
+            const selector = { type: 'foo' };
+            const fn = jest.fn();
+
+            await expect(controller.withKeyring(selector, fn)).rejects.toThrow(
+              KeyringControllerError.KeyringNotFound,
+            );
+            expect(fn).not.toHaveBeenCalled();
+          });
+        });
+
+        it('should add the keyring if `createIfMissing` is true', async () => {
+          await withController(
+            { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+            async ({ controller }) => {
+              const selector = { type: MockKeyring.type };
+              const fn = jest.fn();
+
+              await controller.withKeyring(selector, fn, {
+                createIfMissing: true,
+              });
+
+              expect(fn).toHaveBeenCalled();
+              expect(controller.state.keyrings).toHaveLength(2);
+            },
+          );
+        });
+      });
+    });
+
+    describe('when the keyring is selected by address', () => {
+      it('should call the given function with the selected keyring', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const fn = jest.fn();
+          const selector = {
+            address: initialState.keyrings[0].accounts[0] as Hex,
+          };
+          const keyring = controller.getKeyringsByType(KeyringTypes.hd)[0];
+
+          await controller.withKeyring(selector, fn);
+
+          expect(fn).toHaveBeenCalledWith(keyring);
+        });
+      });
+
+      it('should return the result of the function', async () => {
+        await withController(async ({ controller, initialState }) => {
+          const fn = async () => Promise.resolve('hello');
+          const selector = {
+            address: initialState.keyrings[0].accounts[0] as Hex,
+          };
+
+          expect(await controller.withKeyring(selector, fn)).toBe('hello');
+        });
+      });
+
+      describe('when the keyring is not found', () => {
+        [true, false].forEach((value) =>
+          it(`should throw an error if the createIfMissing is ${value}`, async () => {
+            await withController(async ({ controller }) => {
+              const selector = {
+                address: '0x4584d2B4905087A100420AFfCe1b2d73fC69B8E4' as Hex,
+              };
+              const fn = jest.fn();
+
+              await expect(
+                controller.withKeyring(selector, fn),
+              ).rejects.toThrow(
+                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
+              );
+              expect(fn).not.toHaveBeenCalled();
+            });
+          }),
         );
       });
     });
