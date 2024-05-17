@@ -1744,33 +1744,31 @@ export class PermissionController<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification
       >;
+      let performCaveatValidation = true;
+
       if (specification.factory) {
         permission = specification.factory(permissionOptions, requestData);
-
-        // Full caveat and permission validation is performed here since the
-        // factory function can arbitrarily modify the entire permission object,
-        // including its caveats.
-        this.validatePermission(specification, permission, origin);
       } else {
         permission = constructPermission(permissionOptions);
 
         // We do not need to validate caveats in this case, because the plain
         // permission constructor function does not modify the caveats, which
         // were already validated by `constructCaveats` above.
-        this.validatePermission(specification, permission, origin, {
-          invokePermissionValidator: true,
-          performCaveatValidation: false,
-        });
+        performCaveatValidation = false;
       }
 
       if (mergePermissions) {
-        permissions[targetName] = this.#mergePermission(
+        permission = this.#mergePermission(
           permissions[targetName],
           permission,
         )[0];
-      } else {
-        permissions[targetName] = permission;
       }
+
+      this.validatePermission(specification, permission, origin, {
+        invokePermissionValidator: true,
+        performCaveatValidation,
+      });
+      permissions[targetName] = permission;
     }
 
     this.setValidatedPermissions(origin, permissions);
