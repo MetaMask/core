@@ -21,8 +21,8 @@ import type {
  */
 export type Rate = {
   conversionRate: string;
-  usdConversionRate: string | null;
   conversionDate: number;
+  usdConversionRate?: string;
 };
 
 /**

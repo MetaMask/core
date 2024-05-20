@@ -146,7 +146,6 @@ describe('RatesController', () => {
         btc: {
           conversionDate: 0,
           conversionRate: '0',
-          usdConversionRate: null,
         },
       });
 
@@ -168,7 +167,6 @@ describe('RatesController', () => {
         btc: {
           conversionDate: MOCK_TIMESTAMP,
           conversionRate: mockRateValue,
-          usdConversionRate: null,
         },
       });
 

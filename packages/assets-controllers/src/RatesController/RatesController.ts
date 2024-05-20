@@ -29,7 +29,6 @@ const defaultState = {
     [Cryptocurrency.Btc]: {
       conversionDate: 0,
       conversionRate: '0',
-      usdConversionRate: null,
     },
   },
   fromCurrencies: [Cryptocurrency.Btc],
@@ -112,7 +111,7 @@ export class RatesController extends BaseController<
           // Divided by 1000 to convert to ms
           conversionDate: Date.now() / 1000,
           conversionRate: values[currency],
-          usdConversionRate: values.usd || null,
+          ...(this.#includeUsdRate && { usdConversionRate: values.usd }),
         };
       }
 
