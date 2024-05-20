@@ -133,7 +133,7 @@ export class RatesController extends BaseController<
       return;
     }
 
-    this.messagingSystem.publish(`${name}:startPolling`);
+    this.messagingSystem.publish(`${name}:pollingStarted`);
 
     this.#intervalId = setInterval(() => {
       this.#executePoll().catch(console.error);
@@ -150,7 +150,7 @@ export class RatesController extends BaseController<
 
     clearInterval(this.#intervalId);
     this.#intervalId = undefined;
-    this.messagingSystem.publish(`${name}:stopPolling`);
+    this.messagingSystem.publish(`${name}:pollingStopped`);
   }
 
   getCryptocurrencyList(): string[] {

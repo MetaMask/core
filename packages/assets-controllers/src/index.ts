@@ -64,7 +64,7 @@ export type {
   RatesControllerEvents,
   RatesControllerActions,
   RatesControllerGetStateAction,
-  RatesControllerStopPollingEvent,
   RatesControllerStateChangeEvent,
-  RatesControllerStartPollingEvent,
+  RatesControllerPollingStartedEvent,
+  RatesControllerPollingStoppedEvent,
 } from './RatesController';

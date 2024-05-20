@@ -53,13 +53,13 @@ export type RatesControllerStateChangeEvent = ControllerStateChangeEvent<
   RatesControllerState
 >;
 
-export type RatesControllerStartPollingEvent = {
-  type: `${typeof ratesControllerName}:startPolling`;
+export type RatesControllerPollingStartedEvent = {
+  type: `${typeof ratesControllerName}:pollingStarted`;
   payload: [];
 };
 
-export type RatesControllerStopPollingEvent = {
-  type: `${typeof ratesControllerName}:stopPolling`;
+export type RatesControllerPollingStoppedEvent = {
+  type: `${typeof ratesControllerName}:pollingStopped`;
   payload: [];
 };
 
@@ -68,8 +68,8 @@ export type RatesControllerStopPollingEvent = {
  */
 export type RatesControllerEvents =
   | RatesControllerStateChangeEvent
-  | RatesControllerStartPollingEvent
-  | RatesControllerStopPollingEvent;
+  | RatesControllerPollingStartedEvent
+  | RatesControllerPollingStoppedEvent;
 
 export type RatesControllerGetStateAction = ControllerGetStateAction<
   typeof ratesControllerName,
