@@ -82,10 +82,8 @@ export class RatesController extends BaseController<
    * Updates the rates by fetching new data.
    */
   async updateRates(): Promise<void> {
-    const releaseLock = await this.#mutex.acquire();
-    const { currency, fromCurrencies } = this.state;
-
-    try {
+    await this.#withLock(async () => {
+      const { currency, fromCurrencies } = this.state;
       const response = await this.#fetchMultiExchangeRate(
         currency,
         fromCurrencies,
@@ -108,6 +106,13 @@ export class RatesController extends BaseController<
           rates: updatedRates,
         };
       });
+    })
+  }
+
+  async #withLock<R>(f: () => R) {
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      return f();
     } finally {
       releaseLock();
     }
@@ -154,34 +159,29 @@ export class RatesController extends BaseController<
   }
 
   async setCryptocurrencyList(list: string[]): Promise<void> {
-    const releaseLock = await this.#mutex.acquire();
-    try {
+    await this.#withLock(() => {
       this.update(() => {
         return {
           ...this.state,
           fromCurrencies: list,
         };
       });
-    } finally {
-      releaseLock();
-    }
+    })
   }
 
   async setCurrency(currency: string) {
     if (currency === '') {
       throw new Error('The currency can not be an empty string');
     }
-    const releaseLock = await this.#mutex.acquire();
-    try {
+
+    await this.#withLock(() => {
       this.update(() => {
         return {
           ...defaultState,
           currency,
         };
       });
-    } finally {
-      releaseLock();
-    }
+    })
     await this.updateRates();
   }
 }
