@@ -1,6 +1,15 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import type {
+  InternalAccount,
+  InternalAccountType,
+} from '@metamask/keyring-api';
+import {
+  BtcAccountType,
+  BtcMethod,
+  EthAccountType,
+  EthErc4337Method,
+  EthMethod,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
@@ -145,6 +154,7 @@ class MockNormalAccountUUID {
  * @param props.keyringType - The type of the keyring associated with the account.
  * @param props.snapId - The id of the snap.
  * @param props.snapEnabled - The status of the snap
+ * @param props.type - Account Type to create
  * @returns The `InternalAccount` object created from the normal account properties.
  */
 function createExpectedInternalAccount({
@@ -154,6 +164,7 @@ function createExpectedInternalAccount({
   keyringType,
   snapId,
   snapEnabled = true,
+  type = EthAccountType.Eoa,
 }: {
   id: string;
   name: string;
@@ -161,22 +172,30 @@ function createExpectedInternalAccount({
   keyringType: string;
   snapId?: string;
   snapEnabled?: boolean;
+  type?: InternalAccountType;
 }): InternalAccount {
-  const account: InternalAccount = {
+  const accountTypeToMethods = {
+    [`${EthAccountType.Eoa}`]: [...Object.values(EthMethod)],
+    [`${EthAccountType.Erc4337}`]: [...Object.values(EthErc4337Method)],
+    [`${BtcAccountType.P2wpkh}`]: [...Object.values(BtcMethod)],
+  };
+
+  const methods =
+    accountTypeToMethods[type as unknown as keyof typeof accountTypeToMethods];
+
+  const account = {
     id,
     address,
     options: {},
-    methods: [...EOA_METHODS],
-    type: EthAccountType.Eoa,
+    methods,
+    type,
     metadata: {
       name,
       keyring: { type: keyringType },
       importTime: expect.any(Number),
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
       lastSelected: undefined,
     },
-  };
+  } as InternalAccount;
 
   if (snapId) {
     account.metadata.snap = {
@@ -261,7 +280,13 @@ function setupAccountsController({
     AccountsControllerActions | AllowedActions,
     AccountsControllerEvents | AllowedEvents
   >;
-}): AccountsController {
+}): {
+  accountsController: AccountsController;
+  messenger: ControllerMessenger<
+    AccountsControllerActions | AllowedActions,
+    AccountsControllerEvents | AllowedEvents
+  >;
+} {
   const accountsControllerMessenger =
     buildAccountsControllerMessenger(messenger);
 
@@ -269,7 +294,7 @@ function setupAccountsController({
     messenger: accountsControllerMessenger,
     state: { ...defaultState, ...initialState },
   });
-  return accountsController;
+  return { accountsController, messenger };
 }
 
 describe('AccountsController', () => {
@@ -300,7 +325,7 @@ describe('AccountsController', () => {
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -342,7 +367,7 @@ describe('AccountsController', () => {
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -384,7 +409,7 @@ describe('AccountsController', () => {
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any as SnapControllerState;
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -412,7 +437,7 @@ describe('AccountsController', () => {
     });
     it('should not update state when only keyring is unlocked without any keyrings', async () => {
       const messenger = buildMessenger();
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -445,7 +470,7 @@ describe('AccountsController', () => {
           },
         ],
       };
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -483,7 +508,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -541,7 +566,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -607,7 +632,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -655,7 +680,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -718,7 +743,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -781,7 +806,7 @@ describe('AccountsController', () => {
           ],
         };
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {},
@@ -817,7 +842,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -861,7 +886,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -924,7 +949,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -995,7 +1020,7 @@ describe('AccountsController', () => {
             },
           ],
         };
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: {
@@ -1063,7 +1088,7 @@ describe('AccountsController', () => {
           },
         ],
       };
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1161,7 +1186,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1207,7 +1232,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1256,7 +1281,7 @@ describe('AccountsController', () => {
         mockGetKeyringByType.mockReturnValueOnce([undefined]),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1296,7 +1321,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1347,7 +1372,7 @@ describe('AccountsController', () => {
           .mockResolvedValueOnce({ type: KeyringTypes.snap }),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1402,7 +1427,7 @@ describe('AccountsController', () => {
           .mockResolvedValueOnce({ type: KeyringTypes.hd }),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1464,7 +1489,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1511,7 +1536,7 @@ describe('AccountsController', () => {
         ]),
       );
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1529,7 +1554,7 @@ describe('AccountsController', () => {
 
   describe('loadBackup', () => {
     it('should load a backup', async () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {},
@@ -1558,7 +1583,7 @@ describe('AccountsController', () => {
     });
 
     it('should not load backup if the data is undefined', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1583,7 +1608,7 @@ describe('AccountsController', () => {
 
   describe('getAccount', () => {
     it('should return an account by ID', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1599,7 +1624,7 @@ describe('AccountsController', () => {
       );
     });
     it('should return undefined for an unknown account ID', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1616,7 +1641,7 @@ describe('AccountsController', () => {
 
   describe('listAccounts', () => {
     it('should return a list of accounts', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1639,7 +1664,7 @@ describe('AccountsController', () => {
 
   describe('getAccountExpect', () => {
     it('should return an account by ID', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1656,7 +1681,7 @@ describe('AccountsController', () => {
 
     it('should throw an error for an unknown account ID', () => {
       const accountId = 'unknown id';
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1671,7 +1696,7 @@ describe('AccountsController', () => {
     });
 
     it('should handle the edge case of undefined accountId during onboarding', async () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1700,7 +1725,7 @@ describe('AccountsController', () => {
 
   describe('getSelectedAccount', () => {
     it('should return the selected account', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1718,7 +1743,7 @@ describe('AccountsController', () => {
 
   describe('setSelectedAccount', () => {
     it('should set the selected account', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1736,11 +1761,52 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockAccount2.id);
     });
+
+    it('should not emit setSelectedEvmAccountChange if the account is non evm', () => {
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+      const { accountsController, messenger } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const messengerSpy = jest.spyOn(messenger, 'publish');
+
+      accountsController.setSelectedAccount(mockNonEvmAccount.id);
+
+      expect(
+        accountsController.state.internalAccounts.selectedAccount,
+      ).toStrictEqual(mockNonEvmAccount.id);
+
+      expect(messengerSpy.mock.calls).toBe(2); // state change and then selectedAccountChange
+
+      expect(messengerSpy).not.toHaveBeenCalledWith(
+        'AccountsController:selectedEvmAccountChange',
+        mockNonEvmAccount,
+      );
+
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:selectedAccountChange',
+        mockNonEvmAccount,
+      );
+    });
   });
 
   describe('setAccountName', () => {
     it('should set the name of an existing account', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1756,7 +1822,7 @@ describe('AccountsController', () => {
     });
 
     it('should throw an error if the account name already exists', () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1821,7 +1887,7 @@ describe('AccountsController', () => {
         .mockReturnValueOnce('mock-id2') // call to add account
         .mockReturnValueOnce('mock-id3'); // call to add account
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1860,7 +1926,7 @@ describe('AccountsController', () => {
       ]);
       mockUUID.mockImplementation(mockAccountUUIDs.mock.bind(mockAccountUUIDs));
 
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
@@ -1910,7 +1976,7 @@ describe('AccountsController', () => {
 
   describe('getAccountByAddress', () => {
     it('should return an account by address', async () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1927,7 +1993,7 @@ describe('AccountsController', () => {
     });
 
     it("should return undefined if there isn't an account with the address", () => {
-      const accountsController = setupAccountsController({
+      const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: { [mockAccount.id]: mockAccount },
@@ -1956,7 +2022,7 @@ describe('AccountsController', () => {
     describe('setSelectedAccount', () => {
       it('should set the selected account', async () => {
         const messenger = buildMessenger();
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -1976,7 +2042,7 @@ describe('AccountsController', () => {
     describe('listAccounts', () => {
       it('should retrieve a list of accounts', async () => {
         const messenger = buildMessenger();
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -1994,7 +2060,7 @@ describe('AccountsController', () => {
     describe('setAccountName', () => {
       it('should set the account name', async () => {
         const messenger = buildMessenger();
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -2032,7 +2098,7 @@ describe('AccountsController', () => {
           mockGetKeyringForAccount.mockResolvedValueOnce([]),
         );
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -2051,7 +2117,7 @@ describe('AccountsController', () => {
       it('should get account by address', async () => {
         const messenger = buildMessenger();
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -2076,7 +2142,7 @@ describe('AccountsController', () => {
       it('should get account by address', async () => {
         const messenger = buildMessenger();
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },
@@ -2096,7 +2162,7 @@ describe('AccountsController', () => {
       it('should get account by id', async () => {
         const messenger = buildMessenger();
 
-        const accountsController = setupAccountsController({
+        const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
               accounts: { [mockAccount.id]: mockAccount },

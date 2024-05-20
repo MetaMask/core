@@ -104,11 +104,17 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerSelectedEvmAccountChangeEvent = {
+  type: `${typeof controllerName}:selectedEvmAccountChange`;
+  payload: [InternalAccount];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -274,6 +280,13 @@ export class AccountsController extends BaseController<
         Date.now();
       currentState.internalAccounts.selectedAccount = account.id;
     });
+
+    if (account.type.startsWith('eip155:')) {
+      this.messagingSystem.publish(
+        'AccountsController:selectedEvmAccountChange',
+        account,
+      );
+    }
 
     this.messagingSystem.publish(
       'AccountsController:selectedAccountChange',
