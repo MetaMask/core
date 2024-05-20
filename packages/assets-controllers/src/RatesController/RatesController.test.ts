@@ -207,7 +207,7 @@ describe('RatesController', () => {
 
       const ratesController = setupRatesController({
         initialState: {
-          fromCurrencies: [Cryptocurrency.btc],
+          fromCurrencies: [Cryptocurrency.Btc],
           currency: 'eur',
         },
         messenger: buildMessenger(),
@@ -300,7 +300,7 @@ describe('RatesController', () => {
   describe('getCryptocurrencyList', () => {
     it('returns the current cryptocurrency list', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
-      const mockCryptocurrencyList = [Cryptocurrency.btc];
+      const mockCryptocurrencyList = [Cryptocurrency.Btc];
       const ratesController = setupRatesController({
         initialState: {
           fromCurrencies: mockCryptocurrencyList,
@@ -318,7 +318,7 @@ describe('RatesController', () => {
   describe('setCryptocurrencyList', () => {
     it('updates the cryptocurrency list', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
-      const mockCryptocurrencyList = [Cryptocurrency.btc];
+      const mockCryptocurrencyList = [Cryptocurrency.Btc];
       const ratesController = setupRatesController({
         initialState: {},
         messenger: buildMessenger(),
