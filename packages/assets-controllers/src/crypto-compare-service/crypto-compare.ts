@@ -50,15 +50,12 @@ function getMultiPricingURL(
   tsyms: string,
   includeUSDRate?: boolean,
 ) {
-  // Ensure USD is included in tsyms if required
   const updatedTsyms = includeUSDRate && !tsyms.includes('USD') ? `${tsyms},USD` : tsyms;
 
-  // Use URLSearchParams for safe parameter encoding
   const params = new URLSearchParams();
   params.append('fsyms', fsyms);
   params.append('tsyms', updatedTsyms);
 
-  // Construct the URL safely
   const url = new URL(`${CRYPTO_COMPARE_DOMAIN}/data/pricemulti`);
   url.search = params.toString();
 
