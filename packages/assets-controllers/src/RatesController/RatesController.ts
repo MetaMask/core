@@ -26,7 +26,7 @@ const metadata = {
 const defaultState = {
   currency: 'usd',
   rates: {
-    btc: {
+    [DefaultCurrencies.btc]: {
       conversionDate: 0,
       conversionRate: '0',
       usdConversionRate: null,
