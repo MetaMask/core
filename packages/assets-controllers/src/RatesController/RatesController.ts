@@ -46,9 +46,9 @@ export class RatesController extends BaseController<
 
   readonly #includeUsdRate;
 
-  #intervalId: NodeJS.Timeout | undefined;
+  #intervalLength: number;
 
-  #intervalLength: number | undefined;
+  #intervalId: NodeJS.Timeout | undefined;
 
   /**
    * Creates a RatesController instance.
