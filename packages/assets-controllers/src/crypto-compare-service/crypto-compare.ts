@@ -46,7 +46,7 @@ function getPricingURL(
 function getMultiPricingURL(
   fsyms: string,
   tsyms: string,
-  includeUSDRate?: boolean,
+  includeUSDRate = false,
 ) {
   const updatedTsyms =
     includeUSDRate && !tsyms.includes('USD') ? `${tsyms},USD` : tsyms;
