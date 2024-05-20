@@ -5,7 +5,10 @@ import type {
 } from '@metamask/base-controller';
 
 import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
-import type { name as ratesControllerName } from './RatesController';
+import type {
+  name as ratesControllerName,
+  Cryptocurrency,
+} from './RatesController';
 
 /**
  * Represents the conversion rates from one currency to others, including the conversion date.
@@ -42,7 +45,7 @@ export type RatesControllerState = {
   /**
    * A list of supported cryptocurrency symbols.
    */
-  fromCurrencies: string[];
+  fromCurrencies: Cryptocurrency[];
 };
 
 /**

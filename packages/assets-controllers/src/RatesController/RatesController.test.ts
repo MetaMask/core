@@ -4,6 +4,7 @@ import { useFakeTimers } from 'sinon';
 import { advanceTime } from '../../../../tests/helpers';
 import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import {
+  Cryptocurrency,
   RatesController,
   name as ratesControllerName,
 } from './RatesController';
@@ -206,7 +207,7 @@ describe('RatesController', () => {
 
       const ratesController = setupRatesController({
         initialState: {
-          fromCurrencies: ['btc', 'sol', 'strk'],
+          fromCurrencies: [Cryptocurrency.btc],
           currency: 'eur',
         },
         messenger: buildMessenger(),
@@ -299,7 +300,7 @@ describe('RatesController', () => {
   describe('getCryptocurrencyList', () => {
     it('returns the current cryptocurrency list', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
-      const mockCryptocurrencyList = ['btc', 'sol', 'strk'];
+      const mockCryptocurrencyList = [Cryptocurrency.btc];
       const ratesController = setupRatesController({
         initialState: {
           fromCurrencies: mockCryptocurrencyList,
@@ -317,7 +318,7 @@ describe('RatesController', () => {
   describe('setCryptocurrencyList', () => {
     it('updates the cryptocurrency list', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
-      const mockCryptocurrencyList = ['btc', 'sol', 'strk'];
+      const mockCryptocurrencyList = [Cryptocurrency.btc];
       const ratesController = setupRatesController({
         initialState: {},
         messenger: buildMessenger(),

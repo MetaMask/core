@@ -11,7 +11,7 @@ import type {
 
 export const name = 'RatesController';
 
-enum DefaultCurrencies {
+export enum Cryptocurrency {
   btc = 'btc',
 }
 
@@ -26,13 +26,13 @@ const metadata = {
 const defaultState = {
   currency: 'usd',
   rates: {
-    [DefaultCurrencies.btc]: {
+    [Cryptocurrency.btc]: {
       conversionDate: 0,
       conversionRate: '0',
       usdConversionRate: null,
     },
   },
-  fromCurrencies: [DefaultCurrencies.btc],
+  fromCurrencies: [Cryptocurrency.btc],
 };
 
 export class RatesController extends BaseController<
@@ -78,6 +78,22 @@ export class RatesController extends BaseController<
     this.#intervalLength = interval;
   }
 
+  async #withLock<R>(f: () => R) {
+    const releaseLock = await this.#mutex.acquire();
+    try {
+      return f();
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
+   * Executes the polling operation to update rates.
+   */
+  async #executePoll(): Promise<void> {
+    await this.updateRates();
+  }
+
   /**
    * Updates the rates by fetching new data.
    */
@@ -95,7 +111,7 @@ export class RatesController extends BaseController<
         updatedRates[key] = {
           // Divided by 1000 to convert to ms
           conversionDate: Date.now() / 1000,
-          conversionRate: value[currency] as string,
+          conversionRate: value[currency] as Cryptocurrency,
           usdConversionRate: value.usd || null,
         };
       }
@@ -107,22 +123,6 @@ export class RatesController extends BaseController<
         };
       });
     });
-  }
-
-  async #withLock<R>(f: () => R) {
-    const releaseLock = await this.#mutex.acquire();
-    try {
-      return f();
-    } finally {
-      releaseLock();
-    }
-  }
-
-  /**
-   * Executes the polling operation to update rates.
-   */
-  async #executePoll(): Promise<void> {
-    await this.updateRates();
   }
 
   /**
@@ -153,12 +153,12 @@ export class RatesController extends BaseController<
     this.messagingSystem.publish(`${name}:pollingStopped`);
   }
 
-  getCryptocurrencyList(): string[] {
+  getCryptocurrencyList(): Cryptocurrency[] {
     const { fromCurrencies } = this.state;
     return fromCurrencies;
   }
 
-  async setCryptocurrencyList(list: string[]): Promise<void> {
+  async setCryptocurrencyList(list: Cryptocurrency[]): Promise<void> {
     await this.#withLock(() => {
       this.update(() => {
         return {
