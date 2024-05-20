@@ -1837,6 +1837,40 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/chain-api@npm:^0.0.1":
+  version: 0.0.1
+  resolution: "@metamask/chain-api@npm:0.0.1"
+  dependencies:
+    "@metamask/utils": ^8.4.0
+    superstruct: 1.0.3
+  checksum: b8e3c8562e4ae5d84971ff778497a179e0765b3f0ddbb27ba8536b93090637279be8d6add6e89ec9b2408e75aee1a4430e4b49304715536b8b4839eaff6aaa92
+  languageName: node
+  linkType: hard
+
+"@metamask/chain-controller@workspace:packages/chain-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/chain-controller@workspace:packages/chain-controller"
+  dependencies:
+    "@metamask/auto-changelog": ^3.4.4
+    "@metamask/base-controller": ^5.0.2
+    "@metamask/chain-api": ^0.0.1
+    "@metamask/keyring-api": ^6.1.1
+    "@metamask/snaps-controllers": ^8.1.1
+    "@metamask/snaps-sdk": ^4.2.0
+    "@metamask/snaps-utils": ^7.4.0
+    "@metamask/utils": ^8.3.0
+    "@types/jest": ^27.4.1
+    "@types/readable-stream": ^2.3.0
+    deepmerge: ^4.2.2
+    jest: ^27.5.1
+    ts-jest: ^27.1.4
+    typedoc: ^0.24.8
+    typedoc-plugin-missing-exports: ^2.0.0
+    typescript: ~4.9.5
+    uuid: ^8.3.2
+  languageName: unknown
+  linkType: soft
+
 "@metamask/composable-controller@workspace:packages/composable-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/composable-controller@workspace:packages/composable-controller"
@@ -11049,6 +11083,13 @@ __metadata:
     sucrase: bin/sucrase
     sucrase-node: bin/sucrase-node
   checksum: 9fc5792a9ab8a14dcf9c47dcb704431d35c1cdff1d17d55d382a31c2e8e3063870ad32ce120a80915498486246d612e30cda44f1624d9d9a10423e1a43487ad1
+  languageName: node
+  linkType: hard
+
+"superstruct@npm:1.0.3":
+  version: 1.0.3
+  resolution: "superstruct@npm:1.0.3"
+  checksum: 761790bb111e6e21ddd608299c252f3be35df543263a7ebbc004e840d01fcf8046794c274bcb351bdf3eae4600f79d317d085cdbb19ca05803a4361840cc9bb1
   languageName: node
   linkType: hard
 
