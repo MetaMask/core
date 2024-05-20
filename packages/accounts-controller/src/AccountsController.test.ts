@@ -155,6 +155,8 @@ class MockNormalAccountUUID {
  * @param props.snapId - The id of the snap.
  * @param props.snapEnabled - The status of the snap
  * @param props.type - Account Type to create
+ * @param props.lastSelected - The last selected time of the account.
+ * @param props.importTime - The import time of the account.
  * @returns The `InternalAccount` object created from the normal account properties.
  */
 function createExpectedInternalAccount({
@@ -165,6 +167,8 @@ function createExpectedInternalAccount({
   snapId,
   snapEnabled = true,
   type = EthAccountType.Eoa,
+  importTime,
+  lastSelected,
 }: {
   id: string;
   name: string;
@@ -173,6 +177,8 @@ function createExpectedInternalAccount({
   snapId?: string;
   snapEnabled?: boolean;
   type?: InternalAccountType;
+  importTime?: number;
+  lastSelected?: number;
 }): InternalAccount {
   const accountTypeToMethods = {
     [`${EthAccountType.Eoa}`]: [...Object.values(EthMethod)],
@@ -192,8 +198,8 @@ function createExpectedInternalAccount({
     metadata: {
       name,
       keyring: { type: keyringType },
-      importTime: expect.any(Number),
-      lastSelected: undefined,
+      importTime: importTime || expect.any(Number),
+      lastSelected: lastSelected || undefined,
     },
   } as InternalAccount;
 
@@ -728,6 +734,8 @@ describe('AccountsController', () => {
           name: 'Custom Name',
           address: mockAccount2.address,
           keyringType: KeyringTypes.hd,
+          importTime: 1955565967656,
+          lastSelected: 1955565967656,
         });
 
         const mockNewKeyringState = {
@@ -1639,6 +1647,171 @@ describe('AccountsController', () => {
     });
   });
 
+  describe('getSelectedAccount', () => {
+    it('should return the evm account by default', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getSelectedAccount();
+
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
+    });
+
+    it('should return the selected account if chainId is non evm', () => {
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockNonEvmAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getSelectedAccount('bip122:1');
+
+      expect(result).toStrictEqual(mockNonEvmAccount);
+    });
+
+    it('should return the last selected evm account if the selected account is non evm', () => {
+      const mockOlderEvmAccount = createExpectedInternalAccount({
+        id: 'mock-id-1',
+        name: 'mock account 1',
+        address: 'mock-address-1',
+        keyringType: KeyringTypes.hd,
+        lastSelected: 11111,
+      });
+      const mockNewerEvmAccount = createExpectedInternalAccount({
+        id: 'mock-id-2',
+        name: 'mock account 2',
+        address: 'mock-address-2',
+        keyringType: KeyringTypes.hd,
+        lastSelected: 22222,
+      });
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockOlderEvmAccount.id]: mockOlderEvmAccount,
+              [mockNewerEvmAccount.id]: mockNewerEvmAccount,
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockNonEvmAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getSelectedAccount('eip155:1');
+
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockNewerEvmAccount));
+    });
+
+    it('should return the last selected evm account by default', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getSelectedAccount();
+
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
+    });
+
+    it('should return the last selected evm account by default even if there are undefined lastSelected', () => {
+      const mockOlderEvmAccount = createExpectedInternalAccount({
+        id: 'mock-id-1',
+        name: 'mock account 1',
+        address: 'mock-address-1',
+        keyringType: KeyringTypes.hd,
+        lastSelected: undefined,
+      });
+      const mockNewerEvmAccount = createExpectedInternalAccount({
+        id: 'mock-id-2',
+        name: 'mock account 2',
+        address: 'mock-address-2',
+        keyringType: KeyringTypes.hd,
+        lastSelected: 22222,
+      });
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockNewerEvmAccount.id]: mockNewerEvmAccount,
+              [mockOlderEvmAccount.id]: mockOlderEvmAccount,
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockNonEvmAccount.id,
+          },
+        },
+      });
+
+      const result = accountsController.getSelectedAccount('eip155:1');
+
+      expect(result).toStrictEqual(setLastSelectedAsAny(mockNewerEvmAccount));
+    });
+
+    it("should throw error if there aren't any evm accounts", () => {
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockNonEvmAccount.id,
+          },
+        },
+      });
+
+      expect(() => accountsController.getSelectedAccount('eip155:1')).toThrow(
+        'AccountsController: No evm accounts',
+      );
+    });
+  });
+
   describe('listAccounts', () => {
     it('should return a list of accounts', () => {
       const { accountsController } = setupAccountsController({
@@ -1790,7 +1963,7 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockNonEvmAccount.id);
 
-      expect(messengerSpy.mock.calls).toBe(2); // state change and then selectedAccountChange
+      expect(messengerSpy.mock.calls).toHaveLength(2); // state change and then selectedAccountChange
 
       expect(messengerSpy).not.toHaveBeenCalledWith(
         'AccountsController:selectedEvmAccountChange',

@@ -20,7 +20,7 @@ import type {
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import type { Snap } from '@metamask/snaps-utils';
+import type { Caip2ChainId, Snap } from '@metamask/snaps-utils';
 import type { Keyring, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -247,12 +247,44 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the selected internal account.
+   * Returns the selected evm internal account by default unless the namespace is not eip155
    *
+   * @param chainId - Caip2 Id of the account
    * @returns The selected internal account.
    */
-  getSelectedAccount(): InternalAccount {
-    return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+  getSelectedAccount(chainId: Caip2ChainId = 'eip155:*'): InternalAccount {
+    // TODO: have CAIP2 addresses within InternalAccount
+    const selectedAccount = this.getAccountExpect(
+      this.state.internalAccounts.selectedAccount,
+    );
+
+    if (
+      !chainId.startsWith('eip155:') ||
+      (chainId.startsWith('eip155:') &&
+        selectedAccount.type.startsWith('eip155:'))
+    ) {
+      return selectedAccount;
+    }
+
+    const accounts = this.listAccounts().filter((account) =>
+      account.type.startsWith('eip155:'),
+    );
+    let lastSelectedEvmAccount = accounts[0];
+    for (let i = 1; i < accounts.length; i++) {
+      if (
+        (accounts[i].metadata.lastSelected ?? 0) >
+        (selectedAccount.metadata.lastSelected ?? 0)
+      ) {
+        lastSelectedEvmAccount = accounts[i];
+      }
+    }
+
+    if (!lastSelectedEvmAccount) {
+      // !Should never reach this.
+      throw new Error('AccountsController: No evm accounts');
+    }
+
+    return lastSelectedEvmAccount;
   }
 
   /**
@@ -809,12 +841,12 @@ export class AccountsController extends BaseController<
           accounts: {
             ...oldState.internalAccounts.accounts,
             [newAccount.id]: {
-        ...newAccount,
-        metadata: {
-          ...newAccount.metadata,
-          name: accountName,
-          importTime: Date.now(),
-          lastSelected: Date.now(),
+              ...newAccount,
+              metadata: {
+                ...newAccount.metadata,
+                name: accountName,
+                importTime: Date.now(),
+                lastSelected: Date.now(),
               },
             },
           },
