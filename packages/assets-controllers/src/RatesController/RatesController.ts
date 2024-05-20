@@ -12,7 +12,7 @@ import type {
 export const name = 'RatesController';
 
 export enum Cryptocurrency {
-  btc = 'btc',
+  Btc = 'btc',
 }
 
 const DEFAULT_INTERVAL = 180000;
@@ -26,13 +26,13 @@ const metadata = {
 const defaultState = {
   currency: 'usd',
   rates: {
-    [Cryptocurrency.btc]: {
+    [Cryptocurrency.Btc]: {
       conversionDate: 0,
       conversionRate: '0',
       usdConversionRate: null,
     },
   },
-  fromCurrencies: [Cryptocurrency.btc],
+  fromCurrencies: [Cryptocurrency.Btc],
 };
 
 export class RatesController extends BaseController<
