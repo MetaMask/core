@@ -99,7 +99,7 @@ export type RatesControllerOptions = {
   /**
    * Whether to include USD rates in the conversion rates.
    */
-  includeUsdRate?: boolean;
+  includeUsdRate: boolean;
   /**
    * The polling interval in milliseconds.
    */

@@ -70,7 +70,7 @@ function setupRatesController({
 }: {
   initialState: Partial<RatesControllerState>;
   messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>;
-  includeUsdRate?: boolean;
+  includeUsdRate: boolean;
   fetchMultiExchangeRate: typeof defaultFetchExchangeRate;
 }) {
   const ratesControllerMessenger = buildRatesControllerMessenger(messenger);
@@ -136,6 +136,8 @@ describe('RatesController', () => {
         },
         messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+
       });
 
       const ratesPreUpdate = ratesController.state.rates;
@@ -257,6 +259,7 @@ describe('RatesController', () => {
         initialState: {},
         messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
       });
 
       await ratesController.start();
@@ -304,6 +307,7 @@ describe('RatesController', () => {
         },
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
       });
 
       const cryptocurrencyList = ratesController.getCryptocurrencyList();
@@ -319,6 +323,7 @@ describe('RatesController', () => {
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
       });
 
       const cryptocurrencyListPreUpdate =
@@ -341,6 +346,7 @@ describe('RatesController', () => {
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
       });
 
       const currencyPreUpdate = ratesController.state.currency;
@@ -358,6 +364,7 @@ describe('RatesController', () => {
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
       });
 
       await expect(ratesController.setCurrency('')).rejects.toThrow(
