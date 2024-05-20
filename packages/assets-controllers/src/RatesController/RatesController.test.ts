@@ -22,7 +22,7 @@ const MOCK_TIMESTAMP = 1709983353;
  */
 function getStubbedDate(): number {
   return new Date(MOCK_TIMESTAMP * 1000).getTime();
-};
+}
 
 /**
  * Builds a new ControllerMessenger instance for RatesController.
@@ -137,7 +137,6 @@ describe('RatesController', () => {
         messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
         includeUsdRate: false,
-
       });
 
       const ratesPreUpdate = ratesController.state.rates;

@@ -1,7 +1,5 @@
 import { handleFetch } from '@metamask/controller-utils';
 
-import type { Rate, ConversionRates } from '../RatesController/types';
-
 /**
  * A map from native currency symbol to CryptoCompare identifier.
  * This is only needed when the values don't match.
@@ -50,7 +48,8 @@ function getMultiPricingURL(
   tsyms: string,
   includeUSDRate?: boolean,
 ) {
-  const updatedTsyms = includeUSDRate && !tsyms.includes('USD') ? `${tsyms},USD` : tsyms;
+  const updatedTsyms =
+    includeUSDRate && !tsyms.includes('USD') ? `${tsyms},USD` : tsyms;
 
   const params = new URLSearchParams();
   params.append('fsyms', fsyms);
@@ -141,7 +140,10 @@ export async function fetchMultiExchangeRate(
   handleErrorResponse(response);
 
   const rates: Record<string, Record<string, string | null>> = {};
-  for (const [key, value] of Object.entries(response) as [string, Record<string, string>][]) {
+  for (const [key, value] of Object.entries(response) as [
+    string,
+    Record<string, string>,
+  ][]) {
     rates[key.toLowerCase()] = {
       [currency.toLowerCase()]: value[currency.toUpperCase()],
       usd: value.USD || null,

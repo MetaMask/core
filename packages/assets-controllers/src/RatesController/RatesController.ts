@@ -13,7 +13,7 @@ export const name = 'RatesController';
 
 enum DefaultCurrencies {
   btc = 'btc',
-};
+}
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -106,7 +106,7 @@ export class RatesController extends BaseController<
           rates: updatedRates,
         };
       });
-    })
+    });
   }
 
   async #withLock<R>(f: () => R) {
@@ -166,7 +166,7 @@ export class RatesController extends BaseController<
           fromCurrencies: list,
         };
       });
-    })
+    });
   }
 
   async setCurrency(currency: string) {
@@ -181,7 +181,7 @@ export class RatesController extends BaseController<
           currency,
         };
       });
-    })
+    });
     await this.updateRates();
   }
 }
