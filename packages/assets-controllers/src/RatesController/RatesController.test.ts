@@ -154,7 +154,7 @@ describe('RatesController', () => {
 
       expect(publishActionSpy).toHaveBeenNthCalledWith(
         1,
-        `${ratesControllerName}:startPolling`,
+        `${ratesControllerName}:pollingStarted`,
       );
 
       await advanceTime({ clock, duration: 200 });
@@ -266,7 +266,7 @@ describe('RatesController', () => {
 
       expect(publishActionSpy).toHaveBeenNthCalledWith(
         1,
-        `${ratesControllerName}:startPolling`,
+        `${ratesControllerName}:pollingStarted`,
       );
 
       await advanceTime({ clock, duration: 200 });
@@ -279,7 +279,7 @@ describe('RatesController', () => {
       // event stateChange
       expect(publishActionSpy).toHaveBeenNthCalledWith(
         3,
-        `${ratesControllerName}:stopPolling`,
+        `${ratesControllerName}:pollingStopped`,
       );
 
       await advanceTime({ clock, duration: 200 });
@@ -292,7 +292,7 @@ describe('RatesController', () => {
       // and no extra logic is executed
       expect(publishActionSpy).not.toHaveBeenNthCalledWith(
         4,
-        `${ratesControllerName}:stopPolling`,
+        `${ratesControllerName}:pollingStopped`,
       );
     });
   });
