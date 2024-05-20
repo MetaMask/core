@@ -28,7 +28,7 @@ const defaultState = {
   rates: {
     btc: {
       conversionDate: 0,
-      conversionRate: 0,
+      conversionRate: '0',
       usdConversionRate: null,
     },
   },
@@ -96,7 +96,7 @@ export class RatesController extends BaseController<
       for (const [key, value] of Object.entries(response)) {
         updatedRates[key] = {
           conversionDate: Date.now() / 1000,
-          conversionRate: value[currency],
+          conversionRate: value[currency] as string,
           usdConversionRate: value.usd || null,
         };
       }

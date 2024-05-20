@@ -13,7 +13,11 @@ import type { name as ratesControllerName } from './RatesController';
  * and its value is either a number representing the conversion rate to that currency,
  * or `null` if the conversion rate is not available.
  */
-export type Rate = Record<string, number | null>;
+export type Rate = {
+  conversionDate: number;
+  conversionRate: string;
+  usdConversionRate: string | null;
+};
 
 /**
  * Represents the conversion rates for multiple cryptocurrencies.
