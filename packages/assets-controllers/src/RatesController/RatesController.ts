@@ -95,6 +95,7 @@ export class RatesController extends BaseController<
       const updatedRates: ConversionRates = {};
       for (const [key, value] of Object.entries(response)) {
         updatedRates[key] = {
+          // Divided by 1000 to convert to ms
           conversionDate: Date.now() / 1000,
           conversionRate: value[currency] as string,
           usdConversionRate: value.usd || null,
