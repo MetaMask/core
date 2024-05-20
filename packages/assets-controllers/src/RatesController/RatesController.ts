@@ -107,12 +107,12 @@ export class RatesController extends BaseController<
       );
 
       const updatedRates: ConversionRates = {};
-      for (const [key, value] of Object.entries(response)) {
-        updatedRates[key] = {
+      for (const [cryptocurrency, values] of Object.entries(response)) {
+        updatedRates[cryptocurrency] = {
           // Divided by 1000 to convert to ms
           conversionDate: Date.now() / 1000,
-          conversionRate: value[currency] as Cryptocurrency,
-          usdConversionRate: value.usd || null,
+          conversionRate: values[currency] as Cryptocurrency,
+          usdConversionRate: values.usd || null,
         };
       }
 
