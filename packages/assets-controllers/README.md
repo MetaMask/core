@@ -36,7 +36,7 @@ const ratesController = new RatesController({
   interval: 180000,
   includeUsdRate: true,
   state: {
-    currency: 'usd',
+    currency: 'eur',
     fromCurrencies: ['btc', 'eth', 'sol'],
   },
 });
