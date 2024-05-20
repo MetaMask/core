@@ -111,7 +111,7 @@ export class RatesController extends BaseController<
         updatedRates[cryptocurrency] = {
           // Divided by 1000 to convert to ms
           conversionDate: Date.now() / 1000,
-          conversionRate: values[currency] as Cryptocurrency,
+          conversionRate: values[currency] as string,
           usdConversionRate: values.usd || null,
         };
       }
