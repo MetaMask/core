@@ -910,8 +910,6 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
-    // Cast to `string` here is safe here because `account` is not nullish.
-    // `normalizeToHex` returns `Hex` unless given a nullish value.
     const address = normalize(account);
 
     const candidates = await Promise.all(
