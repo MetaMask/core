@@ -140,13 +140,13 @@ export async function fetchMultiExchangeRate(
   handleErrorResponse(response);
 
   const rates: Record<string, Record<string, string | null>> = {};
-  for (const [key, value] of Object.entries(response) as [
+  for (const [cryptocurrency, values] of Object.entries(response) as [
     string,
     Record<string, string>,
   ][]) {
-    rates[key.toLowerCase()] = {
-      [currency.toLowerCase()]: value[currency.toUpperCase()],
-      usd: value.USD || null,
+    rates[cryptocurrency.toLowerCase()] = {
+      [currency.toLowerCase()]: values[currency.toUpperCase()],
+      usd: values.USD || null,
     };
   }
 
