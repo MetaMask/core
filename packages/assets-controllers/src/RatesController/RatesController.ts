@@ -11,8 +11,8 @@ import type {
 
 export const name = 'RatesController';
 
-const DEFAULT_CURRENCIES = {
-  btc: 'btc',
+enum DefaultCurrencies {
+  btc = 'btc',
 };
 
 const DEFAULT_INTERVAL = 180000;
@@ -32,7 +32,7 @@ const defaultState = {
       usdConversionRate: null,
     },
   },
-  fromCurrencies: [DEFAULT_CURRENCIES.btc],
+  fromCurrencies: [DefaultCurrencies.btc],
 };
 
 export class RatesController extends BaseController<
