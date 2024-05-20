@@ -20,7 +20,7 @@ const MOCK_TIMESTAMP = 1709983353;
  * Returns a stubbed date based on a predefined timestamp.
  * @returns The stubbed date in milliseconds.
  */
-const getStubbedDate = () => {
+function getStubbedDate(): number {
   return new Date(MOCK_TIMESTAMP * 1000).getTime();
 };
 
@@ -122,7 +122,7 @@ describe('RatesController', () => {
       const publishActionSpy = jest.spyOn(messenger, 'publish');
 
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockRateValue = 57715.42;
+      const mockRateValue = '57715.42';
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
@@ -143,7 +143,7 @@ describe('RatesController', () => {
       expect(ratesPreUpdate).toStrictEqual({
         btc: {
           conversionDate: 0,
-          conversionRate: 0,
+          conversionRate: '0',
           usdConversionRate: null,
         },
       });
@@ -180,12 +180,12 @@ describe('RatesController', () => {
 
     it('starts the polling process with custom values', async () => {
       jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
-      const mockBtcUsdRateValue = 62235.48;
-      const mockSolUsdRateValue = 148.41;
-      const mockStrkUsdRateValue = 1.248;
-      const mockBtcEurRateValue = 57715.42;
-      const mockSolEurRateValue = 137.68;
-      const mockStrkEurRateValue = 1.157;
+      const mockBtcUsdRateValue = '62235.48';
+      const mockSolUsdRateValue = '148.41';
+      const mockStrkUsdRateValue = '1.248';
+      const mockBtcEurRateValue = '57715.42';
+      const mockSolEurRateValue = '137.68';
+      const mockStrkEurRateValue = '1.157';
       const fetchExchangeRateStub = jest.fn(() => {
         return Promise.resolve({
           btc: {
