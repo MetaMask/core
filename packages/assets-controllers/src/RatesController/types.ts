@@ -8,15 +8,15 @@ import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../cryp
 import type { name as ratesControllerName } from './RatesController';
 
 /**
- * Represents the conversion rates from one currency to others.
- * Each key is a string representing the cryptocurrency code (e.g., "BTC", "SOL"),
- * and its value is either a number representing the conversion rate to that currency,
- * or `null` if the conversion rate is not available.
+ * Represents the conversion rates from one currency to others, including the conversion date.
+ * The `conversionRate` field is a string that maps a cryptocurrency code (e.g., "BTC") to its conversion rate.
+ * The `usdConversionRate` provides the conversion rate to USD as a string, or `null` if the conversion rate to USD is not available.
+ * The `conversionDate` is a Unix timestamp (number) indicating when the conversion rate was last updated.
  */
 export type Rate = {
-  conversionDate: number;
   conversionRate: string;
   usdConversionRate: string | null;
+  conversionDate: number;
 };
 
 /**
