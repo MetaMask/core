@@ -188,9 +188,9 @@ describe('CryptoCompare', () => {
     );
 
     expect(response).toStrictEqual({
-      btc: { eur: 1000, usd: null },
-      eth: { eur: 2000, usd: null },
-      sol: { eur: 3000, usd: null },
+      btc: { eur: 1000 },
+      eth: { eur: 2000 },
+      sol: { eur: 3000 },
     });
   });
 });

@@ -130,7 +130,7 @@ export async function fetchMultiExchangeRate(
   currency: string,
   cryptocurrencies: string[],
   includeUSDRate: boolean,
-): Promise<Record<string, Record<string, string | null>>> {
+): Promise<Record<string, Record<string, string>>> {
   const url = getMultiPricingURL(
     Object.values(cryptocurrencies).join(','),
     currency,
@@ -139,14 +139,14 @@ export async function fetchMultiExchangeRate(
   const response = await handleFetch(url);
   handleErrorResponse(response);
 
-  const rates: Record<string, Record<string, string | null>> = {};
+  const rates: Record<string, Record<string, string>> = {};
   for (const [cryptocurrency, values] of Object.entries(response) as [
     string,
     Record<string, string>,
   ][]) {
     rates[cryptocurrency.toLowerCase()] = {
       [currency.toLowerCase()]: values[currency.toUpperCase()],
-      usd: values.USD || null,
+      ...(includeUSDRate && { usd: values.USD }),
     };
   }
 
