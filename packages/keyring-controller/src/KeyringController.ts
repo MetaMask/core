@@ -30,6 +30,7 @@ import type {
 } from '@metamask/utils';
 import {
   add0x,
+  assertIsStrictHexString,
   bytesToHex,
   hasProperty,
   isObject,
@@ -675,7 +676,11 @@ export class KeyringController extends BaseController<
   async addNewAccountForKeyring(
     keyring: EthKeyring<Json>,
     accountCount?: number,
-  ): Promise<string> {
+  ): Promise<Hex> {
+    // READ THIS CAREFULLY:
+    // We still uses `Hex` here, since we are not using this method when creating
+    // and account using a "Snap Keyring". This function assume the `keyring` is
+    // ethereum compatible, but "Snap Keyring" might not be.
     return this.#persistOrRollback(async () => {
       const oldAccounts = await this.#getAccountsFromKeyrings();
 
@@ -684,20 +689,20 @@ export class KeyringController extends BaseController<
           throw new Error('Account out of sequence');
         }
 
-        return oldAccounts[accountCount];
+        const existingAccount = oldAccounts[accountCount];
+        assertIsStrictHexString(existingAccount);
+
+        return existingAccount;
       }
 
       await keyring.addAccounts(1);
 
-      const newAccounts = await this.#getAccountsFromKeyrings();
-      const newAccount = newAccounts.find(
+      const addedAccountAddress = (await this.#getAccountsFromKeyrings()).find(
         (selectedAddress) => !oldAccounts.includes(selectedAddress),
       );
-      if (!newAccount) {
-        throw new Error('Could not find new created account');
-      }
+      assertIsStrictHexString(addedAccountAddress);
 
-      return newAccount;
+      return addedAccountAddress;
     });
   }
 
