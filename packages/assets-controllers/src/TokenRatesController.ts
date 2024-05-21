@@ -5,13 +5,13 @@ import {
   FALL_BACK_VS_CURRENCY,
   toHex,
 } from '@metamask/controller-utils';
+import { type InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
@@ -60,7 +60,7 @@ export interface TokenRatesConfig extends BaseConfig {
   interval: number;
   nativeCurrency: string;
   chainId: Hex;
-  selectedAddress: string;
+  selectedAccountId: string;
   allTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
   threshold: number;
@@ -156,6 +156,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
+  private readonly getInternalAccount: (accountId: string) => InternalAccount;
+
   /**
    * Creates a TokenRatesController instance.
    *
@@ -165,8 +167,9 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.chainId - The chain ID of the current network.
    * @param options.ticker - The ticker for the current network.
-   * @param options.selectedAddress - The current selected address.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
+   * @param options.getInternalAccount - A callback to get an InternalAccount by id.
+   * @param options.selectedAccountId - The current selected address.
+   * @param options.onSelectedAccountChange - Allows subscribing to changes of selected account.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
    * @param options.tokenPricesService - An object in charge of retrieving token prices.
@@ -180,8 +183,9 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       getNetworkClientById,
       chainId: initialChainId,
       ticker: initialTicker,
-      selectedAddress: initialSelectedAddress,
-      onPreferencesStateChange,
+      selectedAccountId,
+      getInternalAccount,
+      onSelectedAccountChange,
       onTokensStateChange,
       onNetworkStateChange,
       tokenPricesService,
@@ -191,9 +195,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       getNetworkClientById: NetworkController['getNetworkClientById'];
       chainId: Hex;
       ticker: string;
-      selectedAddress: string;
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
+      selectedAccountId: string;
+      getInternalAccount: (accountId: string) => InternalAccount;
+      onSelectedAccountChange: (
+        listener: (internalAccount: InternalAccount) => void,
       ) => void;
       onTokensStateChange: (
         listener: (tokensState: TokensState) => void,
@@ -213,7 +218,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       disabled: false,
       nativeCurrency: initialTicker,
       chainId: initialChainId,
-      selectedAddress: initialSelectedAddress,
+      selectedAccountId,
       allTokens: {}, // TODO: initialize these correctly, maybe as part of BaseControllerV2 migration
       allDetectedTokens: {},
     };
@@ -225,15 +230,16 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     this.initialize();
     this.setIntervalLength(interval);
     this.getNetworkClientById = getNetworkClientById;
+    this.getInternalAccount = getInternalAccount;
     this.#tokenPricesService = tokenPricesService;
 
     if (config?.disabled) {
       this.configure({ disabled: true }, false, false);
     }
 
-    onPreferencesStateChange(async ({ selectedAddress }) => {
-      if (this.config.selectedAddress !== selectedAddress) {
-        this.configure({ selectedAddress });
+    onSelectedAccountChange(async (internalAccount) => {
+      if (this.config.selectedAccountId !== internalAccount.id) {
+        this.configure({ selectedAccountId: internalAccount.id });
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
         }
@@ -276,10 +282,11 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * @returns The list of tokens addresses for the current chain
    */
   #getTokenAddresses(chainId: Hex): Hex[] {
-    const { allTokens, allDetectedTokens } = this.config;
-    const tokens = allTokens[chainId]?.[this.config.selectedAddress] || [];
+    const { allTokens, allDetectedTokens, selectedAccountId } = this.config;
+    const internalAccount = this.getInternalAccount(selectedAccountId);
+    const tokens = allTokens[chainId]?.[internalAccount.address] || [];
     const detectedTokens =
-      allDetectedTokens[chainId]?.[this.config.selectedAddress] || [];
+      allDetectedTokens[chainId]?.[internalAccount.address] || [];
 
     return [
       ...new Set(
@@ -334,6 +341,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    */
   async updateExchangeRates() {
     const { chainId, nativeCurrency } = this.config;
+
     await this.updateExchangeRatesByChainId({
       chainId,
       nativeCurrency,
