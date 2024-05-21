@@ -348,6 +348,7 @@ function updateSwapTransaction(
  * @param propsToUpdate.destinationTokenAmount - The raw amount of the destination token
  * @param propsToUpdate.destinationTokenDecimals - Decimals of the token to be received
  * @param propsToUpdate.destinationTokenSymbol - Symbol of the token to be received
+ * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
  * @param propsToUpdate.sourceTokenAddress - The address of the source token
  * @param propsToUpdate.sourceTokenAmount - The raw amount of the source token
  * @param propsToUpdate.sourceTokenDecimals - The decimals of the source token
@@ -366,6 +367,7 @@ function updateSwapAndSendTransaction(
     destinationTokenAmount,
     destinationTokenDecimals,
     destinationTokenSymbol,
+    estimatedBaseFee,
     sourceTokenAddress,
     sourceTokenAmount,
     sourceTokenDecimals,
@@ -384,6 +386,7 @@ function updateSwapAndSendTransaction(
     destinationTokenAmount,
     destinationTokenDecimals,
     destinationTokenSymbol,
+    estimatedBaseFee,
     sourceTokenAddress,
     sourceTokenAmount,
     sourceTokenDecimals,
