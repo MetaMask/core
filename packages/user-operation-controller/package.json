@@ -51,7 +51,7 @@
     "@metamask/network-controller": "^18.1.1",
     "@metamask/polling-controller": "^6.0.2",
     "@metamask/rpc-errors": "^6.2.1",
-    "@metamask/transaction-controller": "^29.0.1",
+    "@metamask/transaction-controller": "^29.0.2",
     "@metamask/utils": "^8.3.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
