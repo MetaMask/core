@@ -2353,7 +2353,10 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
-  getAccountHandler: jest.Mock<ReturnType<AccountsController['getAccount']>>;
+  getAccountHandler: jest.Mock<
+    ReturnType<AccountsController['getAccount']>,
+    Parameters<AccountsController['getAccount']>
+  >;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerArgs<ReturnValue> =
