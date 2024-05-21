@@ -78,5 +78,11 @@ export function getOidcClientId(env: Env, platform: Platform): string {
     throw new Error(`invalid env ${env}: cannot determine oidc client id`);
   }
 
+  if (!clientIds[env][platform]) {
+    throw new Error(
+      `invalid env ${env} and platform ${platform} combination: cannot determine oidc client id`,
+    );
+  }
+
   return clientIds[env][platform];
 }
