@@ -7,7 +7,7 @@ import type { Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
-export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
+export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 

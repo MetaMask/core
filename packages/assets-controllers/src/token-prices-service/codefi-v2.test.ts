@@ -14,7 +14,7 @@ const defaultMaxRetryDelay = 30_000;
 describe('CodefiTokenPricesServiceV2', () => {
   describe('fetchTokenPrices', () => {
     it('uses the /spot-prices endpoint of the Codefi Price API to gather prices for the given tokens', async () => {
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -59,7 +59,7 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     it('should not include token price object for token address when token price in not included the response data', async () => {
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -94,7 +94,7 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     it('should not include token price object for token address when price is undefined for token response data', async () => {
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -131,7 +131,7 @@ describe('CodefiTokenPricesServiceV2', () => {
     });
 
     it('throws if the request fails consistently', async () => {
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -151,7 +151,7 @@ describe('CodefiTokenPricesServiceV2', () => {
 
     it('throws if the initial request and all retries fail', async () => {
       const retries = 3;
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -172,7 +172,7 @@ describe('CodefiTokenPricesServiceV2', () => {
     it('succeeds if the last retry succeeds', async () => {
       const retries = 3;
       // Initial interceptor for failing requests
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -181,7 +181,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         .times(retries)
         .replyWithError('Failed to fetch');
       // Interceptor for successful request
-      nock('https://price-api.metafi.codefi.network')
+      nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
           tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -239,7 +239,7 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       it('does not call onDegraded when requests succeeds faster than threshold', async () => {
         const degradedThreshold = 1000;
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -278,7 +278,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         const degradedThreshold = defaultMaxRetryDelay + 1000;
         const retries = 1;
         // Initial interceptor for failing request
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -286,7 +286,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           })
           .replyWithError('Failed to fetch');
         // Second interceptor for successful response
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -327,7 +327,7 @@ describe('CodefiTokenPricesServiceV2', () => {
 
       it('calls onDegraded when request fails', async () => {
         const retries = 0;
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -359,7 +359,7 @@ describe('CodefiTokenPricesServiceV2', () => {
       it('calls onDegraded when request is slower than threshold', async () => {
         const degradedThreshold = 1000;
         const retries = 0;
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -402,7 +402,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         const degradedThreshold = 1000;
         const retries = 1;
         // Initial interceptor for failing request
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -410,7 +410,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           })
           .replyWithError('Failed to fetch');
         // Second interceptor for successful response
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -466,7 +466,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Max consencutive failures is set to match number of calls in three update attempts (including retries)
         const maximumConsecutiveFailures = (1 + retries) * 3;
         // Initial interceptor for failing requests
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -475,9 +475,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
         // This interceptor should not be used
-        const successfullCallScope = nock(
-          'https://price-api.metafi.codefi.network',
-        )
+        const successfullCallScope = nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -537,7 +535,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Max consencutive failures is set to match number of calls in three update attempts (including retries)
         const maximumConsecutiveFailures = (1 + retries) * 3;
         // Initial interceptor for failing requests
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -546,7 +544,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
         // This interceptor should not be used
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -601,7 +599,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Max consencutive failures is set to match number of calls in three update attempts (including retries)
         const maximumConsecutiveFailures = (1 + retries) * 3;
         // Initial interceptor for failing requests
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -665,7 +663,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         // break doesn't end during a retry attempt
         const circuitBreakDuration = defaultMaxRetryDelay * 10;
         // Initial interceptor for failing requests
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -675,9 +673,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           .times(maximumConsecutiveFailures + 1)
           .replyWithError('Failed to fetch');
         // This interceptor should not be used
-        const successfullCallScope = nock(
-          'https://price-api.metafi.codefi.network',
-        )
+        const successfullCallScope = nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -763,7 +759,7 @@ describe('CodefiTokenPricesServiceV2', () => {
         // break doesn't end during a retry attempt
         const circuitBreakDuration = defaultMaxRetryDelay * 10;
         // Initial interceptor for failing requests
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
@@ -772,7 +768,7 @@ describe('CodefiTokenPricesServiceV2', () => {
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
         // Later interceptor for successfull request after recovery
-        nock('https://price-api.metafi.codefi.network')
+        nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
             tokenAddresses: '0xAAA,0xBBB,0xCCC',
