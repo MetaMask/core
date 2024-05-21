@@ -188,6 +188,9 @@ export function updateSwapsTransaction(
       transactionMeta,
       swapsMeta,
     );
+    messenger.publish('TransactionController:transactionNewSwapAndSend', {
+      transactionMeta: updatedTransactionMeta,
+    });
   }
 
   if (transactionType === TransactionType.swap) {
