@@ -39,7 +39,7 @@ export type ConversionRates = Record<string, Rate>;
 export type RatesControllerState = {
   /**
    * The fiat currency in which conversion rates are expressed
-   * (i.e., the "from" currency).
+   * (i.e., the "to" currency).
    */
   fiatCurrency: string;
   /**
@@ -48,6 +48,7 @@ export type RatesControllerState = {
   rates: ConversionRates;
   /**
    * A list of supported cryptocurrency symbols.
+   * (i.e., the "from" currencies).
    */
   cryptocurrencies: Cryptocurrency[];
 };
