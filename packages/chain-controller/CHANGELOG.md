@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add ChainController ([#4227](https://github.com/MetaMask/core/pull/4227))
+
 [Unreleased]: https://github.com/MetaMask/core/

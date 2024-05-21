@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: incorrect token balance changes for simulations of multiple tokens that include an NFT mint ([#4290](https://github.com/MetaMask/core/pull/4290))
+
 ## [29.0.1]
 
 ### Changed
