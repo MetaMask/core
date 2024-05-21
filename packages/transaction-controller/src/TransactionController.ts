@@ -2352,9 +2352,9 @@ export class TransactionController extends BaseController<
   ) {
     let updatedTransactionParams: (keyof TransactionParams)[] = [];
 
-    this.update((state) => {
+    (this.update as any)((state: any) => {
       const index = state.transactions.findIndex(
-        ({ id }) => id === transactionId,
+        ({ id }: any) => id === transactionId,
       );
 
       let transactionMeta = state.transactions[index];
