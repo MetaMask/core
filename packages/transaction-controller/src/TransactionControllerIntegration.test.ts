@@ -11,6 +11,8 @@ import {
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import {
   NetworkController,
   NetworkClientType,
@@ -25,6 +27,7 @@ import assert from 'assert';
 import nock from 'nock';
 import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
+import { v4 } from 'uuid';
 
 import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
@@ -64,7 +67,46 @@ type UnrestrictedControllerMessenger = ControllerMessenger<
   | TransactionControllerEvents
 >;
 
+const createMockInternalAccount = ({
+  id = v4(),
+  address = '0x2990079bcdee240329a520d2444386fc119da21a',
+  name = 'Account 1',
+  importTime = Date.now(),
+  lastSelected = Date.now(),
+}: {
+  id?: string;
+  address?: string;
+  name?: string;
+  importTime?: number;
+  lastSelected?: number;
+} = {}): InternalAccount => {
+  return {
+    id,
+    address,
+    options: {},
+    methods: [
+      EthMethod.PersonalSign,
+      EthMethod.Sign,
+      EthMethod.SignTransaction,
+      EthMethod.SignTypedDataV1,
+      EthMethod.SignTypedDataV3,
+      EthMethod.SignTypedDataV4,
+    ],
+    type: EthAccountType.Eoa,
+    metadata: {
+      name,
+      keyring: { type: 'HD Key Tree' },
+      importTime,
+      lastSelected,
+    },
+  } as InternalAccount;
+};
+
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const INTERNAL_ACCOUNT_MOCK = createMockInternalAccount({
+  address: ACCOUNT_MOCK,
+});
+
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const ACCOUNT_3_MOCK = '0xe688b84b23f322a994a53dbf8e15fa82cdb71127';
 const infuraProjectId = 'fake-infura-project-id';
@@ -167,7 +209,8 @@ const setupController = async (
     getNetworkClientRegistry:
       networkController.getNetworkClientRegistry.bind(networkController),
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
-    getSelectedAddress: () => '0xdeadbeef',
+    getSelectedAccount: () =>
+      createMockInternalAccount({ address: '0xdeadbeef' }),
     hooks: {},
     isMultichainEnabled: false,
     messenger,
@@ -802,7 +845,7 @@ describe('TransactionController Integration', () => {
           await setupController({
             isMultichainEnabled: true,
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
+            getSelectedAccount: () => INTERNAL_ACCOUNT_MOCK,
           });
         const otherNetworkClientIdOnGoerli =
           await networkController.upsertNetworkConfiguration(
@@ -883,7 +926,7 @@ describe('TransactionController Integration', () => {
           await setupController({
             isMultichainEnabled: true,
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
+            getSelectedAccount: () => INTERNAL_ACCOUNT_MOCK,
           });
 
         const addTx1 = await transactionController.addTransaction(
@@ -1140,10 +1183,13 @@ describe('TransactionController Integration', () => {
       });
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
         await setupController({
-          getSelectedAddress: () => selectedAddress,
+          getSelectedAccount: () => selectedAccountMock,
           isMultichainEnabled: true,
         });
 
@@ -1209,6 +1255,9 @@ describe('TransactionController Integration', () => {
 
     it('should start the global incoming transaction helper when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1226,7 +1275,7 @@ describe('TransactionController Integration', () => {
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
       const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
+        getSelectedAccount: () => selectedAccountMock,
       });
 
       transactionController.startIncomingTransactionPolling();
@@ -1314,10 +1363,13 @@ describe('TransactionController Integration', () => {
         });
 
         const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+        const selectedAccountMock = createMockInternalAccount({
+          address: selectedAddress,
+        });
 
         const { networkController, transactionController } =
           await setupController({
-            getSelectedAddress: () => selectedAddress,
+            getSelectedAccount: () => selectedAccountMock,
             isMultichainEnabled: true,
           });
 
@@ -1410,10 +1462,13 @@ describe('TransactionController Integration', () => {
   describe('stopIncomingTransactionPolling', () => {
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
         await setupController({
-          getSelectedAddress: () => selectedAddress,
+          getSelectedAccount: () => selectedAccountMock,
         });
 
       const networkClients = networkController.getNetworkClientRegistry();
@@ -1454,9 +1509,12 @@ describe('TransactionController Integration', () => {
 
     it('should stop the global incoming transaction helper when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
+        getSelectedAccount: () => selectedAccountMock,
       });
 
       mockNetwork({
@@ -1490,10 +1548,13 @@ describe('TransactionController Integration', () => {
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
         await setupController({
-          getSelectedAddress: () => selectedAddress,
+          getSelectedAccount: () => selectedAccountMock,
         });
 
       const networkClients = networkController.getNetworkClientRegistry();
@@ -1534,10 +1595,13 @@ describe('TransactionController Integration', () => {
   describe('updateIncomingTransactions', () => {
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
         await setupController({
-          getSelectedAddress: () => selectedAddress,
+          getSelectedAccount: () => selectedAccountMock,
           isMultichainEnabled: true,
         });
 
@@ -1600,9 +1664,12 @@ describe('TransactionController Integration', () => {
 
     it('should update the incoming transactions for the gloablly selected network when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
+        getSelectedAccount: () => selectedAccountMock,
       });
 
       mockNetwork({

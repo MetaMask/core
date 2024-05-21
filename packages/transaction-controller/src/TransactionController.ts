@@ -25,6 +25,7 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -122,7 +123,6 @@ import {
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
-import { InternalAccount } from '@metamask/keyring-api';
 
 /**
  * Metadata for the TransactionController state, describing how to "anonymize"
