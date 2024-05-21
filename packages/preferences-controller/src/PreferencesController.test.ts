@@ -30,6 +30,7 @@ describe('PreferencesController', () => {
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
+      useTransactionSimulations: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce((acc, curr) => {
@@ -421,6 +422,12 @@ describe('PreferencesController', () => {
     const controller = setupPreferencesController();
     controller.setSmartTransactionsOptInStatus(true);
     expect(controller.state.smartTransactionsOptInStatus).toBe(true);
+  });
+
+  it('should set useTransactionSimulations', () => {
+    const controller = setupPreferencesController();
+    controller.setUseTransactionSimulations(false);
+    expect(controller.state.useTransactionSimulations).toBe(false);
   });
 });
 
