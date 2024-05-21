@@ -29,7 +29,7 @@ const GAS_FEE_FLOW_RESPONSE_MOCK: GasFeeFlowResponse = {
       maxFeePerGas: '0x5',
       maxPriorityFeePerGas: '0x6',
     },
-  },
+  } as any,
 };
 
 /**

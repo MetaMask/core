@@ -66,7 +66,7 @@ const FEE_MARKET_EXPECTED_RESULT: GasFeeEstimates = {
     maxFeePerGas: '0x12a05f200',
     maxPriorityFeePerGas: '0x165a0bc00',
   },
-};
+} as any;
 
 // Converted to Hex and multiplied by 1 billion.
 const LEGACY_EXPECTED_RESULT: GasFeeEstimates = {
@@ -82,7 +82,7 @@ const LEGACY_EXPECTED_RESULT: GasFeeEstimates = {
     maxFeePerGas: '0x12a05f200',
     maxPriorityFeePerGas: '0x12a05f200',
   },
-};
+} as any;
 
 describe('DefaultGasFeeFlow', () => {
   describe('matchesTransaction', () => {

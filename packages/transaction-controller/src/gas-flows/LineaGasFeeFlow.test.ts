@@ -45,7 +45,7 @@ const RESPONSE_MOCK: GasFeeFlowResponse = {
       maxFeePerGas: '0x5',
       maxPriorityFeePerGas: '0x6',
     },
-  },
+  } as any,
 };
 
 describe('LineaGasFeeFlow', () => {
