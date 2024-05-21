@@ -11,7 +11,7 @@ import {
 import type {
   RatesControllerActions,
   RatesControllerEvents,
-  RatesMessenger,
+  RatesControllerMessenger,
   RatesControllerState,
 } from './types';
 
@@ -46,7 +46,7 @@ function buildMessenger(): ControllerMessenger<
  */
 function buildRatesControllerMessenger(
   messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>,
-): RatesMessenger {
+): RatesControllerMessenger {
   return messenger.getRestricted({
     name: ratesControllerName,
     allowedEvents: [],

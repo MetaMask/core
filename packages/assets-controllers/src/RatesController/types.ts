@@ -90,7 +90,7 @@ export type RatesControllerActions = RatesControllerGetStateAction;
 /**
  * Defines the actions that the RatesController can perform.
  */
-export type RatesMessenger = RestrictedControllerMessenger<
+export type RatesControllerMessenger = RestrictedControllerMessenger<
   typeof ratesControllerName,
   RatesControllerActions,
   RatesControllerEvents,
@@ -113,7 +113,7 @@ export type RatesControllerOptions = {
   /**
    * The messenger instance for communication.
    */
-  messenger: RatesMessenger;
+  messenger: RatesControllerMessenger;
   /**
    * The initial state of the controller.
    */
