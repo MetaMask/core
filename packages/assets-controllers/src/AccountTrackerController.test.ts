@@ -1,10 +1,7 @@
+import { createMockInternalAccount } from '@metamask/accounts-controller';
 import { query } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import {
-  getDefaultPreferencesState,
-  type Identity,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
+import type { InternalAccount } from '@metamask/keyring-api';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -18,7 +15,9 @@ jest.mock('@metamask/controller-utils', () => {
 });
 
 const ADDRESS_1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+const ACCOUNT_1 = createMockInternalAccount({ address: ADDRESS_1 });
 const ADDRESS_2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+const ACCOUNT_2 = createMockInternalAccount({ address: ADDRESS_2 });
 
 const mockedQuery = query as jest.Mock<
   ReturnType<typeof query>,
@@ -44,9 +43,9 @@ describe('AccountTrackerController', () => {
 
   it('should set default state', () => {
     const controller = new AccountTrackerController({
-      onPreferencesStateChange: sinon.stub(),
-      getIdentities: () => ({}),
-      getSelectedAddress: () => '',
+      onSelectedAccountChange: sinon.stub(),
+      getInternalAccounts: () => [],
+      getSelectedAccount: () => ACCOUNT_1,
       getMultiAccountBalancesEnabled: () => true,
       getCurrentChainId: () => '0x1',
       getNetworkClientById: jest.fn(),
@@ -61,9 +60,11 @@ describe('AccountTrackerController', () => {
 
   it('should throw when provider property is accessed', () => {
     const controller = new AccountTrackerController({
-      onPreferencesStateChange: sinon.stub(),
-      getIdentities: () => ({}),
-      getSelectedAddress: () => '',
+      onSelectedAccountChange: sinon.stub(),
+      getInternalAccounts: () => [],
+      getSelectedAccount: () => {
+        return {} as InternalAccount;
+      },
       getMultiAccountBalancesEnabled: () => true,
       getCurrentChainId: () => '0x1',
       getNetworkClientById: jest.fn(),
@@ -73,31 +74,31 @@ describe('AccountTrackerController', () => {
     );
   });
 
-  it('should refresh when preferences state changes', async () => {
-    const preferencesStateChangeListeners: ((
-      state: PreferencesState,
+  it('should refresh when selectedAccount changes', async () => {
+    const selectedAccountChangeListeners: ((
+      internalAccount: InternalAccount,
     ) => void)[] = [];
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: (listener) => {
-          preferencesStateChangeListeners.push(listener);
+        onSelectedAccountChange: (listener) => {
+          selectedAccountChangeListeners.push(listener);
         },
-        getIdentities: () => ({}),
-        getSelectedAddress: () => '0x0',
+        getInternalAccounts: () => [],
+        getSelectedAccount: () => ACCOUNT_1,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
         getNetworkClientById: jest.fn(),
       },
       { provider },
     );
-    const triggerPreferencesStateChange = (state: PreferencesState) => {
-      for (const listener of preferencesStateChangeListeners) {
-        listener(state);
+    const triggerSelectedAccountChange = (internalAccount: InternalAccount) => {
+      for (const listener of selectedAccountChangeListeners) {
+        listener(internalAccount);
       }
     };
     controller.refresh = sinon.stub();
 
-    triggerPreferencesStateChange(getDefaultPreferencesState());
+    triggerSelectedAccountChange(ACCOUNT_1);
 
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,16 +114,13 @@ describe('AccountTrackerController', () => {
 
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
+        const bazAccount = createMockInternalAccount({ address: 'baz' });
+        const barAccount = createMockInternalAccount({ address: 'bar' });
         const controller = new AccountTrackerController(
           {
-            onPreferencesStateChange: sinon.stub(),
-            getIdentities: () => {
-              return {
-                bar: {} as Identity,
-                baz: {} as Identity,
-              };
-            },
-            getSelectedAddress: () => '0x0',
+            onSelectedAccountChange: sinon.stub(),
+            getInternalAccounts: () => [bazAccount, barAccount],
+            getSelectedAccount: () => barAccount,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
@@ -169,11 +167,9 @@ describe('AccountTrackerController', () => {
 
         const controller = new AccountTrackerController(
           {
-            onPreferencesStateChange: sinon.stub(),
-            getIdentities: () => {
-              return { [ADDRESS_1]: {} as Identity };
-            },
-            getSelectedAddress: () => ADDRESS_1,
+            onSelectedAccountChange: sinon.stub(),
+            getInternalAccounts: () => [ACCOUNT_1],
+            getSelectedAccount: () => ACCOUNT_1,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
@@ -206,14 +202,9 @@ describe('AccountTrackerController', () => {
 
         const controller = new AccountTrackerController(
           {
-            onPreferencesStateChange: sinon.stub(),
-            getIdentities: () => {
-              return {
-                [ADDRESS_1]: {} as Identity,
-                [ADDRESS_2]: {} as Identity,
-              };
-            },
-            getSelectedAddress: () => ADDRESS_1,
+            onSelectedAccountChange: sinon.stub(),
+            getInternalAccounts: () => [ACCOUNT_1, ACCOUNT_2],
+            getSelectedAccount: () => ACCOUNT_1,
             getMultiAccountBalancesEnabled: () => false,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
@@ -244,14 +235,9 @@ describe('AccountTrackerController', () => {
 
         const controller = new AccountTrackerController(
           {
-            onPreferencesStateChange: sinon.stub(),
-            getIdentities: () => {
-              return {
-                [ADDRESS_1]: {} as Identity,
-                [ADDRESS_2]: {} as Identity,
-              };
-            },
-            getSelectedAddress: () => ADDRESS_1,
+            onSelectedAccountChange: sinon.stub(),
+            getInternalAccounts: () => [ACCOUNT_1, ACCOUNT_2],
+            getSelectedAccount: () => ACCOUNT_1,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
@@ -278,16 +264,13 @@ describe('AccountTrackerController', () => {
 
     describe('with networkClientId', () => {
       it('should sync addresses', async () => {
+        const bazAccount = createMockInternalAccount({ address: 'baz' });
+        const barAccount = createMockInternalAccount({ address: 'bar' });
         const controller = new AccountTrackerController(
           {
-            onPreferencesStateChange: sinon.stub(),
-            getIdentities: () => {
-              return {
-                bar: {} as Identity,
-                baz: {} as Identity,
-              };
-            },
-            getSelectedAddress: () => '0x0',
+            onSelectedAccountChange: sinon.stub(),
+            getInternalAccounts: () => [bazAccount, barAccount],
+            getSelectedAccount: () => bazAccount,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn().mockReturnValue({
@@ -342,11 +325,9 @@ describe('AccountTrackerController', () => {
         mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
 
         const controller = new AccountTrackerController({
-          onPreferencesStateChange: sinon.stub(),
-          getIdentities: () => {
-            return { [ADDRESS_1]: {} as Identity };
-          },
-          getSelectedAddress: () => ADDRESS_1,
+          onSelectedAccountChange: sinon.stub(),
+          getInternalAccounts: () => [ACCOUNT_1],
+          getSelectedAccount: () => ACCOUNT_1,
           getMultiAccountBalancesEnabled: () => true,
           getCurrentChainId: () => '0x1',
           getNetworkClientById: jest.fn().mockReturnValue({
@@ -386,14 +367,11 @@ describe('AccountTrackerController', () => {
           .mockReturnValueOnce(Promise.resolve('0x11'));
 
         const controller = new AccountTrackerController({
-          onPreferencesStateChange: sinon.stub(),
-          getIdentities: () => {
-            return {
-              [ADDRESS_1]: {} as Identity,
-              [ADDRESS_2]: {} as Identity,
-            };
+          onSelectedAccountChange: sinon.stub(),
+          getInternalAccounts: () => {
+            return [ACCOUNT_1, ACCOUNT_2];
           },
-          getSelectedAddress: () => ADDRESS_1,
+          getSelectedAccount: () => ACCOUNT_1,
           getMultiAccountBalancesEnabled: () => false,
           getCurrentChainId: () => '0x1',
           getNetworkClientById: jest.fn().mockReturnValue({
@@ -430,14 +408,11 @@ describe('AccountTrackerController', () => {
           .mockReturnValueOnce(Promise.resolve('0x12'));
 
         const controller = new AccountTrackerController({
-          onPreferencesStateChange: sinon.stub(),
-          getIdentities: () => {
-            return {
-              [ADDRESS_1]: {} as Identity,
-              [ADDRESS_2]: {} as Identity,
-            };
+          onSelectedAccountChange: sinon.stub(),
+          getInternalAccounts: () => {
+            return [ACCOUNT_1, ACCOUNT_2];
           },
-          getSelectedAddress: () => ADDRESS_1,
+          getSelectedAccount: () => ACCOUNT_1,
           getMultiAccountBalancesEnabled: () => true,
           getCurrentChainId: () => '0x1',
           getNetworkClientById: jest.fn().mockReturnValue({
@@ -474,11 +449,9 @@ describe('AccountTrackerController', () => {
     it('should sync balance with addresses', async () => {
       const controller = new AccountTrackerController(
         {
-          onPreferencesStateChange: sinon.stub(),
-          getIdentities: () => {
-            return {};
-          },
-          getSelectedAddress: () => ADDRESS_1,
+          onSelectedAccountChange: sinon.stub(),
+          getInternalAccounts: () => [],
+          getSelectedAccount: () => ACCOUNT_1,
           getMultiAccountBalancesEnabled: () => true,
           getCurrentChainId: () => '0x1',
           getNetworkClientById: jest.fn(),
@@ -501,9 +474,9 @@ describe('AccountTrackerController', () => {
     const poll = sinon.spy(AccountTrackerController.prototype, 'poll');
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: jest.fn(),
-        getIdentities: () => ({}),
-        getSelectedAddress: () => '',
+        onSelectedAccountChange: jest.fn(),
+        getInternalAccounts: () => [],
+        getSelectedAccount: () => ACCOUNT_1,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
         getNetworkClientById: jest.fn(),
@@ -523,9 +496,9 @@ describe('AccountTrackerController', () => {
     sinon.stub(AccountTrackerController.prototype, 'poll');
     const controller = new AccountTrackerController(
       {
-        onPreferencesStateChange: jest.fn(),
-        getIdentities: () => ({}),
-        getSelectedAddress: () => '',
+        onSelectedAccountChange: jest.fn(),
+        getInternalAccounts: () => [],
+        getSelectedAccount: () => ACCOUNT_1,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
         getNetworkClientById: jest.fn(),
