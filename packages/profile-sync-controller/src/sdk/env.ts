@@ -63,13 +63,13 @@ export function getOidcClientId(env: Env, platform: Platform): string {
       [Platform.EXTENSION]: 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3',
     },
     [Env.UAT]: {
-      [Platform.PORTFOLIO]: 'TBD',
-      [Platform.MOBILE]: 'TBD',
+      [Platform.PORTFOLIO]: '8f2dd4ac-db07-4819-9ba5-1ee0ec1b56d1',
+      [Platform.MOBILE]: 'c3cfdcd2-51d6-4fae-ad2c-ff238c8fef53',
       [Platform.EXTENSION]: 'a9de167c-c9a6-43d8-af39-d301fd44c485',
     },
     [Env.PRD]: {
-      [Platform.PORTFOLIO]: 'TBD',
-      [Platform.MOBILE]: 'TBD',
+      [Platform.PORTFOLIO]: '35e1cd62-49c5-4be8-8b6e-a5212f2d2cfb',
+      [Platform.MOBILE]: '75fa62a3-9ca0-4b91-9fe5-76bec86b0257',
       [Platform.EXTENSION]: '1132f10a-b4e5-4390-a5f2-d9c6022db564',
     },
   };
