@@ -21,7 +21,12 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Caip2ChainId, Snap } from '@metamask/snaps-utils';
-import type { Keyring, Json } from '@metamask/utils';
+import {
+  type Keyring,
+  type Json,
+  type CaipChainId,
+  isCaipChainId,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
@@ -253,6 +258,10 @@ export class AccountsController extends BaseController<
    * @returns The selected internal account.
    */
   getSelectedAccount(chainId: Caip2ChainId = 'eip155:*'): InternalAccount {
+    if (!isCaipChainId(chainId) && chainId !== 'eip155:*') {
+      throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
+    }
+
     // TODO: have CAIP2 addresses within InternalAccount
     const selectedAccount = this.getAccountExpect(
       this.state.internalAccounts.selectedAccount,
@@ -270,14 +279,19 @@ export class AccountsController extends BaseController<
       account.type.startsWith('eip155:'),
     );
     let lastSelectedEvmAccount = accounts[0];
-    for (let i = 1; i < accounts.length; i++) {
+    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
       if (
-        (accounts[i].metadata.lastSelected ?? 0) >
-        (selectedAccount.metadata.lastSelected ?? 0)
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        currentAccount.metadata.lastSelected! >
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        prevAccount.metadata.lastSelected!
       ) {
-        lastSelectedEvmAccount = accounts[i];
+        return currentAccount;
       }
-    }
+      return prevAccount;
+    }, accounts[0]);
 
     if (!lastSelectedEvmAccount) {
       // !Should never reach this.

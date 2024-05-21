@@ -11,8 +11,10 @@ export type {
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerEvents,
   AccountsControllerMessenger,
 } from './AccountsController';
 export { AccountsController } from './AccountsController';
 export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';
+export { createMockInternalAccount } from './tests/mocks';
