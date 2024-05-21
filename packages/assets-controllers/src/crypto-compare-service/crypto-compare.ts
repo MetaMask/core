@@ -121,19 +121,19 @@ export async function fetchExchangeRate(
 /**
  * Fetches the exchange rates for multiple currencies.
  *
- * @param currency - The currency of the rates (ISO 4217).
+ * @param fiatCurrency - The currency of the rates (ISO 4217).
  * @param cryptocurrencies - The cryptocurrencies to get conversion rates for. Min length: 1. Max length: 300.
  * @param includeUSDRate - Whether to add the USD rate to the fetch.
  * @returns Promise resolving to exchange rates for given currencies.
  */
 export async function fetchMultiExchangeRate(
-  currency: string,
+  fiatCurrency: string,
   cryptocurrencies: string[],
   includeUSDRate: boolean,
 ): Promise<Record<string, Record<string, string>>> {
   const url = getMultiPricingURL(
     Object.values(cryptocurrencies).join(','),
-    currency,
+    fiatCurrency,
     includeUSDRate,
   );
   const response = await handleFetch(url);
@@ -145,7 +145,7 @@ export async function fetchMultiExchangeRate(
     Record<string, string>,
   ][]) {
     rates[cryptocurrency.toLowerCase()] = {
-      [currency.toLowerCase()]: values[currency.toUpperCase()],
+      [fiatCurrency.toLowerCase()]: values[fiatCurrency.toUpperCase()],
       ...(includeUSDRate && { usd: values.USD }),
     };
   }
