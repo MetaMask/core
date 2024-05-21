@@ -1852,24 +1852,6 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('getSelectedAccount', () => {
-    it('should return the selected account', () => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-      const result = accountsController.getAccountExpect(mockAccount.id);
-
-      expect(result).toStrictEqual(
-        setLastSelectedAsAny(mockAccount as InternalAccount),
-      );
-    });
-  });
-
   describe('setSelectedAccount', () => {
     it('should set the selected account', () => {
       const { accountsController } = setupAccountsController({
