@@ -513,25 +513,6 @@ export class NftController extends BaseController<
     });
   }
 
-  /**
-   * Fetches NFT Collection Metadata from the NFT API.
-   *
-   * @param contractAddresses - The contract addresses of the NFTs.
-   * @param chainId - The chain ID of the network where the NFT is located.
-   * @returns NFT collections metadata.
-   */
-  async fetchNftCollectionsMetadata(
-    contractAddresses: string[],
-    chainId: Hex,
-  ): Promise<{
-    collections: Collection[];
-  }> {
-    return await this.#getNftCollectionInformationFromApi(
-      contractAddresses,
-      chainId,
-    );
-  }
-
   async #getNftCollectionInformationFromApi(
     contractAddress: string[],
     chainId: Hex,
@@ -2003,6 +1984,25 @@ export class NftController extends BaseController<
         },
       },
       true,
+    );
+  }
+
+  /**
+   * Fetches NFT Collection Metadata from the NFT API.
+   *
+   * @param contractAddresses - The contract addresses of the NFTs.
+   * @param chainId - The chain ID of the network where the NFT is located.
+   * @returns NFT collections metadata.
+   */
+  async fetchNftCollectionsMetadata(
+    contractAddresses: string[],
+    chainId: Hex,
+  ): Promise<{
+    collections: Collection[];
+  }> {
+    return await this.#getNftCollectionInformationFromApi(
+      contractAddresses,
+      chainId,
     );
   }
 
