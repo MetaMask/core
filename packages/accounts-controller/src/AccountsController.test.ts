@@ -1663,11 +1663,11 @@ describe('AccountsController', () => {
       expect(result).toStrictEqual(setLastSelectedAsAny(mockAccount));
     });
 
-    it('should return the selected account if chainId is non evm', () => {
+    it('should return the selected account if chainId is non-evm', () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
-        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
         keyringType: KeyringTypes.snap,
         type: BtcAccountType.P2wpkh,
       });
@@ -1689,7 +1689,7 @@ describe('AccountsController', () => {
       expect(result).toStrictEqual(mockNonEvmAccount);
     });
 
-    it('should return the last selected evm account if the selected account is non evm', () => {
+    it('should return the last selected evm account if the selected account is non-evm', () => {
       const mockOlderEvmAccount = createExpectedInternalAccount({
         id: 'mock-id-1',
         name: 'mock account 1',
@@ -1707,7 +1707,7 @@ describe('AccountsController', () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
-        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
         keyringType: KeyringTypes.snap,
         type: BtcAccountType.P2wpkh,
       });
@@ -1763,7 +1763,7 @@ describe('AccountsController', () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
-        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
         keyringType: KeyringTypes.snap,
         type: BtcAccountType.P2wpkh,
       });
@@ -1790,7 +1790,7 @@ describe('AccountsController', () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
-        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
         keyringType: KeyringTypes.snap,
         type: BtcAccountType.P2wpkh,
       });
@@ -1935,11 +1935,11 @@ describe('AccountsController', () => {
       ).toStrictEqual(mockAccount2.id);
     });
 
-    it('should not emit setSelectedEvmAccountChange if the account is non evm', () => {
+    it('should not emit setSelectedEvmAccountChange if the account is non-evm', () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
-        address: '36jxQb2bkX32PEdnQ3m2iLefDssNeMmXtb',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
         keyringType: KeyringTypes.snap,
         type: BtcAccountType.P2wpkh,
       });
