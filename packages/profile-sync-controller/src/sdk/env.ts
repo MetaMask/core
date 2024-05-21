@@ -4,6 +4,12 @@ export const enum Env {
   PRD = 'prd',
 }
 
+export const enum Platform {
+  MOBILE = 'mobile',
+  EXTENSION = 'extension',
+  PORTFOLIO = 'portfolio',
+}
+
 type EnvUrlsEntry = {
   authApiUrl: string;
   oidcApiUrl: string;
@@ -46,20 +52,31 @@ export function getEnvUrls(env: Env): EnvUrlsEntry {
  * Returns the valid OIDC Client ID (used during authorization)
  *
  * @param env - environment field
+ * @param platform - platform field
  * @returns the OIDC client id for the environment
  */
-export function getOidcClientId(env: Env): string {
-  switch (env) {
-    case Env.DEV:
-      return 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3';
-    /* istanbul ignore next */
-    case Env.UAT:
-      return 'a9de167c-c9a6-43d8-af39-d301fd44c485';
-    /* istanbul ignore next */
-    case Env.PRD:
-      return '1132f10a-b4e5-4390-a5f2-d9c6022db564';
-    /* istanbul ignore next */
-    default:
-      throw new Error('invalid env: cannot determine oidc client id');
+export function getOidcClientId(env: Env, platform: Platform): string {
+  const clientIds = {
+    [Env.DEV]: {
+      [Platform.PORTFOLIO]: 'c7ca94a0-5d52-4635-9502-1a50a9c410cc',
+      [Platform.MOBILE]: 'e83c7cc9-267d-4fb4-8fec-f0e3bbe5ae8e',
+      [Platform.EXTENSION]: 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3',
+    },
+    [Env.UAT]: {
+      [Platform.PORTFOLIO]: 'TBD',
+      [Platform.MOBILE]: 'TBD',
+      [Platform.EXTENSION]: 'a9de167c-c9a6-43d8-af39-d301fd44c485',
+    },
+    [Env.PRD]: {
+      [Platform.PORTFOLIO]: 'TBD',
+      [Platform.MOBILE]: 'TBD',
+      [Platform.EXTENSION]: '1132f10a-b4e5-4390-a5f2-d9c6022db564',
+    },
+  };
+
+  if (!clientIds[env]) {
+    throw new Error(`invalid env ${env}: cannot determine oidc client id`);
   }
+
+  return clientIds[env][platform];
 }

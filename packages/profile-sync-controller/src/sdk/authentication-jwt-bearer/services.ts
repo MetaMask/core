@@ -1,4 +1,4 @@
-import type { Env } from '../env';
+import type { Env, Platform } from '../env';
 import { getEnvUrls, getOidcClientId } from '../env';
 import {
   NonceRetrievalError,
@@ -134,11 +134,13 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
  *
  * @param jwtToken - The original token received from Authentication. This is traded for the Access Token. (the authentication token is single-use)
  * @param env - server environment
+ * @param platform - SDK platform
  * @returns Access Token from Authorization server
  */
 export async function authorizeOIDC(
   jwtToken: string,
   env: Env,
+  platform: Platform,
 ): Promise<AccessToken> {
   const grantType = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
   const headers = new Headers({
@@ -147,7 +149,7 @@ export async function authorizeOIDC(
 
   const urlEncodedBody = new URLSearchParams();
   urlEncodedBody.append('grant_type', grantType);
-  urlEncodedBody.append('client_id', getOidcClientId(env));
+  urlEncodedBody.append('client_id', getOidcClientId(env, platform));
   urlEncodedBody.append('assertion', jwtToken);
 
   try {

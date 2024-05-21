@@ -112,6 +112,7 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
       this.#config.env,
+      this.#config.platform,
     );
 
     // Save

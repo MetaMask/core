@@ -120,6 +120,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
       this.#config.env,
+      this.#config.platform,
     );
 
     // Save
