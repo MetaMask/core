@@ -361,7 +361,7 @@ describe('TokensController', () => {
           }),
         },
       },
-      async ({ controller, getAccountHandler }) => {
+      async ({ controller }) => {
         ContractMock.mockReturnValue(
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
