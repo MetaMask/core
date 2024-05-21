@@ -77,10 +77,25 @@ export class RatesController extends BaseController<
     this.#intervalLength = interval;
   }
 
-  async #withLock<R>(f: () => R) {
+  /**
+   * Executes a function `callback` within a mutex lock to ensure that only one instance of `callback` runs at a time across all invocations of `#withLock`.
+   * This method is useful for synchronizing access to a resource or section of code that should not be executed concurrently.
+   *
+   * @template R - The return type of the function `callback`.
+   * @param callback - A callback to execute once the lock is acquired. This callback can be synchronous or asynchronous.
+   * @returns A promise that resolves to the result of the function `callback`. The promise is fulfilled once `callback` has completed execution.
+   * @example
+   * async function criticalLogic() {
+   *   // Critical logic code goes here.
+   * }
+   *
+   * // Execute criticalLogic within a lock.
+   * const result = await this.#withLock(criticalLogic);
+   */
+  async #withLock<R>(callback: () => R) {
     const releaseLock = await this.#mutex.acquire();
     try {
-      return f();
+      return callback();
     } finally {
       releaseLock();
     }
