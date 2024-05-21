@@ -57,6 +57,7 @@ function buildRatesControllerMessenger(
 /**
  * Sets up and returns a new instance of RatesController with the provided configuration.
  * @param config - The configuration object for the RatesController.
+ * @param config.interval - Polling interval.
  * @param config.initialState - Initial state of the controller.
  * @param config.messenger - ControllerMessenger instance.
  * @param config.includeUsdRate - Indicates if the USD rate should be included.
@@ -64,19 +65,21 @@ function buildRatesControllerMessenger(
  * @returns A new instance of RatesController.
  */
 function setupRatesController({
+  interval,
   initialState,
   messenger,
   includeUsdRate,
   fetchMultiExchangeRate,
 }: {
+  interval?: number;
   initialState: Partial<RatesControllerState>;
   messenger: ControllerMessenger<RatesControllerActions, RatesControllerEvents>;
   includeUsdRate: boolean;
-  fetchMultiExchangeRate: typeof defaultFetchExchangeRate;
+  fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
 }) {
   const ratesControllerMessenger = buildRatesControllerMessenger(messenger);
   return new RatesController({
-    interval: 150,
+    interval,
     messenger: ratesControllerMessenger,
     state: initialState,
     includeUsdRate,
@@ -92,13 +95,11 @@ describe('RatesController', () => {
   });
 
   describe('construct', () => {
-    it('constructs the RatesController with the correct values', () => {
-      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+    it('constructs the RatesController with default values', () => {
       const ratesController = setupRatesController({
         initialState: {},
         messenger: buildMessenger(),
         includeUsdRate: false,
-        fetchMultiExchangeRate: fetchExchangeRateStub,
       });
       const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
       expect(ratesController).toBeDefined();
@@ -132,6 +133,7 @@ describe('RatesController', () => {
         });
       });
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {
           fiatCurrency: 'eur',
         },
@@ -204,6 +206,7 @@ describe('RatesController', () => {
       });
 
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {
           cryptocurrencies: [Cryptocurrency.Btc],
           fiatCurrency: 'eur',
@@ -254,6 +257,7 @@ describe('RatesController', () => {
       const publishActionSpy = jest.spyOn(messenger, 'publish');
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {},
         messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
@@ -300,6 +304,7 @@ describe('RatesController', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const mockCryptocurrencyList = [Cryptocurrency.Btc];
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {
           cryptocurrencies: mockCryptocurrencyList,
         },
@@ -318,6 +323,7 @@ describe('RatesController', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const mockCryptocurrencyList = [Cryptocurrency.Btc];
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
@@ -341,6 +347,7 @@ describe('RatesController', () => {
     it('sets the currency to a new value', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
@@ -359,6 +366,7 @@ describe('RatesController', () => {
     it('throws if input is an empty string', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
+        interval: 150,
         initialState: {},
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
