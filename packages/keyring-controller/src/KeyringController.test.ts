@@ -657,7 +657,7 @@ describe('KeyringController', () => {
               await expect(
                 controller.exportAccount(password, ''),
               ).rejects.toThrow(
-                'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+                'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
               );
             });
           });
@@ -688,7 +688,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support exportAccount', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -737,7 +737,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support getEncryptionPublicKey', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -799,7 +799,7 @@ describe('KeyringController', () => {
           await expect(
             controller.decryptMessage(messageParams),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -807,7 +807,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support decryptMessage', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -1181,7 +1181,7 @@ describe('KeyringController', () => {
           await expect(
             controller.removeAccount('0xDUMMY_INPUT'),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1189,7 +1189,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support removeAccount', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -1239,7 +1239,7 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1247,7 +1247,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support signMessage', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -1307,7 +1307,7 @@ describe('KeyringController', () => {
               from: '',
             }),
           ).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1315,7 +1315,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support signPersonalMessage', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -1577,7 +1577,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support signTypedMessage', () => {
       it('should throw error', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
@@ -1659,7 +1659,7 @@ describe('KeyringController', () => {
             expect(unsignedEthTx.v).toBeUndefined();
             await controller.signTransaction(unsignedEthTx, '');
           }).rejects.toThrow(
-            'KeyringController - No keyring found. Error info: The address passed in is invalid/empty',
+            'KeyringController - No keyring found. Error info: There are keyrings, but none match the address',
           );
         });
       });
@@ -1681,7 +1681,7 @@ describe('KeyringController', () => {
 
     describe('when the keyring for the given address does not support signTransaction', () => {
       it('should throw if the keyring for the given address does not support signTransaction', async () => {
-        const address = '0x5aC6d462f054690A373Fabf8cc28E161003aEB19';
+        const address = '0x5AC6D462f054690a373FABF8CC28e161003aEB19';
         stubKeyringClassWithAccount(MockKeyring, address);
         await withController(
           { keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
