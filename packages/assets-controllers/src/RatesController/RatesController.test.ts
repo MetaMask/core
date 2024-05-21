@@ -91,7 +91,7 @@ describe('RatesController', () => {
     jest.resetAllMocks();
   });
 
-  describe('contruct', () => {
+  describe('construct', () => {
     it('constructs the RatesController with the correct values', () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
       const ratesController = setupRatesController({
@@ -100,11 +100,11 @@ describe('RatesController', () => {
         includeUsdRate: false,
         fetchMultiExchangeRate: fetchExchangeRateStub,
       });
-      const { currency, rates, fromCurrencies } = ratesController.state;
+      const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
       expect(ratesController).toBeDefined();
-      expect(currency).toBe('usd');
+      expect(fiatCurrency).toBe('usd');
       expect(Object.keys(rates)).toStrictEqual(['btc']);
-      expect(fromCurrencies).toStrictEqual(['btc']);
+      expect(cryptocurrencies).toStrictEqual(['btc']);
     });
   });
 
@@ -133,7 +133,7 @@ describe('RatesController', () => {
       });
       const ratesController = setupRatesController({
         initialState: {
-          currency: 'eur',
+          fiatCurrency: 'eur',
         },
         messenger,
         fetchMultiExchangeRate: fetchExchangeRateStub,
@@ -205,8 +205,8 @@ describe('RatesController', () => {
 
       const ratesController = setupRatesController({
         initialState: {
-          fromCurrencies: [Cryptocurrency.Btc],
-          currency: 'eur',
+          cryptocurrencies: [Cryptocurrency.Btc],
+          fiatCurrency: 'eur',
         },
         messenger: buildMessenger(),
         includeUsdRate: true,
@@ -301,7 +301,7 @@ describe('RatesController', () => {
       const mockCryptocurrencyList = [Cryptocurrency.Btc];
       const ratesController = setupRatesController({
         initialState: {
-          fromCurrencies: mockCryptocurrencyList,
+          cryptocurrencies: mockCryptocurrencyList,
         },
         messenger: buildMessenger(),
         fetchMultiExchangeRate: fetchExchangeRateStub,
@@ -347,12 +347,12 @@ describe('RatesController', () => {
         includeUsdRate: false,
       });
 
-      const currencyPreUpdate = ratesController.state.currency;
+      const currencyPreUpdate = ratesController.state.fiatCurrency;
       expect(currencyPreUpdate).toBe('usd');
 
       await ratesController.setCurrency('eur');
 
-      const currencyPostUpdate = ratesController.state.currency;
+      const currencyPostUpdate = ratesController.state.fiatCurrency;
       expect(currencyPostUpdate).toBe('eur');
     });
 
