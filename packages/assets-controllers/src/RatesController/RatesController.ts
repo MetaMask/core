@@ -18,20 +18,20 @@ export enum Cryptocurrency {
 const DEFAULT_INTERVAL = 180000;
 
 const metadata = {
-  currency: { persist: true, anonymous: true },
+  fiatCurrency: { persist: true, anonymous: true },
   rates: { persist: true, anonymous: true },
-  fromCurrencies: { persist: true, anonymous: true },
+  cryptocurrencies: { persist: true, anonymous: true },
 };
 
 const defaultState = {
-  currency: 'usd',
+  fiatCurrency: 'usd',
   rates: {
     [Cryptocurrency.Btc]: {
       conversionDate: 0,
       conversionRate: '0',
     },
   },
-  fromCurrencies: [Cryptocurrency.Btc],
+  cryptocurrencies: [Cryptocurrency.Btc],
 };
 
 export class RatesController extends BaseController<
@@ -98,10 +98,13 @@ export class RatesController extends BaseController<
    */
   async updateRates(): Promise<void> {
     await this.#withLock(async () => {
-      const { currency, fromCurrencies } = this.state;
-      const response = await this.#fetchMultiExchangeRate(
-        currency,
-        fromCurrencies,
+      const { fiatCurrency, cryptocurrencies } = this.state;
+      const response: Record<
+        Cryptocurrency,
+        Record<string, string>
+      > = await this.#fetchMultiExchangeRate(
+        fiatCurrency,
+        cryptocurrencies,
         this.#includeUsdRate,
       );
 
@@ -109,7 +112,7 @@ export class RatesController extends BaseController<
       for (const [cryptocurrency, values] of Object.entries(response)) {
         updatedRates[cryptocurrency] = {
           conversionDate: Date.now(),
-          conversionRate: values[currency],
+          conversionRate: values[fiatCurrency],
           ...(this.#includeUsdRate && { usdConversionRate: values.usd }),
         };
       }
@@ -152,8 +155,8 @@ export class RatesController extends BaseController<
   }
 
   getCryptocurrencyList(): Cryptocurrency[] {
-    const { fromCurrencies } = this.state;
-    return fromCurrencies;
+    const { cryptocurrencies } = this.state;
+    return cryptocurrencies;
   }
 
   async setCryptocurrencyList(list: Cryptocurrency[]): Promise<void> {
@@ -167,8 +170,8 @@ export class RatesController extends BaseController<
     });
   }
 
-  async setCurrency(currency: string) {
-    if (currency === '') {
+  async setCurrency(fiatCurrency: string) {
+    if (fiatCurrency === '') {
       throw new Error('The currency can not be an empty string');
     }
 
@@ -176,7 +179,7 @@ export class RatesController extends BaseController<
       this.update(() => {
         return {
           ...defaultState,
-          currency,
+          fiatCurrency,
         };
       });
     });
