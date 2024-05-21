@@ -1,5 +1,6 @@
+import type { InternalAccount } from '@metamask/keyring-api';
 import type { BlockTracker } from '@metamask/network-controller';
-import type { Hex } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
 
@@ -7,6 +8,7 @@ import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
+const EVM_WILDCARD_CHAIN_ID = 'eip155:*';
 
 // TODO: Replace `any` with type
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -35,7 +37,7 @@ export class IncomingTransactionHelper {
 
   #blockTracker: BlockTracker;
 
-  #getCurrentAccount: () => string;
+  #getCurrentAccount: (chainId: CaipChainId) => InternalAccount;
 
   #getLastFetchedBlockNumbers: () => Record<string, number>;
 
@@ -72,7 +74,7 @@ export class IncomingTransactionHelper {
     updateTransactions,
   }: {
     blockTracker: BlockTracker;
-    getCurrentAccount: () => string;
+    getCurrentAccount: (chainId: CaipChainId) => InternalAccount;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
     getChainId: () => Hex;
@@ -144,7 +146,7 @@ export class IncomingTransactionHelper {
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
 
       const fromBlock = this.#getFromBlock(latestBlockNumber);
-      const address = this.#getCurrentAccount();
+      const account = this.#getCurrentAccount(EVM_WILDCARD_CHAIN_ID);
       const currentChainId = this.#getChainId();
 
       let remoteTransactions = [];
@@ -152,7 +154,7 @@ export class IncomingTransactionHelper {
       try {
         remoteTransactions =
           await this.#remoteTransactionSource.fetchTransactions({
-            address,
+            address: account.address,
             currentChainId,
             fromBlock,
             limit: this.#transactionLimit,
@@ -165,7 +167,8 @@ export class IncomingTransactionHelper {
       }
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
-          (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
+          (tx) =>
+            tx.txParams.to?.toLowerCase() === account.address.toLowerCase(),
         );
       }
 
@@ -301,7 +304,9 @@ export class IncomingTransactionHelper {
 
   #getBlockNumberKey(additionalKeys: string[]): string {
     const currentChainId = this.#getChainId();
-    const currentAccount = this.#getCurrentAccount()?.toLowerCase();
+    const currentAccount = this.#getCurrentAccount(
+      EVM_WILDCARD_CHAIN_ID,
+    )?.address.toLowerCase();
 
     return [currentChainId, currentAccount, ...additionalKeys].join('#');
   }
