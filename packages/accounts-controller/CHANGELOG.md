@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): bump dependencies ([#4262](https://github.com/MetaMask/core/pull/4262))
+- refactor(accounts-controller): remove extra filter for normal accounts ([#4257](https://github.com/MetaMask/core/pull/4257))
+
 ## [14.0.0]
 
 ### Changed

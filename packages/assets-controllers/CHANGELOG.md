@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 151.0.0 ([#4285](https://github.com/MetaMask/core/pull/4285))
+- chore(deps): bump dependencies ([#4262](https://github.com/MetaMask/core/pull/4262))
+- fix: update state only when metadata changed after fetch ([#4143](https://github.com/MetaMask/core/pull/4143))
+- fix: lower occurenceFloor for linea mainnet to 1 ([#4253](https://github.com/MetaMask/core/pull/4253))
+- Refactor TokensController tests ([#4247](https://github.com/MetaMask/core/pull/4247))
+
 ## [29.0.0]
 
 ### Added

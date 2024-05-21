@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add swap+send type ([#4298](https://github.com/MetaMask/core/pull/4298))
+
 ## [29.0.2]
 
 ### Fixed

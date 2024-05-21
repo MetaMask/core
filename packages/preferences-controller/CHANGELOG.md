@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add `useTransactionSimulations` preference ([#4283](https://github.com/MetaMask/core/pull/4283))
+
 ## [11.0.0]
 
 ### Added
