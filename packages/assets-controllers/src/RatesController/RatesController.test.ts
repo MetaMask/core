@@ -22,7 +22,7 @@ const MOCK_TIMESTAMP = 1709983353;
  * @returns The stubbed date in milliseconds.
  */
 function getStubbedDate(): number {
-  return new Date(MOCK_TIMESTAMP * 1000).getTime();
+  return new Date(MOCK_TIMESTAMP).getTime();
 }
 
 /**
