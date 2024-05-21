@@ -133,7 +133,7 @@ const metadata = {
   showIncomingTransactions: { persist: true, anonymous: true },
   useNftDetection: { persist: true, anonymous: true },
   useTokenDetection: { persist: true, anonymous: true },
-  smartTransactionsOptInStatus: { persist: true, anonymous: true },
+  smartTransactionsOptInStatus: { persist: true, anonymous: false },
   useTransactionSimulations: { persist: true, anonymous: true },
 };
 
