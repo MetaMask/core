@@ -10,11 +10,11 @@ import { createModuleLogger } from '@metamask/utils';
 import { projectLogger } from '../logger';
 import type {
   GasFeeEstimates,
-  GasFeeEstimatesForLevel,
   GasFeeFlow,
   GasFeeFlowRequest,
   GasFeeFlowResponse,
   TransactionMeta,
+  FeeMarketGasFeeEstimateForLevel,
 } from '../types';
 import { GasFeeEstimateLevel } from '../types';
 
@@ -73,9 +73,10 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
     gasEstimateType,
     gasFeeEstimates,
     level,
-  }:
-    | FeeMarketGetEstimateLevelRequest
-    | LegacyGetEstimateLevelRequest): GasFeeEstimatesForLevel {
+  }: FeeMarketGetEstimateLevelRequest | LegacyGetEstimateLevelRequest): {
+    maxFeePerGas: Hex;
+    maxPriorityFeePerGas: Hex;
+  } {
     if (gasEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
       return this.#getFeeMarketLevel(gasFeeEstimates, level);
     }
@@ -86,7 +87,7 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
   #getFeeMarketLevel(
     gasFeeEstimates: FeeMarketGasPriceEstimate,
     level: GasFeeEstimateLevel,
-  ): GasFeeEstimatesForLevel {
+  ): FeeMarketGasFeeEstimateForLevel {
     const maxFeePerGas = this.#gweiDecimalToWeiHex(
       gasFeeEstimates[level].suggestedMaxFeePerGas,
     );
@@ -104,7 +105,7 @@ export class DefaultGasFeeFlow implements GasFeeFlow {
   #getLegacyLevel(
     gasFeeEstimates: LegacyGasPriceEstimate,
     level: GasFeeEstimateLevel,
-  ): GasFeeEstimatesForLevel {
+  ): { maxFeePerGas: Hex; maxPriorityFeePerGas: Hex } {
     const gasPrice = this.#gweiDecimalToWeiHex(gasFeeEstimates[level]);
 
     return {

@@ -125,3 +125,51 @@ export const VALID_UNAPPROVED_TRANSACTION_TYPES = [
   TransactionType.tokenMethodTransferFrom,
   TransactionType.contractInteraction,
 ];
+
+/** Extract of the Wrapped ERC-20 ABI required for simulation. */
+export const ABI_SIMULATION_ERC20_WRAPPED = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'to', type: 'address' },
+      { indexed: false, name: 'wad', type: 'uint256' },
+    ],
+    name: 'Deposit',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'from', type: 'address' },
+      { indexed: false, name: 'wad', type: 'uint256' },
+    ],
+    name: 'Withdrawal',
+    type: 'event',
+  },
+];
+
+/** Extract of the legacy ERC-721 ABI required for simulation. */
+export const ABI_SIMULATION_ERC721_LEGACY = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        name: '_from',
+        type: 'address',
+      },
+      {
+        indexed: false,
+        name: '_to',
+        type: 'address',
+      },
+      {
+        indexed: false,
+        name: '_tokenId',
+        type: 'uint256',
+      },
+    ],
+    name: 'Transfer',
+    type: 'event',
+  },
+];
