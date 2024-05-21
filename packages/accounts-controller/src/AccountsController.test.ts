@@ -1650,28 +1650,28 @@ describe('AccountsController', () => {
   });
 
   describe('getSelectedAccount', () => {
-      const mockNonEvmAccount = createExpectedInternalAccount({
-        id: 'mock-non-evm',
-        name: 'non-evm',
-        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
-        keyringType: KeyringTypes.snap,
-        type: BtcAccountType.P2wpkh,
-      });
+    const mockNonEvmAccount = createExpectedInternalAccount({
+      id: 'mock-non-evm',
+      name: 'non-evm',
+      address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+      keyringType: KeyringTypes.snap,
+      type: BtcAccountType.P2wpkh,
+    });
 
-      const mockOlderEvmAccount = createExpectedInternalAccount({
-        id: 'mock-id-1',
-        name: 'mock account 1',
-        address: 'mock-address-1',
-        keyringType: KeyringTypes.hd,
-        lastSelected: 11111,
-      });
-      const mockNewerEvmAccount = createExpectedInternalAccount({
-        id: 'mock-id-2',
-        name: 'mock account 2',
-        address: 'mock-address-2',
-        keyringType: KeyringTypes.hd,
-        lastSelected: 22222,
-      });
+    const mockOlderEvmAccount = createExpectedInternalAccount({
+      id: 'mock-id-1',
+      name: 'mock account 1',
+      address: 'mock-address-1',
+      keyringType: KeyringTypes.hd,
+      lastSelected: 11111,
+    });
+    const mockNewerEvmAccount = createExpectedInternalAccount({
+      id: 'mock-id-2',
+      name: 'mock account 2',
+      address: 'mock-address-2',
+      keyringType: KeyringTypes.hd,
+      lastSelected: 22222,
+    });
 
     it.each([
       [undefined, mockNewerEvmAccount, mockNewerEvmAccount],
@@ -1683,18 +1683,18 @@ describe('AccountsController', () => {
     ])(
       "chainId %s with selectedAccount '%s' should return %s",
       (chainId, currentSelectedAccount, expected) => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockOlderEvmAccount.id]: mockOlderEvmAccount,
-              [mockNewerEvmAccount.id]: mockNewerEvmAccount,
-              [mockNonEvmAccount.id]: mockNonEvmAccount,
-            },
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockOlderEvmAccount.id]: mockOlderEvmAccount,
+                [mockNewerEvmAccount.id]: mockNewerEvmAccount,
+                [mockNonEvmAccount.id]: mockNonEvmAccount,
+              },
               selectedAccount: currentSelectedAccount.id,
+            },
           },
-        },
-      });
+        });
 
         expect(
           accountsController.getSelectedAccount(chainId as CaipChainId),
@@ -1738,34 +1738,38 @@ describe('AccountsController', () => {
     });
   });
 
-    it("should throw error if there aren't any evm accounts", () => {
-      const mockNonEvmAccount = createExpectedInternalAccount({
-        id: 'mock-non-evm',
-        name: 'non-evm',
-        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
-        keyringType: KeyringTypes.snap,
-        type: BtcAccountType.P2wpkh,
-      });
+  describe('listAccounts', () => {
+    const nonEvmAccount = createMockInternalAccount({
+      id: 'mock-id-non-evm',
+      address: 'mock-non-evm-address',
+      type: BtcAccountType.P2wpkh,
+      keyringType: KeyringTypes.snap,
+    });
 
+    it.each([
+      [undefined, [mockAccount, mockAccount2, nonEvmAccount]],
+      ['eip155:1', [mockAccount, mockAccount2]],
+      ['eip155:*', [mockAccount, mockAccount2]],
+      ['bip122:1', [nonEvmAccount]],
+    ])(`%s should return %s`, (chainId, expected) => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
             accounts: {
-              [mockNonEvmAccount.id]: mockNonEvmAccount,
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+              [nonEvmAccount.id]: nonEvmAccount,
             },
-            selectedAccount: mockNonEvmAccount.id,
+            selectedAccount: mockAccount.id,
           },
         },
       });
-
-      expect(() => accountsController.getSelectedAccount('eip155:1')).toThrow(
-        'AccountsController: No evm accounts',
-      );
+      expect(
+        accountsController.listAccounts(chainId as CaipChainId),
+      ).toStrictEqual(expected);
     });
-  });
 
-  describe('listAccounts', () => {
-    it('should return a list of accounts', () => {
+    it('should throw if invalid caip2 was passed', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1778,12 +1782,12 @@ describe('AccountsController', () => {
         },
       });
 
-      const result = accountsController.listAccounts();
+      const invalidCaip2 = 'ethereum';
 
-      expect(result).toStrictEqual([
-        setLastSelectedAsAny(mockAccount as InternalAccount),
-        setLastSelectedAsAny(mockAccount2 as InternalAccount),
-      ]);
+      // @ts-expect-error testing invalid caip2
+      expect(() => accountsController.listAccounts(invalidCaip2)).toThrow(
+        `Invalid CAIP2 id ${invalidCaip2}`,
+      );
     });
   });
 

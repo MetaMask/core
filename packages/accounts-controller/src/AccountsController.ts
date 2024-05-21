@@ -211,10 +211,22 @@ export class AccountsController extends BaseController<
   /**
    * Returns an array of all internal accounts.
    *
+   * @param chainId - The chain ID.
    * @returns An array of InternalAccount objects.
    */
-  listAccounts(): InternalAccount[] {
-    return Object.values(this.state.internalAccounts.accounts);
+  listAccounts(chainId?: CaipChainId): InternalAccount[] {
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    if (!chainId) {
+      return accounts;
+    }
+
+    if (!isCaipChainId(chainId) && chainId !== 'eip155:*') {
+      throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
+    }
+
+    return accounts.filter((account) =>
+      account.type.startsWith(chainId.split(':')[0]),
+    );
   }
 
   /**
