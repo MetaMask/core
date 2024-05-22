@@ -87,6 +87,7 @@ import {
 } from './utils';
 import { getSimulationData } from './utils/simulation';
 import { updatePostTransactionBalance } from './utils/swaps';
+import { getSimulationData } from './utils/simulation';
 
 const HARDFORK = Hardfork.London;
 const SUBMIT_HISTORY_LIMIT = 100;
