@@ -37,6 +37,7 @@ describe('PreferencesController', () => {
         acc[curr] = true;
         return acc;
       }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
+      smartTransactionsOptInStatus: false,
     });
   });
 
@@ -415,6 +416,12 @@ describe('PreferencesController', () => {
 
     controller.setEnableNetworkIncomingTransactions('0x1', false);
     expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
+  });
+
+  it('should set smartTransactionsOptInStatus', () => {
+    const controller = setupPreferencesController();
+    controller.setSmartTransactionsOptInStatus(true);
+    expect(controller.state.smartTransactionsOptInStatus).toBe(true);
   });
 
   it('should set useTransactionSimulations', () => {
