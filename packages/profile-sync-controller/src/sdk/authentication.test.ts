@@ -7,7 +7,7 @@ import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
 import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
-import { Env } from './env';
+import { Env, Platform } from './env';
 import {
   NonceRetrievalError,
   PairError,
@@ -136,6 +136,7 @@ describe('Authentication - constructor()', () => {
       new JwtBearerAuth(
         {
           env: Env.PRD,
+          platform: Platform.EXTENSION,
           type: 'some fake type' as MockVariable,
         },
         {} as MockVariable,
