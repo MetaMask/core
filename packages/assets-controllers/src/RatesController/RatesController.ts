@@ -197,7 +197,7 @@ export class RatesController extends BaseController<
    * Returns the current fiat currency.
    * @param fiatCurrency - The fiat currency.
    */
-  async updateFiatCurrencyAndRates(fiatCurrency: string) {
+  async setFiatCurrency(fiatCurrency: string) {
     if (fiatCurrency === '') {
       throw new Error('The currency can not be an empty string');
     }
