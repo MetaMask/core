@@ -37,7 +37,7 @@ import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { mapValues, merge, pickBy, sortBy } from 'lodash';
+import { mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
@@ -63,11 +63,13 @@ import type {
   WalletDevice,
   SubmitHistoryEntry,
   GasFeeFlow,
+  SimulationData,
 } from './types';
 import {
   TransactionEnvelopeType,
   TransactionStatus,
   TransactionType,
+  SimulationErrorCode,
 } from './types';
 import {
   getAndFormatTransactionsForNonceTracker,
@@ -82,6 +84,7 @@ import {
   validateTxParams,
   ESTIMATE_GAS_ERROR,
 } from './utils';
+import { getSimulationData } from './utils/simulation';
 import { updatePostTransactionBalance } from './utils/swaps';
 
 const HARDFORK = Hardfork.London;
@@ -218,6 +221,8 @@ export class TransactionController extends BaseController<
 
   private readonly incomingTransactionHelper: IncomingTransactionHelper;
 
+  #isSimulationEnabled: () => boolean;
+
   private readonly inProcessOfSigning: Set<string> = new Set();
 
   private readonly publish: (
@@ -284,6 +289,7 @@ export class TransactionController extends BaseController<
    * @param options.incomingTransactions.isEnabled - Whether or not incoming transaction retrieval is enabled.
    * @param options.incomingTransactions.queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
    * @param options.incomingTransactions.updateTransactions - Whether to update local transactions using remote transaction data.
+   * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.provider - The provider used to create the underlying EthQuery instance.
@@ -304,6 +310,7 @@ export class TransactionController extends BaseController<
       getSelectedAddress,
       getExternalPendingTransactions,
       incomingTransactions = {},
+      isSimulationEnabled,
       messenger,
       onNetworkStateChange,
       provider,
@@ -326,6 +333,7 @@ export class TransactionController extends BaseController<
         queryEntireHistory?: boolean;
         updateTransactions?: boolean;
       };
+      isSimulationEnabled?: () => boolean;
       messenger: TransactionControllerMessenger;
       onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
       provider: Provider;
@@ -361,6 +369,7 @@ export class TransactionController extends BaseController<
     this.ethQuery = new EthQuery(provider);
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
+    this.#isSimulationEnabled = isSimulationEnabled ?? (() => false);
     this.registry = new MethodRegistry({ provider });
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
@@ -565,6 +574,14 @@ export class TransactionController extends BaseController<
       if (!this.isHistoryDisabled) {
         addInitialHistorySnapshot(transactionMeta);
       }
+
+      if (requireApproval !== false) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.#updateSimulationData(transactionMeta);
+      } else {
+        log('Skipping simulation as approval not required');
+      }
+
       transactions.push(transactionMeta);
       this.update({
         transactions: this.trimTransactionsForState(transactions),
@@ -2302,6 +2319,96 @@ export class TransactionController extends BaseController<
 
   private onTransactionStatusChange(transactionMeta: TransactionMeta) {
     this.hub.emit('transaction-status-update', { transactionMeta });
+  }
+
+  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
+    const { id: transactionId, txParams: newParams } = newTransactionMeta;
+
+    const originalParams = this.getTransaction(transactionId)?.txParams;
+
+    if (!originalParams || isEqual(originalParams, newParams)) {
+      return [];
+    }
+
+    const params = Object.keys(newParams) as (keyof TransactionParams)[];
+
+    const updatedProperties = params.filter(
+      (param) => newParams[param] !== originalParams[param],
+    );
+
+    log(
+      'Transaction parameters have been updated',
+      transactionId,
+      updatedProperties,
+      originalParams,
+      newParams,
+    );
+
+    return updatedProperties;
+  }
+
+  #onTransactionParamsUpdated(
+    transactionMeta: TransactionMeta,
+    updatedParams: (keyof TransactionParams)[],
+  ) {
+    if (
+      (['to', 'value', 'data'] as const).some((param) =>
+        updatedParams.includes(param),
+      )
+    ) {
+      log('Updating simulation data due to transaction parameter update');
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#updateSimulationData(transactionMeta);
+    }
+  }
+
+  async #updateSimulationData(transactionMeta: TransactionMeta) {
+    const { id: transactionId, chainId, txParams } = transactionMeta;
+    const { from, to, value, data } = txParams;
+
+    let simulationData: SimulationData = {
+      error: {
+        code: SimulationErrorCode.Disabled,
+        message: 'Simulation disabled',
+      },
+      tokenBalanceChanges: [],
+    };
+
+    if (this.#isSimulationEnabled()) {
+      transactionMeta.simulationData = undefined;
+      this.updateTransaction(
+        transactionMeta,
+        'TransactionController#updateSimulationData - Simulation data cleared',
+      );
+
+      simulationData = await getSimulationData({
+        chainId,
+        from: from as Hex,
+        to: to as Hex,
+        value: value as Hex,
+        data: data as Hex,
+      });
+    }
+
+    const finalTransactionMeta = this.getTransaction(transactionId);
+
+    if (!finalTransactionMeta) {
+      log(
+        'Cannot update simulation data as transaction not found',
+        transactionId,
+        simulationData,
+      );
+
+      return;
+    }
+
+    finalTransactionMeta.simulationData = simulationData;
+    this.updateTransaction(
+      finalTransactionMeta,
+      'TransactionController#updateSimulationData - Simulation data updated',
+    );
+
+    log('Updated simulation data', transactionId, simulationData);
   }
 }
 
