@@ -29,7 +29,7 @@ export type Rate = {
  * Represents the conversion rates for multiple cryptocurrencies.
  * Each key is a string representing the cryptocurrency symbol (e.g., "BTC", "SOL"),
  * and its value is a `Rate` object containing conversion rates from that cryptocurrency
- * to various fiat currencies or other cryptocurrencies.
+ * to a fiat currencies and an optional USD rate.
  */
 export type ConversionRates = Record<string, Rate>;
 
@@ -61,11 +61,17 @@ export type RatesControllerStateChangeEvent = ControllerStateChangeEvent<
   RatesControllerState
 >;
 
+/**
+ * Type definition for the RatesController polling started event.
+ */
 export type RatesControllerPollingStartedEvent = {
   type: `${typeof ratesControllerName}:pollingStarted`;
   payload: [];
 };
 
+/**
+ * Type definition for the RatesController polling stopped event.
+ */
 export type RatesControllerPollingStoppedEvent = {
   type: `${typeof ratesControllerName}:pollingStopped`;
   payload: [];

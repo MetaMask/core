@@ -357,7 +357,7 @@ describe('RatesController', () => {
       const currencyPreUpdate = ratesController.state.fiatCurrency;
       expect(currencyPreUpdate).toBe('usd');
 
-      await ratesController.setCurrency('eur');
+      await ratesController.updateFiatCurrencyAndRates('eur');
 
       const currencyPostUpdate = ratesController.state.fiatCurrency;
       expect(currencyPostUpdate).toBe('eur');
@@ -373,9 +373,9 @@ describe('RatesController', () => {
         includeUsdRate: false,
       });
 
-      await expect(ratesController.setCurrency('')).rejects.toThrow(
-        'The currency can not be an empty string',
-      );
+      await expect(
+        ratesController.updateFiatCurrencyAndRates(''),
+      ).rejects.toThrow('The currency can not be an empty string');
     });
   });
 });

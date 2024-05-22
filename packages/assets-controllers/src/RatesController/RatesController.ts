@@ -105,13 +105,13 @@ export class RatesController extends BaseController<
    * Executes the polling operation to update rates.
    */
   async #executePoll(): Promise<void> {
-    await this.updateRates();
+    await this.#updateRates();
   }
 
   /**
    * Updates the rates by fetching new data.
    */
-  async updateRates(): Promise<void> {
+  async #updateRates(): Promise<void> {
     await this.#withLock(async () => {
       const { fiatCurrency, cryptocurrencies } = this.state;
       const response: Record<
@@ -169,11 +169,19 @@ export class RatesController extends BaseController<
     this.messagingSystem.publish(`${name}:pollingStopped`);
   }
 
+  /**
+   * Returns the current list of cryptocurrency.
+   * @returns The cryptocurrency list.
+   */
   getCryptocurrencyList(): Cryptocurrency[] {
     const { cryptocurrencies } = this.state;
     return cryptocurrencies;
   }
 
+  /**
+   * Sets the list of supported cryptocurrencies.
+   * @param list - The list of supported cryptocurrencies.
+   */
   async setCryptocurrencyList(list: Cryptocurrency[]): Promise<void> {
     await this.#withLock(() => {
       this.update(() => {
@@ -185,7 +193,11 @@ export class RatesController extends BaseController<
     });
   }
 
-  async setCurrency(fiatCurrency: string) {
+  /**
+   * Returns the current fiat currency.
+   * @param fiatCurrency - The fiat currency.
+   */
+  async updateFiatCurrencyAndRates(fiatCurrency: string) {
     if (fiatCurrency === '') {
       throw new Error('The currency can not be an empty string');
     }
@@ -198,6 +210,6 @@ export class RatesController extends BaseController<
         };
       });
     });
-    await this.updateRates();
+    await this.#updateRates();
   }
 }
