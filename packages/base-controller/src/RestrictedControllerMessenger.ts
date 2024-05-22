@@ -101,9 +101,7 @@ export class RestrictedControllerMessenger<
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
-        `Only allowed registering action handlers prefixed by '${
-          this.#controllerName
-        }:'`,
+        `Only allowed registering action handlers prefixed by '${this.#controllerName}:'`,
       );
     }
     this.#controllerMessenger.registerActionHandler(action, handler);
@@ -126,9 +124,7 @@ export class RestrictedControllerMessenger<
     /* istanbul ignore if */ // Branch unreachable with valid types
     if (!this.#isInCurrentNamespace(action)) {
       throw new Error(
-        `Only allowed unregistering action handlers prefixed by '${
-          this.#controllerName
-        }:'`,
+        `Only allowed unregistering action handlers prefixed by '${this.#controllerName}:'`,
       );
     }
     this.#controllerMessenger.unregisterActionHandler(action);

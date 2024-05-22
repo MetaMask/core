@@ -122,6 +122,11 @@ module.exports = {
       'off',
       { matchDescription: '^[A-Z`\\d_][\\s\\S]*[.?!`>)}]$' },
     ],
+
+    // Disable rules that the `eslint-config-prettier` tool reports as
+    // conflicting
+    'max-statements-per-line': 'off',
+    'no-tabs': 'off',
   },
   settings: {
     'import/resolver': {

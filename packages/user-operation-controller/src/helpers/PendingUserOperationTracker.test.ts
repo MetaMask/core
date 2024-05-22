@@ -128,7 +128,9 @@ describe('PendingUserOperationTracker', () => {
       blockTracker: { getCurrentBlock: () => BLOCK_NUMBER_MOCK },
       configuration: { chainId: CHAIN_ID_MOCK },
       provider: {},
-    } as unknown as ReturnType<NetworkControllerGetNetworkClientByIdAction['handler']>);
+    } as unknown as ReturnType<
+      NetworkControllerGetNetworkClientByIdAction['handler']
+    >);
   });
 
   describe('_executePoll', () => {

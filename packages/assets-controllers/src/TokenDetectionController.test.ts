@@ -360,7 +360,7 @@ describe('TokenDetectionController', () => {
             () =>
               ({
                 configuration: { chainId: '0x89' },
-              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+              }) as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
           );
 
           mockTokenListGetState({

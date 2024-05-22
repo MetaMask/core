@@ -346,9 +346,8 @@ describe('IncomingTransactionHelper', () => {
           updateTransactions: true,
         });
 
-        const { transactionsListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { transactionsListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(transactionsListener).not.toHaveBeenCalled();
       });
@@ -365,9 +364,8 @@ describe('IncomingTransactionHelper', () => {
             .mockReturnValueOnce(false),
         });
 
-        const { transactionsListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { transactionsListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(transactionsListener).not.toHaveBeenCalled();
       });
@@ -381,9 +379,8 @@ describe('IncomingTransactionHelper', () => {
           ),
         });
 
-        const { transactionsListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { transactionsListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(transactionsListener).not.toHaveBeenCalled();
       });
@@ -394,9 +391,8 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([]),
         });
 
-        const { transactionsListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { transactionsListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(transactionsListener).not.toHaveBeenCalled();
       });
@@ -416,9 +412,8 @@ describe('IncomingTransactionHelper', () => {
           ]),
         });
 
-        const { transactionsListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { transactionsListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(transactionsListener).not.toHaveBeenCalled();
       });
@@ -432,9 +427,8 @@ describe('IncomingTransactionHelper', () => {
           ),
         });
 
-        const { transactionsListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { transactionsListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(transactionsListener).not.toHaveBeenCalled();
       });
@@ -465,9 +459,8 @@ describe('IncomingTransactionHelper', () => {
           ]),
         });
 
-        const { lastFetchedBlockNumbers } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { lastFetchedBlockNumbers } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
           [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}#${LAST_BLOCK_VARIATION_MOCK}`]:
@@ -481,9 +474,8 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([]),
         });
 
-        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { blockNumberListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(blockNumberListener).not.toHaveBeenCalled();
       });
@@ -496,9 +488,8 @@ describe('IncomingTransactionHelper', () => {
           ]),
         });
 
-        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { blockNumberListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(blockNumberListener).not.toHaveBeenCalled();
       });
@@ -514,9 +505,8 @@ describe('IncomingTransactionHelper', () => {
           ]),
         });
 
-        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { blockNumberListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(blockNumberListener).not.toHaveBeenCalled();
       });
@@ -533,9 +523,8 @@ describe('IncomingTransactionHelper', () => {
           }),
         });
 
-        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { blockNumberListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(blockNumberListener).not.toHaveBeenCalled();
       });
@@ -549,9 +538,8 @@ describe('IncomingTransactionHelper', () => {
           getCurrentAccount: () => undefined as unknown as string,
         });
 
-        const { blockNumberListener } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { blockNumberListener } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(blockNumberListener).not.toHaveBeenCalled();
       });
@@ -565,9 +553,8 @@ describe('IncomingTransactionHelper', () => {
           ),
         });
 
-        const { lastFetchedBlockNumbers } = await emitBlockTrackerLatestEvent(
-          helper,
-        );
+        const { lastFetchedBlockNumbers } =
+          await emitBlockTrackerLatestEvent(helper);
 
         expect(lastFetchedBlockNumbers).toStrictEqual({
           [`${CHAIN_ID_MOCK}#${ADDRESS_MOCK}`]: parseInt(

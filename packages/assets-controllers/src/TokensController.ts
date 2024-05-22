@@ -435,10 +435,13 @@ export class TokensController extends BaseControllerV1<
     const { tokens, detectedTokens, ignoredTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
     // Used later to dedupe imported tokens
-    const newTokensMap = tokens.reduce((output, current) => {
-      output[current.address] = current;
-      return output;
-    }, {} as { [address: string]: Token });
+    const newTokensMap = tokens.reduce(
+      (output, current) => {
+        output[current.address] = current;
+        return output;
+      },
+      {} as { [address: string]: Token },
+    );
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =

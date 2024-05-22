@@ -117,8 +117,8 @@ export type ValidPermission<
 type ExtractArrayMembers<ArrayType> = ArrayType extends []
   ? never
   : ArrayType extends unknown[] | readonly unknown[]
-  ? ArrayType[number]
-  : never;
+    ? ArrayType[number]
+    : never;
 
 /**
  * A utility type for extracting the allowed caveat types for a particular
@@ -534,11 +534,12 @@ export type PermissionSpecificationBuilderExportConstraint = {
 
 type ValidRestrictedMethodSpecification<
   Specification extends RestrictedMethodSpecificationConstraint,
-> = Specification['methodImplementation'] extends ValidRestrictedMethod<
-  Specification['methodImplementation']
->
-  ? Specification
-  : never;
+> =
+  Specification['methodImplementation'] extends ValidRestrictedMethod<
+    Specification['methodImplementation']
+  >
+    ? Specification
+    : never;
 
 /**
  * Constraint for {@link PermissionSpecificationConstraint} objects that
@@ -552,10 +553,10 @@ export type ValidPermissionSpecification<
   ? Specification['permissionType'] extends PermissionType.Endowment
     ? Specification
     : Specification['permissionType'] extends PermissionType.RestrictedMethod
-    ? ValidRestrictedMethodSpecification<
-        Extract<Specification, RestrictedMethodSpecificationConstraint>
-      >
-    : never
+      ? ValidRestrictedMethodSpecification<
+          Extract<Specification, RestrictedMethodSpecificationConstraint>
+        >
+      : never
   : never;
 
 /**

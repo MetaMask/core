@@ -33,10 +33,13 @@ describe('PreferencesController', () => {
       useTransactionSimulations: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
-      ).reduce((acc, curr) => {
-        acc[curr] = true;
-        return acc;
-      }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
+      ).reduce(
+        (acc, curr) => {
+          acc[curr] = true;
+          return acc;
+        },
+        {} as { [chainId in EtherscanSupportedHexChainId]: boolean },
+      ),
     });
   });
 

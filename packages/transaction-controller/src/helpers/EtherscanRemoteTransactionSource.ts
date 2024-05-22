@@ -98,9 +98,8 @@ export class EtherscanRemoteTransactionSource
   ) => {
     const { currentChainId } = request;
 
-    const etherscanTransactions = await fetchEtherscanTransactions(
-      etherscanRequest,
-    );
+    const etherscanTransactions =
+      await fetchEtherscanTransactions(etherscanRequest);
 
     return this.#getResponseTransactions(etherscanTransactions).map((tx) =>
       this.#normalizeTransaction(tx, currentChainId),
@@ -113,9 +112,8 @@ export class EtherscanRemoteTransactionSource
   ) => {
     const { currentChainId } = request;
 
-    const etherscanTransactions = await fetchEtherscanTokenTransactions(
-      etherscanRequest,
-    );
+    const etherscanTransactions =
+      await fetchEtherscanTokenTransactions(etherscanRequest);
 
     return this.#getResponseTransactions(etherscanTransactions).map((tx) =>
       this.#normalizeTokenTransaction(tx, currentChainId),

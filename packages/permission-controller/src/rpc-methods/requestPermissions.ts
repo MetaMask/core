@@ -54,9 +54,8 @@ async function requestPermissionsImplementation(
   }
 
   const [requestedPermissions] = params;
-  const [grantedPermissions] = await requestPermissionsForOrigin(
-    requestedPermissions,
-  );
+  const [grantedPermissions] =
+    await requestPermissionsForOrigin(requestedPermissions);
 
   // `wallet_requestPermission` is specified to return an array.
   res.result = Object.values(grantedPermissions);
