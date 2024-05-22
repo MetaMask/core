@@ -1641,13 +1641,13 @@ __metadata:
   linkType: soft
 
 "@metamask/action-utils@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@metamask/action-utils@npm:1.0.0"
+  version: 1.1.1
+  resolution: "@metamask/action-utils@npm:1.1.1"
   dependencies:
     "@types/semver": ^7.3.6
     glob: ^7.1.7
     semver: ^7.3.5
-  checksum: 5cfd5c7f8895f4bc602cb6e7b3e133aae0431ded8f50e136d314b2e54936ae22cc6add226fa6dfabb300addf084e32fd864a87b91af9188fa158b6e99d91e784
+  checksum: b13245c89e5fd769ab03d3731f0156b805b55c3af402ce896181682b423e5f3d00470dc258161ff6598f5dad49d06e19a40c9967805a8e7bc1de0d8d2313a9ff
   languageName: node
   linkType: hard
 
@@ -2686,12 +2686,12 @@ __metadata:
   linkType: soft
 
 "@metamask/post-message-stream@npm:^8.0.0":
-  version: 8.0.0
-  resolution: "@metamask/post-message-stream@npm:8.0.0"
+  version: 8.1.0
+  resolution: "@metamask/post-message-stream@npm:8.1.0"
   dependencies:
     "@metamask/utils": ^8.1.0
     readable-stream: 3.6.2
-  checksum: 3016d8d5f8a5954fd146ce06c0b5fd7a9a070b43284e2bad140e179ee259146b666d56e6dbefa0277f56fbb67806970c9de3067c75f0e56886d0752e7c0f5e22
+  checksum: 84b5f90ee28d3440520088c01fb64c42a2ed3e761bef4285c8dd72f78c3f634d58ac3314c5ebaedabc92e3db369960e17d61b84719f2d6271cd6d4957f2b6704
   languageName: node
   linkType: hard
 
