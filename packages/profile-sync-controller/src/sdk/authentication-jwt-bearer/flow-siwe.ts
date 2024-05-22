@@ -1,7 +1,6 @@
 import { SiweMessage } from 'siwe';
 
 import { ValidationError } from '../errors';
-import { SESSION_LIFETIME_MS } from './constants';
 import {
   SIWE_LOGIN_URL,
   authenticate,
@@ -77,6 +76,7 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
     this.#signer = signer;
   }
 
+  // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
   async #getAuthSession(): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse();
     if (!auth) {
@@ -85,7 +85,9 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
 
     const currentTime = Date.now();
     const sessionAge = currentTime - auth.token.obtainedAt;
-    if (sessionAge < SESSION_LIFETIME_MS) {
+    const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;
+
+    if (sessionAge < refreshThreshold) {
       return auth;
     }
     return null;
@@ -112,6 +114,7 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
       this.#config.env,
+      this.#config.platform,
     );
 
     // Save
