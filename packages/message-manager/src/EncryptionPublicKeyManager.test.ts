@@ -48,12 +48,9 @@ describe('EncryptionPublicKeyManager', () => {
 
   describe('addUnapprovedMessageAsync', () => {
     beforeEach(() => {
-      controller = new EncryptionPublicKeyManager(
-        undefined,
-        undefined,
-        undefined,
-        ['received'],
-      );
+      controller = new EncryptionPublicKeyManager(undefined, undefined, [
+        'received',
+      ]);
 
       jest
         .spyOn(controller, 'addUnapprovedMessage')
