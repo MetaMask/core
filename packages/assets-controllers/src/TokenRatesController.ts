@@ -16,7 +16,7 @@ import { createDeferredPromise, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
+import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import type { TokensControllerState } from './TokensController';
 

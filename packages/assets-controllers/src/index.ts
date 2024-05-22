@@ -58,3 +58,14 @@ export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
 } from './token-prices-service';
+export { RatesController, Cryptocurrency } from './RatesController';
+export type {
+  RatesControllerState,
+  RatesControllerEvents,
+  RatesControllerActions,
+  RatesControllerMessenger,
+  RatesControllerGetStateAction,
+  RatesControllerStateChangeEvent,
+  RatesControllerPollingStartedEvent,
+  RatesControllerPollingStoppedEvent,
+} from './RatesController';
