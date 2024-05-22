@@ -206,10 +206,10 @@ export class TokenBalancesController extends BaseController<
         newContractBalances[address] = toHex(
           await this.#getERC20BalanceOf(address, selectedAddress),
         );
-        token.balanceError = null;
+        token.hasBalanceError = false;
       } catch (error) {
         newContractBalances[address] = toHex(0);
-        token.balanceError = error;
+        token.hasBalanceError = true;
       }
     }
 

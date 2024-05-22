@@ -38,8 +38,8 @@ export type {
 } from './TokenRatesController';
 export { TokenRatesController } from './TokenRatesController';
 export type {
-  TokensConfig,
-  TokensState,
+  TokensControllerOptions,
+  TokensControllerState,
   TokensControllerActions,
   TokensControllerGetStateAction,
   TokensControllerAddDetectedTokensAction,

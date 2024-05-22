@@ -18,7 +18,7 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import type { TokensState } from './TokensController';
+import type { TokensControllerState } from './TokensController';
 
 /**
  * @type Token
@@ -29,19 +29,17 @@ import type { TokensState } from './TokensController';
  * @property symbol - Symbol of the token
  * @property image - Image of the token, url or bit32 image
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface Token {
+
+export type Token = {
   address: string;
   decimals: number;
   symbol: string;
   aggregators?: string[];
   image?: string;
-  balanceError?: unknown;
+  hasBalanceError?: boolean;
   isERC721?: boolean;
   name?: string;
-}
+};
 
 /**
  * @type TokenRatesConfig
@@ -196,7 +194,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
       onTokensStateChange: (
-        listener: (tokensState: TokensState) => void,
+        listener: (tokensState: TokensControllerState) => void,
       ) => void;
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
