@@ -124,6 +124,11 @@ type TransactionMetaBase = {
   destinationTokenAddress?: string;
 
   /**
+   * The raw amount of the destination token
+   */
+  destinationTokenAmount?: string;
+
+  /**
    * The decimals of the token being received of swap transaction.
    */
   destinationTokenDecimals?: number;
@@ -331,9 +336,29 @@ type TransactionMetaBase = {
   submittedTime?: number;
 
   /**
+   * The address of the token being swapped
+   */
+  sourceTokenAddress?: string;
+
+  /**
+   * The raw amount of the source swap token
+   */
+  sourceTokenAmount?: string;
+
+  /**
+   * The decimals of the token being swapped.
+   */
+  sourceTokenDecimals?: number;
+
+  /**
    * The symbol of the token being swapped.
    */
   sourceTokenSymbol?: string;
+
+  /**
+   * The address of the swap recipient.
+   */
+  swapAndSendRecipient?: string;
 
   /**
    * The metadata of the swap transaction.
@@ -522,6 +547,11 @@ export enum TransactionType {
    * A transaction swapping one token for another through MetaMask Swaps.
    */
   swap = 'swap',
+
+  /**
+   * A transaction swapping one token for another through MetaMask Swaps, then sending the swapped token to a recipient.
+   */
+  swapAndSend = 'swapAndSend',
 
   /**
    * Similar to the approve type, a swap approval is a special case of ERC20
