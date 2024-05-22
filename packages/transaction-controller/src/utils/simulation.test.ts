@@ -9,7 +9,7 @@ import {
 import { simulateTransactions } from './simulation-api';
 import type {
   SimulationResponseLog,
-  type SimulationResponse,
+  SimulationResponse,
 } from './simulation-api';
 import {
   SimulationInvalidResponseError,
