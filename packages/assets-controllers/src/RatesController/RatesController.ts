@@ -194,7 +194,7 @@ export class RatesController extends BaseController<
   }
 
   /**
-   * Returns the current fiat currency.
+   * Sets the internal fiat currency and update rates accordingly. 
    * @param fiatCurrency - The fiat currency.
    */
   async setFiatCurrency(fiatCurrency: string) {
