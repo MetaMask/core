@@ -18,7 +18,7 @@ import type { Hex } from '@metamask/utils';
 import { Source } from './constants';
 import {
   type NftController,
-  type NftState,
+  type NftControllerState,
   type NftMetadata,
 } from './NftController';
 
@@ -413,7 +413,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
 
   private readonly getNftApi: NftController['getNftApi'];
 
-  private readonly getNftState: () => NftState;
+  private readonly getNftState: () => NftControllerState;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -450,7 +450,9 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     }: {
       chainId: Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
-      onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
+      onNftsStateChange: (
+        listener: (nftsState: NftControllerState) => void,
+      ) => void;
       onPreferencesStateChange: (
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
@@ -460,7 +462,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       getOpenSeaApiKey: () => string | undefined;
       addNft: NftController['addNft'];
       getNftApi: NftController['getNftApi'];
-      getNftState: () => NftState;
+      getNftState: () => NftControllerState;
       disabled: boolean;
       selectedAddress: string;
     },

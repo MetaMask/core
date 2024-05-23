@@ -12,7 +12,10 @@ import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
 import { Source } from './constants';
-import { getDefaultNftState, type NftState } from './NftController';
+import {
+  defaultNftControllerState,
+  type NftControllerState,
+} from './NftController';
 import {
   type NftDetectionConfig,
   NftDetectionController,
@@ -575,7 +578,7 @@ describe('NftDetectionController', () => {
     const mockAddNft = jest.fn();
     const mockGetNftState = jest.fn().mockImplementation(() => {
       return {
-        ...getDefaultNftState(),
+        ...defaultNftControllerState,
         ignoredNfts: [
           // This address and token ID are always detected, as determined by
           // the nock mocks setup in `beforeEach`
@@ -846,7 +849,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: NftDetectionController;
-  triggerNftStateChange: (state: NftState) => void;
+  triggerNftStateChange: (state: NftControllerState) => void;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -885,7 +888,7 @@ async function withController<ReturnValue>(
     };
   });
 
-  const nftStateChangeListeners: ((state: NftState) => void)[] = [];
+  const nftStateChangeListeners: ((state: NftControllerState) => void)[] = [];
   const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
     [];
   const controller = new NftDetectionController(
@@ -902,7 +905,7 @@ async function withController<ReturnValue>(
       addNft: jest.fn(),
       getNftApi: jest.fn(),
       getNetworkClientById,
-      getNftState: getDefaultNftState,
+      getNftState: getDefaultNftControllerState,
       disabled: true,
       selectedAddress: '',
       ...options,
@@ -912,7 +915,7 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
-      triggerNftStateChange: (state: NftState) => {
+      triggerNftStateChange: (state: NftControllerState) => {
         for (const listener of nftStateChangeListeners) {
           listener(state);
         }
