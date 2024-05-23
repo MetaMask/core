@@ -2335,18 +2335,18 @@ export class TransactionController extends BaseController<
   }
 
   #updateSimulationDataIfNeeded(originalTransactionMeta: TransactionMeta) {
-    const updatedTransactionMeta = this.getTransaction(
+    const latestTransactionMeta = this.getTransaction(
       originalTransactionMeta.id,
     ) as TransactionMeta;
 
     const updatedTransactionParams = this.#checkIfTransactionParamsUpdated(
-      updatedTransactionMeta,
+      latestTransactionMeta,
       originalTransactionMeta,
     );
 
     if (updatedTransactionParams.length !== 0) {
       this.#onTransactionParamsUpdated(
-        updatedTransactionMeta,
+        latestTransactionMeta,
         updatedTransactionParams,
       );
     }
