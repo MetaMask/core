@@ -32,9 +32,8 @@ export type {
 export { TokenListController } from './TokenListController';
 export type {
   Token,
-  TokenRatesConfig,
   ContractExchangeRates,
-  TokenRatesState,
+  TokenRatesControllerState,
 } from './TokenRatesController';
 export { TokenRatesController } from './TokenRatesController';
 export type {
