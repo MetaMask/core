@@ -109,8 +109,7 @@ describe('TokensController', () => {
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         symbol: 'bar',
         isERC721: false,
         aggregators: [],
@@ -125,8 +124,7 @@ describe('TokensController', () => {
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         symbol: 'baz',
         isERC721: false,
         aggregators: [],
@@ -308,8 +306,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -336,7 +333,7 @@ describe('TokensController', () => {
         address: '0x01',
         decimals: 2,
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
+          'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x01.png',
         symbol: 'bar',
         isERC721: false,
         aggregators: [],
@@ -369,8 +366,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -380,8 +376,7 @@ describe('TokensController', () => {
           {
             address: '0x01',
             decimals: 2,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
             symbol: 'bar',
             isERC721: false,
             aggregators: [],
@@ -459,8 +454,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x02',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
           symbol: 'baz',
           isERC721: false,
           aggregators: [],
@@ -496,7 +490,7 @@ describe('TokensController', () => {
         address: '0x02',
         decimals: 2,
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
+          'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x02.png',
         symbol: 'baz',
         isERC721: false,
         aggregators: [],
@@ -702,8 +696,7 @@ describe('TokensController', () => {
         {
           address: '0x01',
           decimals: 4,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           isERC721: false,
           symbol: 'A',
           aggregators: [],
@@ -712,8 +705,7 @@ describe('TokensController', () => {
         {
           address: '0x02',
           decimals: 5,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
           isERC721: false,
           symbol: 'B',
           aggregators: [],
@@ -851,7 +843,7 @@ describe('TokensController', () => {
               symbol: 'REST',
               isERC721: true,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
               decimals: 4,
               aggregators: [],
               name: undefined,
@@ -901,7 +893,7 @@ describe('TokensController', () => {
               symbol: 'LEST',
               isERC721: false,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
               decimals: 5,
               aggregators: [],
               name: undefined,
@@ -981,8 +973,7 @@ describe('TokensController', () => {
         };
         const dummyAddedToken: Token = {
           ...dummyDetectedToken,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         };
 
         await controller.addDetectedTokens([dummyDetectedToken]);
@@ -1033,7 +1024,7 @@ describe('TokensController', () => {
               aggregators: [],
               name: undefined,
               isERC721: false,
-              image: `https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x${i}.png`,
+              image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
             }));
 
           const [
@@ -2006,7 +1997,7 @@ describe('TokensController', () => {
               address: '0x01',
               decimals: 4,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
               isERC721: false,
               symbol: 'A',
               aggregators: [],
@@ -2016,7 +2007,7 @@ describe('TokensController', () => {
               address: '0x02',
               decimals: 5,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
               isERC721: false,
               symbol: 'B',
               aggregators: [],
@@ -2033,7 +2024,7 @@ describe('TokensController', () => {
               address: '0x03',
               decimals: 6,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x03.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x03.png',
               isERC721: false,
               symbol: 'C',
               aggregators: [],
@@ -2084,7 +2075,7 @@ describe('TokensController', () => {
             address: '0x01',
             decimals: 4,
             image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
+              'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x01.png',
             isERC721: false,
             symbol: 'A',
             aggregators: [],
@@ -2094,7 +2085,7 @@ describe('TokensController', () => {
             address: '0x02',
             decimals: 5,
             image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
+              'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x02.png',
             isERC721: false,
             symbol: 'B',
             aggregators: [],
@@ -2105,8 +2096,7 @@ describe('TokensController', () => {
           {
             address: '0x03',
             decimals: 4,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x03.png',
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x03.png',
             isERC721: false,
             symbol: 'C',
             aggregators: [],
@@ -2115,8 +2105,7 @@ describe('TokensController', () => {
           {
             address: '0x04',
             decimals: 5,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x04.png',
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x04.png',
             isERC721: false,
             symbol: 'D',
             aggregators: [],
@@ -2251,8 +2240,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -2271,7 +2259,7 @@ describe('TokensController', () => {
                 occurrences: 1,
                 name: 'BarName',
                 iconUrl:
-                  'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
                 aggregators: ['Aave'],
               },
             },
@@ -2282,8 +2270,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
