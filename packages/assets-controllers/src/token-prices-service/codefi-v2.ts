@@ -248,7 +248,7 @@ type SupportedChainId = (typeof SUPPORTED_CHAIN_IDS)[number];
 /**
  * All requests to V2 of the Price API start with this.
  */
-const BASE_URL = 'https://price-api.metafi.codefi.network/v2';
+const BASE_URL = 'https://price.api.cx.metamask.io/v2';
 
 const DEFAULT_TOKEN_PRICE_RETRIES = 3;
 // Each update attempt will result (1 + retries) calls if the server is down
