@@ -1,3 +1,5 @@
+import { ControllerMessenger } from '@metamask/base-controller';
+import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
 import {
   NetworkClientType,
   defaultState as defaultNetworkState,
@@ -8,8 +10,6 @@ import type {
   NetworkClientId,
   NetworkState,
 } from '@metamask/network-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
-import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
