@@ -1011,9 +1011,18 @@ export class TransactionController extends BaseController<
    *
    * @param transactionMeta - The new transaction to store in state.
    * @param note - A note or update reason to include in the transaction history.
+   * @param skipSimulationsCheck - Whether to skip updating the simulation data for the transaction.
    */
-  updateTransaction(transactionMeta: TransactionMeta, note: string) {
+  updateTransaction(
+    transactionMeta: TransactionMeta,
+    note: string,
+    skipSimulationsCheck = false,
+  ) {
     const { transactions } = this.state;
+    const originalTransactionMeta = this.getTransaction(
+      transactionMeta.id,
+    ) as TransactionMeta;
+
     transactionMeta.txParams = normalizeTransactionParams(
       transactionMeta.txParams,
     );
@@ -1024,6 +1033,10 @@ export class TransactionController extends BaseController<
     const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
     transactions[index] = transactionMeta;
     this.update({ transactions: this.trimTransactionsForState(transactions) });
+
+    if (skipSimulationsCheck) {
+      this.#updateSimulationDataIfNeeded(originalTransactionMeta);
+    }
   }
 
   /**
@@ -2321,10 +2334,31 @@ export class TransactionController extends BaseController<
     this.hub.emit('transaction-status-update', { transactionMeta });
   }
 
-  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
+  #updateSimulationDataIfNeeded(originalTransactionMeta: TransactionMeta) {
+    const updatedTransactionMeta = this.getTransaction(
+      originalTransactionMeta.id,
+    ) as TransactionMeta;
+
+    const updatedTransactionParams = this.#checkIfTransactionParamsUpdated(
+      updatedTransactionMeta,
+      originalTransactionMeta,
+    );
+
+    if (updatedTransactionParams.length !== 0) {
+      this.#onTransactionParamsUpdated(
+        updatedTransactionMeta,
+        updatedTransactionParams,
+      );
+    }
+  }
+
+  #checkIfTransactionParamsUpdated(
+    newTransactionMeta: TransactionMeta,
+    originalTransactionMeta: TransactionMeta,
+  ) {
     const { id: transactionId, txParams: newParams } = newTransactionMeta;
 
-    const originalParams = this.getTransaction(transactionId)?.txParams;
+    const originalParams = originalTransactionMeta.txParams;
 
     if (!originalParams || isEqual(originalParams, newParams)) {
       return [];
@@ -2379,6 +2413,7 @@ export class TransactionController extends BaseController<
       this.updateTransaction(
         transactionMeta,
         'TransactionController#updateSimulationData - Simulation data cleared',
+        true,
       );
 
       simulationData = await getSimulationData({
@@ -2406,6 +2441,7 @@ export class TransactionController extends BaseController<
     this.updateTransaction(
       finalTransactionMeta,
       'TransactionController#updateSimulationData - Simulation data updated',
+      true,
     );
 
     log('Updated simulation data', transactionId, simulationData);
