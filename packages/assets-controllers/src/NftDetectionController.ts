@@ -1,4 +1,4 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
@@ -7,11 +7,11 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkController,
   NetworkState,
   NetworkClient,
+  NetworkController,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
@@ -23,6 +23,61 @@ import {
 } from './NftController';
 
 const DEFAULT_INTERVAL = 180000;
+
+const controllerName = 'NftDetectionController';
+
+export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  never,
+  never,
+  never,
+  never
+>;
+
+/**
+ * The controller options
+ *
+ * @param interval - The pooling interval.
+ * @param state - The controller state.
+ * @param messenger - A reference to the messaging system.
+ * @param disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
+ * @param getNetworkClientById - Gets the network client by ID, from the NetworkController.
+ * @param onPreferencesStateChange - Allows subscribing to preferences controller state changes.
+ * @param onNetworkStateChange - Allows subscribing to network controller state changes.
+ * @param addNft - Add an NFT.
+ * @param getNftState - Gets the current state of the Assets controller.
+ */
+export type NftDetectionControllerOptions = {
+  interval?: number;
+  state: NftDetectionControllerState;
+  messenger: NftDetectionControllerMessenger;
+  disabled: boolean;
+  getNetworkClientById: NetworkController['getNetworkClientById'];
+  onPreferencesStateChange: (
+    listener: (preferencesState: PreferencesState) => void,
+  ) => void;
+  onNetworkStateChange: (
+    listener: (networkState: NetworkState) => void,
+  ) => void;
+  addNft: NftController['addNft'];
+  getNftState: () => NftState;
+};
+
+/**
+ * The nft detection controller state
+ *
+ * @param chainId - The chain ID of the current network.
+ * @param selectedAddress - Represents current selected address.
+ */
+export type NftDetectionControllerState = {
+  chainId: Hex;
+  selectedAddress: string;
+};
+
+const metadata = {
+  chainId: { persist: true, anonymous: false },
+  selectedAddress: { persist: true, anonymous: false },
+};
 
 /**
  * @type ApiNft
@@ -44,10 +99,7 @@ const DEFAULT_INTERVAL = 180000;
  * @property creator - The NFT owner information object
  * @property lastSale - When this item was last sold
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNft {
+export type ApiNft = {
   token_id: string;
   num_sales: number | null;
   background_color: string | null;
@@ -63,7 +115,7 @@ export interface ApiNft {
   asset_contract: ApiNftContract;
   creator: ApiNftCreator;
   last_sale: ApiNftLastSale | null;
-}
+};
 
 /**
  * @type ApiNftContract
@@ -79,10 +131,7 @@ export interface ApiNft {
  * @property description - The NFT contract description
  * @property external_link - External link containing additional information
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNftContract {
+export type ApiNftContract = {
   address: string;
   asset_contract_type: string | null;
   created_date: string | null;
@@ -96,7 +145,7 @@ export interface ApiNftContract {
     image_url?: string | null;
     tokenCount?: string | null;
   };
-}
+};
 
 /**
  * @type ApiNftLastSale
@@ -106,14 +155,11 @@ export interface ApiNftContract {
  * @property total_price - URI of NFT image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNftLastSale {
+export type ApiNftLastSale = {
   event_timestamp: string;
   total_price: string;
   transaction: { transaction_hash: string; block_hash: string };
-}
+};
 
 /**
  * @type ApiNftCreator
@@ -123,31 +169,11 @@ export interface ApiNftLastSale {
  * @property profile_img_url - URI of NFT image associated with this owner
  * @property address - The owner address
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNftCreator {
+export type ApiNftCreator = {
   user: { username: string };
   profile_img_url: string;
   address: string;
-}
-
-/**
- * @type NftDetectionConfig
- *
- * NftDetection configuration
- * @property interval - Polling interval used to fetch new token rates
- * @property chainId - Current chain ID
- * @property selectedAddress - Vault selected address
- */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface NftDetectionConfig extends BaseConfig {
-  interval: number;
-  chainId: Hex;
-  selectedAddress: string;
-}
+};
 
 export type ReservoirResponse = {
   tokens: TokensResponse[];
@@ -350,32 +376,146 @@ export type Metadata = {
 /**
  * Controller that passively polls on a set interval for NFT auto detection
  */
-export class NftDetectionController extends StaticIntervalPollingControllerV1<
-  NftDetectionConfig,
-  BaseState
+export class NftDetectionController extends StaticIntervalPollingController<
+  typeof controllerName,
+  NftDetectionControllerState,
+  NftDetectionControllerMessenger
 > {
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #intervalId?: ReturnType<typeof setTimeout>;
 
-  private getOwnerNftApi({
-    address,
-    next,
-  }: {
-    address: string;
-    next?: string;
-  }) {
+  #interval: number;
+
+  #disabled: boolean;
+
+  readonly #addNft: NftController['addNft'];
+
+  readonly #getNftState: () => NftState;
+
+  constructor({
+    interval = DEFAULT_INTERVAL,
+    state,
+    messenger,
+    disabled = false,
+    getNetworkClientById,
+    onPreferencesStateChange,
+    onNetworkStateChange,
+    addNft,
+    getNftState,
+  }: NftDetectionControllerOptions) {
+    super({
+      name: controllerName,
+      messenger,
+      metadata,
+      state,
+    });
+    this.#interval = interval;
+    this.#disabled = disabled;
+
+    this.#getNftState = getNftState;
+    onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
+      const { selectedAddress: currentSelectedAddress } = this.state;
+      if (
+        selectedAddress !== currentSelectedAddress ||
+        !useNftDetection !== this.#disabled
+      ) {
+        this.update((state) => {
+          state.selectedAddress = selectedAddress;
+        });
+        this.#disabled = !useNftDetection;
+        if (useNftDetection) {
+          this.start();
+        } else {
+          this.stop();
+        }
+      }
+    });
+
+    onNetworkStateChange(({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId } = selectedNetworkClient.configuration;
+      this.update((state) => {
+        state.chainId = chainId;
+      });
+    });
+    this.#addNft = addNft;
+    this.setIntervalLength(this.#interval);
+  }
+
+  async _executePoll(
+    networkClientId: string,
+    options: { address: string },
+  ): Promise<void> {
+    await this.detectNfts({ networkClientId, userAddress: options.address });
+  }
+
+  /**
+   * Start polling for the currency rate.
+   */
+  async start() {
+    if (!this.isMainnet() || this.#disabled) {
+      return;
+    }
+
+    await this.#startPolling();
+  }
+
+  /**
+   * Stop polling for the currency rate.
+   */
+  stop() {
+    this.#stopPolling();
+  }
+
+  #stopPolling() {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
+    }
+  }
+
+  /**
+   * Starts a new polling interval.
+   *
+   * @param interval - An interval on which to poll.
+   */
+  async #startPolling(interval?: number): Promise<void> {
+    if (interval) {
+      this.#interval = interval;
+    }
+
+    this.#stopPolling();
+    await this.detectNfts();
+    this.#intervalId = setInterval(async () => {
+      await this.detectNfts();
+    }, this.#interval);
+  }
+
+  /**
+   * Checks whether network is mainnet or not.
+   *
+   * @returns Whether current network is mainnet.
+   */
+  isMainnet = (): boolean => this.state.chainId === ChainId.mainnet;
+
+  isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
+    return networkClient.configuration.chainId === ChainId.mainnet;
+  };
+
+  #getOwnerNftApi({ address, next }: { address: string; next?: string }) {
     return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;
   }
 
-  private async getOwnerNfts(address: string) {
+  async #getOwnerNfts(address: string) {
     let nftApiResponse: ReservoirResponse;
     let nfts: TokensResponse[] = [];
     let next;
 
     do {
       nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, next }),
+        url: this.#getOwnerNftApi({ address, next }),
         options: {
           headers: {
             Version: '1',
@@ -403,168 +543,6 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
   }
 
   /**
-   * Name of this controller used during composition
-   */
-  override name = 'NftDetectionController';
-
-  private readonly getOpenSeaApiKey: () => string | undefined;
-
-  private readonly addNft: NftController['addNft'];
-
-  private readonly getNftApi: NftController['getNftApi'];
-
-  private readonly getNftState: () => NftState;
-
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
-
-  /**
-   * Creates an NftDetectionController instance.
-   *
-   * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
-   * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
-   * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
-   * @param options.addNft - Add an NFT.
-   * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
-   * @param options.getNftState - Gets the current state of the Assets controller.
-   * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
-   * @param options.selectedAddress - Represents current selected address.
-   * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
-   */
-  constructor(
-    {
-      chainId: initialChainId,
-      getNetworkClientById,
-      onPreferencesStateChange,
-      onNetworkStateChange,
-      getOpenSeaApiKey,
-      addNft,
-      getNftApi,
-      getNftState,
-      disabled: initialDisabled,
-      selectedAddress: initialSelectedAddress,
-    }: {
-      chainId: Hex;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-      onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      getOpenSeaApiKey: () => string | undefined;
-      addNft: NftController['addNft'];
-      getNftApi: NftController['getNftApi'];
-      getNftState: () => NftState;
-      disabled: boolean;
-      selectedAddress: string;
-    },
-    config?: Partial<NftDetectionConfig>,
-    state?: Partial<BaseState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      interval: DEFAULT_INTERVAL,
-      chainId: initialChainId,
-      selectedAddress: initialSelectedAddress,
-      disabled: initialDisabled,
-    };
-    this.initialize();
-    this.getNftState = getNftState;
-    this.getNetworkClientById = getNetworkClientById;
-    onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
-      const { selectedAddress: previouslySelectedAddress, disabled } =
-        this.config;
-
-      if (
-        selectedAddress !== previouslySelectedAddress ||
-        !useNftDetection !== disabled
-      ) {
-        this.configure({ selectedAddress, disabled: !useNftDetection });
-        if (useNftDetection) {
-          this.start();
-        } else {
-          this.stop();
-        }
-      }
-    });
-
-    onNetworkStateChange(({ selectedNetworkClientId }) => {
-      const selectedNetworkClient = getNetworkClientById(
-        selectedNetworkClientId,
-      );
-      const { chainId } = selectedNetworkClient.configuration;
-
-      this.configure({ chainId });
-    });
-    this.getOpenSeaApiKey = getOpenSeaApiKey;
-    this.addNft = addNft;
-    this.getNftApi = getNftApi;
-    this.setIntervalLength(this.config.interval);
-  }
-
-  async _executePoll(
-    networkClientId: string,
-    options: { address: string },
-  ): Promise<void> {
-    await this.detectNfts({ networkClientId, userAddress: options.address });
-  }
-
-  /**
-   * Start polling for the currency rate.
-   */
-  async start() {
-    if (!this.isMainnet() || this.disabled) {
-      return;
-    }
-
-    await this.startPolling();
-  }
-
-  /**
-   * Stop polling for the currency rate.
-   */
-  stop() {
-    this.stopPolling();
-  }
-
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   * @param interval - An interval on which to poll.
-   */
-  private async startPolling(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.stopPolling();
-    await this.detectNfts();
-    this.intervalId = setInterval(async () => {
-      await this.detectNfts();
-    }, this.config.interval);
-  }
-
-  /**
-   * Checks whether network is mainnet or not.
-   *
-   * @returns Whether current network is mainnet.
-   */
-  isMainnet = (): boolean => this.config.chainId === ChainId.mainnet;
-
-  isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
-    return networkClient.configuration.chainId === ChainId.mainnet;
-  };
-
-  /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
    * added.
    *
@@ -579,10 +557,10 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
     }: {
       networkClientId?: NetworkClientId;
       userAddress: string;
-    } = { userAddress: this.config.selectedAddress },
+    } = { userAddress: this.state.selectedAddress },
   ) {
     /* istanbul ignore if */
-    if (!this.isMainnet() || this.disabled) {
+    if (!this.isMainnet() || this.#disabled) {
       return;
     }
     /* istanbul ignore else */
@@ -590,7 +568,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       return;
     }
 
-    const apiNfts = await this.getOwnerNfts(userAddress);
+    const apiNfts = await this.#getOwnerNfts(userAddress);
     const addNftPromises = apiNfts.map(async (nft) => {
       const {
         tokenId: token_id,
@@ -611,7 +589,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
 
       let ignored;
       /* istanbul ignore else */
-      const { ignoredNfts } = this.getNftState();
+      const { ignoredNfts } = this.#getNftState();
       if (ignoredNfts.length) {
         ignored = ignoredNfts.find((c) => {
           /* istanbul ignore next */
@@ -641,7 +619,7 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
           collection && { collection },
         );
 
-        await this.addNft(contract, token_id, {
+        await this.#addNft(contract, token_id, {
           nftMetadata,
           userAddress,
           source: Source.Detected,

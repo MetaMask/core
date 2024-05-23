@@ -1,4 +1,3 @@
-import { NFT_API_BASE_URL, ChainId, toHex } from '@metamask/controller-utils';
 import {
   NetworkClientType,
   defaultState as defaultNetworkState,
@@ -9,6 +8,8 @@ import type {
   NetworkClientId,
   NetworkState,
 } from '@metamask/network-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -26,7 +27,6 @@ import {
 import { Source } from './constants';
 import { getDefaultNftState, type NftState } from './NftController';
 import {
-  type NftDetectionConfig,
   NftDetectionController,
   BlockaidResultType,
 } from './NftDetectionController';
@@ -283,20 +283,18 @@ describe('NftDetectionController', () => {
     sinon.restore();
   });
 
-  it('should set default config', async () => {
+  it('should set default state', async () => {
     await withController(({ controller }) => {
-      expect(controller.config).toStrictEqual({
-        interval: DEFAULT_INTERVAL,
-        chainId: toHex(1),
+      expect(controller.state).toStrictEqual({
+        chainId: '0x1',
         selectedAddress: '',
-        disabled: true,
       });
     });
   });
 
   it('should poll and detect NFTs on interval while on mainnet', async () => {
     await withController(
-      { config: { interval: 10 } },
+      { options: { interval: 10 } },
       async ({ controller, controllerEvents }) => {
         const mockNfts = sinon
           .stub(controller, 'detectNfts')
@@ -460,13 +458,36 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should detect mainnet correctly', async () => {
-    await withController(({ controller }) => {
-      controller.configure({ chainId: ChainId.mainnet });
-      expect(controller.isMainnet()).toBe(true);
-      controller.configure({ chainId: ChainId.goerli });
-      expect(controller.isMainnet()).toBe(false);
-    });
+  it('should detect mainnet truty', async () => {
+    await withController(
+      {
+        options: {
+          state: {
+            chainId: ChainId.mainnet,
+            selectedAddress: '',
+          },
+        },
+      },
+      ({ controller }) => {
+        expect(controller.isMainnet()).toBe(true);
+      },
+    );
+  });
+
+  it('should detect mainnet falsy', async () => {
+    await withController(
+      {
+        options: {
+          state: {
+            chainId: ChainId.goerli,
+            selectedAddress: '',
+          },
+        },
+      },
+      ({ controller }) => {
+        expect(controller.isMainnet()).toBe(false);
+      },
+    );
   });
 
   it('should not autodetect while not on mainnet', async () => {
@@ -486,14 +507,14 @@ describe('NftDetectionController', () => {
 
     await withController(
       {
-        config: {
-          interval: pollingInterval,
-        },
         options: {
+          interval: pollingInterval,
           addNft: mockAddNft,
-          chainId: '0x1',
           disabled: false,
-          selectedAddress: '0x1',
+          state: {
+            chainId: '0x1',
+            selectedAddress: '0x1',
+          },
         },
         mockNetworkClientConfigurationsByNetworkClientId: {
           'AAAA-AAAA-AAAA-AAAA': buildCustomNetworkClientConfiguration({
@@ -819,7 +840,7 @@ describe('NftDetectionController', () => {
         });
 
         // confirm that default selected address is an empty string
-        expect(controller.config.selectedAddress).toBe('');
+        expect(controller.state.selectedAddress).toBe('');
 
         await controller.detectNfts();
 
@@ -832,7 +853,7 @@ describe('NftDetectionController', () => {
     const mockAddNft = jest.fn();
     const mockNetworkClient: NetworkClient = {
       configuration: {
-        chainId: toHex(1),
+        chainId: '0x1',
         rpcUrl: 'https://test.network',
         ticker: 'TEST',
         type: NetworkClientType.Custom,
@@ -854,7 +875,7 @@ describe('NftDetectionController', () => {
 
   it('should not detectNfts when disabled is false and useNftDetection is true', async () => {
     await withController(
-      { config: { interval: 10 }, options: { disabled: false } },
+      { options: { disabled: false, interval: 10 } },
       async ({ controller, controllerEvents }) => {
         const mockNfts = sinon.stub(controller, 'detectNfts');
         controllerEvents.preferencesStateChange({
@@ -1051,7 +1072,6 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof NftDetectionController>[0]>;
-  config?: Partial<NftDetectionConfig>;
   mockNetworkClientConfigurationsByNetworkClientId?: Record<
     NetworkClientId,
     NetworkClientConfiguration
@@ -1075,11 +1095,7 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [
-    {
-      options = {},
-      config = {},
-      mockNetworkClientConfigurationsByNetworkClientId = {},
-    },
+    { options = {}, mockNetworkClientConfigurationsByNetworkClientId = {} },
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
@@ -1091,29 +1107,29 @@ async function withController<ReturnValue>(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
 
-  const controller = new NftDetectionController(
-    {
+  const controller = new NftDetectionController({
+    state: {
       chainId: ChainId.mainnet,
-      onNftsStateChange: (listener) => {
-        controllerEvents.nftsStateChange = listener;
-      },
-      onPreferencesStateChange: (listener) => {
-        controllerEvents.preferencesStateChange = listener;
-      },
-      onNetworkStateChange: (listener) => {
-        controllerEvents.networkStateChange = listener;
-      },
-      getOpenSeaApiKey: jest.fn(),
-      addNft: jest.fn(),
-      getNftApi: jest.fn(),
-      getNetworkClientById,
-      getNftState: getDefaultNftState,
-      disabled: true,
       selectedAddress: '',
-      ...options,
+      ...(options?.state || {}),
     },
-    config,
-  );
+    messenger: new ControllerMessenger().getRestricted({
+      name: 'NftDetectionController',
+      allowedActions: [],
+      allowedEvents: [],
+    }),
+    disabled: true,
+    onPreferencesStateChange: (listener) => {
+      controllerEvents.preferencesStateChange = listener;
+    },
+    onNetworkStateChange: (listener) => {
+      controllerEvents.networkStateChange = listener;
+    },
+    addNft: jest.fn(),
+    getNetworkClientById,
+    getNftState: getDefaultNftState,
+    ...options,
+  });
   try {
     return await testFunction({
       controller,
