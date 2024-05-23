@@ -1617,7 +1617,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/eth-snap-keyring": ^4.1.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.2.0
     "@metamask/keyring-controller": ^16.0.0
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
@@ -1723,7 +1723,7 @@ __metadata:
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.2.0
     "@metamask/keyring-controller": ^16.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.1
@@ -1854,7 +1854,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/chain-api": ^0.0.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.2.0
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
     "@metamask/snaps-utils": ^7.4.0
@@ -2404,6 +2404,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^6.2.0":
+  version: 6.2.0
+  resolution: "@metamask/keyring-api@npm:6.2.0"
+  dependencies:
+    "@metamask/snaps-sdk": ^4.2.0
+    "@metamask/utils": ^8.3.0
+    "@types/uuid": ^9.0.1
+    bech32: ^2.0.0
+    superstruct: ^1.0.3
+    uuid: ^9.0.0
+  peerDependencies:
+    "@metamask/providers": ">=15 <17"
+  checksum: 63ba5e4dde6fcf7cff8c68e777daa85763dc5f352befde1de949adbfabc781a6e2553b0499ca8736fdfa0fd6cb90688540f5db172d625658d0c843187fea50ec
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@^16.0.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -2420,7 +2436,7 @@ __metadata:
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.2.0
     "@metamask/message-manager": ^8.0.2
     "@metamask/scure-bip39": ^2.1.1
     "@metamask/utils": ^8.3.0
