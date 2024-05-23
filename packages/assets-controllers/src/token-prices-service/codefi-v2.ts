@@ -148,7 +148,10 @@ export const SUPPORTED_CURRENCIES = [
 ] as const;
 
 /**
- * The zero address
+ * Represents the zero address, commonly used as a placeholder in blockchain transactions.
+ * In the context of fetching market data, the zero address is utilized to retrieve information
+ * specifically for native currencies. This allows for a standardized approach to query market
+ * data for blockchain-native assets without a specific contract address.
  */
 export const ZERO_ADDRESS: Hex =
   '0x0000000000000000000000000000000000000000' as const;
