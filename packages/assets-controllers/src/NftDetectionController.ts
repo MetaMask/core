@@ -412,33 +412,19 @@ export class NftDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
 
     this.#getNftState = getNftState;
-    onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
-      const { selectedAddress: currentSelectedAddress } = this.state;
-      if (
-        selectedAddress !== currentSelectedAddress ||
-        !useNftDetection !== this.#disabled
-      ) {
-        this.update((state) => {
-          state.selectedAddress = selectedAddress;
-        });
-        this.#disabled = !useNftDetection;
-        if (useNftDetection) {
-          this.start();
-        } else {
-          this.stop();
-        }
-      }
-    });
+
+    onPreferencesStateChange(this.#onPreferencesStateChange.bind(this));
 
     onNetworkStateChange(({ selectedNetworkClientId }) => {
       const selectedNetworkClient = getNetworkClientById(
         selectedNetworkClientId,
       );
       const { chainId } = selectedNetworkClient.configuration;
-      this.update((state) => {
-        state.chainId = chainId;
+      this.update((currentState) => {
+        currentState.chainId = chainId;
       });
     });
+
     this.#addNft = addNft;
     this.setIntervalLength(this.#interval);
   }
@@ -501,6 +487,33 @@ export class NftDetectionController extends StaticIntervalPollingController<
   isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
     return networkClient.configuration.chainId === ChainId.mainnet;
   };
+
+  /**
+   * Handles the state change of the preference controller.
+   * @param preferencesState - The new state of the preference controller.
+   * @param preferencesState.selectedAddress - The current selected address of the preference controller.
+   * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
+   */
+  #onPreferencesStateChange({
+    selectedAddress,
+    useNftDetection,
+  }: PreferencesState) {
+    const { selectedAddress: currentSelectedAddress } = this.state;
+    if (
+      selectedAddress !== currentSelectedAddress ||
+      !useNftDetection !== this.#disabled
+    ) {
+      this.update((state) => {
+        state.selectedAddress = selectedAddress;
+      });
+      this.#disabled = !useNftDetection;
+      if (useNftDetection) {
+        this.start();
+      } else {
+        this.stop();
+      }
+    }
+  }
 
   #getOwnerNftApi({ address, next }: { address: string; next?: string }) {
     return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
