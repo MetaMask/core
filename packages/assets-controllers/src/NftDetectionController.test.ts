@@ -905,7 +905,7 @@ async function withController<ReturnValue>(
       addNft: jest.fn(),
       getNftApi: jest.fn(),
       getNetworkClientById,
-      getNftState: getDefaultNftControllerState,
+      getNftState: () => defaultNftControllerState,
       disabled: true,
       selectedAddress: '',
       ...options,
