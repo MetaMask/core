@@ -1,7 +1,9 @@
+import { BigNumber } from '@ethersproject/bignumber';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
   BUILT_IN_NETWORKS,
   ChainId,
+  InfuraNetworkType,
   IPFS_DEFAULT_GATEWAY_URL,
   NetworkType,
 } from '@metamask/controller-utils';
@@ -9,6 +11,7 @@ import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   NetworkClientId,
   NetworkControllerMessenger,
+  Provider,
 } from '@metamask/network-controller';
 import {
   NetworkController,
@@ -18,8 +21,10 @@ import {
   getDefaultPreferencesState,
   type PreferencesState,
 } from '@metamask/preferences-controller';
+import assert from 'assert';
 
 import { mockNetwork } from '../../../tests/mock-network';
+import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
@@ -41,16 +46,31 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
  * Creates the assets contract controller along with the dependencies necessary
  * to use it effectively in tests.
  *
+ * @param args - The arguments to this function.
+ * @param args.options - AssetsContractController options.
+ * @param args.useNetworkControllerProvider - Whether to use the initial
+ * provider that the network controller creates or to create a new one.
+ * @param args.infuraProjectId - The Infura project ID to use when initializing
+ * the network controller.
  * @returns the objects.
  */
-async function setupAssetContractControllers() {
+async function setupAssetContractControllers({
+  options,
+  useNetworkControllerProvider,
+  infuraProjectId = '341eacb578dd44a1a049cbc5f6fd4035',
+}: {
+  options?: Partial<ConstructorParameters<typeof AssetsContractController>[0]>;
+  useNetworkControllerProvider?: boolean;
+  infuraProjectId?: string;
+} = {}) {
   const networkClientConfiguration = {
     type: NetworkClientType.Infura,
     network: 'mainnet',
-    infuraProjectId: '341eacb578dd44a1a049cbc5f6fd4035',
+    infuraProjectId,
     chainId: BUILT_IN_NETWORKS.mainnet.chainId,
     ticker: BUILT_IN_NETWORKS.mainnet.ticker,
   } as const;
+  let provider: Provider;
 
   const messenger: NetworkControllerMessenger =
     new ControllerMessenger().getRestricted({
@@ -58,15 +78,31 @@ async function setupAssetContractControllers() {
       allowedActions: [],
       allowedEvents: [],
     });
-  const network = new NetworkController({
-    infuraProjectId: networkClientConfiguration.infuraProjectId,
+  const networkController = new NetworkController({
+    infuraProjectId,
     messenger,
     trackMetaMetricsEvent: jest.fn(),
   });
+  if (useNetworkControllerProvider) {
+    await networkController.initializeProvider();
+    const selectedNetworkClient = networkController.getSelectedNetworkClient();
+    assert(selectedNetworkClient, 'No network is selected');
+    provider = selectedNetworkClient.provider;
+  } else {
+    provider = new HttpProvider(
+      `https://mainnet.infura.io/v3/${infuraProjectId}`,
+    );
+  }
 
-  const provider = new HttpProvider(
-    `https://mainnet.infura.io/v3/${networkClientConfiguration.infuraProjectId}`,
-  );
+  const getNetworkClientById = useNetworkControllerProvider
+    ? networkController.getNetworkClientById.bind(networkController)
+    : (networkClientId: NetworkClientId) =>
+        ({
+          ...networkController.getNetworkClientById(networkClientId),
+          provider,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
 
   const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
     [];
@@ -77,21 +113,17 @@ async function setupAssetContractControllers() {
     },
     onNetworkDidChange: (listener) =>
       messenger.subscribe('NetworkController:networkDidChange', listener),
-    getNetworkClientById: (networkClientId: NetworkClientId) =>
-      ({
-        ...network.getNetworkClientById(networkClientId),
-        provider,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any),
+    getNetworkClientById,
+    ...options,
   });
 
   return {
     messenger,
-    network,
+    network: networkController,
     assetsContract,
     provider,
     networkClientConfiguration,
+    infuraProjectId,
     triggerPreferencesStateChange: (state: PreferencesState) => {
       for (const listener of preferencesStateChangeListeners) {
         listener(state);
@@ -872,6 +904,103 @@ describe('AssetsContractController', () => {
     );
     expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should track and use the currently selected chain ID and provider when getting balances in a single call', async () => {
+    const infuraProjectId = 'some-infura-project-id';
+    mockNetwork({
+      networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType.mainnet,
+        { infuraProjectId },
+      ),
+      mocks: [
+        {
+          request: {
+            method: 'eth_blockNumber',
+            params: [],
+          },
+          response: {
+            result: '0x3b3301',
+          },
+        },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
+                data: '0xf0002ea900000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000100000000000000000000000089d24a6b4ccb1b6faa2625fe562bdd9a23260359000000000000000000000000000000000000000000000000000000000000000100000000000000000000000089d24a6b4ccb1b6faa2625fe562bdd9a23260359',
+              },
+              '0x3b3301',
+            ],
+          },
+          response: {
+            result:
+              '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000733ed8ef4c4a0155d09',
+          },
+        },
+      ],
+    });
+    mockNetwork({
+      networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType['linea-mainnet'],
+        { infuraProjectId },
+      ),
+      mocks: [
+        {
+          request: {
+            method: 'eth_blockNumber',
+            params: [],
+          },
+          response: {
+            result: '0x3b3301',
+          },
+        },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0xf62e6a41561b3650a69bb03199c735e3e3328c0d',
+                data: '0xf0002ea900000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000100000000000000000000000089d24a6b4ccb1b6faa2625fe562bdd9a23260359000000000000000000000000000000000000000000000000000000000000000100000000000000000000000089d24a6b4ccb1b6faa2625fe562bdd9a23260359',
+              },
+              '0x3b3301',
+            ],
+          },
+          response: {
+            result:
+              '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000a0155d09733ed8ef4c4',
+          },
+        },
+      ],
+    });
+    const { assetsContract, network, provider } =
+      await setupAssetContractControllers({
+        options: {
+          chainId: ChainId.mainnet,
+        },
+        useNetworkControllerProvider: true,
+        infuraProjectId,
+      });
+    assetsContract.configure({ provider });
+
+    const balancesOnMainnet = await assetsContract.getBalancesInSingleCall(
+      ERC20_SAI_ADDRESS,
+      [ERC20_SAI_ADDRESS],
+    );
+    expect(balancesOnMainnet).toStrictEqual({
+      [ERC20_SAI_ADDRESS]: BigNumber.from('0x0733ed8ef4c4a0155d09'),
+    });
+
+    await network.setActiveNetwork(InfuraNetworkType['linea-mainnet']);
+
+    const balancesOnLineaMainnet = await assetsContract.getBalancesInSingleCall(
+      ERC20_SAI_ADDRESS,
+      [ERC20_SAI_ADDRESS],
+    );
+    expect(balancesOnLineaMainnet).toStrictEqual({
+      [ERC20_SAI_ADDRESS]: BigNumber.from('0xa0155d09733ed8ef4c4'),
+    });
   });
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
