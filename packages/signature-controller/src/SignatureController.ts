@@ -162,14 +162,12 @@ export class SignatureController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param options.getCurrentChainId - A function for retrieving the current chainId.
    */
   constructor({
     messenger,
-    isEthSignEnabled,
     getAllState,
     securityProviderRequest,
     getCurrentChainId,
@@ -181,7 +179,6 @@ export class SignatureController extends BaseController<
       state: getDefaultState(),
     });
 
-    this.#isEthSignEnabled = isEthSignEnabled;
     this.#getAllState = getAllState;
 
     this.hub = new EventEmitter();
@@ -315,32 +312,6 @@ export class SignatureController extends BaseController<
   }
 
   /**
-   * Called when a Dapp uses the eth_sign method, to request user approval.
-   * eth_sign is a pure signature of arbitrary data. It is on a deprecation
-   * path, since this data can be a transaction, or can leak private key
-   * information.
-   *
-   * @param messageParams - The params passed to eth_sign.
-   * @param [req] - The original request, containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async newUnsignedMessage(
-    messageParams: MessageParams,
-    req: OriginalRequest,
-  ): Promise<string> {
-    return this.#newUnsignedAbstractMessage(
-      this.#messageManager,
-      ApprovalType.EthSign,
-      SigningMethod.EthSign,
-      'Message',
-      this.#signMessage.bind(this),
-      messageParams,
-      req,
-      this.#validateUnsignedMessage.bind(this),
-    );
-  }
-
-  /**
    * Called when a dapp uses the personal_sign method.
    * This is identical to the Geth eth_sign method, and may eventually replace
    * eth_sign.
@@ -444,21 +415,6 @@ export class SignatureController extends BaseController<
     this.#personalMessageManager.setMessageStatusInProgress(messageId);
   }
 
-  #validateUnsignedMessage(messageParams: MessageParamsMetamask): void {
-    if (!this.#isEthSignEnabled()) {
-      throw rpcErrors.methodNotFound(
-        'eth_sign has been disabled. You must enable it in the advanced settings',
-      );
-    }
-    const data = this.#normalizeMsgData(messageParams.data);
-    // 64 hex + "0x" at the beginning
-    // This is needed because Ethereum's EcSign works only on 32 byte numbers
-    // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
-    if (data.length !== 66 && data.length !== 67) {
-      throw rpcErrors.invalidParams('eth_sign requires 32 byte message hash');
-    }
-  }
-
   async #newUnsignedAbstractMessage<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
@@ -540,25 +496,6 @@ export class SignatureController extends BaseController<
       resultCallbacks?.error(error as Error);
       throw error;
     }
-  }
-
-  /**
-   * Signifies user intent to complete an eth_sign method.
-   *
-   * @param msgParams - The params passed to eth_call.
-   * @returns Signature result from signing.
-   */
-  async #signMessage(msgParams: MessageParamsMetamask) {
-    return await this.#signAbstractMessage(
-      this.#messageManager,
-      ApprovalType.EthSign,
-      msgParams,
-      async (cleanMsgParams) =>
-        await this.messagingSystem.call(
-          'KeyringController:signMessage',
-          cleanMsgParams,
-        ),
-    );
   }
 
   /**
