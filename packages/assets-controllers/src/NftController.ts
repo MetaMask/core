@@ -1625,7 +1625,13 @@ export class NftController extends BaseController<
     if (indexToUpdate !== -1) {
       nfts[indexToUpdate] = updatedNft;
       this.update((state) => {
-        state.allNfts[userAddress][chainId] = nfts;
+        state.allNfts[userAddress] = Object.assign(
+          {},
+          state.allNfts[userAddress],
+          {
+            [chainId]: nfts,
+          },
+        );
       });
       this.#updateNestedNftState(nfts, ALL_NFTS_STATE_KEY, {
         userAddress,
