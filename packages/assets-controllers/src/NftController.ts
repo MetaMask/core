@@ -27,6 +27,7 @@ import { type InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkState,
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -230,7 +231,8 @@ const controllerName = 'NftController';
 type AllowedActions =
   | AddApprovalRequest
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 type AllowedEvents = AccountsControllerSelectedEvmAccountChangeEvent;
 
@@ -1092,8 +1094,12 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       },
     );
 
-    onNetworkStateChange(({ providerConfig }) => {
-      const { chainId } = providerConfig;
+    onNetworkStateChange(({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId } = selectedNetworkClient.configuration;
+
       this.configure({ chainId });
     });
   }

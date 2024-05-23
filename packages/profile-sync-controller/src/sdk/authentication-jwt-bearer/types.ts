@@ -1,4 +1,4 @@
-import type { Env } from '../env';
+import type { Env, Platform } from '../env';
 
 export const enum AuthType {
   /* sign in using a private key derived from your secret recovery phrase (SRP). 
@@ -11,6 +11,7 @@ export const enum AuthType {
 
 export type AuthConfig = {
   env: Env;
+  platform: Platform;
   type: AuthType;
 };
 

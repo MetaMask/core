@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- **BREAKING:** The NftController messenger must now allow the `NetworkController:getNetworkClientById` action ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- NftControllerMessenger now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - This should be functionally equivalent, but is being noted anyway.
+
 ## [29.0.0]
 
 ### Added
