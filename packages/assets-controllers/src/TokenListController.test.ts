@@ -659,6 +659,8 @@ describe('TokenListController', () => {
       selectedNetworkClientId,
       networkConfigurations: {},
       networksMetadata: {},
+      // @ts-expect-error This property isn't used and will get removed later.
+      providerConfig: {},
     });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
@@ -995,6 +997,8 @@ describe('TokenListController', () => {
         selectedNetworkClientId: InfuraNetworkType.goerli,
         networkConfigurations: {},
         networksMetadata: {},
+        // @ts-expect-error This property isn't used and will get removed later.
+        providerConfig: {},
       },
       [],
     );
@@ -1014,6 +1018,8 @@ describe('TokenListController', () => {
         selectedNetworkClientId: selectedCustomNetworkClientId,
         networkConfigurations: {},
         networksMetadata: {},
+        // @ts-expect-error This property isn't used and will get removed later.
+        providerConfig: {},
       },
       [],
     );
@@ -1092,6 +1098,8 @@ describe('TokenListController', () => {
         selectedNetworkClientId: InfuraNetworkType.mainnet,
         networkConfigurations: {},
         networksMetadata: {},
+        // @ts-expect-error This property isn't used and will get removed later.
+        providerConfig: {},
       },
       [],
     );
@@ -1140,6 +1148,8 @@ describe('TokenListController', () => {
           selectedNetworkClientId: selectedCustomNetworkClientId,
           networkConfigurations: {},
           networksMetadata: {},
+          // @ts-expect-error This property isn't used and will get removed later.
+          providerConfig: {},
         },
         [],
       );
