@@ -1,3 +1,4 @@
+import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
@@ -5,7 +6,6 @@ import type {
   JsonRpcParams,
   PendingJsonRpcResponse,
 } from '@metamask/utils';
-import type { PollingBlockTracker } from 'eth-block-tracker';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 

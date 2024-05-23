@@ -1,7 +1,7 @@
+import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type { Json, JsonRpcParams } from '@metamask/utils';
-import type { PollingBlockTracker } from 'eth-block-tracker';
 
 import { blockTagParamIndex } from './utils/cache';
 

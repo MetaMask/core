@@ -1,10 +1,10 @@
+import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
 
 import { createRetryOnEmptyMiddleware } from '.';
 import type { ProviderRequestStub } from '../test/util/helpers';
