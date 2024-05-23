@@ -97,7 +97,7 @@ export const controllerName = 'TokenRatesController';
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export type TokenRatesState = {
+export type TokenRatesControllerState = {
   contractExchangeRates: ContractExchangeRates;
   contractExchangeRatesByChainId: Record<
     Hex,
@@ -107,7 +107,7 @@ export type TokenRatesState = {
 
 export type TokenRatesControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
-  TokenRatesState
+  TokenRatesControllerState
 >;
 
 export type TokenRatesControllerActions = TokenRatesControllerGetStateAction;
@@ -122,7 +122,7 @@ export type TokenRatesControllerMessenger = RestrictedControllerMessenger<
 
 export type TokenRatesControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
-  TokenRatesState
+  TokenRatesControllerState
 >;
 
 export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
@@ -169,12 +169,13 @@ const metadata = {
   contractExchangeRatesByChainId: { persist: true, anonymous: false },
 };
 
-export const getDefaultTokenRatesControllerState = (): TokenRatesState => {
-  return {
-    contractExchangeRates: {},
-    contractExchangeRatesByChainId: {},
+export const getDefaultTokenRatesControllerState =
+  (): TokenRatesControllerState => {
+    return {
+      contractExchangeRates: {},
+      contractExchangeRatesByChainId: {},
+    };
   };
-};
 
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
@@ -182,7 +183,7 @@ export const getDefaultTokenRatesControllerState = (): TokenRatesState => {
  */
 export class TokenRatesController extends StaticIntervalPollingController<
   typeof controllerName,
-  TokenRatesState,
+  TokenRatesControllerState,
   TokenRatesControllerMessenger
 > {
   private handle?: ReturnType<typeof setTimeout>;
