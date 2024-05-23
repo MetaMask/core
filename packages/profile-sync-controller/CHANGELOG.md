@@ -7,8 +7,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Notify 587 extend access token ([#4295](https://github.com/MetaMask/core/pull/4295))
-
 [Unreleased]: https://github.com/MetaMask/core/
