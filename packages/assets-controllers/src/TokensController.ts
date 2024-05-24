@@ -261,7 +261,7 @@ export class TokensController extends BaseController<
   /**
    * Handles the event when the network changes.
    *
-   * @param networkState - The updated network state.
+   * @param networkState - The changed network state.
    * @param networkState.providerConfig - RPC URL and network name provider settings of the currently connected network
    */
   #onNetworkDidChange({ providerConfig }: NetworkState) {
