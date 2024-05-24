@@ -37,7 +37,7 @@ import { Mutex } from 'async-mutex';
 import MethodRegistry from 'eth-method-registry';
 import { addHexPrefix, bufferToHex } from 'ethereumjs-util';
 import { EventEmitter } from 'events';
-import { mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
+import { mapValues, merge, pickBy, sortBy, isEqual, cloneDeep } from 'lodash';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
@@ -64,6 +64,7 @@ import type {
   SubmitHistoryEntry,
   GasFeeFlow,
   SimulationData,
+  GasFeeEstimates,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -431,7 +432,7 @@ export class TransactionController extends BaseController<
 
     gasFeePoller.hub.on(
       'transaction-updated',
-      this.updateTransaction.bind(this),
+      this.#onGasFeePollerTransactionUpdate.bind(this),
     );
 
     onNetworkStateChange(() => {
@@ -1006,37 +1007,13 @@ export class TransactionController extends BaseController<
     }
   }
 
-  /**
-   * Updates an existing transaction in state.
-   *
-   * @param transactionMeta - The new transaction to store in state.
-   * @param note - A note or update reason to include in the transaction history.
-   * @param skipSimulationsCheck - Whether to skip updating the simulation data for the transaction.
-   */
-  updateTransaction(
-    transactionMeta: TransactionMeta,
-    note: string,
-    skipSimulationsCheck = false,
-  ) {
-    const { transactions } = this.state;
-    const originalTransactionMeta = this.getTransaction(
-      transactionMeta.id,
-    ) as TransactionMeta;
+  updateTransaction(transactionMeta: TransactionMeta, note: string) {
+    const { id: transactionId } = transactionMeta;
 
-    transactionMeta.txParams = normalizeTransactionParams(
-      transactionMeta.txParams,
+    this.#updateTransactionInternal(
+      { transactionId, note, skipHistory: this.isHistoryDisabled },
+      () => ({ ...transactionMeta }),
     );
-    validateTxParams(transactionMeta.txParams);
-    if (!this.isHistoryDisabled) {
-      updateTransactionHistory(transactionMeta, note);
-    }
-    const index = transactions.findIndex(({ id }) => transactionMeta.id === id);
-    transactions[index] = transactionMeta;
-    this.update({ transactions: this.trimTransactionsForState(transactions) });
-
-    if (skipSimulationsCheck) {
-      this.#updateSimulationDataIfNeeded(originalTransactionMeta);
-    }
   }
 
   /**
@@ -2334,31 +2311,64 @@ export class TransactionController extends BaseController<
     this.hub.emit('transaction-status-update', { transactionMeta });
   }
 
-  #updateSimulationDataIfNeeded(originalTransactionMeta: TransactionMeta) {
-    const latestTransactionMeta = this.getTransaction(
-      originalTransactionMeta.id,
+  #updateTransactionInternal(
+    {
+      transactionId,
+      note,
+      skipHistory,
+    }: { transactionId: string; note?: string; skipHistory?: boolean },
+    callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
+  ): Readonly<TransactionMeta> {
+    let updatedTransactionParams: (keyof TransactionParams)[] = [];
+
+    this.#updateWithCallback((state) => {
+      const index = state.transactions.findIndex(
+        ({ id }: { id: string }) => id === transactionId,
+      );
+
+      let transactionMeta = state.transactions[index];
+
+      // eslint-disable-next-line n/callback-return
+      transactionMeta = callback(transactionMeta) ?? transactionMeta;
+
+      transactionMeta.txParams = normalizeTransactionParams(
+        transactionMeta.txParams,
+      );
+
+      validateTxParams(transactionMeta.txParams);
+
+      updatedTransactionParams =
+        this.#checkIfTransactionParamsUpdated(transactionMeta);
+
+      if (skipHistory !== true) {
+        updateTransactionHistory(
+          transactionMeta,
+          note ?? 'Transaction updated',
+        );
+      }
+      state.transactions[index] = transactionMeta;
+
+      return state;
+    });
+
+    const transactionMeta = this.getTransaction(
+      transactionId,
     ) as TransactionMeta;
 
-    const updatedTransactionParams = this.#checkIfTransactionParamsUpdated(
-      latestTransactionMeta,
-      originalTransactionMeta,
-    );
-
-    if (updatedTransactionParams.length !== 0) {
+    if (updatedTransactionParams.length > 0) {
       this.#onTransactionParamsUpdated(
-        latestTransactionMeta,
+        transactionMeta,
         updatedTransactionParams,
       );
     }
+
+    return transactionMeta;
   }
 
-  #checkIfTransactionParamsUpdated(
-    newTransactionMeta: TransactionMeta,
-    originalTransactionMeta: TransactionMeta,
-  ) {
+  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
     const { id: transactionId, txParams: newParams } = newTransactionMeta;
 
-    const originalParams = originalTransactionMeta.txParams;
+    const originalParams = this.getTransaction(transactionId)?.txParams;
 
     if (!originalParams || isEqual(originalParams, newParams)) {
       return [];
@@ -2409,11 +2419,11 @@ export class TransactionController extends BaseController<
     };
 
     if (this.#isSimulationEnabled()) {
-      transactionMeta.simulationData = undefined;
-      this.updateTransaction(
-        transactionMeta,
-        'TransactionController#updateSimulationData - Simulation data cleared',
-        true,
+      this.#updateTransactionInternal(
+        { transactionId, skipHistory: true },
+        (txMeta) => {
+          txMeta.simulationData = undefined;
+        },
       );
 
       simulationData = await getSimulationData({
@@ -2437,14 +2447,48 @@ export class TransactionController extends BaseController<
       return;
     }
 
-    finalTransactionMeta.simulationData = simulationData;
-    this.updateTransaction(
-      finalTransactionMeta,
-      'TransactionController#updateSimulationData - Simulation data updated',
-      true,
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateSimulationData - Update simulation data',
+      },
+      (txMeta) => {
+        txMeta.simulationData = simulationData;
+      },
     );
 
     log('Updated simulation data', transactionId, simulationData);
+  }
+
+  #updateWithCallback(callback: (state: TransactionState) => TransactionState) {
+    const currentState = cloneDeep(this.state);
+    // eslint-disable-next-line n/callback-return
+    const updatedState = callback(currentState);
+    this.update(updatedState);
+  }
+
+  #onGasFeePollerTransactionUpdate({
+    id,
+    gasFeeEstimates,
+    gasFeeEstimatesLoaded,
+  }: {
+    id: string;
+    gasFeeEstimates?: GasFeeEstimates;
+    gasFeeEstimatesLoaded?: boolean;
+    layer1GasFee?: Hex;
+  }) {
+    this.#updateTransactionInternal(
+      { transactionId: id, skipHistory: true },
+      (txMeta) => {
+        if (gasFeeEstimates) {
+          txMeta.gasFeeEstimates = gasFeeEstimates;
+        }
+
+        if (gasFeeEstimatesLoaded !== undefined) {
+          txMeta.gasFeeEstimatesLoaded = gasFeeEstimatesLoaded;
+        }
+      },
+    );
   }
 }
 
