@@ -9,7 +9,6 @@ import { validate } from 'jsonschema';
 
 import type { DecryptMessageParams } from './DecryptMessageManager';
 import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
-import type { MessageParams } from './MessageManager';
 import type { PersonalMessageParams } from './PersonalMessageManager';
 import type { TypedMessageParams } from './TypedMessageManager';
 
