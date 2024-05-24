@@ -254,8 +254,12 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       }
     });
 
-    onNetworkStateChange(async ({ providerConfig }) => {
-      const { chainId, ticker } = providerConfig;
+    onNetworkStateChange(async ({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId, ticker } = selectedNetworkClient.configuration;
+
       if (
         this.config.chainId !== chainId ||
         this.config.nativeCurrency !== ticker

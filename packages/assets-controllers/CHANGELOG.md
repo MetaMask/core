@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This should be functionally equivalent, but is being noted anyway.
 - NftDetectionController now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4307](https://github.com/MetaMask/core/pull/4307))
   - This should be functionally equivalent, but is being noted anyway.
+- TokenRatesController now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4317](https://github.com/MetaMask/core/pull/4317))
+  - This should be functionally equivalent, but is being noted anyway.
 - AssetsContractController now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4315](https://github.com/MetaMask/core/pull/4315))
   - This should be functionally equivalent, but is being noted anyway.
 
