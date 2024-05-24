@@ -1221,7 +1221,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^9.0.2, @metamask/controller-utils@npm:^9.1.0":
+"@metamask/controller-utils@npm:^9.1.0":
   version: 9.1.0
   resolution: "@metamask/controller-utils@npm:9.1.0"
   dependencies:
@@ -1326,17 +1326,6 @@ __metadata:
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.3.0
   checksum: e6731271aad3b972d85b9230c26d35a9b88722f3bd3024675ad2f568e634e9fdfef4717ef2892f3cc512d381cf17a4e20dbd5eb808ced765082bea3379ad6ddc
-  languageName: node
-  linkType: hard
-
-"@metamask/eth-json-rpc-provider@npm:^3.0.1":
-  version: 3.0.1
-  resolution: "@metamask/eth-json-rpc-provider@npm:3.0.1"
-  dependencies:
-    "@metamask/json-rpc-engine": ^8.0.1
-    "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.3.0
-  checksum: 1dd7708fae30a62fbc0c26f13f5e951eb9ff12c37db602c7bb8126ca8c556878f8c7cef185e727302eb30692651ee50e47f1ad55404573b1c1f8e5122e968700
   languageName: node
   linkType: hard
 
@@ -1495,17 +1484,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/json-rpc-engine@npm:^8.0.1":
-  version: 8.0.1
-  resolution: "@metamask/json-rpc-engine@npm:8.0.1"
-  dependencies:
-    "@metamask/rpc-errors": ^6.2.1
-    "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.3.0
-  checksum: 32c0abaa7e8d158d36889537a784e8a6f5fa3d541962881e195585ccf91926e11019ed5827168979d948544e7ba1de3ac6f07b5770ffe65173b956a361c817e1
-  languageName: node
-  linkType: hard
-
 "@metamask/json-rpc-engine@npm:^8.0.2":
   version: 8.0.2
   resolution: "@metamask/json-rpc-engine@npm:8.0.2"
@@ -1524,29 +1502,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@npm:^18.1.0":
-  version: 18.1.0
-  resolution: "@metamask/network-controller@npm:18.1.0"
-  dependencies:
-    "@metamask/base-controller": ^5.0.1
-    "@metamask/controller-utils": ^9.0.2
-    "@metamask/eth-json-rpc-infura": ^9.1.0
-    "@metamask/eth-json-rpc-middleware": ^12.1.0
-    "@metamask/eth-json-rpc-provider": ^3.0.1
-    "@metamask/eth-query": ^4.0.0
-    "@metamask/json-rpc-engine": ^8.0.1
-    "@metamask/rpc-errors": ^6.2.1
-    "@metamask/swappable-obj-proxy": ^2.2.0
-    "@metamask/utils": ^8.3.0
-    async-mutex: ^0.2.6
-    eth-block-tracker: ^8.0.0
-    immer: ^9.0.6
-    uuid: ^8.3.2
-  checksum: 2e0ae1963bddf5194cb84ece0939dc308d8b54acfd70c355d335b1665fe344535fda0082d9f1e8fb3196971add4e9c5acf6a134ae016e3e865c2146e5f33006e
-  languageName: node
-  linkType: hard
-
-"@metamask/network-controller@npm:^18.1.1":
+"@metamask/network-controller@npm:^18.1.0, @metamask/network-controller@npm:^18.1.1":
   version: 18.1.1
   resolution: "@metamask/network-controller@npm:18.1.1"
   dependencies:
