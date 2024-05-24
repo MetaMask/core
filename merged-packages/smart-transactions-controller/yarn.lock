@@ -1184,7 +1184,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/approval-controller@npm:^6.0.1":
+"@metamask/approval-controller@npm:^6.0.2":
   version: 6.0.2
   resolution: "@metamask/approval-controller@npm:6.0.2"
   dependencies:
@@ -1340,6 +1340,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-json-rpc-provider@npm:^3.0.2":
+  version: 3.0.2
+  resolution: "@metamask/eth-json-rpc-provider@npm:3.0.2"
+  dependencies:
+    "@metamask/json-rpc-engine": ^8.0.2
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.3.0
+  checksum: 0321eaad6fa205a9d3ddcfaf28e63c05291614893cb2e116151185a4acbd6bb6a508d6e556b3cb8bc4d3caef4bf0a638202d9b6bdc127fbcb81715eb2660a809
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-query@npm:^4.0.0":
   version: 4.0.0
   resolution: "@metamask/eth-query@npm:4.0.0"
@@ -1452,7 +1463,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/gas-fee-controller@npm:^15.1.0":
+"@metamask/gas-fee-controller@npm:^15.1.2":
   version: 15.1.2
   resolution: "@metamask/gas-fee-controller@npm:15.1.2"
   dependencies:
@@ -1495,6 +1506,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/json-rpc-engine@npm:^8.0.2":
+  version: 8.0.2
+  resolution: "@metamask/json-rpc-engine@npm:8.0.2"
+  dependencies:
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.3.0
+  checksum: c240d298ad503d93922a94a62cf59f0344b6d6644a523bc8ea3c0f321bea7172b89f2747a5618e2861b2e8152ae5086b76f391a10e4566529faa50b8850c051d
+  languageName: node
+  linkType: hard
+
 "@metamask/metamask-eth-abis@npm:^3.1.1":
   version: 3.1.1
   resolution: "@metamask/metamask-eth-abis@npm:3.1.1"
@@ -1521,6 +1543,28 @@ __metadata:
     immer: ^9.0.6
     uuid: ^8.3.2
   checksum: 2e0ae1963bddf5194cb84ece0939dc308d8b54acfd70c355d335b1665fe344535fda0082d9f1e8fb3196971add4e9c5acf6a134ae016e3e865c2146e5f33006e
+  languageName: node
+  linkType: hard
+
+"@metamask/network-controller@npm:^18.1.1":
+  version: 18.1.1
+  resolution: "@metamask/network-controller@npm:18.1.1"
+  dependencies:
+    "@metamask/base-controller": ^5.0.2
+    "@metamask/controller-utils": ^9.1.0
+    "@metamask/eth-json-rpc-infura": ^9.1.0
+    "@metamask/eth-json-rpc-middleware": ^12.1.0
+    "@metamask/eth-json-rpc-provider": ^3.0.2
+    "@metamask/eth-query": ^4.0.0
+    "@metamask/json-rpc-engine": ^8.0.2
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/swappable-obj-proxy": ^2.2.0
+    "@metamask/utils": ^8.3.0
+    async-mutex: ^0.2.6
+    eth-block-tracker: ^8.0.0
+    immer: ^9.0.6
+    uuid: ^8.3.2
+  checksum: 4cb9c733de43a37af9d6a428e98df7271dcd35d416d306fdf10051c6482ee2ff9c8171469663f65216faef5f0092f42d41259dca743a50f2a0e593cae2747f0b
   languageName: node
   linkType: hard
 
@@ -1587,7 +1631,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/network-controller": ^18.1.0
     "@metamask/polling-controller": ^6.0.1
-    "@metamask/transaction-controller": ^28.1.0
+    "@metamask/transaction-controller": ^29.1.0
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194
     "@types/node": ^18.19.17
@@ -1624,9 +1668,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^28.1.0":
-  version: 28.1.1
-  resolution: "@metamask/transaction-controller@npm:28.1.1"
+"@metamask/transaction-controller@npm:^29.1.0":
+  version: 29.1.0
+  resolution: "@metamask/transaction-controller@npm:29.1.0"
   dependencies:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
@@ -1634,13 +1678,13 @@ __metadata:
     "@ethersproject/abi": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
-    "@metamask/approval-controller": ^6.0.1
-    "@metamask/base-controller": ^5.0.1
+    "@metamask/approval-controller": ^6.0.2
+    "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
-    "@metamask/gas-fee-controller": ^15.1.0
+    "@metamask/gas-fee-controller": ^15.1.2
     "@metamask/metamask-eth-abis": ^3.1.1
-    "@metamask/network-controller": ^18.1.0
+    "@metamask/network-controller": ^18.1.1
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     async-mutex: ^0.2.6
@@ -1655,7 +1699,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.0
     "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/network-controller": ^18.0.0
-  checksum: 04e532ef0caeaafce950ff3299cc52dbdf4e57e100288d1dbd8b3169826974d3b7ab5a9b70f218fc14f40d4f780ea47d1d52a737ec5c9889d5048911c8787ef5
+  checksum: 7530b609e9b25b28a0b793723c01fdb98afdb2a259e0be458da465d597b9fd4b0b7ef1e75395282f818fd31ca5de668c8c265c659e9241db3f591d8541d8fc9c
   languageName: node
   linkType: hard
 
