@@ -7,7 +7,7 @@ import { toASCII } from 'punycode/';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
-  'https://phishing-detection.metafi.codefi.network';
+  'https://phishing-detection.api.cx.metamask.io';
 
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 
