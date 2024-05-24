@@ -2881,6 +2881,7 @@ __metadata:
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.9.5
+    uuid: ^8.3.2
   peerDependencies:
     "@metamask/approval-controller": ^6.0.0
     "@metamask/keyring-controller": ^16.0.0
