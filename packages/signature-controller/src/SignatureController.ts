@@ -33,6 +33,8 @@ import type {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
+  TypedMessage,
+  PersonalMessage,
 } from '@metamask/message-manager';
 import {
   PersonalMessageManager,
@@ -47,19 +49,15 @@ import { cloneDeep } from 'lodash';
 const controllerName = 'SignatureController';
 
 const stateMetadata = {
-  unapprovedMsgs: { persist: false, anonymous: false },
   unapprovedPersonalMsgs: { persist: false, anonymous: false },
   unapprovedTypedMessages: { persist: false, anonymous: false },
-  unapprovedMsgCount: { persist: false, anonymous: false },
   unapprovedPersonalMsgCount: { persist: false, anonymous: false },
   unapprovedTypedMessagesCount: { persist: false, anonymous: false },
 };
 
 const getDefaultState = () => ({
-  unapprovedMsgs: {},
   unapprovedPersonalMsgs: {},
   unapprovedTypedMessages: {},
-  unapprovedMsgCount: 0,
   unapprovedPersonalMsgCount: 0,
   unapprovedTypedMessagesCount: 0,
 });
@@ -73,10 +71,8 @@ type StateMessage = Required<AbstractMessage> & {
 };
 
 type SignatureControllerState = {
-  unapprovedMsgs: Record<string, StateMessage>;
   unapprovedPersonalMsgs: Record<string, StateMessage>;
   unapprovedTypedMessages: Record<string, StateMessage>;
-  unapprovedMsgCount: number;
   unapprovedPersonalMsgCount: number;
   unapprovedTypedMessagesCount: number;
 };
@@ -227,6 +223,27 @@ export class SignatureController extends BaseController<
    */
   get unapprovedTypedMessagesCount(): number {
     return this.#typedMessageManager.getUnapprovedMessagesCount();
+  }
+
+  /**
+   * A getter for returning all messages.
+   *
+   * @returns The object containing all messages.
+   */
+  get messages(): { [id: string]: PersonalMessage | TypedMessage } {
+    const messages = [
+      ...this.#typedMessageManager.getAllMessages(),
+      ...this.#personalMessageManager.getAllMessages(),
+    ];
+
+    const messagesObject = messages.reduce<{
+      [id: string]: PersonalMessage | TypedMessage;
+    }>((acc, message) => {
+      acc[message.id] = message;
+      return acc;
+    }, {});
+
+    return messagesObject;
   }
 
   /**
@@ -743,7 +760,6 @@ export class SignatureController extends BaseController<
 
   #getMessage(messageId: string): StateMessage {
     return {
-      ...this.state.unapprovedMsgs,
       ...this.state.unapprovedPersonalMsgs,
       ...this.state.unapprovedTypedMessages,
     }[messageId];
