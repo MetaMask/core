@@ -23,8 +23,6 @@ import {
 } from '@metamask/logging-controller';
 import type { AddLog } from '@metamask/logging-controller';
 import type {
-  MessageParams,
-  MessageParamsMetamask,
   PersonalMessageParams,
   PersonalMessageParamsMetamask,
   TypedMessageParams,
@@ -35,16 +33,12 @@ import type {
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
   OriginalRequest,
-  TypedMessage,
-  PersonalMessage,
-  Message,
 } from '@metamask/message-manager';
 import {
-  MessageManager,
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import { bytesToHex } from '@metamask/utils';
 import EventEmitter from 'events';
@@ -145,13 +139,9 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #isEthSignEnabled: () => boolean;
-
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #getAllState: () => any;
-
-  #messageManager: MessageManager;
 
   #personalMessageManager: PersonalMessageManager;
 
@@ -182,11 +172,6 @@ export class SignatureController extends BaseController<
     this.#getAllState = getAllState;
 
     this.hub = new EventEmitter();
-    this.#messageManager = new MessageManager(
-      undefined,
-      undefined,
-      securityProviderRequest,
-    );
     this.#personalMessageManager = new PersonalMessageManager(
       undefined,
       undefined,
@@ -200,7 +185,6 @@ export class SignatureController extends BaseController<
       getCurrentChainId,
     );
 
-    this.#handleMessageManagerEvents(this.#messageManager, 'unapprovedMessage');
     this.#handleMessageManagerEvents(
       this.#personalMessageManager,
       'unapprovedPersonalMessage',
@@ -208,14 +192,6 @@ export class SignatureController extends BaseController<
     this.#handleMessageManagerEvents(
       this.#typedMessageManager,
       'unapprovedTypedMessage',
-    );
-
-    this.#subscribeToMessageState(
-      this.#messageManager,
-      (state, newMessages, messageCount) => {
-        state.unapprovedMsgs = newMessages;
-        state.unapprovedMsgCount = messageCount;
-      },
     );
 
     this.#subscribeToMessageState(
@@ -233,15 +209,6 @@ export class SignatureController extends BaseController<
         state.unapprovedTypedMessagesCount = messageCount;
       },
     );
-  }
-
-  /**
-   * A getter for the number of 'unapproved' Messages in this.messages.
-   *
-   * @returns The number of 'unapproved' Messages in this.messages
-   */
-  get unapprovedMsgCount(): number {
-    return this.#messageManager.getUnapprovedMessagesCount();
   }
 
   /**
@@ -263,28 +230,6 @@ export class SignatureController extends BaseController<
   }
 
   /**
-   * A getter for returning all messages.
-   *
-   * @returns The object containing all messages.
-   */
-  get messages(): { [id: string]: Message | PersonalMessage | TypedMessage } {
-    const messages = [
-      ...this.#typedMessageManager.getAllMessages(),
-      ...this.#personalMessageManager.getAllMessages(),
-      ...this.#messageManager.getAllMessages(),
-    ];
-
-    const messagesObject = messages.reduce<{
-      [id: string]: Message | PersonalMessage | TypedMessage;
-    }>((acc, message) => {
-      acc[message.id] = message;
-      return acc;
-    }, {});
-
-    return messagesObject;
-  }
-
-  /**
    * Reset the controller state to the initial state.
    */
   resetState() {
@@ -297,7 +242,6 @@ export class SignatureController extends BaseController<
    * @param reason - A message to indicate why.
    */
   rejectUnapproved(reason?: string) {
-    this.#rejectUnapproved(this.#messageManager, reason);
     this.#rejectUnapproved(this.#personalMessageManager, reason);
     this.#rejectUnapproved(this.#typedMessageManager, reason);
   }
@@ -306,7 +250,6 @@ export class SignatureController extends BaseController<
    * Clears all unapproved messages from memory.
    */
   clearUnapproved() {
-    this.#clearUnapproved(this.#messageManager);
     this.#clearUnapproved(this.#personalMessageManager);
     this.#clearUnapproved(this.#typedMessageManager);
   }
@@ -567,7 +510,6 @@ export class SignatureController extends BaseController<
     ...args: any
   ) {
     const messageManagers = [
-      this.#messageManager,
       this.#personalMessageManager,
       this.#typedMessageManager,
     ];
