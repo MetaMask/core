@@ -1777,6 +1777,7 @@ export class TransactionController extends BaseController<
 
         const txBlock = await query(this.ethQuery, 'getBlockByHash', [
           txReceipt.blockHash,
+          false,
         ]);
 
         meta.verifiedOnBlockchain = true;
