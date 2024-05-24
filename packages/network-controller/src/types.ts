@@ -1,7 +1,7 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
+import type { BlockTracker as BaseBlockTracker } from '@metamask/eth-block-tracker';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { Hex } from '@metamask/utils';
-import type { BlockTracker as BaseBlockTracker } from 'eth-block-tracker';
 
 export type Provider = SafeEventEmitterProvider;
 
