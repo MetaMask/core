@@ -111,6 +111,8 @@ export class TokenBalancesController extends BaseController<
 
   #disabled: boolean;
 
+  #updateInProgress = false;
+
   /**
    * Construct a Token Balances Controller.
    *
@@ -195,30 +197,34 @@ export class TokenBalancesController extends BaseController<
    * Updates balances for all tokens.
    */
   async updateBalances() {
-    if (this.#disabled) {
+    if (this.#disabled || this.#updateInProgress) {
       return;
     }
-
+    this.#updateInProgress = true;
     const newContractBalances: ContractBalances = {};
-    for (const token of this.#tokens) {
+    const balancePromises = this.#tokens.map((token) => {
       const { address } = token;
       const { selectedAddress } = this.messagingSystem.call(
         'PreferencesController:getState',
       );
-      try {
-        newContractBalances[address] = toHex(
-          await this.#getERC20BalanceOf(address, selectedAddress),
-        );
-        token.balanceError = null;
-      } catch (error) {
-        newContractBalances[address] = toHex(0);
-        token.balanceError = error;
-      }
-    }
+
+      return this.#getERC20BalanceOf(address, selectedAddress)
+        .then((balance) => {
+          newContractBalances[address] = toHex(balance);
+          token.balanceError = null;
+        })
+        .catch((error) => {
+          newContractBalances[address] = toHex(0);
+          token.balanceError = error;
+        });
+    });
+
+    await Promise.all(balancePromises);
 
     this.update((state) => {
       state.contractBalances = newContractBalances;
     });
+    this.#updateInProgress = false;
   }
 
   /**
