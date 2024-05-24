@@ -24,9 +24,6 @@ describe('PreferencesController', () => {
       useNftDetection: false,
       openSeaEnabled: false,
       securityAlertsEnabled: false,
-      disabledRpcMethodPreferences: {
-        eth_sign: false,
-      },
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
@@ -385,12 +382,6 @@ describe('PreferencesController', () => {
     const controller = setupPreferencesController();
     controller.setSecurityAlertsEnabled(true);
     expect(controller.state.securityAlertsEnabled).toBe(true);
-  });
-
-  it('should set disabledRpcMethodPreferences', () => {
-    const controller = setupPreferencesController();
-    controller.setDisabledRpcMethodPreference('eth_sign', true);
-    expect(controller.state.disabledRpcMethodPreferences.eth_sign).toBe(true);
   });
 
   it('should set isMultiAccountBalancesEnabled', () => {

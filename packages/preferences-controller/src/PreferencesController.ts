@@ -170,9 +170,6 @@ export type PreferencesControllerMessenger = RestrictedControllerMessenger<
  */
 export function getDefaultPreferencesState() {
   return {
-    disabledRpcMethodPreferences: {
-      eth_sign: false,
-    },
     featureFlags: {},
     identities: {},
     ipfsGateway: 'https://ipfs.io/ipfs/',

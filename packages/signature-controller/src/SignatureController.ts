@@ -256,10 +256,8 @@ export class SignatureController extends BaseController<
 
   /**
    * Called when a dapp uses the personal_sign method.
-   * This is identical to the Geth eth_sign method, and may eventually replace
-   * eth_sign.
    *
-   * We currently define our eth_sign and personal_sign mostly for legacy Dapps.
+   * We currently define personal_sign mostly for legacy Dapps.
    *
    * @param messageParams - The params of the message to sign & return to the Dapp.
    * @param req - The original request, containing the origin.
