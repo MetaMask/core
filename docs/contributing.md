@@ -209,7 +209,11 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 
       Once you save and close the release spec, the tool will proceed.
 
-2. **Review and update changelogs for relevant packages.**
+2. **update all packages dependencies to their latest version**
+
+   Run `yarn constraints --fix && yarn && yarn dedupe`.
+
+3. **Review and update changelogs for relevant packages.**
 
    1. At this point, the versions of all packages you intend to release have been bumped and their changelogs list new changes. Now you need to go through each changelog and make sure that they follow existing standards:
 
@@ -220,19 +224,19 @@ The [`create-release-branch`](https://github.com/MetaMask/create-release-branch)
 
    2. Run `yarn changelog:validate` to ensure all changelogs are correctly formatted.
 
-3. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
+4. **Push and submit a pull request for the release branch so that it can be reviewed and tested.**
 
    Make sure the title of the pull request follows the pattern "Release \<new version\>".
 
    If changes are made to the base branch, the release branch will need to be updated with these changes and review/QA will need to restart again. As such, it's probably best to avoid merging other PRs into the base branch while review is underway.
 
-4. **"Squash & Merge" the release.**
+5. **"Squash & Merge" the release.**
 
    This step triggers the [`publish-release` GitHub action](https://github.com/MetaMask/action-publish-release) workflow to tag the final release commit and publish the release on GitHub.
 
    Pay attention to the box you see when you press the green button and ensure that the final name of the commit follows the pattern "Release \<new version\>".
 
-5. **Publish the release on NPM.**
+6. **Publish the release on NPM.**
 
    The `publish-release` GitHub Action workflow runs the `publish-npm` job, which publishes relevant packages to NPM. It requires approval from the [`npm-publishers`](https://github.com/orgs/MetaMask/teams/npm-publishers) team to complete. If you're not on the team, ask a member to approve it for you; otherwise, approve the job.
 
