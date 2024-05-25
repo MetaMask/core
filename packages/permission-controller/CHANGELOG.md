@@ -9,19 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.1.0]
 
-### Uncategorized
+### Added
 
-- feat(permission-controller): Add `requestPermissionsIncremental()` and caveat merger functions ([#4222](https://github.com/MetaMask/core/pull/4222))
-- Release 147.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
-- Release 146.0.0 ([#4232](https://github.com/MetaMask/core/pull/4232))
-- refactor(permission-controller): Clean up use of `any` ([#4171](https://github.com/MetaMask/core/pull/4171))
-- docs(permission-controller): Update ARCHITECTURE.md ([#4195](https://github.com/MetaMask/core/pull/4195))
-- docs: Remove various TypeScript@4.4 TODOs ([#4196](https://github.com/MetaMask/core/pull/4196))
-- feat(permission-controller): Allow passing additional metadata during requestPermissions ([#4179](https://github.com/MetaMask/core/pull/4179))
-- feat(permission-controller): Re-throw all well-formed errors ([#4172](https://github.com/MetaMask/core/pull/4172))
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
+- Add `requestPermissionsIncremental()` and caveat merger functions ([#4222](https://github.com/MetaMask/core/pull/4222))
+- Enable passing additional metadata during permission requests ([#4179](https://github.com/MetaMask/core/pull/4179))
+- Make permission request validation errors more informative ([#4172](https://github.com/MetaMask/core/pull/4172))
 
 ## [9.0.2]
 
