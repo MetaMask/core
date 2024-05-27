@@ -68,14 +68,6 @@ type SuggestedAssetMeta = {
   interactingAddress: string;
 };
 
-export type TokensControllerOptions = {
-  chainId: Hex;
-  selectedAddress: string;
-  provider: Provider | undefined;
-  state?: Partial<TokensControllerState>;
-  messenger: TokensControllerMessenger;
-};
-
 /**
  * @type TokensControllerState
  *
@@ -213,7 +205,13 @@ export class TokensController extends BaseController<
     provider,
     state,
     messenger,
-  }: TokensControllerOptions) {
+  }: {
+    chainId: Hex;
+    selectedAddress: string;
+    provider: Provider | undefined;
+    state?: Partial<TokensControllerState>;
+    messenger: TokensControllerMessenger;
+  }) {
     super({
       name: controllerName,
       metadata,
