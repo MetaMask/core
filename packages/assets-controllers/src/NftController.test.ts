@@ -203,33 +203,6 @@ function setupController({
     showApprovalRequest: jest.fn(),
   });
 
-  const mockGetNetworkClientById = jest
-    .fn()
-    .mockImplementation((networkClientId) => {
-      switch (networkClientId) {
-        case 'sepolia':
-          return {
-            configuration: {
-              chainId: SEPOLIA.chainId,
-            },
-          };
-        case 'goerli':
-          return {
-            configuration: {
-              chainId: GOERLI.chainId,
-            },
-          };
-        case 'customNetworkClientId-1':
-          return {
-            configuration: {
-              chainId: '0xa',
-            },
-          };
-        default:
-          throw new Error('Invalid network client id');
-      }
-    });
-
   const nftControllerMessenger = messenger.getRestricted<
     typeof controllerName,
     ApprovalActions['type'],
