@@ -19,11 +19,14 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkController,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type {
+  PreferencesControllerStateChangeEvent,
+  PreferencesState,
+} from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
@@ -215,9 +218,13 @@ const controllerName = 'NftController';
 /**
  * The external actions available to the {@link NftController}.
  */
-type AllowedActions =
+export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction;
+
+export type AllowEdEvents =
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent;
 
 export type NftControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -232,9 +239,9 @@ export type NFtControllerEvents = NftControllerStateChangeEvent;
 export type NftControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AllowedActions,
-  NFtControllerEvents,
+  NFtControllerEvents | AllowEdEvents,
   AllowedActions['type'],
-  never
+  AllowEdEvents['type']
 >;
 
 export const defaultNftControllerState: NftControllerState = {
@@ -272,8 +279,6 @@ export class NftController extends BaseController<
 
   readonly #getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
 
-  readonly #getNetworkClientById: NetworkController['getNetworkClientById'];
-
   readonly #onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
@@ -287,15 +292,12 @@ export class NftController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.getERC721AssetName - Gets the name of the asset at the given address.
    * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
    * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
    * @param options.getERC721OwnerOf - Get the owner of a ERC-721 NFT.
    * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 NFT.
    * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
-   * @param options.getNetworkClientById - Gets the network client for the given networkClientId.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
    * @param options.messenger - The controller messenger.
@@ -304,34 +306,24 @@ export class NftController extends BaseController<
    */
   constructor({
     chainId: initialChainId,
-    onPreferencesStateChange,
-    onNetworkStateChange,
     getERC721AssetName,
     getERC721AssetSymbol,
     getERC721TokenURI,
     getERC721OwnerOf,
     getERC1155BalanceOf,
     getERC1155TokenURI,
-    getNetworkClientById,
     onNftAdded,
     messenger,
     config = {},
     state = {},
   }: {
     chainId: Hex;
-    onPreferencesStateChange: (
-      listener: (preferencesState: PreferencesState) => void,
-    ) => void;
-    onNetworkStateChange: (
-      listener: (networkState: NetworkState) => void,
-    ) => void;
     getERC721AssetName: AssetsContractController['getERC721AssetName'];
     getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
     getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
     getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
     getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
     getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
-    getNetworkClientById: NetworkController['getNetworkClientById'];
     onNftAdded?: (data: {
       address: string;
       symbol: string | undefined;
@@ -368,53 +360,76 @@ export class NftController extends BaseController<
     this.#getERC721OwnerOf = getERC721OwnerOf;
     this.#getERC1155BalanceOf = getERC1155BalanceOf;
     this.#getERC1155TokenURI = getERC1155TokenURI;
-    this.#getNetworkClientById = getNetworkClientById;
     this.#onNftAdded = onNftAdded;
 
-    onPreferencesStateChange(
-      async ({
-        selectedAddress,
-        ipfsGateway,
-        openSeaEnabled,
-        isIpfsGatewayEnabled,
-      }) => {
-        this.#config = {
-          ...this.#config,
-          selectedAddress,
-          ipfsGateway,
-          openSeaEnabled,
-          isIpfsGatewayEnabled,
-        };
-
-        const needsUpdateNftMetadata =
-          (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
-
-        if (needsUpdateNftMetadata) {
-          const { chainId } = this.#config;
-          const nfts: Nft[] =
-            this.state.allNfts[selectedAddress]?.[chainId] ?? [];
-          // filter only nfts
-          const nftsToUpdate = nfts.filter(
-            (singleNft) =>
-              !singleNft.name && !singleNft.description && !singleNft.image,
-          );
-          if (nftsToUpdate.length !== 0) {
-            await this.updateNftMetadata({
-              nfts: nftsToUpdate,
-              userAddress: selectedAddress,
-            });
-          }
-        }
-      },
+    this.messagingSystem.subscribe(
+      'PreferencesController:stateChange',
+      this.#onPreferencesControllerStateChange.bind(this),
     );
 
-    onNetworkStateChange(({ selectedNetworkClientId }) => {
-      const selectedNetworkClient = getNetworkClientById(
-        selectedNetworkClientId,
+    this.messagingSystem.subscribe(
+      'NetworkController:networkDidChange',
+      this.#onNetworkControllerNetworkDidChange.bind(this),
+    );
+  }
+
+  /**
+   * Handles the network change on the network controller.
+   * @param networkState - The new state of the preference controller.
+   * @param networkState.selectedNetworkClientId - The current selected network client id.
+   */
+  #onNetworkControllerNetworkDidChange({
+    selectedNetworkClientId,
+  }: NetworkState) {
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    this.#config.chainId = chainId;
+  }
+
+  /**
+   * Handles the state change of the preference controller.
+   * @param preferencesState - The new state of the preference controller.
+   * @param preferencesState.selectedAddress - The current selected address.
+   * @param preferencesState.ipfsGateway - The configured IPFS gateway.
+   * @param preferencesState.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param preferencesState.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
+   */
+  async #onPreferencesControllerStateChange({
+    selectedAddress,
+    ipfsGateway,
+    openSeaEnabled,
+    isIpfsGatewayEnabled,
+  }: PreferencesState) {
+    this.#config = {
+      ...this.#config,
+      selectedAddress,
+      ipfsGateway,
+      openSeaEnabled,
+      isIpfsGatewayEnabled,
+    };
+
+    const needsUpdateNftMetadata =
+      (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
+
+    if (needsUpdateNftMetadata) {
+      const { chainId } = this.#config;
+      const nfts: Nft[] = this.state.allNfts[selectedAddress]?.[chainId] ?? [];
+      // filter only nfts
+      const nftsToUpdate = nfts.filter(
+        (singleNft) =>
+          !singleNft.name && !singleNft.description && !singleNft.image,
       );
-      const { chainId } = selectedNetworkClient.configuration;
-      this.#config.chainId = chainId;
-    });
+      if (nftsToUpdate.length !== 0) {
+        await this.updateNftMetadata({
+          nfts: nftsToUpdate,
+          userAddress: selectedAddress,
+        });
+      }
+    }
   }
 
   getNftApi() {
@@ -1168,7 +1183,13 @@ export class NftController extends BaseController<
     networkClientId?: NetworkClientId;
   }) {
     if (networkClientId) {
-      return this.#getNetworkClientById(networkClientId).configuration.chainId;
+      const {
+        configuration: { chainId },
+      } = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      );
+      return chainId;
     }
     return this.#config.chainId;
   }

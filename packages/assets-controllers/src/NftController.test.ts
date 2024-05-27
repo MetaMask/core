@@ -21,11 +21,13 @@ import {
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
+  type PreferencesControllerStateChangeEvent,
   type PreferencesState,
 } from '@metamask/preferences-controller';
 import BN from 'bn.js';
@@ -132,23 +134,12 @@ function setupController({
     NetworkClientConfiguration
   >;
 } = {}) {
-  const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
-  const changeNetwork = ({
-    selectedNetworkClientId,
-  }: {
-    selectedNetworkClientId: NetworkClientId;
-  }) => {
-    onNetworkDidChangeListeners.forEach((listener) => {
-      listener({
-        ...defaultNetworkState,
-        selectedNetworkClientId,
-      });
-    });
-  };
-
   const messenger = new ControllerMessenger<
     ExtractAvailableAction<NftControllerMessenger> | GetApprovalsState,
-    ExtractAvailableEvent<NftControllerMessenger> | ApprovalStateChange
+    | ExtractAvailableEvent<NftControllerMessenger>
+    | ApprovalStateChange
+    | PreferencesControllerStateChangeEvent
+    | NetworkControllerNetworkDidChangeEvent
   >();
 
   const getNetworkClientById = buildMockGetNetworkClientById(
@@ -176,34 +167,40 @@ function setupController({
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
     ],
-    allowedEvents: [],
+    allowedEvents: [
+      'NetworkController:networkDidChange',
+      'PreferencesController:stateChange',
+    ],
   });
 
-  const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
-    [];
   const nftController = new NftController({
     chainId: ChainId.mainnet,
-    onPreferencesStateChange: (listener) => {
-      preferencesStateChangeListeners.push(listener);
-    },
-    onNetworkStateChange: (listener) =>
-      onNetworkDidChangeListeners.push(listener),
     getERC721AssetName: jest.fn(),
     getERC721AssetSymbol: jest.fn(),
     getERC721TokenURI: jest.fn(),
     getERC721OwnerOf: jest.fn(),
     getERC1155BalanceOf: jest.fn(),
     getERC1155TokenURI: jest.fn(),
-    getNetworkClientById,
     onNftAdded: jest.fn(),
     messenger: nftControllerMessenger,
     ...options,
   });
+
   const triggerPreferencesStateChange = (state: PreferencesState) => {
-    for (const listener of preferencesStateChangeListeners) {
-      listener(state);
-    }
+    messenger.publish('PreferencesController:stateChange', state, []);
   };
+
+  const changeNetwork = ({
+    selectedNetworkClientId,
+  }: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => {
+    messenger.publish('NetworkController:networkDidChange', {
+      ...defaultNetworkState,
+      selectedNetworkClientId,
+    });
+  };
+
   triggerPreferencesStateChange({
     ...getDefaultPreferencesState(),
     openSeaEnabled: true,
@@ -212,9 +209,9 @@ function setupController({
 
   return {
     nftController,
-    changeNetwork,
     messenger,
     approvalController,
+    changeNetwork,
     triggerPreferencesStateChange,
   };
 }
