@@ -193,53 +193,6 @@ export type NftControllerState = {
   ignoredNfts: Nft[];
 };
 
-/**
- * Creates an NftController instance.
- *
- * @param options - The controller options.
- * @param options.chainId - The chain ID of the current network.
- * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
- * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
- * @param options.getERC721AssetName - Gets the name of the asset at the given address.
- * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
- * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
- * @param options.getERC721OwnerOf - Get the owner of a ERC-721 NFT.
- * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 NFT.
- * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
- * @param options.getNetworkClientById - Gets the network client for the given networkClientId.
- * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
- * for tracking the NFT added event.
- * @param options.messenger - The controller messenger.
- * @param options.config - Initial options used to configure this controller.
- * @param options.state - Initial state to set on this controller.
- */
-export type NftConftrollerOptions = {
-  chainId: Hex;
-  onPreferencesStateChange: (
-    listener: (preferencesState: PreferencesState) => void,
-  ) => void;
-  onNetworkStateChange: (
-    listener: (networkState: NetworkState) => void,
-  ) => void;
-  getERC721AssetName: AssetsContractController['getERC721AssetName'];
-  getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
-  getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
-  getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
-  getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
-  getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
-  getNetworkClientById: NetworkController['getNetworkClientById'];
-  onNftAdded?: (data: {
-    address: string;
-    symbol: string | undefined;
-    tokenId: string;
-    standard: string | null;
-    source: string;
-  }) => void;
-  messenger: NftControllerMessenger;
-  config?: Partial<NftConfig>;
-  state?: Partial<NftControllerState>;
-};
-
 const metadata = {
   allNftContracts: { persist: true, anonymous: false },
   allNfts: { persist: true, anonymous: false },
@@ -329,6 +282,26 @@ export class NftController extends BaseController<
     source: Source;
   }) => void;
 
+  /**
+   * Creates an NftController instance.
+   *
+   * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
+   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
+   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
+   * @param options.getERC721AssetName - Gets the name of the asset at the given address.
+   * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
+   * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
+   * @param options.getERC721OwnerOf - Get the owner of a ERC-721 NFT.
+   * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 NFT.
+   * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
+   * @param options.getNetworkClientById - Gets the network client for the given networkClientId.
+   * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
+   * for tracking the NFT added event.
+   * @param options.messenger - The controller messenger.
+   * @param options.config - Initial options used to configure this controller.
+   * @param options.state - Initial state to set on this controller.
+   */
   constructor({
     chainId: initialChainId,
     onPreferencesStateChange,
@@ -344,7 +317,32 @@ export class NftController extends BaseController<
     messenger,
     config = {},
     state = {},
-  }: NftConftrollerOptions) {
+  }: {
+    chainId: Hex;
+    onPreferencesStateChange: (
+      listener: (preferencesState: PreferencesState) => void,
+    ) => void;
+    onNetworkStateChange: (
+      listener: (networkState: NetworkState) => void,
+    ) => void;
+    getERC721AssetName: AssetsContractController['getERC721AssetName'];
+    getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
+    getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
+    getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
+    getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
+    getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
+    getNetworkClientById: NetworkController['getNetworkClientById'];
+    onNftAdded?: (data: {
+      address: string;
+      symbol: string | undefined;
+      tokenId: string;
+      standard: string | null;
+      source: string;
+    }) => void;
+    messenger: NftControllerMessenger;
+    config?: Partial<NftConfig>;
+    state?: Partial<NftControllerState>;
+  }) {
     super({
       name: controllerName,
       metadata,
@@ -372,7 +370,6 @@ export class NftController extends BaseController<
     this.#getERC1155TokenURI = getERC1155TokenURI;
     this.#getNetworkClientById = getNetworkClientById;
     this.#onNftAdded = onNftAdded;
-    this.messagingSystem = messenger;
 
     onPreferencesStateChange(
       async ({
