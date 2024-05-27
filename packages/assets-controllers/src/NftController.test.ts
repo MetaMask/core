@@ -1380,7 +1380,7 @@ describe('NftController', () => {
         nftController.state.allNfts[selectedAddress][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        image: 'Kudos Image (directly from tokenURI)',
+        image: 'url',
         name: 'Kudos Name (directly from tokenURI)',
         description: 'Kudos Description (directly from tokenURI)',
         tokenId: ERC721_KUDOS_TOKEN_ID,

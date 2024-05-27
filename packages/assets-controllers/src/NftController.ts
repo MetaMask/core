@@ -244,6 +244,9 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   ignoredNfts: [],
 });
 
+const RATE_LIMIT_NFT_UPDATE_DELAY = 600; // 10 mins
+export const RATE_LIMIT_NFT_INTERVAL = RATE_LIMIT_NFT_UPDATE_DELAY * 1000;
+
 /**
  * Controller that stores assets and exposes convenience methods
  */
@@ -290,6 +293,8 @@ export class NftController extends BaseController<
     standard: string | null;
     source: Source;
   }) => void;
+
+  #lastNftRefreshTime = 0;
 
   /**
    * Creates an NftController instance.
@@ -418,6 +423,10 @@ export class NftController extends BaseController<
     openSeaEnabled,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
+    if (selectedAddress !== this.#selectedAddress) {
+      this.#lastNftRefreshTime = 0;
+    }
+
     this.#selectedAddress = selectedAddress;
     this.#ipfsGateway = ipfsGateway;
     this.#openSeaEnabled = openSeaEnabled;
@@ -729,7 +738,7 @@ export class NftController extends BaseController<
       name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
       description:
         blockchainMetadata?.description ?? nftApiMetadata?.description ?? null,
-      image: blockchainMetadata?.image ?? nftApiMetadata?.image ?? null,
+      image: nftApiMetadata?.image ?? blockchainMetadata?.image ?? null,
       standard:
         blockchainMetadata?.standard ?? nftApiMetadata?.standard ?? null,
       tokenURI: blockchainMetadata?.tokenURI ?? null,
@@ -1450,56 +1459,70 @@ export class NftController extends BaseController<
     userAddress?: string;
     networkClientId?: NetworkClientId;
   }) {
-    const chainId = this.#getCorrectChainId({ networkClientId });
+    const releaseLock = await this.#mutex.acquire();
 
-    const nftsWithChecksumAdr = nfts.map((nft) => {
-      return {
-        ...nft,
-        address: toChecksumHexAddress(nft.address),
-      };
-    });
-    const nftMetadataResults = await Promise.all(
-      nftsWithChecksumAdr.map(async (nft) => {
-        const resMetadata = await this.#getNftInformation(
-          nft.address,
-          nft.tokenId,
-          networkClientId,
-        );
-        return {
-          nft,
-          newMetadata: resMetadata,
-        };
-      }),
-    );
+    try {
+      const time = Date.now();
+      const timeSinceLastNftUpdateRequest = time - this.#lastNftRefreshTime;
 
-    // We want to avoid updating the state if the state and fetched nft info are the same
-    const nftsWithDifferentMetadata: NftUpdate[] = [];
-    const { allNfts } = this.state;
-    const stateNfts = allNfts[userAddress]?.[chainId] || [];
-
-    nftMetadataResults.forEach((singleNft) => {
-      const existingEntry: Nft | undefined = stateNfts.find(
-        (nft) =>
-          nft.address.toLowerCase() === singleNft.nft.address.toLowerCase() &&
-          nft.tokenId === singleNft.nft.tokenId,
-      );
-
-      if (existingEntry) {
-        const differentMetadata = compareNftMetadata(
-          singleNft.newMetadata,
-          existingEntry,
-        );
-
-        if (differentMetadata) {
-          nftsWithDifferentMetadata.push(singleNft);
-        }
+      if (timeSinceLastNftUpdateRequest < RATE_LIMIT_NFT_INTERVAL) {
+        return;
       }
-    });
 
-    if (nftsWithDifferentMetadata.length !== 0) {
-      nftsWithDifferentMetadata.forEach((elm) =>
-        this.updateNft(elm.nft, elm.newMetadata, userAddress, chainId),
+      const chainId = this.#getCorrectChainId({ networkClientId });
+
+      const nftsWithChecksumAdr = nfts.map((nft) => {
+        return {
+          ...nft,
+          address: toChecksumHexAddress(nft.address),
+        };
+      });
+      const nftMetadataResults = await Promise.all(
+        nftsWithChecksumAdr.map(async (nft) => {
+          const resMetadata = await this.#getNftInformation(
+            nft.address,
+            nft.tokenId,
+            networkClientId,
+          );
+          return {
+            nft,
+            newMetadata: resMetadata,
+          };
+        }),
       );
+      this.#lastNftRefreshTime = Date.now();
+
+      // We want to avoid updating the state if the state and fetched nft info are the same
+      const nftsWithDifferentMetadata: NftUpdate[] = [];
+      const { allNfts } = this.state;
+      const stateNfts = allNfts[userAddress]?.[chainId] || [];
+
+      nftMetadataResults.forEach((singleNft) => {
+        const existingEntry: Nft | undefined = stateNfts.find(
+          (nft) =>
+            nft.address.toLowerCase() === singleNft.nft.address.toLowerCase() &&
+            nft.tokenId === singleNft.nft.tokenId,
+        );
+
+        if (existingEntry) {
+          const differentMetadata = compareNftMetadata(
+            singleNft.newMetadata,
+            existingEntry,
+          );
+
+          if (differentMetadata) {
+            nftsWithDifferentMetadata.push(singleNft);
+          }
+        }
+      });
+
+      if (nftsWithDifferentMetadata.length !== 0) {
+        nftsWithDifferentMetadata.forEach((elm) =>
+          this.updateNft(elm.nft, elm.newMetadata, userAddress, chainId),
+        );
+      }
+    } finally {
+      releaseLock();
     }
   }
 
