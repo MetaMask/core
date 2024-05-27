@@ -2141,7 +2141,7 @@ describe('AccountsController', () => {
           expect(accountName).toBe('Account 2');
         });
 
-        it('get the next account name with a gap', async () => {
+        it('gets the next account name with a gap', async () => {
           const messenger = buildMessenger();
 
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
