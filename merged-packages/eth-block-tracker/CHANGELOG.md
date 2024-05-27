@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.3]
+### Fixed
+- Update dependency `@metamask/eth-json-rpc-engine` from `^7.1.1` to `^8.0.2` ([#235](https://github.com/MetaMask/eth-block-tracker/pull/235))
+- Update dependency `@metamask/eth-json-rpc-provider` from `^2.3.1` to `^3.0.2` ([#235](https://github.com/MetaMask/eth-block-tracker/pull/235))
+
 ## [9.0.2]
 ### Fixed
 - Put back missing empty `params` to `eth_blockNumber` call removed in 9.0.1 ([#198](https://github.com/MetaMask/eth-block-tracker/pull/198))
@@ -159,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v9.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v9.0.3...HEAD
+[9.0.3]: https://github.com/MetaMask/eth-block-tracker/compare/v9.0.2...v9.0.3
 [9.0.2]: https://github.com/MetaMask/eth-block-tracker/compare/v9.0.1...v9.0.2
 [9.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v9.0.0...v9.0.1
 [9.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v8.1.0...v9.0.0
