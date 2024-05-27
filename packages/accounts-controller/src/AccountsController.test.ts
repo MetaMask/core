@@ -2118,7 +2118,7 @@ describe('AccountsController', () => {
       });
 
       describe('getNextAvailableAccountName', () => {
-        it('get the next account name', async () => {
+        it('gets the next account name', async () => {
           const messenger = buildMessenger();
 
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
