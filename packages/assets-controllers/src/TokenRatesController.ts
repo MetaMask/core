@@ -543,7 +543,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       const contractNativeInformationsNative =
         await this.#tokenPricesService.fetchTokenPrices({
           tokenAddresses: [],
-          chainId: this.config.chainId,
+          chainId,
           currency: nativeCurrency,
         });
 
