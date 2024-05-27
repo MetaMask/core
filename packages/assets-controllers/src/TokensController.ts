@@ -68,15 +68,6 @@ type SuggestedAssetMeta = {
   interactingAddress: string;
 };
 
-/**
- * Tokens controller options
- * @property chainId - The chain ID of the current network.
- * @property selectedAddress - Vault selected address
- * @property provider - Network provider.
- * @property state - Initial state to set on this controller.
- * @property messenger - The controller messenger.
- */
-
 export type TokensControllerOptions = {
   chainId: Hex;
   selectedAddress: string;
@@ -207,6 +198,15 @@ export class TokensController extends BaseController<
 
   #abortController: AbortController;
 
+  /**
+   * Tokens controller options
+   * @param options - Constructor options.
+   * @param options.chainId - The chain ID of the current network.
+   * @param options.selectedAddress - Vault selected address
+   * @param options.provider - Network provider.
+   * @param options.state - Initial state to set on this controller.
+   * @param options.messenger - The controller messenger.
+   */
   constructor({
     chainId: initialChainId,
     selectedAddress,
