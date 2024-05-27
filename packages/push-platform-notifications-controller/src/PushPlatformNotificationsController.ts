@@ -145,7 +145,7 @@ export class PushPlatformNotificationsController extends BaseController<
   public async enablePushNotifications(UUIDs: string[]) {
     // TEMP: disabling push notifications if browser does not support MV3.
     // Will need work to support firefox on MV2
-    if (!process.env.ENABLE_MV3) {
+    if (!ENABLE_MV3) {
       return;
     }
 
@@ -189,7 +189,7 @@ export class PushPlatformNotificationsController extends BaseController<
   public async disablePushNotifications(UUIDs: string[]) {
     // TEMP: disabling push notifications if browser does not support MV3.
     // Will need work to support firefox on MV2
-    if (!process.env.ENABLE_MV3) {
+    if (!ENABLE_MV3) {
       return;
     }
 
@@ -235,7 +235,7 @@ export class PushPlatformNotificationsController extends BaseController<
   public async updateTriggerPushNotifications(UUIDs: string[]) {
     // TEMP: disabling push notifications if browser does not support MV3.
     // Will need work to support firefox on MV2
-    if (!process.env.ENABLE_MV3) {
+    if (!ENABLE_MV3) {
       return;
     }
 

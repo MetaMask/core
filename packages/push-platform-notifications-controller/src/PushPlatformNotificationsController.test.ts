@@ -1,6 +1,7 @@
 import type { AuthenticationControllerGetBearerToken } from '@metamask/authentication-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 
+import { ENABLE_MV3 } from './constants';
 import { PushPlatformNotificationsController } from './PushPlatformNotificationsController';
 import type {
   PushPlatformNotificationsControllerMessenger,
@@ -13,13 +14,13 @@ const MOCK_FCM_TOKEN = 'mockFcmToken';
 const MOCK_TRIGGERS = ['uuid1', 'uuid2'];
 
 describe('PushPlatformNotificationsController', () => {
-  if (!process.env.ENABLE_MV3) {
+  if (!ENABLE_MV3) {
     it('no MV2 tests, this functionality is not enabled', () => {
       expect(true).toBe(true);
     });
   }
 
-  if (process.env.ENABLE_MV3) {
+  if (ENABLE_MV3) {
     describe('enablePushNotifications', () => {
       afterEach(() => {
         jest.clearAllMocks();

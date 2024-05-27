@@ -1,14 +1,14 @@
-# `@metamask/authentication-controllers`
+# `@metamask/authentication-controller`
 
 Manages authentication requests for MetaMask decentralized authentication systems.
 
 ## Installation
 
-`yarn add @metamask/authentication-controllers`
+`yarn add @metamask/authentication-controller`
 
 or
 
-`npm install @metamask/authentication-controllers`
+`npm install @metamask/authentication-controller`
 
 ## Contributing
 

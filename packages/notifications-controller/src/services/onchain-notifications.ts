@@ -1,5 +1,9 @@
 import { createSHA256Hash } from '@metamask/user-storage-controller';
 import log from 'loglevel';
+import {
+  NOTIFICATIONS_SERVICE_URL,
+  TRIGGERS_SERVICE_URL,
+} from 'src/constants/constants';
 
 import type { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
@@ -18,8 +22,8 @@ export type NotificationTrigger = {
   address: string;
 };
 
-export const TRIGGER_API = process.env.TRIGGERS_SERVICE_URL;
-export const NOTIFICATION_API = process.env.NOTIFICATIONS_SERVICE_URL;
+export const TRIGGER_API = TRIGGERS_SERVICE_URL;
+export const NOTIFICATION_API = NOTIFICATIONS_SERVICE_URL;
 export const TRIGGER_API_BATCH_ENDPOINT = `${TRIGGER_API}/api/v1/triggers/batch`;
 export const NOTIFICATION_API_LIST_ENDPOINT = `${NOTIFICATION_API}/api/v1/notifications`;
 export const NOTIFICATION_API_LIST_ENDPOINT_PAGE_QUERY = (page: number) =>

@@ -1,11 +1,10 @@
-const AUTH_ENDPOINT = process.env.AUTH_API || '';
-export const AUTH_NONCE_ENDPOINT = `${AUTH_ENDPOINT}/api/v2/nonce`;
-export const AUTH_LOGIN_ENDPOINT = `${AUTH_ENDPOINT}/api/v2/srp/login`;
-
-const OIDC_ENDPOINT = process.env.OIDC_API || '';
-export const OIDC_TOKENS_ENDPOINT = `${OIDC_ENDPOINT}/oauth2/token`;
-const OIDC_CLIENT_ID = process.env.OIDC_CLIENT_ID || '';
-const OIDC_GRANT_TYPE = process.env.OIDC_GRANT_TYPE || '';
+import {
+  AUTH_LOGIN_ENDPOINT,
+  AUTH_NONCE_ENDPOINT,
+  OIDC_CLIENT_ID,
+  OIDC_GRANT_TYPE,
+  OIDC_TOKENS_ENDPOINT,
+} from './constants';
 
 export type NonceResponse = {
   nonce: string;

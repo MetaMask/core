@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
+- Initial release ([#4320](https://github.com/MetaMask/core/pull/4320))
 
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/authentication-controller@1.0.0

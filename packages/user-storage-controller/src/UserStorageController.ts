@@ -23,6 +23,11 @@ import { getUserStorage, upsertUserStorage } from './services';
 
 const controllerName = 'UserStorageController';
 
+type SessionProfile = {
+  identifierId: string;
+  profileId: string;
+};
+
 // State
 export type UserStorageControllerState = {
   /**
@@ -119,9 +124,9 @@ export class UserStorageController extends BaseController<
       );
     },
     getProfileId: async () => {
-      const sessionProfile = await this.messagingSystem.call(
+      const sessionProfile = (await this.messagingSystem.call(
         'AuthenticationController:getSessionProfile',
-      );
+      )) as SessionProfile;
       return sessionProfile?.profileId;
     },
     isAuthEnabled: () => {

@@ -1,21 +1,18 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset } from 'contentful';
 import log from 'loglevel';
+import { FEATURE_ANNOUNCEMENT_URL } from 'src/constants/constants';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
-import type {
-  FeatureAnnouncementRawNotification,
-  TypeFeatureAnnouncement,
-} from '../types/feature-announcement/feature-announcement';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type { TypeActionFields } from '../types/feature-announcement/type-action';
-import type { ImageFields } from '../types/feature-announcement/type-feature-announcement';
+import type {
+  TypeFeatureAnnouncement,
+  ImageFields,
+} from '../types/feature-announcement/type-feature-announcement';
 import type { TypeLinkFields } from '../types/feature-announcement/type-link';
 import type { Notification as INotification } from '../types/notification/notification';
-
-const spaceId = process.env.CONTENTFUL_ACCESS_SPACE_ID || '';
-const accessToken = process.env.CONTENTFUL_ACCESS_TOKEN || '';
-export const FEATURE_ANNOUNCEMENT_URL = `https://cdn.contentful.com/spaces/${spaceId}/environments/master/entries?access_token=${accessToken}&content_type=productAnnouncement&include=10&fields.clients=extension`;
 
 export type ContentfulResult = {
   includes?: {

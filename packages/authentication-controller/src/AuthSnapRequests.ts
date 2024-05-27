@@ -2,6 +2,8 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 
+import { GET_PUBLIC_KEY, SIGN_MESSAGE } from './constants';
+
 type SnapRPCRequest = Parameters<HandleSnapRequest['handler']>[0];
 
 const snapId = 'npm:@metamask/message-signing-snap' as SnapId;
@@ -17,7 +19,7 @@ export function createSnapPublicKeyRequest(): SnapRPCRequest {
     origin: '',
     handler: HandlerType.OnRpcRequest,
     request: {
-      method: 'getPublicKey',
+      method: GET_PUBLIC_KEY,
     },
   };
 }
@@ -36,7 +38,7 @@ export function createSnapSignMessageRequest(
     origin: '',
     handler: HandlerType.OnRpcRequest,
     request: {
-      method: 'signMessage',
+      method: SIGN_MESSAGE,
       params: { message },
     },
   };

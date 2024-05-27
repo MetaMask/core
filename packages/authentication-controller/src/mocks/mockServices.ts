@@ -1,14 +1,14 @@
 import nock from 'nock';
 
-import type {
-  LoginResponse,
-  NonceResponse,
-  OAuthTokenResponse,
-} from '../services';
 import {
   AUTH_LOGIN_ENDPOINT,
   AUTH_NONCE_ENDPOINT,
   OIDC_TOKENS_ENDPOINT,
+} from '../constants';
+import type {
+  LoginResponse,
+  NonceResponse,
+  OAuthTokenResponse,
 } from '../services';
 
 type MockReply = {

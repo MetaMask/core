@@ -1,11 +1,9 @@
 import log from 'loglevel';
 
+import { USER_STORAGE_ENDPOINT } from './constants';
 import encryption from './encryption';
 import type { UserStorageEntryKeys } from './schema';
 import { createEntryPath } from './schema';
-
-export const USER_STORAGE_API = process.env.USER_STORAGE_API || '';
-export const USER_STORAGE_ENDPOINT = `${USER_STORAGE_API}/api/v1/userstorage`;
 
 export type GetUserStorageResponse = {
   HashedKey: string;

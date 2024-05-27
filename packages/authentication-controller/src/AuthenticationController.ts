@@ -22,7 +22,6 @@ const THIRTY_MIN_MS = 1000 * 60 * 30;
 
 const controllerName = 'AuthenticationController';
 
-// State
 type SessionProfile = {
   identifierId: string;
   profileId: string;
