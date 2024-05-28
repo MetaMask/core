@@ -1951,6 +1951,7 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'getAccount');
+      jest.spyOn(AccountsController.prototype, 'getNextAvailableAccountName');
     });
 
     describe('setSelectedAccount', () => {
@@ -2114,6 +2115,63 @@ describe('AccountsController', () => {
           mockAccount.id,
         );
         expect(account).toStrictEqual(mockAccount);
+      });
+
+      describe('getNextAvailableAccountName', () => {
+        it('gets the next account name', async () => {
+          const messenger = buildMessenger();
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: {
+                  [mockAccount.id]: mockAccount,
+                  // Next name should be: "Account 2"
+                },
+                selectedAccount: mockAccount.id,
+              },
+            },
+            messenger,
+          });
+
+          const accountName = messenger.call(
+            'AccountsController:getNextAvailableAccountName',
+          );
+          expect(accountName).toBe('Account 2');
+        });
+
+        it('gets the next account name with a gap', async () => {
+          const messenger = buildMessenger();
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: {
+                  [mockAccount.id]: mockAccount,
+                  // We have a gap, cause there is no "Account 2"
+                  [mockAccount3.id]: {
+                    ...mockAccount3,
+                    metadata: {
+                      ...mockAccount3.metadata,
+                      name: 'Account 3',
+                      keyring: { type: KeyringTypes.hd },
+                    },
+                  },
+                  // Next name should be: "Account 4"
+                },
+                selectedAccount: mockAccount.id,
+              },
+            },
+            messenger,
+          });
+
+          const accountName = messenger.call(
+            'AccountsController:getNextAvailableAccountName',
+          );
+          expect(accountName).toBe('Account 4');
+        });
       });
     });
   });
