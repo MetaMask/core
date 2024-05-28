@@ -443,13 +443,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
   /**
    * Starts a new polling interval.
    *
-   * @param interval - An interval on which to poll.
    */
-  async #startPolling(interval?: number): Promise<void> {
-    if (interval) {
-      this.#interval = interval;
-    }
-
+  async #startPolling(): Promise<void> {
     this.#stopPolling();
     await this.detectNfts();
     this.#intervalId = setInterval(async () => {
@@ -583,7 +578,7 @@ export class NftDetectionController extends StaticIntervalPollingController<
       let ignored;
       /* istanbul ignore else */
       const { ignoredNfts } = this.#getNftState();
-      if (ignoredNfts.length) {
+      if (ignoredNfts.length > 0) {
         ignored = ignoredNfts.find((c) => {
           /* istanbul ignore next */
           return (

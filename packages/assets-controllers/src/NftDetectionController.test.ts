@@ -812,10 +812,13 @@ describe('NftDetectionController', () => {
         ],
       };
     });
+    const selectedAddress = '0x9';
     await withController(
-      { options: { addNft: mockAddNft, getNftState: mockGetNftState } },
+      {
+        options: { addNft: mockAddNft, getNftState: mockGetNftState },
+        mockPreferencesState: { selectedAddress },
+      },
       async ({ controller, controllerEvents }) => {
-        const selectedAddress = '0x9';
         controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           selectedAddress,
@@ -910,10 +913,13 @@ describe('NftDetectionController', () => {
 
   it('should not detect and add NFTs if preferences controller useNftDetection is set to false', async () => {
     const mockAddNft = jest.fn();
+    const selectedAddress = '0x9';
     await withController(
-      { options: { addNft: mockAddNft } },
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: { selectedAddress },
+      },
       async ({ controller, controllerEvents }) => {
-        const selectedAddress = '0x9';
         controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           selectedAddress,
