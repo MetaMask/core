@@ -9,10 +9,14 @@ import type {
   NetworkClientId,
   NetworkState,
   NetworkClient,
-  NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type {
+  PreferencesControllerStateChangeEvent,
+  PreferencesState,
+} from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 
 import { Source } from './constants';
@@ -26,42 +30,19 @@ const DEFAULT_INTERVAL = 180000;
 
 const controllerName = 'NftDetectionController';
 
+export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
+export type AllowedEvents =
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerStateChangeEvent;
+
 export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  never,
-  never,
-  never,
-  never
+  AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
 >;
-
-/**
- * The controller options
- *
- * @param interval - The pooling interval.
- * @param state - The controller state.
- * @param messenger - A reference to the messaging system.
- * @param disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
- * @param getNetworkClientById - Gets the network client by ID, from the NetworkController.
- * @param onPreferencesStateChange - Allows subscribing to preferences controller state changes.
- * @param onNetworkStateChange - Allows subscribing to network controller state changes.
- * @param addNft - Add an NFT.
- * @param getNftState - Gets the current state of the Assets controller.
- */
-export type NftDetectionControllerOptions = {
-  interval?: number;
-  state: NftDetectionControllerState;
-  messenger: NftDetectionControllerMessenger;
-  disabled: boolean;
-  getNetworkClientById: NetworkController['getNetworkClientById'];
-  onPreferencesStateChange: (
-    listener: (preferencesState: PreferencesState) => void,
-  ) => void;
-  onNetworkStateChange: (
-    listener: (networkState: NetworkState) => void,
-  ) => void;
-  addNft: NftController['addNft'];
-  getNftState: () => NftState;
-};
 
 /**
  * The nft detection controller state
@@ -391,17 +372,32 @@ export class NftDetectionController extends StaticIntervalPollingController<
 
   readonly #getNftState: () => NftState;
 
+  /**
+   * The controller options
+   *
+   * @param options - The controller options.
+   * @param options.interval - The pooling interval.
+   * @param options.state - The controller state.
+   * @param options.messenger - A reference to the messaging system.
+   * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
+   * @param options.addNft - Add an NFT.
+   * @param options.getNftState - Gets the current state of the Assets controller.
+   */
   constructor({
     interval = DEFAULT_INTERVAL,
     state,
     messenger,
     disabled = false,
-    getNetworkClientById,
-    onPreferencesStateChange,
-    onNetworkStateChange,
     addNft,
     getNftState,
-  }: NftDetectionControllerOptions) {
+  }: {
+    interval?: number;
+    state: NftDetectionControllerState;
+    messenger: NftDetectionControllerMessenger;
+    disabled: boolean;
+    addNft: NftController['addNft'];
+    getNftState: () => NftState;
+  }) {
     super({
       name: controllerName,
       messenger,
@@ -412,20 +408,18 @@ export class NftDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
 
     this.#getNftState = getNftState;
-
-    onPreferencesStateChange(this.#onPreferencesStateChange.bind(this));
-
-    onNetworkStateChange(({ selectedNetworkClientId }) => {
-      const selectedNetworkClient = getNetworkClientById(
-        selectedNetworkClientId,
-      );
-      const { chainId } = selectedNetworkClient.configuration;
-      this.update((currentState) => {
-        currentState.chainId = chainId;
-      });
-    });
-
     this.#addNft = addNft;
+
+    this.messagingSystem.subscribe(
+      'PreferencesController:stateChange',
+      this.#onPreferencesControllerStateChange.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      this.#onNetworkControllerStateChange.bind(this),
+    );
+
     this.setIntervalLength(this.#interval);
   }
 
@@ -489,12 +483,29 @@ export class NftDetectionController extends StaticIntervalPollingController<
   };
 
   /**
+   * Handles the network change on the network controller.
+   * @param networkState - The new state of the preference controller.
+   * @param networkState.selectedNetworkClientId - The current selected network client id.
+   */
+  #onNetworkControllerStateChange({ selectedNetworkClientId }: NetworkState) {
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    this.update((currentState) => {
+      currentState.chainId = chainId;
+    });
+  }
+
+  /**
    * Handles the state change of the preference controller.
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.selectedAddress - The current selected address of the preference controller.
    * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
    */
-  #onPreferencesStateChange({
+  #onPreferencesControllerStateChange({
     selectedAddress,
     useNftDetection,
   }: PreferencesState) {
