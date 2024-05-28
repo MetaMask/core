@@ -170,7 +170,7 @@ export type NftConfig = {
   chainId: Hex;
   ipfsGateway: string;
   openSeaEnabled: boolean;
-  useIPFSSubdomains: boolean;
+  useIpfsSubdomains: boolean;
   isIpfsGatewayEnabled: boolean;
 };
 
@@ -222,7 +222,7 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction;
 
-export type AllowEdEvents =
+export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent;
 
@@ -231,7 +231,7 @@ export type NftControllerStateChangeEvent = ControllerStateChangeEvent<
   NftControllerState
 >;
 
-export type NFtControllerEvents = NftControllerStateChangeEvent;
+export type NftControllerEvents = NftControllerStateChangeEvent;
 
 /**
  * The messenger of the {@link NftController}.
@@ -239,9 +239,9 @@ export type NFtControllerEvents = NftControllerStateChangeEvent;
 export type NftControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   AllowedActions,
-  NFtControllerEvents | AllowEdEvents,
+  NftControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  AllowEdEvents['type']
+  AllowedEvents['type']
 >;
 
 export const defaultNftControllerState: NftControllerState = {
@@ -349,7 +349,7 @@ export class NftController extends BaseController<
       chainId: initialChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
       openSeaEnabled: false,
-      useIPFSSubdomains: true,
+      useIpfsSubdomains: true,
       isIpfsGatewayEnabled: true,
       ...config,
     };
@@ -570,7 +570,7 @@ export class NftController extends BaseController<
     tokenId: string,
     networkClientId?: NetworkClientId,
   ): Promise<NftMetadata> {
-    const { ipfsGateway, useIPFSSubdomains, isIpfsGatewayEnabled } =
+    const { ipfsGateway, useIpfsSubdomains, isIpfsGatewayEnabled } =
       this.#config;
     const result = await this.getNftURIAndStandard(
       contractAddress,
@@ -606,7 +606,7 @@ export class NftController extends BaseController<
     }
 
     if (hasIpfsTokenURI) {
-      tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIPFSSubdomains);
+      tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIpfsSubdomains);
     }
 
     try {
@@ -844,7 +844,7 @@ export class NftController extends BaseController<
       const checksumHexAddress = toChecksumHexAddress(tokenAddress);
       const { allNfts } = this.state;
 
-      const nfts = [...(allNfts[userAddress]?.[chainId] || [])];
+      const nfts = [...(allNfts[userAddress]?.[chainId] ?? [])];
 
       const existingEntry = nfts.find(
         (nft) =>
