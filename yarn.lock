@@ -1856,30 +1856,6 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/authentication-controller@^1.0.0, @metamask/authentication-controller@workspace:packages/authentication-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/authentication-controller@workspace:packages/authentication-controller"
-  dependencies:
-    "@metamask/auto-changelog": ^3.4.4
-    "@metamask/base-controller": ^5.0.2
-    "@metamask/keyring-api": ^6.1.1
-    "@metamask/snaps-controllers": ^8.1.1
-    "@metamask/snaps-sdk": ^4.2.0
-    "@metamask/snaps-utils": ^7.4.0
-    "@metamask/user-storage-controller": ^1.0.0
-    "@types/jest": ^27.4.1
-    "@types/readable-stream": ^2.3.0
-    deepmerge: ^4.2.2
-    immer: ^9.0.6
-    jest: ^27.5.1
-    nock: ^13.3.1
-    ts-jest: ^27.1.4
-    typedoc: ^0.24.8
-    typedoc-plugin-missing-exports: ^2.0.0
-    typescript: ~4.9.5
-  languageName: unknown
-  linkType: soft
-
 "@metamask/auto-changelog@npm:^3.4.4":
   version: 3.4.4
   resolution: "@metamask/auto-changelog@npm:3.4.4"
@@ -2683,13 +2659,12 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/notifications-controller@workspace:packages/notifications-controller"
   dependencies:
-    "@metamask/authentication-controller": ^1.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
     "@metamask/keyring-controller": ^16.0.0
+    "@metamask/profile-sync-controller": ^1.0.0
     "@metamask/push-platform-notifications-controller": ^1.0.0
-    "@metamask/user-storage-controller": ^1.0.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     contentful: ^10.11.3
@@ -2861,18 +2836,27 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@^1.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
+    "@lavamoat/allow-scripts": ^3.0.2
     "@metamask/auto-changelog": ^3.4.4
+    "@metamask/base-controller": ^5.0.2
+    "@metamask/keyring-api": ^6.1.1
+    "@metamask/notifications-controller": ^1.0.0
+    "@metamask/snaps-controllers": ^8.1.1
+    "@metamask/snaps-sdk": ^4.2.0
+    "@metamask/snaps-utils": ^7.4.0
     "@noble/ciphers": ^0.5.2
     "@noble/hashes": ^1.4.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     ethers: ^6.12.0
+    immer: ^9.0.6
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
+    loglevel: ^1.8.1
     nock: ^13.3.1
     siwe: ^2.3.2
     ts-jest: ^27.1.4
@@ -2909,10 +2893,10 @@ __metadata:
     "@firebase/app": ^0.10.4
     "@firebase/messaging": ^0.12.9
     "@lavamoat/allow-scripts": ^3.0.2
-    "@metamask/authentication-controller": ^1.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/notifications-controller": ^1.0.0
+    "@metamask/profile-sync-controller": ^1.0.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     bignumber.js: ^4.1.0
@@ -3263,30 +3247,6 @@ __metadata:
     "@metamask/keyring-controller": ^16.0.0
     "@metamask/network-controller": ^18.0.0
     "@metamask/transaction-controller": ^29.0.0
-  languageName: unknown
-  linkType: soft
-
-"@metamask/user-storage-controller@^1.0.0, @metamask/user-storage-controller@workspace:packages/user-storage-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/user-storage-controller@workspace:packages/user-storage-controller"
-  dependencies:
-    "@metamask/authentication-controller": ^1.0.0
-    "@metamask/auto-changelog": ^3.4.4
-    "@metamask/base-controller": ^5.0.2
-    "@metamask/notifications-controller": ^1.0.0
-    "@metamask/snaps-controllers": ^8.1.1
-    "@noble/ciphers": ^0.5.2
-    "@noble/hashes": ^1.4.0
-    "@types/jest": ^27.4.1
-    "@types/readable-stream": ^2.3.0
-    deepmerge: ^4.2.2
-    jest: ^27.5.1
-    loglevel: ^1.8.1
-    nock: ^13.3.1
-    ts-jest: ^27.1.4
-    typedoc: ^0.24.8
-    typedoc-plugin-missing-exports: ^2.0.0
-    typescript: ~4.9.5
   languageName: unknown
   linkType: soft
 
