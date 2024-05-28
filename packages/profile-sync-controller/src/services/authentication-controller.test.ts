@@ -5,13 +5,13 @@ import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
-} from './mocks/mockServices';
+} from '../mocks/mockAuthenticationServices';
 import {
   createLoginRawMessage,
   getAccessToken,
   getNonce,
   login,
-} from './services';
+} from './authentication-controller';
 
 const MOCK_METAMETRICS_ID = '0x123';
 

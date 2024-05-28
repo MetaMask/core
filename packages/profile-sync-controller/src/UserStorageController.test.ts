@@ -1,9 +1,3 @@
-import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-} from '@metamask/authentication-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
   MetamaskNotificationsControllerDisableMetamaskNotifications,
@@ -11,15 +5,19 @@ import type {
 } from '@metamask/notifications-controller';
 import type nock from 'nock';
 
+import type {
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerGetSessionProfile,
+  AuthenticationControllerIsSignedIn,
+  AuthenticationControllerPerformSignIn,
+} from './AuthenticationController';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
-} from './mocks/mockServices';
-import {
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
-} from './mocks/mockStorage';
+} from './mocks';
 import type { AllowedActions } from './UserStorageController';
 import { UserStorageController } from './UserStorageController';
 

@@ -1,8 +1,3 @@
-import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerIsSignedIn,
-} from '@metamask/authentication-controller';
-import { MOCK_ACCESS_TOKEN } from '@metamask/authentication-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import type {
@@ -10,6 +5,11 @@ import type {
   KeyringControllerState,
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
+import { MOCK_ACCESS_TOKEN } from '@metamask/profile-sync-controller';
+import type {
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerIsSignedIn,
+} from '@metamask/profile-sync-controller';
 import type {
   PushPlatformNotificationsControllerEnablePushNotifications,
   PushPlatformNotificationsControllerDisablePushNotifications,
@@ -20,7 +20,7 @@ import type {
   UserStorageControllerPerformGetStorage,
   UserStorageControllerPerformSetStorage,
   UserStorageControllerEnableProfileSyncing,
-} from '@metamask/user-storage-controller';
+} from '@metamask/profile-sync-controller';
 
 import type {
   AllowedActions,

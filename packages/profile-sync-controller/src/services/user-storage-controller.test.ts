@@ -1,14 +1,12 @@
 import {
-  mockEndpointGetUserStorage,
-  mockEndpointUpsertUserStorage,
-} from './mocks/mockServices';
-import {
   MOCK_ENCRYPTED_STORAGE_DATA,
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
-} from './mocks/mockStorage';
-import type { GetUserStorageResponse } from './services';
-import { getUserStorage, upsertUserStorage } from './services';
+  mockEndpointGetUserStorage,
+  mockEndpointUpsertUserStorage,
+} from '../mocks';
+import type { GetUserStorageResponse } from './user-storage-controller';
+import { getUserStorage, upsertUserStorage } from './user-storage-controller';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
   it('returns user storage data', async () => {

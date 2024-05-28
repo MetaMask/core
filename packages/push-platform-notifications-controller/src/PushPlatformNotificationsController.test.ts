@@ -1,5 +1,5 @@
-import type { AuthenticationControllerGetBearerToken } from '@metamask/authentication-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller';
 
 import { ENABLE_MV3 } from './constants';
 import { PushPlatformNotificationsController } from './PushPlatformNotificationsController';

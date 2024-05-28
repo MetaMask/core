@@ -11,7 +11,7 @@ import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
-} from './mocks/mockServices';
+} from './mocks/mockAuthenticationServices';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,

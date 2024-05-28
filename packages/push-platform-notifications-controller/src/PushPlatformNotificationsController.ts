@@ -1,4 +1,4 @@
-import type { AuthenticationControllerGetBearerToken } from '@metamask/authentication-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller';
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,

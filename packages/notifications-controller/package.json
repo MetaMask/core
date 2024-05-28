@@ -41,12 +41,11 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/authentication-controller": "^1.0.0",
     "@metamask/base-controller": "^5.0.2",
     "@metamask/controller-utils": "^9.1.0",
     "@metamask/keyring-controller": "^16.0.0",
+    "@metamask/profile-sync-controller": "^1.0.0",
     "@metamask/push-platform-notifications-controller": "^1.0.0",
-    "@metamask/user-storage-controller": "^1.0.0",
     "contentful": "^10.11.3",
     "deepmerge": "^4.2.2",
     "loglevel": "^1.8.1",

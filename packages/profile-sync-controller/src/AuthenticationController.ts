@@ -5,7 +5,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
-import type { UserStorageControllerDisableProfileSyncing } from '@metamask/user-storage-controller';
 
 import {
   createSnapPublicKeyRequest,
@@ -16,7 +15,8 @@ import {
   getAccessToken,
   getNonce,
   login,
-} from './services';
+} from './services/authentication-controller';
+import type { UserStorageControllerDisableProfileSyncing } from './UserStorageController';
 
 const THIRTY_MIN_MS = 1000 * 60 * 30;
 

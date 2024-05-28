@@ -9,7 +9,7 @@ import type {
   LoginResponse,
   NonceResponse,
   OAuthTokenResponse,
-} from '../services';
+} from '../services/authentication-controller';
 
 type MockReply = {
   status: nock.StatusCode;

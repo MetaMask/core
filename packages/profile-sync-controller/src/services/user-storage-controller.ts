@@ -1,9 +1,9 @@
 import log from 'loglevel';
 
-import { USER_STORAGE_ENDPOINT } from './constants';
-import encryption from './encryption';
-import type { UserStorageEntryKeys } from './schema';
-import { createEntryPath } from './schema';
+import { USER_STORAGE_ENDPOINT } from '../constants';
+import encryption from '../encryption';
+import type { UserStorageEntryKeys } from '../schema';
+import { createEntryPath } from '../schema';
 
 export type GetUserStorageResponse = {
   HashedKey: string;

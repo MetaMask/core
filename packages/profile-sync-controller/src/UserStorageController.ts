@@ -1,11 +1,3 @@
-import { createSnapSignMessageRequest } from '@metamask/authentication-controller';
-import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-  AuthenticationControllerPerformSignOut,
-} from '@metamask/authentication-controller';
 import type {
   RestrictedControllerMessenger,
   StateMetadata,
@@ -17,9 +9,20 @@ import type {
 } from '@metamask/notifications-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
+import type {
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerGetSessionProfile,
+  AuthenticationControllerIsSignedIn,
+  AuthenticationControllerPerformSignIn,
+  AuthenticationControllerPerformSignOut,
+} from '.';
+import { createSnapSignMessageRequest } from './AuthSnapRequests';
 import { createSHA256Hash } from './encryption';
 import type { UserStorageEntryKeys } from './schema';
-import { getUserStorage, upsertUserStorage } from './services';
+import {
+  getUserStorage,
+  upsertUserStorage,
+} from './services/user-storage-controller';
 
 const controllerName = 'UserStorageController';
 

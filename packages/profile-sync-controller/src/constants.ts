@@ -9,3 +9,6 @@ export const OIDC_GRANT_TYPE = '';
 
 export const GET_PUBLIC_KEY = 'getPublicKey';
 export const SIGN_MESSAGE = 'signMessage';
+
+export const USER_STORAGE_API = '';
+export const USER_STORAGE_ENDPOINT = `${USER_STORAGE_API}/api/v1/userstorage`;

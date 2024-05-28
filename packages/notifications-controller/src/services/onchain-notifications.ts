@@ -1,4 +1,4 @@
-import { createSHA256Hash } from '@metamask/user-storage-controller';
+import { createSHA256Hash } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 import {
   NOTIFICATIONS_SERVICE_URL,

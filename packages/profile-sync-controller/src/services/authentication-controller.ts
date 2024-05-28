@@ -4,7 +4,7 @@ import {
   OIDC_CLIENT_ID,
   OIDC_GRANT_TYPE,
   OIDC_TOKENS_ENDPOINT,
-} from './constants';
+} from '../constants';
 
 export type NonceResponse = {
   nonce: string;

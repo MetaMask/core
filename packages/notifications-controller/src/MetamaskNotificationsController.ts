@@ -1,8 +1,4 @@
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerIsSignedIn,
-} from '@metamask/authentication-controller';
-import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -15,17 +11,19 @@ import type {
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
 import type {
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerIsSignedIn,
+  UserStorageControllerEnableProfileSyncing,
+  UserStorageControllerGetStorageKey,
+  UserStorageControllerPerformGetStorage,
+  UserStorageControllerPerformSetStorage,
+} from '@metamask/profile-sync-controller';
+import type {
   PushPlatformNotificationsControllerEnablePushNotifications,
   PushPlatformNotificationsControllerDisablePushNotifications,
   PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
   PushPlatformNotificationsControllerOnNewNotificationEvent,
 } from '@metamask/push-platform-notifications-controller';
-import type {
-  UserStorageControllerEnableProfileSyncing,
-  UserStorageControllerGetStorageKey,
-  UserStorageControllerPerformGetStorage,
-  UserStorageControllerPerformSetStorage,
-} from '@metamask/user-storage-controller';
 import log from 'loglevel';
 
 import { USER_STORAGE_VERSION_KEY } from './constants/constants';

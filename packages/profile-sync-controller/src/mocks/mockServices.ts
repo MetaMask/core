@@ -1,8 +1,8 @@
 import nock from 'nock';
 
-import { USER_STORAGE_ENDPOINT } from '../constants';
 import { createEntryPath } from '../schema';
-import type { GetUserStorageResponse } from '../services';
+import { USER_STORAGE_ENDPOINT } from '../user-storage-controller/src/constants';
+import type { GetUserStorageResponse } from '../user-storage-controller-services';
 import { MOCK_ENCRYPTED_STORAGE_DATA, MOCK_STORAGE_KEY } from './mockStorage';
 
 export const MOCK_USER_STORAGE_NOTIFICATIONS_ENDPOINT = `${USER_STORAGE_ENDPOINT}${createEntryPath(
