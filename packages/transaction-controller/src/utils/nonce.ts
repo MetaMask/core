@@ -2,7 +2,7 @@ import { toHex } from '@metamask/controller-utils';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
-} from 'nonce-tracker';
+} from '@metamask/nonce-tracker';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionStatus } from '../types';

@@ -1,8 +1,8 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { ChainId } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
-import type { NonceTracker } from 'nonce-tracker';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
