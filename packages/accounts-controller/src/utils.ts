@@ -79,3 +79,15 @@ export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
   // adapted later on if we have new kind of keyrings!
   return keyringType !== KeyringTypes.snap;
 }
+
+/**
+ * Creates a deep clone of the given object.
+ * This is to get around error `Type instantiation is excessively deep and possibly infinite.`
+ *
+ * @template O,T - The type of the object being cloned.
+ * @param obj - The object to be cloned.
+ * @returns The deep clone of the object.
+ */
+export function deepCloneDraft<I, T>(obj: I): T {
+  return JSON.parse(JSON.stringify(obj)) as T;
+}

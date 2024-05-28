@@ -172,9 +172,7 @@ function createExpectedInternalAccount({
       name,
       keyring: { type: keyringType },
       importTime: expect.any(Number),
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      lastSelected: undefined,
+      lastSelected: expect.any(Number),
     },
   };
 
@@ -739,17 +737,15 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listAccounts();
 
-        expect(accounts).toStrictEqual([
+        expect(accounts.map(setLastSelectedAsAny)).toStrictEqual([
           mockAccount,
           mockAccount2WithCustomName,
-          setLastSelectedAsAny(
-            createExpectedInternalAccount({
-              id: 'mock-id3',
-              name: 'Account 3',
-              address: mockAccount3.address,
-              keyringType: KeyringTypes.hd,
-            }),
-          ),
+          createExpectedInternalAccount({
+            id: 'mock-id3',
+            name: 'Account 3',
+            address: mockAccount3.address,
+            keyringType: KeyringTypes.hd,
+          }),
         ]);
       });
 
