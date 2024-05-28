@@ -1,3 +1,4 @@
+import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import {
   fetchWithErrorHandling,
@@ -30,7 +31,9 @@ const DEFAULT_INTERVAL = 180000;
 
 const controllerName = 'NftDetectionController';
 
-export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+export type AllowedActions =
+  | AddApprovalRequest
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
