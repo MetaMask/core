@@ -55,7 +55,7 @@
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
-    "@metamask/eth-block-tracker": "^9.0.2",
+    "@metamask/eth-block-tracker": "^9.0.3",
     "@metamask/eth-json-rpc-provider": "^3.0.2",
     "@metamask/json-rpc-engine": "^8.0.2",
     "@metamask/utils": "^8.3.0",
