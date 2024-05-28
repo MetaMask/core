@@ -38,7 +38,7 @@ const config: Options = {
 
   // Split the output into chunks. This is useful for tree-shaking.
   // https://tsup.egoist.dev/#code-splitting
-  splitting: true,
+  splitting: false,
 };
 
 export default config;
