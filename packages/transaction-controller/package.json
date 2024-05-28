@@ -54,6 +54,7 @@
     "@metamask/gas-fee-controller": "^15.1.2",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^18.1.1",
+    "@metamask/nonce-tracker": "^5.0.0",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.2.6",
@@ -61,7 +62,6 @@
     "eth-method-registry": "^4.0.0",
     "fast-json-patch": "^3.1.1",
     "lodash": "^4.17.21",
-    "nonce-tracker": "^3.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

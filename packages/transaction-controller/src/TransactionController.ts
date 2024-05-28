@@ -36,6 +36,11 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
+import { NonceTracker } from '@metamask/nonce-tracker';
+import type {
+  NonceLock,
+  Transaction as NonceTrackerTransaction,
+} from '@metamask/nonce-tracker';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
@@ -43,11 +48,6 @@ import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
-import { NonceTracker } from 'nonce-tracker';
-import type {
-  NonceLock,
-  Transaction as NonceTrackerTransaction,
-} from 'nonce-tracker';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -3402,9 +3402,10 @@ export class TransactionController extends BaseController<
     chainId?: Hex;
   }): NonceTracker {
     return new NonceTracker({
-      // TODO: Replace `any` with type
+      // TODO: Fix types
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       provider: provider as any,
+      // @ts-expect-error TODO: Fix types
       blockTracker,
       getPendingTransactions: this.#getNonceTrackerPendingTransactions.bind(
         this,
