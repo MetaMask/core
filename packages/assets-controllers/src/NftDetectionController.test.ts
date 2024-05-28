@@ -290,7 +290,7 @@ describe('NftDetectionController', () => {
   it('should set default state', async () => {
     await withController(({ controller }) => {
       expect(controller.state).toStrictEqual({
-        chainId: '0x1',
+        chainId: ChainId.mainnet,
         selectedAddress: '',
       });
     });
@@ -462,7 +462,7 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should detect mainnet truty', async () => {
+  it('should detect mainnet truthy', async () => {
     await withController(
       {
         options: {
@@ -516,7 +516,7 @@ describe('NftDetectionController', () => {
           addNft: mockAddNft,
           disabled: false,
           state: {
-            chainId: '0x1',
+            chainId: ChainId.mainnet,
             selectedAddress: '0x1',
           },
         },
@@ -857,7 +857,7 @@ describe('NftDetectionController', () => {
     const mockAddNft = jest.fn();
     const mockNetworkClient: NetworkClient = {
       configuration: {
-        chainId: '0x1',
+        chainId: ChainId.mainnet,
         rpcUrl: 'https://test.network',
         ticker: 'TEST',
         type: NetworkClientType.Custom,
