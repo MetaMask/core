@@ -521,13 +521,14 @@ export class NftDetectionController extends StaticIntervalPollingController<
         return nfts;
       }
 
-      const newNfts = nftApiResponse.tokens.filter(
-        (elm) =>
-          elm.token.isSpam === false &&
-          (elm.blockaidResult?.result_type
-            ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
-            : true),
-      );
+      const newNfts =
+        nftApiResponse.tokens?.filter(
+          (elm) =>
+            elm.token.isSpam === false &&
+            (elm.blockaidResult?.result_type
+              ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
+              : true),
+        ) ?? [];
 
       nfts = [...nfts, ...newNfts];
     } while ((next = nftApiResponse.continuation));
