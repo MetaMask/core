@@ -16,7 +16,7 @@ import { createDeferredPromise, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare';
+import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import type { TokensState } from './TokensController';
 
@@ -254,8 +254,12 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       }
     });
 
-    onNetworkStateChange(async ({ providerConfig }) => {
-      const { chainId, ticker } = providerConfig;
+    onNetworkStateChange(async ({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId, ticker } = selectedNetworkClient.configuration;
+
       if (
         this.config.chainId !== chainId ||
         this.config.nativeCurrency !== ticker

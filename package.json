@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "148.0.0",
+  "version": "155.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -36,7 +36,8 @@
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --parallel --verbose run test:verbose",
-    "update-readme-content": "ts-node scripts/update-readme-content.ts"
+    "update-readme-content": "ts-node scripts/update-readme-content.ts",
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "simple-git-hooks": {
     "pre-push": "yarn lint"
@@ -48,12 +49,13 @@
     "@babel/core": "^7.23.5",
     "@babel/plugin-transform-modules-commonjs": "^7.23.3",
     "@babel/preset-typescript": "^7.23.3",
-    "@lavamoat/allow-scripts": "^3.0.2",
+    "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/create-release-branch": "^3.0.0",
     "@metamask/eslint-config": "^12.2.0",
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
+    "@metamask/eth-block-tracker": "^9.0.2",
     "@metamask/eth-json-rpc-provider": "^3.0.2",
     "@metamask/json-rpc-engine": "^8.0.2",
     "@metamask/utils": "^8.3.0",
@@ -73,7 +75,6 @@
     "eslint-plugin-n": "^15.7.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-promise": "^6.1.1",
-    "eth-block-tracker": "^8.0.0",
     "execa": "^5.0.0",
     "isomorphic-fetch": "^3.0.0",
     "jest": "^27.5.1",

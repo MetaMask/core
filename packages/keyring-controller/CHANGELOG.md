@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `changePassword` method ([#4279](https://github.com/MetaMask/core/pull/4279))
+  - This method can be used to change the password used to encrypt the vault
+
 ## [16.0.0]
 
 ### Added

@@ -12,6 +12,13 @@ export class SignInError extends Error {
   }
 }
 
+export class PairError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PairError';
+  }
+}
+
 export class UserStorageError extends Error {
   constructor(message: string) {
     super(message);

@@ -1,11 +1,19 @@
-import type { Env } from '../env';
+import type { Env, Platform } from '../env';
 import { getEnvUrls, getOidcClientId } from '../env';
-import { NonceRetrievalError, SignInError, ValidationError } from '../errors';
+import {
+  NonceRetrievalError,
+  PairError,
+  SignInError,
+  ValidationError,
+} from '../errors';
 import type { AccessToken, ErrorMessage, UserProfile } from './types';
 import { AuthType } from './types';
 
 export const NONCE_URL = (env: Env) =>
   `${getEnvUrls(env).authApiUrl}/api/v2/nonce`;
+
+export const PAIR_IDENTIFIERS = (env: Env) =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/identifiers/pair`;
 
 export const OIDC_TOKEN_URL = (env: Env) =>
   `${getEnvUrls(env).oidcApiUrl}/oauth2/token`;
@@ -35,6 +43,57 @@ type NonceResponse = {
   identifier: string;
   expiresIn: number;
 };
+
+type PairRequest = {
+  signature: string;
+  raw_message: string;
+  encrypted_storage_key: string;
+  identifier_type: 'SIWE' | 'SRP';
+};
+
+/**
+ * Pair multiple identifiers under a single profile
+ *
+ * @param nonce - session nonce
+ * @param logins - pairing request payload
+ * @param accessToken - JWT access token used to access protected resources
+ * @param env - server environment
+ * @returns void.
+ */
+export async function pairIdentifiers(
+  nonce: string,
+  logins: PairRequest[],
+  accessToken: string,
+  env: Env,
+): Promise<void> {
+  const pairUrl = new URL(PAIR_IDENTIFIERS(env));
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        nonce,
+        logins,
+      }),
+    });
+
+    if (!response.ok) {
+      const responseBody = (await response.json()) as ErrorMessage;
+      throw new Error(
+        `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+      );
+    }
+  } catch (e) {
+    /* istanbul ignore next */
+    const errorMessage =
+      e instanceof Error ? e.message : JSON.stringify(e ?? '');
+    throw new PairError(`unable to pair identifiers: ${errorMessage}`);
+  }
+}
 
 /**
  * Service to Get Nonce for JWT Bearer Flow
@@ -75,11 +134,13 @@ export async function getNonce(id: string, env: Env): Promise<NonceResponse> {
  *
  * @param jwtToken - The original token received from Authentication. This is traded for the Access Token. (the authentication token is single-use)
  * @param env - server environment
+ * @param platform - SDK platform
  * @returns Access Token from Authorization server
  */
 export async function authorizeOIDC(
   jwtToken: string,
   env: Env,
+  platform: Platform,
 ): Promise<AccessToken> {
   const grantType = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
   const headers = new Headers({
@@ -88,7 +149,7 @@ export async function authorizeOIDC(
 
   const urlEncodedBody = new URLSearchParams();
   urlEncodedBody.append('grant_type', grantType);
-  urlEncodedBody.append('client_id', getOidcClientId(env));
+  urlEncodedBody.append('client_id', getOidcClientId(env, platform));
   urlEncodedBody.append('assertion', jwtToken);
 
   try {

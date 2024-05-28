@@ -21,6 +21,7 @@ import {
 import type {
   NetworkClientId,
   NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
   NetworkState,
 } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -221,7 +222,9 @@ const controllerName = 'NftController';
 /**
  * The external actions available to the {@link NftController}.
  */
-type AllowedActions = AddApprovalRequest;
+type AllowedActions =
+  | AddApprovalRequest
+  | NetworkControllerGetNetworkClientByIdAction;
 
 /**
  * The messenger of the {@link NftController}.
@@ -1075,8 +1078,12 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       },
     );
 
-    onNetworkStateChange(({ providerConfig }) => {
-      const { chainId } = providerConfig;
+    onNetworkStateChange(({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId } = selectedNetworkClient.configuration;
+
       this.configure({ chainId });
     });
   }

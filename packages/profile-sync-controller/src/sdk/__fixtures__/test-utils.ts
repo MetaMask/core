@@ -4,7 +4,7 @@ import type {
   AuthStorageOptions,
 } from '../authentication-jwt-bearer/types';
 import { AuthType } from '../authentication-jwt-bearer/types';
-import { Env } from '../env';
+import { Env, Platform } from '../env';
 
 // Alias mocking variables with ANY to test runtime safety.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,6 +62,7 @@ export function arrangeAuth(
     const auth = new JwtBearerAuth(
       {
         env: Env.DEV,
+        platform: Platform.EXTENSION,
         type: AuthType.SRP,
       },
       {
@@ -85,6 +86,7 @@ export function arrangeAuth(
     const auth = new JwtBearerAuth(
       {
         env: Env.DEV,
+        platform: Platform.EXTENSION,
         type: AuthType.SiWE,
       },
       {

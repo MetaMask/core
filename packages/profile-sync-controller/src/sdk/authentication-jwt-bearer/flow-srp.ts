@@ -1,7 +1,6 @@
 import { ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import { MESSAGE_SIGNING_SNAP } from '../utils/messaging-signing-snap-requests';
-import { SESSION_LIFETIME_MS } from './constants';
 import { authenticate, authorizeOIDC, getNonce } from './services';
 import type {
   AuthConfig,
@@ -83,6 +82,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     return await this.#options.signing.signMessage(message);
   }
 
+  // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
   async #getAuthSession(): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse();
     if (!auth) {
@@ -91,7 +91,9 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
     const currentTime = Date.now();
     const sessionAge = currentTime - auth.token.obtainedAt;
-    if (sessionAge < SESSION_LIFETIME_MS) {
+    const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;
+
+    if (sessionAge < refreshThreshold) {
       return auth;
     }
     return null;
@@ -120,6 +122,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
     const tokenResponse = await authorizeOIDC(
       authResponse.token,
       this.#config.env,
+      this.#config.platform,
     );
 
     // Save

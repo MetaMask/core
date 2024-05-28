@@ -310,6 +310,7 @@ async function getTokenBalanceChanges(
     throw new SimulationInvalidResponseError();
   }
 
+  let prevBalanceTxIndex = 0;
   return [...balanceTxs.after.keys()]
     .map((token, index) => {
       const previousBalanceCheckSkipped = !balanceTxs.before.get(token);
@@ -318,7 +319,8 @@ async function getTokenBalanceChanges(
         : getValueFromBalanceTransaction(
             request.from,
             token,
-            response.transactions[index],
+            // eslint-disable-next-line no-plusplus
+            response.transactions[prevBalanceTxIndex++],
           );
 
       const newBalance = getValueFromBalanceTransaction(

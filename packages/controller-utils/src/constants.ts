@@ -106,7 +106,7 @@ export const BUILT_IN_NETWORKS = {
 
 // APIs
 export const OPENSEA_PROXY_URL =
-  'https://proxy.metafi.codefi.network/opensea/v1/api/v2';
+  'https://proxy.api.cx.metamask.io/opensea/v1/api/v2';
 
 export const NFT_API_BASE_URL = 'https://nft.api.cx.metamask.io';
 

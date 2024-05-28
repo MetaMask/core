@@ -5,6 +5,7 @@ import {
   SIWE_LOGIN_URL,
   SRP_LOGIN_URL,
   OIDC_TOKEN_URL,
+  PAIR_IDENTIFIERS,
 } from '../authentication-jwt-bearer/services';
 import { Env } from '../env';
 
@@ -15,6 +16,7 @@ type MockReply = {
 
 const MOCK_NONCE_URL = NONCE_URL(Env.DEV);
 const MOCK_SIWE_LOGIN_URL = SIWE_LOGIN_URL(Env.DEV);
+const MOCK_PAIR_IDENTIFIERS_URL = PAIR_IDENTIFIERS(Env.DEV);
 const MOCK_SRP_LOGIN_URL = SRP_LOGIN_URL(Env.DEV);
 const MOCK_OIDC_TOKEN_URL = OIDC_TOKEN_URL(Env.DEV);
 
@@ -83,6 +85,16 @@ export const handleMockSiweLogin = (mockReply?: MockReply) => {
   return mockLoginEndpoint;
 };
 
+export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
+  const reply = mockReply ?? { status: 204 };
+  const mockPairIdentifiersEndpoint = nock(MOCK_PAIR_IDENTIFIERS_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockPairIdentifiersEndpoint;
+};
+
 export const handleMockSrpLogin = (mockReply?: MockReply) => {
   const reply = mockReply ?? { status: 200, body: MOCK_SRP_LOGIN_RESPONSE };
   const mockLoginEndpoint = nock(MOCK_SRP_LOGIN_URL)
@@ -108,16 +120,21 @@ export const arrangeAuthAPIs = (options?: {
   mockOAuth2TokenUrl?: MockReply;
   mockSrpLoginUrl?: MockReply;
   mockSiweLoginUrl?: MockReply;
+  mockPairIdentifiers?: MockReply;
 }) => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
   const mockSrpLoginUrl = handleMockSrpLogin(options?.mockSrpLoginUrl);
   const mockSiweLoginUrl = handleMockSiweLogin(options?.mockSiweLoginUrl);
+  const mockPairIdentifiersUrl = handleMockPairIdentifiers(
+    options?.mockPairIdentifiers,
+  );
 
   return {
     mockNonceUrl,
     mockOAuth2TokenUrl,
     mockSrpLoginUrl,
     mockSiweLoginUrl,
+    mockPairIdentifiersUrl,
   };
 };

@@ -108,6 +108,14 @@ export type PreferencesState = {
    * Controls whether token detection is enabled
    */
   useTokenDetection: boolean;
+  /**
+   * Controls whether smart transactions are opted into
+   */
+  smartTransactionsOptInStatus: boolean;
+  /**
+   * Controls whether transaction simulations are enabled
+   */
+  useTransactionSimulations: boolean;
 };
 
 const metadata = {
@@ -125,6 +133,8 @@ const metadata = {
   showIncomingTransactions: { persist: true, anonymous: true },
   useNftDetection: { persist: true, anonymous: true },
   useTokenDetection: { persist: true, anonymous: true },
+  smartTransactionsOptInStatus: { persist: true, anonymous: false },
+  useTransactionSimulations: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -197,6 +207,8 @@ export function getDefaultPreferencesState() {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
+    smartTransactionsOptInStatus: false,
+    useTransactionSimulations: true,
   };
 }
 
@@ -496,6 +508,28 @@ export class PreferencesController extends BaseController<
         };
       });
     }
+  }
+
+  /**
+   * A setter for the user to opt into smart transactions
+   *
+   * @param smartTransactionsOptInStatus - true to opt into smart transactions
+   */
+  setSmartTransactionsOptInStatus(smartTransactionsOptInStatus: boolean) {
+    this.update((state) => {
+      state.smartTransactionsOptInStatus = smartTransactionsOptInStatus;
+    });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable transaction simulations.
+   *
+   * @param useTransactionSimulations - true to enable transaction simulations, false to disable it.
+   */
+  setUseTransactionSimulations(useTransactionSimulations: boolean) {
+    this.update((state) => {
+      state.useTransactionSimulations = useTransactionSimulations;
+    });
   }
 }
 

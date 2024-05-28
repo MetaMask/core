@@ -494,10 +494,13 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       }
     });
 
-    onNetworkStateChange(({ providerConfig }) => {
-      this.configure({
-        chainId: providerConfig.chainId,
-      });
+    onNetworkStateChange(({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId } = selectedNetworkClient.configuration;
+
+      this.configure({ chainId });
     });
     this.getOpenSeaApiKey = getOpenSeaApiKey;
     this.addNft = addNft;
