@@ -1,5 +1,8 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  StateConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
@@ -21,7 +24,6 @@ import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
 } from '@metamask/preferences-controller';
-import type { Json } from '@metamask/utils';
 
 import { Source } from './constants';
 import {
@@ -351,7 +353,7 @@ export type Metadata = {
  */
 export class NftDetectionController extends StaticIntervalPollingController<
   typeof controllerName,
-  Record<string, Json>,
+  StateConstraint,
   NftDetectionControllerMessenger
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
