@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: Migrate API usage from _.metafi & _.metaswap subdomains to \*.cx.metamsk.io" ([#4301](https://github.com/MetaMask/core/pull/4301))
-- Release 146.0.0 ([#4232](https://github.com/MetaMask/core/pull/4232))
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Fix prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-
 ## [6.0.1]
 
 ### Fixed

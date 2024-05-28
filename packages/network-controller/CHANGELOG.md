@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.1.2]
+
 ### Uncategorized
 
 - deps(network-controller): eth-block-tracker@8 -> @metamask/eth-block-tracker@9 ([#4309](https://github.com/MetaMask/core/pull/4309))
@@ -486,7 +488,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.2...HEAD
+[18.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.1...@metamask/network-controller@18.1.2
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.0...@metamask/network-controller@18.1.1
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.1...@metamask/network-controller@18.1.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.0...@metamask/network-controller@18.0.1

@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Feat/preferences controller smart tx opt in ([#3815](https://github.com/MetaMask/core/pull/3815))
-- Add `useTransactionSimulations` preference ([#4283](https://github.com/MetaMask/core/pull/4283))
-
 ## [11.0.0]
 
 ### Added

@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 147.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
-- Release 146.0.0 ([#4232](https://github.com/MetaMask/core/pull/4232))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-
 ## [6.0.1]
 
 ### Fixed

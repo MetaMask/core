@@ -9,13 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- fix: Migrate API usage from _.metafi & _.metaswap subdomains to \*.cx.metamsk.io" ([#4301](https://github.com/MetaMask/core/pull/4301))
-- feat: add new rates controller for non-EVM chains ([#4242](https://github.com/MetaMask/core/pull/4242))
-- Release 151.0.0 ([#4285](https://github.com/MetaMask/core/pull/4285))
-- chore(deps): bump dependencies ([#4262](https://github.com/MetaMask/core/pull/4262))
-- fix: update state only when metadata changed after fetch ([#4143](https://github.com/MetaMask/core/pull/4143))
-- fix: lower occurenceFloor for linea mainnet to 1 ([#4253](https://github.com/MetaMask/core/pull/4253))
-- Refactor TokensController tests ([#4247](https://github.com/MetaMask/core/pull/4247))
 - **BREAKING:** The NftController messenger must now allow the `NetworkController:getNetworkClientById` action ([#4305](https://github.com/MetaMask/core/pull/4305))
 - NftControllerMessenger now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4305](https://github.com/MetaMask/core/pull/4305))
   - This should be functionally equivalent, but is being noted anyway.
