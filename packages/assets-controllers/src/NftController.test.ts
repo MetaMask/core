@@ -22,7 +22,6 @@ import type {
   NetworkClientConfiguration,
   NetworkClientId,
   NetworkControllerNetworkDidChangeEvent,
-  NetworkState,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import {
