@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- deps(network-controller): eth-block-tracker@8 -> @metamask/eth-block-tracker@9 ([#4309](https://github.com/MetaMask/core/pull/4309))
+
 ## [29.1.0]
 
 ### Changed
