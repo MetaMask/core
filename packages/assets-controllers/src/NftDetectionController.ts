@@ -5,6 +5,8 @@ import {
   toChecksumHexAddress,
   ChainId,
   NFT_API_BASE_URL,
+  NFT_API_VERSION,
+  NFT_API_TIMEOUT,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -545,10 +547,10 @@ export class NftDetectionController extends StaticIntervalPollingController<
         url: this.#getOwnerNftApi({ address, next }),
         options: {
           headers: {
-            Version: '1',
+            Version: NFT_API_VERSION,
           },
         },
-        timeout: 15000,
+        timeout: NFT_API_TIMEOUT,
       });
 
       if (!nftApiResponse) {
