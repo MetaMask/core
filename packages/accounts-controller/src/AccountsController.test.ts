@@ -1218,7 +1218,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
-          lastSelected: undefined,
+          lastSelected: expect.any(Number),
           importTime: expect.any(Number),
         },
       };
@@ -1228,7 +1228,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
-          lastSelected: undefined,
+          lastSelected: expect.any(Number),
           importTime: expect.any(Number),
         },
       };
@@ -1237,7 +1237,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(
+        accountsController.listAccounts().map(setLastSelectedAsAny),
+      ).toStrictEqual(expectedAccounts);
     });
 
     it('should return an empty array if the snap keyring is not defined', async () => {
@@ -1481,7 +1483,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(
+        accountsController.listAccounts().map(setLastSelectedAsAny),
+      ).toStrictEqual(expectedAccounts);
     });
 
     it('should throw an error if the keyring type is unknown', async () => {

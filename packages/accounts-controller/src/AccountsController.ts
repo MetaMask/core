@@ -366,10 +366,11 @@ export class AccountsController extends BaseController<
           importTime:
             this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
             Date.now(),
-          lastSelected: this.#populateExistingMetadata(
-            existingAccount?.id,
-            'lastSelected',
-          ),
+          lastSelected:
+            this.#populateExistingMetadata(
+              existingAccount?.id,
+              'lastSelected',
+            ) ?? 0,
         },
       };
 
@@ -506,7 +507,7 @@ export class AccountsController extends BaseController<
           name: this.#populateExistingMetadata(id, 'name') ?? '',
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
