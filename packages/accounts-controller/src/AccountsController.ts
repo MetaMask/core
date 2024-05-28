@@ -21,10 +21,17 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import type { Keyring, Json } from '@metamask/utils';
+import type { CaipChainId, CaipNamespace } from '@metamask/utils';
+import {
+  type Keyring,
+  type Json,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
+  deepCloneDraft,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
@@ -110,11 +117,17 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerSelectedEvmAccountChangeEvent = {
+  type: `${typeof controllerName}:selectedEvmAccountChange`;
+  payload: [InternalAccount];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -142,6 +155,9 @@ const defaultState: AccountsControllerState = {
     selectedAccount: '',
   },
 };
+
+const ETHEREUM_CAIP_NAMESPACE = 'eip155:';
+const ETHEREUM_CAIP_ID_WILDCARD: CaipChainId = `${ETHEREUM_CAIP_NAMESPACE}*`;
 
 /**
  * Controller that manages internal accounts.
@@ -206,10 +222,33 @@ export class AccountsController extends BaseController<
   /**
    * Returns an array of all internal accounts.
    *
+   * @param chainIdOrNamespace - The chain ID or namespace.
    * @returns An array of InternalAccount objects.
    */
-  listAccounts(): InternalAccount[] {
-    return Object.values(this.state.internalAccounts.accounts);
+  listAccounts(
+    chainIdOrNamespace?: CaipChainId | CaipNamespace,
+  ): InternalAccount[] {
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    if (!chainIdOrNamespace) {
+      return accounts;
+    }
+
+    if (chainIdOrNamespace === ETHEREUM_CAIP_ID_WILDCARD) {
+      return accounts.filter((account) =>
+        account.type.startsWith(ETHEREUM_CAIP_NAMESPACE),
+      );
+    }
+
+    if (
+      !isCaipChainId(chainIdOrNamespace) &&
+      chainIdOrNamespace !== ETHEREUM_CAIP_ID_WILDCARD
+    ) {
+      throw new Error(`Invalid CAIP2 id ${String(chainIdOrNamespace)}`);
+    }
+
+    return accounts.filter((account) =>
+      account.type.startsWith(parseCaipChainId(chainIdOrNamespace).namespace),
+    );
   }
 
   /**
@@ -247,12 +286,55 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the selected internal account.
+   * Returns the selected evm internal account by default unless the namespace is not eip155
    *
+   * @param chainId - Caip2 Id of the account
    * @returns The selected internal account.
    */
-  getSelectedAccount(): InternalAccount {
-    return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+  getSelectedAccount(
+    chainId: CaipChainId = ETHEREUM_CAIP_ID_WILDCARD,
+  ): InternalAccount {
+    if (!isCaipChainId(chainId) && chainId !== ETHEREUM_CAIP_ID_WILDCARD) {
+      throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
+    }
+
+    // TODO: have CAIP2 addresses within InternalAccount
+    const selectedAccount = this.getAccountExpect(
+      this.state.internalAccounts.selectedAccount,
+    );
+
+    if (
+      !chainId.startsWith(ETHEREUM_CAIP_NAMESPACE) ||
+      this.#isAccountCompatibleWithChain(selectedAccount, chainId)
+    ) {
+      return selectedAccount;
+    }
+
+    const accounts = this.listAccounts().filter((account) =>
+      account.type.startsWith(ETHEREUM_CAIP_NAMESPACE),
+    );
+
+    if (!accounts.length) {
+      // !Should never reach this.
+      throw new Error('AccountsController: No evm accounts');
+    }
+
+    let lastSelectedEvmAccount = accounts[0];
+    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
+      if (
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        currentAccount.metadata.lastSelected! >
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        prevAccount.metadata.lastSelected!
+      ) {
+        return currentAccount;
+      }
+      return prevAccount;
+    }, lastSelectedEvmAccount);
+
+    return lastSelectedEvmAccount;
   }
 
   /**
@@ -280,6 +362,13 @@ export class AccountsController extends BaseController<
         Date.now();
       currentState.internalAccounts.selectedAccount = account.id;
     });
+
+    if (account.type.startsWith(ETHEREUM_CAIP_NAMESPACE)) {
+      this.messagingSystem.publish(
+        'AccountsController:selectedEvmAccountChange',
+        account,
+      );
+    }
 
     this.messagingSystem.publish(
       'AccountsController:selectedAccountChange',
@@ -312,7 +401,15 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] = internalAccount;
+      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft<
+        Draft<AccountsControllerState>,
+        AccountsControllerState
+      >(currentState);
+
+      newState.internalAccounts.accounts[accountId] = internalAccount;
+
+      return newState;
     });
   }
 
@@ -368,8 +465,15 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft<
+        Draft<AccountsControllerState>,
+        AccountsControllerState
+      >(currentState);
+
+      newState.internalAccounts.accounts = accounts;
+
+      return newState;
     });
   }
 
@@ -381,8 +485,15 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
+        // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+        const newState = deepCloneDraft<
+          Draft<AccountsControllerState>,
+          AccountsControllerState
+        >(currentState);
+
+        newState.internalAccounts = backup.internalAccounts;
+
+        return newState;
       });
     }
   }
@@ -731,6 +842,21 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Checks if an account is compatible with a given chain namespace.
+   * @private
+   * @param account - The account to check compatibility for.
+   * @param chainNamespace - The chain namespace to check compatibility with.
+   * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
+   */
+  #isAccountCompatibleWithChain(
+    account: InternalAccount,
+    chainNamespace: CaipNamespace,
+  ): boolean {
+    // TODO: Change this logic to not use account's type
+    return account.type.startsWith(chainNamespace);
+  }
+
+  /**
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
@@ -765,9 +891,13 @@ export class AccountsController extends BaseController<
     );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
+      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft<
+        Draft<AccountsControllerState>,
+        AccountsControllerState
+      >(currentState);
+
+      newState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
@@ -776,6 +906,8 @@ export class AccountsController extends BaseController<
           lastSelected: Date.now(),
         },
       };
+
+      return newState;
     });
 
     this.setSelectedAccount(newAccount.id);
