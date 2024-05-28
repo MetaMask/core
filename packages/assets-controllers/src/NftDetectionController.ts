@@ -17,9 +17,11 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
+  PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
   PreferencesState,
 } from '@metamask/preferences-controller';
+import type { Json } from '@metamask/utils';
 
 import { Source } from './constants';
 import {
@@ -35,7 +37,8 @@ const controllerName = 'NftDetectionController';
 export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | PreferencesControllerGetStateAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -48,19 +51,6 @@ export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-/**
- * The nft detection controller state
- *
- * @param selectedAddress - Represents current selected address.
- */
-export type NftDetectionControllerState = {
-  selectedAddress: string;
-};
-
-const metadata = {
-  selectedAddress: { persist: true, anonymous: false },
-};
 
 /**
  * @type ApiNft
@@ -361,7 +351,7 @@ export type Metadata = {
  */
 export class NftDetectionController extends StaticIntervalPollingController<
   typeof controllerName,
-  NftDetectionControllerState,
+  Record<string, Json>,
   NftDetectionControllerMessenger
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
@@ -379,7 +369,6 @@ export class NftDetectionController extends StaticIntervalPollingController<
    *
    * @param options - The controller options.
    * @param options.interval - The pooling interval.
-   * @param options.state - The controller state.
    * @param options.messenger - A reference to the messaging system.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
    * @param options.addNft - Add an NFT.
@@ -387,14 +376,12 @@ export class NftDetectionController extends StaticIntervalPollingController<
    */
   constructor({
     interval = DEFAULT_INTERVAL,
-    state,
     messenger,
     disabled = false,
     addNft,
     getNftState,
   }: {
     interval?: number;
-    state: NftDetectionControllerState;
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
     addNft: NftController['addNft'];
@@ -403,8 +390,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
     super({
       name: controllerName,
       messenger,
-      metadata,
-      state,
+      metadata: {},
+      state: {},
     });
     this.#interval = interval;
     this.#disabled = disabled;
@@ -493,21 +480,10 @@ export class NftDetectionController extends StaticIntervalPollingController<
   /**
    * Handles the state change of the preference controller.
    * @param preferencesState - The new state of the preference controller.
-   * @param preferencesState.selectedAddress - The current selected address of the preference controller.
    * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
    */
-  #onPreferencesControllerStateChange({
-    selectedAddress,
-    useNftDetection,
-  }: PreferencesState) {
-    const { selectedAddress: currentSelectedAddress } = this.state;
-    if (
-      selectedAddress !== currentSelectedAddress ||
-      !useNftDetection !== this.#disabled
-    ) {
-      this.update((state) => {
-        state.selectedAddress = selectedAddress;
-      });
+  #onPreferencesControllerStateChange({ useNftDetection }: PreferencesState) {
+    if (!useNftDetection !== this.#disabled) {
       this.#disabled = !useNftDetection;
       if (useNftDetection) {
         this.start();
@@ -565,15 +541,14 @@ export class NftDetectionController extends StaticIntervalPollingController<
    * @param options.networkClientId - The network client ID to detect NFTs on.
    * @param options.userAddress - The address to detect NFTs for.
    */
-  async detectNfts(
-    {
-      networkClientId,
-      userAddress,
-    }: {
-      networkClientId?: NetworkClientId;
-      userAddress: string;
-    } = { userAddress: this.state.selectedAddress },
-  ) {
+  async detectNfts(options?: {
+    networkClientId?: NetworkClientId;
+    userAddress?: string;
+  }) {
+    const userAddress =
+      options?.userAddress ??
+      this.messagingSystem.call('PreferencesController:getState')
+        .selectedAddress;
     /* istanbul ignore if */
     if (!this.isMainnet() || this.#disabled) {
       return;
@@ -638,7 +613,7 @@ export class NftDetectionController extends StaticIntervalPollingController<
           nftMetadata,
           userAddress,
           source: Source.Detected,
-          networkClientId,
+          networkClientId: options?.networkClientId,
         });
       }
     });
