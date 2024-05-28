@@ -9,9 +9,10 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 export class FakeBlockTracker extends PollingBlockTracker {
   #latestBlockNumber = '0x0';
 
-  constructor() {
+  constructor({provider}: {provider: SafeEventEmitterProvider}) {
     super({
-      provider: new SafeEventEmitterProvider({ engine: new JsonRpcEngine() }),
+      provider,
+      // provider: new SafeEventEmitterProvider({ engine: new JsonRpcEngine() }),
     });
     // Don't start the polling loop
     // TODO: Replace `any` with type
