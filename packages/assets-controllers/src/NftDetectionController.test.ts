@@ -290,7 +290,6 @@ describe('NftDetectionController', () => {
   it('should set default state', async () => {
     await withController(({ controller }) => {
       expect(controller.state).toStrictEqual({
-        chainId: ChainId.mainnet,
         selectedAddress: '',
       });
     });
@@ -467,12 +466,16 @@ describe('NftDetectionController', () => {
       {
         options: {
           state: {
-            chainId: ChainId.mainnet,
             selectedAddress: '',
           },
         },
       },
-      ({ controller }) => {
+      ({ controller, mockNetworkState }) => {
+        mockNetworkState({
+          ...defaultNetworkState,
+          selectedNetworkClientId: 'mainnet',
+        });
+
         expect(controller.isMainnet()).toBe(true);
       },
     );
@@ -483,12 +486,16 @@ describe('NftDetectionController', () => {
       {
         options: {
           state: {
-            chainId: ChainId.goerli,
             selectedAddress: '',
           },
         },
       },
-      ({ controller }) => {
+      ({ controller, mockNetworkState }) => {
+        mockNetworkState({
+          ...defaultNetworkState,
+          selectedNetworkClientId: 'goerli',
+        });
+
         expect(controller.isMainnet()).toBe(false);
       },
     );
@@ -516,7 +523,6 @@ describe('NftDetectionController', () => {
           addNft: mockAddNft,
           disabled: false,
           state: {
-            chainId: ChainId.mainnet,
             selectedAddress: '0x1',
           },
         },
@@ -526,7 +532,12 @@ describe('NftDetectionController', () => {
           }),
         },
       },
-      async ({ controller, controllerEvents }) => {
+      async ({ controller, controllerEvents, mockNetworkState }) => {
+        mockNetworkState({
+          ...defaultNetworkState,
+          selectedNetworkClientId: 'mainnet',
+        });
+
         await controller.start();
         // await clock.tickAsync(pollingInterval);
 
@@ -1071,6 +1082,7 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: NftDetectionController;
   controllerEvents: ControllerEvents;
+  mockNetworkState: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1079,6 +1091,7 @@ type WithControllerOptions = {
     NetworkClientId,
     NetworkClientConfiguration
   >;
+  mockNetworkState?: (state: NetworkState) => void;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1104,6 +1117,12 @@ async function withController<ReturnValue>(
 
   const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
 
+  const mockNetworkState = jest.fn<NetworkState, []>();
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
+  );
+
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
@@ -1114,7 +1133,10 @@ async function withController<ReturnValue>(
 
   const controllerMessenger = messenger.getRestricted({
     name: controllerName,
-    allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedActions: [
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+    ],
     allowedEvents: [
       'NetworkController:stateChange',
       'PreferencesController:stateChange',
@@ -1123,7 +1145,6 @@ async function withController<ReturnValue>(
 
   const controller = new NftDetectionController({
     state: {
-      chainId: ChainId.mainnet,
       selectedAddress: '',
       ...(options?.state || {}),
     },
@@ -1147,6 +1168,9 @@ async function withController<ReturnValue>(
     return await testFunction({
       controller,
       controllerEvents,
+      mockNetworkState: (state: NetworkState) => {
+        mockNetworkState.mockReturnValue(state);
+      },
     });
   } finally {
     controller.stop();

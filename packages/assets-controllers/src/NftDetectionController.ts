@@ -10,17 +10,16 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkState,
   NetworkClient,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerStateChangeEvent,
+  NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerStateChangeEvent,
   PreferencesState,
 } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
 
 import { Source } from './constants';
 import {
@@ -35,6 +34,7 @@ const controllerName = 'NftDetectionController';
 
 export type AllowedActions =
   | AddApprovalRequest
+  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction;
 
 export type AllowedEvents =
@@ -52,16 +52,13 @@ export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
 /**
  * The nft detection controller state
  *
- * @param chainId - The chain ID of the current network.
  * @param selectedAddress - Represents current selected address.
  */
 export type NftDetectionControllerState = {
-  chainId: Hex;
   selectedAddress: string;
 };
 
 const metadata = {
-  chainId: { persist: true, anonymous: false },
   selectedAddress: { persist: true, anonymous: false },
 };
 
@@ -420,11 +417,6 @@ export class NftDetectionController extends StaticIntervalPollingController<
       this.#onPreferencesControllerStateChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
-      'NetworkController:stateChange',
-      this.#onNetworkControllerStateChange.bind(this),
-    );
-
     this.setIntervalLength(this.#interval);
   }
 
@@ -481,27 +473,21 @@ export class NftDetectionController extends StaticIntervalPollingController<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet = (): boolean => this.state.chainId === ChainId.mainnet;
-
-  isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
-    return networkClient.configuration.chainId === ChainId.mainnet;
-  };
-
-  /**
-   * Handles the network change on the network controller.
-   * @param networkState - The new state of the preference controller.
-   * @param networkState.selectedNetworkClientId - The current selected network client id.
-   */
-  #onNetworkControllerStateChange({ selectedNetworkClientId }: NetworkState) {
+  isMainnet(): boolean {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
     const {
       configuration: { chainId },
     } = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
-    this.update((currentState) => {
-      currentState.chainId = chainId;
-    });
+    return chainId === ChainId.mainnet;
+  }
+
+  isMainnetByNetworkClientId(networkClient: NetworkClient): boolean {
+    return networkClient.configuration.chainId === ChainId.mainnet;
   }
 
   /**
