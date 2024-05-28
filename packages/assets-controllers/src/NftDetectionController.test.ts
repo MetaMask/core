@@ -469,13 +469,11 @@ describe('NftDetectionController', () => {
             selectedAddress: '',
           },
         },
-      },
-      ({ controller, mockNetworkState }) => {
-        mockNetworkState({
-          ...defaultNetworkState,
+        mockNetworkState: {
           selectedNetworkClientId: 'mainnet',
-        });
-
+        },
+      },
+      ({ controller }) => {
         expect(controller.isMainnet()).toBe(true);
       },
     );
@@ -489,13 +487,11 @@ describe('NftDetectionController', () => {
             selectedAddress: '',
           },
         },
-      },
-      ({ controller, mockNetworkState }) => {
-        mockNetworkState({
-          ...defaultNetworkState,
+        mockNetworkState: {
           selectedNetworkClientId: 'goerli',
-        });
-
+        },
+      },
+      ({ controller }) => {
         expect(controller.isMainnet()).toBe(false);
       },
     );
@@ -531,13 +527,11 @@ describe('NftDetectionController', () => {
             chainId: '0x123',
           }),
         },
-      },
-      async ({ controller, controllerEvents, mockNetworkState }) => {
-        mockNetworkState({
-          ...defaultNetworkState,
+        mockNetworkState: {
           selectedNetworkClientId: 'mainnet',
-        });
-
+        },
+      },
+      async ({ controller, controllerEvents }) => {
         await controller.start();
         // await clock.tickAsync(pollingInterval);
 
@@ -1082,7 +1076,6 @@ type WithControllerCallback<ReturnValue> = ({
 }: {
   controller: NftDetectionController;
   controllerEvents: ControllerEvents;
-  mockNetworkState: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1091,7 +1084,7 @@ type WithControllerOptions = {
     NetworkClientId,
     NetworkClientConfiguration
   >;
-  mockNetworkState?: (state: NetworkState) => void;
+  mockNetworkState?: Partial<NetworkState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1111,16 +1104,22 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [
-    { options = {}, mockNetworkClientConfigurationsByNetworkClientId = {} },
+    {
+      options = {},
+      mockNetworkClientConfigurationsByNetworkClientId = {},
+      mockNetworkState = {},
+    },
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
   const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
 
-  const mockNetworkState = jest.fn<NetworkState, []>();
   messenger.registerActionHandler(
     'NetworkController:getState',
-    mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
+    jest.fn<NetworkState, []>().mockReturnValue({
+      ...defaultNetworkState,
+      ...mockNetworkState,
+    }),
   );
 
   const getNetworkClientById = buildMockGetNetworkClientById(
@@ -1168,9 +1167,6 @@ async function withController<ReturnValue>(
     return await testFunction({
       controller,
       controllerEvents,
-      mockNetworkState: (state: NetworkState) => {
-        mockNetworkState.mockReturnValue(state);
-      },
     });
   } finally {
     controller.stop();
