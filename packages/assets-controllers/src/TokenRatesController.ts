@@ -219,6 +219,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * @param options.disabled - Boolean to track if network requests are blocked
    * @param options.tokenPricesService - An object in charge of retrieving token price
    * @param options.messenger - The controller messaging system
+   * @param options.state - Initial state to set on this controller
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -228,6 +229,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
     disabled = false,
     tokenPricesService,
     messenger,
+    state,
   }: {
     interval?: number;
     currentChainId: Hex;
@@ -236,11 +238,12 @@ export class TokenRatesController extends StaticIntervalPollingController<
     disabled?: boolean;
     tokenPricesService: AbstractTokenPricesService;
     messenger: TokenRatesControllerMessenger;
+    state?: Partial<TokenRatesControllerState>;
   }) {
     super({
       name: controllerName,
       messenger,
-      state: { ...getDefaultTokenRatesControllerState() },
+      state: { ...getDefaultTokenRatesControllerState(), ...state },
       metadata,
     });
 
@@ -254,6 +257,14 @@ export class TokenRatesController extends StaticIntervalPollingController<
     this.#allTokens = {};
     this.#allDetectedTokens = {};
 
+    this.#subscribeToPreferencesStateChange();
+
+    this.#subscribeToTokensStateChange();
+
+    this.#subscribeToNetworkStateChange();
+  }
+
+  #subscribeToPreferencesStateChange() {
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
       async (selectedAddress: string) => {
@@ -268,7 +279,9 @@ export class TokenRatesController extends StaticIntervalPollingController<
         return selectedAddress;
       },
     );
+  }
 
+  #subscribeToTokensStateChange() {
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
       async ({ allTokens, allDetectedTokens }) => {
@@ -288,7 +301,9 @@ export class TokenRatesController extends StaticIntervalPollingController<
         return { allTokens, allDetectedTokens };
       },
     );
+  }
 
+  #subscribeToNetworkStateChange() {
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       async ({ providerConfig }) => {
