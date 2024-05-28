@@ -2318,7 +2318,7 @@ export class TransactionController extends BaseController<
       skipHistory,
     }: { transactionId: string; note?: string; skipHistory?: boolean },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
-  ): Readonly<TransactionMeta> {
+  ) {
     let updatedTransactionParams: (keyof TransactionParams)[] = [];
 
     this.#updateWithCallback((state) => {
@@ -2361,8 +2361,6 @@ export class TransactionController extends BaseController<
         updatedTransactionParams,
       );
     }
-
-    return transactionMeta;
   }
 
   #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
@@ -2463,7 +2461,7 @@ export class TransactionController extends BaseController<
   #updateWithCallback(callback: (state: TransactionState) => TransactionState) {
     const currentState = cloneDeep(this.state);
     // eslint-disable-next-line n/callback-return
-    const updatedState = callback(currentState);
+    const updatedState = callback(currentState) ?? currentState;
     this.update(updatedState);
   }
 
