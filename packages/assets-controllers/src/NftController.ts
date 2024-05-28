@@ -485,7 +485,7 @@ export class NftController extends BaseController<
    * @param tokenId - The NFT identifier.
    * @returns Promise resolving to the current NFT name and image.
    */
-  private async getNftInformationFromApi(
+  async #getNftInformationFromApi(
     contractAddress: string,
     tokenId: string,
   ): Promise<NftMetadata> {
@@ -572,7 +572,7 @@ export class NftController extends BaseController<
   ): Promise<NftMetadata> {
     const { ipfsGateway, useIpfsSubdomains, isIpfsGatewayEnabled } =
       this.#config;
-    const result = await this.getNftURIAndStandard(
+    const result = await this.#getNftURIAndStandard(
       contractAddress,
       tokenId,
       networkClientId,
@@ -644,7 +644,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving NFT uri and token standard.
    */
-  async getNftURIAndStandard(
+  async #getNftURIAndStandard(
     contractAddress: string,
     tokenId: string,
     networkClientId?: NetworkClientId,
@@ -698,7 +698,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the current NFT name and image.
    */
-  private async getNftInformation(
+  async #getNftInformation(
     contractAddress: string,
     tokenId: string,
     networkClientId?: NetworkClientId,
@@ -716,7 +716,7 @@ export class NftController extends BaseController<
       ),
       this.#config.openSeaEnabled && chainId === '0x1'
         ? safelyExecute(() =>
-            this.getNftInformationFromApi(contractAddress, tokenId),
+            this.#getNftInformationFromApi(contractAddress, tokenId),
           )
         : undefined,
     ]);
@@ -767,7 +767,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the NFT contract name, image and description.
    */
-  private async getNftContractInformation(
+  async #getNftContractInformation(
     contractAddress: string,
     nftMetadataFromApi: NftMetadata,
     networkClientId?: NetworkClientId,
@@ -951,7 +951,7 @@ export class NftController extends BaseController<
       // this doesn't work currently for detection if the user switches networks while the detection is processing
       // will be fixed once detection uses networkClientIds
       // get name and symbol if ERC721 then put together the metadata
-      const contractInformation = await this.getNftContractInformation(
+      const contractInformation = await this.#getNftContractInformation(
         checksumHexAddress,
         nftMetadata,
         networkClientId,
@@ -1224,7 +1224,7 @@ export class NftController extends BaseController<
   ) {
     await this.#validateWatchNft(asset, type, userAddress);
 
-    const nftMetadata = await this.getNftInformation(
+    const nftMetadata = await this.#getNftInformation(
       asset.address,
       asset.tokenId,
       networkClientId,
@@ -1395,7 +1395,7 @@ export class NftController extends BaseController<
 
     nftMetadata =
       nftMetadata ||
-      (await this.getNftInformation(
+      (await this.#getNftInformation(
         checksumHexAddress,
         tokenId,
         networkClientId,
@@ -1454,9 +1454,9 @@ export class NftController extends BaseController<
         address: toChecksumHexAddress(nft.address),
       };
     });
-    const nftMetadataResults = await Promise.allSettled(
+    const nftMetadataResults = await Promise.all(
       nftsWithChecksumAdr.map(async (nft) => {
-        const resMetadata = await this.getNftInformation(
+        const resMetadata = await this.#getNftInformation(
           nft.address,
           nft.tokenId,
           networkClientId,
@@ -1467,26 +1467,22 @@ export class NftController extends BaseController<
         };
       }),
     );
-    const successfulNewFetchedNfts = nftMetadataResults.filter(
-      (result): result is PromiseFulfilledResult<NftUpdate> =>
-        result.status === 'fulfilled',
-    );
+
     // We want to avoid updating the state if the state and fetched nft info are the same
-    const nftsWithDifferentMetadata: PromiseFulfilledResult<NftUpdate>[] = [];
+    const nftsWithDifferentMetadata: NftUpdate[] = [];
     const { allNfts } = this.state;
     const stateNfts = allNfts[userAddress]?.[chainId] || [];
 
-    successfulNewFetchedNfts.forEach((singleNft) => {
+    nftMetadataResults.forEach((singleNft) => {
       const existingEntry: Nft | undefined = stateNfts.find(
         (nft) =>
-          nft.address.toLowerCase() ===
-            singleNft.value.nft.address.toLowerCase() &&
-          nft.tokenId === singleNft.value.nft.tokenId,
+          nft.address.toLowerCase() === singleNft.nft.address.toLowerCase() &&
+          nft.tokenId === singleNft.nft.tokenId,
       );
 
       if (existingEntry) {
         const differentMetadata = compareNftMetadata(
-          singleNft.value.newMetadata,
+          singleNft.newMetadata,
           existingEntry,
         );
 
@@ -1498,12 +1494,7 @@ export class NftController extends BaseController<
 
     if (nftsWithDifferentMetadata.length !== 0) {
       nftsWithDifferentMetadata.forEach((elm) =>
-        this.updateNft(
-          elm.value.nft,
-          elm.value.newMetadata,
-          userAddress,
-          chainId,
-        ),
+        this.updateNft(elm.nft, elm.newMetadata, userAddress, chainId),
       );
     }
   }
