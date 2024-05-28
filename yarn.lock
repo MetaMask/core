@@ -1726,7 +1726,7 @@ __metadata:
     "@metamask/keyring-api": ^6.1.1
     "@metamask/keyring-controller": ^16.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/polling-controller": ^6.0.2
     "@metamask/preferences-controller": ^11.0.0
     "@metamask/rpc-errors": ^6.2.1
@@ -1756,7 +1756,7 @@ __metadata:
     "@metamask/accounts-controller": ^14.0.0
     "@metamask/approval-controller": ^6.0.0
     "@metamask/keyring-controller": ^16.0.0
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
     "@metamask/preferences-controller": ^11.0.0
   languageName: unknown
   linkType: soft
@@ -2000,7 +2000,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2011,7 +2011,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.9.5
   peerDependencies:
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
   languageName: unknown
   linkType: soft
 
@@ -2313,7 +2313,7 @@ __metadata:
     "@metamask/controller-utils": ^9.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/polling-controller": ^6.0.2
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
@@ -2331,7 +2331,7 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
   languageName: unknown
   linkType: soft
 
@@ -2519,7 +2519,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@^18.1.1, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@^18.1.2, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -2692,7 +2692,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
@@ -2706,7 +2706,7 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
   languageName: unknown
   linkType: soft
 
@@ -2790,7 +2790,7 @@ __metadata:
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
     "@metamask/json-rpc-engine": ^8.0.2
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/selected-network-controller": ^13.0.0
     "@metamask/swappable-obj-proxy": ^2.2.0
@@ -2807,7 +2807,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.9.5
   peerDependencies:
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
     "@metamask/selected-network-controller": ^13.0.0
   languageName: unknown
   linkType: soft
@@ -2864,7 +2864,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/json-rpc-engine": ^8.0.2
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/permission-controller": ^9.1.0
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
@@ -2880,7 +2880,7 @@ __metadata:
     typedoc-plugin-missing-exports: ^2.0.0
     typescript: ~4.9.5
   peerDependencies:
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
     "@metamask/permission-controller": ^9.0.0
   languageName: unknown
   linkType: soft
@@ -3055,7 +3055,7 @@ __metadata:
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^15.1.2
     "@metamask/metamask-eth-abis": ^3.1.1
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/nonce-tracker": ^5.0.0
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
@@ -3081,7 +3081,7 @@ __metadata:
     "@babel/runtime": ^7.23.9
     "@metamask/approval-controller": ^6.0.0
     "@metamask/gas-fee-controller": ^15.0.0
-    "@metamask/network-controller": ^18.0.0
+    "@metamask/network-controller": ^18.1.2
   languageName: unknown
   linkType: soft
 
@@ -3096,7 +3096,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/gas-fee-controller": ^15.1.2
     "@metamask/keyring-controller": ^16.0.0
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
     "@metamask/polling-controller": ^6.0.2
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/transaction-controller": ^30.0.0
@@ -3117,8 +3117,8 @@ __metadata:
     "@metamask/approval-controller": ^6.0.0
     "@metamask/gas-fee-controller": ^15.0.0
     "@metamask/keyring-controller": ^16.0.0
-    "@metamask/network-controller": ^18.0.0
-    "@metamask/transaction-controller": ">=29.0.0"
+    "@metamask/network-controller": ^18.1.2
+    "@metamask/transaction-controller": ^30.0.0
   languageName: unknown
   linkType: soft
 
