@@ -2555,15 +2555,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/nonce-tracker@npm:^5.0.0":
-  version: 5.0.0
-  resolution: "@metamask/nonce-tracker@npm:5.0.0"
+"@metamask/nonce-tracker@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@metamask/nonce-tracker@npm:6.0.0"
   dependencies:
     "@ethersproject/providers": ^5.7.2
     async-mutex: ^0.3.1
   peerDependencies:
     "@metamask/eth-block-tracker": ">=9"
-  checksum: 31de9d62f2aec52688a4b7ec1fab877d1f2f4e6b2b395abef2790ddee63b3511f312c07c29d1c191f900231dbd4cdde8e969b210462f78253a177cacee72688c
+  checksum: d24cdf8eedc892673c3fe4ee1eff87356810840d5d3abb59c3e8adc5fbf21a1a9498bc1df50a7a6a61e7ebe9f3a3f45df4dd4b5b4269e7a52e5d8121d68f83ef
   languageName: node
   linkType: hard
 
@@ -3057,7 +3057,7 @@ __metadata:
     "@metamask/gas-fee-controller": ^16.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^18.1.3
-    "@metamask/nonce-tracker": ^5.0.0
+    "@metamask/nonce-tracker": ^6.0.0
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5

@@ -54,7 +54,7 @@
     "@metamask/gas-fee-controller": "^16.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^18.1.3",
-    "@metamask/nonce-tracker": "^5.0.0",
+    "@metamask/nonce-tracker": "^6.0.0",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "async-mutex": "^0.5.0",
