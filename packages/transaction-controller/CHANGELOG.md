@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [30.0.0]
 
-### Uncategorized
+### Fixed
 
-- deps(network-controller): eth-block-tracker@8 -> @metamask/eth-block-tracker@9 ([#4309](https://github.com/MetaMask/core/pull/4309))
+- **BREAKING**: Update from `nonce-tracker@^3.0.0` to `@metamask/nonce-tracker@^5.0.0` to mitigate issue with redundant polling loops in block tracker. ([#4309](https://github.com/MetaMask/core/pull/4309))
+  - The constructor now expects the `blockTracker` option being an instance of `@metamask/eth-block-tracker` instead of`eth-block-tracker`.
 
 ## [29.1.0]
 

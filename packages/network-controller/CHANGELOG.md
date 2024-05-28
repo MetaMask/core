@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.1.2]
 
-### Uncategorized
+### Fixed
 
-- deps(network-controller): eth-block-tracker@8 -> @metamask/eth-block-tracker@9 ([#4309](https://github.com/MetaMask/core/pull/4309))
+- Update from `eth-block-tracker` to `@metamask/eth-block-tracker` `^9.0.2`, mitigating redundant polling loops ([#4309](https://github.com/MetaMask/core/pull/4309))
 
 ## [18.1.1]
 
