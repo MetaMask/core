@@ -2615,7 +2615,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/permission-controller@^9.0.2, @metamask/permission-controller@workspace:packages/permission-controller":
+"@metamask/permission-controller@^9.0.2, @metamask/permission-controller@^9.1.0, @metamask/permission-controller@workspace:packages/permission-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/permission-controller@workspace:packages/permission-controller"
   dependencies:
@@ -2865,7 +2865,7 @@ __metadata:
     "@metamask/base-controller": ^5.0.2
     "@metamask/json-rpc-engine": ^8.0.2
     "@metamask/network-controller": ^18.1.1
-    "@metamask/permission-controller": ^9.0.2
+    "@metamask/permission-controller": ^9.1.0
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
