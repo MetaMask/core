@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds and exports new types: ([#3952](https://github.com/MetaMask/core/pull/3952))
+  - `RestrictedControllerMessengerConstraint`, which is the narrowest supertype of all controller-messenger instances.
+  - `LegacyControllerStateConstraint`, a universal supertype for the controller state object, encompassing both BaseControllerV1 and BaseControllerV2 state.
+  - `ComposableControllerStateConstraint`, the narrowest supertype for the composable controller state object.
+
+### Changed
+
+- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ComposableControllerState` ([#3952](https://github.com/MetaMask/core/pull/3952)).
+  - **BREAKING:** For the `ComposableController` class to be typed correctly, any of its child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion.
+
 ## [6.0.1]
 
 ### Fixed
@@ -25,12 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Passing a non-controller into `controllers` constructor option now throws an error ([#3904](https://github.com/MetaMask/core/pull/3904))
-- **BREAKING:** The `AllowedActions` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions. ([#3904](https://github.com/MetaMask/core/pull/3904))
-- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ChildControllers` in the form of a union of the controllers passed into the `controllers` array constructor option ([#3941](https://github.com/MetaMask/core/pull/3941))
-  - Child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion for the `ComposableController` class to be typed correctly.
-- Relax `payload` in `ComposableControllerStateChangeEvent` to use `Record<string, any>` rather than `Record<string, unknown>` ([#3949](https://github.com/MetaMask/core/pull/3949))
+- **BREAKING:** The `AllowedAction` parameter of the `ComposableControllerMessenger` type is narrowed from `string` to `never`, as `ComposableController` does not use any external controller actions ([#3904](https://github.com/MetaMask/core/pull/3904))
 - **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
   - This version has a number of breaking changes. See the changelog for more.
+- Relax `payload` in `ComposableControllerStateChangeEvent` to use `Record<string, any>` rather than `Record<string, unknown>` ([#3949](https://github.com/MetaMask/core/pull/3949))
 - Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
 
 ### Removed
