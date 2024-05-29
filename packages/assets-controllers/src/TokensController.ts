@@ -632,12 +632,14 @@ export class TokensController extends BaseController<
         }
       });
 
-      const { newAllTokens, newAllDetectedTokens } = this.#getNewAllTokensState({
-        newTokens,
-        newDetectedTokens,
-        interactingAddress: accountAddress,
-        interactingChainId: chainId,
-      });
+      const { newAllTokens, newAllDetectedTokens } = this.#getNewAllTokensState(
+        {
+          newTokens,
+          newDetectedTokens,
+          interactingAddress: accountAddress,
+          interactingChainId: chainId,
+        },
+      );
 
       // We may be detecting tokens on a different chain/account pair than are currently configured.
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
