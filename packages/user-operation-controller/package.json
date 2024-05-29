@@ -73,7 +73,7 @@
     "@metamask/approval-controller": "^6.0.0",
     "@metamask/gas-fee-controller": "^15.0.0",
     "@metamask/keyring-controller": "^16.0.0",
-    "@metamask/network-controller": "^18.1.2",
+    "@metamask/network-controller": "^18.0.0",
     "@metamask/transaction-controller": "^30.0.0"
   },
   "engines": {

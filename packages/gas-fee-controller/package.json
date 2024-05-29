@@ -67,7 +67,7 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^18.1.2"
+    "@metamask/network-controller": "^18.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
