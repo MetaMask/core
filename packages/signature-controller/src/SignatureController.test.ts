@@ -1,3 +1,4 @@
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 import {
   SigningMethod,
   SigningStage,
@@ -18,7 +19,6 @@ import type {
   SignatureControllerOptions,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 jest.mock('@metamask/message-manager', () => ({
   PersonalMessageManager: jest.fn(),

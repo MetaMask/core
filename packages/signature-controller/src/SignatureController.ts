@@ -42,7 +42,6 @@ import {
 } from '@metamask/message-manager';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { bytesToHex } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 
