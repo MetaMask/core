@@ -47,14 +47,12 @@ export function normalizeMessageData(data: string) {
 }
 
 /**
- * Validates a PersonalMessageParams and MessageParams objects for required properties and throws in
+ * Validates a PersonalMessageParams objects for required properties and throws in
  * the event of any validation error.
  *
  * @param messageData - PersonalMessageParams object to validate.
  */
-export function validateSignMessageData(
-  messageData: PersonalMessageParams | MessageParams,
-) {
+export function validateSignMessageData(messageData: PersonalMessageParams) {
   const { from, data } = messageData;
   validateAddress(from, 'from');
 

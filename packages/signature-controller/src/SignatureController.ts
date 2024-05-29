@@ -749,15 +749,6 @@ export class SignatureController extends BaseController<
     return stateMessage as StateMessage;
   }
 
-  #normalizeMsgData(data: string) {
-    if (data.startsWith('0x')) {
-      // data is already hex
-      return data;
-    }
-    // data is unicode, convert to hex
-    return bytesToHex(Buffer.from(data, 'utf8'));
-  }
-
   #getMessage(messageId: string): StateMessage {
     return {
       ...this.state.unapprovedPersonalMsgs,
