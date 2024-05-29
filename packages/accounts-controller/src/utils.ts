@@ -1,5 +1,6 @@
 import { toBuffer } from '@ethereumjs/util';
 import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
+import { deepClone } from '@metamask/snaps-utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import type { Draft } from 'immer';
 import type { V4Options } from 'uuid';
@@ -96,5 +97,5 @@ export function deepCloneDraft(
   obj: Draft<AccountsControllerState>,
 ): AccountsControllerState {
   // We use unknown here because the type inference when using structured clone leads to the same type error.
-  return structuredClone(obj) as unknown as AccountsControllerState;
+  return deepClone(obj) as unknown as AccountsControllerState;
 }
