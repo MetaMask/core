@@ -1,8 +1,11 @@
 import { toBuffer } from '@ethereumjs/util';
 import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
 import { sha256 } from 'ethereum-cryptography/sha256';
+import type { Draft } from 'immer';
 import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
+
+import type { AccountsControllerState } from './AccountsController';
 
 /**
  * Returns the name of the keyring type.
@@ -81,13 +84,18 @@ export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
 }
 
 /**
+ * WARNING: To be removed once type issue is fixed. https://github.com/MetaMask/utils/issues/168
+ *
  * Creates a deep clone of the given object.
  * This is to get around error `Type instantiation is excessively deep and possibly infinite.`
  *
- * @template O,T - The type of the object being cloned.
+ * @template T - The type of the object being cloned.
  * @param obj - The object to be cloned.
  * @returns The deep clone of the object.
  */
-export function deepCloneDraft<I, T>(obj: I): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
+export function deepCloneDraft(
+  obj: Draft<AccountsControllerState>,
+): AccountsControllerState {
+  // We use unknown here because the type inference when using structured clone leads to the same type error.
+  return structuredClone(obj) as unknown as AccountsControllerState;
 }

@@ -313,11 +313,8 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-      const newState = deepCloneDraft<
-        Draft<AccountsControllerState>,
-        AccountsControllerState
-      >(currentState);
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
 
       newState.internalAccounts.accounts[accountId] = internalAccount;
 
@@ -378,11 +375,8 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-      const newState = deepCloneDraft<
-        Draft<AccountsControllerState>,
-        AccountsControllerState
-      >(currentState);
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
 
       newState.internalAccounts.accounts = accounts;
 
@@ -398,11 +392,8 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-        const newState = deepCloneDraft<
-          Draft<AccountsControllerState>,
-          AccountsControllerState
-        >(currentState);
+        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+        const newState = deepCloneDraft(currentState);
 
         newState.internalAccounts = backup.internalAccounts;
 
@@ -789,11 +780,8 @@ export class AccountsController extends BaseController<
     );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      // deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-      const newState = deepCloneDraft<
-        Draft<AccountsControllerState>,
-        AccountsControllerState
-      >(currentState);
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
 
       newState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
