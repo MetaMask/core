@@ -916,7 +916,7 @@ describe('NftDetectionController', () => {
     const selectedAddress = '0x9';
     await withController(
       {
-        options: { addNft: mockAddNft },
+        options: { addNft: mockAddNft, disabled: false },
         mockPreferencesState: { selectedAddress },
       },
       async ({ controller, controllerEvents }) => {
