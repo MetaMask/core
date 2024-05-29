@@ -188,13 +188,13 @@ export type ComposableControllerMessenger<
 
 type GetChildControllers<
   ComposableControllerState,
-  P extends keyof ComposableControllerState = keyof ComposableControllerState,
-> = P extends string
-  ? ComposableControllerState[P] extends StateConstraint
-    ? { name: P; state: ComposableControllerState[P] }
+  ControllerName extends keyof ComposableControllerState = keyof ComposableControllerState,
+> = ControllerName extends string
+  ? ComposableControllerState[ControllerName] extends StateConstraint
+    ? { name: ControllerName; state: ComposableControllerState[ControllerName] }
     : BaseControllerV1<
         BaseConfig & Record<string, unknown>,
-        BaseState & ComposableControllerState[P]
+        BaseState & ComposableControllerState[ControllerName]
       >
   : never;
 
