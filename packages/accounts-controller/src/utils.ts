@@ -89,7 +89,6 @@ export function isNormalKeyringType(keyringType: KeyringTypes): boolean {
  * Creates a deep clone of the given object.
  * This is to get around error `Type instantiation is excessively deep and possibly infinite.`
  *
- * @template T - The type of the object being cloned.
  * @param obj - The object to be cloned.
  * @returns The deep clone of the object.
  */
