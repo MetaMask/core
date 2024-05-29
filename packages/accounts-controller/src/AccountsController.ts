@@ -298,7 +298,7 @@ export class AccountsController extends BaseController<
     chainId: CaipChainId | CaipNamespace = KnownCaipNamespace.Eip155,
   ): InternalAccount {
     if (chainId !== KnownCaipNamespace.Eip155 && !isCaipChainId(chainId)) {
-      throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
+      throw new Error(`Non-EVM account filtering is not supported`);
     }
 
     // TODO: have CAIP2 addresses within InternalAccount
