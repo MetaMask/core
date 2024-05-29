@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+
+### Added
+
+- Add `smartTransactionsOptInStatus` preference ([#3815](https://github.com/MetaMask/core/pull/3815))
+  - Add `smartTransactionsOptInStatus` property to the `PreferencesController` state (default: `false`)
+  - Add `setSmartTransactionOptInStatus` method to set this property
+- Add `useTransactionSimulations` preference ([#4283](https://github.com/MetaMask/core/pull/4283))
+  - Add `useTransactionSimulations` property to the `PreferencesController` state (default value: `false`)
+  - Add `setUseTransactionSimulations` method to set this property
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [11.0.0]
 
 ### Added
@@ -219,7 +234,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...@metamask/preferences-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@10.0.0...@metamask/preferences-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.1...@metamask/preferences-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.0...@metamask/preferences-controller@9.0.1

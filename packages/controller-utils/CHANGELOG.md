@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 
+### Added
+
+- Add `NFT_API_VERSION` and `NFT_API_TIMEOUT` constants ([#4312](https://github.com/MetaMask/core/pull/4312))
+
 ### Changed
 
 - **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
