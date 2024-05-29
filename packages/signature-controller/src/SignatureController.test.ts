@@ -18,6 +18,7 @@ import type {
   SignatureControllerOptions,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
+import { ORIGIN_METAMASK } from '@metamask/controller-utils';
 
 jest.mock('@metamask/message-manager', () => ({
   PersonalMessageManager: jest.fn(),
@@ -421,6 +422,10 @@ describe('SignatureController', () => {
 
   describe('newUnsignedTypedMessage', () => {
     it('adds message to typed message manager', async () => {
+      const messageParamsWithOriginUndefined = {
+        ...messageParamsMock,
+        origin: undefined,
+      };
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       signatureController.update(() => ({
@@ -430,7 +435,7 @@ describe('SignatureController', () => {
       }));
 
       await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
+        messageParamsWithOriginUndefined,
         requestMock,
         versionMock,
         { parseJsonData: false },
@@ -440,7 +445,7 @@ describe('SignatureController', () => {
         typedMessageManagerMock.addUnapprovedMessage,
       ).toHaveBeenCalledTimes(1);
       expect(typedMessageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
-        messageParamsMock,
+        messageParamsWithOriginUndefined,
         requestMock,
         versionMock,
       );
@@ -451,9 +456,9 @@ describe('SignatureController', () => {
         'ApprovalController:addRequest',
         {
           id: messageIdMock,
-          origin: messageParamsMock.origin,
+          origin: ORIGIN_METAMASK,
           type: 'eth_signTypedData',
-          requestData: messageParamsMock,
+          requestData: messageParamsWithOriginUndefined,
           expectsResult: true,
         },
         true,
