@@ -1,4 +1,5 @@
-import type { ApprovalControllerEvents } from '@metamask/approval-controller';
+import { Contract } from '@ethersproject/contracts';
+import type { ApprovalStateChange } from '@metamask/approval-controller';
 import {
   ApprovalController,
   type ApprovalControllerState,
@@ -8,69 +9,55 @@ import contractMaps from '@metamask/contract-metadata';
 import {
   ApprovalType,
   ChainId,
-  ERC20,
-  NetworkType,
-  NetworksTicker,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  NetworkType,
   toHex,
+  NetworksTicker,
 } from '@metamask/controller-utils';
 import type {
-  BlockTrackerProxy,
-  NetworkController,
+  NetworkClientConfiguration,
+  NetworkClientId,
   ProviderConfig,
-  ProviderProxy,
 } from '@metamask/network-controller';
-import {
-  defaultState as defaultNetworkState,
-  NetworkClientType,
-} from '@metamask/network-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
+import { v1 as uuidV1 } from 'uuid';
 
-import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { TOKEN_END_POINT_API } from './token-service';
-import type { TokenListState } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
-import type { AllowedActions, AllowedEvents } from './TokensController';
+import type { TokensControllerMessenger } from './TokensController';
 
-jest.mock('uuid', () => {
-  return {
-    ...jest.requireActual('uuid'),
-    v1: () => '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d',
-  };
-});
+jest.mock('@ethersproject/contracts');
+jest.mock('uuid');
+jest.mock('./Standards/ERC20Standard');
+jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 
-const stubCreateEthers = (ctrl: TokensController, res: () => boolean) => {
-  return sinon.stub(ctrl, '_createEthersContract').callsFake(() => {
-    return {
-      supportsInterface: sinon.stub().returns(res()),
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-  });
-};
-const MAINNET = {
-  chainId: ChainId.mainnet,
-  type: NetworkType.mainnet,
-  ticker: NetworksTicker.mainnet,
-};
-const mockMainnetClient = {
-  configuration: {
-    network: 'mainnet',
-    ...MAINNET,
-    type: NetworkClientType.Infura,
-  },
-  provider: {} as ProviderProxy,
-  blockTracker: {} as BlockTrackerProxy,
-  destroy: jest.fn(),
-};
+type UnrestrictedMessenger = ControllerMessenger<
+  ExtractAvailableAction<TokensControllerMessenger>,
+  ExtractAvailableEvent<TokensControllerMessenger> | ApprovalStateChange
+>;
+
+const ContractMock = jest.mocked(Contract);
+const uuidV1Mock = jest.mocked(uuidV1);
+const ERC20StandardMock = jest.mocked(ERC20Standard);
+const ERC1155StandardMock = jest.mocked(ERC1155Standard);
+
 const SEPOLIA = {
   chainId: toHex(11155111),
   type: NetworkType.sepolia,
@@ -82,1036 +69,1098 @@ const GOERLI = {
   ticker: NetworksTicker.goerli,
 };
 
-const controllerName = 'TokensController' as const;
-
 describe('TokensController', () => {
-  let tokensController: TokensController;
-  let approvalController: ApprovalController;
-  let messenger: ControllerMessenger<
-    AllowedActions,
-    AllowedEvents | ApprovalControllerEvents
-  >;
-  let tokensControllerMessenger;
-  let approvalControllerMessenger;
-  let getNetworkClientByIdHandler: jest.Mock<
-    ReturnType<NetworkController['getNetworkClientById']>,
-    Parameters<NetworkController['getNetworkClientById']>
-  >;
-
-  const changeNetwork = (providerConfig: ProviderConfig) => {
-    messenger.publish(`NetworkController:networkDidChange`, {
-      ...defaultNetworkState,
-      providerConfig,
-    });
-  };
-
-  const triggerPreferencesStateChange = (state: PreferencesState) => {
-    messenger.publish('PreferencesController:stateChange', state, []);
-  };
-
-  const fakeProvider = new FakeProvider();
-
-  beforeEach(async () => {
-    const defaultSelectedAddress = '0x1';
-    messenger = new ControllerMessenger();
-
-    approvalControllerMessenger = messenger.getRestricted({
-      name: 'ApprovalController',
-      allowedActions: [],
-      allowedEvents: [],
-    });
-
-    tokensControllerMessenger = messenger.getRestricted<
-      typeof controllerName,
-      AllowedActions['type'],
-      AllowedEvents['type']
-    >({
-      name: controllerName,
-      allowedActions: [
-        'ApprovalController:addRequest',
-        'NetworkController:getNetworkClientById',
-      ],
-      allowedEvents: [
-        'NetworkController:networkDidChange',
-        'PreferencesController:stateChange',
-        'TokenListController:stateChange',
-      ],
-    });
-    tokensController = new TokensController({
-      chainId: ChainId.mainnet,
-      config: {
-        selectedAddress: defaultSelectedAddress,
-        provider: fakeProvider,
-      },
-      messenger: tokensControllerMessenger,
-    });
-
-    approvalController = new ApprovalController({
-      messenger: approvalControllerMessenger,
-      showApprovalRequest: jest.fn(),
-      typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
-    });
-
-    getNetworkClientByIdHandler = jest.fn();
-    messenger.registerActionHandler(
-      `NetworkController:getNetworkClientById`,
-      getNetworkClientByIdHandler.mockReturnValue(
-        mockMainnetClient as unknown as ReturnType<
-          NetworkController['getNetworkClientById']
-        >,
-      ),
+  beforeEach(() => {
+    uuidV1Mock.mockReturnValue('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
+    ContractMock.mockReturnValue(
+      buildMockEthersERC721Contract({ supportsInterface: false }),
     );
   });
 
   afterEach(() => {
     sinon.restore();
+    jest.resetAllMocks();
   });
 
-  it('should set default state', () => {
-    expect(tokensController.state).toStrictEqual({
-      allTokens: {},
-      allIgnoredTokens: {},
-      ignoredTokens: [],
-      tokens: [],
-      detectedTokens: [],
-      allDetectedTokens: {},
+  it('should set default state', async () => {
+    await withController(({ controller }) => {
+      expect(controller.state).toStrictEqual({
+        allTokens: {},
+        allIgnoredTokens: {},
+        ignoredTokens: [],
+        tokens: [],
+        detectedTokens: [],
+        allDetectedTokens: {},
+      });
     });
   });
 
   it('should add a token', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-    });
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-      symbol: 'bar',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'baz',
-      decimals: 2,
-    });
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-      symbol: 'baz',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-    stub.restore();
-  });
+    await withController(async ({ controller }) => {
+      ContractMock.mockReturnValue(
+        buildMockEthersERC721Contract({ supportsInterface: false }),
+      );
 
-  it('should add tokens', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-
-    await tokensController.addTokens([
-      {
+      await controller.addToken({
         address: '0x01',
-        symbol: 'barA',
+        symbol: 'bar',
         decimals: 2,
-        aggregators: [],
-        name: 'Token1',
-      },
-      {
-        address: '0x02',
-        symbol: 'barB',
-        decimals: 2,
-        aggregators: [],
-        name: 'Token2',
-      },
-    ]);
-
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image: undefined,
-      symbol: 'barA',
-      aggregators: [],
-      name: 'Token1',
-    });
-
-    expect(tokensController.state.tokens[1]).toStrictEqual({
-      address: '0x02',
-      decimals: 2,
-      image: undefined,
-      symbol: 'barB',
-      aggregators: [],
-      name: 'Token2',
-    });
-
-    await tokensController.addTokens([
-      {
-        address: '0x01',
-        symbol: 'bazA',
-        decimals: 2,
-        aggregators: [],
-      },
-      {
-        address: '0x02',
-        symbol: 'bazB',
-        decimals: 2,
-        aggregators: [],
-      },
-    ]);
-
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image: undefined,
-      symbol: 'bazA',
-      aggregators: [],
-      name: undefined,
-    });
-
-    expect(tokensController.state.tokens[1]).toStrictEqual({
-      address: '0x02',
-      decimals: 2,
-      image: undefined,
-      symbol: 'bazB',
-      aggregators: [],
-      name: undefined,
-    });
-
-    stub.restore();
-  });
-
-  it('should add detected tokens', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-
-    await tokensController.addDetectedTokens([
-      { address: '0x01', symbol: 'barA', decimals: 2, aggregators: [] },
-      { address: '0x02', symbol: 'barB', decimals: 2, aggregators: [] },
-    ]);
-
-    expect(tokensController.state.detectedTokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image: undefined,
-      symbol: 'barA',
-      aggregators: [],
-      isERC721: undefined,
-      name: undefined,
-    });
-
-    expect(tokensController.state.detectedTokens[1]).toStrictEqual({
-      address: '0x02',
-      decimals: 2,
-      image: undefined,
-      symbol: 'barB',
-      aggregators: [],
-      isERC721: undefined,
-      name: undefined,
-    });
-
-    await tokensController.addDetectedTokens([
-      {
-        address: '0x01',
-        symbol: 'bazA',
-        decimals: 2,
-        aggregators: [],
-        isERC721: undefined,
-        name: undefined,
-      },
-      {
-        address: '0x02',
-        symbol: 'bazB',
-        decimals: 2,
-        aggregators: [],
-        isERC721: undefined,
-        name: undefined,
-      },
-    ]);
-
-    expect(tokensController.state.detectedTokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image: undefined,
-      symbol: 'bazA',
-      aggregators: [],
-      isERC721: undefined,
-      name: undefined,
-    });
-
-    expect(tokensController.state.detectedTokens[1]).toStrictEqual({
-      address: '0x02',
-      decimals: 2,
-      image: undefined,
-      symbol: 'bazB',
-      aggregators: [],
-      isERC721: undefined,
-      name: undefined,
-    });
-
-    stub.restore();
-  });
-
-  it('should add token by selected address', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-
-    const firstAddress = '0x123';
-    const secondAddress = '0x321';
-
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
-    });
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-    });
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: secondAddress,
-    });
-    expect(tokensController.state.tokens).toHaveLength(0);
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
-    });
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-      symbol: 'bar',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-
-    stub.restore();
-  });
-
-  it('should add token by network', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    changeNetwork(SEPOLIA);
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-    });
-    changeNetwork(GOERLI);
-    expect(tokensController.state.tokens).toHaveLength(0);
-
-    changeNetwork(SEPOLIA);
-
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
-      symbol: 'bar',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-
-    stub.restore();
-  });
-
-  it('should add token to the correct chainId when passed a networkClientId', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    getNetworkClientByIdHandler.mockReturnValue({
-      configuration: { chainId: '0x5' },
-    } as unknown as ReturnType<NetworkController['getNetworkClientById']>);
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-      networkClientId: 'networkClientId1',
-    });
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x01',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
-      symbol: 'bar',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-    expect(tokensController.state.allTokens['0x5']['0x1']).toStrictEqual([
-      {
+      });
+      expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         symbol: 'bar',
         isERC721: false,
         aggregators: [],
         name: undefined,
-      },
-    ]);
-
-    expect(getNetworkClientByIdHandler).toHaveBeenCalledWith(
-      'networkClientId1',
-    );
-    stub.restore();
-  });
-
-  it('should remove token', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-    });
-    tokensController.ignoreTokens(['0x01']);
-    expect(tokensController.state.tokens).toHaveLength(0);
-    stub.restore();
-  });
-
-  it('should remove detected token', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    await tokensController.addDetectedTokens([
-      {
-        address: '0x01',
-        symbol: 'bar',
-        decimals: 2,
-      },
-    ]);
-    tokensController.ignoreTokens(['0x01']);
-    expect(tokensController.state.detectedTokens).toHaveLength(0);
-    stub.restore();
-  });
-
-  it('should remove token by selected address', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    const firstAddress = '0x123';
-    const secondAddress = '0x321';
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
-    });
-    await tokensController.addToken({
-      address: '0x02',
-      symbol: 'baz',
-      decimals: 2,
-    });
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: secondAddress,
-    });
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-    });
-    tokensController.ignoreTokens(['0x01']);
-    expect(tokensController.state.tokens).toHaveLength(0);
-    triggerPreferencesStateChange({
-      ...getDefaultPreferencesState(),
-      selectedAddress: firstAddress,
-    });
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x02',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
-      symbol: 'baz',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-    stub.restore();
-  });
-
-  it('should remove token by provider type', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    changeNetwork(SEPOLIA);
-    await tokensController.addToken({
-      address: '0x02',
-      symbol: 'baz',
-      decimals: 2,
-    });
-    changeNetwork(GOERLI);
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'bar',
-      decimals: 2,
-    });
-    tokensController.ignoreTokens(['0x01']);
-    expect(tokensController.state.tokens).toHaveLength(0);
-    changeNetwork(SEPOLIA);
-
-    expect(tokensController.state.tokens[0]).toStrictEqual({
-      address: '0x02',
-      decimals: 2,
-      image:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
-      symbol: 'baz',
-      isERC721: false,
-      aggregators: [],
-      name: undefined,
-    });
-    stub.restore();
-  });
-
-  describe('ignoredTokens', () => {
-    const defaultSelectedAddress = '0x0001';
-
-    let createEthersStub: sinon.SinonStub;
-    beforeEach(() => {
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: defaultSelectedAddress,
       });
-      changeNetwork(SEPOLIA);
 
-      createEthersStub = stubCreateEthers(tokensController, () => false);
-    });
-
-    afterEach(() => {
-      createEthersStub.restore();
-    });
-
-    it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
-      await tokensController.addToken({
-        address: '0x01',
-        symbol: 'foo',
-        decimals: 2,
-      });
-      await tokensController.addToken({
-        address: '0xFAa',
-        symbol: 'bar',
-        decimals: 3,
-      });
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      expect(tokensController.state.tokens).toHaveLength(2);
-      tokensController.ignoreTokens(['0x01']);
-      expect(tokensController.state.tokens).toHaveLength(1);
-      expect(tokensController.state.ignoredTokens).toHaveLength(1);
-      await tokensController.addToken({
+      await controller.addToken({
         address: '0x01',
         symbol: 'baz',
         decimals: 2,
       });
-      expect(tokensController.state.tokens).toHaveLength(2);
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-    });
-
-    it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
-      const selectedAddress = '0x0001';
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress,
-      });
-      changeNetwork(SEPOLIA);
-      await tokensController.addToken({
+      expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
-        symbol: 'bar',
         decimals: 2,
-      });
-      await tokensController.addToken({
-        address: '0xFAa',
-        symbol: 'bar',
-        decimals: 3,
-      });
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      expect(tokensController.state.tokens).toHaveLength(2);
-      tokensController.ignoreTokens(['0x01']);
-      tokensController.ignoreTokens(['0xFAa']);
-      expect(tokensController.state.tokens).toHaveLength(0);
-      expect(tokensController.state.ignoredTokens).toHaveLength(2);
-      await tokensController.addTokens([
-        { address: '0x01', decimals: 3, symbol: 'bar', aggregators: [] },
-        { address: '0x02', decimals: 4, symbol: 'baz', aggregators: [] },
-        { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
-      ]);
-      expect(tokensController.state.tokens).toHaveLength(3);
-      expect(tokensController.state.ignoredTokens).toHaveLength(1);
-      expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
-          [selectedAddress]: ['0xFAa'],
-        },
-      });
-    });
-
-    it('should be able to clear the ignoredToken list', async () => {
-      await tokensController.addToken({
-        address: '0x01',
-        symbol: 'bar',
-        decimals: 2,
-      });
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      tokensController.ignoreTokens(['0x01']);
-      expect(tokensController.state.tokens).toHaveLength(0);
-      expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
-          [defaultSelectedAddress]: ['0x01'],
-        },
-      });
-      tokensController.clearIgnoredTokens();
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      expect(Object.keys(tokensController.state.allIgnoredTokens)).toHaveLength(
-        0,
-      );
-    });
-
-    it('should ignore tokens by [chainID][accountAddress]', async () => {
-      const selectedAddress1 = '0x0001';
-      const selectedAddress2 = '0x0002';
-
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: selectedAddress1,
-      });
-      changeNetwork(SEPOLIA);
-
-      await tokensController.addToken({
-        address: '0x01',
-        symbol: 'bar',
-        decimals: 2,
-      });
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      tokensController.ignoreTokens(['0x01']);
-      expect(tokensController.state.tokens).toHaveLength(0);
-
-      expect(tokensController.state.ignoredTokens).toStrictEqual(['0x01']);
-      changeNetwork(GOERLI);
-
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      await tokensController.addToken({
-        address: '0x02',
-        symbol: 'bazz',
-        decimals: 3,
-      });
-      tokensController.ignoreTokens(['0x02']);
-      expect(tokensController.state.ignoredTokens).toStrictEqual(['0x02']);
-
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: selectedAddress2,
-      });
-      expect(tokensController.state.ignoredTokens).toHaveLength(0);
-      await tokensController.addToken({
-        address: '0x03',
-        symbol: 'foo',
-        decimals: 4,
-      });
-      tokensController.ignoreTokens(['0x03']);
-      expect(tokensController.state.ignoredTokens).toStrictEqual(['0x03']);
-
-      expect(tokensController.state.allIgnoredTokens).toStrictEqual({
-        [SEPOLIA.chainId]: {
-          [selectedAddress1]: ['0x01'],
-        },
-        [GOERLI.chainId]: {
-          [selectedAddress1]: ['0x02'],
-          [selectedAddress2]: ['0x03'],
-        },
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+        symbol: 'baz',
+        isERC721: false,
+        aggregators: [],
+        name: undefined,
       });
     });
   });
 
-  it('should ignore multiple tokens with single ignoreTokens call', async () => {
-    const stub = stubCreateEthers(tokensController, () => false);
-    await tokensController.addToken({
-      address: '0x01',
-      symbol: 'A',
-      decimals: 4,
-    });
-    await tokensController.addToken({
-      address: '0x02',
-      symbol: 'B',
-      decimals: 5,
-    });
-    expect(tokensController.state.tokens).toStrictEqual([
-      {
-        address: '0x01',
-        decimals: 4,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-        isERC721: false,
-        symbol: 'A',
-        aggregators: [],
-        name: undefined,
-      },
-      {
-        address: '0x02',
-        decimals: 5,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
-        isERC721: false,
-        symbol: 'B',
-        aggregators: [],
-        name: undefined,
-      },
-    ]);
-
-    tokensController.ignoreTokens(['0x01', '0x02']);
-    expect(tokensController.state.tokens).toStrictEqual([]);
-    stub.restore();
-  });
-
-  describe('isERC721 flag', function () {
-    describe('updateTokenType method', function () {
-      it('should add isERC721 = true to token object already in state when token is NFT and in our contract-metadata repo', async function () {
-        const contractAddresses = Object.keys(contractMaps);
-        const erc721ContractAddresses = contractAddresses.filter(
-          (contractAddress) => contractMaps[contractAddress].erc721 === true,
-        );
-        const address = erc721ContractAddresses[0];
-        const { symbol, decimals } = contractMaps[address];
-        tokensController.update({
-          tokens: [{ address, symbol, decimals }],
-        });
-        const result = await tokensController.updateTokenType(address);
-        expect(result.isERC721).toBe(true);
-      });
-
-      it('should add isERC721 = false to token object already in state when token is not an NFT and is in our contract-metadata repo', async function () {
-        const contractAddresses = Object.keys(contractMaps);
-        const erc20ContractAddresses = contractAddresses.filter(
-          (contractAddress) => contractMaps[contractAddress].erc20 === true,
-        );
-        const address = erc20ContractAddresses[0];
-        const { symbol, decimals } = contractMaps[address];
-        tokensController.update({
-          tokens: [{ address, symbol, decimals }],
-        });
-        const result = await tokensController.updateTokenType(address);
-        expect(result.isERC721).toBe(false);
-      });
-
-      it('should add isERC721 = true to token object already in state when token is NFT and is not in our contract-metadata repo', async function () {
-        const stub = stubCreateEthers(tokensController, () => true);
-        const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-        tokensController.update({
-          tokens: [
-            {
-              address: tokenAddress,
-              symbol: 'TESTNFT',
-              decimals: 0,
-            },
-          ],
-        });
-
-        const result = await tokensController.updateTokenType(tokenAddress);
-
-        expect(result.isERC721).toBe(true);
-        stub.restore();
-      });
-
-      it('should add isERC721 = false to token object already in state when token is not an NFT and not in our contract-metadata repo', async function () {
-        const stub = stubCreateEthers(tokensController, () => false);
-        const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
-        tokensController.update({
-          tokens: [
-            {
-              address: tokenAddress,
-              symbol: 'TESTNFT',
-              decimals: 0,
-            },
-          ],
-        });
-
-        const result = await tokensController.updateTokenType(tokenAddress);
-
-        expect(result.isERC721).toBe(false);
-        stub.restore();
-      });
-    });
-
-    describe('addToken method', function () {
-      it('should add isERC721 = true when token is an NFT and is in our contract-metadata repo', async function () {
-        const contractAddresses = Object.keys(contractMaps);
-        const erc721ContractAddresses = contractAddresses.filter(
-          (contractAddress) => contractMaps[contractAddress].erc721 === true,
-        );
-        const address = erc721ContractAddresses[0];
-        const { symbol, decimals } = contractMaps[address];
-        await tokensController.addToken({ address, symbol, decimals });
-
-        expect(tokensController.state.tokens).toStrictEqual([
-          expect.objectContaining({
-            address,
-            symbol,
-            isERC721: true,
-            decimals,
-          }),
-        ]);
-      });
-
-      it('should add isERC721 = true when the token is an NFT but not in our contract-metadata repo', async function () {
-        const stub = stubCreateEthers(tokensController, () => true);
-        const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
-
-        await tokensController.addToken({
-          address: tokenAddress,
-          symbol: 'REST',
-          decimals: 4,
-        });
-
-        expect(tokensController.state.tokens).toStrictEqual([
-          {
-            address: tokenAddress,
-            symbol: 'REST',
-            isERC721: true,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
-            decimals: 4,
-            aggregators: [],
-            name: undefined,
-          },
-        ]);
-
-        stub.restore();
-      });
-
-      it('should add isERC721 = false to token object already in state when token is not an NFT and in our contract-metadata repo', async function () {
-        const contractAddresses = Object.keys(contractMaps);
-        const erc20ContractAddresses = contractAddresses.filter(
-          (contractAddress) => contractMaps[contractAddress].erc20 === true,
-        );
-        const address = erc20ContractAddresses[0];
-        const { symbol, decimals } = contractMaps[address];
-
-        await tokensController.addToken({ address, symbol, decimals });
-
-        expect(tokensController.state.tokens).toStrictEqual([
-          expect.objectContaining({
-            address,
-            symbol,
-            isERC721: false,
-            decimals,
-          }),
-        ]);
-      });
-
-      it('should add isERC721 = false when the token is not an NFT and not in our contract-metadata repo', async function () {
-        const stub = stubCreateEthers(tokensController, () => false);
-        const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
-
-        await tokensController.addToken({
-          address: tokenAddress,
-          symbol: 'LEST',
-          decimals: 5,
-        });
-
-        expect(tokensController.state.tokens).toStrictEqual([
-          {
-            address: tokenAddress,
-            symbol: 'LEST',
-            isERC721: false,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
-            decimals: 5,
-            aggregators: [],
-            name: undefined,
-          },
-        ]);
-
-        stub.restore();
-      });
-
-      it('should throw error if switching networks while adding token', async function () {
-        const dummyTokenAddress = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
-        const addTokenPromise = tokensController.addToken({
-          address: dummyTokenAddress,
-          symbol: 'LINK',
-          decimals: 18,
-        });
-        changeNetwork(GOERLI);
-        await expect(addTokenPromise).rejects.toThrow(
-          'TokensController Error: Switched networks while adding token',
-        );
-      });
-    });
-
-    it('should throw TokenService error if fetchTokenMetadata returns a response with an error', async () => {
-      const dummyTokenAddress = '0x514910771AF9Ca656af840dff83E8264EcF986CA';
-      const error = 'An error occured';
-      const fullErrorMessage = `TokenService Error: ${error}`;
-      nock(TOKEN_END_POINT_API)
-        .get(
-          `/token/${convertHexToDecimal(
-            ChainId.mainnet,
-          )}?address=${dummyTokenAddress}`,
-        )
-        .reply(200, { error })
-        .persist();
-
-      await expect(
-        tokensController.addToken({
-          address: dummyTokenAddress,
-          symbol: 'LINK',
-          decimals: 18,
-        }),
-      ).rejects.toThrow(fullErrorMessage);
-    });
-
-    it('should add token that was previously a detected token', async () => {
-      const stub = stubCreateEthers(tokensController, () => false);
-      const dummyDetectedToken: Token = {
-        address: '0x01',
-        symbol: 'barA',
-        decimals: 2,
-        aggregators: [],
-        image: undefined,
-        isERC721: false,
-        name: undefined,
-      };
-      const dummyAddedToken: Token = {
-        ...dummyDetectedToken,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-      };
-
-      await tokensController.addDetectedTokens([dummyDetectedToken]);
-
-      expect(tokensController.state.detectedTokens).toStrictEqual([
-        dummyDetectedToken,
-      ]);
-
-      await tokensController.addToken({
-        address: dummyDetectedToken.address,
-        symbol: dummyDetectedToken.symbol,
-        decimals: dummyDetectedToken.decimals,
-      });
-
-      expect(tokensController.state.detectedTokens).toStrictEqual([]);
-      expect(tokensController.state.tokens).toStrictEqual([dummyAddedToken]);
-
-      stub.restore();
-    });
-
-    it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
-      const stub = stubCreateEthers(tokensController, () => false);
-
-      // The currently configured chain + address
-      const CONFIGURED_CHAIN = SEPOLIA;
-      const CONFIGURED_ADDRESS = '0xConfiguredAddress';
-      changeNetwork(CONFIGURED_CHAIN);
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: CONFIGURED_ADDRESS,
-      });
-
-      // A different chain + address
-      const OTHER_CHAIN = '0xOtherChainId';
-      const OTHER_ADDRESS = '0xOtherAddress';
-
-      // Mock some tokens to add
-      const generateTokens = (len: number) =>
-        [...Array(len)].map((_, i) => ({
-          address: `0x${i}`,
-          symbol: String.fromCharCode(65 + i),
-          decimals: 2,
-          aggregators: [],
-          name: undefined,
-          isERC721: false,
-          image: `https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x${i}.png`,
-        }));
-
-      const [
-        addedTokenConfiguredAccount,
-        detectedTokenConfiguredAccount,
-        detectedTokenOtherAccount,
-      ] = generateTokens(3);
-
-      // Run twice to ensure idempotency
-      for (let i = 0; i < 2; i++) {
-        // Add and detect some tokens on the configured chain + account
-        await tokensController.addToken(addedTokenConfiguredAccount);
-        await tokensController.addDetectedTokens([
-          detectedTokenConfiguredAccount,
-        ]);
-
-        // Detect a token on the other chain + account
-        await tokensController.addDetectedTokens([detectedTokenOtherAccount], {
-          selectedAddress: OTHER_ADDRESS,
-          chainId: OTHER_CHAIN,
-        });
-
-        // Expect tokens on the configured account
-        expect(tokensController.state.tokens).toStrictEqual([
-          addedTokenConfiguredAccount,
-        ]);
-        expect(tokensController.state.detectedTokens).toStrictEqual([
-          detectedTokenConfiguredAccount,
-        ]);
-
-        // Expect tokens under the correct chain + account
-        expect(tokensController.state.allTokens).toStrictEqual({
-          [CONFIGURED_CHAIN.chainId]: {
-            [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
-          },
-        });
-        expect(tokensController.state.allDetectedTokens).toStrictEqual({
-          [CONFIGURED_CHAIN.chainId]: {
-            [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
-          },
-          [OTHER_CHAIN]: {
-            [OTHER_ADDRESS]: [detectedTokenOtherAccount],
-          },
-        });
-      }
-
-      stub.restore();
-    });
-  });
-
-  describe('addTokens method', function () {
-    it('should add tokens that were previously detected tokens', async () => {
-      const dummyAddedTokens: Token[] = [
+  it('should add tokens', async () => {
+    await withController(async ({ controller }) => {
+      await controller.addTokens([
         {
           address: '0x01',
           symbol: 'barA',
           decimals: 2,
           aggregators: [],
-          image: undefined,
-          name: undefined,
+          name: 'Token1',
         },
         {
           address: '0x02',
           symbol: 'barB',
           decimals: 2,
           aggregators: [],
-          image: undefined,
+          name: 'Token2',
+        },
+      ]);
+      expect(controller.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image: undefined,
+        symbol: 'barA',
+        aggregators: [],
+        name: 'Token1',
+      });
+      expect(controller.state.tokens[1]).toStrictEqual({
+        address: '0x02',
+        decimals: 2,
+        image: undefined,
+        symbol: 'barB',
+        aggregators: [],
+        name: 'Token2',
+      });
+
+      await controller.addTokens([
+        {
+          address: '0x01',
+          symbol: 'bazA',
+          decimals: 2,
+          aggregators: [],
+        },
+        {
+          address: '0x02',
+          symbol: 'bazB',
+          decimals: 2,
+          aggregators: [],
+        },
+      ]);
+      expect(controller.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image: undefined,
+        symbol: 'bazA',
+        aggregators: [],
+        name: undefined,
+      });
+      expect(controller.state.tokens[1]).toStrictEqual({
+        address: '0x02',
+        decimals: 2,
+        image: undefined,
+        symbol: 'bazB',
+        aggregators: [],
+        name: undefined,
+      });
+    });
+  });
+
+  it('should add detected tokens', async () => {
+    await withController(async ({ controller }) => {
+      await controller.addDetectedTokens([
+        {
+          address: '0x01',
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+        },
+        {
+          address: '0x02',
+          symbol: 'barB',
+          decimals: 2,
+          aggregators: [],
+        },
+      ]);
+      expect(controller.state.detectedTokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image: undefined,
+        symbol: 'barA',
+        aggregators: [],
+        isERC721: undefined,
+        name: undefined,
+      });
+      expect(controller.state.detectedTokens[1]).toStrictEqual({
+        address: '0x02',
+        decimals: 2,
+        image: undefined,
+        symbol: 'barB',
+        aggregators: [],
+        isERC721: undefined,
+        name: undefined,
+      });
+
+      await controller.addDetectedTokens([
+        {
+          address: '0x01',
+          symbol: 'bazA',
+          decimals: 2,
+          aggregators: [],
+          isERC721: undefined,
           name: undefined,
         },
-      ];
-      const dummyDetectedTokens: Token[] = [
         {
-          ...dummyAddedTokens[0],
-          isERC721: false,
+          address: '0x02',
+          symbol: 'bazB',
+          decimals: 2,
+          aggregators: [],
+          isERC721: undefined,
+          name: undefined,
         },
+      ]);
+      expect(controller.state.detectedTokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image: undefined,
+        symbol: 'bazA',
+        aggregators: [],
+        isERC721: undefined,
+        name: undefined,
+      });
+      expect(controller.state.detectedTokens[1]).toStrictEqual({
+        address: '0x02',
+        decimals: 2,
+        image: undefined,
+        symbol: 'bazB',
+        aggregators: [],
+        isERC721: undefined,
+        name: undefined,
+      });
+    });
+  });
+
+  it('should add token by selected address', async () => {
+    await withController(
+      async ({ controller, triggerPreferencesStateChange }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        const firstAddress = '0x123';
+        const secondAddress = '0x321';
+
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress: firstAddress,
+        });
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
+        });
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress: secondAddress,
+        });
+        expect(controller.state.tokens).toHaveLength(0);
+
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress: firstAddress,
+        });
+        expect(controller.state.tokens[0]).toStrictEqual({
+          address: '0x01',
+          decimals: 2,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+          symbol: 'bar',
+          isERC721: false,
+          aggregators: [],
+          name: undefined,
+        });
+      },
+    );
+  });
+
+  it('should add token by network', async () => {
+    await withController(async ({ controller, changeNetwork }) => {
+      changeNetwork(SEPOLIA);
+      await controller.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
+
+      changeNetwork(GOERLI);
+      expect(controller.state.tokens).toHaveLength(0);
+
+      changeNetwork(SEPOLIA);
+      expect(controller.state.tokens[0]).toStrictEqual({
+        address: '0x01',
+        decimals: 2,
+        image:
+          'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x01.png',
+        symbol: 'bar',
+        isERC721: false,
+        aggregators: [],
+        name: undefined,
+      });
+    });
+  });
+
+  it('should add token to the correct chainId when passed a networkClientId', async () => {
+    await withController(
+      {
+        mockNetworkClientConfigurationsByNetworkClientId: {
+          networkClientId1: buildCustomNetworkClientConfiguration({
+            chainId: '0x5',
+          }),
+        },
+      },
+      async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
+          networkClientId: 'networkClientId1',
+        });
+
+        expect(controller.state.tokens[0]).toStrictEqual({
+          address: '0x01',
+          decimals: 2,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
+          symbol: 'bar',
+          isERC721: false,
+          aggregators: [],
+          name: undefined,
+        });
+        expect(controller.state.allTokens['0x5']['0x1']).toStrictEqual([
+          {
+            address: '0x01',
+            decimals: 2,
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
+            symbol: 'bar',
+            isERC721: false,
+            aggregators: [],
+            name: undefined,
+          },
+        ]);
+      },
+    );
+  });
+
+  it('should remove token', async () => {
+    await withController(async ({ controller }) => {
+      await controller.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
+
+      controller.ignoreTokens(['0x01']);
+
+      expect(controller.state.tokens).toHaveLength(0);
+    });
+  });
+
+  it('should remove detected token', async () => {
+    await withController(async ({ controller }) => {
+      await controller.addDetectedTokens([
         {
-          ...dummyAddedTokens[1],
-          isERC721: false,
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
         },
-      ];
+      ]);
 
-      await tokensController.addDetectedTokens(dummyDetectedTokens);
+      controller.ignoreTokens(['0x01']);
 
-      expect(tokensController.state.detectedTokens).toStrictEqual(
-        dummyDetectedTokens,
+      expect(controller.state.detectedTokens).toHaveLength(0);
+    });
+  });
+
+  it('should remove token by selected address', async () => {
+    await withController(
+      async ({ controller, triggerPreferencesStateChange }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        const firstAddress = '0x123';
+        const secondAddress = '0x321';
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress: firstAddress,
+        });
+        await controller.addToken({
+          address: '0x02',
+          symbol: 'baz',
+          decimals: 2,
+        });
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress: secondAddress,
+        });
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'bar',
+          decimals: 2,
+        });
+
+        controller.ignoreTokens(['0x01']);
+        expect(controller.state.tokens).toHaveLength(0);
+
+        triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress: firstAddress,
+        });
+        expect(controller.state.tokens[0]).toStrictEqual({
+          address: '0x02',
+          decimals: 2,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
+          symbol: 'baz',
+          isERC721: false,
+          aggregators: [],
+          name: undefined,
+        });
+      },
+    );
+  });
+
+  it('should remove token by provider type', async () => {
+    await withController(async ({ controller, changeNetwork }) => {
+      ContractMock.mockReturnValue(
+        buildMockEthersERC721Contract({ supportsInterface: false }),
+      );
+      changeNetwork(SEPOLIA);
+      await controller.addToken({
+        address: '0x02',
+        symbol: 'baz',
+        decimals: 2,
+      });
+      changeNetwork(GOERLI);
+      await controller.addToken({
+        address: '0x01',
+        symbol: 'bar',
+        decimals: 2,
+      });
+
+      controller.ignoreTokens(['0x01']);
+      expect(controller.state.tokens).toHaveLength(0);
+
+      changeNetwork(SEPOLIA);
+      expect(controller.state.tokens[0]).toStrictEqual({
+        address: '0x02',
+        decimals: 2,
+        image:
+          'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x02.png',
+        symbol: 'baz',
+        isERC721: false,
+        aggregators: [],
+        name: undefined,
+      });
+    });
+  });
+
+  describe('ignoredTokens', () => {
+    it('should remove token from ignoredTokens/allIgnoredTokens lists if added back via addToken', async () => {
+      await withController(async ({ controller }) => {
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'foo',
+          decimals: 2,
+        });
+        await controller.addToken({
+          address: '0xFAa',
+          symbol: 'bar',
+          decimals: 3,
+        });
+        expect(controller.state.ignoredTokens).toHaveLength(0);
+        expect(controller.state.tokens).toHaveLength(2);
+
+        controller.ignoreTokens(['0x01']);
+        expect(controller.state.tokens).toHaveLength(1);
+        expect(controller.state.ignoredTokens).toHaveLength(1);
+
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'baz',
+          decimals: 2,
+        });
+        expect(controller.state.tokens).toHaveLength(2);
+        expect(controller.state.ignoredTokens).toHaveLength(0);
+      });
+    });
+
+    it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
+      await withController(
+        async ({
+          controller,
+          triggerPreferencesStateChange,
+          changeNetwork,
+        }) => {
+          const selectedAddress = '0x0001';
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress,
+          });
+          changeNetwork(SEPOLIA);
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+          });
+          await controller.addToken({
+            address: '0xFAa',
+            symbol: 'bar',
+            decimals: 3,
+          });
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(controller.state.tokens).toHaveLength(2);
+
+          controller.ignoreTokens(['0x01']);
+          controller.ignoreTokens(['0xFAa']);
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.ignoredTokens).toHaveLength(2);
+
+          await controller.addTokens([
+            { address: '0x01', decimals: 3, symbol: 'bar', aggregators: [] },
+            { address: '0x02', decimals: 4, symbol: 'baz', aggregators: [] },
+            { address: '0x04', decimals: 4, symbol: 'foo', aggregators: [] },
+          ]);
+          expect(controller.state.tokens).toHaveLength(3);
+          expect(controller.state.ignoredTokens).toHaveLength(1);
+          expect(controller.state.allIgnoredTokens).toStrictEqual({
+            [ChainId.sepolia]: {
+              [selectedAddress]: ['0xFAa'],
+            },
+          });
+        },
+      );
+    });
+
+    it('should be able to clear the ignoredTokens list', async () => {
+      await withController(
+        async ({
+          controller,
+          triggerPreferencesStateChange,
+          changeNetwork,
+        }) => {
+          const selectedAddress = '0x0001';
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress,
+          });
+          changeNetwork(SEPOLIA);
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+          });
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          controller.ignoreTokens(['0x01']);
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.allIgnoredTokens).toStrictEqual({
+            [ChainId.sepolia]: {
+              [selectedAddress]: ['0x01'],
+            },
+          });
+
+          controller.clearIgnoredTokens();
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+          expect(Object.keys(controller.state.allIgnoredTokens)).toHaveLength(
+            0,
+          );
+        },
+      );
+    });
+
+    it('should ignore tokens by [chainID][accountAddress]', async () => {
+      await withController(
+        async ({
+          controller,
+          triggerPreferencesStateChange,
+          changeNetwork,
+        }) => {
+          const selectedAddress1 = '0x0001';
+          const selectedAddress2 = '0x0002';
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: selectedAddress1,
+          });
+          changeNetwork(SEPOLIA);
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'bar',
+            decimals: 2,
+          });
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          controller.ignoreTokens(['0x01']);
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
+
+          changeNetwork(GOERLI);
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          await controller.addToken({
+            address: '0x02',
+            symbol: 'bazz',
+            decimals: 3,
+          });
+          controller.ignoreTokens(['0x02']);
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
+
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: selectedAddress2,
+          });
+          expect(controller.state.ignoredTokens).toHaveLength(0);
+
+          await controller.addToken({
+            address: '0x03',
+            symbol: 'foo',
+            decimals: 4,
+          });
+          controller.ignoreTokens(['0x03']);
+          expect(controller.state.ignoredTokens).toStrictEqual(['0x03']);
+          expect(controller.state.allIgnoredTokens).toStrictEqual({
+            [ChainId.sepolia]: {
+              [selectedAddress1]: ['0x01'],
+            },
+            [ChainId.goerli]: {
+              [selectedAddress1]: ['0x02'],
+              [selectedAddress2]: ['0x03'],
+            },
+          });
+        },
+      );
+    });
+  });
+
+  it('should ignore multiple tokens with single ignoreTokens call', async () => {
+    await withController(async ({ controller }) => {
+      ContractMock.mockReturnValue(
+        buildMockEthersERC721Contract({ supportsInterface: false }),
       );
 
-      await tokensController.addTokens(dummyDetectedTokens);
+      await controller.addToken({
+        address: '0x01',
+        symbol: 'A',
+        decimals: 4,
+      });
+      await controller.addToken({
+        address: '0x02',
+        symbol: 'B',
+        decimals: 5,
+      });
+      expect(controller.state.tokens).toStrictEqual([
+        {
+          address: '0x01',
+          decimals: 4,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+          isERC721: false,
+          symbol: 'A',
+          aggregators: [],
+          name: undefined,
+        },
+        {
+          address: '0x02',
+          decimals: 5,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
+          isERC721: false,
+          symbol: 'B',
+          aggregators: [],
+          name: undefined,
+        },
+      ]);
 
-      expect(tokensController.state.detectedTokens).toStrictEqual([]);
-      expect(tokensController.state.tokens).toStrictEqual(dummyAddedTokens);
+      controller.ignoreTokens(['0x01', '0x02']);
+      expect(controller.state.tokens).toStrictEqual([]);
+    });
+  });
+
+  describe('isERC721 flag', () => {
+    describe('updateTokenType method', () => {
+      it('should add isERC721 = true to token object already in state when token is NFT and in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          const contractAddresses = Object.keys(contractMaps);
+          const erc721ContractAddresses = contractAddresses.filter(
+            (contractAddress) => contractMaps[contractAddress].erc721 === true,
+          );
+          const address = erc721ContractAddresses[0];
+          const { symbol, decimals } = contractMaps[address];
+
+          controller.update({
+            tokens: [{ address, symbol, decimals }],
+          });
+
+          const result = await controller.updateTokenType(address);
+          expect(result.isERC721).toBe(true);
+        });
+      });
+
+      it('should add isERC721 = false to token object already in state when token is not an NFT and is in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          const contractAddresses = Object.keys(contractMaps);
+          const erc20ContractAddresses = contractAddresses.filter(
+            (contractAddress) => contractMaps[contractAddress].erc20 === true,
+          );
+          const address = erc20ContractAddresses[0];
+          const { symbol, decimals } = contractMaps[address];
+
+          controller.update({
+            tokens: [{ address, symbol, decimals }],
+          });
+
+          const result = await controller.updateTokenType(address);
+          expect(result.isERC721).toBe(false);
+        });
+      });
+
+      it('should add isERC721 = true to token object already in state when token is NFT and is not in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: true }),
+          );
+          const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+
+          controller.update({
+            tokens: [
+              {
+                address: tokenAddress,
+                symbol: 'TESTNFT',
+                decimals: 0,
+              },
+            ],
+          });
+
+          const result = await controller.updateTokenType(tokenAddress);
+          expect(result.isERC721).toBe(true);
+        });
+      });
+
+      it('should add isERC721 = false to token object already in state when token is not an NFT and not in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
+
+          controller.update({
+            tokens: [
+              {
+                address: tokenAddress,
+                symbol: 'TESTNFT',
+                decimals: 0,
+              },
+            ],
+          });
+
+          const result = await controller.updateTokenType(tokenAddress);
+          expect(result.isERC721).toBe(false);
+        });
+      });
+    });
+
+    describe('addToken method', () => {
+      it('should add isERC721 = true when token is an NFT and is in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          const contractAddresses = Object.keys(contractMaps);
+          const erc721ContractAddresses = contractAddresses.filter(
+            (contractAddress) => contractMaps[contractAddress].erc721 === true,
+          );
+          const address = erc721ContractAddresses[0];
+          const { symbol, decimals } = contractMaps[address];
+
+          await controller.addToken({ address, symbol, decimals });
+
+          expect(controller.state.tokens).toStrictEqual([
+            expect.objectContaining({
+              address,
+              symbol,
+              isERC721: true,
+              decimals,
+            }),
+          ]);
+        });
+      });
+
+      it('should add isERC721 = true when the token is an NFT but not in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: true }),
+          );
+          const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
+
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'REST',
+            decimals: 4,
+          });
+
+          expect(controller.state.tokens).toStrictEqual([
+            {
+              address: tokenAddress,
+              symbol: 'REST',
+              isERC721: true,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+              decimals: 4,
+              aggregators: [],
+              name: undefined,
+            },
+          ]);
+        });
+      });
+
+      it('should add isERC721 = false to token object already in state when token is not an NFT and in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          const contractAddresses = Object.keys(contractMaps);
+          const erc20ContractAddresses = contractAddresses.filter(
+            (contractAddress) => contractMaps[contractAddress].erc20 === true,
+          );
+          const address = erc20ContractAddresses[0];
+          const { symbol, decimals } = contractMaps[address];
+
+          await controller.addToken({ address, symbol, decimals });
+
+          expect(controller.state.tokens).toStrictEqual([
+            expect.objectContaining({
+              address,
+              symbol,
+              isERC721: false,
+              decimals,
+            }),
+          ]);
+        });
+      });
+
+      it('should add isERC721 = false when the token is not an NFT and not in our contract-metadata repo', async () => {
+        await withController(async ({ controller }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          const tokenAddress = '0xDA5584Cc586d07c7141aA427224A4Bd58E64aF7D';
+
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'LEST',
+            decimals: 5,
+          });
+
+          expect(controller.state.tokens).toStrictEqual([
+            {
+              address: tokenAddress,
+              symbol: 'LEST',
+              isERC721: false,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+              decimals: 5,
+              aggregators: [],
+              name: undefined,
+            },
+          ]);
+        });
+      });
+
+      it('should throw error if switching networks while adding token', async () => {
+        await withController(async ({ controller, changeNetwork }) => {
+          const dummyTokenAddress =
+            '0x514910771AF9Ca656af840dff83E8264EcF986CA';
+
+          const addTokenPromise = controller.addToken({
+            address: dummyTokenAddress,
+            symbol: 'LINK',
+            decimals: 18,
+          });
+          changeNetwork(GOERLI);
+
+          await expect(addTokenPromise).rejects.toThrow(
+            'TokensController Error: Switched networks while adding token',
+          );
+        });
+      });
+    });
+
+    it('should throw TokenService error if fetchTokenMetadata returns a response with an error', async () => {
+      const chainId = ChainId.mainnet;
+
+      await withController(
+        {
+          options: {
+            config: {
+              chainId,
+            },
+          },
+        },
+        async ({ controller }) => {
+          const dummyTokenAddress =
+            '0x514910771AF9Ca656af840dff83E8264EcF986CA';
+          const error = 'An error occured';
+          const fullErrorMessage = `TokenService Error: ${error}`;
+          nock(TOKEN_END_POINT_API)
+            .get(
+              `/token/${convertHexToDecimal(
+                chainId,
+              )}?address=${dummyTokenAddress}`,
+            )
+            .reply(200, { error })
+            .persist();
+
+          await expect(
+            controller.addToken({
+              address: dummyTokenAddress,
+              symbol: 'LINK',
+              decimals: 18,
+            }),
+          ).rejects.toThrow(fullErrorMessage);
+        },
+      );
+    });
+
+    it('should add token that was previously a detected token', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        const dummyDetectedToken: Token = {
+          address: '0x01',
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+          isERC721: false,
+          name: undefined,
+        };
+        const dummyAddedToken: Token = {
+          ...dummyDetectedToken,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+        };
+
+        await controller.addDetectedTokens([dummyDetectedToken]);
+        expect(controller.state.detectedTokens).toStrictEqual([
+          dummyDetectedToken,
+        ]);
+
+        await controller.addToken({
+          address: dummyDetectedToken.address,
+          symbol: dummyDetectedToken.symbol,
+          decimals: dummyDetectedToken.decimals,
+        });
+        expect(controller.state.detectedTokens).toStrictEqual([]);
+        expect(controller.state.tokens).toStrictEqual([dummyAddedToken]);
+      });
+    });
+
+    it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
+      await withController(
+        async ({
+          controller,
+          changeNetwork,
+          triggerPreferencesStateChange,
+        }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+
+          // The currently configured chain + address
+          const CONFIGURED_CHAIN = SEPOLIA;
+          const CONFIGURED_ADDRESS = '0xConfiguredAddress';
+          changeNetwork(CONFIGURED_CHAIN);
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: CONFIGURED_ADDRESS,
+          });
+
+          // A different chain + address
+          const OTHER_CHAIN = '0xOtherChainId';
+          const OTHER_ADDRESS = '0xOtherAddress';
+
+          // Mock some tokens to add
+          const generateTokens = (len: number) =>
+            [...Array(len)].map((_, i) => ({
+              address: `0x${i}`,
+              symbol: String.fromCharCode(65 + i),
+              decimals: 2,
+              aggregators: [],
+              name: undefined,
+              isERC721: false,
+              image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
+            }));
+
+          const [
+            addedTokenConfiguredAccount,
+            detectedTokenConfiguredAccount,
+            detectedTokenOtherAccount,
+          ] = generateTokens(3);
+
+          // Run twice to ensure idempotency
+          for (let i = 0; i < 2; i++) {
+            // Add and detect some tokens on the configured chain + account
+            await controller.addToken(addedTokenConfiguredAccount);
+            await controller.addDetectedTokens([
+              detectedTokenConfiguredAccount,
+            ]);
+
+            // Detect a token on the other chain + account
+            await controller.addDetectedTokens([detectedTokenOtherAccount], {
+              selectedAddress: OTHER_ADDRESS,
+              chainId: OTHER_CHAIN,
+            });
+
+            // Expect tokens on the configured account
+            expect(controller.state.tokens).toStrictEqual([
+              addedTokenConfiguredAccount,
+            ]);
+            expect(controller.state.detectedTokens).toStrictEqual([
+              detectedTokenConfiguredAccount,
+            ]);
+
+            // Expect tokens under the correct chain + account
+            expect(controller.state.allTokens).toStrictEqual({
+              [CONFIGURED_CHAIN.chainId]: {
+                [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
+              },
+            });
+            expect(controller.state.allDetectedTokens).toStrictEqual({
+              [CONFIGURED_CHAIN.chainId]: {
+                [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
+              },
+              [OTHER_CHAIN]: {
+                [OTHER_ADDRESS]: [detectedTokenOtherAccount],
+              },
+            });
+          }
+        },
+      );
+    });
+  });
+
+  describe('addTokens method', () => {
+    it('should add tokens that were previously detected tokens', async () => {
+      await withController(async ({ controller }) => {
+        const dummyAddedTokens: Token[] = [
+          {
+            address: '0x01',
+            symbol: 'barA',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+          {
+            address: '0x02',
+            symbol: 'barB',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+        ];
+        const dummyDetectedTokens: Token[] = [
+          {
+            ...dummyAddedTokens[0],
+            isERC721: false,
+          },
+          {
+            ...dummyAddedTokens[1],
+            isERC721: false,
+          },
+        ];
+
+        await controller.addDetectedTokens(dummyDetectedTokens);
+        expect(controller.state.detectedTokens).toStrictEqual(
+          dummyDetectedTokens,
+        );
+
+        await controller.addTokens(dummyDetectedTokens);
+        expect(controller.state.detectedTokens).toStrictEqual([]);
+        expect(controller.state.tokens).toStrictEqual(dummyAddedTokens);
+      });
     });
 
     it('should add tokens to the correct chainId when passed a networkClientId', async () => {
-      getNetworkClientByIdHandler.mockReturnValue({
-        configuration: { chainId: '0x5' },
-      } as unknown as ReturnType<NetworkController['getNetworkClientById']>);
+      await withController(
+        {
+          mockNetworkClientConfigurationsByNetworkClientId: {
+            networkClientId1: buildCustomNetworkClientConfiguration({
+              chainId: '0x5',
+            }),
+          },
+        },
+        async ({ controller }) => {
+          const dummyTokens: Token[] = [
+            {
+              address: '0x01',
+              symbol: 'barA',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+            {
+              address: '0x02',
+              symbol: 'barB',
+              decimals: 2,
+              aggregators: [],
+              image: undefined,
+              name: undefined,
+            },
+          ];
+
+          await controller.addTokens(dummyTokens, 'networkClientId1');
+
+          expect(controller.state.tokens).toStrictEqual(dummyTokens);
+          expect(controller.state.allTokens['0x5']['0x1']).toStrictEqual(
+            dummyTokens,
+          );
+        },
+      );
+    });
+  });
+
+  describe('_getNewAllTokensState method', () => {
+    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', async () => {
+      const dummySelectedAddress = '0x1';
       const dummyTokens: Token[] = [
         {
           address: '0x01',
@@ -1119,390 +1168,539 @@ describe('TokensController', () => {
           decimals: 2,
           aggregators: [],
           image: undefined,
-          name: undefined,
-        },
-        {
-          address: '0x02',
-          symbol: 'barB',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-          name: undefined,
         },
       ];
 
-      await tokensController.addTokens(dummyTokens, 'networkClientId1');
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+            config: {
+              selectedAddress: dummySelectedAddress,
+            },
+          },
+        },
+        ({ controller }) => {
+          const processedTokens = controller._getNewAllTokensState({
+            newTokens: dummyTokens,
+          });
 
-      expect(tokensController.state.tokens).toStrictEqual(dummyTokens);
-      expect(tokensController.state.allTokens['0x5']['0x1']).toStrictEqual(
-        dummyTokens,
+          expect(
+            processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
+          ).toStrictEqual(dummyTokens);
+        },
       );
-      expect(getNetworkClientByIdHandler).toHaveBeenCalledWith(
-        'networkClientId1',
+    });
+
+    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', async () => {
+      const dummySelectedAddress = '0x1';
+      const dummyTokens: Token[] = [
+        {
+          address: '0x01',
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+            config: {
+              selectedAddress: dummySelectedAddress,
+            },
+          },
+        },
+        ({ controller }) => {
+          const processedTokens = controller._getNewAllTokensState({
+            newDetectedTokens: dummyTokens,
+          });
+
+          expect(
+            processedTokens.newAllDetectedTokens[ChainId.mainnet][
+              dummySelectedAddress
+            ],
+          ).toStrictEqual(dummyTokens);
+        },
+      );
+    });
+
+    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', async () => {
+      const dummySelectedAddress = '0x1';
+      const dummyIgnoredTokens = ['0x01'];
+
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+            config: {
+              selectedAddress: dummySelectedAddress,
+            },
+          },
+        },
+        ({ controller }) => {
+          const processedTokens = controller._getNewAllTokensState({
+            newIgnoredTokens: dummyIgnoredTokens,
+          });
+          expect(
+            processedTokens.newAllIgnoredTokens[ChainId.mainnet][
+              dummySelectedAddress
+            ],
+          ).toStrictEqual(dummyIgnoredTokens);
+        },
       );
     });
   });
 
-  describe('_getNewAllTokensState method', () => {
-    const dummySelectedAddress = '0x1';
-    const dummyTokens: Token[] = [
-      {
-        address: '0x01',
-        symbol: 'barA',
-        decimals: 2,
-        aggregators: [],
-        image: undefined,
-      },
-    ];
+  describe('watchAsset', () => {
+    it('should error if passed no type', async () => {
+      await withController(async ({ controller }) => {
+        const result = controller.watchAsset({
+          asset: buildToken(),
+          // @ts-expect-error Intentionally passing invalid input
+          type: undefined,
+        });
 
-    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', () => {
-      tokensController.configure({
-        selectedAddress: dummySelectedAddress,
-        chainId: ChainId.mainnet,
+        await expect(result).rejects.toThrow(
+          'Asset of type undefined not supported',
+        );
       });
-      const processedTokens = tokensController._getNewAllTokensState({
-        newTokens: dummyTokens,
+    });
+
+    it('should error if asset type is not supported', async () => {
+      await withController(async ({ controller }) => {
+        const result = controller.watchAsset({
+          asset: buildToken(),
+          type: 'ERC721',
+        });
+
+        await expect(result).rejects.toThrow(
+          'Asset of type ERC721 not supported',
+        );
       });
-      expect(
-        processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
-      ).toStrictEqual(dummyTokens);
     });
 
-    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', () => {
-      tokensController.configure({
-        selectedAddress: dummySelectedAddress,
-        chainId: ChainId.mainnet,
+    it('should error if the contract is ERC721', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: true }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({
+            address: '0x0000000000000000000000000000000000000001',
+          }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'Contract 0x0000000000000000000000000000000000000001 must match type ERC20, but was detected as ERC721',
+        );
       });
-      const processedTokens = tokensController._getNewAllTokensState({
-        newDetectedTokens: dummyTokens,
+    });
+
+    it('should error if the contract is ERC1155', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC1155StandardMock.mockReturnValue(
+          buildMockERC1155Standard({ contractSupportsBase1155Interface: true }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({
+            address: '0x0000000000000000000000000000000000000001',
+          }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'Contract 0x0000000000000000000000000000000000000001 must match type ERC20, but was detected as ERC1155',
+        );
       });
-      expect(
-        processedTokens.newAllDetectedTokens[ChainId.mainnet][
-          dummySelectedAddress
-        ],
-      ).toStrictEqual(dummyTokens);
     });
 
-    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', () => {
-      tokensController.configure({
-        selectedAddress: dummySelectedAddress,
-        chainId: ChainId.mainnet,
+    it('should error if address is not defined', async () => {
+      await withController(async ({ controller }) => {
+        const result = controller.watchAsset({
+          asset: buildToken({ address: undefined }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow('Address must be specified');
       });
-      const dummyIgnoredTokens = [dummyTokens[0].address];
-      const processedTokens = tokensController._getNewAllTokensState({
-        newIgnoredTokens: dummyIgnoredTokens,
+    });
+
+    it('should error if decimals is not defined', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({ decimals: undefined }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'Decimals are required, but were not found in either the request or contract',
+        );
       });
-      expect(
-        processedTokens.newAllIgnoredTokens[ChainId.mainnet][
-          dummySelectedAddress
-        ],
-      ).toStrictEqual(dummyIgnoredTokens);
     });
-  });
 
-  describe('watchAsset', function () {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let asset: any, type: any;
-    const interactingAddress = '0x2';
-    const requestId = '12345';
-    let isERC721: boolean, isERC1155: boolean;
+    it('should error if symbol is not defined', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mockContract = (mockAssets: any[]) =>
-      mockAssets.forEach((a) => {
-        jest
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .spyOn(ERC20Standard.prototype as any, 'getTokenName')
-          .mockImplementationOnce(() => a.name);
-        jest
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .spyOn(ERC20Standard.prototype as any, 'getTokenSymbol')
-          .mockImplementationOnce(() => a.symbol);
-        jest
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .spyOn(ERC20Standard.prototype as any, 'getTokenDecimals')
-          .mockImplementationOnce(() => a.decimals?.toString());
+        const result = controller.watchAsset({
+          // @ts-expect-error Intentionally passing bad input
+          asset: buildToken({ symbol: { foo: 'bar' } }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow('Invalid symbol: not a string');
       });
-    let createEthersStub: sinon.SinonStub;
-    beforeEach(function () {
-      type = ERC20;
-      asset = {
-        address: '0x000000000000000000000000000000000000dEaD',
-        decimals: 12,
-        symbol: 'SES',
-        image: 'image',
-        name: undefined,
-      };
-
-      isERC721 = false;
-      isERC1155 = false;
-      createEthersStub = stubCreateEthers(tokensController, () => isERC721);
-      jest
-        .spyOn(
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ERC1155Standard.prototype as any,
-          'contractSupportsBase1155Interface',
-        )
-        .mockImplementation(() => isERC1155);
     });
 
-    afterEach(() => {
-      createEthersStub.restore();
+    it('should error if symbol is not a string', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({ symbol: undefined }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'A symbol is required, but was not found in either the request or contract',
+        );
+      });
     });
 
-    it('should error if passed no type', async function () {
-      type = undefined;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Asset of type undefined not supported',
-      );
+    it('should error if symbol is empty', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({ symbol: '' }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'A symbol is required, but was not found in either the request or contract',
+        );
+      });
     });
 
-    it('should error if asset type is not supported', async function () {
-      type = 'ERC721';
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Asset of type ERC721 not supported',
-      );
+    it('should error if symbol is too long', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({ symbol: 'ABCDEFGHIJKLM' }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'Invalid symbol "ABCDEFGHIJKLM": longer than 11 characters',
+        );
+      });
     });
 
-    it('should error if the contract is ERC721', async function () {
-      isERC721 = true;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Contract 0x000000000000000000000000000000000000dEaD must match type ERC20, but was detected as ERC721',
-      );
+    it('should error if decimals is invalid', async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({ decimals: -1 }),
+          type: 'ERC20',
+        });
+        await expect(result).rejects.toThrow(
+          'Invalid decimals "-1": must be an integer 0 <= 36',
+        );
+
+        const result2 = controller.watchAsset({
+          asset: buildToken({ decimals: 37 }),
+          type: 'ERC20',
+        });
+        await expect(result2).rejects.toThrow(
+          'Invalid decimals "37": must be an integer 0 <= 36',
+        );
+      });
     });
 
-    it('should error if the contract is ERC1155', async function () {
-      isERC1155 = true;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Contract 0x000000000000000000000000000000000000dEaD must match type ERC20, but was detected as ERC1155',
-      );
-    });
+    it('should error if address is invalid', async () => {
+      await withController(async ({ controller }) => {
+        const result = controller.watchAsset({
+          asset: buildToken({ address: '0x123' }),
+          type: 'ERC20',
+        });
 
-    it('should error if address is not defined', async function () {
-      asset.address = undefined;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow('Address must be specified');
-    });
-
-    it('should error if decimals is not defined', async function () {
-      asset.decimals = undefined;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Decimals are required, but were not found in either the request or contract',
-      );
-    });
-
-    it('should error if symbol is not defined', async function () {
-      asset.symbol = { foo: 'bar' };
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow('Invalid symbol: not a string');
-    });
-
-    it('should error if symbol is not a string', async function () {
-      asset.symbol = undefined;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'A symbol is required, but was not found in either the request or contract',
-      );
-    });
-
-    it('should error if symbol is empty', async function () {
-      asset.symbol = '';
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'A symbol is required, but was not found in either the request or contract',
-      );
-    });
-
-    it('should error if symbol is too long', async function () {
-      asset.symbol = 'ABCDEFGHIJKLM';
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Invalid symbol "ABCDEFGHIJKLM": longer than 11 characters',
-      );
-    });
-
-    it('should error if decimals is invalid', async function () {
-      asset.decimals = -1;
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow(
-        'Invalid decimals "-1": must be an integer 0 <= 36',
-      );
-
-      asset.decimals = 37;
-      const result2 = tokensController.watchAsset({ asset, type });
-      await expect(result2).rejects.toThrow(
-        'Invalid decimals "37": must be an integer 0 <= 36',
-      );
-    });
-
-    it('should error if address is invalid', async function () {
-      asset.address = '0x123';
-      const result = tokensController.watchAsset({ asset, type });
-      await expect(result).rejects.toThrow('Invalid address "0x123"');
+        await expect(result).rejects.toThrow('Invalid address "0x123"');
+      });
     });
 
     it('fails with an invalid type suggested', async () => {
-      await expect(
-        tokensController.watchAsset({
-          asset: {
+      await withController(async ({ controller }) => {
+        const result = controller.watchAsset({
+          asset: buildToken({
             address: '0xe9f786dfdd9ae4d57e830acb52296837765f0e5b',
             decimals: 18,
             symbol: 'TKN',
-          },
+          }),
           type: 'ERC721',
-        }),
-      ).rejects.toThrow('Asset of type ERC721 not supported');
-    });
+        });
 
-    it("should error if the asset's symbol or decimals don't match the contract", async function () {
-      mockContract([asset, asset]);
-
-      // Symbol
-      let result = tokensController.watchAsset({
-        asset: { ...asset, symbol: 'OTHER' },
-        type,
+        await expect(result).rejects.toThrow(
+          'Asset of type ERC721 not supported',
+        );
       });
-      await expect(result).rejects.toThrow(
-        'The symbol in the request (OTHER) does not match the symbol in the contract (SES)',
-      );
+    });
 
-      // Decimals
-      result = tokensController.watchAsset({
-        asset: { ...asset, decimals: 1 },
-        type,
+    it("should error if the asset's symbol doesn't match the contract", async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20Standard({
+            tokenName: 'Some Token',
+            tokenSymbol: 'TOKEN',
+            tokenDecimals: '42',
+          }),
+        );
+
+        const result = controller.watchAsset({
+          asset: buildToken({
+            name: 'Some Token',
+            symbol: 'OTHER',
+            decimals: 42,
+          }),
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'The symbol in the request (OTHER) does not match the symbol in the contract (TOKEN)',
+        );
       });
-      await expect(result).rejects.toThrow(
-        'The decimals in the request (1) do not match the decimals in the contract (12)',
-      );
     });
 
-    it('should use symbols/decimals from contract, and allow them to be optional in the request', async function () {
-      mockContract([asset]);
+    it("should error if the asset's decimals don't match the contract", async () => {
+      await withController(async ({ controller }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20Standard({
+            tokenName: 'Some Token',
+            tokenSymbol: 'TOKEN',
+            tokenDecimals: '42',
+          }),
+        );
 
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const reqAsset: any = {
-        ...asset,
-        symbol: undefined,
-        decimals: undefined,
-      };
-      await tokensController.watchAsset({ asset: reqAsset, type });
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-        },
-      ]);
-    });
+        const result = controller.watchAsset({
+          asset: buildToken({
+            name: 'Some Token',
+            symbol: 'TOKEN',
+            decimals: 1,
+          }),
+          type: 'ERC20',
+        });
 
-    it('should use symbols/decimals from request, and allow them to be optional in the contract', async function () {
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const reqAsset: any = { ...asset, symbol: 'MYSYMBOL', decimals: 13 };
-      await tokensController.watchAsset({ asset: reqAsset, type });
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...reqAsset,
-        },
-      ]);
-    });
-
-    it("should validate that symbol and decimals match if they're defined in both the request and contract", async function () {
-      mockContract([asset, asset]);
-
-      let result = tokensController.watchAsset({
-        asset: { ...asset, symbol: 'DIFFERENT' },
-        type,
+        await expect(result).rejects.toThrow(
+          'The decimals in the request (1) do not match the decimals in the contract (42)',
+        );
       });
-      await expect(result).rejects.toThrow(
-        'The symbol in the request (DIFFERENT) does not match the symbol in the contract (SES)',
-      );
-
-      result = tokensController.watchAsset({
-        asset: { ...asset, decimals: 2 },
-        type,
-      });
-      await expect(result).rejects.toThrow(
-        'The decimals in the request (2) do not match the decimals in the contract (12)',
-      );
     });
 
-    it('should perform case insensitive validation of symbols', async function () {
-      asset.symbol = 'ABC';
-      mockContract([asset, asset]);
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
+    it('should use symbols/decimals from contract, and allow them to be optional in the request', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const asset = buildTokenWithName();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20StandardFromToken(asset),
+        );
+        jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
 
-      await tokensController.watchAsset({
-        asset: { ...asset, symbol: 'abc' },
-        type,
-      });
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset, // but use the casing from the contract
-        },
-      ]);
-    });
+        await controller.watchAsset({
+          // @ts-expect-error Intentionally passing bad input.
+          asset: { ...asset, symbol: undefined, decimals: undefined },
+          type: 'ERC20',
+        });
 
-    it('should be lenient when accepting string vs integer for decimals', async () => {
-      jest.spyOn(messenger, 'call').mockResolvedValue(undefined);
-      for (const decimals of [6, '6']) {
-        asset.decimals = decimals;
-        mockContract([asset]);
-
-        await tokensController.watchAsset({ asset, type });
-        expect(tokensController.state.tokens).toStrictEqual([
+        expect(controller.state.tokens).toStrictEqual([
           {
             isERC721: false,
             aggregators: [],
             ...asset,
-            // But it should get parsed to a number
-            decimals: parseInt(decimals as string),
           },
         ]);
-      }
+      });
+    });
+
+    it('should use symbols/decimals from request, and allow them to be optional in the contract', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const reqAsset = buildToken({ symbol: 'MYSYMBOL', decimals: 13 });
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+
+        await controller.watchAsset({ asset: reqAsset, type: 'ERC20' });
+
+        expect(controller.state.tokens).toStrictEqual([
+          {
+            isERC721: false,
+            aggregators: [],
+            ...reqAsset,
+          },
+        ]);
+      });
+    });
+
+    it("should validate that symbol matches if it's defined in both the request and contract", async () => {
+      await withController(async ({ controller }) => {
+        const asset = buildTokenWithName({ symbol: 'SES' });
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20StandardFromToken(asset),
+        );
+
+        const result = controller.watchAsset({
+          asset: { ...asset, symbol: 'DIFFERENT' },
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'The symbol in the request (DIFFERENT) does not match the symbol in the contract (SES)',
+        );
+      });
+    });
+
+    it("should validate that decimals match if they're defined in both the request and contract", async () => {
+      await withController(async ({ controller }) => {
+        const asset = buildTokenWithName({ decimals: 12 });
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20StandardFromToken(asset),
+        );
+
+        const result = controller.watchAsset({
+          asset: { ...asset, decimals: 2 },
+          type: 'ERC20',
+        });
+
+        await expect(result).rejects.toThrow(
+          'The decimals in the request (2) do not match the decimals in the contract (12)',
+        );
+      });
+    });
+
+    it('should perform case insensitive validation of symbols', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const asset = buildTokenWithName({ symbol: 'ABC' });
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20StandardFromToken(asset),
+        );
+        jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+
+        await controller.watchAsset({
+          asset: { ...asset, symbol: 'abc' },
+          type: 'ERC20',
+        });
+
+        expect(controller.state.tokens).toStrictEqual([
+          {
+            isERC721: false,
+            aggregators: [],
+            ...asset,
+          },
+        ]);
+      });
+    });
+
+    it('converts decimals from string to integer', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        // @ts-expect-error Intentionally using a string for decimals
+        const asset = buildTokenWithName({ decimals: '6' });
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        ERC20StandardMock.mockReturnValue(
+          buildMockERC20StandardFromToken(asset),
+        );
+        jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+
+        await controller.watchAsset({
+          asset,
+          type: 'ERC20',
+        });
+
+        expect(controller.state.tokens).toStrictEqual([
+          {
+            isERC721: false,
+            aggregators: [],
+            ...asset,
+            decimals: 6,
+          },
+        ]);
+      });
     });
 
     it('stores token correctly if user confirms', async () => {
-      const generateRandomIdStub = jest
-        .spyOn(tokensController, '_generateRandomId')
-        .mockReturnValue(requestId);
+      await withController(async ({ controller, approvalController }) => {
+        const requestId = '12345';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockResolvedValue(undefined);
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
 
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
+        await controller.watchAsset({ asset, type: 'ERC20' });
 
-      await tokensController.watchAsset({ asset, type });
-
-      expect(tokensController.state.tokens).toHaveLength(1);
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-        },
-      ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
+        expect(controller.state.tokens).toHaveLength(1);
+        expect(controller.state.tokens).toStrictEqual([
+          {
+            isERC721: false,
+            aggregators: [],
+            ...asset,
+          },
+        ]);
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
           id: requestId,
           origin: ORIGIN_METAMASK,
           type: ApprovalType.WatchAsset,
@@ -1511,137 +1709,145 @@ describe('TokensController', () => {
             interactingAddress: '0x1',
             asset,
           },
-        },
-        true,
-      );
-
-      generateRandomIdStub.mockRestore();
+        });
+      });
     });
 
-    it('stores token correctly under interacting address if user confirms', async function () {
-      const generateRandomIdStub = jest
-        .spyOn(tokensController, '_generateRandomId')
-        .mockReturnValue(requestId);
+    it('stores token correctly under interacting address if user confirms', async () => {
+      const chainId = ChainId.sepolia;
 
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockResolvedValue(undefined);
-
-      await tokensController.watchAsset({ asset, type, interactingAddress });
-
-      expect(tokensController.state.tokens).toHaveLength(0);
-      expect(tokensController.state.tokens).toStrictEqual([]);
-      expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
-      ).toHaveLength(1);
-      expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
-      ).toStrictEqual([
+      await withController(
         {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-        },
-      ]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: requestId,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress,
-            asset,
+          options: {
+            chainId,
           },
         },
-        true,
-      );
+        async ({ controller, approvalController }) => {
+          const requestId = '12345';
+          const addAndShowApprovalRequestSpy = jest
+            .spyOn(approvalController, 'addAndShowApprovalRequest')
+            .mockResolvedValue(undefined);
+          const asset = buildToken();
+          const interactingAddress = '0x2';
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          uuidV1Mock.mockReturnValue(requestId);
 
-      generateRandomIdStub.mockRestore();
+          await controller.watchAsset({
+            asset,
+            type: 'ERC20',
+            interactingAddress,
+          });
+
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.tokens).toStrictEqual([]);
+          expect(
+            controller.state.allTokens[chainId][interactingAddress],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allTokens[chainId][interactingAddress],
+          ).toStrictEqual([
+            {
+              isERC721: false,
+              aggregators: [],
+              ...asset,
+            },
+          ]);
+          expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+          expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+            id: requestId,
+            origin: ORIGIN_METAMASK,
+            type: ApprovalType.WatchAsset,
+            requestData: {
+              id: requestId,
+              interactingAddress,
+              asset,
+            },
+          });
+        },
+      );
     });
 
-    it('stores token correctly when passed a networkClientId', async function () {
-      getNetworkClientByIdHandler.mockImplementation((networkClientId) => {
-        expect(networkClientId).toBe('networkClientId1');
-        return {
-          configuration: { chainId: '0x5' },
-          provider: fakeProvider,
-          blockTracker: new FakeBlockTracker(),
-          destroy: jest.fn(),
-        } as unknown as ReturnType<NetworkController['getNetworkClientById']>;
-      });
+    it('stores token correctly when passed a networkClientId', async () => {
+      const networkClientId = 'networkClientId1';
 
-      const addRequestHandler = jest.fn();
-      messenger.unregisterActionHandler(`ApprovalController:addRequest`);
-      messenger.registerActionHandler(
-        `ApprovalController:addRequest`,
-        addRequestHandler,
-      );
-
-      const generateRandomIdStub = jest
-        .spyOn(tokensController, '_generateRandomId')
-        .mockReturnValue(requestId);
-
-      await tokensController.watchAsset({
-        asset,
-        type,
-        interactingAddress,
-        networkClientId: 'networkClientId1',
-      });
-
-      expect(addRequestHandler).toHaveBeenCalledWith(
+      await withController(
         {
-          id: requestId,
-          origin: ORIGIN_METAMASK,
-          type: ApprovalType.WatchAsset,
-          requestData: {
-            id: requestId,
-            interactingAddress,
-            asset,
+          mockNetworkClientConfigurationsByNetworkClientId: {
+            [networkClientId]: buildCustomNetworkClientConfiguration({
+              chainId: '0x5',
+            }),
           },
         },
-        true,
-      );
+        async ({ controller, approvalController }) => {
+          const requestId = '12345';
+          const addAndShowApprovalRequestSpy = jest
+            .spyOn(approvalController, 'addAndShowApprovalRequest')
+            .mockResolvedValue(undefined);
+          const asset = buildToken();
+          const interactingAddress = '0x2';
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          uuidV1Mock.mockReturnValue(requestId);
 
-      expect(tokensController.state.tokens).toHaveLength(0);
-      expect(tokensController.state.tokens).toStrictEqual([]);
-      expect(
-        tokensController.state.allTokens['0x5'][interactingAddress],
-      ).toHaveLength(1);
-      expect(
-        tokensController.state.allTokens['0x5'][interactingAddress],
-      ).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
+          await controller.watchAsset({
+            asset,
+            type: 'ERC20',
+            interactingAddress,
+            networkClientId,
+          });
+
+          expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+            id: requestId,
+            origin: ORIGIN_METAMASK,
+            type: ApprovalType.WatchAsset,
+            requestData: {
+              id: requestId,
+              interactingAddress,
+              asset,
+            },
+          });
+          expect(controller.state.tokens).toHaveLength(0);
+          expect(controller.state.tokens).toStrictEqual([]);
+          expect(
+            controller.state.allTokens['0x5'][interactingAddress],
+          ).toHaveLength(1);
+          expect(
+            controller.state.allTokens['0x5'][interactingAddress],
+          ).toStrictEqual([
+            {
+              isERC721: false,
+              aggregators: [],
+              ...asset,
+            },
+          ]);
         },
-      ]);
-      generateRandomIdStub.mockRestore();
+      );
     });
 
-    it('throws and token is not added if pending approval fails', async function () {
-      const generateRandomIdStub = jest
-        .spyOn(tokensController, '_generateRandomId')
-        .mockReturnValue(requestId);
+    it('throws and does not add token if pending approval fails', async () => {
+      await withController(async ({ controller, approvalController }) => {
+        const errorMessage = 'Mock Error Message';
+        const requestId = '12345';
+        const addAndShowApprovalRequestSpy = jest
+          .spyOn(approvalController, 'addAndShowApprovalRequest')
+          .mockRejectedValue(new Error(errorMessage));
+        const asset = buildToken();
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        uuidV1Mock.mockReturnValue(requestId);
 
-      const errorMessage = 'Mock Error Message';
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockRejectedValue(new Error(errorMessage));
+        await expect(
+          controller.watchAsset({ asset, type: 'ERC20' }),
+        ).rejects.toThrow(errorMessage);
 
-      await expect(
-        tokensController.watchAsset({ asset, type }),
-      ).rejects.toThrow(errorMessage);
-
-      expect(tokensController.state.tokens).toHaveLength(0);
-      expect(tokensController.state.tokens).toStrictEqual([]);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
+        expect(controller.state.tokens).toHaveLength(0);
+        expect(controller.state.tokens).toStrictEqual([]);
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+        expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
           id: requestId,
           origin: ORIGIN_METAMASK,
           type: ApprovalType.WatchAsset,
@@ -1650,355 +1856,673 @@ describe('TokensController', () => {
             interactingAddress: '0x1',
             asset,
           },
-        },
-        true,
-      );
-
-      generateRandomIdStub.mockRestore();
+        });
+      });
     });
 
     it('stores multiple tokens from a batched watchAsset confirmation screen correctly when user confirms', async () => {
-      const generateRandomIdStub = jest
-        .spyOn(tokensController, '_generateRandomId')
-        .mockImplementationOnce(() => requestId)
-        .mockImplementationOnce(() => '67890');
+      const chainId = ChainId.goerli;
 
-      const acceptedRequest = new Promise<void>((resolve) => {
-        tokensController.subscribe((state) => {
-          if (
-            state.allTokens?.[ChainId.mainnet]?.[interactingAddress].length ===
-            2
-          ) {
-            resolve();
-          }
+      await withController(
+        {
+          options: {
+            chainId,
+          },
+        },
+        async ({ controller, messenger, approvalController }) => {
+          const requestId = '12345';
+          const interactingAddress = '0x2';
+          const asset = buildTokenWithName({
+            address: '0x000000000000000000000000000000000000dEaD',
+            decimals: 1,
+            image: 'image1',
+            name: 'A Token',
+            symbol: 'TOKEN1',
+          });
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          uuidV1Mock
+            .mockReturnValueOnce(requestId)
+            .mockReturnValueOnce('67890');
+
+          const acceptedRequest = new Promise<void>((resolve) => {
+            controller.subscribe((state) => {
+              if (
+                state.allTokens?.[chainId]?.[interactingAddress].length === 2
+              ) {
+                resolve();
+              }
+            });
+          });
+
+          const anotherAsset = buildTokenWithName({
+            address: '0x000000000000000000000000000000000000ABcD',
+            decimals: 2,
+            image: 'image2',
+            name: 'Another Token',
+            symbol: 'TOKEN2',
+          });
+
+          ERC20StandardMock.mockReturnValueOnce(
+            buildMockERC20StandardFromToken(asset),
+          ).mockReturnValueOnce(buildMockERC20StandardFromToken(anotherAsset));
+
+          const promiseForApprovals = new Promise<void>((resolve) => {
+            const listener = (state: ApprovalControllerState) => {
+              if (state.pendingApprovalCount === 2) {
+                messenger.unsubscribe(
+                  'ApprovalController:stateChange',
+                  listener,
+                );
+                resolve();
+              }
+            };
+            messenger.subscribe('ApprovalController:stateChange', listener);
+          });
+
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          controller.watchAsset({ asset, type: 'ERC20', interactingAddress });
+
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          controller.watchAsset({
+            asset: anotherAsset,
+            type: 'ERC20',
+            interactingAddress,
+          });
+
+          await promiseForApprovals;
+
+          await approvalController.accept(requestId);
+          await approvalController.accept('67890');
+          await acceptedRequest;
+
+          expect(
+            controller.state.allTokens[chainId][interactingAddress],
+          ).toStrictEqual([
+            {
+              isERC721: false,
+              aggregators: [],
+              ...asset,
+            },
+            {
+              isERC721: false,
+              aggregators: [],
+              ...anotherAsset,
+            },
+          ]);
+        },
+      );
+    });
+  });
+
+  describe('when PreferencesController:stateChange is published', () => {
+    it('should update tokens list when set address changes', async () => {
+      await withController(
+        async ({ controller, triggerPreferencesStateChange }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: '0x1',
+          });
+          await controller.addToken({
+            address: '0x01',
+            symbol: 'A',
+            decimals: 4,
+          });
+          await controller.addToken({
+            address: '0x02',
+            symbol: 'B',
+            decimals: 5,
+          });
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: '0x2',
+          });
+          expect(controller.state.tokens).toStrictEqual([]);
+
+          await controller.addToken({
+            address: '0x03',
+            symbol: 'C',
+            decimals: 6,
+          });
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: '0x1',
+          });
+          expect(controller.state.tokens).toStrictEqual([
+            {
+              address: '0x01',
+              decimals: 4,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+              isERC721: false,
+              symbol: 'A',
+              aggregators: [],
+              name: undefined,
+            },
+            {
+              address: '0x02',
+              decimals: 5,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
+              isERC721: false,
+              symbol: 'B',
+              aggregators: [],
+              name: undefined,
+            },
+          ]);
+
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            selectedAddress: '0x2',
+          });
+          expect(controller.state.tokens).toStrictEqual([
+            {
+              address: '0x03',
+              decimals: 6,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x03.png',
+              isERC721: false,
+              symbol: 'C',
+              aggregators: [],
+              name: undefined,
+            },
+          ]);
+        },
+      );
+    });
+  });
+
+  describe('when NetworkController:onNetworkDidChange is published', () => {
+    it('should remove a token from its state on corresponding network', async () => {
+      await withController(async ({ controller, changeNetwork }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+
+        changeNetwork(SEPOLIA);
+        await controller.addToken({
+          address: '0x01',
+          symbol: 'A',
+          decimals: 4,
         });
-      });
-
-      const anotherAsset = {
-        address: '0x000000000000000000000000000000000000ABcD',
-        decimals: 18,
-        symbol: 'TEST',
-        image: 'image2',
-        name: undefined,
-      };
-
-      mockContract([asset, anotherAsset]);
-
-      const promiseForApprovals = new Promise<void>((resolve) => {
-        const listener = (state: ApprovalControllerState) => {
-          if (state.pendingApprovalCount === 2) {
-            messenger.unsubscribe('ApprovalController:stateChange', listener);
-            resolve();
-          }
-        };
-        messenger.subscribe('ApprovalController:stateChange', listener);
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      tokensController.watchAsset({ asset, type, interactingAddress });
-
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      tokensController.watchAsset({
-        asset: anotherAsset,
-        type,
-        interactingAddress,
-      });
-
-      await promiseForApprovals;
-
-      await approvalController.accept(requestId);
-      await approvalController.accept('67890');
-      await acceptedRequest;
-
-      expect(
-        tokensController.state.allTokens[ChainId.mainnet][interactingAddress],
-      ).toStrictEqual([
-        {
-          isERC721: false,
-          aggregators: [],
-          ...asset,
-        },
-        {
-          isERC721: false,
-          aggregators: [],
-          ...anotherAsset,
-        },
-      ]);
-      generateRandomIdStub.mockRestore();
-    });
-  });
-
-  describe('onPreferencesStateChange', function () {
-    it('should update tokens list when set address changes', async function () {
-      const stub = stubCreateEthers(tokensController, () => false);
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x1',
-      });
-      await tokensController.addToken({
-        address: '0x01',
-        symbol: 'A',
-        decimals: 4,
-      });
-      await tokensController.addToken({
-        address: '0x02',
-        symbol: 'B',
-        decimals: 5,
-      });
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x2',
-      });
-      expect(tokensController.state.tokens).toStrictEqual([]);
-      await tokensController.addToken({
-        address: '0x03',
-        symbol: 'C',
-        decimals: 6,
-      });
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x1',
-      });
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          address: '0x01',
-          decimals: 4,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-          isERC721: false,
-          symbol: 'A',
-          aggregators: [],
-          name: undefined,
-        },
-        {
+        await controller.addToken({
           address: '0x02',
-          decimals: 5,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
-          isERC721: false,
           symbol: 'B',
-          aggregators: [],
-          name: undefined,
-        },
-      ]);
-      triggerPreferencesStateChange({
-        ...getDefaultPreferencesState(),
-        selectedAddress: '0x2',
-      });
-      expect(tokensController.state.tokens).toStrictEqual([
-        {
-          address: '0x03',
-          decimals: 6,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x03.png',
-          isERC721: false,
-          symbol: 'C',
-          aggregators: [],
-          name: undefined,
-        },
-      ]);
-
-      stub.restore();
-    });
-  });
-
-  describe('onNetworkDidChange', function () {
-    it('should remove a token from its state on corresponding network', async function () {
-      const stub = stubCreateEthers(tokensController, () => false);
-
-      changeNetwork(SEPOLIA);
-
-      await tokensController.addToken({
-        address: '0x01',
-        symbol: 'A',
-        decimals: 4,
-      });
-      await tokensController.addToken({
-        address: '0x02',
-        symbol: 'B',
-        decimals: 5,
-      });
-      const initialTokensFirst = tokensController.state.tokens;
-
-      changeNetwork(GOERLI);
-
-      await tokensController.addToken({
-        address: '0x03',
-        symbol: 'C',
-        decimals: 4,
-      });
-      await tokensController.addToken({
-        address: '0x04',
-        symbol: 'D',
-        decimals: 5,
-      });
-
-      const initialTokensSecond = tokensController.state.tokens;
-
-      expect(initialTokensFirst).not.toStrictEqual(initialTokensSecond);
-
-      expect(initialTokensFirst).toStrictEqual([
-        {
-          address: '0x01',
-          decimals: 4,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
-          isERC721: false,
-          symbol: 'A',
-          aggregators: [],
-          name: undefined,
-        },
-        {
-          address: '0x02',
           decimals: 5,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
-          isERC721: false,
-          symbol: 'B',
-          aggregators: [],
-          name: undefined,
-        },
-      ]);
+        });
+        const initialTokensFirst = controller.state.tokens;
 
-      expect(initialTokensSecond).toStrictEqual([
-        {
+        changeNetwork(GOERLI);
+        await controller.addToken({
           address: '0x03',
-          decimals: 4,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x03.png',
-          isERC721: false,
           symbol: 'C',
-          aggregators: [],
-          name: undefined,
-        },
-        {
+          decimals: 4,
+        });
+        await controller.addToken({
           address: '0x04',
-          decimals: 5,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x04.png',
-          isERC721: false,
           symbol: 'D',
-          aggregators: [],
-          name: undefined,
-        },
-      ]);
+          decimals: 5,
+        });
+        const initialTokensSecond = controller.state.tokens;
 
-      changeNetwork(SEPOLIA);
-      expect(initialTokensFirst).toStrictEqual(tokensController.state.tokens);
-      changeNetwork(GOERLI);
-      expect(initialTokensSecond).toStrictEqual(tokensController.state.tokens);
+        expect(initialTokensFirst).not.toStrictEqual(initialTokensSecond);
+        expect(initialTokensFirst).toStrictEqual([
+          {
+            address: '0x01',
+            decimals: 4,
+            image:
+              'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x01.png',
+            isERC721: false,
+            symbol: 'A',
+            aggregators: [],
+            name: undefined,
+          },
+          {
+            address: '0x02',
+            decimals: 5,
+            image:
+              'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x02.png',
+            isERC721: false,
+            symbol: 'B',
+            aggregators: [],
+            name: undefined,
+          },
+        ]);
+        expect(initialTokensSecond).toStrictEqual([
+          {
+            address: '0x03',
+            decimals: 4,
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x03.png',
+            isERC721: false,
+            symbol: 'C',
+            aggregators: [],
+            name: undefined,
+          },
+          {
+            address: '0x04',
+            decimals: 5,
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x04.png',
+            isERC721: false,
+            symbol: 'D',
+            aggregators: [],
+            name: undefined,
+          },
+        ]);
 
-      stub.restore();
+        changeNetwork(SEPOLIA);
+        expect(initialTokensFirst).toStrictEqual(controller.state.tokens);
+
+        changeNetwork(GOERLI);
+        expect(initialTokensSecond).toStrictEqual(controller.state.tokens);
+      });
     });
   });
 
-  describe('Clearing nested lists', function () {
-    const dummyTokens: Token[] = [
-      {
-        address: '0x01',
-        symbol: 'barA',
-        decimals: 2,
-        aggregators: [],
-        image: undefined,
-      },
-    ];
-    const selectedAddress = '0x1';
-    const tokenAddress = '0x01';
-
+  describe('Clearing nested lists', () => {
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
-      tokensController.configure({
-        selectedAddress,
-        chainId: ChainId.mainnet,
-      });
-      await tokensController.addTokens(dummyTokens);
-      tokensController.ignoreTokens(['0x01']);
-      expect(
-        tokensController.state.allTokens[ChainId.mainnet][selectedAddress],
-      ).toStrictEqual([]);
+      const selectedAddress = '0x1';
+      const tokenAddress = '0x01';
+      const dummyTokens = [
+        {
+          address: tokenAddress,
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+            config: {
+              selectedAddress,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.addTokens(dummyTokens);
+          controller.ignoreTokens([tokenAddress]);
+
+          expect(
+            controller.state.allTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([]);
+        },
+      );
     });
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
-      tokensController.configure({
-        selectedAddress,
-        chainId: ChainId.mainnet,
-      });
-      await tokensController.addTokens(dummyTokens);
-      tokensController.ignoreTokens([tokenAddress]);
-      await tokensController.addTokens(dummyTokens);
+      const selectedAddress = '0x1';
+      const tokenAddress = '0x01';
+      const dummyTokens = [
+        {
+          address: tokenAddress,
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
 
-      expect(
-        tokensController.state.allIgnoredTokens[ChainId.mainnet][
-          selectedAddress
-        ],
-      ).toStrictEqual([]);
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+            config: {
+              selectedAddress,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.addTokens(dummyTokens);
+          controller.ignoreTokens([tokenAddress]);
+          await controller.addTokens(dummyTokens);
+
+          expect(
+            controller.state.allIgnoredTokens[ChainId.mainnet][selectedAddress],
+          ).toStrictEqual([]);
+        },
+      );
     });
 
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
-      tokensController.configure({
-        selectedAddress,
-        chainId: ChainId.mainnet,
-      });
-      await tokensController.addDetectedTokens(dummyTokens);
-      await tokensController.addTokens(dummyTokens);
+      const selectedAddress = '0x1';
+      const tokenAddress = '0x01';
+      const dummyTokens = [
+        {
+          address: tokenAddress,
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          image: undefined,
+        },
+      ];
 
-      expect(
-        tokensController.state.allDetectedTokens[ChainId.mainnet][
-          selectedAddress
-        ],
-      ).toStrictEqual([]);
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+            config: {
+              selectedAddress,
+            },
+          },
+        },
+        async ({ controller }) => {
+          await controller.addDetectedTokens(dummyTokens);
+          await controller.addTokens(dummyTokens);
+
+          expect(
+            controller.state.allDetectedTokens[ChainId.mainnet][
+              selectedAddress
+            ],
+          ).toStrictEqual([]);
+        },
+      );
     });
   });
 
-  describe('onTokenListStateChange', () => {
-    it('onTokenListChange', async () => {
-      const stub = stubCreateEthers(tokensController, () => false);
-      await tokensController.addToken({
-        address: '0x01',
-        symbol: 'bar',
-        decimals: 2,
-      });
-      expect(tokensController.state.tokens[0]).toStrictEqual({
-        address: '0x01',
-        decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-        symbol: 'bar',
-        isERC721: false,
-        aggregators: [],
-        name: undefined,
-      });
-
-      const sampleMainnetTokenList = {
-        '0x01': {
+  describe('when TokenListController:stateChange is published', () => {
+    it('updates the name of each token to match its counterpart in the token list', async () => {
+      await withController(async ({ controller, messenger }) => {
+        ContractMock.mockReturnValue(
+          buildMockEthersERC721Contract({ supportsInterface: false }),
+        );
+        await controller.addToken({
           address: '0x01',
           symbol: 'bar',
           decimals: 2,
-          occurrences: 1,
-          name: 'BarName',
-          iconUrl:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-          aggregators: ['Aave'],
-        },
-      };
-      messenger.publish(
-        'TokenListController:stateChange',
-        {
-          tokenList: sampleMainnetTokenList,
-        } as unknown as TokenListState,
-        [],
-      );
+        });
+        expect(controller.state.tokens[0]).toStrictEqual({
+          address: '0x01',
+          decimals: 2,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+          symbol: 'bar',
+          isERC721: false,
+          aggregators: [],
+          name: undefined,
+        });
 
-      expect(tokensController.state.tokens[0]).toStrictEqual({
-        address: '0x01',
-        decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
-        symbol: 'bar',
-        isERC721: false,
-        aggregators: [],
-        name: 'BarName',
+        messenger.publish(
+          'TokenListController:stateChange',
+          // @ts-expect-error Passing a partial TokensState for brevity
+          {
+            tokenList: {
+              '0x01': {
+                address: '0x01',
+                symbol: 'bar',
+                decimals: 2,
+                occurrences: 1,
+                name: 'BarName',
+                iconUrl:
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+                aggregators: ['Aave'],
+              },
+            },
+          },
+          [],
+        );
+
+        expect(controller.state.tokens[0]).toStrictEqual({
+          address: '0x01',
+          decimals: 2,
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
+          symbol: 'bar',
+          isERC721: false,
+          aggregators: [],
+          name: 'BarName',
+        });
       });
-      stub.restore();
     });
   });
 });
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+  changeNetwork,
+  messenger,
+  approvalController,
+  triggerPreferencesStateChange,
+}: {
+  controller: TokensController;
+  changeNetwork: (providerConfig: ProviderConfig) => void;
+  messenger: UnrestrictedMessenger;
+  approvalController: ApprovalController;
+  triggerPreferencesStateChange: (state: PreferencesState) => void;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [
+      {
+        options?: Partial<ConstructorParameters<typeof TokensController>[0]>;
+        mockNetworkClientConfigurationsByNetworkClientId?: Record<
+          NetworkClientId,
+          NetworkClientConfiguration
+        >;
+      },
+      WithControllerCallback<ReturnValue>,
+    ];
+
+/**
+ * Runs a callback, instantiating a TokensController (and friends) for use in
+ * tests, then ensuring that they are properly destroyed after the callback
+ * ends.
+ *
+ * @param args - Arguments to this function.
+ * @param args.options - Controller options.
+ * @param args.mockNetworkClientConfigurationsByNetworkClientId - Used to construct
+ * mock versions of network clients and ultimately mock the
+ * `NetworkController:getNetworkClientById` action.
+ * @returns A collection of test controllers and mocks.
+ */
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [
+    { options = {}, mockNetworkClientConfigurationsByNetworkClientId = {} },
+    fn,
+  ] = args.length === 2 ? args : [{}, args[0]];
+
+  const messenger: UnrestrictedMessenger = new ControllerMessenger();
+
+  const approvalControllerMessenger = messenger.getRestricted({
+    name: 'ApprovalController',
+    allowedActions: [],
+    allowedEvents: [],
+  });
+  const approvalController = new ApprovalController({
+    messenger: approvalControllerMessenger,
+    showApprovalRequest: jest.fn(),
+    typesExcludedFromRateLimiting: [ApprovalType.WatchAsset],
+  });
+
+  const controllerMessenger = messenger.getRestricted({
+    name: 'TokensController',
+    allowedActions: [
+      'ApprovalController:addRequest',
+      'NetworkController:getNetworkClientById',
+    ],
+    allowedEvents: [
+      'NetworkController:networkDidChange',
+      'PreferencesController:stateChange',
+      'TokenListController:stateChange',
+    ],
+  });
+  const controller = new TokensController({
+    chainId: ChainId.mainnet,
+    config: {
+      selectedAddress: '0x1',
+      // The tests assume that this is set, but they shouldn't make that
+      // assumption. But we have to do this due to a bug in TokensController
+      // where the provider can possibly be `undefined` if `networkClientId` is
+      // not specified.
+      provider: new FakeProvider(),
+    },
+    messenger: controllerMessenger,
+    ...options,
+  });
+
+  const triggerPreferencesStateChange = (state: PreferencesState) => {
+    messenger.publish('PreferencesController:stateChange', state, []);
+  };
+
+  const changeNetwork = (providerConfig: ProviderConfig) => {
+    messenger.publish('NetworkController:networkDidChange', {
+      ...defaultNetworkState,
+      providerConfig,
+    });
+  };
+
+  const getNetworkClientById = buildMockGetNetworkClientById(
+    mockNetworkClientConfigurationsByNetworkClientId,
+  );
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    getNetworkClientById,
+  );
+
+  return await fn({
+    controller,
+    changeNetwork,
+    messenger,
+    approvalController,
+    triggerPreferencesStateChange,
+  });
+}
+
+/**
+ * Constructs an object that satisfies the Token shape for testing,
+ * offering a default shape while allowing any property to be overridden.
+ *
+ * @param overrides - Properties to override the object with.
+ * @returns The complete Token.
+ */
+function buildToken(overrides: Partial<Token> = {}): Token {
+  // `Object.assign` allows for properties to be `undefined` in `overrides`,
+  // and will copy them over
+  return Object.assign(
+    {
+      address: '0x000000000000000000000000000000000000dEaD',
+      decimals: 12,
+      image: 'image',
+      symbol: 'TOKEN',
+    },
+    overrides,
+  );
+}
+
+/**
+ * Constructs an object that satisfies the Token shape for testing,
+ * offering a default shape (guaranteeing a name) while allowing any property to
+ * be overridden.
+ *
+ * @param overrides - Properties to override the object with.
+ * @returns The complete Token.
+ */
+function buildTokenWithName(
+  overrides: Partial<Token> = {},
+): Token & { name: string } {
+  // `Object.assign` allows for properties to be `undefined` in `overrides`,
+  // and will copy them over
+  return Object.assign(
+    {
+      address: '0x000000000000000000000000000000000000dEaD',
+      decimals: 12,
+      image: 'image',
+      name: 'Some Token',
+      symbol: 'TOKEN',
+    },
+    overrides,
+  );
+}
+
+/**
+ * Builds a mock ERC20 standard.
+ *
+ * @param args - The arguments to this function.
+ * @param args.tokenName - The desired return value of getTokenName.
+ * @param args.tokenSymbol - The desired return value of getTokenSymbol.
+ * @param args.tokenDecimals - The desired return value of getTokenDecimals.
+ * @returns The mock ERC20 standard.
+ */
+function buildMockERC20Standard({
+  tokenName = 'Some Token',
+  tokenSymbol = 'TEST',
+  tokenDecimals = '1',
+}: {
+  tokenName?: string;
+  tokenSymbol?: string;
+  tokenDecimals?: string;
+} = {}): ERC20Standard {
+  // @ts-expect-error This intentionally does not support all of the methods
+  // for the standard, only the ones we care about
+  return {
+    getTokenName: async () => tokenName,
+    getTokenSymbol: async () => tokenSymbol,
+    getTokenDecimals: async () => tokenDecimals,
+  };
+}
+
+/**
+ * Builds a mock ERC20 standard from a Token object.
+ *
+ * @param token - The token to use. The token must have a name.
+ * @returns The mock ERC20 standard.
+ */
+function buildMockERC20StandardFromToken(
+  token: Token & { name: string },
+): ERC20Standard {
+  // @ts-expect-error This intentionally does not support all of the methods
+  // for the standard, only the ones we care about
+  return {
+    getTokenName: async () => token.name,
+    getTokenSymbol: async () => token.symbol,
+    getTokenDecimals: async () => token.decimals.toString(),
+  };
+}
+
+/**
+ * Builds a mock ERC1155 standard.
+ *
+ * @param args - The arguments to this function.
+ * @param args.contractSupportsBase1155Interface - The desired return value of
+ * contractSupportsBase1155Interface.
+ * @returns The mock ERC20 standard.
+ */
+function buildMockERC1155Standard({
+  contractSupportsBase1155Interface,
+}: {
+  contractSupportsBase1155Interface: boolean;
+}): ERC1155Standard {
+  // @ts-expect-error This intentionally does not support all of the methods
+  // for the standard, only the ones we care about
+  return {
+    contractSupportsBase1155Interface: async () =>
+      contractSupportsBase1155Interface,
+  };
+}
+
+/**
+ * Builds a mock ERC721 contract (created via Ethers) for testing.
+ *
+ * @param args - The arguments to this function.
+ * @param args.supportsInterface - Whether the contract will report as supporting
+ * the given ERC721 ABI.
+ * @returns The mock contract.
+ */
+function buildMockEthersERC721Contract({
+  supportsInterface,
+}: {
+  supportsInterface: boolean;
+}): Contract {
+  // @ts-expect-error This intentionally does not support all of the methods
+  // for the contract, only the ones we care about
+  return {
+    supportsInterface: async () => supportsInterface,
+  };
+}

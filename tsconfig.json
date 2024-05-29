@@ -24,6 +24,7 @@
     { "path": "./packages/permission-log-controller" },
     { "path": "./packages/phishing-controller" },
     { "path": "./packages/preferences-controller" },
+    { "path": "./packages/profile-sync-controller" },
     { "path": "./packages/queued-request-controller" },
     { "path": "./packages/rate-limit-controller" },
     { "path": "./packages/selected-network-controller" },

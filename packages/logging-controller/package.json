@@ -41,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.1",
+    "@metamask/base-controller": "^5.0.2",
     "@metamask/controller-utils": "^9.1.0",
     "uuid": "^8.3.2"
   },

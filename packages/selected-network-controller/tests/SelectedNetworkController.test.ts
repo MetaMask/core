@@ -15,6 +15,7 @@ import type {
   NetworkProxy,
 } from '../src/SelectedNetworkController';
 import {
+  METAMASK_DOMAIN,
   SelectedNetworkController,
   controllerName,
 } from '../src/SelectedNetworkController';
@@ -298,6 +299,36 @@ describe('SelectedNetworkController', () => {
     });
 
     describe('when the useRequestQueue is true', () => {
+      describe('when the requesting domain is a snap (starts with "npm:" or "local:"', () => {
+        it('skips setting the networkClientId for the passed in domain', () => {
+          const { controller, mockHasPermissions } = setup({
+            state: { domains: {} },
+            useRequestQueuePreference: true,
+          });
+          mockHasPermissions.mockReturnValue(true);
+          const snapDomainOne = 'npm:@metamask/bip32-example-snap';
+          const snapDomainTwo = 'local:@metamask/bip32-example-snap';
+          const nonSnapDomain = 'example.com';
+          const networkClientId = 'network1';
+
+          controller.setNetworkClientIdForDomain(
+            nonSnapDomain,
+            networkClientId,
+          );
+          controller.setNetworkClientIdForDomain(
+            snapDomainOne,
+            networkClientId,
+          );
+          controller.setNetworkClientIdForDomain(
+            snapDomainTwo,
+            networkClientId,
+          );
+
+          expect(controller.state.domains).toStrictEqual({
+            [nonSnapDomain]: networkClientId,
+          });
+        });
+      });
       describe('when the requesting domain has existing permissions', () => {
         it('sets the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
@@ -528,6 +559,59 @@ describe('SelectedNetworkController', () => {
             'NetworkController:getSelectedNetworkClient',
           );
         });
+      });
+    });
+    // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
+    describe('when the domain is a snap (starts with "npm:" or "local:")', () => {
+      it('returns a proxied globally selected networkClient and does not create a new proxy in the domainProxyMap', () => {
+        const { controller, domainProxyMap, messenger } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: true,
+        });
+        jest.spyOn(messenger, 'call');
+        const snapDomain = 'npm:@metamask/bip32-example-snap';
+
+        const result = controller.getProviderAndBlockTracker(snapDomain);
+
+        expect(domainProxyMap.get(snapDomain)).toBeUndefined();
+        expect(messenger.call).toHaveBeenCalledWith(
+          'NetworkController:getSelectedNetworkClient',
+        );
+        expect(result).toBeDefined();
+      });
+    });
+    describe('when the domain is a "metamask"', () => {
+      it('returns a proxied globally selected networkClient and does not create a new proxy in the domainProxyMap', () => {
+        const { controller, domainProxyMap, messenger } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: true,
+        });
+        jest.spyOn(messenger, 'call');
+
+        const result = controller.getProviderAndBlockTracker(METAMASK_DOMAIN);
+
+        expect(result).toBeDefined();
+        expect(domainProxyMap.get(METAMASK_DOMAIN)).toBeUndefined();
+        expect(messenger.call).toHaveBeenCalledWith(
+          'NetworkController:getSelectedNetworkClient',
+        );
+      });
+      it('throws an error if the globally selected network client is not initialized', () => {
+        const { controller, mockGetSelectedNetworkClient } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: false,
+        });
+        mockGetSelectedNetworkClient.mockReturnValue(undefined);
+
+        expect(() =>
+          controller.getProviderAndBlockTracker(METAMASK_DOMAIN),
+        ).toThrow('Selected network not initialized');
       });
     });
   });

@@ -2,7 +2,7 @@
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
-import { TransactionType, UserFeeLevel } from '../types';
+import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
 import type { UpdateGasFeesRequest } from './gas-fees';
 import { updateGasFees } from './gas-fees';
 
@@ -29,6 +29,30 @@ const UPDATE_GAS_FEES_REQUEST_MOCK = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any as UpdateGasFeesRequest;
 
+const FLOW_RESPONSE_FEE_MARKET_MOCK = {
+  estimates: {
+    type: GasFeeEstimateType.FeeMarket,
+    medium: {
+      maxFeePerGas: GAS_HEX_WEI_MOCK,
+      maxPriorityFeePerGas: GAS_HEX_WEI_MOCK,
+    },
+  },
+} as GasFeeFlowResponse;
+
+const FLOW_RESPONSE_LEGACY_MOCK = {
+  estimates: {
+    type: GasFeeEstimateType.Legacy,
+    medium: GAS_HEX_WEI_MOCK,
+  },
+} as GasFeeFlowResponse;
+
+const FLOW_RESPONSE_GAS_PRICE_MOCK = {
+  estimates: {
+    type: GasFeeEstimateType.GasPrice,
+    gasPrice: GAS_HEX_WEI_MOCK,
+  },
+} as GasFeeFlowResponse;
+
 function toHex(value: number) {
   return `0x${value.toString(16)}`;
 }
@@ -49,18 +73,8 @@ describe('gas-fees', () => {
   const queryMock = jest.mocked(query);
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
 
-  function mockGasFeeFlowMockResponse(
-    maxFeePerGas: string,
-    maxPriorityFeePerGas: string,
-  ) {
-    gasFeeFlowMock.getGasFees.mockResolvedValue({
-      estimates: {
-        medium: {
-          maxFeePerGas,
-          maxPriorityFeePerGas,
-        },
-      },
-    } as GasFeeFlowResponse);
+  function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse) {
+    gasFeeFlowMock.getGasFees.mockResolvedValue(response);
   }
 
   beforeEach(() => {
@@ -199,8 +213,28 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to suggested medium maxFeePerGas if no request values', async () => {
-        mockGasFeeFlowMockResponse(GAS_HEX_WEI_MOCK, GAS_HEX_WEI_MOCK);
+      it('to suggested medium maxFeePerGas if no request values and flow returns fee market estimate', async () => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('to suggested medium if no request values and flow returns legacy estimate', async () => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_LEGACY_MOCK);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('to suggested gas price if no request values and flow returns gas price estimate', async () => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -213,7 +247,7 @@ describe('gas-fees', () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = '0x456';
         updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas = '0x789';
 
-        mockGasFeeFlowMockResponse(GAS_HEX_WEI_MOCK, GAS_HEX_WEI_MOCK);
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -283,8 +317,28 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to suggested maxPriorityFeePerGas if no request values', async () => {
-        mockGasFeeFlowMockResponse(GAS_HEX_WEI_MOCK, GAS_HEX_WEI_MOCK);
+      it('to suggested maxPriorityFeePerGas if no request values and flow returns fee market estimate', async () => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('to suggested maxPriorityFeePerGas if no request values and flow returns legacy estimate', async () => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_LEGACY_MOCK);
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+      });
+
+      it('to suggested maxPriorityFeePerGas if no request values and flow returns gas price estimate', async () => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -297,7 +351,7 @@ describe('gas-fees', () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = '0x456';
         updateGasFeeRequest.txMeta.txParams.maxFeePerGas = '0x789';
 
-        mockGasFeeFlowMockResponse(GAS_HEX_WEI_MOCK, GAS_HEX_WEI_MOCK);
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -353,10 +407,34 @@ describe('gas-fees', () => {
           );
         });
 
-        it('to suggested medium maxFeePerGas if no request gasPrice', async () => {
+        it('to suggested medium maxFeePerGas if no request gasPrice and flow returns fee market estimate', async () => {
           updateGasFeeRequest.eip1559 = false;
 
-          mockGasFeeFlowMockResponse(GAS_HEX_WEI_MOCK, GAS_HEX_WEI_MOCK);
+          mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+
+          await updateGasFees(updateGasFeeRequest);
+
+          expect(updateGasFeeRequest.txMeta.txParams.gasPrice).toBe(
+            GAS_HEX_WEI_MOCK,
+          );
+        });
+
+        it('to suggested medium if no request gasPrice and flow returns legacy estimate', async () => {
+          updateGasFeeRequest.eip1559 = false;
+
+          mockGasFeeFlowMockResponse(FLOW_RESPONSE_LEGACY_MOCK);
+
+          await updateGasFees(updateGasFeeRequest);
+
+          expect(updateGasFeeRequest.txMeta.txParams.gasPrice).toBe(
+            GAS_HEX_WEI_MOCK,
+          );
+        });
+
+        it('to suggested medium if no request gasPrice and flow returns gas price estimate', async () => {
+          updateGasFeeRequest.eip1559 = false;
+
+          mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
 
           await updateGasFees(updateGasFeeRequest);
 
@@ -430,7 +508,7 @@ describe('gas-fees', () => {
       });
 
       it('to medium if suggested maxFeePerGas and maxPriorityFeePerGas but no request maxFeePerGas or maxPriorityFeePerGas', async () => {
-        mockGasFeeFlowMockResponse(GAS_HEX_MOCK, GAS_HEX_MOCK);
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 

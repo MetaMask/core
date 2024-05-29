@@ -90,6 +90,8 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
   /**
    * The type of the approval request.
+   * Unfortunately, not all values will match the `ApprovalType` enum, so we are using `string` here.
+   * TODO: Replace `string` with `ApprovalType` when all `type` values used by the clients can be encompassed by the `ApprovalType` enum.
    */
   type: string;
 

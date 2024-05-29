@@ -1,6 +1,6 @@
 import nock from 'nock';
 
-import { fetchExchangeRate } from './crypto-compare';
+import { fetchExchangeRate, fetchMultiExchangeRate } from './crypto-compare';
 
 const cryptoCompareHost = 'https://min-api.cryptocompare.com';
 
@@ -148,5 +148,52 @@ describe('CryptoCompare', () => {
 
     const { conversionRate } = await fetchExchangeRate('USD', 'MNT');
     expect(conversionRate).toBe(123);
+  });
+
+  describe('fetchMultiExchangeRate', () => {
+    it('should return CAD and USD conversion rate for BTC, ETH, and SOL', async () => {
+      nock(cryptoCompareHost)
+        .get('/data/pricemulti?fsyms=BTC,ETH,SOL&tsyms=CAD,USD')
+        .reply(200, {
+          BTC: { CAD: 2000.42, USD: 1000.42 },
+          ETH: { CAD: 3000.42, USD: 2000.42 },
+          SOL: { CAD: 4000.42, USD: 3000.42 },
+        });
+
+      const response = await fetchMultiExchangeRate(
+        'CAD',
+        ['BTC', 'ETH', 'SOL'],
+        true,
+      );
+
+      expect(response).toStrictEqual({
+        btc: { cad: 2000.42, usd: 1000.42 },
+        eth: { cad: 3000.42, usd: 2000.42 },
+        sol: { cad: 4000.42, usd: 3000.42 },
+      });
+    });
+
+    it('should not return USD value if not requested', async () => {
+      nock(cryptoCompareHost)
+        .get('/data/pricemulti?fsyms=BTC,ETH,SOL&tsyms=EUR')
+        .reply(200, {
+          BTC: { EUR: 1000 },
+          ETH: { EUR: 2000 },
+          SOL: { EUR: 3000 },
+        });
+
+      // @ts-expect-error Testing the case where the USD rate is not included
+      const response = await fetchMultiExchangeRate('EUR', [
+        'BTC',
+        'ETH',
+        'SOL',
+      ]);
+
+      expect(response).toStrictEqual({
+        btc: { eur: 1000 },
+        eth: { eur: 2000 },
+        sol: { eur: 3000 },
+      });
+    });
   });
 });

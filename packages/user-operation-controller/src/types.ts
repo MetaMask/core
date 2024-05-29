@@ -348,11 +348,26 @@ export type SwapsMetadata = {
   /** Symbol of the destination token. */
   destinationTokenSymbol: string | null;
 
+  /** Amount of the destination token. */
+  destinationTokenAmount: string | null;
+
   /** Estimated base fee of the swap. */
   estimatedBaseFee: string | null;
 
+  /** Address of the source token. */
+  sourceTokenAddress: string | null;
+
+  /** Amount of the source token. */
+  sourceTokenAmount: string | null;
+
+  /** Number of decimals of the source token. */
+  sourceTokenDecimals: number | null;
+
   /** Symbol of the source token. */
   sourceTokenSymbol: string | null;
+
+  /** Recipient of the swap and send transaction. */
+  swapAndSendRecipient: string | null;
 
   /** Untyped raw metadata values. */
   swapMetaData: Record<string, never> | null;
