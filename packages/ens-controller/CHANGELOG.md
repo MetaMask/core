@@ -7,19 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/156.0.0 ([#4332](https://github.com/MetaMask/core/pull/4332))
-- Release 151.0.0 ([#4285](https://github.com/MetaMask/core/pull/4285))
-- Release 146.0.0 ([#4232](https://github.com/MetaMask/core/pull/4232))
-- Release 136.0.0 ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Release 133.0.0 ([#4121](https://github.com/MetaMask/core/pull/4121))
-- Revert "Release v133.0.0 (#4111)" ([#4111](https://github.com/MetaMask/core/pull/4111))
-- Release v133.0.0 ([#4111](https://github.com/MetaMask/core/pull/4111))
-- Fix prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
-- Release 127.0.0 ([#4065](https://github.com/MetaMask/core/pull/4065))
-
 ## [10.0.1]
 
 ### Fixed
