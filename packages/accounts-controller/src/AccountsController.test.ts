@@ -200,8 +200,8 @@ function createExpectedInternalAccount({
     metadata: {
       name,
       keyring: { type: keyringType },
-      importTime: expect.any(Number),
-      lastSelected: expect.any(Number),
+      importTime: importTime || expect.any(Number),
+      lastSelected: lastSelected || expect.any(Number),
     },
   } as InternalAccount;
 
@@ -1678,7 +1678,7 @@ describe('AccountsController', () => {
     it.each([
       [undefined, mockNewerEvmAccount, mockNewerEvmAccount],
       [undefined, mockNonEvmAccount, mockNewerEvmAccount],
-      ['eip155:*', mockNonEvmAccount, mockNewerEvmAccount],
+      ['eip155', mockNonEvmAccount, mockNewerEvmAccount],
       ['eip155:1', mockNonEvmAccount, mockNewerEvmAccount],
       ['bip122:1', mockNewerEvmAccount, mockNewerEvmAccount], // nonevm chain ids should always return the selectedAccount
       ['bip122:1', mockNonEvmAccount, mockNonEvmAccount], // nonevm chain ids should always return the selectedAccount
@@ -1717,7 +1717,7 @@ describe('AccountsController', () => {
       });
 
       expect(() => accountsController.getSelectedAccount('eip155:1')).toThrow(
-        'AccountsController: No evm accounts',
+        'AccountsController: No EVM accounts',
       );
     });
 
@@ -1733,7 +1733,7 @@ describe('AccountsController', () => {
 
       const invalidCaip2 = 'ethereum';
 
-      // @ts-expect-error testing invalid caip2
+      // // @ts-expect-error testing invalid caip2
       expect(() => accountsController.getSelectedAccount(invalidCaip2)).toThrow(
         `Invalid CAIP2 id ${invalidCaip2}`,
       );
@@ -1751,7 +1751,7 @@ describe('AccountsController', () => {
     it.each([
       [undefined, [mockAccount, mockAccount2, nonEvmAccount]],
       ['eip155:1', [mockAccount, mockAccount2]],
-      ['eip155:*', [mockAccount, mockAccount2]],
+      ['eip155', [mockAccount, mockAccount2]],
       ['bip122:1', [nonEvmAccount]],
     ])(`%s should return %s`, (chainId, expected) => {
       const { accountsController } = setupAccountsController({

@@ -99,15 +99,3 @@ export function deepCloneDraft(
   // We use unknown here because the type inference when using structured clone leads to the same type error.
   return deepClone(obj) as unknown as AccountsControllerState;
 }
-
-/**
- * Creates a deep clone of the given object.
- * This is to get around error `Type instantiation is excessively deep and possibly infinite.`
- *
- * @template O,T - The type of the object being cloned.
- * @param obj - The object to be cloned.
- * @returns The deep clone of the object.
- */
-export function deepCloneDraft<I, T>(obj: I): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
-}

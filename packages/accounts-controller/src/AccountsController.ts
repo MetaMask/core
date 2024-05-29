@@ -6,7 +6,11 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  EthMethod,
+  isEvmAccountType,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
@@ -27,6 +31,7 @@ import {
   type Json,
   isCaipChainId,
   parseCaipChainId,
+  KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -156,9 +161,6 @@ const defaultState: AccountsControllerState = {
   },
 };
 
-const ETHEREUM_CAIP_NAMESPACE = 'eip155:';
-const ETHEREUM_CAIP_ID_WILDCARD: CaipChainId = `${ETHEREUM_CAIP_NAMESPACE}*`;
-
 /**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
@@ -229,21 +231,22 @@ export class AccountsController extends BaseController<
     chainIdOrNamespace?: CaipChainId | CaipNamespace,
   ): InternalAccount[] {
     const accounts = Object.values(this.state.internalAccounts.accounts);
+
     if (!chainIdOrNamespace) {
       return accounts;
     }
 
-    if (chainIdOrNamespace === ETHEREUM_CAIP_ID_WILDCARD) {
-      return accounts.filter((account) =>
-        account.type.startsWith(ETHEREUM_CAIP_NAMESPACE),
-      );
-    }
-
     if (
-      !isCaipChainId(chainIdOrNamespace) &&
-      chainIdOrNamespace !== ETHEREUM_CAIP_ID_WILDCARD
+      chainIdOrNamespace !== KnownCaipNamespace.Eip155 &&
+      !isCaipChainId(chainIdOrNamespace)
     ) {
       throw new Error(`Invalid CAIP2 id ${String(chainIdOrNamespace)}`);
+    }
+
+    if (chainIdOrNamespace === KnownCaipNamespace.Eip155) {
+      return accounts.filter((account) =>
+        account.type.startsWith(KnownCaipNamespace.Eip155),
+      );
     }
 
     return accounts.filter((account) =>
@@ -286,15 +289,15 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the selected evm internal account by default unless the namespace is not eip155
+   * Returns the selected EVM internal account by default unless the namespace is not "eip155"
    *
-   * @param chainId - Caip2 Id of the account
+   * @param chainId - CAIP2 chain ID or CAIP2 namespace
    * @returns The selected internal account.
    */
   getSelectedAccount(
-    chainId: CaipChainId = ETHEREUM_CAIP_ID_WILDCARD,
+    chainId: CaipChainId | CaipNamespace = KnownCaipNamespace.Eip155,
   ): InternalAccount {
-    if (!isCaipChainId(chainId) && chainId !== ETHEREUM_CAIP_ID_WILDCARD) {
+    if (chainId !== KnownCaipNamespace.Eip155 && !isCaipChainId(chainId)) {
       throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
     }
 
@@ -303,20 +306,23 @@ export class AccountsController extends BaseController<
       this.state.internalAccounts.selectedAccount,
     );
 
+    // check for non-EVM accounts
     if (
-      !chainId.startsWith(ETHEREUM_CAIP_NAMESPACE) ||
-      this.#isAccountCompatibleWithChain(selectedAccount, chainId)
+      !(chainId as CaipNamespace).startsWith(KnownCaipNamespace.Eip155) &&
+      this.#isAccountCompatibleWithChain(
+        selectedAccount,
+        chainId as CaipChainId,
+      )
     ) {
       return selectedAccount;
     }
 
-    const accounts = this.listAccounts().filter((account) =>
-      account.type.startsWith(ETHEREUM_CAIP_NAMESPACE),
-    );
+    // Check for evm accounts
+    const accounts = this.listAccounts(KnownCaipNamespace.Eip155);
 
     if (!accounts.length) {
       // !Should never reach this.
-      throw new Error('AccountsController: No evm accounts');
+      throw new Error('AccountsController: No EVM accounts');
     }
 
     let lastSelectedEvmAccount = accounts[0];
@@ -363,7 +369,7 @@ export class AccountsController extends BaseController<
       currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (account.type.startsWith(ETHEREUM_CAIP_NAMESPACE)) {
+    if (isEvmAccountType(account.type)) {
       this.messagingSystem.publish(
         'AccountsController:selectedEvmAccountChange',
         account,
@@ -837,15 +843,17 @@ export class AccountsController extends BaseController<
    * Checks if an account is compatible with a given chain namespace.
    * @private
    * @param account - The account to check compatibility for.
-   * @param chainNamespace - The chain namespace to check compatibility with.
+   * @param chainId - The CAIP2 to check compatibility with.
    * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
    */
   #isAccountCompatibleWithChain(
     account: InternalAccount,
-    chainNamespace: CaipNamespace,
+    chainId: CaipChainId,
   ): boolean {
     // TODO: Change this logic to not use account's type
-    return account.type.startsWith(chainNamespace);
+    // Because we currently only use type, we can only use namespace for now.
+
+    return account.type.startsWith(parseCaipChainId(chainId).namespace);
   }
 
   /**
