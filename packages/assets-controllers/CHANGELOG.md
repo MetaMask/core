@@ -14,10 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds a new field `marketData` to the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
 - Adds a new `RatesController` to manage prices for non-EVM blockchains ([#4242](https://github.com/MetaMask/core/pull/4242))
 
-### Removed
-
-- **BREAKING:** Removed `contractExchangeRates` and `contractExchangeRatesByChainId` from the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
-
 ### Changed
 
 - **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
@@ -25,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The NftController messenger must now allow the `NetworkController:getNetworkClientById` action ([#4305](https://github.com/MetaMask/core/pull/4305))
 - **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.2` ([#4332](https://github.com/MetaMask/core/pull/4332))
 - Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+
+### Removed
+
+- **BREAKING:** Removed `contractExchangeRates` and `contractExchangeRatesByChainId` from the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
 
 ### Fixed
 
