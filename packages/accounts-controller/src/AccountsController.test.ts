@@ -172,9 +172,7 @@ function createExpectedInternalAccount({
       name,
       keyring: { type: keyringType },
       importTime: expect.any(Number),
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      lastSelected: undefined,
+      lastSelected: expect.any(Number),
     },
   };
 
@@ -739,17 +737,15 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listAccounts();
 
-        expect(accounts).toStrictEqual([
+        expect(accounts.map(setLastSelectedAsAny)).toStrictEqual([
           mockAccount,
           mockAccount2WithCustomName,
-          setLastSelectedAsAny(
-            createExpectedInternalAccount({
-              id: 'mock-id3',
-              name: 'Account 3',
-              address: mockAccount3.address,
-              keyringType: KeyringTypes.hd,
-            }),
-          ),
+          createExpectedInternalAccount({
+            id: 'mock-id3',
+            name: 'Account 3',
+            address: mockAccount3.address,
+            keyringType: KeyringTypes.hd,
+          }),
         ]);
       });
 
@@ -1222,7 +1218,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
-          lastSelected: undefined,
+          lastSelected: expect.any(Number),
           importTime: expect.any(Number),
         },
       };
@@ -1232,7 +1228,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
-          lastSelected: undefined,
+          lastSelected: expect.any(Number),
           importTime: expect.any(Number),
         },
       };
@@ -1241,7 +1237,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(
+        accountsController.listAccounts().map(setLastSelectedAsAny),
+      ).toStrictEqual(expectedAccounts);
     });
 
     it('should return an empty array if the snap keyring is not defined', async () => {
@@ -1485,7 +1483,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(
+        accountsController.listAccounts().map(setLastSelectedAsAny),
+      ).toStrictEqual(expectedAccounts);
     });
 
     it('should throw an error if the keyring type is unknown', async () => {
