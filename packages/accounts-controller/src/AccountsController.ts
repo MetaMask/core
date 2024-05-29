@@ -338,7 +338,7 @@ export class AccountsController extends BaseController<
         return currentAccount;
       }
       return prevAccount;
-    }, lastSelectedEvmAccount);
+    }, lastSelectedEvmAccount); // Safe indexing, since we checked for .length already
 
     return lastSelectedEvmAccount;
   }
