@@ -218,11 +218,11 @@ const controllerName = 'NftController';
 /**
  * The external actions available to the {@link NftController}.
  */
-export type AllowedActions =
+type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction;
 
-export type AllowedEvents =
+type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent;
 
