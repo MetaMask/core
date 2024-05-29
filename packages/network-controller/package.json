@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "18.1.1",
+  "version": "18.1.2",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
