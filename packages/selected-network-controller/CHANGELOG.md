@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Changed
+
+- `getProviderAndBlockTracker` now returns the `NetworkController`'s globally selected network client proxy if the `domain` arg is either `metamask` or a snap (identified as starting with `npm:` or `local:`) ([#4259](https://github.com/MetaMask/core/pull/4259))
+- **BREAKING:** Now when `setNetworkClientIdForDomain` is called with a snap's domain (identified as starting with `npm:` or `local:`), the `domain` will not be added to state and no proxy will be created for this domain in the `domainProxyMap` ([#4258](https://github.com/MetaMask/core/pull/4258))
+  - In order to remove snaps that made it into `domains` state prior to this change, consumers will need to run a migration.
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [12.0.1]
+
+### Fixed
+
+- When `getProviderAndBlockTracker` is called with a `domain` for which there is no cached `networkProxy` in the `domainProxyMap`, if the `useRequestQueue` preference is off and the `domain` does not have permissions the newly created `networkProxy` for this `domain` will be pointed at the `NetworkController`'s own proxy of the globally selected `networkClient`. ([#4187](https://github.com/MetaMask/core/pull/4187))
+
+## [12.0.0]
+
+### Added
+
+- These changes keep the per domain proxies (stored in domainProxyMap) pointing to the correct network client instance when the "Select networks for each site" toggle is turned on and off.
+  - **BREAKING:** A parameter `useRequestQueuePreference` which should point to the current preferences state for `useRequestQueue` is now required by the constructor ([#4130](https://github.com/MetaMask/core/pull/4130))
+  - - **BREAKING:** An `onPreferencesStateChange` argument that should subscribe to `PreferencesController` state changes and call a callback with the updated state is now a required parameter in the constructor options object. ([#4130](https://github.com/MetaMask/core/pull/4130))
+
+### Removed
+
+- The `getUseRequestQueue` parameter is no longer expected by the constructor. ([#4130](https://github.com/MetaMask/core/pull/4130))
+
+## [11.0.0]
+
+### Added
+
+- Now exports the `Domain` type ([#4104](https://github.com/MetaMask/core/pull/4104))
+
+### Changed
+
+- Previously the `SelectedNetworkController` only constructed proxies for domains that had permissions. Other domains have no associated proxy and the `getProviderAndBlockTracker` method would throw an error. This was problematic because we grab the network client for an origin a single time when constructing an RPC pipeline for that origin in the MetaMask extension. We don't re-create the RPC pipeline when permissions change. That means that the pipeline is setup with the wrong network client and cannot be updated. The following changes ensure seamlessly proxying calls during sessions where a dapp connects/disconnects and provides a path for clients to prune inactive proxies:
+  - **BREAKING:** `SelectedNetworkController` now expects a `domainProxyMap` param - which is a Map of Domain to NetworkProxy - in its constructor ([#4104](https://github.com/MetaMask/core/pull/4104))
+    - This `domainProxyMap` is expected to automatically delete entries for domains that are no longer connected to the wallet. The `SelectedNetworkController` handles _adding_ entries, but it can't handle removal, as it doesn't know which connections are active.
+    - You can pass in a plain `Map` here and it will work, but during longer sessions this might grow unbounded, resulting in a memory leak.
+  - **BREAKING:** `SelectedNetworkController` now requires `NetworkController:getSelectedNetworkClient` as an allowed action ([#4063](https://github.com/MetaMask/core/pull/4063))
+  - `getProviderAndBlockTracker` method no longer throws an error if the `useRequestQueue` flag is false ([#4063](https://github.com/MetaMask/core/pull/4063))
+  - `getProviderAndBlockTracker` method no longer throws an error if there is no `networkClientId` set for the passed domain. Now it returns a proxy pointed at the globally selected network instead. ([#4063](https://github.com/MetaMask/core/pull/4063))
+- Bump dependency `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+
+### Fixed
+
+- Previously when a domain's permission was removed from `PermissionsController`, it's network client proxy would continue to point at the `networkClientId` it was last set to. Now it is set to follow the globally selected network ([#4063](https://github.com/MetaMask/core/pull/4063))
+
 ## [10.0.1]
 
 ### Fixed
@@ -157,7 +206,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@12.0.1...@metamask/selected-network-controller@13.0.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@12.0.0...@metamask/selected-network-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@11.0.0...@metamask/selected-network-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.1...@metamask/selected-network-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.0...@metamask/selected-network-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@9.0.0...@metamask/selected-network-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@8.0.0...@metamask/selected-network-controller@9.0.0

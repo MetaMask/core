@@ -3,6 +3,15 @@ import {
   createAsyncMiddleware,
 } from '@metamask/json-rpc-engine';
 import { rpcErrors, serializeError } from '@metamask/rpc-errors';
+import {
+  assertIsJsonRpcFailure,
+  assertIsJsonRpcSuccess,
+  hasProperty,
+} from '@metamask/utils';
+import type {
+  PermissionConstraint,
+  RequestedPermissions,
+} from 'src/Permission';
 
 import { requestPermissionsHandler } from './requestPermissions';
 
@@ -22,22 +31,20 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-      }),
+    engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      (req, res, next, end) =>
+        implementation(req, res, next, end, {
+          requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
+        }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
     });
+    assertIsJsonRpcSuccess(response);
 
     expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockRequestPermissionsForOrigin).toHaveBeenCalledTimes(1);
@@ -53,36 +60,29 @@ describe('requestPermissions RPC method', () => {
       });
 
     const engine = new JsonRpcEngine();
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const end: any = () => undefined; // this won't be called
+    const end = () => undefined; // this won't be called
 
     // Pass the middleware function to createAsyncMiddleware so the error
     // is catched.
-    engine.push(
-      createAsyncMiddleware(
-        (req, res, next) =>
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          implementation(req as any, res as any, next, end, {
-            requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }) as any,
+    engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      createAsyncMiddleware(async (req, res, next) =>
+        implementation(req, res, next, end, {
+          requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
+        }),
       ),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
       params: [{}],
     });
+    assertIsJsonRpcFailure(response);
 
-    expect(response.result).toBeUndefined();
+    expect(hasProperty(response, 'result')).toBe(false);
     delete response.error.stack;
+    // @ts-expect-error We do expect this property to exist.
     delete response.error.data.cause.stack;
     const expectedError = new Error('foo');
     delete expectedError.stack;
@@ -98,16 +98,16 @@ describe('requestPermissions RPC method', () => {
     const mockRequestPermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-      }),
+    engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      async (req, res, next, end) => {
+        await implementation(req, res, next, end, {
+          requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
+        });
+      },
     );
 
     for (const invalidParams of ['foo', ['bar']]) {
-      const req = {
+      const request = {
         jsonrpc: '2.0',
         id: 1,
         method: 'arbitraryName',
@@ -116,14 +116,14 @@ describe('requestPermissions RPC method', () => {
 
       const expectedError = rpcErrors
         .invalidParams({
-          data: { request: { ...req } },
+          data: { request: { ...request } },
         })
         .serialize();
       delete expectedError.stack;
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await engine.handle(req as any);
+      // @ts-expect-error Intentional destructive testing
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
       delete response.error.stack;
       expect(response.error).toStrictEqual(expectedError);
       expect(mockRequestPermissionsForOrigin).not.toHaveBeenCalled();

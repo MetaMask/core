@@ -4,6 +4,7 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { isSafeDynamicKey } from '@metamask/controller-utils';
 
 import type {
   NameProvider,
@@ -440,6 +441,14 @@ export class NameController extends BaseController<
     const variationKey = variation ?? DEFAULT_VARIATION;
     const normalizedValue = this.#normalizeValue(value, type);
     const normalizedVariation = this.#normalizeVariation(variationKey, type);
+
+    if (
+      [normalizedValue, normalizedVariation].some(
+        (key) => !isSafeDynamicKey(key),
+      )
+    ) {
+      return;
+    }
 
     this.update((state) => {
       const typeEntries = state.names[type] || {};

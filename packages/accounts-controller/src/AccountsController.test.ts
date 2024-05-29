@@ -5,6 +5,7 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { SnapStatus } from '@metamask/snaps-utils';
 import * as uuid from 'uuid';
+import type { V4Options } from 'uuid';
 
 import type {
   AccountsControllerActions,
@@ -14,10 +15,14 @@ import type {
   AllowedEvents,
 } from './AccountsController';
 import { AccountsController } from './AccountsController';
-import { keyringTypeToName } from './utils';
+import {
+  getUUIDOptionsFromAddressOfNormalAccount,
+  keyringTypeToName,
+} from './utils';
 
 jest.mock('uuid');
 const mockUUID = jest.spyOn(uuid, 'v4');
+const actualUUID = jest.requireActual('uuid').v4; // We also use uuid.v4 in our mocks
 
 const defaultState: AccountsControllerState = {
   internalAccounts: {
@@ -48,6 +53,7 @@ const mockAccount: InternalAccount = {
   metadata: {
     name: 'Account 1',
     keyring: { type: KeyringTypes.hd },
+    importTime: 1691565967600,
     lastSelected: 1691565967656,
   },
 };
@@ -61,6 +67,7 @@ const mockAccount2: InternalAccount = {
   metadata: {
     name: 'Account 2',
     keyring: { type: KeyringTypes.hd },
+    importTime: 1691565967600,
     lastSelected: 1955565967656,
   },
 };
@@ -79,6 +86,7 @@ const mockAccount3: InternalAccount = {
       id: 'mock-snap-id',
       name: 'snap-name',
     },
+    importTime: 1691565967600,
     lastSelected: 1955565967656,
   },
 };
@@ -97,9 +105,35 @@ const mockAccount4: InternalAccount = {
       id: 'mock-snap-id',
       name: 'snap-name',
     },
+    importTime: 1955565967656,
     lastSelected: 1955565967656,
   },
 };
+
+/**
+ * Mock generated normal account ID to an actual "hard-coded" one.
+ */
+class MockNormalAccountUUID {
+  #accountIds: Record<string, string> = {};
+
+  constructor(accounts: InternalAccount[]) {
+    for (const account of accounts) {
+      const accountId = actualUUID(
+        getUUIDOptionsFromAddressOfNormalAccount(account.address),
+      );
+
+      // Register "hard-coded" (from test) account ID with the actual account UUID
+      this.#accountIds[accountId] = account.id;
+    }
+  }
+
+  mock(options?: V4Options | undefined) {
+    const accountId = actualUUID(options);
+
+    // If not found, we returns the generated UUID
+    return this.#accountIds[accountId] ?? accountId;
+  }
+}
 
 /**
  * Creates an `InternalAccount` object from the given normal account properties.
@@ -137,6 +171,7 @@ function createExpectedInternalAccount({
     metadata: {
       name,
       keyring: { type: keyringType },
+      importTime: expect.any(Number),
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore
       lastSelected: undefined,
@@ -172,6 +207,7 @@ function setLastSelectedAsAny(account: InternalAccount): InternalAccount {
   ) as InternalAccount;
 
   deepClonedAccount.metadata.lastSelected = expect.any(Number);
+  deepClonedAccount.metadata.importTime = expect.any(Number);
   return deepClonedAccount;
 }
 
@@ -1187,6 +1223,7 @@ describe('AccountsController', () => {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
           lastSelected: undefined,
+          importTime: expect.any(Number),
         },
       };
 
@@ -1196,6 +1233,7 @@ describe('AccountsController', () => {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
           lastSelected: undefined,
+          importTime: expect.any(Number),
         },
       };
 
@@ -1617,6 +1655,7 @@ describe('AccountsController', () => {
     });
 
     it('should throw an error for an unknown account ID', () => {
+      const accountId = 'unknown id';
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1626,8 +1665,8 @@ describe('AccountsController', () => {
         },
       });
 
-      expect(() => accountsController.getAccountExpect('unknown id')).toThrow(
-        `Account Id unknown id not found`,
+      expect(() => accountsController.getAccountExpect(accountId)).toThrow(
+        `Account Id "${accountId}" not found`,
       );
     });
 
@@ -1653,6 +1692,7 @@ describe('AccountsController', () => {
           keyring: {
             type: '',
           },
+          importTime: 0,
         },
       });
     });
@@ -1696,26 +1736,6 @@ describe('AccountsController', () => {
         accountsController.state.internalAccounts.selectedAccount,
       ).toStrictEqual(mockAccount2.id);
     });
-
-    it("should set the selected account to '' if the account is not found", () => {
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: {
-              [mockAccount.id]: mockAccount,
-              [mockAccount2.id]: mockAccount2,
-            },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      accountsController.setSelectedAccount('unknown');
-
-      expect(accountsController.state.internalAccounts.selectedAccount).toBe(
-        '',
-      );
-    });
   });
 
   describe('setAccountName', () => {
@@ -1752,23 +1772,46 @@ describe('AccountsController', () => {
         accountsController.setAccountName(mockAccount.id, 'Account 2'),
       ).toThrow('Account name already exists');
     });
-
-    it('should throw an error if the account ID is not found', () => {
-      const accountsController = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-      expect(() =>
-        accountsController.setAccountName('unknown account', 'new name'),
-      ).toThrow(`Account Id unknown account not found`);
-    });
   });
 
   describe('#getNextAccountNumber', () => {
+    // Account names start at 2 since have 1 HD account + 2 simple keypair accounts (and both
+    // those keyring types are "grouped" together)
+    const mockSimpleKeyring1 = createExpectedInternalAccount({
+      id: 'mock-id2',
+      name: 'Account 2',
+      address: '0x555',
+      keyringType: 'Simple Key Pair',
+    });
+    const mockSimpleKeyring2 = createExpectedInternalAccount({
+      id: 'mock-id3',
+      name: 'Account 3',
+      address: '0x666',
+      keyringType: 'Simple Key Pair',
+    });
+    const mockSimpleKeyring3 = createExpectedInternalAccount({
+      id: 'mock-id4',
+      name: 'Account 4',
+      address: '0x777',
+      keyringType: 'Simple Key Pair',
+    });
+
+    const mockNewKeyringStateWith = (simpleAddressess: string[]) => {
+      return {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [mockAccount.address],
+          },
+          {
+            type: 'Simple Key Pair',
+            accounts: simpleAddressess,
+          },
+        ],
+      };
+    };
+
     it('should return the next account number', async () => {
       const messenger = buildMessenger();
       mockUUID
@@ -1778,32 +1821,6 @@ describe('AccountsController', () => {
         .mockReturnValueOnce('mock-id2') // call to add account
         .mockReturnValueOnce('mock-id3'); // call to add account
 
-      const mockSimpleKeyring1 = createExpectedInternalAccount({
-        id: 'mock-id2',
-        name: 'Account 2',
-        address: '0x555',
-        keyringType: 'Simple Key Pair',
-      });
-      const mockSimpleKeyring2 = createExpectedInternalAccount({
-        id: 'mock-id3',
-        name: 'Account 3',
-        address: '0x666',
-        keyringType: 'Simple Key Pair',
-      });
-
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: 'HD Key Tree',
-            accounts: [mockAccount.address],
-          },
-          {
-            type: 'Simple Key Pair',
-            accounts: [mockSimpleKeyring1.address, mockSimpleKeyring2.address],
-          },
-        ],
-      };
       const accountsController = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1818,16 +1835,75 @@ describe('AccountsController', () => {
 
       messenger.publish(
         'KeyringController:stateChange',
-        mockNewKeyringState,
+        mockNewKeyringStateWith([
+          mockSimpleKeyring1.address,
+          mockSimpleKeyring2.address,
+        ]),
         [],
       );
 
       const accounts = accountsController.listAccounts();
-
       expect(accounts).toStrictEqual([
         mockAccount,
         setLastSelectedAsAny(mockSimpleKeyring1),
         setLastSelectedAsAny(mockSimpleKeyring2),
+      ]);
+    });
+
+    it('should return the next account number even with an index gap', async () => {
+      const messenger = buildMessenger();
+      const mockAccountUUIDs = new MockNormalAccountUUID([
+        mockAccount,
+        mockSimpleKeyring1,
+        mockSimpleKeyring2,
+        mockSimpleKeyring3,
+      ]);
+      mockUUID.mockImplementation(mockAccountUUIDs.mock.bind(mockAccountUUIDs));
+
+      const accountsController = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+        messenger,
+      });
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringStateWith([
+          mockSimpleKeyring1.address,
+          mockSimpleKeyring2.address,
+        ]),
+        [],
+      );
+
+      // We then remove "Acccount 2" to create a gap
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringStateWith([mockSimpleKeyring2.address]),
+        [],
+      );
+
+      // Finally we add a 3rd account, and it should be named "Account 4" (despite having a gap
+      // since "Account 2" no longer exists)
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringStateWith([
+          mockSimpleKeyring2.address,
+          mockSimpleKeyring3.address,
+        ]),
+        [],
+      );
+
+      const accounts = accountsController.listAccounts();
+      expect(accounts).toStrictEqual([
+        mockAccount,
+        setLastSelectedAsAny(mockSimpleKeyring2),
+        setLastSelectedAsAny(mockSimpleKeyring3),
       ]);
     });
   });
@@ -1875,6 +1951,7 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'getAccount');
+      jest.spyOn(AccountsController.prototype, 'getNextAvailableAccountName');
     });
 
     describe('setSelectedAccount', () => {
@@ -2038,6 +2115,63 @@ describe('AccountsController', () => {
           mockAccount.id,
         );
         expect(account).toStrictEqual(mockAccount);
+      });
+
+      describe('getNextAvailableAccountName', () => {
+        it('gets the next account name', async () => {
+          const messenger = buildMessenger();
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: {
+                  [mockAccount.id]: mockAccount,
+                  // Next name should be: "Account 2"
+                },
+                selectedAccount: mockAccount.id,
+              },
+            },
+            messenger,
+          });
+
+          const accountName = messenger.call(
+            'AccountsController:getNextAvailableAccountName',
+          );
+          expect(accountName).toBe('Account 2');
+        });
+
+        it('gets the next account name with a gap', async () => {
+          const messenger = buildMessenger();
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: {
+                  [mockAccount.id]: mockAccount,
+                  // We have a gap, cause there is no "Account 2"
+                  [mockAccount3.id]: {
+                    ...mockAccount3,
+                    metadata: {
+                      ...mockAccount3.metadata,
+                      name: 'Account 3',
+                      keyring: { type: KeyringTypes.hd },
+                    },
+                  },
+                  // Next name should be: "Account 4"
+                },
+                selectedAccount: mockAccount.id,
+              },
+            },
+            messenger,
+          });
+
+          const accountName = messenger.call(
+            'AccountsController:getNextAvailableAccountName',
+          );
+          expect(accountName).toBe('Account 4');
+        });
       });
     });
   });

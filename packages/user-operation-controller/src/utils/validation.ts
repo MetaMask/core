@@ -75,6 +75,11 @@ export function validateAddUserOperationOptions(
         sourceTokenSymbol: optional(string()),
         swapMetaData: optional(object()),
         swapTokenValue: optional(string()),
+        destinationTokenAmount: optional(string()),
+        sourceTokenAddress: optional(string()),
+        sourceTokenAmount: optional(string()),
+        sourceTokenDecimals: optional(number()),
+        swapAndSendRecipient: optional(string()),
       }),
     ),
     type: optional(enums(Object.values(TransactionType))),
@@ -135,11 +140,12 @@ export function validatePrepareUserOperationResponse(
 export function validateUpdateUserOperationResponse(
   response: UpdateUserOperationResponse,
 ) {
-  const HexOrEmptyBytes = defineHex();
-
   const ValidResponse = optional(
     object({
-      paymasterAndData: optional(HexOrEmptyBytes),
+      paymasterAndData: optional(defineHexOrEmptyBytes()),
+      callGasLimit: optional(defineHexOrEmptyBytes()),
+      preVerificationGas: optional(defineHexOrEmptyBytes()),
+      verificationGasLimit: optional(defineHexOrEmptyBytes()),
     }),
   );
 

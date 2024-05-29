@@ -359,6 +359,16 @@ describe('EnsController', () => {
     expect(controller.state.ensEntries['0x1']).toBeUndefined();
   });
 
+  it('should return false if an ENS entry was NOT deleted due to unsafe input', () => {
+    const messenger = getMessenger();
+    const controller = new EnsController({
+      messenger,
+    });
+    // @ts-expect-error Suppressing error to test runtime behavior
+    expect(controller.delete('__proto__', 'bar')).toBe(false);
+    expect(controller.delete(toHex(2), 'constructor')).toBe(false);
+  });
+
   it('should return false if an ENS entry was NOT deleted', () => {
     const messenger = getMessenger();
     const controller = new EnsController({

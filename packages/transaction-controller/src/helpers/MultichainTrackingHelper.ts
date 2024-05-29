@@ -6,11 +6,10 @@ import type {
   BlockTracker,
   Provider,
   NetworkControllerStateChangeEvent,
-  ProviderConfig,
 } from '@metamask/network-controller';
+import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import type { NonceLock, NonceTracker } from 'nonce-tracker';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
@@ -37,7 +36,6 @@ export type MultichainTrackingHelperOptions = {
   getGlobalProviderAndBlockTracker: () =>
     | { provider: Provider; blockTracker: BlockTracker }
     | undefined;
-  getGlobalProviderConfig: () => ProviderConfig | undefined;
   getNetworkClientById: NetworkController['getNetworkClientById'];
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
@@ -77,8 +75,6 @@ export class MultichainTrackingHelper {
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
   readonly #findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
-
-  readonly #getGlobalProviderConfig: () => ProviderConfig | undefined;
 
   readonly #getGlobalProviderAndBlockTracker: () =>
     | { provider: Provider; blockTracker: BlockTracker }
@@ -134,7 +130,6 @@ export class MultichainTrackingHelper {
     isMultichainEnabled,
     incomingTransactionOptions,
     findNetworkClientIdByChainId,
-    getGlobalProviderConfig,
     getGlobalProviderAndBlockTracker,
     getNetworkClientById,
     getNetworkClientRegistry,
@@ -150,7 +145,6 @@ export class MultichainTrackingHelper {
 
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#getGlobalProviderAndBlockTracker = getGlobalProviderAndBlockTracker;
-    this.#getGlobalProviderConfig = getGlobalProviderConfig;
     this.#getNetworkClientById = getNetworkClientById;
     this.#getNetworkClientRegistry = getNetworkClientRegistry;
 
@@ -196,11 +190,10 @@ export class MultichainTrackingHelper {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   } = {}): EthQuery | undefined {
-    if (!this.#isMultichainEnabled || (!networkClientId && !chainId)) {
+    if (!networkClientId && !chainId) {
       const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
       return globalProvider ? new EthQuery(globalProvider) : undefined;
     }
-
     let networkClient: NetworkClient | undefined;
 
     if (networkClientId) {
@@ -219,8 +212,28 @@ export class MultichainTrackingHelper {
         log('Failed to get network client by chainId', chainId);
       }
     }
+    if (networkClient) {
+      const provider = this.getProvider({ networkClientId, chainId });
+      if (provider) {
+        return new EthQuery(provider);
+      }
+    }
+    return undefined;
+  }
 
-    return networkClient ? new EthQuery(networkClient.provider) : undefined;
+  getProvider({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): Provider | undefined {
+    const networkClient = this.#getNetworkClient({
+      networkClientId,
+      chainId,
+    });
+
+    return networkClient?.provider || this.#getGlobalProviderAndBlockTracker()?.provider;
   }
 
   /**
@@ -480,5 +493,33 @@ export class MultichainTrackingHelper {
       provider: globalProvider,
       blockTracker: globalBlockTracker,
     });
+  }
+
+  #getNetworkClient({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  } = {}): NetworkClient | undefined {
+    let networkClient: NetworkClient | undefined;
+
+    if (networkClientId) {
+      try {
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('failed to get network client by networkClientId');
+      }
+    }
+    if (!networkClient && chainId) {
+      try {
+        const networkClientIdForChainId =
+          this.#findNetworkClientIdByChainId(chainId);
+        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
+      } catch (err) {
+        log('failed to get network client by chainId');
+      }
+    }
+    return networkClient;
   }
 }

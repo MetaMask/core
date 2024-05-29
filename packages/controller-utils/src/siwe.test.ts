@@ -2,29 +2,32 @@ import { ParsedMessage } from '@spruceid/siwe-parser';
 
 import { detectSIWE, isValidSIWEOrigin } from './siwe';
 
-const mockedParsedMessage = {
-  domain: 'example.eth',
-  address: '0x0000000',
-};
-
-jest.mock('@spruceid/siwe-parser');
+const siweMessage =
+  'example.com wants you to sign in with your Ethereum account:\n0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\n\n\nURI: https://example.com/login\nVersion: 1\nChain ID: 1\nNonce: 32891756\nIssued At: 2021-09-30T16:25:24Z';
+const parsedMessage = new ParsedMessage(siweMessage);
 
 describe('siwe', () => {
   describe('detectSIWE', () => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parsedMessageMock = ParsedMessage as any;
+    const textAsHex = (string: string) => {
+      return Buffer.from(string, 'utf8').toString('hex');
+    };
+
     it('returns an object with isSIWEMessage set to true and parsedMessage', () => {
-      parsedMessageMock.mockReturnValue(mockedParsedMessage);
-      const result = detectSIWE({ data: '0xVALIDDATA' });
+      const result = detectSIWE({ data: textAsHex(siweMessage) });
       expect(result.isSIWEMessage).toBe(true);
-      expect(result.parsedMessage).toBe(mockedParsedMessage);
+      expect(result.parsedMessage).toStrictEqual(parsedMessage);
+    });
+
+    it('returns an object with isSIWEMessage set to true and parsedMessage when scheme is provided', () => {
+      const messageWithScheme = `https://${siweMessage}`;
+      const parsedMessageWithScheme = new ParsedMessage(messageWithScheme);
+      const result = detectSIWE({ data: textAsHex(messageWithScheme) });
+
+      expect(result.isSIWEMessage).toBe(true);
+      expect(result.parsedMessage).toStrictEqual(parsedMessageWithScheme);
     });
 
     it('returns an object with isSIWEMessage set to false and parsedMessage set to null', () => {
-      parsedMessageMock.mockImplementation(() => {
-        throw new Error('Invalid SIWE message');
-      });
       const result = detectSIWE({ data: '0xINVALIDDATA' });
       expect(result.isSIWEMessage).toBe(false);
       expect(result.parsedMessage).toBeNull();
@@ -32,20 +35,6 @@ describe('siwe', () => {
   });
 
   describe('isValidSIWEOrigin', () => {
-    const msg = {
-      domain: 'example.com',
-      address: '0x0',
-      statement: '',
-      uri: 'https://example.com',
-      version: '1',
-      chainId: 1,
-      nonce: '',
-      issuedAt: '',
-      expirationTime: null,
-      notBefore: null,
-      requestId: 'foo',
-      resources: [],
-    };
     const checks = [
       {
         name: 'identical domain',
@@ -251,12 +240,12 @@ describe('siwe', () => {
           origin,
         })}`, () => {
           const result = isValidSIWEOrigin({
-            from: '0x0',
+            from: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
             origin,
             siwe: {
               isSIWEMessage: true,
               parsedMessage: {
-                ...msg,
+                ...parsedMessage,
                 domain,
               },
             },

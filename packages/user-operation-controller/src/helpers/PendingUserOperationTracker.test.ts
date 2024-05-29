@@ -71,20 +71,23 @@ describe('PendingUserOperationTracker', () => {
   /**
    * Simulate the scenario where a user operation is confirmed.
    * @param beforeCallback - An optional callback to execute before the scenario is run.
+   * @param overrideReceipt - An optional receipt to override the default mock receipt.
    */
   async function onConfirmedUserOperation(
     beforeCallback?: (
       pendingUserOperationTracker: PendingUserOperationTracker,
     ) => void,
+    overrideReceipt?: Partial<UserOperationReceipt> | undefined,
   ) {
     const pendingUserOperationTracker = new PendingUserOperationTracker({
       getUserOperations: () => [{ ...USER_OPERATION_METADATA_MOCK }],
       messenger: messengerMock,
     });
 
-    bundlerMock.getUserOperationReceipt.mockResolvedValueOnce(
-      USER_OPERATION_RECEIPT_MOCK,
-    );
+    bundlerMock.getUserOperationReceipt.mockResolvedValueOnce({
+      ...USER_OPERATION_RECEIPT_MOCK,
+      ...(overrideReceipt ?? {}),
+    });
 
     queryMock.mockResolvedValueOnce(BLOCK_MOCK);
 
@@ -286,6 +289,37 @@ describe('PendingUserOperationTracker', () => {
           status: UserOperationStatus.Confirmed,
           transactionHash: USER_OPERATION_RECEIPT_MOCK.receipt.transactionHash,
         });
+      });
+
+      it('normalizes given gas values', async () => {
+        const listener = jest.fn();
+
+        const actualGasCostInNumber = 5000;
+        const actualGasUsedInNumber = 3000;
+
+        const actualGasCostInHex = '0x1388';
+        const actualGasUsedInHex = '0xbb8';
+
+        await onConfirmedUserOperation(
+          (pendingUserOperationTracker: PendingUserOperationTracker) => {
+            pendingUserOperationTracker.hub.on(
+              'user-operation-confirmed',
+              listener,
+            );
+          },
+          {
+            actualGasCost: actualGasCostInNumber,
+            actualGasUsed: actualGasUsedInNumber,
+          },
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            actualGasCost: actualGasCostInHex,
+            actualGasUsed: actualGasUsedInHex,
+          }),
+        );
       });
     });
 

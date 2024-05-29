@@ -458,6 +458,64 @@ describe('NameController', () => {
       });
     });
 
+    it('does not update if passed unsafe input', () => {
+      const provider1 = createMockProvider(1);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1],
+        state: {
+          names: {
+            [NameType.ETHEREUM_ADDRESS]: {
+              [VALUE_MOCK]: {
+                [CHAIN_ID_MOCK]: {
+                  name: null,
+                  sourceId: null,
+                  origin: null,
+                  proposedNames: {
+                    [SOURCE_ID_MOCK]: {
+                      proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                      lastRequestTime: null,
+                      updateDelay: null,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      controller.setName({
+        value: '__proto__',
+        type: NameType.ETHEREUM_ADDRESS,
+        name: NAME_MOCK,
+        sourceId: `${SOURCE_ID_MOCK}1`,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              origin: null,
+              proposedNames: {
+                [SOURCE_ID_MOCK]: {
+                  proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                  lastRequestTime: null,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
     it('does not throw if variation is fallback and type is Ethereum address', () => {
       const controller = new NameController(CONTROLLER_ARGS_MOCK);
 

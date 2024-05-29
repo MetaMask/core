@@ -1,6 +1,12 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
+import {
+  assertIsJsonRpcFailure,
+  assertIsJsonRpcSuccess,
+} from '@metamask/utils';
 
+import type { RevokePermissionArgs } from './revokePermissions';
 import { revokePermissionsHandler } from './revokePermissions';
 
 describe('revokePermissionsHandler', () => {
@@ -21,17 +27,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -41,6 +44,7 @@ describe('revokePermissions RPC method', () => {
         },
       ],
     });
+    assertIsJsonRpcSuccess(response);
 
     expect(response.result).toBeNull();
     expect(mockRevokePermissionsForOrigin).toHaveBeenCalledTimes(1);
@@ -54,15 +58,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<Record<string, Json>> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -76,9 +79,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle(req as any);
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
@@ -89,15 +91,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<[Record<string, Json>]> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -111,9 +112,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle(req as any);
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
@@ -124,15 +124,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<[]> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -145,9 +144,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle(req as any);
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();
@@ -158,15 +156,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-      }),
+    engine.push<RevokePermissionArgs, null>(
+      async (req, res, next, end) =>
+        await implementation(req, res, next, end, {
+          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+        }),
     );
 
-    const req = {
+    const req: JsonRpcRequest<Json[]> = {
       jsonrpc: '2.0',
       id: 1,
       method: 'wallet_revokePermissions',
@@ -180,9 +177,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle(req as any);
+    const response = await engine.handle(req);
+    assertIsJsonRpcFailure(response);
     delete response.error.stack;
     expect(response.error).toStrictEqual(expectedError);
     expect(mockRevokePermissionsForOrigin).not.toHaveBeenCalled();

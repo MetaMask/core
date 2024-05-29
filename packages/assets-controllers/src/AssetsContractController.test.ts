@@ -608,10 +608,15 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
-  it('should throw an error when address given is not an ERC-721 NFT', async () => {
+  it('should not throw an error when address given does not support NFT Metadata interface', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
     assetsContract.configure({ provider });
+    const errorLogSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementationOnce(() => {
+        /**/
+      });
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -630,17 +635,34 @@ describe('AssetsContractController', () => {
             result: '0x',
           },
         },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x0000000000000000000000000000000000000000',
+                data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002468747470733a2f2f6170692e676f6473756e636861696e65642e636f6d2f636172642f3000000000000000000000000000000000000000000000000000000000',
+          },
+        },
       ],
     });
-    const result = async () => {
-      await assetsContract.getERC721TokenURI(
-        '0x0000000000000000000000000000000000000000',
-        '0',
-      );
-    };
+    const uri = await assetsContract.getERC721TokenURI(
+      '0x0000000000000000000000000000000000000000',
+      '0',
+    );
+    expect(uri).toBe('https://api.godsunchained.com/card/0');
+    expect(errorLogSpy).toHaveBeenCalledTimes(1);
+    expect(errorLogSpy.mock.calls).toContainEqual([
+      'Contract does not support ERC721 metadata interface.',
+    ]);
 
-    const error = 'Contract does not support ERC721 metadata interface.';
-    await expect(result).rejects.toThrow(error);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 

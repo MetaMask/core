@@ -268,6 +268,12 @@ describe('validation', () => {
         'Expected a string, but received: 123',
       ],
       [
+        'swaps.destinationTokenAmount',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
         'swaps.destinationTokenDecimals',
         'wrong type',
         '123',
@@ -286,7 +292,31 @@ describe('validation', () => {
         'Expected a string, but received: 123',
       ],
       [
+        'swaps.sourceTokenAddress',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.sourceTokenAmount',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.sourceTokenDecimals',
+        'wrong type',
+        '123',
+        'Expected a number, but received: "123"',
+      ],
+      [
         'swaps.sourceTokenSymbol',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.swapAndSendRecipient',
         'wrong type',
         123,
         'Expected a string, but received: 123',
@@ -307,7 +337,7 @@ describe('validation', () => {
         'type',
         'wrong type',
         123,
-        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_sign","eth_signTypedData","smart","swap","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall"`, but received: 123',
+        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_sign","eth_signTypedData","smart","swap","swapAndSend","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall","increaseAllowance"`, but received: 123',
       ],
     ])(
       'throws if %s is %s',
@@ -432,7 +462,25 @@ describe('validation', () => {
         'paymasterAndData',
         'wrong type',
         123,
-        'Expected a value of type `Hexadecimal String`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'callGasLimit',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'preVerificationGas',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'verificationGasLimit',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',

@@ -16,6 +16,26 @@ import { MAX_SAFE_CHAIN_ID } from './constants';
 
 const TIMEOUT_ERROR = new Error('timeout');
 
+export const PROTOTYPE_POLLUTION_BLOCKLIST = [
+  '__proto__',
+  'constructor',
+  'prototype',
+] as const;
+
+/**
+ * Checks whether a dynamic property key could be used in
+ * a [prototype pollution attack](https://portswigger.net/web-security/prototype-pollution).
+ *
+ * @param key - The dynamic key to validate.
+ * @returns Whether the given dynamic key is safe to use.
+ */
+export function isSafeDynamicKey(key: string): boolean {
+  return (
+    typeof key === 'string' &&
+    !PROTOTYPE_POLLUTION_BLOCKLIST.some((blockedKey) => key === blockedKey)
+  );
+}
+
 /**
  * Checks whether the given number primitive chain ID is safe.
  * Because some cryptographic libraries we use expect the chain ID to be a

@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added `changePassword` method ([#4279](https://github.com/MetaMask/core/pull/4279))
+  - This method can be used to change the password used to encrypt the vault
+
+## [16.0.0]
+
+### Added
+
+- Added `withKeyring` method ([#4197](https://github.com/MetaMask/core/pull/4197))
+  - Consumers can now use `withKeyring` to atomically select a keyring by address or type and execute a callback with the it as argument.
+  - This method can be used instead of `getKeyringForAccount`, `getKeyringsByType` and `persistAllKeyrings`, as the vault will be updated automatically after the callback execution, or rolled back in case of errors
+
+### Changed
+
+- **BREAKING**: Change various `KeyringController` methods so they no longer return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
+  - Changed `addNewAccount` return type to `Promise<string>`
+  - Changed `addNewAccountWithoutUpdate` return type to `Promise<string>`
+  - Changed `createNewVaultAndKeychain` return type to `Promise<void>`
+  - Changed `createNewVaultAndRestore` return type to `Promise<void>`
+  - Changed `importAccountWithStrategy` return type to `Promise<string>`
+  - Changed `removeAccount` return type to `Promise<void>`
+  - Changed `setLocked` return type to `Promise<void>`
+  - Changed `submitEncryptionKey` return type to `Promise<void>`
+  - Changed `submitPassword` return type to `Promise<void>`
+- Bump `@metamask/keyring-api` to `^6.0.0` ([#4193](https://github.com/MetaMask/core/pull/4193))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `@metamask/message-manager` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
+### Fixed
+
+- Method calls that change controller state are now atomic ([#4192](https://github.com/MetaMask/core/pull/4192))
+  - Each method will roll back keyring instances in case of errors
+- Method calls that change controller state are now mutually exclusive ([#4182](https://github.com/MetaMask/core/pull/4182))
+- Check presence of `HDKeyring` when updating the vault ([#4168](https://github.com/MetaMask/core/pull/4168))
+- Update state in single call when persisting or unlocking ([#4154](https://github.com/MetaMask/core/pull/4154))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING** use getAccounts on HD Keyring when calling addNewAccount ([#4158](https://github.com/MetaMask/core/pull/4158))
+- Pass CAIP-2 scope to execution context ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
+
 ## [14.0.1]
 
 ### Fixed
@@ -400,7 +445,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...@metamask/keyring-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0

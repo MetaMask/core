@@ -1,8 +1,16 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 
-import { SimulationTokenStandard } from '../types';
-import { getSimulationData, type GetSimulationDataRequest } from './simulation';
+import {
+  SimulationInvalidResponseError,
+  SimulationRevertedError,
+} from '../errors';
+import { SimulationErrorCode, SimulationTokenStandard } from '../types';
+import {
+  getSimulationData,
+  SupportedToken,
+  type GetSimulationDataRequest,
+} from './simulation';
 import type { SimulationResponseLog } from './simulation-api';
 import {
   simulateTransactions,
@@ -13,12 +21,14 @@ jest.mock('./simulation-api');
 
 const USER_ADDRESS_MOCK = '0x123';
 const OTHER_ADDRESS_MOCK = '0x456';
-const CONTRACT_ADDRESS_MOCK = '0x789';
-const BALANCE_1_MOCK = '0x1';
-const BALANCE_2_MOCK = '0x3';
-const DIFFERENCE_MOCK = '0x2';
+const CONTRACT_ADDRESS_1_MOCK = '0x789';
+const CONTRACT_ADDRESS_2_MOCK = '0xDEF';
+const BALANCE_1_MOCK = '0x0';
+const BALANCE_2_MOCK = '0x1';
+const DIFFERENCE_MOCK = '0x1';
 const VALUE_MOCK = '0x4';
 const TOKEN_ID_MOCK = '0x5';
+const OTHER_TOKEN_ID_MOCK = '0x6';
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error';
 
@@ -29,23 +39,23 @@ const REQUEST_MOCK: GetSimulationDataRequest = {
 
 const PARSED_ERC20_TRANSFER_EVENT_MOCK = {
   name: 'Transfer',
-  contractAddress: CONTRACT_ADDRESS_MOCK,
+  contractAddress: CONTRACT_ADDRESS_2_MOCK,
   args: [
-    OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
+    OTHER_ADDRESS_MOCK,
     { toHexString: () => VALUE_MOCK },
   ],
 } as unknown as LogDescription;
 
 const PARSED_ERC721_TRANSFER_EVENT_MOCK = {
   name: 'Transfer',
-  contractAddress: CONTRACT_ADDRESS_MOCK,
+  contractAddress: CONTRACT_ADDRESS_1_MOCK,
   args: [OTHER_ADDRESS_MOCK, USER_ADDRESS_MOCK, TOKEN_ID_MOCK],
 } as unknown as LogDescription;
 
 const PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK = {
   name: 'TransferSingle',
-  contractAddress: CONTRACT_ADDRESS_MOCK,
+  contractAddress: CONTRACT_ADDRESS_1_MOCK,
   args: [
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
@@ -57,7 +67,7 @@ const PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK = {
 
 const PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK = {
   name: 'TransferBatch',
-  contractAddress: CONTRACT_ADDRESS_MOCK,
+  contractAddress: CONTRACT_ADDRESS_1_MOCK,
   args: [
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
@@ -65,6 +75,12 @@ const PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK = {
     [TOKEN_ID_MOCK],
     [{ toHexString: () => VALUE_MOCK }],
   ],
+} as unknown as LogDescription;
+
+const PARSED_WRAPPED_ERC20_DEPOSIT_EVENT_MOCK = {
+  name: 'Deposit',
+  contractAddress: CONTRACT_ADDRESS_1_MOCK,
+  args: [USER_ADDRESS_MOCK, { toHexString: () => VALUE_MOCK }],
 } as unknown as LogDescription;
 
 const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
@@ -77,7 +93,7 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
             calls: [
               {
                 calls: [],
-                logs: [createLogMock(CONTRACT_ADDRESS_MOCK)],
+                logs: [createLogMock(CONTRACT_ADDRESS_1_MOCK)],
               },
             ],
             logs: [],
@@ -185,7 +201,7 @@ function createBalanceOfResponse(
         },
       })),
       {
-        return: '0x',
+        return: '0xabc',
         callTrace: {
           calls: [],
           logs: [],
@@ -216,19 +232,25 @@ function createBalanceOfResponse(
  * @param options.erc20 - The parsed event with the ERC-20 ABI.
  * @param options.erc721 - The parsed event with the ERC-721 ABI.
  * @param options.erc1155 - The parsed event with the ERC-1155 ABI.
+ * @param options.erc20Wrapped - The parsed event with the wrapped ERC-20 ABI.
+ * @param options.erc721Legacy - The parsed event with the legacy ERC-721 ABI.
  */
 function mockParseLog({
   erc20,
   erc721,
   erc1155,
+  erc20Wrapped,
+  erc721Legacy,
 }: {
   erc20?: LogDescription;
   erc721?: LogDescription;
   erc1155?: LogDescription;
+  erc20Wrapped?: LogDescription;
+  erc721Legacy?: LogDescription;
 }) {
   const parseLogMock = jest.spyOn(Interface.prototype, 'parseLog');
 
-  for (const value of [erc20, erc721, erc1155]) {
+  for (const value of [erc20, erc721, erc1155, erc20Wrapped, erc721Legacy]) {
     if (value) {
       parseLogMock.mockReturnValueOnce(value);
       return;
@@ -290,58 +312,98 @@ describe('Simulation Utils', () => {
 
     describe('returns token balance changes', () => {
       it.each([
-        [
-          'ERC-20 token',
-          PARSED_ERC20_TRANSFER_EVENT_MOCK,
-          SimulationTokenStandard.erc20,
-          undefined,
-        ],
-        [
-          'ERC-721 token',
-          PARSED_ERC721_TRANSFER_EVENT_MOCK,
-          SimulationTokenStandard.erc721,
-          TOKEN_ID_MOCK,
-        ],
-        [
-          'ERC-1155 token via single event',
-          PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK,
-          SimulationTokenStandard.erc1155,
-          TOKEN_ID_MOCK,
-        ],
-        [
-          'ERC-1155 token via batch event',
-          PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK,
-          SimulationTokenStandard.erc1155,
-          TOKEN_ID_MOCK,
-        ],
-      ])('on %s', async (_title, parsedEvent, standard, id) => {
-        mockParseLog({ [standard]: parsedEvent });
+        {
+          title: 'ERC-20 token',
+          parsedEvent: PARSED_ERC20_TRANSFER_EVENT_MOCK,
+          tokenType: SupportedToken.ERC20,
+          tokenStandard: SimulationTokenStandard.erc20,
+          tokenId: undefined,
+          previousBalances: [BALANCE_1_MOCK],
+          newBalances: [BALANCE_2_MOCK],
+        },
+        {
+          title: 'ERC-721 token',
+          parsedEvent: PARSED_ERC721_TRANSFER_EVENT_MOCK,
+          tokenType: SupportedToken.ERC721,
+          tokenStandard: SimulationTokenStandard.erc721,
+          tokenId: TOKEN_ID_MOCK,
+          previousBalances: [OTHER_ADDRESS_MOCK],
+          newBalances: [USER_ADDRESS_MOCK],
+        },
+        {
+          title: 'ERC-1155 token via single event',
+          parsedEvent: PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK,
+          tokenType: SupportedToken.ERC1155,
+          tokenStandard: SimulationTokenStandard.erc1155,
+          tokenId: TOKEN_ID_MOCK,
+          previousBalances: [BALANCE_1_MOCK],
+          newBalances: [BALANCE_2_MOCK],
+        },
+        {
+          title: 'ERC-1155 token via batch event',
+          parsedEvent: PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK,
+          tokenType: SupportedToken.ERC1155,
+          tokenStandard: SimulationTokenStandard.erc1155,
+          tokenId: TOKEN_ID_MOCK,
+          previousBalances: [BALANCE_1_MOCK],
+          newBalances: [BALANCE_2_MOCK],
+        },
+        {
+          title: 'wrapped ERC-20 token',
+          parsedEvent: PARSED_WRAPPED_ERC20_DEPOSIT_EVENT_MOCK,
+          tokenType: SupportedToken.ERC20_WRAPPED,
+          tokenStandard: SimulationTokenStandard.erc20,
+          tokenId: undefined,
+          previousBalances: [BALANCE_1_MOCK],
+          newBalances: [BALANCE_2_MOCK],
+        },
+        {
+          title: 'legacy ERC-721 token',
+          parsedEvent: PARSED_ERC721_TRANSFER_EVENT_MOCK,
+          tokenType: SupportedToken.ERC721_LEGACY,
+          tokenStandard: SimulationTokenStandard.erc721,
+          tokenId: TOKEN_ID_MOCK,
+          previousBalances: [OTHER_ADDRESS_MOCK],
+          newBalances: [USER_ADDRESS_MOCK],
+        },
+      ])(
+        'on $title',
+        async ({
+          parsedEvent,
+          tokenStandard,
+          tokenType,
+          tokenId,
+          previousBalances,
+          newBalances,
+        }) => {
+          mockParseLog({ [tokenType]: parsedEvent });
 
-        simulateTransactionsMock
-          .mockResolvedValueOnce(
-            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
-          )
-          .mockResolvedValueOnce(
-            createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_2_MOCK]),
-          );
+          simulateTransactionsMock
+            .mockResolvedValueOnce(
+              createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
+            )
+            .mockResolvedValueOnce(
+              createBalanceOfResponse(previousBalances, newBalances),
+            );
 
-        const simulationData = await getSimulationData(REQUEST_MOCK);
+          const simulationData = await getSimulationData(REQUEST_MOCK);
 
-        expect(simulationData).toStrictEqual({
-          nativeBalanceChange: undefined,
-          tokenBalanceChanges: [
-            {
-              standard,
-              address: CONTRACT_ADDRESS_MOCK,
-              id,
-              previousBalance: BALANCE_1_MOCK,
-              newBalance: BALANCE_2_MOCK,
-              difference: DIFFERENCE_MOCK,
-              isDecrease: false,
-            },
-          ],
-        });
-      });
+          expect(simulationData).toStrictEqual({
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [
+              {
+                standard: tokenStandard,
+                address: CONTRACT_ADDRESS_1_MOCK,
+                id: tokenId,
+                previousBalance: BALANCE_1_MOCK,
+                newBalance: BALANCE_2_MOCK,
+                difference: DIFFERENCE_MOCK,
+                isDecrease: false,
+              },
+            ],
+          });
+        },
+      );
 
       it('on multiple different tokens', async () => {
         mockParseLog({
@@ -366,8 +428,8 @@ describe('Simulation Utils', () => {
           )
           .mockResolvedValueOnce(
             createBalanceOfResponse(
-              ['0x1', '0x2', '0x3'],
-              ['0x6', '0x5', '0x4'],
+              ['0x1', OTHER_ADDRESS_MOCK, '0x3'],
+              ['0x6', USER_ADDRESS_MOCK, '0x4'],
             ),
           );
 
@@ -389,9 +451,9 @@ describe('Simulation Utils', () => {
               standard: SimulationTokenStandard.erc721,
               address: '0x8',
               id: TOKEN_ID_MOCK,
-              previousBalance: '0x2',
-              newBalance: '0x5',
-              difference: '0x3',
+              previousBalance: '0x0',
+              newBalance: '0x1',
+              difference: '0x1',
               isDecrease: false,
             },
             {
@@ -407,7 +469,7 @@ describe('Simulation Utils', () => {
         });
       });
 
-      it('with multiple events on same token', async () => {
+      it('with multiple events on same ERC-20 contract', async () => {
         mockParseLog({
           erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK,
         });
@@ -419,8 +481,8 @@ describe('Simulation Utils', () => {
         simulateTransactionsMock
           .mockResolvedValueOnce(
             createEventResponseMock([
-              createLogMock(CONTRACT_ADDRESS_MOCK),
-              createLogMock(CONTRACT_ADDRESS_MOCK),
+              createLogMock(CONTRACT_ADDRESS_1_MOCK),
+              createLogMock(CONTRACT_ADDRESS_1_MOCK),
             ]),
           )
           .mockResolvedValueOnce(
@@ -434,11 +496,157 @@ describe('Simulation Utils', () => {
           tokenBalanceChanges: [
             {
               standard: SimulationTokenStandard.erc20,
-              address: CONTRACT_ADDRESS_MOCK,
+              address: CONTRACT_ADDRESS_1_MOCK,
               id: undefined,
               previousBalance: BALANCE_2_MOCK,
               newBalance: BALANCE_1_MOCK,
               difference: DIFFERENCE_MOCK,
+              isDecrease: true,
+            },
+          ],
+        });
+      });
+
+      it('with multiple events on same ERC-721 contract', async () => {
+        mockParseLog({
+          erc721: PARSED_ERC721_TRANSFER_EVENT_MOCK,
+        });
+
+        mockParseLog({
+          erc721: {
+            ...PARSED_ERC721_TRANSFER_EVENT_MOCK,
+            args: [OTHER_ADDRESS_MOCK, USER_ADDRESS_MOCK, OTHER_TOKEN_ID_MOCK],
+          },
+        });
+
+        simulateTransactionsMock
+          .mockResolvedValueOnce(
+            createEventResponseMock([
+              createLogMock(CONTRACT_ADDRESS_1_MOCK),
+              createLogMock(CONTRACT_ADDRESS_1_MOCK),
+            ]),
+          )
+          .mockResolvedValueOnce(
+            createBalanceOfResponse(
+              [OTHER_ADDRESS_MOCK, OTHER_ADDRESS_MOCK],
+              [USER_ADDRESS_MOCK, USER_ADDRESS_MOCK],
+            ),
+          );
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          nativeBalanceChange: undefined,
+          tokenBalanceChanges: [
+            {
+              standard: SimulationTokenStandard.erc721,
+              address: CONTRACT_ADDRESS_1_MOCK,
+              id: TOKEN_ID_MOCK,
+              previousBalance: BALANCE_1_MOCK,
+              newBalance: BALANCE_2_MOCK,
+              difference: DIFFERENCE_MOCK,
+              isDecrease: false,
+            },
+            {
+              standard: SimulationTokenStandard.erc721,
+              address: CONTRACT_ADDRESS_1_MOCK,
+              id: OTHER_TOKEN_ID_MOCK,
+              previousBalance: BALANCE_1_MOCK,
+              newBalance: BALANCE_2_MOCK,
+              difference: DIFFERENCE_MOCK,
+              isDecrease: false,
+            },
+          ],
+        });
+      });
+
+      it('on NFT mint', async () => {
+        mockParseLog({
+          erc721: {
+            ...PARSED_ERC721_TRANSFER_EVENT_MOCK,
+            args: [
+              '0x0000000000000000000000000000000000000000',
+              USER_ADDRESS_MOCK,
+              TOKEN_ID_MOCK,
+            ],
+          },
+        });
+
+        // Pay for NFT mint with ERC20 token.
+        mockParseLog({
+          erc20: PARSED_ERC20_TRANSFER_EVENT_MOCK,
+        });
+
+        simulateTransactionsMock
+          .mockResolvedValueOnce(
+            createEventResponseMock([
+              createLogMock(CONTRACT_ADDRESS_1_MOCK),
+              createLogMock(CONTRACT_ADDRESS_2_MOCK),
+            ]),
+          )
+          .mockResolvedValueOnce(
+            createBalanceOfResponse(
+              [BALANCE_2_MOCK], // The ERC20 balance before minting.
+              [
+                USER_ADDRESS_MOCK, // The user is the owner.
+                BALANCE_1_MOCK, // The ERC20 balance after minting.
+              ],
+            ),
+          );
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulateTransactionsMock).toHaveBeenCalledTimes(2);
+
+        // The balance of the ERC-20 token is checked before and after the transaction.
+        // The ERC-721 token balance is only checked after the transaction since it is minted.
+        expect(simulateTransactionsMock).toHaveBeenNthCalledWith(
+          2,
+          REQUEST_MOCK.chainId,
+          {
+            transactions: [
+              // ERC-20 balance before minting.
+              {
+                from: REQUEST_MOCK.from,
+                to: CONTRACT_ADDRESS_2_MOCK,
+                data: expect.any(String),
+              },
+              // Minting ERC-721 token.
+              REQUEST_MOCK,
+              // ERC-721 owner after minting.
+              {
+                from: REQUEST_MOCK.from,
+                to: CONTRACT_ADDRESS_1_MOCK,
+                data: expect.any(String),
+              },
+              // ERC-20 balance before minting.
+              {
+                from: REQUEST_MOCK.from,
+                to: CONTRACT_ADDRESS_2_MOCK,
+                data: expect.any(String),
+              },
+            ],
+          },
+        );
+        expect(simulationData).toStrictEqual({
+          nativeBalanceChange: undefined,
+          tokenBalanceChanges: [
+            {
+              standard: SimulationTokenStandard.erc721,
+              address: CONTRACT_ADDRESS_1_MOCK,
+              id: TOKEN_ID_MOCK,
+              previousBalance: '0x0',
+              newBalance: '0x1',
+              difference: '0x1',
+              isDecrease: false,
+            },
+            {
+              standard: SimulationTokenStandard.erc20,
+              address: CONTRACT_ADDRESS_2_MOCK,
+              id: undefined,
+              previousBalance: '0x1',
+              newBalance: '0x0',
+              difference: '0x1',
               isDecrease: true,
             },
           ],
@@ -450,7 +658,7 @@ describe('Simulation Utils', () => {
 
         simulateTransactionsMock
           .mockResolvedValueOnce(
-            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
           )
           .mockResolvedValueOnce(
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_2_MOCK]),
@@ -477,7 +685,7 @@ describe('Simulation Utils', () => {
         });
 
         simulateTransactionsMock.mockResolvedValueOnce(
-          createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+          createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
         );
 
         const simulationData = await getSimulationData(REQUEST_MOCK);
@@ -495,7 +703,7 @@ describe('Simulation Utils', () => {
 
         simulateTransactionsMock
           .mockResolvedValueOnce(
-            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
           )
           .mockResolvedValueOnce(
             createBalanceOfResponse([BALANCE_1_MOCK], [BALANCE_1_MOCK]),
@@ -525,7 +733,7 @@ describe('Simulation Utils', () => {
           tokenBalanceChanges: [
             {
               standard: SimulationTokenStandard.erc20,
-              address: CONTRACT_ADDRESS_MOCK,
+              address: CONTRACT_ADDRESS_1_MOCK,
               id: undefined,
               previousBalance: BALANCE_1_MOCK,
               newBalance: BALANCE_2_MOCK,
@@ -548,7 +756,6 @@ describe('Simulation Utils', () => {
           error: {
             code: ERROR_CODE_MOCK,
             message: ERROR_MESSAGE_MOCK,
-            isReverted: false,
           },
           tokenBalanceChanges: [],
         });
@@ -563,7 +770,6 @@ describe('Simulation Utils', () => {
           error: {
             code: ERROR_CODE_MOCK,
             message: undefined,
-            isReverted: false,
           },
           tokenBalanceChanges: [],
         });
@@ -574,7 +780,7 @@ describe('Simulation Utils', () => {
 
         simulateTransactionsMock
           .mockResolvedValueOnce(
-            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_MOCK)]),
+            createEventResponseMock([createLogMock(CONTRACT_ADDRESS_1_MOCK)]),
           )
           .mockResolvedValueOnce(createBalanceOfResponse([], []));
 
@@ -582,15 +788,14 @@ describe('Simulation Utils', () => {
 
         expect(simulationData).toStrictEqual({
           error: {
-            code: undefined,
-            message: 'Invalid response from simulation API',
-            isReverted: false,
+            code: SimulationErrorCode.InvalidResponse,
+            message: new SimulationInvalidResponseError().message,
           },
           tokenBalanceChanges: [],
         });
       });
 
-      it('if response has reverted transaction', async () => {
+      it('if API response has transaction revert error', async () => {
         simulateTransactionsMock.mockResolvedValueOnce({
           transactions: [
             {
@@ -604,9 +809,46 @@ describe('Simulation Utils', () => {
 
         expect(simulationData).toStrictEqual({
           error: {
+            code: SimulationErrorCode.Reverted,
+            message: new SimulationRevertedError().message,
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if API response has transaction error', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              error: 'test 1 2 3',
+              return: '0x',
+            },
+          ],
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
             code: undefined,
-            message: 'test execution reverted test',
-            isReverted: true,
+            message: 'test 1 2 3',
+          },
+          tokenBalanceChanges: [],
+        });
+      });
+
+      it('if API response has insufficient gas error', async () => {
+        simulateTransactionsMock.mockRejectedValueOnce({
+          code: ERROR_CODE_MOCK,
+          message: 'test insufficient funds for gas test',
+        });
+
+        const simulationData = await getSimulationData(REQUEST_MOCK);
+
+        expect(simulationData).toStrictEqual({
+          error: {
+            code: SimulationErrorCode.Reverted,
+            message: new SimulationRevertedError().message,
           },
           tokenBalanceChanges: [],
         });

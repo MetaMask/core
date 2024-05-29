@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.2]
+
+### Fixed
+
+- Add a metadata property for nonRPCGasFeeApisDisabled ([#4245](https://github.com/MetaMask/core/pull/4245))
+
+## [15.1.1]
+
+### Changed
+
+- Bump `@metamask/polling-controller` to `^6.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
+### Removed
+
+- Remove fee history fallback in favour of `eth_gasPrice` call ([#4210](https://github.com/MetaMask/core/pull/4210))
+
+## [15.1.0]
+
+### Added
+
+- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core.git/pull/4094))
+
+### Fixed
+
+- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core.git/pull/4214))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING**: The controller's constructor now requires `infuraAPIKey`. This is used to construct and send the `Authorization` header for Infura gas API requests. ([#4068](https://github.com/MetaMask/core/pull/4068))
+- Bump dependency `@metamask/network-controller` to `^18.1.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+
+### Removed
+
+- **BREAKING**: Remove the constructor options `legacyAPIEndpoint` and `EIP1559APIEndpoint`. These URLs are now hardcoded within the controller. ([#4068](https://github.com/MetaMask/core/pull/4068))
+
 ## [14.0.1]
 
 ### Fixed
@@ -238,7 +275,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.2...HEAD
+[15.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.1...@metamask/gas-fee-controller@15.1.2
+[15.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.0...@metamask/gas-fee-controller@15.1.1
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.0.0...@metamask/gas-fee-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.1...@metamask/gas-fee-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.0...@metamask/gas-fee-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.2...@metamask/gas-fee-controller@14.0.0
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.1...@metamask/gas-fee-controller@13.0.2

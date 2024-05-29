@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` to `^13.0.0` ([#4260](https://github.com/MetaMask/core/pull/4260))
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [0.9.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` to `^12.0.0` ([#4173](https://github.com/MetaMask/core/pull/4173))
+
+## [0.8.0]
+
+### Added
+
+- **BREAKING**: The `QueuedRequestMiddleware` constructor now requires the `methodsWithConfirmation` param which should be a list of methods that can trigger confirmations ([#4066](https://github.com/MetaMask/core/pull/4066))
+- **BREAKING**: The `QueuedRequestController` constructor now requires the `methodsRequiringNetworkSwitch` param which should be a list of methods that need the globally selected network to switched to the dapp selected network before being processed ([#4066](https://github.com/MetaMask/core/pull/4066))
+- **BREAKING**: Clear pending confirmations (for both queued and non-queued requests) after processing revokePermissions. We now require a function to be passed into the constructor (`clearPendingConfirmations`) which will be called when permissions are revoked for a domain who currently has pending confirmations that are not queued. This is done by piggybacking on `SelectedNetworkController:stateChange` in order to serve as a proxy for permissions being revoked. ([#4165](https://github.com/MetaMask/controllers/pull/4165))
+- **BREAKING**: The QueuedRequestController will now flush the RequestQueue after a dapp switches networks. QueuedRequestController now requires a subscription on `SelectedNetworkController:stateChange`, and upon receiving stateChanges for adding or replacing selectedNetworkController.state.domains, we flush the queue for the domain in question. ([#4139](https://github.com/MetaMask/controllers/pull/4139))
+
+### Changed
+
+- **BREAKING**: `QueuedRequestController.enqueueRequest()` now ensures the globally selected network matches the dapp selected network before processing methods listed in the `methodsRequiringNetworkSwitch` constructor param. This replaces the previous behavior of switching for all methods except `eth_requestAccounts`. ([#4066](https://github.com/MetaMask/core/pull/4066))
+
+## [0.7.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` to `^11.0.0` ([#4121](https://github.com/MetaMask/core/pull/4121))
+- Bump `@metamask/controller-utils` to `^9.0.2` ([#4065](https://github.com/MetaMask/core/pull/4065))
+
 ## [0.6.1]
 
 ### Fixed
@@ -147,7 +181,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.10.0...HEAD
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.9.0...@metamask/queued-request-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.8.0...@metamask/queued-request-controller@0.9.0
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.7.0...@metamask/queued-request-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.7.0
 [0.6.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0

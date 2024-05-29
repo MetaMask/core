@@ -420,7 +420,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
-  it('should throw an error when address given is not an ERC-721 NFT', async () => {
+  it('should not throw an error when address given is does not support NFT Metadata interface', async () => {
     const { assetsContract, messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
     mockNetworkWithDefaultChainId({
@@ -441,18 +441,39 @@ describe('AssetsContractController with NetworkClientId', () => {
             result: '0x',
           },
         },
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x0000000000000000000000000000000000000000',
+                data: '0xc87b56dd0000000000000000000000000000000000000000000000000000000000000000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002468747470733a2f2f6170692e676f6473756e636861696e65642e636f6d2f636172642f3000000000000000000000000000000000000000000000000000000000',
+          },
+        },
       ],
     });
-    const result = async () => {
-      await assetsContract.getERC721TokenURI(
-        '0x0000000000000000000000000000000000000000',
-        '0',
-        'mainnet',
-      );
-    };
-
-    const error = 'Contract does not support ERC721 metadata interface.';
-    await expect(result).rejects.toThrow(error);
+    const errorLogSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementationOnce(() => {
+        /**/
+      });
+    const uri = await assetsContract.getERC721TokenURI(
+      '0x0000000000000000000000000000000000000000',
+      '0',
+      'mainnet',
+    );
+    expect(uri).toBe('https://api.godsunchained.com/card/0');
+    expect(errorLogSpy).toHaveBeenCalledTimes(1);
+    expect(errorLogSpy.mock.calls).toContainEqual([
+      'Contract does not support ERC721 metadata interface.',
+    ]);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 

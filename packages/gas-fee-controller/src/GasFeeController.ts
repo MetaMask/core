@@ -23,15 +23,14 @@ import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
+  calculateTimeEstimate,
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
-  calculateTimeEstimate,
 } from './gas-util';
 
-export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
+export const GAS_API_BASE_URL = 'https://gas.api.infura.io';
 
 export type unknownString = 'unknown';
 
@@ -167,6 +166,7 @@ const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
+  nonRPCGasFeeApisDisabled: { persist: true, anonymous: false },
 };
 
 export type GasFeeStateEthGasPrice = {
@@ -215,7 +215,10 @@ export type GasFeeEstimatesByChainId = {
   gasFeeEstimatesByChainId?: Record<string, SingleChainGasFeeState>;
 };
 
-export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
+export type GasFeeState = GasFeeEstimatesByChainId &
+  SingleChainGasFeeState & {
+    nonRPCGasFeeApisDisabled?: boolean;
+  };
 
 const name = 'GasFeeController';
 
@@ -248,6 +251,7 @@ const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+  nonRPCGasFeeApisDisabled: false,
 };
 
 /**
@@ -274,6 +278,8 @@ export class GasFeeController extends StaticIntervalPollingController<
 
   private readonly getCurrentAccountEIP1559Compatibility;
 
+  private readonly infuraAPIKey: string;
+
   private currentChainId;
 
   private ethQuery?: EthQuery;
@@ -299,11 +305,9 @@ export class GasFeeController extends StaticIntervalPollingController<
    * @param options.getProvider - Returns a network provider for the current network.
    * @param options.onNetworkDidChange - A function for registering an event handler for the
    * network state change event.
-   * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
-   * testing purposes.
-   * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL.
    * @param options.clientId - The client ID used to identify to the gas estimation API who is
    * asking for estimates.
+   * @param options.infuraAPIKey - The Infura API key used for infura API requests.
    */
   constructor({
     interval = 15000,
@@ -315,9 +319,8 @@ export class GasFeeController extends StaticIntervalPollingController<
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
     onNetworkDidChange,
-    legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
-    EIP1559APIEndpoint,
     clientId,
+    infuraAPIKey,
   }: {
     interval?: number;
     messenger: GasFeeMessenger;
@@ -328,9 +331,8 @@ export class GasFeeController extends StaticIntervalPollingController<
     getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
     onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
-    legacyAPIEndpoint?: string;
-    EIP1559APIEndpoint: string;
     clientId?: string;
+    infuraAPIKey: string;
   }) {
     super({
       name,
@@ -348,9 +350,10 @@ export class GasFeeController extends StaticIntervalPollingController<
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.#getProvider = getProvider;
-    this.EIP1559APIEndpoint = EIP1559APIEndpoint;
-    this.legacyAPIEndpoint = legacyAPIEndpoint;
+    this.EIP1559APIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/suggestedGasFees`;
+    this.legacyAPIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/gasPrices`;
     this.clientId = clientId;
+    this.infuraAPIKey = infuraAPIKey;
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
@@ -463,7 +466,6 @@ export class GasFeeController extends StaticIntervalPollingController<
         '<chain_id>',
         `${decimalChainId}`,
       ),
-      fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
@@ -473,16 +475,21 @@ export class GasFeeController extends StaticIntervalPollingController<
       calculateTimeEstimate,
       clientId: this.clientId,
       ethQuery,
+      infuraAPIKey: this.infuraAPIKey,
+      nonRPCGasFeeApisDisabled: this.state.nonRPCGasFeeApisDisabled,
     });
 
     if (shouldUpdateState) {
+      const chainId = toHex(decimalChainId);
       this.update((state) => {
-        state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
-        state.estimatedGasFeeTimeBounds =
-          gasFeeCalculations.estimatedGasFeeTimeBounds;
-        state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        if (this.currentChainId === chainId) {
+          state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
+          state.estimatedGasFeeTimeBounds =
+            gasFeeCalculations.estimatedGasFeeTimeBounds;
+          state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        }
         state.gasFeeEstimatesByChainId ??= {};
-        state.gasFeeEstimatesByChainId[toHex(decimalChainId)] = {
+        state.gasFeeEstimatesByChainId[chainId] = {
           gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
           estimatedGasFeeTimeBounds:
             gasFeeCalculations.estimatedGasFeeTimeBounds,
@@ -588,6 +595,18 @@ export class GasFeeController extends StaticIntervalPollingController<
 
       this.currentChainId = newChainId;
     }
+  }
+
+  enableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = false;
+    });
+  }
+
+  disableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = true;
+    });
   }
 }
 

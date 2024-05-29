@@ -137,10 +137,15 @@ export type AddUserOperationRequest = {
 export type AddUserOperationSwapOptions = {
   approvalTxId?: string;
   destinationTokenAddress?: string;
+  destinationTokenAmount?: string;
   destinationTokenDecimals?: number;
   destinationTokenSymbol?: string;
   estimatedBaseFee?: string;
+  sourceTokenAddress?: string;
+  sourceTokenAmount?: string;
+  sourceTokenDecimals?: number;
   sourceTokenSymbol?: string;
+  swapAndSendRecipient?: string;
   swapMetaData?: Record<string, unknown>;
   swapTokenValue?: string;
 };
@@ -437,10 +442,15 @@ export class UserOperationController extends BaseController<
         ? {
             approvalTxId: swaps.approvalTxId ?? null,
             destinationTokenAddress: swaps.destinationTokenAddress ?? null,
+            destinationTokenAmount: swaps.destinationTokenAmount ?? null,
             destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
             destinationTokenSymbol: swaps.destinationTokenSymbol ?? null,
             estimatedBaseFee: swaps.estimatedBaseFee ?? null,
+            sourceTokenAddress: swaps.sourceTokenAddress ?? null,
+            sourceTokenAmount: swaps.sourceTokenAmount ?? null,
+            sourceTokenDecimals: swaps.sourceTokenDecimals ?? null,
             sourceTokenSymbol: swaps.sourceTokenSymbol ?? null,
+            swapAndSendRecipient: swaps.swapAndSendRecipient ?? null,
             swapMetaData: (swaps.swapMetaData as Record<string, never>) ?? null,
             swapTokenValue: swaps.swapTokenValue ?? null,
           }
@@ -526,17 +536,27 @@ export class UserOperationController extends BaseController<
     metadata: UserOperationMetadata,
     smartContractAccount: SmartContractAccount,
   ) {
-    const { id, userOperation } = metadata;
+    const { id, userOperation, chainId } = metadata;
 
     log('Requesting paymaster data', { id });
 
     const response = await smartContractAccount.updateUserOperation({
       userOperation,
+      chainId,
     });
 
     validateUpdateUserOperationResponse(response);
 
     userOperation.paymasterAndData = response.paymasterAndData ?? EMPTY_BYTES;
+    if (response.callGasLimit) {
+      userOperation.callGasLimit = response.callGasLimit;
+    }
+    if (response.preVerificationGas) {
+      userOperation.preVerificationGas = response.preVerificationGas;
+    }
+    if (response.verificationGasLimit) {
+      userOperation.verificationGasLimit = response.verificationGasLimit;
+    }
 
     this.#updateMetadata(metadata);
   }

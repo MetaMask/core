@@ -3,7 +3,7 @@
 The `PermissionController` is the heart of an object capability-inspired permission system.
 It is the successor of the original MetaMask permission system, [`rpc-cap`](https://github.com/MetaMask/rpc-cap).
 
-## Conceptual Overview
+## Conceptual overview
 
 The permission system itself belongs to a **host**, and it mediates the access to resources – called **targets** – of distinct **subjects**.
 A target can belong to the host itself, or another subject.
@@ -14,7 +14,7 @@ Permissions are associated with a subject and target, and they are part of the s
 
 Permissions can have **caveats**, which are host-defined attenuations of the authority a permission grants over a particular target.
 
-## Implementation Overview
+## Implementation overview
 
 At any given moment, the `PermissionController` state tree describes the complete state of the permissions of all subjects known to the host (i.e., the MetaMask instance).
 The `PermissionController` also provides methods for adding, updating, and removing permissions, and enforcing the rules described by its state tree.
@@ -30,15 +30,15 @@ Permission system concepts correspond to components of the MetaMask stack as fol
 | Caveats           | Caveat objects                                                  |
 | Permission system | The `PermissionController` and its `json-rpc-engine` middleware |
 
-### Permission / Target Types
+### Permission / target Types
 
 In practice, targets can be different things, necessitating distinct implementations in order to enforce the logic of the permission system.
 This being the case, the `PermissionController` defines different **permission / target types**, intended for different kinds of permission targets.
 At present, there are two permission / target types.
 
-#### JSON-RPC Methods
+#### JSON-RPC methods
 
-Restricting access to JSON-RPC methods was the motivating and only supported use case for the original permission system, and remains the predominant kind of permission to this day.
+Restricting access to JSON-RPC methods was the motivating and only supported use case for the original permission system, and its successor also implements this feature.
 The `PermissionController` provides patterns for creating restricted JSON-RPC method implementations and caveats, and a `json-rpc-engine` middleware function factory.
 To permission a JSON-RPC server, every JSON-RPC method must be enumerated and designated as either "restricted" or "unrestricted", and a permission middleware function must be added to the `json-rpc-engine` middleware stack.
 Unrestricted methods can always be called by anyone.
@@ -54,12 +54,10 @@ Once the permission middleware is injected into the middleware stack, every JSON
 
 #### Endowments
 
-The name "endowment" comes from the endowments that you may provide to a [Secure EcmaScript (SES) `Compartment`](https://github.com/endojs/endo/tree/26d991afb01cf824827db0c958c50970e038112f/packages/ses#compartment) when it is constructed.
+We inherit the name "endowment" from the endowments that you may provide to a [Secure EcmaScript (SES) `Compartment`](https://github.com/endojs/endo/tree/26d991afb01cf824827db0c958c50970e038112f/packages/ses#compartment) when it is constructed.
 SES endowments are simply names that appear in the compartment's global scope.
 In the context of the `PermissionController`, endowments are simply "things" that subjects should not be able to access by default.
 They _could_ be the names of endowments that are to be made available to a particular SES `Compartment`, but they could also be any JavaScript value, and it is the host's responsibility to make sense of them.
-
-At present, endowment permissions may not have any caveats, but caveat support may be added in the future.
 
 ### Caveats
 
@@ -67,6 +65,128 @@ Caveats are arbitrary restrictions on restricted method requests.
 Every permission has a `caveats` field, which is either an array of caveats or `null`.
 Every caveat has a string `type`, and every type has an associated function that is used to apply the caveat to a restricted method request.
 When the `PermissionController` is constructed, the consumer specifies the available caveat types and their implementations.
+
+#### Caveat structure
+
+The complete authority represented by a permissions is represented by that permission and its caveat.
+Accurately and legibly representing this information to the user is one of the most important responsibilities of MetaMask itself.
+Therefore, as with any data structure we will use to represent information to the user, the simpler a caveat value type is, the better.
+
+For the same reason, it is also critical for permission authors to carefully consider the _semantics_ of caveat values.
+In particular, the existence of an authority **must** be represented by the **presence** of a value.
+
+For example, let's say there is a caveat `foo` that restricts the parameters that a method can be called with.
+In theory, such a caveat could be implemented such that a value of `[1, 2]` means that the
+method will only accept `1` and `2` as parameters, while an empty array `[]` means that
+_all_ parameters are permitted.
+**This is strictly forbidden.**
+Instead, such a hypothetical caveat could use `['*']` to represent that all parameters are permitted.
+
+We, the maintainers of the permission controller, impose this requirement for two reasons:
+
+1. We find it more intuitive to reason about caveats structured in this manner.
+2. It leaves the door open for establishing a caveat DSL, and subsequently standardized caveat value merger functions in support of [incremental permission requests](#requestpermissionsincremental).
+
+#### Caveat merging
+
+<!-- TODO: Remove the below "if no merger exists" qualifier when mergers are required. -->
+
+Consumers may supply a caveat value merger function when specifying a caveat.
+This is required to support [incremental permission requests](#requestpermissionsincremental).
+Caveat values must be merged in the fashion of a right-biased union.
+This operation is _like_ a union in set theory, except the right-hand operand overwrites
+the left-hand operand in case of collisions.
+
+Formally, let:
+
+- `A` be the value of the existing / left-hand caveat
+- `B` be the value of the requested / right-hand caveat
+- `C` be the value of the resulting caveat
+- `⊕` be the right-biased union operator
+
+Then the following must be true:
+
+- `C = A ⊕ B`
+- `C ⊇ B`
+- `A` and `C` may have all, some, or no values in common.
+- If `A = ∅`, then `C = B`
+
+In addition to merging the values, the caveat value merger implementation must supply
+the difference between `C` and `A`, expressed in the relevant caveat value type.
+This is necessary so that other parts of the application, especially the UI, can
+understand how authority has changed.
+
+Caveat value mergers should assume that the left- and right-hand values are always defined.
+In practice, when the permission controller attempts to merge two permissions, it's possible
+that the left-hand side does not exist.
+In this case, the value of the right-hand side will also be the value of the diff, `Δ`.
+Therefore, caveat value mergers **must** express their diffs in the relevant caveat value type.
+
+If `Δ` the difference between `C` and `A`, then:
+
+- `Δ = C - A`
+  - `Δ ∩ A = ∅`
+  - `Δ ⊆ C`
+  - `A ⊕ Δ = C`
+- `Δ ⊆ B`
+- If `A = ∅`, then `Δ = C = B`
+
+To exemplify the above in JavaScript:
+
+```js
+// A is empty.
+A = undefined;
+B = { foo: 'bar' };
+C = { foo: 'bar' };
+Delta = { foo: 'bar' };
+
+// A and B are the same.
+A = { foo: 'bar' };
+B = { foo: 'bar' };
+C = { foo: 'bar' };
+Delta = undefined;
+
+// A and B have no values in common.
+A = { foo: 'bar' };
+B = { life: 42 };
+C = { foo: 'bar', life: 42 };
+Delta = { life: 42 };
+
+// B overwrites A completely.
+A = { foo: 'bar' };
+B = { foo: 'baz' };
+C = { foo: 'baz' };
+Delta = { foo: 'baz' };
+
+// B partially overwrites A.
+A = { foo: 'bar', life: 42 };
+B = { foo: 'baz' };
+C = { foo: 'baz', life: 42 };
+Delta = { foo: 'baz' };
+```
+
+### Requesting permissions
+
+The `PermissionController` provides two methods for requesting permissions:
+
+#### `requestPermissions()`
+
+This method accepts an object specifying the requested permissions and any caveats for a particular subject.
+The method optionally allows existing permissions not named in the request to be preserved.
+Any existing permissions named in the request will be overwritten with the value approved by the user.
+
+#### `requestPermissionsIncremental()`
+
+This method also accepts an object of requested permissions, but will preserve the subject's existing authority to the greatest extent possible.
+In practice, this means that it will merge the requested permissions and caveats with the existing permissions and subjects.
+This merger is performed by way of a right-biased union, where the requested permissions are the right-hand side.
+
+If a caveat of the same type is encountered on both the left- and right-hand sides, the
+new caveat value is determined by calling that caveat type's merger function.
+This function must also perform a right-biased union, see [caveat merging](#caveat-merging) for more details.
+If no merger exists for a caveat that must be merged, the request will fail.
+
+<!-- TODO: Remove the above "if no merger exists" qualifier when mergers are required. -->
 
 ## Examples
 
@@ -101,6 +221,11 @@ const caveatSpecifications = {
           caveat.value.includes(resultValue),
         );
       },
+    // This function is called if two caveats of this type have to be merged
+    // due to an incremental permissions request. The values must be merged
+    // in the fashion of a right-biased union.
+    merger: (leftValue, rightValue) =>
+      Array.from(new Set([...leftValue, ...rightValue])),
   },
 };
 
@@ -146,7 +271,7 @@ const permissionController = new PermissionController({
 });
 ```
 
-### Adding the Permission Middleware
+### Adding the permission middleware
 
 ```typescript
 // This should take place where a middleware stack is created for a particular
@@ -162,7 +287,7 @@ engine.push(permissionController.createPermissionMiddleware({ origin }));
 engine.push(/* your other various middleware*/);
 ```
 
-### Calling a Restricted Method Internally
+### Calling a restricted method internally
 
 ```typescript
 // Sometimes, we need to call a restricted method internally, as a particular subject.
@@ -175,7 +300,7 @@ permissionController.executeRestrictedMethod(origin, 'wallet_getSecret', {
 });
 ```
 
-### Getting Endowments
+### Getting endowments
 
 ```typescript
 // Getting endowments internally is the only option, since the host has to apply
@@ -189,24 +314,72 @@ const endowments = await permissionController.getEndowments(
 applyEndowments(origin, endowments);
 ```
 
-### Requesting and Getting Permissions
+### Requesting and getting permissions
 
 ```typescript
-// From the perspective of subjects, requesting and getting permissions
-// works the same as it does with `rpc-cap`.
-const approvedPermissions = await ethereum.request({
+// This requests the `wallet_getSecretArray` permission.
+const addedPermissions = await ethereum.request({
   method: 'wallet_requestPermissions',
   params: [{
     wallet_getSecretArray: {},
   }]
 })
 
+// This gets the subject's existing permissions.
 const existingPermissions = await ethereum.request({
   method: 'wallet_getPermissions',
 )
+console.log(existingPermissions)
+// [
+//   {
+//     "id": "DZ_a31y3E8FKQfBqLwIcN",
+//     "parentCapability": "wallet_getSecretArray",
+//     "invoker": "https://subject.io",
+//     "caveats": [/* ... */],
+//     "date": 1713279475396
+//   }
+// ]
 ```
 
-### Restricted Method Caveat Decorators
+### Requesting permissions incrementally
+
+```typescript
+// Given an artifically truncated permission state of:
+// {
+//   'metamask.io': {
+//     wallet_getSecretArray: {
+//       caveats: [
+//         { type: 'foo', value: ['a'] },
+//       ],
+//     },
+//   },
+// }
+
+// We request:
+await permissionController.requestPermissionsIncremental({
+  wallet_getSecretArray: {
+    caveats: [
+      { type: 'foo', value: ['b'] },
+      { type: 'bar', value: 42 },
+    ],
+  },
+});
+
+// Assuming that the caveat value merger implementation for 'foo' naively merges the
+// values of the left- and right-hand sides, we end up with:
+// {
+//   'metamask.io': {
+//     wallet_getSecretArray: {
+//       caveats: [
+//         { type: 'foo', value: ['a', 'b'] },
+//         { type: 'bar', value: 42 },
+//       ],
+//     },
+//   },
+// }
+```
+
+### Restricted method caveat decorators
 
 Here follows some more example caveat decorator implementations.
 

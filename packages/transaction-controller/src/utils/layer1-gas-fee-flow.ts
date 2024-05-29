@@ -1,4 +1,4 @@
-import type EthQuery from '@metamask/eth-query';
+import type { Provider } from '@metamask/network-controller';
 import { createModuleLogger, type Hex } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
@@ -7,8 +7,8 @@ import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
 const log = createModuleLogger(projectLogger, 'layer-1-gas-fee-flow');
 
 export type UpdateLayer1GasFeeRequest = {
-  ethQuery: EthQuery;
   layer1GasFeeFlows: Layer1GasFeeFlow[];
+  provider: Provider;
   transactionMeta: TransactionMeta;
 };
 
@@ -24,10 +24,15 @@ export async function updateTransactionLayer1GasFee(
 ) {
   const layer1GasFee = await getTransactionLayer1GasFee(request);
 
-  if (layer1GasFee) {
-    const { transactionMeta } = request;
-    transactionMeta.layer1GasFee = layer1GasFee;
+  if (!layer1GasFee) {
+    return;
   }
+
+  const { transactionMeta } = request;
+
+  transactionMeta.layer1GasFee = layer1GasFee;
+
+  log('Updated layer 1 gas fee', layer1GasFee, transactionMeta.id);
 }
 
 /**
@@ -48,27 +53,33 @@ function getLayer1GasFeeFlow(
 /**
  * Get the layer 1 gas fee for a transaction and return the layer1Fee.
  * @param request - The request to use when getting the layer 1 gas fee.
- * @param request.ethQuery - The EthQuery instance to use to get the layer 1 gas fee.
  * @param request.layer1GasFeeFlows - The layer 1 gas fee flows to search.
+ * @param request.provider - The provider to use to get the layer 1 gas fee.
  * @param request.transactionMeta - The transaction to get the layer 1 gas fee for.
  */
-async function getTransactionLayer1GasFee({
-  ethQuery,
-  transactionMeta,
+export async function getTransactionLayer1GasFee({
   layer1GasFeeFlows,
+  provider,
+  transactionMeta,
 }: UpdateLayer1GasFeeRequest): Promise<Hex | undefined> {
   const layer1GasFeeFlow = getLayer1GasFeeFlow(
     transactionMeta,
     layer1GasFeeFlows,
   );
+
   if (!layer1GasFeeFlow) {
-    log('Layer 1 gas fee flow not found', transactionMeta.id);
     return undefined;
   }
 
+  log(
+    'Found layer 1 gas fee flow',
+    layer1GasFeeFlow.constructor.name,
+    transactionMeta.id,
+  );
+
   try {
     const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
-      ethQuery,
+      provider,
       transactionMeta,
     });
     return layer1Fee;

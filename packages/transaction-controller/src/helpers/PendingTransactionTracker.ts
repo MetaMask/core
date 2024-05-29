@@ -78,7 +78,7 @@ export class PendingTransactionTracker {
 
   #getTransactions: () => TransactionMeta[];
 
-  #isResubmitEnabled: boolean;
+  #isResubmitEnabled: () => boolean;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -104,7 +104,7 @@ export class PendingTransactionTracker {
     getChainId: () => Hex | undefined;
     getEthQuery: () => EthQuery | undefined;
     getTransactions: () => TransactionMeta[];
-    isResubmitEnabled?: boolean;
+    isResubmitEnabled?: () => boolean;
     getGlobalLock: (chainId: Hex) => Promise<() => void>;
     publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
@@ -122,7 +122,7 @@ export class PendingTransactionTracker {
     this.#getChainId = getChainId;
     this.#getEthQuery = getEthQuery;
     this.#getTransactions = getTransactions;
-    this.#isResubmitEnabled = isResubmitEnabled ?? true;
+    this.#isResubmitEnabled = isResubmitEnabled ?? (() => true);
     this.#listener = this.#onLatestBlock.bind(this);
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
@@ -262,7 +262,7 @@ export class PendingTransactionTracker {
     chainId: Hex,
     ethQuery: EthQuery,
   ) {
-    if (!this.#isResubmitEnabled || !this.#running) {
+    if (!this.#isResubmitEnabled() || !this.#running) {
       return;
     }
 

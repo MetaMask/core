@@ -9,6 +9,7 @@ export type {
   SelectedNetworkControllerMessenger,
   SelectedNetworkControllerOptions,
   NetworkProxy,
+  Domain,
 } from './SelectedNetworkController';
 export {
   SelectedNetworkControllerActionTypes,

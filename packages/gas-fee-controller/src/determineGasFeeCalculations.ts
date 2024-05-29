@@ -7,59 +7,18 @@ import type {
 } from './GasFeeController';
 import { GAS_ESTIMATE_TYPES } from './GasFeeController';
 
-/**
- * Obtains a set of max base and priority fee estimates along with time estimates so that we
- * can present them to users when they are sending transactions or making swaps.
- *
- * @param args - The arguments.
- * @param args.isEIP1559Compatible - Governs whether or not we can use an EIP-1559-only method to
- * produce estimates.
- * @param args.isLegacyGasAPICompatible - Governs whether or not we can use a non-EIP-1559 method to
- * produce estimates (for instance, testnets do not support estimates altogether).
- * @param args.fetchGasEstimates - A function that fetches gas estimates using an EIP-1559-specific
- * API.
- * @param args.fetchGasEstimatesUrl - The URL for the API we can use to obtain EIP-1559-specific
- * estimates.
- * @param args.fetchGasEstimatesViaEthFeeHistory - A function that fetches gas estimates using
- * `eth_feeHistory` (an EIP-1559 feature).
- * @param args.fetchLegacyGasPriceEstimates - A function that fetches gas estimates using an
- * non-EIP-1559-specific API.
- * @param args.fetchLegacyGasPriceEstimatesUrl - The URL for the API we can use to obtain
- * non-EIP-1559-specific estimates.
- * @param args.fetchEthGasPriceEstimate - A function that fetches gas estimates using
- * `eth_gasPrice`.
- * @param args.calculateTimeEstimate - A function that determine time estimate bounds.
- * @param args.clientId - An identifier that an API can use to know who is asking for estimates.
- * @param args.ethQuery - An EthQuery instance we can use to talk to Ethereum directly.
- * @returns The gas fee calculations.
- */
-export default async function determineGasFeeCalculations({
-  isEIP1559Compatible,
-  isLegacyGasAPICompatible,
-  fetchGasEstimates,
-  fetchGasEstimatesUrl,
-  fetchGasEstimatesViaEthFeeHistory,
-  fetchLegacyGasPriceEstimates,
-  fetchLegacyGasPriceEstimatesUrl,
-  fetchEthGasPriceEstimate,
-  calculateTimeEstimate,
-  clientId,
-  ethQuery,
-}: {
+type DetermineGasFeeCalculationsRequest = {
   isEIP1559Compatible: boolean;
   isLegacyGasAPICompatible: boolean;
   fetchGasEstimates: (
     url: string,
+    infuraAPIKey: string,
     clientId?: string,
   ) => Promise<GasFeeEstimates>;
   fetchGasEstimatesUrl: string;
-  fetchGasEstimatesViaEthFeeHistory: (
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ethQuery: any,
-  ) => Promise<GasFeeEstimates>;
   fetchLegacyGasPriceEstimates: (
     url: string,
+    infuraAPIKey: string,
     clientId?: string,
   ) => Promise<LegacyGasPriceEstimate>;
   fetchLegacyGasPriceEstimatesUrl: string;
@@ -75,54 +34,162 @@ export default async function determineGasFeeCalculations({
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ethQuery: any;
-}): Promise<GasFeeCalculations> {
+  infuraAPIKey: string;
+  nonRPCGasFeeApisDisabled?: boolean;
+};
+
+/**
+ * Obtains a set of max base and priority fee estimates along with time estimates so that we
+ * can present them to users when they are sending transactions or making swaps.
+ *
+ * @param args - The arguments.
+ * @param args.isEIP1559Compatible - Governs whether or not we can use an EIP-1559-only method to
+ * produce estimates.
+ * @param args.isLegacyGasAPICompatible - Governs whether or not we can use a non-EIP-1559 method to
+ * produce estimates (for instance, testnets do not support estimates altogether).
+ * @param args.fetchGasEstimates - A function that fetches gas estimates using an EIP-1559-specific
+ * API.
+ * @param args.fetchGasEstimatesUrl - The URL for the API we can use to obtain EIP-1559-specific
+ * estimates.
+ * @param args.fetchLegacyGasPriceEstimates - A function that fetches gas estimates using an
+ * non-EIP-1559-specific API.
+ * @param args.fetchLegacyGasPriceEstimatesUrl - The URL for the API we can use to obtain
+ * non-EIP-1559-specific estimates.
+ * @param args.fetchEthGasPriceEstimate - A function that fetches gas estimates using
+ * `eth_gasPrice`.
+ * @param args.calculateTimeEstimate - A function that determine time estimate bounds.
+ * @param args.clientId - An identifier that an API can use to know who is asking for estimates.
+ * @param args.ethQuery - An EthQuery instance we can use to talk to Ethereum directly.
+ * @param args.infuraAPIKey - Infura API key to use for requests to Infura.
+ * @param args.nonRPCGasFeeApisDisabled - Whether to disable requests to the legacyAPIEndpoint and the EIP1559APIEndpoint
+ * @returns The gas fee calculations.
+ */
+export default async function determineGasFeeCalculations(
+  args: DetermineGasFeeCalculationsRequest,
+): Promise<GasFeeCalculations> {
   try {
-    if (isEIP1559Compatible) {
-      let estimates: GasFeeEstimates;
-      try {
-        estimates = await fetchGasEstimates(fetchGasEstimatesUrl, clientId);
-      } catch {
-        estimates = await fetchGasEstimatesViaEthFeeHistory(ethQuery);
-      }
-      const { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } =
-        estimates.medium;
-      const estimatedGasFeeTimeBounds = calculateTimeEstimate(
-        suggestedMaxPriorityFeePerGas,
-        suggestedMaxFeePerGas,
-        estimates,
+    return await getEstimatesUsingFallbacks(args);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(
+        `Gas fee/price estimation failed. Message: ${error.message}`,
       );
-      return {
-        gasFeeEstimates: estimates,
-        estimatedGasFeeTimeBounds,
-        gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
-      };
-    } else if (isLegacyGasAPICompatible) {
-      const estimates = await fetchLegacyGasPriceEstimates(
-        fetchLegacyGasPriceEstimatesUrl,
-        clientId,
-      );
-      return {
-        gasFeeEstimates: estimates,
-        estimatedGasFeeTimeBounds: {},
-        gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
-      };
     }
+
+    throw error;
+  }
+}
+
+/**
+ * Retrieve the gas fee estimates using a series of fallback mechanisms.
+ * @param request - The request object.
+ * @returns The gas fee estimates.
+ */
+async function getEstimatesUsingFallbacks(
+  request: DetermineGasFeeCalculationsRequest,
+): Promise<GasFeeCalculations> {
+  const {
+    isEIP1559Compatible,
+    isLegacyGasAPICompatible,
+    nonRPCGasFeeApisDisabled,
+  } = request;
+
+  try {
+    if (isEIP1559Compatible && !nonRPCGasFeeApisDisabled) {
+      return await getEstimatesUsingFeeMarketEndpoint(request);
+    }
+
+    if (isLegacyGasAPICompatible && !nonRPCGasFeeApisDisabled) {
+      return await getEstimatesUsingLegacyEndpoint(request);
+    }
+
     throw new Error('Main gas fee/price estimation failed. Use fallback');
   } catch {
-    try {
-      const estimates = await fetchEthGasPriceEstimate(ethQuery);
-      return {
-        gasFeeEstimates: estimates,
-        estimatedGasFeeTimeBounds: {},
-        gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-      };
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(
-          `Gas fee/price estimation failed. Message: ${error.message}`,
-        );
-      }
-      throw error;
-    }
+    return await getEstimatesUsingProvider(request);
   }
+}
+
+/**
+ * Retrieve gas fee estimates using the EIP-1559 endpoint of the gas API.
+ * @param request - The request object.
+ * @returns The gas fee estimates.
+ */
+async function getEstimatesUsingFeeMarketEndpoint(
+  request: DetermineGasFeeCalculationsRequest,
+): Promise<GasFeeCalculations> {
+  const {
+    fetchGasEstimates,
+    fetchGasEstimatesUrl,
+    infuraAPIKey,
+    clientId,
+    calculateTimeEstimate,
+  } = request;
+
+  const estimates = await fetchGasEstimates(
+    fetchGasEstimatesUrl,
+    infuraAPIKey,
+    clientId,
+  );
+
+  const { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } =
+    estimates.medium;
+
+  const estimatedGasFeeTimeBounds = calculateTimeEstimate(
+    suggestedMaxPriorityFeePerGas,
+    suggestedMaxFeePerGas,
+    estimates,
+  );
+
+  return {
+    gasFeeEstimates: estimates,
+    estimatedGasFeeTimeBounds,
+    gasEstimateType: GAS_ESTIMATE_TYPES.FEE_MARKET,
+  };
+}
+
+/**
+ * Retrieve gas fee estimates using the legacy endpoint of the gas API.
+ * @param request - The request object.
+ * @returns The gas fee estimates.
+ */
+async function getEstimatesUsingLegacyEndpoint(
+  request: DetermineGasFeeCalculationsRequest,
+): Promise<GasFeeCalculations> {
+  const {
+    fetchLegacyGasPriceEstimates,
+    fetchLegacyGasPriceEstimatesUrl,
+    infuraAPIKey,
+    clientId,
+  } = request;
+
+  const estimates = await fetchLegacyGasPriceEstimates(
+    fetchLegacyGasPriceEstimatesUrl,
+    infuraAPIKey,
+    clientId,
+  );
+
+  return {
+    gasFeeEstimates: estimates,
+    estimatedGasFeeTimeBounds: {},
+    gasEstimateType: GAS_ESTIMATE_TYPES.LEGACY,
+  };
+}
+
+/**
+ * Retrieve gas fee estimates using an `eth_gasPrice` call to the RPC provider.
+ * @param request - The request object.
+ * @returns The gas fee estimates.
+ */
+async function getEstimatesUsingProvider(
+  request: DetermineGasFeeCalculationsRequest,
+): Promise<GasFeeCalculations> {
+  const { ethQuery, fetchEthGasPriceEstimate } = request;
+
+  const estimates = await fetchEthGasPriceEstimate(ethQuery);
+
+  return {
+    gasFeeEstimates: estimates,
+    estimatedGasFeeTimeBounds: {},
+    gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+  };
 }

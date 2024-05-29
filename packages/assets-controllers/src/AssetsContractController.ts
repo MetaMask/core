@@ -48,6 +48,20 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x6AA75276052D96696134252587894ef5FFA520af',
   [SupportedTokenDetectionNetworks.zksync]:
     '0x458fEd3144680a5b8bcfaa0F9594aa19B4Ea2D34',
+  [SupportedTokenDetectionNetworks.cronos]:
+    '0x768ca200f0fc702ac9ea502498c18f5eff176378',
+  [SupportedTokenDetectionNetworks.celo]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.gnosis]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.fantom]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.polygon_zkevm]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.moonbeam]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.moonriver]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
 };
 
 export const MISSING_PROVIDER_ERROR =

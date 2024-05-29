@@ -26,6 +26,9 @@ export const CHAIN_IDS = {
   GNOSIS: '0x64',
   ARBITRUM: '0xa4b1',
   ZKSYNC_ERA: '0x144',
+  ZORA: '0x76adf1',
+  SCROLL: '0x82750',
+  SCROLL_SEPOLIA: '0x8274f',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';
@@ -118,3 +121,51 @@ export const GAS_BUFFER_CHAIN_OVERRIDES = {
   [CHAIN_IDS.OPTIMISM]: 1,
   [CHAIN_IDS.OPTIMISM_SEPOLIA]: 1,
 };
+
+/** Extract of the Wrapped ERC-20 ABI required for simulation. */
+export const ABI_SIMULATION_ERC20_WRAPPED = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'to', type: 'address' },
+      { indexed: false, name: 'wad', type: 'uint256' },
+    ],
+    name: 'Deposit',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'from', type: 'address' },
+      { indexed: false, name: 'wad', type: 'uint256' },
+    ],
+    name: 'Withdrawal',
+    type: 'event',
+  },
+];
+
+/** Extract of the legacy ERC-721 ABI required for simulation. */
+export const ABI_SIMULATION_ERC721_LEGACY = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        name: '_from',
+        type: 'address',
+      },
+      {
+        indexed: false,
+        name: '_to',
+        type: 'address',
+      },
+      {
+        indexed: false,
+        name: '_tokenId',
+        type: 'uint256',
+      },
+    ],
+    name: 'Transfer',
+    type: 'event',
+  },
+];
