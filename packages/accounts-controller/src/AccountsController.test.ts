@@ -201,7 +201,7 @@ function createExpectedInternalAccount({
       name,
       keyring: { type: keyringType },
       importTime: importTime || expect.any(Number),
-      lastSelected: lastSelected || undefined,
+      lastSelected: lastSelected || expect.any(Number),
     },
   } as InternalAccount;
 
@@ -774,17 +774,15 @@ describe('AccountsController', () => {
 
         const accounts = accountsController.listAccounts();
 
-        expect(accounts).toStrictEqual([
+        expect(accounts.map(setLastSelectedAsAny)).toStrictEqual([
           mockAccount,
           mockAccount2WithCustomName,
-          setLastSelectedAsAny(
-            createExpectedInternalAccount({
-              id: 'mock-id3',
-              name: 'Account 3',
-              address: mockAccount3.address,
-              keyringType: KeyringTypes.hd,
-            }),
-          ),
+          createExpectedInternalAccount({
+            id: 'mock-id3',
+            name: 'Account 3',
+            address: mockAccount3.address,
+            keyringType: KeyringTypes.hd,
+          }),
         ]);
       });
 
@@ -1257,7 +1255,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount.metadata,
           name: 'Snap Account 1',
-          lastSelected: undefined,
+          lastSelected: expect.any(Number),
           importTime: expect.any(Number),
         },
       };
@@ -1267,7 +1265,7 @@ describe('AccountsController', () => {
         metadata: {
           ...mockSnapAccount2.metadata,
           name: 'Snap Account 2',
-          lastSelected: undefined,
+          lastSelected: expect.any(Number),
           importTime: expect.any(Number),
         },
       };
@@ -1276,7 +1274,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(
+        accountsController.listAccounts().map(setLastSelectedAsAny),
+      ).toStrictEqual(expectedAccounts);
     });
 
     it('should return an empty array if the snap keyring is not defined', async () => {
@@ -1520,7 +1520,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(
+        accountsController.listAccounts().map(setLastSelectedAsAny),
+      ).toStrictEqual(expectedAccounts);
     });
 
     it('should throw an error if the keyring type is unknown', async () => {
@@ -2128,6 +2130,7 @@ describe('AccountsController', () => {
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
       jest.spyOn(AccountsController.prototype, 'getSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'getAccount');
+      jest.spyOn(AccountsController.prototype, 'getNextAvailableAccountName');
     });
 
     describe('setSelectedAccount', () => {
@@ -2291,6 +2294,63 @@ describe('AccountsController', () => {
           mockAccount.id,
         );
         expect(account).toStrictEqual(mockAccount);
+      });
+
+      describe('getNextAvailableAccountName', () => {
+        it('gets the next account name', async () => {
+          const messenger = buildMessenger();
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: {
+                  [mockAccount.id]: mockAccount,
+                  // Next name should be: "Account 2"
+                },
+                selectedAccount: mockAccount.id,
+              },
+            },
+            messenger,
+          });
+
+          const accountName = messenger.call(
+            'AccountsController:getNextAvailableAccountName',
+          );
+          expect(accountName).toBe('Account 2');
+        });
+
+        it('gets the next account name with a gap', async () => {
+          const messenger = buildMessenger();
+
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const accountsController = setupAccountsController({
+            initialState: {
+              internalAccounts: {
+                accounts: {
+                  [mockAccount.id]: mockAccount,
+                  // We have a gap, cause there is no "Account 2"
+                  [mockAccount3.id]: {
+                    ...mockAccount3,
+                    metadata: {
+                      ...mockAccount3.metadata,
+                      name: 'Account 3',
+                      keyring: { type: KeyringTypes.hd },
+                    },
+                  },
+                  // Next name should be: "Account 4"
+                },
+                selectedAccount: mockAccount.id,
+              },
+            },
+            messenger,
+          });
+
+          const accountName = messenger.call(
+            'AccountsController:getNextAvailableAccountName',
+          );
+          expect(accountName).toBe('Account 4');
+        });
       });
     });
   });

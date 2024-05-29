@@ -7,9 +7,9 @@ import type {
   Provider,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
+import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import type { NonceLock, NonceTracker } from 'nonce-tracker';
 
 import { incomingTransactionsLogger as log } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
