@@ -4,7 +4,10 @@ import type {
   RestrictedControllerMessenger,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
+import {
+  BaseController,
+  type ControllerGetStateAction,
+} from '@metamask/base-controller';
 import {
   safelyExecute,
   handleFetch,
@@ -196,7 +199,7 @@ export type NftControllerState = {
   ignoredNfts: Nft[];
 };
 
-const metadata = {
+const nftControllerMetadata = {
   allNftContracts: { persist: true, anonymous: false },
   allNfts: { persist: true, anonymous: false },
   ignoredNfts: { persist: true, anonymous: false },
@@ -214,6 +217,12 @@ type NftAsset = {
  * The name of the {@link NftController}.
  */
 const controllerName = 'NftController';
+
+export type NftControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  NftControllerState
+>;
+export type NftControllerActions = NftControllerGetStateAction;
 
 /**
  * The external actions available to the {@link NftController}.
@@ -238,7 +247,7 @@ export type NftControllerEvents = NftControllerStateChangeEvent;
  */
 export type NftControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  AllowedActions,
+  NftControllerActions | AllowedActions,
   NftControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
@@ -337,7 +346,7 @@ export class NftController extends BaseController<
   }) {
     super({
       name: controllerName,
-      metadata,
+      metadata: nftControllerMetadata,
       messenger,
       state: {
         ...defaultNftControllerState,
@@ -404,13 +413,12 @@ export class NftController extends BaseController<
     openSeaEnabled,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
-    this.#config = {
-      ...this.#config,
+    this.setConfig({
       selectedAddress,
       ipfsGateway,
       openSeaEnabled,
       isIpfsGatewayEnabled,
-    };
+    });
 
     const needsUpdateNftMetadata =
       (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
@@ -828,7 +836,7 @@ export class NftController extends BaseController<
    * @param chainId - The chainId of the network where the NFT is being added.
    * @param userAddress - The address of the account where the NFT is being added.
    * @param source - Whether the NFT was detected, added manually or suggested by a dapp.
-   * @returns Promise resolving to the current NFT list.
+   * @returns A promise resolving to `undefined`.
    */
   async #addIndividualNft(
     tokenAddress: string,
@@ -886,7 +894,7 @@ export class NftController extends BaseController<
         nfts.push(newEntry);
       }
 
-      this.#updateNestedNftState(nfts, 'allNfts', {
+      this.#updateNestedNftState(nfts, ALL_NFTS_STATE_KEY, {
         chainId,
         userAddress,
       });
