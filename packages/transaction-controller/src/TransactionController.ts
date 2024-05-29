@@ -216,6 +216,8 @@ export class TransactionController extends BaseController<
 
   private readonly gasFeeFlows: GasFeeFlow[];
 
+  private readonly getSelectedAddress: () => string;
+
   private readonly getGasFeeEstimates: () => Promise<GasFeeState>;
 
   private readonly messagingSystem: TransactionControllerMessenger;
@@ -380,7 +382,7 @@ export class TransactionController extends BaseController<
       getExternalPendingTransactions ?? (() => []);
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
-
+    this.getSelectedAddress = getSelectedAddress;
     this.nonceTracker = new NonceTracker({
       provider,
       blockTracker,
@@ -983,11 +985,17 @@ export class TransactionController extends BaseController<
   async queryTransactionStatuses() {
     const { transactions } = this.state;
     const currentChainId = this.getChainId();
+    const selectedAddress = this.getSelectedAddress();
     let gotUpdates = false;
     await safelyExecute(() =>
       Promise.all(
         transactions.map(async (meta, index) => {
-          if (!meta.verifiedOnBlockchain && meta.chainId === currentChainId) {
+          if (
+            !meta.verifiedOnBlockchain &&
+            meta.chainId === currentChainId &&
+            (meta.txParams.from === selectedAddress ||
+              meta.txParams.to === selectedAddress)
+          ) {
             const [reconciledTx, updateRequired] =
               await this.blockchainTransactionStateReconciler(meta);
             if (updateRequired) {
@@ -1776,6 +1784,7 @@ export class TransactionController extends BaseController<
 
         const txBlock = await query(this.ethQuery, 'getBlockByHash', [
           txReceipt.blockHash,
+          false,
         ]);
 
         meta.verifiedOnBlockchain = true;
