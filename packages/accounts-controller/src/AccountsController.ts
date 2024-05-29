@@ -25,6 +25,7 @@ import type { Keyring, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
+  deepCloneDraft,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
@@ -312,7 +313,12 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] = internalAccount;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[accountId] = internalAccount;
+
+      return newState;
     });
   }
 
@@ -357,10 +363,11 @@ export class AccountsController extends BaseController<
           importTime:
             this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
             Date.now(),
-          lastSelected: this.#populateExistingMetadata(
-            existingAccount?.id,
-            'lastSelected',
-          ),
+          lastSelected:
+            this.#populateExistingMetadata(
+              existingAccount?.id,
+              'lastSelected',
+            ) ?? 0,
         },
       };
 
@@ -368,8 +375,12 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts = accounts;
+
+      return newState;
     });
   }
 
@@ -381,8 +392,12 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
+        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+        const newState = deepCloneDraft(currentState);
+
+        newState.internalAccounts = backup.internalAccounts;
+
+        return newState;
       });
     }
   }
@@ -483,7 +498,7 @@ export class AccountsController extends BaseController<
           name: this.#populateExistingMetadata(id, 'name') ?? '',
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -765,9 +780,10 @@ export class AccountsController extends BaseController<
     );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
@@ -776,6 +792,8 @@ export class AccountsController extends BaseController<
           lastSelected: Date.now(),
         },
       };
+
+      return newState;
     });
 
     this.setSelectedAccount(newAccount.id);
