@@ -416,7 +416,7 @@ export class TokensController extends BaseController<
       );
 
       const { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens } =
-        this.getNewAllTokensState({
+        this.#getNewAllTokensState({
           newTokens,
           newIgnoredTokens,
           newDetectedTokens,
@@ -499,7 +499,7 @@ export class TokensController extends BaseController<
       }
 
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
-        this.getNewAllTokensState({
+        this.#getNewAllTokensState({
           newTokens,
           newDetectedTokens,
           newIgnoredTokens,
@@ -543,7 +543,7 @@ export class TokensController extends BaseController<
     );
 
     const { newAllIgnoredTokens, newAllDetectedTokens, newAllTokens } =
-      this.getNewAllTokensState({
+      this.#getNewAllTokensState({
         newIgnoredTokens,
         newDetectedTokens,
         newTokens,
@@ -632,7 +632,7 @@ export class TokensController extends BaseController<
         }
       });
 
-      const { newAllTokens, newAllDetectedTokens } = this.getNewAllTokensState({
+      const { newAllTokens, newAllDetectedTokens } = this.#getNewAllTokensState({
         newTokens,
         newDetectedTokens,
         interactingAddress: accountAddress,
@@ -918,7 +918,7 @@ export class TokensController extends BaseController<
    * @param params.interactingChainId - The chainId to use to store the tokens.
    * @returns The updated `allTokens` and `allIgnoredTokens` state.
    */
-  getNewAllTokensState(params: {
+  #getNewAllTokensState(params: {
     newTokens?: Token[];
     newIgnoredTokens?: string[];
     newDetectedTokens?: Token[];
