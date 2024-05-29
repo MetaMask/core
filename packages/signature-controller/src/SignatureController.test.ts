@@ -649,9 +649,9 @@ describe('SignatureController', () => {
       ).not.toHaveBeenCalled();
     });
 
-    it('should return false when an error occurs', () => {
+    it('should return undefined when an error occurs', () => {
       jest
-        .spyOn(typedMessageManagerMock, 'setMessageStatusSigned')
+        .spyOn(personalMessageManagerMock, 'setMessageStatusSigned')
         .mockImplementation(() => {
           throw new Error('mocked error');
         });

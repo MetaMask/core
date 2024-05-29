@@ -320,7 +320,6 @@ export class SignatureController extends BaseController<
       this.#signTypedMessage.bind(this),
       messageParams,
       req,
-      undefined,
       version,
       signingOpts,
     );
@@ -386,14 +385,9 @@ export class SignatureController extends BaseController<
     signMessage: (messageParams: PM, signingOpts?: SO) => void,
     messageParams: PM,
     req: OriginalRequest,
-    validateMessage?: (params: PM) => void,
     version?: string,
     signingOpts?: SO,
   ) {
-    if (validateMessage) {
-      validateMessage(messageParams);
-    }
-
     let resultCallbacks: AcceptResultCallbacks | undefined;
     try {
       const messageId = await messageManager.addUnapprovedMessage(
