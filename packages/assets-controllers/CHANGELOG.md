@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+- **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
 - When fetching token list for Linea Mainnet, use `occurrenceFloor` parameter of 1 instead of 3, and filter tokens to those with a `lineaTeam` aggregator or more than 3 aggregators ([#4253](https://github.com/MetaMask/core/pull/4253))
 - **BREAKING:** The NftController messenger must now allow the `NetworkController:getNetworkClientById` action ([#4305](https://github.com/MetaMask/core/pull/4305))
 - **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.2` ([#4332](https://github.com/MetaMask/core/pull/4332))
