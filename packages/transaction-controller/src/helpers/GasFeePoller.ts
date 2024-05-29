@@ -37,7 +37,10 @@ export class GasFeePoller {
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider | undefined;
+  #getProvider: (
+    chainId: Hex,
+    networkClientId?: NetworkClientId,
+  ) => Provider | undefined;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -72,7 +75,10 @@ export class GasFeePoller {
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
     ) => Promise<GasFeeState>;
-    getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider | undefined;
+    getProvider: (
+      chainId: Hex,
+      networkClientId?: NetworkClientId,
+    ) => Provider | undefined;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
@@ -195,13 +201,13 @@ export class GasFeePoller {
     const provider = this.#getProvider(chainId, networkClientId);
     if (!provider) {
       log('Provider not available', transactionMeta.id);
-      return;
+      return undefined;
     }
 
     const ethQuery = new EthQuery(provider);
     if (!ethQuery) {
       log('Provider not available', transactionMeta.id);
-      return;
+      return undefined;
     }
 
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);

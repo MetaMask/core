@@ -233,7 +233,10 @@ export class MultichainTrackingHelper {
       chainId,
     });
 
-    return networkClient?.provider || this.#getGlobalProviderAndBlockTracker()?.provider;
+    return (
+      networkClient?.provider ||
+      this.#getGlobalProviderAndBlockTracker()?.provider
+    );
   }
 
   /**

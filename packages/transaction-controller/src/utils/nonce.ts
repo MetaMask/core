@@ -1,9 +1,9 @@
 import { toHex } from '@metamask/controller-utils';
-import { providerErrors } from '@metamask/rpc-errors';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
+import { providerErrors } from '@metamask/rpc-errors';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionStatus } from '../types';

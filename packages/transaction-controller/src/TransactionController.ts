@@ -834,7 +834,6 @@ export class TransactionController extends BaseController<
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
-
     const findNetworkClientIdByChainId = (chainId: Hex) => {
       return this.messagingSystem.call(
         `NetworkController:findNetworkClientIdByChainId`,
@@ -2693,7 +2692,10 @@ export class TransactionController extends BaseController<
         this.approvingTransactionIds.delete(transactionId),
       );
 
-      const getNonceLock = (address: string, networkClientId?: NetworkClientId) =>
+      const getNonceLock = (
+        address: string,
+        networkClientId?: NetworkClientId,
+      ) =>
         this.#multichainTrackingHelper.getNonceLock(address, networkClientId);
 
       const [nonce, releaseNonce] = await getNextNonce(
@@ -2996,7 +2998,7 @@ export class TransactionController extends BaseController<
     return { meta: transaction, isCompleted };
   }
 
-/*
+  /*
   private getChainId(networkClientId?: NetworkClientId): Hex | undefined {
     if (networkClientId) {
       return this.messagingSystem.call(
