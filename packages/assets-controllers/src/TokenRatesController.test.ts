@@ -35,7 +35,7 @@ import type {
   Token,
   TokenRatesState,
 } from './TokenRatesController';
-import type { TokensState } from './TokensController';
+import type { TokensControllerState } from './TokensController';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
@@ -2387,7 +2387,7 @@ describe('TokenRatesController', () => {
 type ControllerEvents = {
   networkStateChange: (state: NetworkState) => void;
   preferencesStateChange: (state: PreferencesState) => void;
-  tokensStateChange: (state: TokensState) => void;
+  tokensStateChange: (state: TokensControllerState) => void;
 };
 
 /**
