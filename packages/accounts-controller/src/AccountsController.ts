@@ -25,6 +25,7 @@ import type { Keyring, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
+  deepCloneDraft,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
@@ -74,6 +75,11 @@ export type AccountsControllerGetAccountByAddressAction = {
   handler: AccountsController['getAccountByAddress'];
 };
 
+export type AccountsControllerGetNextAvailableAccountNameAction = {
+  type: `${typeof controllerName}:getNextAvailableAccountName`;
+  handler: AccountsController['getNextAvailableAccountName'];
+};
+
 export type AccountsControllerGetAccountAction = {
   type: `${typeof controllerName}:getAccount`;
   handler: AccountsController['getAccount'];
@@ -92,6 +98,7 @@ export type AccountsControllerActions =
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
@@ -306,7 +313,12 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] = internalAccount;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[accountId] = internalAccount;
+
+      return newState;
     });
   }
 
@@ -351,10 +363,11 @@ export class AccountsController extends BaseController<
           importTime:
             this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
             Date.now(),
-          lastSelected: this.#populateExistingMetadata(
-            existingAccount?.id,
-            'lastSelected',
-          ),
+          lastSelected:
+            this.#populateExistingMetadata(
+              existingAccount?.id,
+              'lastSelected',
+            ) ?? 0,
         },
       };
 
@@ -362,8 +375,12 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts = accounts;
+
+      return newState;
     });
   }
 
@@ -375,8 +392,12 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
+        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+        const newState = deepCloneDraft(currentState);
+
+        newState.internalAccounts = backup.internalAccounts;
+
+        return newState;
       });
     }
   }
@@ -477,7 +498,7 @@ export class AccountsController extends BaseController<
           name: this.#populateExistingMetadata(id, 'name') ?? '',
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -691,10 +712,7 @@ export class AccountsController extends BaseController<
    * @param keyringType - The type of keyring.
    * @returns An object containing the account prefix and index to use.
    */
-  #getNextAccountNumber(keyringType: string): {
-    accountPrefix: string;
-    indexToUse: number;
-  } {
+  getNextAvailableAccountName(keyringType: string = KeyringTypes.hd): string {
     const keyringName = keyringTypeToName(keyringType);
     const keyringAccounts = this.#getAccountsByKeyringType(keyringType);
     const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
@@ -719,12 +737,12 @@ export class AccountsController extends BaseController<
       0,
     );
 
-    const indexToUse = Math.max(
+    const index = Math.max(
       keyringAccounts.length + 1,
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
-    return { accountPrefix: keyringName, indexToUse };
+    return `${keyringName} ${index}`;
   }
 
   /**
@@ -756,17 +774,16 @@ export class AccountsController extends BaseController<
       }
     }
 
-    // get next index number for the keyring type
-    const { accountPrefix, indexToUse } = this.#getNextAccountNumber(
+    // Get next account name available for this given keyring
+    const accountName = this.getNextAvailableAccountName(
       newAccount.metadata.keyring.type,
     );
 
-    const accountName = `${accountPrefix} ${indexToUse}`;
-
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
@@ -775,6 +792,8 @@ export class AccountsController extends BaseController<
           lastSelected: Date.now(),
         },
       };
+
+      return newState;
     });
 
     this.setSelectedAccount(newAccount.id);
@@ -837,6 +856,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getNextAvailableAccountName`,
+      this.getNextAvailableAccountName.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
