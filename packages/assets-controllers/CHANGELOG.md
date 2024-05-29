@@ -9,25 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [30.0.0]
 
-### Uncategorized
+### Added
 
-- Release/156.0.0 ([#4332](https://github.com/MetaMask/core/pull/4332))
-- feat: Implement market data by Chain ID ([#4206](https://github.com/MetaMask/core/pull/4206))
-- fix: Migrate API usage from _.metafi & _.metaswap subdomains to \*.cx.metamsk.io" ([#4301](https://github.com/MetaMask/core/pull/4301))
-- feat: add new rates controller for non-EVM chains ([#4242](https://github.com/MetaMask/core/pull/4242))
-- Release 151.0.0 ([#4285](https://github.com/MetaMask/core/pull/4285))
-- chore(deps): bump dependencies ([#4262](https://github.com/MetaMask/core/pull/4262))
-- fix: update state only when metadata changed after fetch ([#4143](https://github.com/MetaMask/core/pull/4143))
-- fix: lower occurenceFloor for linea mainnet to 1 ([#4253](https://github.com/MetaMask/core/pull/4253))
-- Refactor TokensController tests ([#4247](https://github.com/MetaMask/core/pull/4247))
+- Adds a new field `marketData` to the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
+- Adds a new `RatesController` to manage prices for non-EVM blockchains ([#4242](https://github.com/MetaMask/core/pull/4242))
+- Adds a new method to use the multi price endpoint from CryptoCompare ([#4242](https://github.com/MetaMask/core/pull/4242))
+
+### Removed
+
+- **BREAKING:** Removed `contractExchangeRates` and `contractExchangeRatesByChainId` from the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
+
+### Changed
+
+- Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+- Lowered the `occurenceFloor` parameter when fetching token lists for Linea ([#4253](https://github.com/MetaMask/core/pull/4253))
 - **BREAKING:** The NftController messenger must now allow the `NetworkController:getNetworkClientById` action ([#4305](https://github.com/MetaMask/core/pull/4305))
-- NftControllerMessenger now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4305](https://github.com/MetaMask/core/pull/4305))
-  - This should be functionally equivalent, but is being noted anyway.
-- NftDetectionController now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4307](https://github.com/MetaMask/core/pull/4307))
-  - This should be functionally equivalent, but is being noted anyway.
-- TokenRatesController now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4317](https://github.com/MetaMask/core/pull/4317))
-  - This should be functionally equivalent, but is being noted anyway.
+- Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
 
+### Fixed
+
+- Only update NFT state when metadata actually changes ([#4143](https://github.com/MetaMask/core/pull/4143))
 ## [29.0.0]
 
 ### Added

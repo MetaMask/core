@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.0.0]
 
-### Uncategorized
+### Changed
 
-- fix: Migrate API usage from _.metafi & _.metaswap subdomains to \*.cx.metamsk.io" ([#4301](https://github.com/MetaMask/core/pull/4301))
+- Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
 
 ## [9.1.0]
 
