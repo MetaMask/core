@@ -44,7 +44,10 @@ import {
   type TokenListState,
   type TokenListToken,
 } from './TokenListController';
-import type { TokensController, TokensState } from './TokensController';
+import type {
+  TokensController,
+  TokensControllerState,
+} from './TokensController';
 import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -1996,7 +1999,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller: TokenDetectionController;
   mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
-  mockTokensGetState: (state: TokensState) => void;
+  mockTokensGetState: (state: TokensControllerState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
   mockGetNetworkClientById: (
@@ -2090,7 +2093,7 @@ async function withController<ReturnValue>(
     'NetworkController:getState',
     mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
   );
-  const mockTokensState = jest.fn<TokensState, []>();
+  const mockTokensState = jest.fn<TokensControllerState, []>();
   controllerMessenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
@@ -2133,7 +2136,7 @@ async function withController<ReturnValue>(
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
       },
-      mockTokensGetState: (state: TokensState) => {
+      mockTokensGetState: (state: TokensControllerState) => {
         mockTokensState.mockReturnValue(state);
       },
       mockPreferencesGetState: (state: PreferencesState) => {
