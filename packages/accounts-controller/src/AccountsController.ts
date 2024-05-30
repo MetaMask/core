@@ -25,13 +25,12 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import type { CaipChainId, CaipNamespace } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 import {
   type Keyring,
   type Json,
   isCaipChainId,
   parseCaipChainId,
-  KnownCaipNamespace,
 } from '@metamask/utils';
 import type { Draft } from 'immer';
 
@@ -228,35 +227,33 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns an array of all internal evm accounts.
+   * Returns an array of all evm internal accounts.
    *
-   * @param chainIdOrNamespace - The chain ID or namespace.
    * @returns An array of InternalAccount objects.
    */
-  listAccounts(
-    chainIdOrNamespace?: CaipChainId | CaipNamespace,
-  ): InternalAccount[] {
+  listAccounts(): InternalAccount[] {
     const accounts = Object.values(this.state.internalAccounts.accounts);
+    return accounts.filter((account) => isEvmAccountType(account.type));
+  }
 
-    if (!chainIdOrNamespace) {
+  /**
+   * Returns an array of all internal accounts.
+   *
+   * @param chainId - The chain ID.
+   * @returns An array of InternalAccount objects.
+   */
+  listMultichainAccounts(chainId?: CaipChainId): InternalAccount[] {
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    if (!chainId) {
       return accounts;
     }
 
-    if (
-      chainIdOrNamespace !== KnownCaipNamespace.Eip155 &&
-      !isCaipChainId(chainIdOrNamespace)
-    ) {
-      throw new Error(`Invalid CAIP2 id ${String(chainIdOrNamespace)}`);
-    }
-
-    if (chainIdOrNamespace === KnownCaipNamespace.Eip155) {
-      return accounts.filter((account) =>
-        account.type.startsWith(KnownCaipNamespace.Eip155),
-      );
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
     }
 
     return accounts.filter((account) =>
-      account.type.startsWith(parseCaipChainId(chainIdOrNamespace).namespace),
+      account.type.startsWith(parseCaipChainId(chainId).namespace),
     );
   }
 
@@ -307,7 +304,7 @@ export class AccountsController extends BaseController<
       return selectedAccount;
     }
 
-    const accounts = this.listAccounts(KnownCaipNamespace.Eip155);
+    const accounts = this.listAccounts();
 
     if (!accounts.length) {
       // !Should never reach this.

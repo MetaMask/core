@@ -311,7 +311,7 @@ describe('AccountsController', () => {
   });
 
   describe('onSnapStateChange', () => {
-    it('should be used enable an account if the snap is enabled and not blocked', async () => {
+    it('be used enable an account if the snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -354,7 +354,7 @@ describe('AccountsController', () => {
       expect(updatedAccount.metadata.snap?.enabled).toBe(true);
     });
 
-    it('should be used disable an account if the snap is disabled', async () => {
+    it('be used disable an account if the snap is disabled', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -396,7 +396,7 @@ describe('AccountsController', () => {
       expect(updatedAccount.metadata.snap?.enabled).toBe(false);
     });
 
-    it('should be used disable an account if the snap is blocked', async () => {
+    it('be used disable an account if the snap is blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -443,7 +443,7 @@ describe('AccountsController', () => {
     afterEach(() => {
       jest.clearAllMocks();
     });
-    it('should not update state when only keyring is unlocked without any keyrings', async () => {
+    it('not update state when only keyring is unlocked without any keyrings', async () => {
       const messenger = buildMessenger();
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -466,7 +466,7 @@ describe('AccountsController', () => {
       expect(accounts).toStrictEqual([]);
     });
 
-    it('should only update if the keyring is unlocked and when there are keyrings', async () => {
+    it('only update if the keyring is unlocked and when there are keyrings', async () => {
       const messenger = buildMessenger();
 
       const mockNewKeyringState = {
@@ -500,7 +500,7 @@ describe('AccountsController', () => {
     });
 
     describe('adding accounts', () => {
-      it('should add new accounts', async () => {
+      it('add new accounts', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id') // call to check if its a new account
@@ -543,7 +543,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('should add snap accounts', async () => {
+      it('add snap accounts', async () => {
         mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
 
         const messenger = buildMessenger();
@@ -610,7 +610,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('should handle the event when a snap deleted the account before the it was added', async () => {
+      it('handle the event when a snap deleted the account before the it was added', async () => {
         mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
         const messenger = buildMessenger();
         messenger.registerActionHandler(
@@ -667,7 +667,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('should increment the default account number when adding an account', async () => {
+      it('increment the default account number when adding an account', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id') // call to check if its a new account
@@ -723,7 +723,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('should use the next number after the total number of accounts of a keyring when adding an account, if the index is lower', async () => {
+      it('use the next number after the total number of accounts of a keyring when adding an account, if the index is lower', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id') // call to check if its a new account
@@ -786,7 +786,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('should handle when the account to set as selectedAccount is undefined', async () => {
+      it('handle when the account to set as selectedAccount is undefined', async () => {
         mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
 
         const messenger = buildMessenger();
@@ -837,7 +837,7 @@ describe('AccountsController', () => {
     });
 
     describe('deleting account', () => {
-      it('should delete accounts if its gone from the keyring state', async () => {
+      it('delete accounts if its gone from the keyring state', async () => {
         const messenger = buildMessenger();
         mockUUID.mockReturnValueOnce('mock-id2');
 
@@ -877,7 +877,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('should delete accounts and set the most recent lastSelected account', async () => {
+      it('delete accounts and set the most recent lastSelected account', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id')
@@ -933,7 +933,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('should delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
+      it('delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id')
@@ -996,7 +996,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('should delete the account and select the account with the most recent lastSelected', async () => {
+      it('delete the account and select the account with the most recent lastSelected', async () => {
         const messenger = buildMessenger();
         mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
 
@@ -1060,16 +1060,16 @@ describe('AccountsController', () => {
         const accounts = accountsController.listAccounts();
 
         expect(accounts).toStrictEqual([
-          setLastSelectedAsAny(mockAccountWithoutLastSelected),
+          mockAccountWithoutLastSelected,
           mockAccount2WithoutLastSelected,
         ]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
-          setLastSelectedAsAny(mockAccountWithoutLastSelected),
+          mockAccountWithoutLastSelected,
         );
       });
     });
 
-    it('should handle keyring reinitialization', async () => {
+    it('handle keyring reinitialization', async () => {
       const messenger = buildMessenger();
       const mockInitialAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -1121,6 +1121,91 @@ describe('AccountsController', () => {
       expect(selectedAccount).toStrictEqual(expectedAccount);
       expect(accounts).toStrictEqual([expectedAccount]);
     });
+
+    it.each([
+      {
+        lastSelectedForAccount1: 1111,
+        lastSelectedForAccount2: 9999,
+        expectedSelectedId: 'mock-id2',
+      },
+      {
+        lastSelectedForAccount1: undefined,
+        lastSelectedForAccount2: 9999,
+        expectedSelectedId: 'mock-id2',
+      },
+      {
+        lastSelectedForAccount1: 1111,
+        lastSelectedForAccount2: undefined,
+        expectedSelectedId: 'mock-id',
+      },
+      {
+        lastSelectedForAccount1: 1111,
+        lastSelectedForAccount2: 0,
+        expectedSelectedId: 'mock-id',
+      },
+    ])(
+      'handle keyring reinitialization with multiple accounts. Account 1 lastSelected $lastSelectedForAccount1, Account 2 lastSelected $lastSelectedForAccount2. Expected selected account: $expectedSelectedId',
+      async ({
+        lastSelectedForAccount1,
+        lastSelectedForAccount2,
+        expectedSelectedId,
+      }) => {
+        const messenger = buildMessenger();
+        const mockExistingAccount1 = createExpectedInternalAccount({
+          id: 'mock-id',
+          name: 'Account 1',
+          address: '0x123',
+          keyringType: KeyringTypes.hd,
+        });
+        mockExistingAccount1.metadata.lastSelected = lastSelectedForAccount1;
+        const mockExistingAccount2 = createExpectedInternalAccount({
+          id: 'mock-id2',
+          name: 'Account 2',
+          address: '0x456',
+          keyringType: KeyringTypes.hd,
+        });
+        mockExistingAccount2.metadata.lastSelected = lastSelectedForAccount2;
+
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to check if its a new account
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [
+                mockExistingAccount1.address,
+                mockExistingAccount2.address,
+              ],
+            },
+          ],
+        };
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockExistingAccount1.id]: mockExistingAccount1,
+                [mockExistingAccount2.id]: mockExistingAccount2,
+              },
+              selectedAccount: 'unknown',
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const selectedAccount = accountsController.getSelectedAccount();
+
+        expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
+      },
+    );
   });
 
   describe('updateAccounts', () => {
@@ -1171,7 +1256,7 @@ describe('AccountsController', () => {
       jest.clearAllMocks();
     });
 
-    it('should update accounts with normal accounts', async () => {
+    it('update accounts with normal accounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1223,7 +1308,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should update accounts with snap accounts when snap keyring is defined and has accounts', async () => {
+    it('update accounts with snap accounts when snap keyring is defined and has accounts', async () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
@@ -1279,7 +1364,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(expectedAccounts);
     });
 
-    it('should return an empty array if the snap keyring is not defined', async () => {
+    it('return an empty array if the snap keyring is not defined', async () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
@@ -1308,7 +1393,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should set the account with the correct index', async () => {
+    it('set the account with the correct index', async () => {
       mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1357,7 +1442,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should filter snap accounts from normalAccounts', async () => {
+    it('filter snap accounts from normalAccounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1412,7 +1497,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('should filter snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
+    it('filter snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
       mockUUID.mockReturnValue('mock-id');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1525,7 +1610,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(expectedAccounts);
     });
 
-    it('should throw an error if the keyring type is unknown', async () => {
+    it('throw an error if the keyring type is unknown', async () => {
       mockUUID.mockReturnValue('mock-id');
 
       const messenger = buildMessenger();
@@ -1565,7 +1650,7 @@ describe('AccountsController', () => {
   });
 
   describe('loadBackup', () => {
-    it('should load a backup', async () => {
+    it('load a backup', async () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1594,7 +1679,7 @@ describe('AccountsController', () => {
       });
     });
 
-    it('should not load backup if the data is undefined', () => {
+    it('not load backup if the data is undefined', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1619,7 +1704,7 @@ describe('AccountsController', () => {
   });
 
   describe('getAccount', () => {
-    it('should return an account by ID', () => {
+    it('return an account by ID', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1635,7 +1720,7 @@ describe('AccountsController', () => {
         setLastSelectedAsAny(mockAccount as InternalAccount),
       );
     });
-    it('should return undefined for an unknown account ID', () => {
+    it('return undefined for an unknown account ID', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1822,6 +1907,35 @@ describe('AccountsController', () => {
   });
 
   describe('listAccounts', () => {
+    it('returns a list of evm accounts', () => {
+      const nonEvmAccount = createMockInternalAccount({
+        id: 'mock-id-non-evm',
+        address: 'mock-non-evm-address',
+        type: BtcAccountType.P2wpkh,
+        keyringType: KeyringTypes.snap,
+      });
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockAccount2.id]: mockAccount2,
+              [nonEvmAccount.id]: nonEvmAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      expect(accountsController.listAccounts()).toStrictEqual([
+        mockAccount,
+        mockAccount2,
+      ]);
+    });
+  });
+
+  describe('listMultichainAccounts', () => {
     const nonEvmAccount = createMockInternalAccount({
       id: 'mock-id-non-evm',
       address: 'mock-non-evm-address',
@@ -1832,7 +1946,6 @@ describe('AccountsController', () => {
     it.each([
       [undefined, [mockAccount, mockAccount2, nonEvmAccount]],
       ['eip155:1', [mockAccount, mockAccount2]],
-      ['eip155', [mockAccount, mockAccount2]],
       ['bip122:1', [nonEvmAccount]],
     ])(`%s should return %s`, (chainId, expected) => {
       const { accountsController } = setupAccountsController({
@@ -1847,10 +1960,12 @@ describe('AccountsController', () => {
           },
         },
       });
-      expect(accountsController.listAccounts(chainId)).toStrictEqual(expected);
+      expect(
+        accountsController.listMultichainAccounts(chainId as CaipChainId),
+      ).toStrictEqual(expected);
     });
 
-    it('should throw if invalid caip2 was passed', () => {
+    it('throw if invalid caip2 was passed', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1865,14 +1980,15 @@ describe('AccountsController', () => {
 
       const invalidCaip2 = 'ethereum';
 
-      expect(() => accountsController.listAccounts(invalidCaip2)).toThrow(
-        `Invalid CAIP2 id ${invalidCaip2}`,
-      );
+      expect(() =>
+        // @ts-expect-error testing invalid caip2
+        accountsController.listMultichainAccounts(invalidCaip2),
+      ).toThrow(`Invalid CAIP2 id ${invalidCaip2}`);
     });
   });
 
   describe('getAccountExpect', () => {
-    it('should return an account by ID', () => {
+    it('return an account by ID', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1888,7 +2004,7 @@ describe('AccountsController', () => {
       );
     });
 
-    it('should throw an error for an unknown account ID', () => {
+    it('throw an error for an unknown account ID', () => {
       const accountId = 'unknown id';
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -1904,7 +2020,7 @@ describe('AccountsController', () => {
       );
     });
 
-    it('should handle the edge case of undefined accountId during onboarding', async () => {
+    it('handle the edge case of undefined accountId during onboarding', async () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1933,7 +2049,7 @@ describe('AccountsController', () => {
   });
 
   describe('setSelectedAccount', () => {
-    it('should set the selected account', () => {
+    it('set the selected account', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -1953,7 +2069,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(mockAccount2.id);
     });
 
-    it('should not emit setSelectedEvmAccountChange if the account is non-evm', () => {
+    it('not emit setSelectedEvmAccountChange if the account is non-evm', () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
@@ -1996,7 +2112,7 @@ describe('AccountsController', () => {
   });
 
   describe('setAccountName', () => {
-    it('should set the name of an existing account', () => {
+    it('set the name of an existing account', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2012,7 +2128,7 @@ describe('AccountsController', () => {
       ).toBe('new name');
     });
 
-    it('should throw an error if the account name already exists', () => {
+    it('throw an error if the account name already exists', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2069,7 +2185,7 @@ describe('AccountsController', () => {
       };
     };
 
-    it('should return the next account number', async () => {
+    it('return the next account number', async () => {
       const messenger = buildMessenger();
       mockUUID
         .mockReturnValueOnce('mock-id') // call to check if its a new account
@@ -2107,7 +2223,7 @@ describe('AccountsController', () => {
       ]);
     });
 
-    it('should return the next account number even with an index gap', async () => {
+    it('return the next account number even with an index gap', async () => {
       const messenger = buildMessenger();
       const mockAccountUUIDs = new MockNormalAccountUUID([
         mockAccount,
@@ -2166,7 +2282,7 @@ describe('AccountsController', () => {
   });
 
   describe('getAccountByAddress', () => {
-    it('should return an account by address', async () => {
+    it('return an account by address', async () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2211,7 +2327,7 @@ describe('AccountsController', () => {
     });
 
     describe('setSelectedAccount', () => {
-      it('should set the selected account', async () => {
+      it('set the selected account', async () => {
         const messenger = buildMessenger();
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2231,7 +2347,7 @@ describe('AccountsController', () => {
     });
 
     describe('listAccounts', () => {
-      it('should retrieve a list of accounts', async () => {
+      it('retrieve a list of accounts', async () => {
         const messenger = buildMessenger();
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2249,7 +2365,7 @@ describe('AccountsController', () => {
     });
 
     describe('setAccountName', () => {
-      it('should set the account name', async () => {
+      it('set the account name', async () => {
         const messenger = buildMessenger();
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2274,7 +2390,7 @@ describe('AccountsController', () => {
     });
 
     describe('updateAccounts', () => {
-      it('should update accounts', async () => {
+      it('update accounts', async () => {
         const messenger = buildMessenger();
         messenger.registerActionHandler(
           'KeyringController:getAccounts',
@@ -2305,7 +2421,7 @@ describe('AccountsController', () => {
     });
 
     describe('getAccountByAddress', () => {
-      it('should get account by address', async () => {
+      it('get account by address', async () => {
         const messenger = buildMessenger();
 
         const { accountsController } = setupAccountsController({
@@ -2330,7 +2446,7 @@ describe('AccountsController', () => {
     });
 
     describe('getSelectedAccount', () => {
-      it('should get account by address', async () => {
+      it('get account by address', async () => {
         const messenger = buildMessenger();
 
         const { accountsController } = setupAccountsController({
@@ -2350,7 +2466,7 @@ describe('AccountsController', () => {
     });
 
     describe('getAccount', () => {
-      it('should get account by id', async () => {
+      it('get account by id', async () => {
         const messenger = buildMessenger();
 
         const { accountsController } = setupAccountsController({
