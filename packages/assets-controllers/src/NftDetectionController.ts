@@ -361,7 +361,7 @@ export class NftDetectionController extends StaticIntervalPollingController<
 
   readonly #addNft: NftController['addNft'];
 
-  readonly #getNftState: () => NftState;
+  readonly #getNftState: () => NftControllerState;
 
   /**
    * The controller options
