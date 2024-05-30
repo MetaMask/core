@@ -370,7 +370,7 @@ describe('PhishingDetector', () => {
       );
     });
 
-    it('blocks a "similar enough" domain when it is in the fuzzylist of the first config', async () => {
+    it('blocks a domain that is similar enough (within a tolerance) to a domain in the fuzzylist of the first config', async () => {
       await withPhishingDetector(
         [
           {
@@ -400,7 +400,7 @@ describe('PhishingDetector', () => {
       );
     });
 
-    it('allows a domain when it is in the fuzzylist of the first config but not similar enough', async () => {
+    it('allows a domain that is not similar enough to a domain in the fuzzylist of the first config', async () => {
       await withPhishingDetector(
         [
           {
@@ -459,7 +459,7 @@ describe('PhishingDetector', () => {
       );
     });
 
-    it('blocks a "similar enough" domain when it is in the fuzzylist of the second config', async () => {
+    it('blocks a domain that is similar enough (within a tolerance) to a domain in the fuzzylist of the second config', async () => {
       await withPhishingDetector(
         [
           {
@@ -489,7 +489,7 @@ describe('PhishingDetector', () => {
       );
     });
 
-    it('allows a domain when it is in the fuzzylist of the second config but not similar enough', async () => {
+    it('allows a domain that is not similar enough to a domain in the fuzzylist of the second config', async () => {
       await withPhishingDetector(
         [
           {
@@ -548,7 +548,7 @@ describe('PhishingDetector', () => {
       );
     });
 
-    it('blocks a domain when it is in the first blocklist and the second fuzzylist (from first)', async () => {
+    it('blocks a domain when it is in the first blocklist, even if it is also matched by the second fuzzylist', async () => {
       await withPhishingDetector(
         [
           {
@@ -578,7 +578,7 @@ describe('PhishingDetector', () => {
       );
     });
 
-    it('blocks a domain when it is in the first fuzzylist and the second blocklist (from first)', async () => {
+    it('blocks a domain when it is matched by the first fuzzylist, even if it is also in the second blocklist', async () => {
       await withPhishingDetector(
         [
           {
