@@ -213,9 +213,6 @@ export class TokenRatesController extends StaticIntervalPollingController<
    *
    * @param options - The controller options.
    * @param options.interval - The polling interval in ms
-   * @param options.currentChainId - The chain ID of the current network.
-   * @param options.currentTicker - The ticker for the current network.
-   * @param options.currentAddress - The current selected address.
    * @param options.disabled - Boolean to track if network requests are blocked
    * @param options.tokenPricesService - An object in charge of retrieving token price
    * @param options.messenger - The controller messaging system
@@ -223,18 +220,12 @@ export class TokenRatesController extends StaticIntervalPollingController<
    */
   constructor({
     interval = DEFAULT_INTERVAL,
-    currentChainId,
-    currentTicker,
-    currentAddress,
     disabled = false,
     tokenPricesService,
     messenger,
     state,
   }: {
     interval?: number;
-    currentChainId: Hex;
-    currentTicker: string;
-    currentAddress: string;
     disabled?: boolean;
     tokenPricesService: AbstractTokenPricesService;
     messenger: TokenRatesControllerMessenger;
@@ -251,9 +242,11 @@ export class TokenRatesController extends StaticIntervalPollingController<
     this.#tokenPricesService = tokenPricesService;
     this.#disabled = disabled;
     this.#interval = interval;
+    const { chainId: currentChainId, ticker: currentTicker } =
+      this.#getChainIdAndTicker();
     this.#chainId = currentChainId;
     this.#ticker = currentTicker;
-    this.#selectedAddress = currentAddress;
+    this.#selectedAddress = this.#getSelectedAddress();
     this.#allTokens = {};
     this.#allDetectedTokens = {};
 
@@ -371,6 +364,27 @@ export class TokenRatesController extends StaticIntervalPollingController<
   stop() {
     this.#stopPoll();
     this.#pollState = PollState.Inactive;
+  }
+
+  #getSelectedAddress(): string {
+    const { selectedAddress } = this.messagingSystem.call(
+      'PreferencesController:getState',
+    );
+
+    return selectedAddress;
+  }
+
+  #getChainIdAndTicker(): {
+    chainId: Hex;
+    ticker: string;
+  } {
+    const { providerConfig } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    return {
+      chainId: providerConfig.chainId,
+      ticker: providerConfig.ticker,
+    };
   }
 
   /**

@@ -1,7 +1,9 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
+  ChainId,
   NetworksTicker,
+  NetworkType,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
@@ -29,7 +31,11 @@ import type {
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
-import { controllerName, TokenRatesController } from './TokenRatesController';
+import {
+  controllerName,
+  getDefaultTokenRatesControllerState,
+  TokenRatesController,
+} from './TokenRatesController';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -87,31 +93,30 @@ describe('TokenRatesController', () => {
       clock.restore();
     });
 
-    it('should set default state', () => {
-      const controller = new TokenRatesController({
-        currentChainId: '0x1',
-        currentTicker: NetworksTicker.mainnet,
-        currentAddress: defaultSelectedAddress,
-        tokenPricesService: buildMockTokenPricesService(),
-        messenger: buildTokenRatesControllerMessenger(),
-      });
-      expect(controller.state).toStrictEqual({
-        contractExchangeRates: {},
-        contractExchangeRatesByChainId: {},
+    it('should set default state', async () => {
+      await withController({}, async ({ controller }) => {
+        expect(controller.state).toStrictEqual({
+          contractExchangeRates: {},
+          contractExchangeRatesByChainId: {},
+        });
       });
     });
 
     it('should not poll by default', async () => {
       const fetchSpy = jest.spyOn(globalThis, 'fetch');
-      new TokenRatesController({
-        interval: 100,
-        currentChainId: '0x1',
-        currentTicker: NetworksTicker.mainnet,
-        currentAddress: defaultSelectedAddress,
-        tokenPricesService: buildMockTokenPricesService(),
-        messenger: buildTokenRatesControllerMessenger(),
-      });
-
+      await withController(
+        {
+          options: {
+            interval: 100,
+          },
+        },
+        async ({ controller }) => {
+          expect(controller.state).toStrictEqual({
+            contractExchangeRates: {},
+            contractExchangeRatesByChainId: {},
+          });
+        },
+      );
       await advanceTime({ clock, duration: 500 });
 
       expect(fetchSpy).not.toHaveBeenCalled();
@@ -131,16 +136,9 @@ describe('TokenRatesController', () => {
 
     describe('when legacy polling is active', () => {
       it('should update exchange rates when any of the addresses in the "all tokens" collection change', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -148,8 +146,8 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[0],
                       decimals: 0,
@@ -165,8 +163,8 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[1],
                       decimals: 0,
@@ -186,23 +184,16 @@ describe('TokenRatesController', () => {
       });
 
       it('should update exchange rates when any of the addresses in the "all detected tokens" collection change', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[0],
                       decimals: 0,
@@ -221,8 +212,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[1],
                       decimals: 0,
@@ -240,12 +231,10 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if both the "all tokens" or "all detected tokens" are exactly the same', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         const tokensState = {
           allTokens: {
-            [chainId]: {
-              [selectedAddress]: [
+            [ChainId.mainnet]: {
+              [defaultSelectedAddress]: [
                 {
                   address: mockTokenAddress,
                   decimals: 0,
@@ -258,12 +247,7 @@ describe('TokenRatesController', () => {
           allDetectedTokens: {},
         };
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -285,11 +269,9 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if all of the tokens in "all tokens" just move to "all detected tokens"', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         const tokens = {
-          [chainId]: {
-            [selectedAddress]: [
+          [ChainId.mainnet]: {
+            [defaultSelectedAddress]: [
               {
                 address: mockTokenAddress,
                 decimals: 0,
@@ -300,12 +282,7 @@ describe('TokenRatesController', () => {
           },
         };
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -329,15 +306,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if a new token is added to "all detected tokens" but is already present in "all tokens"', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -345,8 +315,8 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 0,
@@ -362,8 +332,8 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 0,
@@ -374,8 +344,8 @@ describe('TokenRatesController', () => {
                 },
               },
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 0,
@@ -394,15 +364,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if a new token is added to "all tokens" but is already present in "all detected tokens"', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -411,8 +374,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 0,
@@ -427,8 +390,8 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 0,
@@ -439,8 +402,8 @@ describe('TokenRatesController', () => {
                 },
               },
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 0,
@@ -459,15 +422,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if none of the addresses in "all tokens" or "all detected tokens" change, even if other parts of the token change', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -476,8 +432,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 3,
@@ -493,8 +449,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
                       decimals: 7,
@@ -513,15 +469,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if none of the addresses in "all tokens" or "all detected tokens" change, when normalized to checksum addresses', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -530,8 +479,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: '0x0EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE2',
                       decimals: 3,
@@ -547,8 +496,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: '0x0eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee2',
                       decimals: 7,
@@ -567,15 +516,8 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates if any of the addresses in "all tokens" or "all detected tokens" merely change order', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
@@ -584,8 +526,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: '0xE1',
                       decimals: 0,
@@ -607,8 +549,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: '0xE2',
                       decimals: 0,
@@ -635,22 +577,15 @@ describe('TokenRatesController', () => {
 
     describe('when legacy polling is inactive', () => {
       it('should not update exchange rates when any of the addresses in the "all tokens" collection change', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[0],
                       decimals: 0,
@@ -668,8 +603,8 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[1],
                       decimals: 0,
@@ -688,23 +623,16 @@ describe('TokenRatesController', () => {
       });
 
       it('should not update exchange rates when any of the addresses in the "all detected tokens" collection change', async () => {
-        const chainId = '0xC';
-        const selectedAddress = '0xA';
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(
-          {
-            options: {
-              currentChainId: chainId,
-              currentAddress: selectedAddress,
-            },
-          },
+          {},
           async ({ controller, triggerTokensStateChange }) => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[0],
                       decimals: 0,
@@ -722,8 +650,8 @@ describe('TokenRatesController', () => {
               ...getDefaultTokensState(),
               allTokens: {},
               allDetectedTokens: {
-                [chainId]: {
-                  [selectedAddress]: [
+                [ChainId.mainnet]: {
+                  [defaultSelectedAddress]: [
                     {
                       address: tokenAddresses[1],
                       decimals: 0,
@@ -759,8 +687,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -772,7 +698,7 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1337),
+                chainId: ChainId.mainnet,
                 ticker: 'NEW',
               },
             });
@@ -787,8 +713,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -800,8 +724,8 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1338),
-                ticker: 'Test',
+                chainId: ChainId['linea-mainnet'],
+                ticker: NetworksTicker.mainnet,
               },
             });
 
@@ -815,8 +739,13 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
+              state: {
+                ...getDefaultTokenRatesControllerState(),
+                contractExchangeRates: {
+                  '0x0000000000000000000000000000000000000001': 0.001,
+                  '0x0000000000000000000000000000000000000002': 0.002,
+                },
+              },
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -826,7 +755,7 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1337),
+                chainId: ChainId.mainnet,
                 ticker: 'NEW',
               },
             });
@@ -841,8 +770,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -852,8 +779,8 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1338),
-                ticker: 'TEST',
+                chainId: ChainId['linea-mainnet'],
+                ticker: NetworksTicker.mainnet,
               },
             });
 
@@ -867,8 +794,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -878,11 +803,7 @@ describe('TokenRatesController', () => {
               .mockResolvedValue();
             triggerNetworkStateChange({
               ...defaultNetworkState,
-              providerConfig: {
-                ...defaultNetworkState.providerConfig,
-                chainId: toHex(1337),
-                ticker: 'TEST',
-              },
+              selectedNetworkClientId: NetworkType.mainnet,
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -897,8 +818,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -909,7 +828,7 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1337),
+                chainId: ChainId.mainnet,
                 ticker: 'NEW',
               },
             });
@@ -924,8 +843,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -936,8 +853,8 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1338),
-                ticker: 'TEST',
+                chainId: ChainId['linea-mainnet'],
+                ticker: NetworksTicker.mainnet,
               },
             });
 
@@ -951,8 +868,13 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
+              state: {
+                ...getDefaultTokenRatesControllerState(),
+                contractExchangeRates: {
+                  '0x0000000000000000000000000000000000000001': 0.001,
+                  '0x0000000000000000000000000000000000000002': 0.002,
+                },
+              },
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -961,7 +883,7 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1337),
+                chainId: ChainId.mainnet,
                 ticker: 'NEW',
               },
             });
@@ -976,8 +898,6 @@ describe('TokenRatesController', () => {
           {
             options: {
               interval: 100,
-              currentChainId: toHex(1337),
-              currentTicker: 'TEST',
             },
           },
           async ({ controller, triggerNetworkStateChange }) => {
@@ -986,8 +906,8 @@ describe('TokenRatesController', () => {
               ...defaultNetworkState,
               providerConfig: {
                 ...defaultNetworkState.providerConfig,
-                chainId: toHex(1338),
-                ticker: 'TEST',
+                chainId: ChainId['linea-mainnet'],
+                ticker: NetworksTicker.mainnet,
               },
             });
 
@@ -1108,10 +1028,11 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller, triggerTokensStateChange }) => {
+            await controller.start();
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                '0x1': {
+                [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
@@ -1123,7 +1044,6 @@ describe('TokenRatesController', () => {
                 },
               },
             });
-            await controller.start();
 
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
               1,
@@ -1159,7 +1079,7 @@ describe('TokenRatesController', () => {
             triggerTokensStateChange({
               ...getDefaultTokensState(),
               allTokens: {
-                '0x1': {
+                [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
                     {
                       address: mockTokenAddress,
@@ -1208,8 +1128,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             interval,
-            currentChainId: '0x2',
-            currentTicker: 'ticker',
             tokenPricesService,
           },
         },
@@ -1222,7 +1140,7 @@ describe('TokenRatesController', () => {
             () =>
               ({
                 configuration: {
-                  chainId: '0x1',
+                  chainId: [ChainId.mainnet],
                   ticker: NetworksTicker.mainnet,
                 },
               } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
@@ -1230,7 +1148,7 @@ describe('TokenRatesController', () => {
           triggerTokensStateChange({
             ...getDefaultTokensState(),
             allTokens: {
-              '0x1': {
+              [ChainId.mainnet]: {
                 [defaultSelectedAddress]: [
                   {
                     address: mockTokenAddress,
@@ -1270,8 +1188,6 @@ describe('TokenRatesController', () => {
             {
               options: {
                 interval,
-                currentChainId: '0x2',
-                currentTicker: 'ticker',
                 tokenPricesService,
               },
             },
@@ -1284,7 +1200,7 @@ describe('TokenRatesController', () => {
                 () =>
                   ({
                     configuration: {
-                      chainId: '0x1',
+                      chainId: [ChainId.mainnet],
                       ticker: NetworksTicker.mainnet,
                     },
                   } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
@@ -1292,7 +1208,7 @@ describe('TokenRatesController', () => {
               triggerTokensStateChange({
                 ...getDefaultTokensState(),
                 allTokens: {
-                  '0x1': {
+                  [ChainId.mainnet]: {
                     [defaultSelectedAddress]: [
                       {
                         address: '0x02',
@@ -1316,7 +1232,7 @@ describe('TokenRatesController', () => {
               expect(
                 controller.state.contractExchangeRatesByChainId,
               ).toStrictEqual({
-                '0x1': {
+                [ChainId.mainnet]: {
                   ETH: {
                     '0x02': 0.001,
                     '0x03': 0.002,
@@ -1343,8 +1259,6 @@ describe('TokenRatesController', () => {
           await withController(
             {
               options: {
-                currentChainId: '0x2',
-                currentTicker: 'ticker',
                 tokenPricesService,
               },
             },
@@ -1357,7 +1271,7 @@ describe('TokenRatesController', () => {
                 () =>
                   ({
                     configuration: {
-                      chainId: '0x1',
+                      chainId: [ChainId.mainnet],
                       ticker: 'LOL',
                     },
                   } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
@@ -1365,7 +1279,7 @@ describe('TokenRatesController', () => {
               triggerTokensStateChange({
                 ...getDefaultTokensState(),
                 allTokens: {
-                  '0x1': {
+                  [ChainId.mainnet]: {
                     [defaultSelectedAddress]: [
                       {
                         address: '0x02',
@@ -1392,7 +1306,7 @@ describe('TokenRatesController', () => {
               expect(
                 controller.state.contractExchangeRatesByChainId,
               ).toStrictEqual({
-                '0x1': {
+                [ChainId.mainnet]: {
                   LOL: {
                     // token price in LOL = (token price in ETH) * (ETH value in LOL)
                     '0x02': 0.0005,
@@ -1416,8 +1330,6 @@ describe('TokenRatesController', () => {
           await withController(
             {
               options: {
-                currentChainId: '0x2',
-                currentTicker: 'ETH',
                 tokenPricesService,
               },
             },
@@ -1430,7 +1342,7 @@ describe('TokenRatesController', () => {
                 () =>
                   ({
                     configuration: {
-                      chainId: '0x1',
+                      chainId: [ChainId.mainnet],
                       ticker: 'LOL',
                     },
                   } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
@@ -1438,7 +1350,7 @@ describe('TokenRatesController', () => {
               triggerTokensStateChange({
                 ...getDefaultTokensState(),
                 allTokens: {
-                  '0x1': {
+                  [ChainId.mainnet]: {
                     [defaultSelectedAddress]: [
                       {
                         address: '0x02',
@@ -1465,7 +1377,7 @@ describe('TokenRatesController', () => {
               expect(
                 controller.state.contractExchangeRatesByChainId,
               ).toStrictEqual({
-                '0x1': {
+                [ChainId.mainnet]: {
                   LOL: {},
                 },
               });
@@ -1483,8 +1395,6 @@ describe('TokenRatesController', () => {
       await withController(
         {
           options: {
-            currentChainId: '0x2',
-            currentTicker: 'ticker',
             tokenPricesService,
           },
         },
@@ -1497,7 +1407,7 @@ describe('TokenRatesController', () => {
             () =>
               ({
                 configuration: {
-                  chainId: '0x1',
+                  chainId: [ChainId.mainnet],
                   ticker: NetworksTicker.mainnet,
                 },
               } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
@@ -1505,7 +1415,7 @@ describe('TokenRatesController', () => {
           triggerTokensStateChange({
             ...getDefaultTokensState(),
             allTokens: {
-              '0x1': {
+              [ChainId.mainnet]: {
                 [defaultSelectedAddress]: [
                   {
                     address: mockTokenAddress,
@@ -1682,7 +1592,7 @@ describe('TokenRatesController', () => {
 
     it('fetches rates for all tokens in batches', async () => {
       const chainId = toHex(1);
-      const ticker = 'ETH';
+      const ticker = NetworksTicker.mainnet;
       const tokenAddresses = [...new Array(200).keys()]
         .map(buildAddress)
         .sort();
@@ -1699,7 +1609,6 @@ describe('TokenRatesController', () => {
       await withController(
         {
           options: {
-            currentTicker: ticker,
             tokenPricesService,
           },
         },
@@ -2003,7 +1912,6 @@ describe('TokenRatesController', () => {
       await withController(
         {
           options: {
-            currentTicker: ticker,
             tokenPricesService,
           },
         },
@@ -2277,7 +2185,7 @@ async function withController<ReturnValue>(
     'NetworkController:getNetworkClientById',
     mockGetNetworkClientById.mockImplementation(() => {
       return {
-        configuration: { chainId: '0x1' },
+        configuration: { chainId: [ChainId.mainnet] },
         provider: {},
         destroy: {},
         blockTracker: {},
@@ -2296,15 +2204,13 @@ async function withController<ReturnValue>(
     'PreferencesController:getState',
     mockPreferencesState.mockReturnValue({
       ...getDefaultPreferencesState(),
+      selectedAddress: defaultSelectedAddress,
     }),
   );
 
   const callActionSpy = jest.spyOn(controllerMessenger, 'call');
 
   const controller = new TokenRatesController({
-    currentChainId: '0x1',
-    currentTicker: NetworksTicker.mainnet,
-    currentAddress: defaultSelectedAddress,
     tokenPricesService: buildMockTokenPricesService(),
     messenger: buildTokenRatesControllerMessenger(controllerMessenger),
     ...options,
