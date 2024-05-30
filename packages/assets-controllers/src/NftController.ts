@@ -465,11 +465,11 @@ export class NftController extends BaseController<
    * @param passedConfig.chainId - the chainId passed through the NFT detection flow to ensure assets are stored to the correct account
    */
   #updateNestedNftState<
-    T extends 'allNfts' | 'allNftContracts',
-    U extends T extends 'allNfts' ? Nft[] : NftContract[],
+    Key extends 'allNfts' | 'allNftContracts',
+    NftCollection extends Key extends 'allNfts' ? Nft[] : NftContract[],
   >(
-    newCollection: U,
-    baseStateKey: T,
+    newCollection: NftCollection,
+    baseStateKey: Key,
     { userAddress, chainId }: { userAddress: string; chainId: Hex },
   ) {
     this.update((state) => {
