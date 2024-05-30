@@ -470,7 +470,7 @@ export class NftController extends BaseController<
   >(
     newCollection: U,
     baseStateKey: T,
-    { userAddress, chainId }: { userAddress: string; chainId: string },
+    { userAddress, chainId }: { userAddress: string; chainId: Hex },
   ) {
     this.update((state) => {
       const oldState = state[baseStateKey];
