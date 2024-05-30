@@ -1,7 +1,18 @@
 export * from './AccountTrackerController';
 export * from './AssetsContractController';
 export * from './CurrencyRateController';
-export * from './NftController';
+export type {
+  NftControllerState,
+  NftControllerMessenger,
+  NftControllerActions,
+  NftControllerGetStateAction,
+  NftControllerEvents,
+  NftControllerStateChangeEvent,
+  Nft,
+  NftContract,
+  NftMetadata,
+} from './NftController';
+export { getDefaultNftControllerState, NftController } from './NftController';
 export * from './NftDetectionController';
 export type {
   TokenBalancesControllerMessenger,

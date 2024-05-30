@@ -172,7 +172,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'TokenRatesController';
+  override name = 'TokenRatesController' as const;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
