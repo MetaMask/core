@@ -1735,7 +1735,7 @@ describe('AccountsController', () => {
 
       // // @ts-expect-error testing invalid caip2
       expect(() => accountsController.getSelectedAccount(invalidCaip2)).toThrow(
-        `Invalid CAIP2 id ${invalidCaip2}`,
+        `Non-EVM account filtering is not supported`,
       );
     });
   });
