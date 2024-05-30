@@ -180,7 +180,7 @@ export const getDefaultPhishingDetectorConfig = (override?: {
 export const processConfigs = (configs: PhishingDetectorList[] = []) => {
   return configs.map((config) => {
     validateConfig(config);
-    return Object.assign({}, config, getDefaultPhishingDetectorConfig(config));
+    return { ...config, ...getDefaultPhishingDetectorConfig(config) };
   });
 };
 
