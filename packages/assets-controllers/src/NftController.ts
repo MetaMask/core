@@ -253,11 +253,11 @@ export type NftControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
-export const defaultNftControllerState: NftControllerState = {
+export const getDefaultNftControllerState = (): NftControllerState => ({
   allNftContracts: {},
   allNfts: {},
   ignoredNfts: [],
-};
+});
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -349,7 +349,7 @@ export class NftController extends BaseController<
       metadata: nftControllerMetadata,
       messenger,
       state: {
-        ...defaultNftControllerState,
+        ...getDefaultNftControllerState(),
         ...state,
       },
     });

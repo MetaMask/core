@@ -25,7 +25,7 @@ import {
 } from '../../network-controller/tests/helpers';
 import { Source } from './constants';
 import {
-  defaultNftControllerState,
+  getDefaultNftControllerState,
   type NftControllerState,
 } from './NftController';
 import {
@@ -774,7 +774,7 @@ describe('NftDetectionController', () => {
     const mockAddNft = jest.fn();
     const mockGetNftState = jest.fn().mockImplementation(() => {
       return {
-        ...defaultNftControllerState,
+        ...getDefaultNftControllerState(),
         ignoredNfts: [
           // This address and token ID are always detected, as determined by
           // the nock mocks setup in `beforeEach`
@@ -1110,7 +1110,7 @@ async function withController<ReturnValue>(
       addNft: jest.fn(),
       getNftApi: jest.fn(),
       getNetworkClientById,
-      getNftState: () => defaultNftControllerState,
+      getNftState: getDefaultNftControllerState,
       disabled: true,
       selectedAddress: '',
       ...options,
