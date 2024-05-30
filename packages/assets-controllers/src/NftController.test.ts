@@ -1,8 +1,5 @@
 import type { Network } from '@ethersproject/providers';
-import type {
-  ApprovalStateChange,
-  GetApprovalsState,
-} from '@metamask/approval-controller';
+import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
@@ -21,12 +18,10 @@ import {
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
-  NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
-  type PreferencesControllerStateChangeEvent,
   type PreferencesState,
 } from '@metamask/preferences-controller';
 import BN from 'bn.js';
@@ -49,7 +44,11 @@ import type {
   NftControllerState,
   NftControllerMessenger,
 } from './NftController';
-import { NftController } from './NftController';
+import {
+  NftController,
+  type AllowedActions,
+  type AllowedEvents,
+} from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -134,11 +133,12 @@ function setupController({
   >;
 } = {}) {
   const messenger = new ControllerMessenger<
-    ExtractAvailableAction<NftControllerMessenger> | GetApprovalsState,
+    | ExtractAvailableAction<NftControllerMessenger>
+    | AllowedActions
+    | ExtractAvailableAction<ApprovalControllerMessenger>,
     | ExtractAvailableEvent<NftControllerMessenger>
-    | ApprovalStateChange
-    | PreferencesControllerStateChangeEvent
-    | NetworkControllerNetworkDidChangeEvent
+    | AllowedEvents
+    | ExtractAvailableEvent<ApprovalControllerMessenger>
   >();
 
   const getNetworkClientById = buildMockGetNetworkClientById(

@@ -212,11 +212,11 @@ export type NftControllerActions = NftControllerGetStateAction;
 /**
  * The external actions available to the {@link NftController}.
  */
-type AllowedActions =
+export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction;
 
-type AllowedEvents =
+export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent;
 
