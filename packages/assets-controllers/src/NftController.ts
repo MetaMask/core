@@ -163,21 +163,6 @@ export type NftMetadata = {
 };
 
 /**
- * @type NftConfig
- *
- * NFT controller configuration
- * @property selectedAddress - Vault selected address
- */
-export type NftConfig = {
-  selectedAddress: string;
-  chainId: Hex;
-  ipfsGateway: string;
-  openSeaEnabled: boolean;
-  useIpfsSubdomains: boolean;
-  isIpfsGatewayEnabled: boolean;
-};
-
-/**
  * @type NftControllerState
  *
  * NFT controller state
@@ -274,7 +259,17 @@ export class NftController extends BaseController<
    */
   openSeaApiKey?: string;
 
-  #config: NftConfig;
+  #selectedAddress: string;
+
+  #chainId: Hex;
+
+  #ipfsGateway: string;
+
+  #openSeaEnabled: boolean;
+
+  #useIpfsSubdomains: boolean;
+
+  #isIpfsGatewayEnabled: boolean;
 
   readonly #getERC721AssetName: AssetsContractController['getERC721AssetName'];
 
@@ -301,6 +296,11 @@ export class NftController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
+   * @param options.selectedAddress - The currently selected address.
+   * @param options.ipfsGateway - The configured IPFS gateway.
+   * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
+   * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    * @param options.getERC721AssetName - Gets the name of the asset at the given address.
    * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
    * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
@@ -310,11 +310,15 @@ export class NftController extends BaseController<
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
    * @param options.messenger - The controller messenger.
-   * @param options.config - Initial options used to configure this controller.
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
     chainId: initialChainId,
+    selectedAddress = '',
+    ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
+    openSeaEnabled = false,
+    useIpfsSubdomains = true,
+    isIpfsGatewayEnabled = true,
     getERC721AssetName,
     getERC721AssetSymbol,
     getERC721TokenURI,
@@ -323,10 +327,14 @@ export class NftController extends BaseController<
     getERC1155TokenURI,
     onNftAdded,
     messenger,
-    config = {},
     state = {},
   }: {
     chainId: Hex;
+    selectedAddress?: string;
+    ipfsGateway?: string;
+    openSeaEnabled?: boolean;
+    useIpfsSubdomains?: boolean;
+    isIpfsGatewayEnabled?: boolean;
     getERC721AssetName: AssetsContractController['getERC721AssetName'];
     getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
     getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
@@ -341,7 +349,6 @@ export class NftController extends BaseController<
       source: string;
     }) => void;
     messenger: NftControllerMessenger;
-    config?: Partial<NftConfig>;
     state?: Partial<NftControllerState>;
   }) {
     super({
@@ -353,15 +360,13 @@ export class NftController extends BaseController<
         ...state,
       },
     });
-    this.#config = {
-      selectedAddress: '',
-      chainId: initialChainId,
-      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      openSeaEnabled: false,
-      useIpfsSubdomains: true,
-      isIpfsGatewayEnabled: true,
-      ...config,
-    };
+
+    this.#selectedAddress = selectedAddress;
+    this.#chainId = initialChainId;
+    this.#ipfsGateway = ipfsGateway;
+    this.#openSeaEnabled = openSeaEnabled;
+    this.#useIpfsSubdomains = useIpfsSubdomains;
+    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
 
     this.#getERC721AssetName = getERC721AssetName;
     this.#getERC721AssetSymbol = getERC721AssetSymbol;
@@ -396,7 +401,7 @@ export class NftController extends BaseController<
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
-    this.#config.chainId = chainId;
+    this.#chainId = chainId;
   }
 
   /**
@@ -413,19 +418,17 @@ export class NftController extends BaseController<
     openSeaEnabled,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
-    this.setConfig({
-      selectedAddress,
-      ipfsGateway,
-      openSeaEnabled,
-      isIpfsGatewayEnabled,
-    });
+    this.#selectedAddress = selectedAddress;
+    this.#ipfsGateway = ipfsGateway;
+    this.#openSeaEnabled = openSeaEnabled;
+    this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
 
     const needsUpdateNftMetadata =
       (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
     if (needsUpdateNftMetadata) {
-      const { chainId } = this.#config;
-      const nfts: Nft[] = this.state.allNfts[selectedAddress]?.[chainId] ?? [];
+      const nfts: Nft[] =
+        this.state.allNfts[selectedAddress]?.[this.#chainId] ?? [];
       // filter only nfts
       const nftsToUpdate = nfts.filter(
         (singleNft) =>
@@ -444,17 +447,6 @@ export class NftController extends BaseController<
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
-  getConfig(): Readonly<NftConfig> {
-    return this.#config;
-  }
-
-  setConfig(config: Partial<NftConfig>): void {
-    this.#config = {
-      ...this.#config,
-      ...config,
-    };
-  }
-
   /**
    * Helper method to update nested state for allNfts and allNftContracts.
    *
@@ -465,8 +457,10 @@ export class NftController extends BaseController<
    * @param passedConfig.chainId - the chainId passed through the NFT detection flow to ensure assets are stored to the correct account
    */
   #updateNestedNftState<
-    Key extends 'allNfts' | 'allNftContracts',
-    NftCollection extends Key extends 'allNfts' ? Nft[] : NftContract[],
+    Key extends typeof ALL_NFTS_STATE_KEY | typeof ALL_NFTS_CONTRACTS_STATE_KEY,
+    NftCollection extends Key extends typeof ALL_NFTS_STATE_KEY
+      ? Nft[]
+      : NftContract[],
   >(
     newCollection: NftCollection,
     baseStateKey: Key,
@@ -578,8 +572,6 @@ export class NftController extends BaseController<
     tokenId: string,
     networkClientId?: NetworkClientId,
   ): Promise<NftMetadata> {
-    const { ipfsGateway, useIpfsSubdomains, isIpfsGatewayEnabled } =
-      this.#config;
     const result = await this.#getNftURIAndStandard(
       contractAddress,
       tokenId,
@@ -590,7 +582,7 @@ export class NftController extends BaseController<
 
     const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
 
-    if (hasIpfsTokenURI && !isIpfsGatewayEnabled) {
+    if (hasIpfsTokenURI && !this.#isIpfsGatewayEnabled) {
       return {
         image: null,
         name: null,
@@ -601,7 +593,7 @@ export class NftController extends BaseController<
       };
     }
 
-    const isDisplayNFTMediaToggleEnabled = this.#config.openSeaEnabled;
+    const isDisplayNFTMediaToggleEnabled = this.#openSeaEnabled;
     if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
       return {
         image: null,
@@ -614,7 +606,11 @@ export class NftController extends BaseController<
     }
 
     if (hasIpfsTokenURI) {
-      tokenURI = getFormattedIpfsUrl(ipfsGateway, tokenURI, useIpfsSubdomains);
+      tokenURI = getFormattedIpfsUrl(
+        this.#ipfsGateway,
+        tokenURI,
+        this.#useIpfsSubdomains,
+      );
     }
 
     try {
@@ -722,7 +718,7 @@ export class NftController extends BaseController<
           networkClientId,
         ),
       ),
-      this.#config.openSeaEnabled && chainId === '0x1'
+      this.#openSeaEnabled && chainId === '0x1'
         ? safelyExecute(() =>
             this.#getNftInformationFromApi(contractAddress, tokenId),
           )
@@ -1199,7 +1195,7 @@ export class NftController extends BaseController<
       );
       return chainId;
     }
-    return this.#config.chainId;
+    return this.#chainId;
   }
 
   /**
@@ -1222,12 +1218,12 @@ export class NftController extends BaseController<
     origin: string,
     {
       networkClientId,
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
     }: {
       networkClientId?: NetworkClientId;
       userAddress?: string;
     } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     await this.#validateWatchNft(asset, type, userAddress);
@@ -1345,7 +1341,7 @@ export class NftController extends BaseController<
     address: string,
     tokenId: string,
     {
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
       networkClientId,
       source,
     }: {
@@ -1353,7 +1349,7 @@ export class NftController extends BaseController<
       networkClientId?: NetworkClientId;
       source?: Source;
     } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     if (
@@ -1387,7 +1383,7 @@ export class NftController extends BaseController<
     tokenId: string,
     {
       nftMetadata,
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
       source = Source.Custom,
       networkClientId,
     }: {
@@ -1395,7 +1391,7 @@ export class NftController extends BaseController<
       userAddress?: string;
       source?: Source;
       networkClientId?: NetworkClientId;
-    } = { userAddress: this.#config.selectedAddress },
+    } = { userAddress: this.#selectedAddress },
   ) {
     const checksumHexAddress = toChecksumHexAddress(tokenAddress);
 
@@ -1447,7 +1443,7 @@ export class NftController extends BaseController<
    */
   async updateNftMetadata({
     nfts,
-    userAddress = this.#config.selectedAddress,
+    userAddress = this.#selectedAddress,
     networkClientId,
   }: {
     nfts: Nft[];
@@ -1521,9 +1517,9 @@ export class NftController extends BaseController<
     tokenId: string,
     {
       networkClientId,
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     const chainId = this.#getCorrectChainId({ networkClientId });
@@ -1557,9 +1553,9 @@ export class NftController extends BaseController<
     tokenId: string,
     {
       networkClientId,
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     const chainId = this.#getCorrectChainId({ networkClientId });
@@ -1602,10 +1598,10 @@ export class NftController extends BaseController<
     nft: Nft,
     batch: boolean,
     {
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
       networkClientId,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     const chainId = this.#getCorrectChainId({ networkClientId });
@@ -1669,9 +1665,9 @@ export class NftController extends BaseController<
   async checkAndUpdateAllNftsOwnershipStatus(
     {
       networkClientId,
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     const chainId = this.#getCorrectChainId({ networkClientId });
@@ -1710,12 +1706,12 @@ export class NftController extends BaseController<
     favorite: boolean,
     {
       networkClientId,
-      userAddress = this.#config.selectedAddress,
+      userAddress = this.#selectedAddress,
     }: {
       networkClientId?: NetworkClientId;
       userAddress?: string;
     } = {
-      userAddress: this.#config.selectedAddress,
+      userAddress: this.#selectedAddress,
     },
   ) {
     const chainId = this.#getCorrectChainId({ networkClientId });
