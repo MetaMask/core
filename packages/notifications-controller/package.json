@@ -41,6 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^5.0.2",
     "@metamask/controller-utils": "^9.1.0",
     "@metamask/keyring-controller": "^16.0.0",

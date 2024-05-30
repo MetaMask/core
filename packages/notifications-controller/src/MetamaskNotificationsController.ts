@@ -899,7 +899,7 @@ export class MetamaskNotificationsController extends BaseController<
    *
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async fetchAndUpdateMetamaskNotifications(): Promise<Notification[]> {
+  public async fetchAndUpdateMetamaskNotifications(): Promise<INotification[]> {
     try {
       this.#setIsFetchingMetamaskNotifications(true);
 

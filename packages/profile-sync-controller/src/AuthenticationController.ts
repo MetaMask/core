@@ -47,6 +47,10 @@ export type AuthenticationControllerState = {
    */
   isSignedIn: boolean;
   sessionData?: SessionData;
+  internalAccounts?: {
+    accounts: Record<string, InternalAccount>;
+    selectedAccount: string;
+  };
 };
 const defaultState: AuthenticationControllerState = { isSignedIn: false };
 const metadata: StateMetadata<AuthenticationControllerState> = {
@@ -134,8 +138,11 @@ export class AuthenticationController extends BaseController<
     this.#registerMessageHandlers();
   }
 
-  listAccounts(): InternalAccount[] {
-    return Object.values(this.state.internalAccounts.accounts);
+  listAccounts(): InternalAccount[] | undefined {
+    return (
+      this.state.internalAccounts &&
+      Object.values(this.state.internalAccounts.accounts)
+    );
   }
 
   /**

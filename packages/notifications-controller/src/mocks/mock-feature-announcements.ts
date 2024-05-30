@@ -1,8 +1,8 @@
 import nock from 'nock';
 
+import { FEATURE_ANNOUNCEMENT_URL } from '../constants/constants';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { ContentfulResult } from '../services/feature-announcements';
-import { FEATURE_ANNOUNCEMENT_URL } from '../services/feature-announcements';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 
 type MockReply = {

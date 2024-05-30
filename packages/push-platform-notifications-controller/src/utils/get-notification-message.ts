@@ -2,11 +2,12 @@
 // eslint-disable-next-line spaced-comment
 /// <reference lib="webworker" />
 
-import { CHAIN_SYMBOLS } from '@metamask/notifications-controller/constants/notification-schema';
-import type { TRIGGER_TYPES } from '@metamask/notifications-controller/constants/notification-schema';
-import type { OnChainRawNotification } from '@metamask/notifications-controller/types/on-chain-notification/on-chain-notification';
+import { CHAIN_SYMBOLS } from '@metamask/notifications-controller';
+import type {
+  TRIGGER_TYPES,
+  OnChainRawNotification,
+} from '@metamask/notifications-controller';
 
-import { t } from '../../../translate';
 import { getAmount, formatAmount } from './get-notification-data';
 
 type PushNotificationMessage = {
@@ -111,10 +112,8 @@ function isOnChainNotification(n: unknown): n is OnChainRawNotification {
 
 const notificationMessageDict: NotificationMessageDict = {
   erc20_sent: {
-    title: t('pushPlatformNotificationsFundsSentTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsFundsSentDescriptionDefault',
-    ),
+    title: 'Funds sent',
+    defaultDescription: 'You successfully sent some tokens',
     getDescription: (n) => {
       const symbol = n?.data?.token?.symbol;
       const tokenAmount = n?.data?.token?.amount;
@@ -130,10 +129,8 @@ const notificationMessageDict: NotificationMessageDict = {
     },
   },
   eth_sent: {
-    title: t('pushPlatformNotificationsFundsSentTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsFundsSentDescriptionDefault',
-    ),
+    title: 'Funds sent',
+    defaultDescription: 'You successfully sent some tokens',
     getDescription: (n) => {
       const symbol = getChainSymbol(n?.chain_id);
       const tokenAmount = n?.data?.amount?.eth;

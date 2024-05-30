@@ -1,4 +1,4 @@
-import { createMockFullUserStorage } from '@metamask/notifications-controller/mocks/mock-notification-user-storage';
+import { createMockFullUserStorage } from '@metamask/notifications-controller';
 
 import encryption, { createSHA256Hash } from './encryption';
 

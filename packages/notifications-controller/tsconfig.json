@@ -1,7 +1,11 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "lib": [
+      "esnext",
+      "dom"
+    ]
   },
   "references": [
     {

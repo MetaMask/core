@@ -1,8 +1,8 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
 import type { Entry, Asset } from 'contentful';
 import log from 'loglevel';
-import { FEATURE_ANNOUNCEMENT_URL } from 'src/constants/constants';
 
+import { FEATURE_ANNOUNCEMENT_URL } from '../constants/constants';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';

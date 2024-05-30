@@ -1,10 +1,10 @@
-import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller';
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Notification as INotification } from '@metamask/notifications-controller';
+import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
 import {
@@ -13,6 +13,8 @@ import {
   listenToPushNotifications,
   updateTriggerPushNotifications,
 } from './services/services';
+
+const ENABLE_MV3 = true;
 
 const controllerName = 'PushPlatformNotificationsController';
 

@@ -1,13 +1,13 @@
-import type { Notification as INotification } from '@metamask/notifications-controller/types/types';
-import type { FirebaseApp } from 'firebase/app';
-import { getApp, initializeApp } from 'firebase/app';
-import { getToken, deleteToken } from 'firebase/messaging';
-import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
+import type { FirebaseApp } from '@firebase/app';
+import { getApp, initializeApp } from '@firebase/app';
+import { getToken, deleteToken } from '@firebase/messaging';
+import { getMessaging, onBackgroundMessage } from '@firebase/messaging/sw';
 import type {
   Messaging,
   MessagePayload,
   Unsubscribe,
-} from 'firebase/messaging/sw';
+} from '@firebase/messaging/sw';
+import type { Notification as INotification } from '@metamask/notifications-controller';
 import log from 'loglevel';
 
 import {

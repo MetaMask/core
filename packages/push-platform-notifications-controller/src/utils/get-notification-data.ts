@@ -1,7 +1,5 @@
 import { BigNumber } from 'bignumber.js';
 
-import { calcTokenAmount } from '../../../../../shared/lib/transactions-controller-utils';
-
 type FormatOptions = {
   decimalPlaces?: number;
   shouldEllipse?: boolean;
@@ -9,6 +7,18 @@ type FormatOptions = {
 const defaultFormatOptions = {
   decimalPlaces: 4,
 };
+
+/**
+ * Calculates the token amount based on the given value and decimals.
+ *
+ * @param value - The value to calculate the token amount from.
+ * @param decimals - The number of decimals to use for the calculation.
+ * @returns The calculated token amount.
+ */
+export function calcTokenAmount(value: string, decimals: number) {
+  const multiplier = Math.pow(10, Number(decimals || 0));
+  return new BigNumber(String(value)).div(multiplier);
+}
 
 /**
  * Calculates the number of leading zeros in the fractional part of a number.
