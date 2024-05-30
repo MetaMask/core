@@ -529,11 +529,6 @@ export enum TransactionType {
   simpleSend = 'simpleSend',
 
   /**
-   * A transaction that is signing a message.
-   */
-  sign = 'eth_sign',
-
-  /**
    * A transaction that is signing typed data.
    */
   signTypedData = 'eth_signTypedData',
