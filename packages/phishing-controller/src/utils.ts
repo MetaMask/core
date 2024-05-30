@@ -93,12 +93,11 @@ export const applyDiffs = (
  * Validates the configuration object for the phishing detector.
  *
  * @param config - the configuration object to validate.
- * @returns true if the configuration is valid.
  * @throws an error if the configuration is invalid.
  */
-export const validateConfig = (
+export function validateConfig(
   config: unknown,
-): config is PhishingListState => {
+): asserts config is PhishingListState {
   if (config === null || typeof config !== 'object') {
     throw new Error('Invalid config');
   }
@@ -121,9 +120,7 @@ export const validateConfig = (
   ) {
     throw new Error("Invalid config parameter: 'version'");
   }
-
-  return true;
-};
+}
 
 /**
  * Converts a domain string to a list of domain parts.
@@ -178,7 +175,7 @@ export const getDefaultPhishingDetectorConfig = (override?: {
  * @returns the processed configurations.
  */
 export const processConfigs = (configs: PhishingDetectorList[] = []) => {
-  return configs.map((config) => {
+  return configs.map((config: PhishingDetectorList) => {
     validateConfig(config);
     return { ...config, ...getDefaultPhishingDetectorConfig(config) };
   });
