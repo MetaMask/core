@@ -201,7 +201,7 @@ type NftAsset = {
 /**
  * The name of the {@link NftController}.
  */
-const controllerName = 'NftController' as const;
+const controllerName = 'NftController';
 
 export type NftControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
