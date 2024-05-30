@@ -871,7 +871,7 @@ describe('NftDetectionController', () => {
         type: NetworkClientType.Custom,
       },
       provider,
-      blockTracker: new FakeBlockTracker({provider}),
+      blockTracker: new FakeBlockTracker({ provider }),
       destroy: () => {
         // do nothing
       },

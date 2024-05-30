@@ -14,7 +14,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
@@ -247,10 +247,14 @@ function buildMockEthQuery(): EthQuery {
  *
  * @param latestBlockNumber - The block number that the block tracker should
  * always return.
+ * @param provider - json rpc provider
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string, provider: SafeEventEmitterProvider): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker({provider});
+function buildMockBlockTracker(
+  latestBlockNumber: string,
+  provider: SafeEventEmitterProvider,
+): BlockTracker {
+  const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
 }
