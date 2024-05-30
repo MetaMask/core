@@ -81,6 +81,11 @@ export type AccountsControllerGetSelectedAccountAction = {
   handler: AccountsController['getSelectedAccount'];
 };
 
+export type AccountsControllerGetSelectedMultichainAccountAction = {
+  type: `${typeof controllerName}:getSelectedMultichainAccount`;
+  handler: AccountsController['getSelectedMultichainAccount'];
+};
+
 export type AccountsControllerGetAccountByAddressAction = {
   type: `${typeof controllerName}:getAccountByAddress`;
   handler: AccountsController['getAccountByAddress'];
@@ -110,7 +115,8 @@ export type AccountsControllerActions =
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetNextAvailableAccountNameAction
-  | AccountsControllerGetAccountAction;
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -222,7 +228,7 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns an array of all internal accounts.
+   * Returns an array of all internal evm accounts.
    *
    * @param chainIdOrNamespace - The chain ID or namespace.
    * @returns An array of InternalAccount objects.
@@ -289,35 +295,18 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the selected EVM internal account by default unless the namespace is not "eip155"
+   * Returns the last selected evm account.
    *
-   * @param chainId - CAIP2 chain ID or CAIP2 namespace
    * @returns The selected internal account.
    */
-  getSelectedAccount(
-    chainId: CaipChainId | CaipNamespace = KnownCaipNamespace.Eip155,
-  ): InternalAccount {
-    if (chainId !== KnownCaipNamespace.Eip155 && !isCaipChainId(chainId)) {
-      throw new Error(`Non-EVM account filtering is not supported`);
-    }
-
-    // TODO: have CAIP2 addresses within InternalAccount
+  getSelectedAccount(): InternalAccount {
     const selectedAccount = this.getAccountExpect(
       this.state.internalAccounts.selectedAccount,
     );
-
-    // check for non-EVM accounts
-    if (
-      !(chainId as CaipNamespace).startsWith(KnownCaipNamespace.Eip155) &&
-      this.#isAccountCompatibleWithChain(
-        selectedAccount,
-        chainId as CaipChainId,
-      )
-    ) {
+    if (isEvmAccountType(selectedAccount.type)) {
       return selectedAccount;
     }
 
-    // Check for evm accounts
     const accounts = this.listAccounts(KnownCaipNamespace.Eip155);
 
     if (!accounts.length) {
@@ -339,6 +328,47 @@ export class AccountsController extends BaseController<
       }
       return prevAccount;
     }, lastSelectedEvmAccount); // Safe indexing, since we checked for .length already
+
+    return lastSelectedEvmAccount;
+  }
+
+  /**
+   * __Warning The return value may be undefined if there isn't an account for that chain id.__
+   *
+   * Retrieves the last selected account by chain ID.
+   *
+   * @param chainId - The chain ID to filter the accounts.
+   * @returns The last selected account compatible with the specified chain ID or undefined.
+   */
+  getSelectedMultichainAccount(
+    chainId?: CaipChainId,
+  ): InternalAccount | undefined {
+    if (!chainId) {
+      return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid Caip2 chainId ${chainId as string}`);
+    }
+
+    const accounts = Object.values(this.state.internalAccounts.accounts).filter(
+      (account) => this.#isAccountCompatibleWithChain(account, chainId),
+    );
+
+    let lastSelectedEvmAccount = accounts[0];
+    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
+      if (
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        currentAccount.metadata.lastSelected! >
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        prevAccount.metadata.lastSelected!
+      ) {
+        return currentAccount;
+      }
+      return prevAccount;
+    }, lastSelectedEvmAccount);
 
     return lastSelectedEvmAccount;
   }
@@ -962,6 +992,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getSelectedAccount`,
       this.getSelectedAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getSelectedMultichainAccount`,
+      this.getSelectedMultichainAccount.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
