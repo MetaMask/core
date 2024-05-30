@@ -9,18 +9,16 @@ import { MOCK_ACCESS_TOKEN } from '@metamask/profile-sync-controller';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerIsSignedIn,
+  UserStorageControllerGetStorageKey,
+  UserStorageControllerPerformGetStorage,
+  UserStorageControllerPerformSetStorage,
+  UserStorageControllerEnableProfileSyncing,
 } from '@metamask/profile-sync-controller';
 import type {
   PushPlatformNotificationsControllerEnablePushNotifications,
   PushPlatformNotificationsControllerDisablePushNotifications,
   PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
 } from '@metamask/push-platform-notifications-controller';
-import type {
-  UserStorageControllerGetStorageKey,
-  UserStorageControllerPerformGetStorage,
-  UserStorageControllerPerformSetStorage,
-  UserStorageControllerEnableProfileSyncing,
-} from '@metamask/profile-sync-controller';
 
 import type {
   AllowedActions,

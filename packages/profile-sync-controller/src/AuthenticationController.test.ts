@@ -107,15 +107,15 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
       mockEndpoints.mockAccessTokenEndpoint.isDone(),
     ];
     if (endpointFail === 'nonce') {
-      expect(endpointsCalled).toEqual([true, false, false]);
+      expect(endpointsCalled).toStrictEqual([true, false, false]);
     }
 
     if (endpointFail === 'login') {
-      expect(endpointsCalled).toEqual([true, true, false]);
+      expect(endpointsCalled).toStrictEqual([true, true, false]);
     }
 
     if (endpointFail === 'token') {
-      expect(endpointsCalled).toEqual([true, true, true]);
+      expect(endpointsCalled).toStrictEqual([true, true, true]);
     }
   }
 });
@@ -226,7 +226,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
 
     const result = await controller.getSessionProfile();
     expect(result).toBeDefined();
-    expect(result).toEqual(originalState.sessionData?.profile);
+    expect(result).toStrictEqual(originalState.sessionData?.profile);
   });
 
   it('should return new access token if state is invalid', async () => {

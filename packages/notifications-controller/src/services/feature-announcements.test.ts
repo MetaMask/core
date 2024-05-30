@@ -23,7 +23,7 @@ describe('Feature Announcement Notifications', () => {
 
     const notifications = await getFeatureAnnouncementNotifications();
     mockEndpoint.done();
-    expect(notifications).toEqual([]);
+    expect(notifications).toStrictEqual([]);
   });
 
   it('should return an empty array if data is not available', async () => {
@@ -34,7 +34,7 @@ describe('Feature Announcement Notifications', () => {
 
     const notifications = await getFeatureAnnouncementNotifications();
     mockEndpoint.done();
-    expect(notifications).toEqual([]);
+    expect(notifications).toStrictEqual([]);
   });
 
   it('should fetch entries from Contentful and return formatted notifications', async () => {
@@ -48,7 +48,7 @@ describe('Feature Announcement Notifications', () => {
     mockEndpoint.done();
 
     const resultNotification = notifications[0];
-    expect(resultNotification).toEqual(
+    expect(resultNotification).toStrictEqual(
       expect.objectContaining({
         id: 'dont-miss-out-on-airdrops-and-new-nft-mints',
         type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,

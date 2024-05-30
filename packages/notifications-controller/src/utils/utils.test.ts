@@ -84,7 +84,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
     const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       [MOCK_USER_STORAGE_ACCOUNT.toLowerCase()]: true,
     });
   });
@@ -96,7 +96,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
       MOCK_USER_STORAGE_ACCOUNT,
       MOCK_MISSING_ADDRESS,
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       [MOCK_USER_STORAGE_ACCOUNT.toLowerCase()]: true,
       [MOCK_MISSING_ADDRESS.toLowerCase()]: false,
     });
@@ -109,7 +109,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
     const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       [MOCK_USER_STORAGE_ACCOUNT.toLowerCase()]: false, // false due to missing chains
     });
   });
@@ -126,7 +126,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
     const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       [MOCK_USER_STORAGE_ACCOUNT.toLowerCase()]: false, // false due to missing triggers
     });
   });
@@ -192,7 +192,7 @@ describe('metamask-notifications/utils - getUUIDsForKinds()', () => {
     const result = MetamaskNotificationsUtils.getUUIDsForKinds(partialStorage, [
       TRIGGER_TYPES.ERC1155_RECEIVED,
     ]);
-    expect(result).toEqual(['t1']);
+    expect(result).toStrictEqual(['t1']);
   });
 
   it('returns empty list if no triggers are found matching the kinds', () => {

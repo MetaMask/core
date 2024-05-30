@@ -189,7 +189,7 @@ describe('PushPlatformNotificationsServices', () => {
         MOCK_TRIGGERS,
       );
 
-      expect(res).toEqual({
+      expect(res).toStrictEqual({
         isTriggersLinkedToPushNotifications: true,
         fcmToken: 'fcm-token',
       });
@@ -207,7 +207,7 @@ describe('PushPlatformNotificationsServices', () => {
         MOCK_TRIGGERS,
       );
 
-      expect(res).toEqual({
+      expect(res).toStrictEqual({
         isTriggersLinkedToPushNotifications: false,
         fcmToken: undefined,
       });
