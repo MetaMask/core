@@ -1,7 +1,7 @@
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
-} from 'nonce-tracker';
+} from '@metamask/nonce-tracker';
 
 import type { TransactionMeta } from '../types';
 import { TransactionStatus } from '../types';

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Adds and exports new types: ([#3952](https://github.com/MetaMask/core/pull/3952))
+  - `RestrictedControllerMessengerConstraint`, which is the narrowest supertype of all controller-messenger instances.
+  - `LegacyControllerStateConstraint`, a universal supertype for the controller state object, encompassing both BaseControllerV1 and BaseControllerV2 state.
+  - `ComposableControllerStateConstraint`, the narrowest supertype for the composable controller state object.
+
+### Changed
+
+- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ComposableControllerState` ([#3952](https://github.com/MetaMask/core/pull/3952)).
+  - **BREAKING:** For the `ComposableController` class to be typed correctly, any of its child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion.
+
 ## [6.0.1]
 
 ### Fixed

@@ -78,7 +78,7 @@ export class AddressBookController extends BaseControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AddressBookController';
+  override name = 'AddressBookController' as const;
 
   /**
    * Creates an AddressBookController instance.

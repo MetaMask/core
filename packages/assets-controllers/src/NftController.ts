@@ -935,7 +935,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
   /**
    * Name of this controller used during composition
    */
-  override name = 'NftController';
+  override name = 'NftController' as const;
 
   private readonly getERC721AssetName: AssetsContractController['getERC721AssetName'];
 
