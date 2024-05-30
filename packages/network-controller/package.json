@@ -52,7 +52,7 @@
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^8.3.0",
-    "async-mutex": "^0.2.6",
+    "async-mutex": "^0.5.0",
     "immer": "^9.0.6",
     "uuid": "^8.3.2"
   },
