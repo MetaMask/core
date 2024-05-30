@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump dependency and peer dependency on `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
-- Bump `@metamask/permission-controller` to `^9.1.1` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/permission-controller` to `^9.1.1` ([#4342](https://github.com/MetaMask/core/pull/4342))
 
 ## [13.0.0]
 

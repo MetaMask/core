@@ -29,12 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Convert `ApiNftLastSale` from `interface` to `type` ([#4312](https://github.com/MetaMask/core/pull/4312))
 - **BREAKING:** Convert `ApiNftCreator` from `interface` to `type` ([#4312](https://github.com/MetaMask/core/pull/4312))
 - **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^15.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^6.0.2` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/preferences-controller` to `^11.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 - Change `NftDetectionController` method `detectNfts` so that `userAddress` option is optional ([#4312](https://github.com/MetaMask/core/pull/4312))
   - This will default to the currently selected address as kept by PreferencesController.
-- Bump dependency `@metamask/keyring-controller` to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
-- Bump dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
 - Bump dependency `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
-- Bump dependency `@metamask/preferences-controller` to `^11.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 
 ### Removed
 
