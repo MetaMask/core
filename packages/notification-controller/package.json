@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-controller",
-  "version": "5.0.2",
+  "version": "5.0.1",
   "description": "Manages display of notifications within MetaMask",
   "keywords": [
     "MetaMask",

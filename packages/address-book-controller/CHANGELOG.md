@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.0.2]
-
-### Changed
-
-- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
-- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
-
-### Fixed
-
-- Fix `delete` method to protect against prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
-
 ## [4.0.1]
 
 ### Fixed
@@ -138,8 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.2...HEAD
-[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.1...@metamask/address-book-controller@4.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.1...HEAD
 [4.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.0...@metamask/address-book-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.7...@metamask/address-book-controller@4.0.0
 [3.1.7]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.6...@metamask/address-book-controller@3.1.7

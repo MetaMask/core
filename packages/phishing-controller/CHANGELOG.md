@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.4]
-
-### Changed
-
-- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
-
 ## [9.0.3]
 
 ### Changed
@@ -190,8 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.4...HEAD
-[9.0.4]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.3...@metamask/phishing-controller@9.0.4
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.3...HEAD
 [9.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.2...@metamask/phishing-controller@9.0.3
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.1...@metamask/phishing-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.0...@metamask/phishing-controller@9.0.1
