@@ -1792,7 +1792,7 @@ describe('AccountsController', () => {
       },
     );
 
-    it("should throw error if there aren't any EVM accounts", () => {
+    it("throw error if there aren't any EVM accounts", () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
