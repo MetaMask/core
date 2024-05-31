@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
 ## [2.0.2]
 
 ### Changed
@@ -39,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@3.0.0...HEAD
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.2...@metamask/permission-log-controller@3.0.0
 [2.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.1...@metamask/permission-log-controller@2.0.2
 [2.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@2.0.0...@metamask/permission-log-controller@2.0.1
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-log-controller@1.0.0...@metamask/permission-log-controller@2.0.0
