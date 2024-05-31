@@ -157,8 +157,8 @@ class MockNormalAccountUUID {
  * @param props.snapId - The id of the snap.
  * @param props.snapEnabled - The status of the snap
  * @param props.type - Account Type to create
- * @param props.lastSelected - The last selected time of the account.
  * @param props.importTime - The import time of the account.
+ * @param props.lastSelected - The last selected time of the account.
  * @returns The `InternalAccount` object created from the normal account properties.
  */
 function createExpectedInternalAccount({
