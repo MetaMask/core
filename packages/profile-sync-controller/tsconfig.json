@@ -1,9 +1,16 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
+    "lib": [
+      "esnext",
+      "dom"
+    ],
     "baseUrl": "./",
     "skipLibCheck": true
   },
   "references": [],
-  "include": ["../../types", "./src"]
+  "include": [
+    "../../types",
+    "./src"
+  ]
 }

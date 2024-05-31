@@ -1,11 +1,18 @@
 {
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
+    "lib": [
+      "esnext",
+      "dom"
+    ],
     "baseUrl": "./",
     "outDir": "./dist/types",
     "rootDir": "./src",
     "skipLibCheck": true
   },
   "references": [],
-  "include": ["../../types", "./src"]
+  "include": [
+    "../../types",
+    "./src"
+  ]
 }

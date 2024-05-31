@@ -54,6 +54,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@lavamoat/allow-scripts": "^3.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
@@ -69,5 +70,11 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
+      "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
+    }
   }
 }

@@ -125,7 +125,7 @@ const notificationMessageDict: NotificationMessageDict = {
       const amount = getAmount(tokenAmount, tokenDecimals, {
         shouldEllipse: true,
       });
-      return t('pushPlatformNotificationsFundsSentDescription', amount, symbol);
+      return `You successfully sent ${amount} ${symbol}`;
     },
   },
   eth_sent: {
@@ -141,14 +141,12 @@ const notificationMessageDict: NotificationMessageDict = {
       const amount = formatAmount(parseFloat(tokenAmount), {
         shouldEllipse: true,
       });
-      return t('pushPlatformNotificationsFundsSentDescription', amount, symbol);
+      return `You successfully sent ${amount} ${symbol}`;
     },
   },
   erc20_received: {
-    title: t('pushPlatformNotificationsFundsReceivedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsFundsReceivedDescriptionDefault',
-    ),
+    title: 'Funds received',
+    defaultDescription: 'You received some tokens',
     getDescription: (n) => {
       const symbol = n?.data?.token?.symbol;
       const tokenAmount = n?.data?.token?.amount;
@@ -160,18 +158,12 @@ const notificationMessageDict: NotificationMessageDict = {
       const amount = getAmount(tokenAmount, tokenDecimals, {
         shouldEllipse: true,
       });
-      return t(
-        'pushPlatformNotificationsFundsReceivedDescription',
-        amount,
-        symbol,
-      );
+      return `You received ${amount} ${symbol}`;
     },
   },
   eth_received: {
-    title: t('pushPlatformNotificationsFundsReceivedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsFundsReceivedDescriptionDefault',
-    ),
+    title: 'Funds received',
+    defaultDescription: 'You received some tokens',
     getDescription: (n) => {
       const symbol = getChainSymbol(n?.chain_id);
       const tokenAmount = n?.data?.amount?.eth;
@@ -182,70 +174,52 @@ const notificationMessageDict: NotificationMessageDict = {
       const amount = formatAmount(parseFloat(tokenAmount), {
         shouldEllipse: true,
       });
-      return t(
-        'pushPlatformNotificationsFundsReceivedDescription',
-        amount,
-        symbol,
-      );
+      return `You received ${amount} ${symbol}`;
     },
   },
   metamask_swap_completed: {
-    title: t('pushPlatformNotificationsSwapCompletedTitle'),
-    defaultDescription: t('pushPlatformNotificationsSwapCompletedDescription'),
+    title: 'Swap completed',
+    defaultDescription: 'Your MetaMask Swap was successful',
   },
   erc721_sent: {
-    title: t('pushPlatformNotificationsNftSentTitle'),
-    defaultDescription: t('pushPlatformNotificationsNftSentDescription'),
+    title: 'NFT sent',
+    defaultDescription: 'You have successfully sent an NFT',
   },
   erc1155_sent: {
-    title: t('pushPlatformNotificationsNftSentTitle'),
-    defaultDescription: t('pushPlatformNotificationsNftSentDescription'),
+    title: 'NFT sent',
+    defaultDescription: 'You have successfully sent an NFT',
   },
   erc721_received: {
-    title: t('pushPlatformNotificationsNftReceivedTitle'),
-    defaultDescription: t('pushPlatformNotificationsNftReceivedDescription'),
+    title: 'NFT received',
+    defaultDescription: 'You received new NFTs',
   },
   erc1155_received: {
-    title: t('pushPlatformNotificationsNftReceivedTitle'),
-    defaultDescription: t('pushPlatformNotificationsNftReceivedDescription'),
+    title: 'NFT received',
+    defaultDescription: 'You received new NFTs',
   },
   rocketpool_stake_completed: {
-    title: t('pushPlatformNotificationsStakingRocketpoolStakeCompletedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsStakingRocketpoolStakeCompletedDescription',
-    ),
+    title: 'Stake complete',
+    defaultDescription: 'Your RocketPool stake was successful',
   },
   rocketpool_unstake_completed: {
-    title: t('pushPlatformNotificationsStakingRocketpoolUnstakeCompletedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsStakingRocketpoolUnstakeCompletedDescription',
-    ),
+    title: 'Unstake complete',
+    defaultDescription: 'Your RocketPool unstake was successful',
   },
   lido_stake_completed: {
-    title: t('pushPlatformNotificationsStakingLidoStakeCompletedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsStakingLidoStakeCompletedDescription',
-    ),
+    title: 'Stake complete',
+    defaultDescription: 'Your Lido stake was successful',
   },
   lido_stake_ready_to_be_withdrawn: {
-    title: t(
-      'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnTitle',
-    ),
-    defaultDescription: t(
-      'pushPlatformNotificationsStakingLidoStakeReadyToBeWithdrawnDescription',
-    ),
+    title: 'Stake ready for withdrawal',
+    defaultDescription: 'Your Lido stake is now ready to be withdrawn',
   },
   lido_withdrawal_requested: {
-    title: t('pushPlatformNotificationsStakingLidoWithdrawalRequestedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsStakingLidoWithdrawalRequestedDescription',
-    ),
+    title: 'Withdrawal requested',
+    defaultDescription: 'Your Lido withdrawal request was submitted',
   },
   lido_withdrawal_completed: {
-    title: t('pushPlatformNotificationsStakingLidoWithdrawalCompletedTitle'),
-    defaultDescription: t(
-      'pushPlatformNotificationsStakingLidoWithdrawalCompletedDescription',
-    ),
+    title: 'Withdrawal completed',
+    defaultDescription: 'Your Lido withdrawal was successful',
   },
 };
 

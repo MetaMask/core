@@ -206,10 +206,10 @@ export async function listenToPushNotifications(
   const messaging = await getFirebaseMessaging();
   const unsubscribe = onBackgroundMessage(
     messaging,
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (payload: MessagePayload): Promise<void> => {
       const typedPayload = payload;
 
-      // if the payload does not contain data, do nothing
       try {
         const notificationData = typedPayload?.data?.data
           ? JSON.parse(typedPayload?.data?.data)
@@ -218,12 +218,10 @@ export async function listenToPushNotifications(
           return;
         }
 
-        // update the notification list
         onNewNotification(notificationData);
 
         await onPushNotification(notificationData);
       } catch (error) {
-        // Do Nothing, cannot parse a bad notification
         log.error('Unable to send push notification:', {
           notification: payload?.data?.data,
           error,

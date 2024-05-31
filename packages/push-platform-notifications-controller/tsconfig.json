@@ -2,7 +2,8 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "lib": [
-      "esnext"
+      "esnext",
+      "dom"
     ],
     "baseUrl": "./"
   },

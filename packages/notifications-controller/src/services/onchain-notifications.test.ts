@@ -36,6 +36,7 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
 
     // once we created triggers, we expect the trigger to be enabled
     assertUserStorageTriggerStatus(mocks.mockUserStorage, true);
+    expect(mocks.mockEndpoint.isDone()).toBe(true);
   });
 
   it('does not call endpoint if there are no triggers to create', async () => {
@@ -71,7 +72,7 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
         MOCK_BEARER_TOKEN,
         triggers,
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow('mock api failure');
 
     mockBadEndpoint.done();
 
@@ -173,7 +174,7 @@ describe('On Chain Notifications - deleteOnChainTriggers()', () => {
         MOCK_BEARER_TOKEN,
         [triggerId1, triggerId2],
       ),
-    ).rejects.toThrow();
+    ).rejects.toThrow('mock api failure');
 
     mockBadEndpoint.done();
 
@@ -287,7 +288,7 @@ describe('On Chain Notifications - markNotificationsAsRead()', () => {
         'notification_1',
         'notification_2',
       ]),
-    ).rejects.toThrow();
+    ).rejects.toThrow('mock api failure');
 
     mockBadEndpoint.done();
   });
