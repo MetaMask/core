@@ -245,10 +245,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     if (!supportedChainIds.includes(chainId)) {
       return;
     }
-    await safelyExecute(async () => this.updateSmartTransactions());
     this.timeoutHandle = setInterval(() => {
       safelyExecute(async () => this.updateSmartTransactions());
     }, this.config.interval);
+    await safelyExecute(async () => this.updateSmartTransactions());
   }
 
   async stop() {
