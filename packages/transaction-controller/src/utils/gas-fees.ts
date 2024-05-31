@@ -22,7 +22,7 @@ import type {
   TransactionType,
   GasFeeFlow,
 } from '../types';
-import { UserFeeLevel } from '../types';
+import { GasFeeEstimateType, UserFeeLevel } from '../types';
 import { getGasFeeFlow } from './gas-flow';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 
@@ -285,6 +285,8 @@ async function getSuggestedGasFees(
   const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
     request;
 
+  const { networkClientId } = txMeta;
+
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
     (eip1559 &&
@@ -297,13 +299,30 @@ async function getSuggestedGasFees(
   const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
 
   try {
+    const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
+
     const response = await gasFeeFlow.getGasFees({
       ethQuery,
-      getGasFeeControllerEstimates: getGasFeeEstimates,
+      gasFeeControllerData,
       transactionMeta: txMeta,
     });
 
-    return response.estimates.medium;
+    const gasFeeEstimateType = response.estimates?.type;
+
+    switch (gasFeeEstimateType) {
+      case GasFeeEstimateType.FeeMarket:
+        return response.estimates.medium;
+      case GasFeeEstimateType.Legacy:
+        return {
+          gasPrice: response.estimates.medium,
+        };
+      case GasFeeEstimateType.GasPrice:
+        return { gasPrice: response.estimates.gasPrice };
+      default:
+        throw new Error(
+          `Unsupported gas fee estimate type returned from flow: ${gasFeeEstimateType}`,
+        );
+    }
   } catch (error) {
     log('Failed to get suggested gas fees', error);
   }

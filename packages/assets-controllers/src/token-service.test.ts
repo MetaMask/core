@@ -112,6 +112,107 @@ const sampleTokenList = [
   },
 ];
 
+const sampleTokenListLinea = [
+  {
+    address: '0xbbbbca6a901c926f240b89eacb641d8aec7aeafd',
+    symbol: 'LRC',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'lineaTeam',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+  {
+    address: '0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f',
+    symbol: 'SNX',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'lineaTeam',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Synthetix',
+  },
+  {
+    address: '0x408e41876cccdc0f92210600ef50372656052a38',
+    symbol: 'REN',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'lineaTeam',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+  },
+  {
+    address: '0x514910771af9ca656af840dff83e8264ecf986ca',
+    symbol: 'LINK',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'lineaTeam',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Chainlink',
+  },
+  {
+    address: '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    symbol: 'BNT',
+    decimals: 18,
+    occurrences: 11,
+    aggregators: [
+      'paraswap',
+      'pmm',
+      'airswapLight',
+      'zeroEx',
+      'bancor',
+      'coinGecko',
+      'zapper',
+      'kleros',
+      'zerion',
+      'cmc',
+      'oneInch',
+    ],
+    name: 'Bancor',
+  },
+];
+
 const sampleToken = {
   address: '0x514910771af9ca656af840dff83e8264ecf986ca',
   symbol: 'LINK',
@@ -150,6 +251,23 @@ describe('Token service', () => {
       const tokens = await fetchTokenListByChainId(sampleChainId, signal);
 
       expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should call the tokens api and return the list of tokens on linea mainnet', async () => {
+      const { signal } = new AbortController();
+      const lineaChainId = 59144;
+      const lineaHexChain = toHex(lineaChainId);
+
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+        )
+        .reply(200, sampleTokenListLinea)
+        .persist();
+
+      const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenListLinea);
     });
 
     it('should return undefined if the fetch is aborted', async () => {

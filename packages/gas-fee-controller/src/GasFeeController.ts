@@ -166,6 +166,7 @@ const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
+  nonRPCGasFeeApisDisabled: { persist: true, anonymous: false },
 };
 
 export type GasFeeStateEthGasPrice = {

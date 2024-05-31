@@ -49,12 +49,6 @@ export type EtherscanSupportedHexChainId =
  */
 export type PreferencesState = {
   /**
-   * A map of RPC method names to enabled state (true is enabled, false is disabled)
-   */
-  disabledRpcMethodPreferences: {
-    [methodName: string]: boolean;
-  };
-  /**
    * Map of specific features to enable or disable
    */
   featureFlags: { [feature: string]: boolean };
@@ -108,10 +102,17 @@ export type PreferencesState = {
    * Controls whether token detection is enabled
    */
   useTokenDetection: boolean;
+  /**
+   * Controls whether smart transactions are opted into
+   */
+  smartTransactionsOptInStatus: boolean;
+  /**
+   * Controls whether transaction simulations are enabled
+   */
+  useTransactionSimulations: boolean;
 };
 
 const metadata = {
-  disabledRpcMethodPreferences: { persist: true, anonymous: true },
   featureFlags: { persist: true, anonymous: true },
   identities: { persist: true, anonymous: false },
   ipfsGateway: { persist: true, anonymous: false },
@@ -125,6 +126,8 @@ const metadata = {
   showIncomingTransactions: { persist: true, anonymous: true },
   useNftDetection: { persist: true, anonymous: true },
   useTokenDetection: { persist: true, anonymous: true },
+  smartTransactionsOptInStatus: { persist: true, anonymous: false },
+  useTransactionSimulations: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -160,9 +163,6 @@ export type PreferencesControllerMessenger = RestrictedControllerMessenger<
  */
 export function getDefaultPreferencesState() {
   return {
-    disabledRpcMethodPreferences: {
-      eth_sign: false,
-    },
     featureFlags: {},
     identities: {},
     ipfsGateway: 'https://ipfs.io/ipfs/',
@@ -197,6 +197,8 @@ export function getDefaultPreferencesState() {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
+    smartTransactionsOptInStatus: false,
+    useTransactionSimulations: true,
   };
 }
 
@@ -429,23 +431,6 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * A setter for the user preferences to enable/disable rpc methods.
-   *
-   * @param methodName - The RPC method name to change the setting of.
-   * @param isEnabled - true to enable the rpc method, false to disable it.
-   */
-  setDisabledRpcMethodPreference(methodName: string, isEnabled: boolean) {
-    const { disabledRpcMethodPreferences } = this.state;
-    const newDisabledRpcMethods = {
-      ...disabledRpcMethodPreferences,
-      [methodName]: isEnabled,
-    };
-    this.update((state) => {
-      state.disabledRpcMethodPreferences = newDisabledRpcMethods;
-    });
-  }
-
-  /**
    * A setter for the user preferences to enable/disable fetch of multiple accounts balance.
    *
    * @param isMultiAccountBalancesEnabled - true to enable multiple accounts balance fetch, false to fetch only selectedAddress.
@@ -496,6 +481,28 @@ export class PreferencesController extends BaseController<
         };
       });
     }
+  }
+
+  /**
+   * A setter for the user to opt into smart transactions
+   *
+   * @param smartTransactionsOptInStatus - true to opt into smart transactions
+   */
+  setSmartTransactionsOptInStatus(smartTransactionsOptInStatus: boolean) {
+    this.update((state) => {
+      state.smartTransactionsOptInStatus = smartTransactionsOptInStatus;
+    });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable transaction simulations.
+   *
+   * @param useTransactionSimulations - true to enable transaction simulations, false to disable it.
+   */
+  setUseTransactionSimulations(useTransactionSimulations: boolean) {
+    this.update((state) => {
+      state.useTransactionSimulations = useTransactionSimulations;
+    });
   }
 }
 

@@ -38,7 +38,7 @@ const sampleMainnetTokenList = [
     occurrences: 11,
     name: 'Synthetix',
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
     aggregators: [
       'Aave',
       'Bancor',
@@ -61,7 +61,7 @@ const sampleMainnetTokenList = [
     occurrences: 11,
     name: 'Chainlink',
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
     aggregators: [
       'Aave',
       'Bancor',
@@ -83,7 +83,7 @@ const sampleMainnetTokenList = [
     occurrences: 11,
     name: 'Bancor',
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
     aggregators: [
       'Bancor',
       'CMC',
@@ -121,7 +121,7 @@ const sampleBinanceTokenList = [
       'Paraswap',
     ],
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/56/0x7083609fce4d1d8dc0c979aab8c869ea2c873402.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/56/0x7083609fce4d1d8dc0c979aab8c869ea2c873402.png',
   },
   {
     address: '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
@@ -138,7 +138,7 @@ const sampleBinanceTokenList = [
       'Paraswap',
     ],
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
   },
 ];
 
@@ -159,7 +159,7 @@ const sampleSingleChainState = {
       occurrences: 11,
       name: 'Synthetix',
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xc011a73ee8576fb46f5e1c5751ca3b9fe0af2a6f.png',
       aggregators: [
         'Aave',
         'Bancor',
@@ -182,7 +182,7 @@ const sampleSingleChainState = {
       occurrences: 11,
       name: 'Chainlink',
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
       aggregators: [
         'Aave',
         'Bancor',
@@ -204,7 +204,7 @@ const sampleSingleChainState = {
       occurrences: 11,
       name: 'Bancor',
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
       aggregators: [
         'Bancor',
         'CMC',
@@ -233,7 +233,7 @@ const sampleSepoliaTokenList = [
     decimals: 8,
     name: 'Wrapped BTC',
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x2260fac5e5542a773aa44fbcfedf7c193bc2c599.png',
     type: 'erc20',
     aggregators: [
       'Metamask',
@@ -264,7 +264,7 @@ const sampleSepoliaTokenList = [
     decimals: 18,
     name: 'UMA',
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x04fa0d235c4abf4bcf4787af4cf447de572ef828.png',
     type: 'erc20',
     aggregators: [
       'Metamask',
@@ -290,7 +290,7 @@ const sampleSepoliaTokenList = [
     decimals: 18,
     name: 'Gnosis Token',
     iconUrl:
-      'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
+      'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x6810e776880c02933d47db1b9fc05908e5386b96.png',
     type: 'erc20',
     aggregators: [
       'Metamask',
@@ -335,7 +335,7 @@ const sampleTwoChainState = {
         'Paraswap',
       ],
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/56/0x7083609fce4d1d8dc0c979aab8c869ea2c873402.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/56/0x7083609fce4d1d8dc0c979aab8c869ea2c873402.png',
     },
     '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3': {
       address: '0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3',
@@ -352,7 +352,7 @@ const sampleTwoChainState = {
         'Paraswap',
       ],
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/56/0x1af3f329e8be154074d8769d1ffa4ee058b1dbc3.png',
     },
   },
   tokensChainsCache: {
@@ -376,7 +376,7 @@ const existingState = {
       occurrences: 11,
       name: 'Chainlink',
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
       aggregators: [
         'Aave',
         'Bancor',
@@ -410,7 +410,7 @@ const outdatedExistingState = {
       occurrences: 11,
       name: 'Chainlink',
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
       aggregators: [
         'Aave',
         'Bancor',
@@ -444,7 +444,7 @@ const expiredCacheExistingState: TokenListState = {
       occurrences: 9,
       name: 'Chainlink',
       iconUrl:
-        'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+        'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
       aggregators: [
         'Aave',
         'Bancor',
@@ -471,7 +471,7 @@ const expiredCacheExistingState: TokenListState = {
           occurrences: 11,
           name: 'Chainlink',
           iconUrl:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+            'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
           aggregators: [
             'Aave',
             'Bancor',
@@ -584,7 +584,7 @@ describe('TokenListController', () => {
           occurrences: 11,
           name: 'Chainlink',
           iconUrl:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+            'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
           aggregators: [
             'Aave',
             'Bancor',
