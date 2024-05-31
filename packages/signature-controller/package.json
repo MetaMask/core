@@ -45,8 +45,8 @@
     "@metamask/base-controller": "^5.0.2",
     "@metamask/controller-utils": "^10.0.0",
     "@metamask/keyring-controller": "^16.1.0",
-    "@metamask/logging-controller": "^3.0.2",
-    "@metamask/message-manager": "^8.0.3",
+    "@metamask/logging-controller": "^4.0.0",
+    "@metamask/message-manager": "^9.0.0",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "lodash": "^4.17.21"
@@ -64,7 +64,7 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^6.0.0",
     "@metamask/keyring-controller": "^16.1.0",
-    "@metamask/logging-controller": "^3.0.2"
+    "@metamask/logging-controller": "^4.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

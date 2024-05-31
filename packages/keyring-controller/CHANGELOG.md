@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
 - Bump `@keystonehq/metamask-airgapped-keyring` to `^0.14.1` ([#4277](https://github.com/MetaMask/core/pull/4277))
-- Bump `@metamask/message-manager` to `^8.0.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/message-manager` to `^9.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 
 ### Fixed
 
