@@ -1,6 +1,6 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "6.1.1",
+  "version": "6.1.0",
   "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",

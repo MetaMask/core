@@ -1,6 +1,6 @@
 {
   "name": "@metamask/name-controller",
-  "version": "7.0.0",
+  "version": "6.0.1",
   "description": "Stores and suggests names for values such as Ethereum addresses",
   "keywords": [
     "MetaMask",
