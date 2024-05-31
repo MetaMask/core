@@ -249,11 +249,11 @@ export class AccountsController extends BaseController<
     }
 
     if (!isCaipChainId(chainId)) {
-      throw new Error(`Invalid CAIP2 id ${String(chainId)}`);
+      throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
     }
 
     return accounts.filter((account) =>
-      account.type.startsWith(parseCaipChainId(chainId).namespace),
+      this.#isAccountCompatibleWithChain(account, chainId),
     );
   }
 
@@ -307,30 +307,32 @@ export class AccountsController extends BaseController<
     const accounts = this.listAccounts();
 
     if (!accounts.length) {
-      // !Should never reach this.
-      throw new Error('AccountsController: No EVM accounts');
+      // ! Should never reach this.
+      throw new Error('No EVM accounts');
     }
 
-    let lastSelectedEvmAccount = accounts[0];
-    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
-      if (
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        currentAccount.metadata.lastSelected! >
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        prevAccount.metadata.lastSelected!
-      ) {
-        return currentAccount;
-      }
-      return prevAccount;
-    }, lastSelectedEvmAccount); // Safe indexing, since we checked for .length already
+    const lastSelectedEvmAccount = accounts.reduce(
+      (prevAccount, currentAccount) => {
+        if (
+          // When the account is added, lastSelected will be set
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          currentAccount.metadata.lastSelected! >
+          // When the account is added, lastSelected will be set
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          prevAccount.metadata.lastSelected!
+        ) {
+          return currentAccount;
+        }
+        return prevAccount;
+      },
+      accounts[0],
+    ); // Safe indexing, since we checked for .length already
 
     return lastSelectedEvmAccount;
   }
 
   /**
-   * __Warning The return value may be undefined if there isn't an account for that chain id.__
+   * __WARNING The return value may be undefined if there isn't an account for that chain id.__
    *
    * Retrieves the last selected account by chain ID.
    *
@@ -345,7 +347,7 @@ export class AccountsController extends BaseController<
     }
 
     if (!isCaipChainId(chainId)) {
-      throw new Error(`Invalid Caip2 chainId ${chainId as string}`);
+      throw new Error(`Invalid CAIP-2 chain ID: ${chainId as string}`);
     }
 
     const accounts = Object.values(this.state.internalAccounts.accounts).filter(
