@@ -260,7 +260,7 @@ describe('Token service', () => {
 
       nock(TOKEN_END_POINT_API)
         .get(
-          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`,
+          `/tokens/${lineaChainId}?occurrenceFloor=1&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`,
         )
         .reply(200, sampleTokenListLinea)
         .persist();
