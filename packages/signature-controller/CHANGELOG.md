@@ -11,10 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Update `messages` getter to return `Record<string, PersonalMessage | TypedMessage>` instead of `Record<string, Message | PersonalMessage | TypedMessage>` ([#4319](https://github.com/MetaMask/core/pull/4319))
 - **BREAKING** Bump `@metamask/keyring-controller` peer dependency to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 - **BREAKING** Bump `@metamask/logging-controller` peer dependency to `^3.0.2` ([#4342](https://github.com/MetaMask/core/pull/4342))
 - Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 - Bump `@metamask/message-manager` to `^8.0.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove state properties `unapprovedMsgs` and `unapprovedMsgCount` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - These properties were related to handling of the `eth_sign` RPC method, but support for that is being removed, so these are no longer needed.
+- **BREAKING:** Remove `isEthSignEnabled` option from constructor ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This option governed whether handling of the `eth_sign` RPC method was enabled, but support for that method is being removed, so this is no longer needed.
+- **BREAKING:** Remove `newUnsignedMessage` method ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This method was called when a dapp used the `eth_sign` RPC method, but support for that method is being removed, so this is no longer needed.
 
 ## [16.0.0]
 

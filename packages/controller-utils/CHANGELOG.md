@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
 
+### Removed
+
+- **BREAKING:** Remove `EthSign` from `ApprovalType` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This represented an `eth_sign` approval, but support for that RPC method is being removed, so this is no longer needed.
+
 ## [9.1.0]
 
 ### Added

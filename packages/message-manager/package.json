@@ -1,6 +1,6 @@
 {
   "name": "@metamask/message-manager",
-  "version": "8.0.3",
+  "version": "9.0.0",
   "description": "Stores and manages interactions with signing requests",
   "keywords": [
     "MetaMask",
