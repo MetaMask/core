@@ -67,7 +67,7 @@
     "@metamask/permission-controller": "^9.1.1"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

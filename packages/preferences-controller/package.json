@@ -60,7 +60,7 @@
     "@metamask/keyring-controller": "^16.0.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",
