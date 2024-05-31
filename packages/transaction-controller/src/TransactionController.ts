@@ -3758,6 +3758,7 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
+        skipHistory: this.isHistoryDisabled,
       },
       (txMeta) => {
         txMeta.simulationData = simulationData;
