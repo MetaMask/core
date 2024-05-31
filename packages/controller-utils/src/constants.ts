@@ -127,7 +127,6 @@ export enum ApprovalType {
   ConnectAccounts = 'connect_accounts',
   EthDecrypt = 'eth_decrypt',
   EthGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
-  EthSign = 'eth_sign',
   EthSignTypedData = 'eth_signTypedData',
   PersonalSign = 'personal_sign',
   ResultError = 'result_error',

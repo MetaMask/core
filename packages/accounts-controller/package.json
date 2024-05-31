@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "14.0.0",
+  "version": "16.0.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
-    "@metamask/base-controller": "^5.0.2",
+    "@metamask/base-controller": "^6.0.0",
     "@metamask/eth-snap-keyring": "^4.1.1",
     "@metamask/keyring-api": "^6.1.1",
     "@metamask/snaps-sdk": "^4.2.0",
@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^16.0.0",
+    "@metamask/keyring-controller": "^17.0.0",
     "@metamask/snaps-controllers": "^8.1.1",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
@@ -66,11 +66,11 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^16.0.0",
+    "@metamask/keyring-controller": "^17.0.0",
     "@metamask/snaps-controllers": "^8.1.1"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

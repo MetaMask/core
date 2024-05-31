@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
 ## [6.1.0]
 
 ### Added
@@ -129,7 +142,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.1...@metamask/announcement-controller@7.0.0
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.0...@metamask/announcement-controller@6.1.1
 [6.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.0.1...@metamask/announcement-controller@6.1.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.0.0...@metamask/announcement-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.2...@metamask/announcement-controller@6.0.0

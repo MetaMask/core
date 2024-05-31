@@ -49,12 +49,6 @@ export type EtherscanSupportedHexChainId =
  */
 export type PreferencesState = {
   /**
-   * A map of RPC method names to enabled state (true is enabled, false is disabled)
-   */
-  disabledRpcMethodPreferences: {
-    [methodName: string]: boolean;
-  };
-  /**
    * Map of specific features to enable or disable
    */
   featureFlags: { [feature: string]: boolean };
@@ -119,7 +113,6 @@ export type PreferencesState = {
 };
 
 const metadata = {
-  disabledRpcMethodPreferences: { persist: true, anonymous: true },
   featureFlags: { persist: true, anonymous: true },
   identities: { persist: true, anonymous: false },
   ipfsGateway: { persist: true, anonymous: false },
@@ -170,9 +163,6 @@ export type PreferencesControllerMessenger = RestrictedControllerMessenger<
  */
 export function getDefaultPreferencesState() {
   return {
-    disabledRpcMethodPreferences: {
-      eth_sign: false,
-    },
     featureFlags: {},
     identities: {},
     ipfsGateway: 'https://ipfs.io/ipfs/',
@@ -437,23 +427,6 @@ export class PreferencesController extends BaseController<
   setSecurityAlertsEnabled(securityAlertsEnabled: boolean) {
     this.update((state) => {
       state.securityAlertsEnabled = securityAlertsEnabled;
-    });
-  }
-
-  /**
-   * A setter for the user preferences to enable/disable rpc methods.
-   *
-   * @param methodName - The RPC method name to change the setting of.
-   * @param isEnabled - true to enable the rpc method, false to disable it.
-   */
-  setDisabledRpcMethodPreference(methodName: string, isEnabled: boolean) {
-    const { disabledRpcMethodPreferences } = this.state;
-    const newDisabledRpcMethods = {
-      ...disabledRpcMethodPreferences,
-      [methodName]: isEnabled,
-    };
-    this.update((state) => {
-      state.disabledRpcMethodPreferences = newDisabledRpcMethods;
     });
   }
 

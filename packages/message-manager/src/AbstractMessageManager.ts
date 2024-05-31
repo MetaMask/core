@@ -44,7 +44,7 @@ export interface AbstractMessage {
 }
 
 /**
- * @type MessageParams
+ * @type AbstractMessageParams
  *
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
