@@ -1624,7 +1624,7 @@ __metadata:
     "@metamask/snaps-utils": ^7.4.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
-    "@types/readable-stream": ^2.3.0
+    "@types/readable-stream": ^4.0.0
     deepmerge: ^4.2.2
     ethereum-cryptography: ^2.1.2
     immer: ^9.0.6
@@ -1882,7 +1882,7 @@ __metadata:
     "@metamask/snaps-utils": ^7.4.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
-    "@types/readable-stream": ^2.3.0
+    "@types/readable-stream": ^4.0.0
     deepmerge: ^4.2.2
     jest: ^27.5.1
     ts-jest: ^27.1.4
@@ -2436,12 +2436,12 @@ __metadata:
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
-    "@types/readable-stream": ^2.3.0
+    "@types/readable-stream": ^4.0.0
     deepmerge: ^4.2.2
     extension-port-stream: ^3.0.0
     jest: ^27.5.1
     jest-it-up: ^2.0.2
-    readable-stream: ^3.6.2
+    readable-stream: ^3.6.2 || ^4.5.2
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0
@@ -3944,13 +3944,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/readable-stream@npm:^2.3.0":
-  version: 2.3.15
-  resolution: "@types/readable-stream@npm:2.3.15"
+"@types/readable-stream@npm:^4.0.0":
+  version: 4.0.14
+  resolution: "@types/readable-stream@npm:4.0.14"
   dependencies:
     "@types/node": "*"
     safe-buffer: ~5.1.1
-  checksum: ec36f525cad09b6c65a1dafcb5ad99b9e2ed824ec49b7aa23180ac427e5d35b8a0706193ecd79ab4253a283ad485ba03d5917a98daaaa144f0ea34f4823e9d82
+  checksum: 3b95cfbeb797ea480a3a3a80ddaac1b8ac065fdd000120a8379bcf2817795b61724823a90acdd3868ed60829d0630a6aa492e2302ecab182f25cffaf60e8826f
   languageName: node
   linkType: hard
 
@@ -10239,7 +10239,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"readable-stream@npm:^3.6.2 || ^4.4.2":
+"readable-stream@npm:^3.6.2 || ^4.4.2, readable-stream@npm:^3.6.2 || ^4.5.2":
   version: 4.5.2
   resolution: "readable-stream@npm:4.5.2"
   dependencies:

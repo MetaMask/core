@@ -44,12 +44,12 @@
     "@metamask/json-rpc-engine": "^9.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^8.3.0",
-    "readable-stream": "^3.6.2"
+    "readable-stream": "^3.6.2 || ^4.5.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
-    "@types/readable-stream": "^2.3.0",
+    "@types/readable-stream": "^4.0.0",
     "deepmerge": "^4.2.2",
     "extension-port-stream": "^3.0.0",
     "jest": "^27.5.1",
