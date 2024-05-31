@@ -875,7 +875,6 @@ export class AccountsController extends BaseController<
   ): boolean {
     // TODO: Change this logic to not use account's type
     // Because we currently only use type, we can only use namespace for now.
-
     return account.type.startsWith(parseCaipChainId(chainId).namespace);
   }
 
