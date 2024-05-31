@@ -25,7 +25,7 @@ import type {
 import { Source } from './constants';
 import {
   type NftController,
-  type NftState,
+  type NftControllerState,
   type NftMetadata,
 } from './NftController';
 
@@ -361,7 +361,7 @@ export class NftDetectionController extends StaticIntervalPollingController<
 
   readonly #addNft: NftController['addNft'];
 
-  readonly #getNftState: () => NftState;
+  readonly #getNftState: () => NftControllerState;
 
   /**
    * The controller options
@@ -384,7 +384,7 @@ export class NftDetectionController extends StaticIntervalPollingController<
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
     addNft: NftController['addNft'];
-    getNftState: () => NftState;
+    getNftState: () => NftControllerState;
   }) {
     super({
       name: controllerName,
