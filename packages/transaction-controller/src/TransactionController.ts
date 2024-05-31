@@ -578,6 +578,11 @@ export class TransactionController extends BaseController<
         addInitialHistorySnapshot(transactionMeta);
       }
 
+      transactions.push(transactionMeta);
+      this.update({
+        transactions: this.trimTransactionsForState(transactions),
+      });
+
       if (requireApproval !== false) {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#updateSimulationData(transactionMeta);
@@ -585,10 +590,6 @@ export class TransactionController extends BaseController<
         log('Skipping simulation as approval not required');
       }
 
-      transactions.push(transactionMeta);
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
       this.hub.emit(`unapprovedTransaction`, transactionMeta);
     }
 
@@ -2458,6 +2459,7 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
+        skipHistory: this.isHistoryDisabled,
       },
       (txMeta) => {
         txMeta.simulationData = simulationData;
