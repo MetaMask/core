@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.1.3]
+
+### Changed
+
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [18.1.2]
 
 ### Fixed
@@ -488,7 +495,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.3...HEAD
+[18.1.3]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.2...@metamask/network-controller@18.1.3
 [18.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.1...@metamask/network-controller@18.1.2
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.0...@metamask/network-controller@18.1.1
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.1...@metamask/network-controller@18.1.0

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/selected-network-controller` to `^14.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [0.10.0]
 
 ### Changed
@@ -181,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.10.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.11.0...HEAD
+[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.10.0...@metamask/queued-request-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.9.0...@metamask/queued-request-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.8.0...@metamask/queued-request-controller@0.9.0
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.7.0...@metamask/queued-request-controller@0.8.0
