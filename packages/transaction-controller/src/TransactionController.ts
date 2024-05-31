@@ -1586,10 +1586,9 @@ export class TransactionController extends BaseController<
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
     const { id: transactionId } = transactionMeta;
 
-    this.#updateTransactionInternal(
-      { transactionId, note },
-      () => ({ ...transactionMeta }),
-    );
+    this.#updateTransactionInternal({ transactionId, note }, () => ({
+      ...transactionMeta,
+    }));
   }
 
   /**
