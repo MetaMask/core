@@ -40,7 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump dependency and peer dependency `@metamask/preferences-controller` to `^12.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 - Change `NftDetectionController` method `detectNfts` so that `userAddress` option is optional ([#4312](https://github.com/MetaMask/core/pull/4312))
   - This will default to the currently selected address as kept by PreferencesController.
-- Bump dependency `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
 
 ### Removed
 
