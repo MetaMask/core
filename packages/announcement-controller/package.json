@@ -1,6 +1,6 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "6.1.1",
+  "version": "7.0.0",
   "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",
@@ -41,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.2"
+    "@metamask/base-controller": "^6.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
