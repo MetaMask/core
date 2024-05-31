@@ -1,5 +1,5 @@
 export const ENABLE_MV3 = true;
-export const PUSH_NOTIFICATIONS_SERVICE_URL = '';
+export const PUSH_NOTIFICATIONS_SERVICE_URL = 'https://push.api.cx.metamask.io';
 
 export const FIREBASE_API_KEY = '';
 export const FIREBASE_AUTH_DOMAIN = '';

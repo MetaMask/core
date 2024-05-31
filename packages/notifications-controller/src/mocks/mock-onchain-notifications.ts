@@ -67,7 +67,9 @@ export function mockMarkNotificationsAsRead(mockReply?: MockReply) {
     status: 200,
   };
 
-  const mockEndpoint = nock(NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT)
+  const mockEndpoint = nock(
+    'https://notification.api.cx.metamask.io/api/v1/notifications/mark-as-read',
+  )
     .post('')
     .reply(reply.status, reply.body);
 

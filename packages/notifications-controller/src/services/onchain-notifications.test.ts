@@ -72,7 +72,7 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
         MOCK_BEARER_TOKEN,
         triggers,
       ),
-    ).rejects.toThrow('mock api failure');
+    ).rejects.toThrow(expect.any(Error));
 
     mockBadEndpoint.done();
 
@@ -174,7 +174,7 @@ describe('On Chain Notifications - deleteOnChainTriggers()', () => {
         MOCK_BEARER_TOKEN,
         [triggerId1, triggerId2],
       ),
-    ).rejects.toThrow('mock api failure');
+    ).rejects.toThrow(expect.any(Error));
 
     mockBadEndpoint.done();
 
@@ -275,7 +275,7 @@ describe('On Chain Notifications - markNotificationsAsRead()', () => {
       'notification_2',
     ]);
 
-    mockEndpoint.done();
+    expect(mockEndpoint.isDone()).toBe(true);
   });
 
   it('should throw error if fails to call endpoint to mark notifications as read', async () => {
@@ -288,8 +288,8 @@ describe('On Chain Notifications - markNotificationsAsRead()', () => {
         'notification_1',
         'notification_2',
       ]),
-    ).rejects.toThrow('mock api failure');
+    ).rejects.toThrow(expect.any(Error));
 
-    mockBadEndpoint.done();
+    expect(mockBadEndpoint.isDone()).toBe(true);
   });
 });

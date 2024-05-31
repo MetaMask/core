@@ -2,18 +2,18 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "lib": [
-      "esnext",
-      "dom"
-    ]
+    "lib": ["esnext", "dom"]
   },
   "references": [
     {
       "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../push-platform-notifications-controller"
     }
   ],
-  "include": [
-    "../../../types",
-    "./src"
-  ]
+  "include": ["../../../types", "./src"]
 }

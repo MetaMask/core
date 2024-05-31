@@ -561,10 +561,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@contentful/rich-text-html-renderer@npm:^16.5.2":
+  version: 16.5.2
+  resolution: "@contentful/rich-text-html-renderer@npm:16.5.2"
+  dependencies:
+    "@contentful/rich-text-types": ^16.5.2
+    escape-html: ^1.0.3
+  checksum: 5d9cdd21109f6eb400bc858a7254f442cfd25683c44d68c597058412e195629a0638d99880abb9672f76b4e171fcaa3bf8788fde7a029cb6343b37b09af37f5f
+  languageName: node
+  linkType: hard
+
 "@contentful/rich-text-types@npm:^16.0.2":
   version: 16.5.0
   resolution: "@contentful/rich-text-types@npm:16.5.0"
   checksum: 91d20e7a8eb2f2cd53a89ae0b164d7eb4d16ef74fe3ede598c12701185de855750236dd1800c463cc57506445a0247b73491402ab45e359eb37d1f7b43b18e1e
+  languageName: node
+  linkType: hard
+
+"@contentful/rich-text-types@npm:^16.5.2":
+  version: 16.5.2
+  resolution: "@contentful/rich-text-types@npm:16.5.2"
+  checksum: d09e330bd8f42dfabe5dbcf59ee3138ab59269f4db0386bd441d39895b5cffcb8c1d171dad77d8b02b59634c75310df73bbaffc7d6d344f636eb1d5c4bfa3c5e
   languageName: node
   linkType: hard
 
@@ -1679,7 +1696,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lavamoat/allow-scripts@npm:^3.0.4":
+"@lavamoat/allow-scripts@npm:^3.0.2, @lavamoat/allow-scripts@npm:^3.0.4":
   version: 3.0.4
   resolution: "@lavamoat/allow-scripts@npm:3.0.4"
   dependencies:
@@ -2016,6 +2033,23 @@ __metadata:
     typescript: ~4.9.5
   languageName: unknown
   linkType: soft
+
+"@metamask/controller-utils@npm:^9.1.0":
+  version: 9.1.0
+  resolution: "@metamask/controller-utils@npm:9.1.0"
+  dependencies:
+    "@ethereumjs/util": ^8.1.0
+    "@metamask/eth-query": ^4.0.0
+    "@metamask/ethjs-unit": ^0.3.0
+    "@metamask/utils": ^8.3.0
+    "@spruceid/siwe-parser": 2.1.0
+    "@types/bn.js": ^5.1.5
+    bn.js: ^5.2.1
+    eth-ens-namehash: ^2.0.8
+    fast-deep-equal: ^3.1.3
+  checksum: 2a6adf8db232c38211301887260274324888d60beead8d4e528a19c70ca4b659391ea01d9382e355fc943af3963f78766fa3c6bb9487281c24012949192a0a91
+  languageName: node
+  linkType: hard
 
 "@metamask/core-monorepo@workspace:.":
   version: 0.0.0-use.local
@@ -2684,6 +2718,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/notifications-controller@workspace:packages/notifications-controller"
   dependencies:
+    "@contentful/rich-text-html-renderer": ^16.5.2
+    "@lavamoat/allow-scripts": ^3.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
@@ -2695,6 +2731,7 @@ __metadata:
     contentful: ^10.11.3
     deepmerge: ^4.2.2
     jest: ^27.5.1
+    jest-environment-jsdom: ^27.5.1
     loglevel: ^1.8.1
     nock: ^13.3.1
     ts-jest: ^27.1.4
@@ -6221,6 +6258,13 @@ __metadata:
   version: 3.1.2
   resolution: "escalade@npm:3.1.2"
   checksum: 1ec0977aa2772075493002bdbd549d595ff6e9393b1cb0d7d6fcaf78c750da0c158f180938365486f75cb69fba20294351caddfce1b46552a7b6c3cde52eaa02
+  languageName: node
+  linkType: hard
+
+"escape-html@npm:^1.0.3":
+  version: 1.0.3
+  resolution: "escape-html@npm:1.0.3"
+  checksum: 6213ca9ae00d0ab8bccb6d8d4e0a98e76237b2410302cf7df70aaa6591d509a2a37ce8998008cbecae8fc8ffaadf3fb0229535e6a145f3ce0b211d060decbb24
   languageName: node
   linkType: hard
 

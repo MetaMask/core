@@ -87,18 +87,20 @@ describe('metamask-notifications - constructor()', () => {
     mockListAccounts.mockResolvedValueOnce(['addr1', 'addr2']);
     await actPublishKeyringStateChange(globalMessenger);
 
-    expect(mockUpdate).not.toHaveBeenCalled();
-    expect(mockDelete).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toBeCalled();
+    expect(mockDelete).not.toBeCalled();
   });
 
-  it('keying Change Event with new triggers', async () => {
+  it('keyring Change Event with new triggers will update triggers correctly', async () => {
     const { messenger, globalMessenger, mockListAccounts } = arrangeMocks();
 
     // initialize controller with 1 address
-    mockListAccounts.mockResolvedValueOnce(['addr1']);
     const controller = new MetamaskNotificationsController({
       messenger,
-      state: { isMetamaskNotificationsEnabled: true },
+      state: {
+        isMetamaskNotificationsEnabled: true,
+        subscriptionAccountsSeen: ['addr1'],
+      },
     });
 
     const mockUpdate = jest
@@ -108,51 +110,75 @@ describe('metamask-notifications - constructor()', () => {
       .spyOn(controller, 'deleteOnChainTriggersByAccount')
       .mockResolvedValue({} as UserStorage);
 
-    /**
-     *
-     * @param addresses
-     * @param assertion
-     */
-    async function act(
-      addresses: string[],
-      assertion: () => Promise<void> | void,
-    ) {
+    async function act(addresses: string[], assertion: () => void) {
       mockListAccounts.mockResolvedValueOnce(addresses);
       await actPublishKeyringStateChange(globalMessenger);
-      await assertion();
+      await waitFor(() => assertion());
 
       // Clear mocks for next act/assert
       mockUpdate.mockClear();
       mockDelete.mockClear();
     }
 
-    await act(['addr2'], () => {
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(mockDelete).toHaveBeenCalled();
+    // Act - if list accounts has been seen, then will not update
+    await act(['addr1'], () => {
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockDelete).not.toHaveBeenCalled();
     });
 
-    // Act - new accounts were added
+    // Act - if a new address in list, then will update
     await act(['addr1', 'addr2'], () => {
       expect(mockUpdate).toHaveBeenCalled();
       expect(mockDelete).not.toHaveBeenCalled();
     });
 
-    // Act - an account was removed
-    await act(['addr1'], () => {
+    // Act - if the list doesn't have an address, then we need to delete
+    await act(['addr2'], () => {
       expect(mockUpdate).not.toHaveBeenCalled();
       expect(mockDelete).toHaveBeenCalled();
     });
 
-    // Act - an account was added and removed
-    await act(['addr2'], () => {
-      expect(mockUpdate).toHaveBeenCalled();
-      expect(mockDelete).toHaveBeenCalled();
+    // If the address is added back to the list, because it is seen we won't update
+    await act(['addr1', 'addr2'], () => {
+      expect(mockUpdate).not.toHaveBeenCalled();
+      expect(mockDelete).not.toHaveBeenCalled();
     });
   });
 
-  /**
-   *
-   */
+  it('initializes push notifications', async () => {
+    const { messenger, mockEnablePushNotifications } = arrangeMocks();
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _controller = new MetamaskNotificationsController({
+      messenger,
+      state: { isMetamaskNotificationsEnabled: true },
+    });
+
+    await waitFor(() => {
+      expect(mockEnablePushNotifications).toBeCalled();
+    });
+  });
+
+  it('fails to initialize push notifications', async () => {
+    const { messenger, mockPerformGetStorage, mockEnablePushNotifications } =
+      arrangeMocks();
+
+    // test when user storage is empty
+    mockPerformGetStorage.mockResolvedValue(null);
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _controller = new MetamaskNotificationsController({
+      messenger,
+      state: { isMetamaskNotificationsEnabled: true },
+    });
+
+    await waitFor(() => {
+      expect(mockPerformGetStorage).toBeCalled();
+    });
+
+    expect(mockEnablePushNotifications).not.toBeCalled();
+  });
+
   function arrangeMocks() {
     const messengerMocks = mockNotificationMessenger();
     jest
@@ -162,10 +188,6 @@ describe('metamask-notifications - constructor()', () => {
     return messengerMocks;
   }
 
-  /**
-   *
-   * @param messenger
-   */
   async function actPublishKeyringStateChange(
     messenger: ControllerMessenger<never, KeyringControllerStateChangeEvent>,
   ) {
@@ -619,7 +641,9 @@ const typedMockAction = <Action extends { handler: AnyFunc }>() =>
  *
  */
 function mockNotificationMessenger() {
-  const globalMessenger = new ControllerMessenger<
+  // TODO - fix and improve test typings
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const globalMessenger: any = new ControllerMessenger<
     AllowedActions,
     AllowedEvents
   >();
@@ -736,13 +760,9 @@ function mockNotificationMessenger() {
       return mockPerformSetStorage(params[0], params[1]);
     }
 
-    /**
-     *
-     * @param action
-     */
-    function exhaustedMessengerMocks(action: never) {
+    const exhaustedMessengerMocks = (action: unknown) => {
       return new Error(`MOCK_FAIL - unsupported messenger call: ${action}`);
-    }
+    };
     throw exhaustedMessengerMocks(actionType);
   });
 
@@ -818,4 +838,37 @@ function arrangeFailureUserStorageAssertions(
       ),
   };
   return testScenarios;
+}
+
+/**
+ * Simple waiting utility for some test
+ *
+ * @param condition - the assertion you want to run
+ * @param timeout - the max wait time
+ * @param interval - the interval to poll/check
+ * @returns a promise
+ */
+function waitFor(
+  condition: () => void,
+  timeout = 3000,
+  interval = 50,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+
+    const checkCondition = () => {
+      try {
+        condition();
+        resolve();
+      } catch (error) {
+        if (Date.now() - startTime > timeout) {
+          reject(new Error(`waitFor: condition not met within ${timeout}ms`));
+        } else {
+          setTimeout(checkCondition, interval);
+        }
+      }
+    };
+
+    checkCondition();
+  });
 }
