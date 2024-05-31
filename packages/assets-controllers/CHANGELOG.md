@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `NftDetectionController` now takes a `messenger`, which can be used for communication ([#4312](https://github.com/MetaMask/core/pull/4312))
   - This messenger must allow the following actions `ApprovalController:addRequest`, `NetworkController:getState`, `NetworkController:getNetworkClientById`, and `PreferencesController:getState`, and must allow the events `PreferencesController:stateChange` and `NetworkController:stateChange`
 - Add `NftDetectionControllerMessenger` type ([#4312](https://github.com/MetaMask/core/pull/4312))
-- Add `NftControllerMessenger`, `NftControllerGetStateAction`, `NftControllerActions`, `NftControllerStateChangeEvent`, and `NftControllerEvents` types ([#4310](https://github.com/MetaMask/core/pull/4310))
+- Add `NftControllerGetStateAction`, `NftControllerActions`, `NftControllerStateChangeEvent`, and `NftControllerEvents` types ([#4310](https://github.com/MetaMask/core/pull/4310))
 - Add `NftController:getState` and `NftController:stateChange` as an available action and event to the `NftController` messenger ([#4310](https://github.com/MetaMask/core/pull/4310))
 
 ### Changed
