@@ -1170,18 +1170,6 @@ describe('AccountsController', () => {
           .mockReturnValueOnce('mock-id') // call to check if its a new account
           .mockReturnValueOnce('mock-id2'); // call to check if its a new account
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [
-                mockExistingAccount1.address,
-                mockExistingAccount2.address,
-              ],
-            },
-          ],
-        };
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1194,7 +1182,18 @@ describe('AccountsController', () => {
           },
           messenger,
         });
-
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [
+                mockExistingAccount1.address,
+                mockExistingAccount2.address,
+              ],
+            },
+          ],
+        };
         messenger.publish(
           'KeyringController:stateChange',
           mockNewKeyringState,
