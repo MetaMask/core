@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Fixed
+
+- `StaticIntervalPollingControllerOnly`, `StaticIntervalPollingController`, and `StaticIntervalPollingControllerV1` now properly stops polling when a stop is requested while `_executePoll` has not yet resolved for the current loop ([#4230](https://github.com/MetaMask/core/pull/4230))
+
 ## [6.0.2]
 
 ### Changed
@@ -123,7 +134,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.2...@metamask/polling-controller@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.1...@metamask/polling-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.0...@metamask/polling-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.1...@metamask/polling-controller@6.0.0
