@@ -313,9 +313,7 @@ export class AccountsController extends BaseController<
 
     // This will never be undefined because we have already checked if accounts.length is > 0
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const lastSelectedEvmAccount = this.getLastSelectedAccount(accounts)!;
-
-    return lastSelectedEvmAccount;
+    return this.#getLastSelectedAccount(accounts)!;
   }
 
   /**
@@ -341,9 +339,7 @@ export class AccountsController extends BaseController<
       (account) => this.#isAccountCompatibleWithChain(account, chainId),
     );
 
-    const lastSelectedEvmAccount = this.getLastSelectedAccount(accounts);
-
-    return lastSelectedEvmAccount;
+    return this.#getLastSelectedAccount(accounts);
   }
 
   /**
@@ -804,11 +800,16 @@ export class AccountsController extends BaseController<
     });
   }
 
-  getLastSelectedAccount(
+  /**
+   * Returns the last selected account from the given array of accounts.
+   *
+   * @param accounts - An array of InternalAccount objects.
+   * @returns The InternalAccount object that was last selected, or undefined if the array is empty.
+   */
+  #getLastSelectedAccount(
     accounts: InternalAccount[],
   ): InternalAccount | undefined {
-    let lastSelectedEvmAccount = accounts[0];
-    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
+    return accounts.reduce((prevAccount, currentAccount) => {
       if (
         // When the account is added, lastSelected will be set
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -820,9 +821,7 @@ export class AccountsController extends BaseController<
         return currentAccount;
       }
       return prevAccount;
-    }, lastSelectedEvmAccount);
-
-    return lastSelectedEvmAccount;
+    }, accounts[0]);
   }
 
   /**
