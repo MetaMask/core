@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [30.0.0]
+
+### Fixed
+
+- **BREAKING**: Update from `nonce-tracker@^3.0.0` to `@metamask/nonce-tracker@^5.0.0` to mitigate issue with redundant polling loops in block tracker. ([#4309](https://github.com/MetaMask/core/pull/4309))
+  - The constructor now expects the `blockTracker` option being an instance of `@metamask/eth-block-tracker` instead of`eth-block-tracker`.
+
+## [29.1.0]
+
+### Changed
+
+- handle Swap+Send transactions as Swaps transactions sub-category; add typing ([#4298](https://github.com/MetaMask/core/pull/4298))
+
+## [29.0.2]
+
+### Fixed
+
+- fix incorrect token balance changes for simulations of multiple tokens that include an NFT mint ([#4290](https://github.com/MetaMask/core/pull/4290))
+
+## [29.0.1]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` to `^15.1.2` ([#4275](https://github.com/MetaMask/core/pull/4275))
+
+### Fixed
+
+- approveTransaction was throwing away the raw signed transaction that signTransaction was adding to the metadata.
+  This was causing some transaction with low gas to appear as "failed" when in fact they were still pending. ([#4255](https://github.com/MetaMask/core/pull/4255))
+
+## [29.0.0]
+
+### Added
+
+- Add `estimateGasFee` method ([#4216](https://github.com/MetaMask/core/pull/4216))
+  - Add `TestGasFeeFlow` that is activated by optional `testGasFeeFlows` constructor option.
+  - Add related types:
+    - `FeeMarketGasFeeEstimateForLevel`
+    - `FeeMarketGasFeeEstimates`
+    - `GasFeeEstimates`
+    - `GasFeeEstimateLevel`
+    - `GasFeeEstimateType`
+    - `GasPriceGasFeeEstimates`
+    - `LegacyGasFeeEstimates`
+
+### Changed
+
+- **BREAKING:** Update `GasFeeEstimates` type to support alternate estimate types ([#4216](https://github.com/MetaMask/core/pull/4216))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `@metamask/approval-controller` to `^6.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/gas-fee-controller` to `^15.1.1` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
+### Removed
+
+- **BREAKING:** Remove `gasFeeControllerEstimateType` property from `mergeGasFeeEstimates` function ([#4216](https://github.com/MetaMask/core/pull/4216))
+
+## [28.1.1]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` to ^15.1.0 ([#4220](https://github.com/MetaMask/core/pull/4220))
+
+### Fixed
+
+- Fixed simulating minting NFTs where the nft owner was checked before minting, causing a revert. ([#4217](https://github.com/MetaMask/core/pull/4217))
+
 ## [28.1.0]
 
 ### Added
@@ -780,7 +846,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...HEAD
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...@metamask/transaction-controller@30.0.0
+[29.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.2...@metamask/transaction-controller@29.1.0
+[29.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.1...@metamask/transaction-controller@29.0.2
+[29.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.0...@metamask/transaction-controller@29.0.1
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.1...@metamask/transaction-controller@29.0.0
+[28.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.1.0...@metamask/transaction-controller@28.1.1
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@28.0.0...@metamask/transaction-controller@28.1.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.1...@metamask/transaction-controller@28.0.0
 [27.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@27.0.0...@metamask/transaction-controller@27.0.1

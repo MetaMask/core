@@ -6,7 +6,9 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 
+import type { CaveatConstraint } from './Caveat';
 import type { PermissionType } from './Permission';
+import type { PermissionDiffMap } from './PermissionController';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
@@ -101,6 +103,32 @@ export class InvalidSubjectIdentifierError extends Error {
 export class UnrecognizedSubjectError extends Error {
   constructor(origin: string) {
     super(`Unrecognized subject: "${origin}" has no permissions.`);
+  }
+}
+
+export class CaveatMergerDoesNotExistError extends Error {
+  constructor(caveatType: string) {
+    super(`Caveat value merger does not exist for type: "${caveatType}"`);
+  }
+}
+
+export class InvalidMergedPermissionsError extends Error {
+  public cause: Error;
+
+  public data: {
+    diff: PermissionDiffMap<string, CaveatConstraint>;
+  };
+
+  constructor(
+    origin: string,
+    cause: Error,
+    diff: PermissionDiffMap<string, CaveatConstraint>,
+  ) {
+    super(
+      `Invalid merged permissions for subject "${origin}":\n${cause.message}`,
+    );
+    this.cause = cause;
+    this.data = { diff };
   }
 }
 
@@ -286,6 +314,20 @@ export class DuplicateCaveatError extends Error {
       `Permissions for target "${targetName}" contains multiple caveats of type "${caveatType}".`,
     );
     this.data = { caveatType, origin, target: targetName };
+  }
+}
+
+export class CaveatMergeTypeMismatchError extends Error {
+  public data: {
+    leftCaveatType: string;
+    rightCaveatType: string;
+  };
+
+  constructor(leftCaveatType: string, rightCaveatType: string) {
+    super(
+      `Cannot merge caveats of different types: "${leftCaveatType}" and "${rightCaveatType}".`,
+    );
+    this.data = { leftCaveatType, rightCaveatType };
   }
 }
 

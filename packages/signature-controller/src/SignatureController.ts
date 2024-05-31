@@ -23,8 +23,6 @@ import {
 } from '@metamask/logging-controller';
 import type { AddLog } from '@metamask/logging-controller';
 import type {
-  MessageParams,
-  MessageParamsMetamask,
   PersonalMessageParams,
   PersonalMessageParamsMetamask,
   TypedMessageParams,
@@ -37,35 +35,28 @@ import type {
   OriginalRequest,
   TypedMessage,
   PersonalMessage,
-  Message,
 } from '@metamask/message-manager';
 import {
-  MessageManager,
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
-import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
-import { bytesToHex } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 
 const controllerName = 'SignatureController';
 
 const stateMetadata = {
-  unapprovedMsgs: { persist: false, anonymous: false },
   unapprovedPersonalMsgs: { persist: false, anonymous: false },
   unapprovedTypedMessages: { persist: false, anonymous: false },
-  unapprovedMsgCount: { persist: false, anonymous: false },
   unapprovedPersonalMsgCount: { persist: false, anonymous: false },
   unapprovedTypedMessagesCount: { persist: false, anonymous: false },
 };
 
 const getDefaultState = () => ({
-  unapprovedMsgs: {},
   unapprovedPersonalMsgs: {},
   unapprovedTypedMessages: {},
-  unapprovedMsgCount: 0,
   unapprovedPersonalMsgCount: 0,
   unapprovedTypedMessagesCount: 0,
 });
@@ -79,10 +70,8 @@ type StateMessage = Required<AbstractMessage> & {
 };
 
 type SignatureControllerState = {
-  unapprovedMsgs: Record<string, StateMessage>;
   unapprovedPersonalMsgs: Record<string, StateMessage>;
   unapprovedTypedMessages: Record<string, StateMessage>;
-  unapprovedMsgCount: number;
   unapprovedPersonalMsgCount: number;
   unapprovedTypedMessagesCount: number;
 };
@@ -145,13 +134,9 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #isEthSignEnabled: () => boolean;
-
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   #getAllState: () => any;
-
-  #messageManager: MessageManager;
 
   #personalMessageManager: PersonalMessageManager;
 
@@ -162,14 +147,12 @@ export class SignatureController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param options.getCurrentChainId - A function for retrieving the current chainId.
    */
   constructor({
     messenger,
-    isEthSignEnabled,
     getAllState,
     securityProviderRequest,
     getCurrentChainId,
@@ -181,15 +164,9 @@ export class SignatureController extends BaseController<
       state: getDefaultState(),
     });
 
-    this.#isEthSignEnabled = isEthSignEnabled;
     this.#getAllState = getAllState;
 
     this.hub = new EventEmitter();
-    this.#messageManager = new MessageManager(
-      undefined,
-      undefined,
-      securityProviderRequest,
-    );
     this.#personalMessageManager = new PersonalMessageManager(
       undefined,
       undefined,
@@ -203,7 +180,6 @@ export class SignatureController extends BaseController<
       getCurrentChainId,
     );
 
-    this.#handleMessageManagerEvents(this.#messageManager, 'unapprovedMessage');
     this.#handleMessageManagerEvents(
       this.#personalMessageManager,
       'unapprovedPersonalMessage',
@@ -211,14 +187,6 @@ export class SignatureController extends BaseController<
     this.#handleMessageManagerEvents(
       this.#typedMessageManager,
       'unapprovedTypedMessage',
-    );
-
-    this.#subscribeToMessageState(
-      this.#messageManager,
-      (state, newMessages, messageCount) => {
-        state.unapprovedMsgs = newMessages;
-        state.unapprovedMsgCount = messageCount;
-      },
     );
 
     this.#subscribeToMessageState(
@@ -236,15 +204,6 @@ export class SignatureController extends BaseController<
         state.unapprovedTypedMessagesCount = messageCount;
       },
     );
-  }
-
-  /**
-   * A getter for the number of 'unapproved' Messages in this.messages.
-   *
-   * @returns The number of 'unapproved' Messages in this.messages
-   */
-  get unapprovedMsgCount(): number {
-    return this.#messageManager.getUnapprovedMessagesCount();
   }
 
   /**
@@ -270,15 +229,14 @@ export class SignatureController extends BaseController<
    *
    * @returns The object containing all messages.
    */
-  get messages(): { [id: string]: Message | PersonalMessage | TypedMessage } {
+  get messages(): { [id: string]: PersonalMessage | TypedMessage } {
     const messages = [
       ...this.#typedMessageManager.getAllMessages(),
       ...this.#personalMessageManager.getAllMessages(),
-      ...this.#messageManager.getAllMessages(),
     ];
 
     const messagesObject = messages.reduce<{
-      [id: string]: Message | PersonalMessage | TypedMessage;
+      [id: string]: PersonalMessage | TypedMessage;
     }>((acc, message) => {
       acc[message.id] = message;
       return acc;
@@ -300,7 +258,6 @@ export class SignatureController extends BaseController<
    * @param reason - A message to indicate why.
    */
   rejectUnapproved(reason?: string) {
-    this.#rejectUnapproved(this.#messageManager, reason);
     this.#rejectUnapproved(this.#personalMessageManager, reason);
     this.#rejectUnapproved(this.#typedMessageManager, reason);
   }
@@ -309,43 +266,14 @@ export class SignatureController extends BaseController<
    * Clears all unapproved messages from memory.
    */
   clearUnapproved() {
-    this.#clearUnapproved(this.#messageManager);
     this.#clearUnapproved(this.#personalMessageManager);
     this.#clearUnapproved(this.#typedMessageManager);
   }
 
   /**
-   * Called when a Dapp uses the eth_sign method, to request user approval.
-   * eth_sign is a pure signature of arbitrary data. It is on a deprecation
-   * path, since this data can be a transaction, or can leak private key
-   * information.
-   *
-   * @param messageParams - The params passed to eth_sign.
-   * @param [req] - The original request, containing the origin.
-   * @returns Promise resolving to the raw data of the signature request.
-   */
-  async newUnsignedMessage(
-    messageParams: MessageParams,
-    req: OriginalRequest,
-  ): Promise<string> {
-    return this.#newUnsignedAbstractMessage(
-      this.#messageManager,
-      ApprovalType.EthSign,
-      SigningMethod.EthSign,
-      'Message',
-      this.#signMessage.bind(this),
-      messageParams,
-      req,
-      this.#validateUnsignedMessage.bind(this),
-    );
-  }
-
-  /**
    * Called when a dapp uses the personal_sign method.
-   * This is identical to the Geth eth_sign method, and may eventually replace
-   * eth_sign.
    *
-   * We currently define our eth_sign and personal_sign mostly for legacy Dapps.
+   * We currently define personal_sign mostly for legacy Dapps.
    *
    * @param messageParams - The params of the message to sign & return to the Dapp.
    * @param req - The original request, containing the origin.
@@ -391,7 +319,6 @@ export class SignatureController extends BaseController<
       this.#signTypedMessage.bind(this),
       messageParams,
       req,
-      undefined,
       version,
       signingOpts,
     );
@@ -444,21 +371,6 @@ export class SignatureController extends BaseController<
     this.#personalMessageManager.setMessageStatusInProgress(messageId);
   }
 
-  #validateUnsignedMessage(messageParams: MessageParamsMetamask): void {
-    if (!this.#isEthSignEnabled()) {
-      throw rpcErrors.methodNotFound(
-        'eth_sign has been disabled. You must enable it in the advanced settings',
-      );
-    }
-    const data = this.#normalizeMsgData(messageParams.data);
-    // 64 hex + "0x" at the beginning
-    // This is needed because Ethereum's EcSign works only on 32 byte numbers
-    // For 67 length see: https://github.com/MetaMask/metamask-extension/pull/12679/files#r749479607
-    if (data.length !== 66 && data.length !== 67) {
-      throw rpcErrors.invalidParams('eth_sign requires 32 byte message hash');
-    }
-  }
-
   async #newUnsignedAbstractMessage<
     M extends AbstractMessage,
     P extends AbstractMessageParams,
@@ -472,14 +384,9 @@ export class SignatureController extends BaseController<
     signMessage: (messageParams: PM, signingOpts?: SO) => void,
     messageParams: PM,
     req: OriginalRequest,
-    validateMessage?: (params: PM) => void,
     version?: string,
     signingOpts?: SO,
   ) {
-    if (validateMessage) {
-      validateMessage(messageParams);
-    }
-
     let resultCallbacks: AcceptResultCallbacks | undefined;
     try {
       const messageId = await messageManager.addUnapprovedMessage(
@@ -540,25 +447,6 @@ export class SignatureController extends BaseController<
       resultCallbacks?.error(error as Error);
       throw error;
     }
-  }
-
-  /**
-   * Signifies user intent to complete an eth_sign method.
-   *
-   * @param msgParams - The params passed to eth_call.
-   * @returns Signature result from signing.
-   */
-  async #signMessage(msgParams: MessageParamsMetamask) {
-    return await this.#signAbstractMessage(
-      this.#messageManager,
-      ApprovalType.EthSign,
-      msgParams,
-      async (cleanMsgParams) =>
-        await this.messagingSystem.call(
-          'KeyringController:signMessage',
-          cleanMsgParams,
-        ),
-    );
   }
 
   /**
@@ -630,7 +518,6 @@ export class SignatureController extends BaseController<
     ...args: any
   ) {
     const messageManagers = [
-      this.#messageManager,
       this.#personalMessageManager,
       this.#typedMessageManager,
     ];
@@ -855,18 +742,8 @@ export class SignatureController extends BaseController<
     return stateMessage as StateMessage;
   }
 
-  #normalizeMsgData(data: string) {
-    if (data.startsWith('0x')) {
-      // data is already hex
-      return data;
-    }
-    // data is unicode, convert to hex
-    return bytesToHex(Buffer.from(data, 'utf8'));
-  }
-
   #getMessage(messageId: string): StateMessage {
     return {
-      ...this.state.unapprovedMsgs,
       ...this.state.unapprovedPersonalMsgs,
       ...this.state.unapprovedTypedMessages,
     }[messageId];

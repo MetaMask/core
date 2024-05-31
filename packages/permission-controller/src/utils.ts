@@ -10,10 +10,12 @@ import type {
 } from '@metamask/utils';
 
 import type {
+  CaveatConstraint,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
 } from './Caveat';
 import type {
+  PermissionConstraint,
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
 } from './Permission';
@@ -75,3 +77,44 @@ export type PermittedHandlerExport<
   hookNames: HookNames<T>;
   methodNames: string[];
 };
+
+/**
+ * Given two permission objects, computes 3 sets:
+ * - The set of caveat pairs that are common to both permissions.
+ * - The set of caveats that are unique to the existing permission.
+ * - The set of caveats that are unique to the requested permission.
+ *
+ * Assumes that the caveat arrays of both permissions are valid.
+ *
+ * @param leftPermission - The left-hand permission.
+ * @param rightPermission - The right-hand permission.
+ * @returns The sets of caveat pairs and unique caveats.
+ */
+export function collectUniqueAndPairedCaveats(
+  leftPermission: Partial<PermissionConstraint> | undefined,
+  rightPermission: Partial<PermissionConstraint>,
+) {
+  const leftCaveats = leftPermission?.caveats?.slice() ?? [];
+  const rightCaveats = rightPermission.caveats?.slice() ?? [];
+  const leftUniqueCaveats: CaveatConstraint[] = [];
+  const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];
+
+  leftCaveats.forEach((leftCaveat) => {
+    const rightCaveatIndex = rightCaveats.findIndex(
+      (rightCaveat) => rightCaveat.type === leftCaveat.type,
+    );
+
+    if (rightCaveatIndex === -1) {
+      leftUniqueCaveats.push(leftCaveat);
+    } else {
+      caveatPairs.push([leftCaveat, rightCaveats[rightCaveatIndex]]);
+      rightCaveats.splice(rightCaveatIndex, 1);
+    }
+  });
+
+  return {
+    caveatPairs,
+    leftUniqueCaveats,
+    rightUniqueCaveats: [...rightCaveats],
+  };
+}

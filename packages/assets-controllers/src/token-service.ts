@@ -1,9 +1,13 @@
-import { convertHexToDecimal, timeoutFetch } from '@metamask/controller-utils';
+import {
+  ChainId,
+  convertHexToDecimal,
+  timeoutFetch,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { isTokenListSupportedForNetwork } from './assetsUtil';
 
-export const TOKEN_END_POINT_API = 'https://token-api.metaswap.codefi.network';
+export const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
@@ -14,9 +18,10 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * @returns The tokens URL.
  */
 function getTokensURL(chainId: Hex) {
+  const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
 }
 
 /**
@@ -56,7 +61,14 @@ export async function fetchTokenListByChainId(
   const tokenURL = getTokensURL(chainId);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
-    return parseJsonResponse(response);
+    const result = await parseJsonResponse(response);
+    if (Array.isArray(result) && chainId === ChainId['linea-mainnet']) {
+      return result.filter(
+        (elm) =>
+          elm.aggregators.includes('lineaTeam') || elm.aggregators.length >= 3,
+      );
+    }
+    return result;
   }
   return undefined;
 }

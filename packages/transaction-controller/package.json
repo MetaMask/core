@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "28.1.0",
+  "version": "30.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -47,21 +47,21 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/approval-controller": "^6.0.1",
-    "@metamask/base-controller": "^5.0.1",
-    "@metamask/controller-utils": "^9.1.0",
+    "@metamask/approval-controller": "^6.0.2",
+    "@metamask/base-controller": "^5.0.2",
+    "@metamask/controller-utils": "^10.0.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^15.1.0",
+    "@metamask/gas-fee-controller": "^15.1.2",
     "@metamask/metamask-eth-abis": "^3.1.1",
-    "@metamask/network-controller": "^18.1.0",
+    "@metamask/network-controller": "^18.1.2",
+    "@metamask/nonce-tracker": "^5.0.0",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
-    "async-mutex": "^0.2.6",
+    "async-mutex": "^0.5.0",
     "bn.js": "^5.2.1",
     "eth-method-registry": "^4.0.0",
     "fast-json-patch": "^3.1.1",
     "lodash": "^4.17.21",
-    "nonce-tracker": "^3.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -85,7 +85,7 @@
     "@babel/runtime": "^7.23.9",
     "@metamask/approval-controller": "^6.0.0",
     "@metamask/gas-fee-controller": "^15.0.0",
-    "@metamask/network-controller": "^18.0.0"
+    "@metamask/network-controller": "^18.1.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

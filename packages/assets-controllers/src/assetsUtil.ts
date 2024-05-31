@@ -107,7 +107,7 @@ export const formatIconUrlWithProxy = ({
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
-  return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
+  return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
 /**
