@@ -311,7 +311,7 @@ describe('AccountsController', () => {
   });
 
   describe('onSnapStateChange', () => {
-    it('be used enable an account if the snap is enabled and not blocked', async () => {
+    it('be used enable an account if the Snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -354,7 +354,7 @@ describe('AccountsController', () => {
       expect(updatedAccount.metadata.snap?.enabled).toBe(true);
     });
 
-    it('be used disable an account if the snap is disabled', async () => {
+    it('be used disable an account if the Snap is disabled', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -396,7 +396,7 @@ describe('AccountsController', () => {
       expect(updatedAccount.metadata.snap?.enabled).toBe(false);
     });
 
-    it('be used disable an account if the snap is blocked', async () => {
+    it('be used disable an account if the Snap is blocked', async () => {
       const messenger = buildMessenger();
       const mockSnapAccount = createExpectedInternalAccount({
         id: 'mock-id',
@@ -543,7 +543,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('add snap accounts', async () => {
+      it('add Snap accounts', async () => {
         mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
 
         const messenger = buildMessenger();
@@ -610,7 +610,7 @@ describe('AccountsController', () => {
         ]);
       });
 
-      it('handle the event when a snap deleted the account before the it was added', async () => {
+      it('handle the event when a Snap deleted the account before the it was added', async () => {
         mockUUID.mockReturnValueOnce('mock-id'); // call to check if its a new account
         const messenger = buildMessenger();
         messenger.registerActionHandler(
@@ -1308,7 +1308,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('update accounts with snap accounts when snap keyring is defined and has accounts', async () => {
+    it('update accounts with Snap accounts when snap keyring is defined and has accounts', async () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
@@ -1364,7 +1364,7 @@ describe('AccountsController', () => {
       ).toStrictEqual(expectedAccounts);
     });
 
-    it('return an empty array if the snap keyring is not defined', async () => {
+    it('return an empty array if the Snap keyring is not defined', async () => {
       const messenger = buildMessenger();
       messenger.registerActionHandler(
         'KeyringController:getAccounts',
@@ -1442,7 +1442,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('filter snap accounts from normalAccounts', async () => {
+    it('filter Snap accounts from normalAccounts', async () => {
       mockUUID.mockReturnValueOnce('mock-id');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
@@ -1497,7 +1497,7 @@ describe('AccountsController', () => {
       expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
     });
 
-    it('filter snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
+    it('filter Snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
       mockUUID.mockReturnValue('mock-id');
       const messenger = buildMessenger();
       messenger.registerActionHandler(
