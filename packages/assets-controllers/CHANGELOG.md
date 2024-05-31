@@ -83,8 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `NftController` now takes a single options object which can be used for configuration, and configuration is now kept internally.
 - **BREAKING:** Remove `hub` property from `NftController` ([#4310](https://github.com/MetaMask/core/pull/4310))
   - Use the controller messenger for subscribing to and publishing events instead.
-- Modify `TokenListController` so that tokens fetched from the API and stored in state will no longer have `storage` and `erc20` properties ([#4235](https://github.com/MetaMask/core/pull/4235))
-  - These properties were never supported, but may have shown up in state anyway.
+- **BREAKING:** Modify `TokenListController` so that tokens fetched from the API and stored in state will no longer have `storage` and `erc20` properties ([#4235](https://github.com/MetaMask/core/pull/4235))
+  - These properties were never officially supported, but they were present in state anyway.
 
 ## [30.0.0]
 
