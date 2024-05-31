@@ -311,22 +311,9 @@ export class AccountsController extends BaseController<
       throw new Error('No EVM accounts');
     }
 
-    const lastSelectedEvmAccount = accounts.reduce(
-      (prevAccount, currentAccount) => {
-        if (
-          // When the account is added, lastSelected will be set
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          currentAccount.metadata.lastSelected! >
-          // When the account is added, lastSelected will be set
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          prevAccount.metadata.lastSelected!
-        ) {
-          return currentAccount;
-        }
-        return prevAccount;
-      },
-      accounts[0],
-    ); // Safe indexing, since we checked for .length already
+    // This will never be undefined because we have already checked if accounts.length is > 0
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const lastSelectedEvmAccount = this.getLastSelectedAccount(accounts)!;
 
     return lastSelectedEvmAccount;
   }
@@ -354,20 +341,7 @@ export class AccountsController extends BaseController<
       (account) => this.#isAccountCompatibleWithChain(account, chainId),
     );
 
-    let lastSelectedEvmAccount = accounts[0];
-    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
-      if (
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        currentAccount.metadata.lastSelected! >
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        prevAccount.metadata.lastSelected!
-      ) {
-        return currentAccount;
-      }
-      return prevAccount;
-    }, lastSelectedEvmAccount);
+    const lastSelectedEvmAccount = this.getLastSelectedAccount(accounts);
 
     return lastSelectedEvmAccount;
   }
@@ -828,6 +802,27 @@ export class AccountsController extends BaseController<
 
       return internalAccount.metadata.keyring.type === keyringType;
     });
+  }
+
+  getLastSelectedAccount(
+    accounts: InternalAccount[],
+  ): InternalAccount | undefined {
+    let lastSelectedEvmAccount = accounts[0];
+    lastSelectedEvmAccount = accounts.reduce((prevAccount, currentAccount) => {
+      if (
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        currentAccount.metadata.lastSelected! >
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        prevAccount.metadata.lastSelected!
+      ) {
+        return currentAccount;
+      }
+      return prevAccount;
+    }, lastSelectedEvmAccount);
+
+    return lastSelectedEvmAccount;
   }
 
   /**
