@@ -1587,7 +1587,7 @@ export class TransactionController extends BaseController<
     const { id: transactionId } = transactionMeta;
 
     this.#updateTransactionInternal(
-      { transactionId, note, skipHistory: this.isHistoryDisabled },
+      { transactionId, note },
       () => ({ ...transactionMeta }),
     );
   }
@@ -3649,7 +3649,7 @@ export class TransactionController extends BaseController<
       updatedTransactionParams =
         this.#checkIfTransactionParamsUpdated(transactionMeta);
 
-      if (skipHistory !== true) {
+      if (!this.isHistoryDisabled && skipHistory !== true) {
         transactionMeta = updateTransactionHistory(
           transactionMeta,
           note ?? 'Transaction updated',
@@ -3758,7 +3758,6 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
-        skipHistory: this.isHistoryDisabled,
       },
       (txMeta) => {
         txMeta.simulationData = simulationData;
