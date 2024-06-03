@@ -3292,9 +3292,10 @@ export class TransactionController extends BaseController<
       return undefined;
     }
 
-    if (!this.afterSign(transactionMeta, signedTx)) {
+    const transactionMetaFromHook = cloneDeep(transactionMeta);
+    if (!this.afterSign(transactionMetaFromHook, signedTx)) {
       this.updateTransaction(
-        transactionMeta,
+        transactionMetaFromHook,
         'TransactionController#signTransaction - Update after sign',
       );
 
@@ -3304,7 +3305,7 @@ export class TransactionController extends BaseController<
     }
 
     const transactionMetaWithRsv = {
-      ...this.updateTransactionMetaRSV(transactionMeta, signedTx),
+      ...this.updateTransactionMetaRSV(transactionMetaFromHook, signedTx),
       status: TransactionStatus.signed as const,
     };
 
