@@ -1314,7 +1314,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-middleware@npm:^12.1.0":
+"@metamask/eth-json-rpc-middleware@npm:^12.1.1":
   version: 12.1.1
   resolution: "@metamask/eth-json-rpc-middleware@npm:12.1.1"
   dependencies:
@@ -1515,14 +1515,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/network-controller@npm:^18.1.0, @metamask/network-controller@npm:^18.1.1":
-  version: 18.1.1
-  resolution: "@metamask/network-controller@npm:18.1.1"
+"@metamask/network-controller@npm:^18.1.0, @metamask/network-controller@npm:^18.1.2":
+  version: 18.1.2
+  resolution: "@metamask/network-controller@npm:18.1.2"
   dependencies:
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^9.1.0
+    "@metamask/eth-block-tracker": ^9.0.2
     "@metamask/eth-json-rpc-infura": ^9.1.0
-    "@metamask/eth-json-rpc-middleware": ^12.1.0
+    "@metamask/eth-json-rpc-middleware": ^12.1.1
     "@metamask/eth-json-rpc-provider": ^3.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/json-rpc-engine": ^8.0.2
@@ -1530,10 +1531,21 @@ __metadata:
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     async-mutex: ^0.2.6
-    eth-block-tracker: ^8.0.0
     immer: ^9.0.6
     uuid: ^8.3.2
-  checksum: 4cb9c733de43a37af9d6a428e98df7271dcd35d416d306fdf10051c6482ee2ff9c8171469663f65216faef5f0092f42d41259dca743a50f2a0e593cae2747f0b
+  checksum: 454fa3dd3c701e0d96a7b1ea88689337692e02838e3785afbc7deb7c7b1db260d3d525d92a4d22231518c3850bc3dd407f93fe5d540a027e73aeac5a5f98bd1c
+  languageName: node
+  linkType: hard
+
+"@metamask/nonce-tracker@npm:^5.0.0":
+  version: 5.0.0
+  resolution: "@metamask/nonce-tracker@npm:5.0.0"
+  dependencies:
+    "@ethersproject/providers": ^5.7.2
+    async-mutex: ^0.3.1
+  peerDependencies:
+    "@metamask/eth-block-tracker": ">=9"
+  checksum: 31de9d62f2aec52688a4b7ec1fab877d1f2f4e6b2b395abef2790ddee63b3511f312c07c29d1c191f900231dbd4cdde8e969b210462f78253a177cacee72688c
   languageName: node
   linkType: hard
 
@@ -1598,9 +1610,9 @@ __metadata:
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
     "@metamask/eth-query": ^4.0.0
-    "@metamask/network-controller": ^18.1.0
+    "@metamask/network-controller": ^18.1.2
     "@metamask/polling-controller": ^6.0.1
-    "@metamask/transaction-controller": ^29.1.0
+    "@metamask/transaction-controller": ^30.0.0
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194
     "@types/node": ^18.19.17
@@ -1637,9 +1649,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^29.1.0":
-  version: 29.1.0
-  resolution: "@metamask/transaction-controller@npm:29.1.0"
+"@metamask/transaction-controller@npm:^30.0.0":
+  version: 30.0.0
+  resolution: "@metamask/transaction-controller@npm:30.0.0"
   dependencies:
     "@ethereumjs/common": ^3.2.0
     "@ethereumjs/tx": ^4.2.0
@@ -1653,7 +1665,8 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/gas-fee-controller": ^15.1.2
     "@metamask/metamask-eth-abis": ^3.1.1
-    "@metamask/network-controller": ^18.1.1
+    "@metamask/network-controller": ^18.1.2
+    "@metamask/nonce-tracker": ^5.0.0
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
     async-mutex: ^0.2.6
@@ -1661,14 +1674,13 @@ __metadata:
     eth-method-registry: ^4.0.0
     fast-json-patch: ^3.1.1
     lodash: ^4.17.21
-    nonce-tracker: ^3.0.0
     uuid: ^8.3.2
   peerDependencies:
     "@babel/runtime": ^7.23.9
     "@metamask/approval-controller": ^6.0.0
     "@metamask/gas-fee-controller": ^15.0.0
-    "@metamask/network-controller": ^18.0.0
-  checksum: 7530b609e9b25b28a0b793723c01fdb98afdb2a259e0be458da465d597b9fd4b0b7ef1e75395282f818fd31ca5de668c8c265c659e9241db3f591d8541d8fc9c
+    "@metamask/network-controller": ^18.1.2
+  checksum: c35d7cccc974d56dcef954e95f7278c9c6a7197a85d78a85d7e21e25df1332789e101a09da737d630852e614a9286727d579dad559600aede8ccaaa2733ec798
   languageName: node
   linkType: hard
 
@@ -1802,14 +1814,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@scure/base@npm:^1.1.3, @scure/base@npm:~1.1.4":
-  version: 1.1.5
-  resolution: "@scure/base@npm:1.1.5"
-  checksum: 9e9ee6088cb3aa0fb91f5a48497d26682c7829df3019b1251d088d166d7a8c0f941c68aaa8e7b96bbad20c71eb210397cb1099062cde3e29d4bad6b975c18519
-  languageName: node
-  linkType: hard
-
-"@scure/base@npm:~1.1.3":
+"@scure/base@npm:^1.1.3, @scure/base@npm:~1.1.3, @scure/base@npm:~1.1.4":
   version: 1.1.6
   resolution: "@scure/base@npm:1.1.6"
   checksum: d6deaae91deba99e87939af9e55d80edba302674983f32bba57f942e22b1726a83c62dc50d8f4370a5d5d35a212dda167fb169f4b0d0c297488d8604608fc3d3
@@ -4031,19 +4036,6 @@ __metadata:
   version: 2.0.3
   resolution: "esutils@npm:2.0.3"
   checksum: 22b5b08f74737379a840b8ed2036a5fb35826c709ab000683b092d9054e5c2a82c27818f12604bfc2a9a76b90b6834ef081edbc1c7ae30d1627012e067c6ec87
-  languageName: node
-  linkType: hard
-
-"eth-block-tracker@npm:^8.0.0":
-  version: 8.1.0
-  resolution: "eth-block-tracker@npm:8.1.0"
-  dependencies:
-    "@metamask/eth-json-rpc-provider": ^2.1.0
-    "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.1.0
-    json-rpc-random-id: ^1.0.1
-    pify: ^5.0.0
-  checksum: a7e1e8462995d2924a2daa3224539c120df6c07a26d68522f4338ca23189d4195545e6251b8e64f79dc99a685a8124efd496e25f7ee201dc273d92e3d9e90aad
   languageName: node
   linkType: hard
 
@@ -6872,16 +6864,6 @@ __metadata:
   version: 2.0.10
   resolution: "node-releases@npm:2.0.10"
   checksum: d784ecde25696a15d449c4433077f5cce620ed30a1656c4abf31282bfc691a70d9618bae6868d247a67914d1be5cc4fde22f65a05f4398cdfb92e0fc83cadfbc
-  languageName: node
-  linkType: hard
-
-"nonce-tracker@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "nonce-tracker@npm:3.0.0"
-  dependencies:
-    "@ethersproject/providers": ^5.7.2
-    async-mutex: ^0.3.1
-  checksum: f679e83359c3d0b1941cb8569057445b5430b7e5645216442c256b2061ffb08ebee07e15011d3d55acf75710e054abd924c1b1bb38847956ef9f3bb7eed622d4
   languageName: node
   linkType: hard
 
