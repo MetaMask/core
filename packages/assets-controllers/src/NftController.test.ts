@@ -3919,9 +3919,14 @@ describe('NftController', () => {
     });
 
     it('should call getNftInformation only one time per interval', async () => {
-      const { nftController, triggerPreferencesStateChange } =
-        setupController();
-      const { selectedAddress } = nftController.config;
+      const tokenURI = 'https://api.pudgypenguins.io/lil/4';
+      const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
+      const { nftController, triggerPreferencesStateChange } = setupController({
+        options: {
+          getERC721TokenURI: mockGetERC721TokenURI,
+        },
+      });
+      const selectedAddress = OWNER_ADDRESS;
       const spy = jest.spyOn(nftController, 'updateNft');
       const testNetworkClientId = 'sepolia';
       await nftController.addNft('0xtest', '3', {
@@ -3929,13 +3934,11 @@ describe('NftController', () => {
         networkClientId: testNetworkClientId,
       });
 
-      sinon
-        .stub(nftController, 'getNftInformation' as keyof typeof nftController)
-        .returns({
-          name: 'name pudgy',
-          image: 'url pudgy',
-          description: 'description pudgy',
-        });
+      nock('https://api.pudgypenguins.io/lil').get('/4').reply(200, {
+        name: 'name pudgy',
+        image: 'url pudgy',
+        description: 'description pudgy',
+      });
       const testInputNfts: Nft[] = [
         {
           address: '0xtest',
