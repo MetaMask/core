@@ -7,7 +7,6 @@ import {
   BtcAccountType,
   BtcMethod,
   EthAccountType,
-  EthErc4337Method,
   EthMethod,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -184,7 +183,7 @@ function createExpectedInternalAccount({
 }): InternalAccount {
   const accountTypeToMethods = {
     [`${EthAccountType.Eoa}`]: [...Object.values(EthMethod)],
-    [`${EthAccountType.Erc4337}`]: [...Object.values(EthErc4337Method)],
+    [`${EthAccountType.Erc4337}`]: [...Object.values(EthMethod)],
     [`${BtcAccountType.P2wpkh}`]: [...Object.values(BtcMethod)],
   };
 
