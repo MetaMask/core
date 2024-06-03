@@ -165,9 +165,9 @@ export class IncomingTransactionHelper {
         return;
       }
       if (!this.#updateTransactions) {
+        const address = account.address.toLowerCase();
         remoteTransactions = remoteTransactions.filter(
-          (tx) =>
-            tx.txParams.to?.toLowerCase() === account.address.toLowerCase(),
+          (tx) => tx.txParams.to?.toLowerCase() === address,
         );
       }
 
