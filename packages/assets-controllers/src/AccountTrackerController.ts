@@ -112,7 +112,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AccountTrackerController';
+  override name = 'AccountTrackerController' as const;
 
   private readonly getIdentities: () => PreferencesState['identities'];
 
@@ -285,9 +285,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
           [chainId]: accountsForChain,
         },
       });
-    } catch (err) {
+    } finally {
       releaseLock();
-      throw err;
     }
   };
 

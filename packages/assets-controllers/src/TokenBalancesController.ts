@@ -196,20 +196,20 @@ export class TokenBalancesController extends BaseController<
       return;
     }
 
+    const { selectedAddress } = this.messagingSystem.call(
+      'PreferencesController:getState',
+    );
+
     const newContractBalances: ContractBalances = {};
     for (const token of this.#tokens) {
       const { address } = token;
-      const { selectedAddress } = this.messagingSystem.call(
-        'PreferencesController:getState',
-      );
       try {
-        newContractBalances[address] = toHex(
-          await this.#getERC20BalanceOf(address, selectedAddress),
-        );
-        token.balanceError = null;
+        const balance = await this.#getERC20BalanceOf(address, selectedAddress);
+        newContractBalances[address] = toHex(balance);
+        token.hasBalanceError = false;
       } catch (error) {
         newContractBalances[address] = toHex(0);
-        token.balanceError = error;
+        token.hasBalanceError = true;
       }
     }
 

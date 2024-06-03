@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/transaction-controller` to `^32.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/polling-controller` to `^8.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [11.0.0]
+
+### Added
+
+- Add support for "swap+send" transactions ([#4298](https://github.com/MetaMask/core/pull/4298))
+  - Add optional properties `destinationTokenAmount`, `sourceTokenAddress`, `sourceTokenAmount`, `sourceTokenDecimals`, and `swapAndSendRecipient` to `TransactionMeta`
+  - Add `swapAndSend` as a new entry in `TransactionType` enum
+  - When persisting this type of transaction, copy source tokens, destination tokens, and recipient from swap data, and emit `TransactionController:newSwapAndSend` controller event
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^6.0.2` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^16.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/transaction-controller` to `^31.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [10.0.0]
 
 ### Changed
@@ -130,7 +163,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@11.0.0...@metamask/user-operation-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@10.0.0...@metamask/user-operation-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@9.0.0...@metamask/user-operation-controller@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@8.0.1...@metamask/user-operation-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@8.0.0...@metamask/user-operation-controller@8.0.1

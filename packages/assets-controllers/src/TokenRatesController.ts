@@ -18,7 +18,8 @@ import { isEqual } from 'lodash';
 import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import type { TokensState } from './TokensController';
+import { ZERO_ADDRESS } from './token-prices-service/codefi-v2';
+import type { TokensControllerState } from './TokensController';
 
 /**
  * @type Token
@@ -29,19 +30,17 @@ import type { TokensState } from './TokensController';
  * @property symbol - Symbol of the token
  * @property image - Image of the token, url or bit32 image
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface Token {
+
+export type Token = {
   address: string;
   decimals: number;
   symbol: string;
   aggregators?: string[];
   image?: string;
-  balanceError?: unknown;
+  hasBalanceError?: boolean;
   isERC721?: boolean;
   name?: string;
-}
+};
 
 /**
  * @type TokenRatesConfig
@@ -73,6 +72,32 @@ export interface ContractExchangeRates {
   [address: string]: number | undefined;
 }
 
+type MarketDataDetails = {
+  tokenAddress: `0x${string}`;
+  value: number;
+  currency: string;
+  allTimeHigh: number;
+  allTimeLow: number;
+  circulatingSupply: number;
+  dilutedMarketCap: number;
+  high1d: number;
+  low1d: number;
+  marketCap: number;
+  marketCapPercentChange1d: number;
+  price: number;
+  priceChange1d: number;
+  pricePercentChange1d: number;
+  pricePercentChange1h: number;
+  pricePercentChange1y: number;
+  pricePercentChange7d: number;
+  pricePercentChange14d: number;
+  pricePercentChange30d: number;
+  pricePercentChange200d: number;
+  totalVolume: number;
+};
+
+export type ContractMarketData = Record<Hex, MarketDataDetails>;
+
 enum PollState {
   Active = 'Active',
   Inactive = 'Inactive',
@@ -82,18 +107,13 @@ enum PollState {
  * @type TokenRatesState
  *
  * Token rates controller state
- * @property contractExchangeRates - Hash of token contract addresses to exchange rates (single globally selected chain, will be deprecated soon)
- * @property contractExchangeRatesByChainId - Hash of token contract addresses to exchange rates keyed by chain ID and native currency (ticker)
+ * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface TokenRatesState extends BaseState {
-  contractExchangeRates: ContractExchangeRates;
-  contractExchangeRatesByChainId: Record<
-    Hex,
-    Record<string, ContractExchangeRates>
-  >;
+  marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
 }
 
 /**
@@ -152,7 +172,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'TokenRatesController';
+  override name = 'TokenRatesController' as const;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -196,7 +216,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         listener: (preferencesState: PreferencesState) => void,
       ) => void;
       onTokensStateChange: (
-        listener: (tokensState: TokensState) => void,
+        listener: (tokensState: TokensControllerState) => void,
       ) => void;
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -219,8 +239,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     };
 
     this.defaultState = {
-      contractExchangeRates: {},
-      contractExchangeRatesByChainId: {},
+      marketData: {},
     };
     this.initialize();
     this.setIntervalLength(interval);
@@ -264,7 +283,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         this.config.chainId !== chainId ||
         this.config.nativeCurrency !== ticker
       ) {
-        this.update({ contractExchangeRates: {} });
+        this.update({ ...this.defaultState });
         this.configure({ chainId, nativeCurrency: ticker });
         if (this.#pollState === PollState.Active) {
           await this.updateExchangeRates();
@@ -363,9 +382,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     }
 
     const tokenAddresses = this.#getTokenAddresses(chainId);
-    if (tokenAddresses.length === 0) {
-      return;
-    }
 
     const updateKey: `${Hex}:${string}` = `${chainId}:${nativeCurrency}`;
     if (updateKey in this.#inProcessExchangeRateUpdates) {
@@ -384,35 +400,20 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     this.#inProcessExchangeRateUpdates[updateKey] = inProgressUpdate;
 
     try {
-      const newContractExchangeRates = await this.#fetchAndMapExchangeRates({
+      const contractInformations = await this.#fetchAndMapExchangeRates({
         tokenAddresses,
         chainId,
         nativeCurrency,
       });
 
-      const existingContractExchangeRates = this.state.contractExchangeRates;
-      const updatedContractExchangeRates =
-        chainId === this.config.chainId &&
-        nativeCurrency === this.config.nativeCurrency
-          ? newContractExchangeRates
-          : existingContractExchangeRates;
-
-      const existingContractExchangeRatesForChainId =
-        this.state.contractExchangeRatesByChainId[chainId] ?? {};
-      const updatedContractExchangeRatesForChainId = {
-        ...this.state.contractExchangeRatesByChainId,
+      const marketData = {
         [chainId]: {
-          ...existingContractExchangeRatesForChainId,
-          [nativeCurrency]: {
-            ...existingContractExchangeRatesForChainId[nativeCurrency],
-            ...newContractExchangeRates,
-          },
+          ...(contractInformations ?? {}),
         },
       };
 
       this.update({
-        contractExchangeRates: updatedContractExchangeRates,
-        contractExchangeRatesByChainId: updatedContractExchangeRatesForChainId,
+        marketData,
       });
       updateSucceeded();
     } catch (error: unknown) {
@@ -451,13 +452,15 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
-  }): Promise<ContractExchangeRates> {
+  }): Promise<ContractMarketData> {
     if (!this.#tokenPricesService.validateChainIdSupported(chainId)) {
       return tokenAddresses.reduce((obj, tokenAddress) => {
-        return {
+        obj = {
           ...obj,
           [tokenAddress]: undefined,
         };
+
+        return obj;
       }, {});
     }
 
@@ -468,7 +471,6 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         nativeCurrency,
       });
     }
-
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
       tokenAddresses,
       nativeCurrency,
@@ -509,7 +511,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     tokenAddresses: Hex[];
     chainId: Hex;
     nativeCurrency: string;
-  }): Promise<ContractExchangeRates> {
+  }): Promise<ContractMarketData> {
+    let contractNativeInformations;
     const tokenPricesByTokenAddress = await reduceInBatchesSerially<
       Hex,
       Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
@@ -531,13 +534,32 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       },
       initialResult: {},
     });
+    contractNativeInformations = tokenPricesByTokenAddress;
 
-    return Object.entries(tokenPricesByTokenAddress).reduce(
-      (obj, [tokenAddress, tokenPrice]) => {
-        return {
+    // fetch for native token
+    if (tokenAddresses.length === 0) {
+      const contractNativeInformationsNative =
+        await this.#tokenPricesService.fetchTokenPrices({
+          tokenAddresses: [],
+          chainId,
+          currency: nativeCurrency,
+        });
+
+      contractNativeInformations = {
+        [ZERO_ADDRESS]: {
+          currency: nativeCurrency,
+          ...contractNativeInformationsNative[ZERO_ADDRESS],
+        },
+      };
+    }
+    return Object.entries(contractNativeInformations).reduce(
+      (obj, [tokenAddress, token]) => {
+        obj = {
           ...obj,
-          [tokenAddress]: tokenPrice?.value,
+          [tokenAddress.toLowerCase()]: { ...token },
         };
+
+        return obj;
       },
       {},
     );
@@ -561,9 +583,9 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
   }: {
     tokenAddresses: Hex[];
     nativeCurrency: string;
-  }): Promise<ContractExchangeRates> {
+  }): Promise<ContractMarketData> {
     const [
-      contractExchangeRates,
+      contractExchangeInformations,
       fallbackCurrencyToNativeCurrencyConversionRate,
     ] = await Promise.all([
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
@@ -581,17 +603,22 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       return {};
     }
 
-    return Object.entries(contractExchangeRates).reduce(
-      (obj, [tokenAddress, tokenValue]) => {
-        return {
-          ...obj,
-          [tokenAddress]: tokenValue
-            ? tokenValue * fallbackCurrencyToNativeCurrencyConversionRate
+    const updatedContractExchangeRates = Object.entries(
+      contractExchangeInformations,
+    ).reduce((acc, [tokenAddress, token]) => {
+      acc = {
+        ...acc,
+        [tokenAddress]: {
+          ...token,
+          value: token.value
+            ? token.value * fallbackCurrencyToNativeCurrencyConversionRate
             : undefined,
-        };
-      },
-      {},
-    );
+        },
+      };
+      return acc;
+    }, {});
+
+    return updatedContractExchangeRates;
   }
 }
 

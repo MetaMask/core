@@ -1,6 +1,6 @@
 {
   "name": "@metamask/approval-controller",
-  "version": "6.0.2",
+  "version": "7.0.0",
   "description": "Manages requests that require user approval",
   "keywords": [
     "MetaMask",
@@ -41,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.2",
+    "@metamask/base-controller": "^6.0.0",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "nanoid": "^3.1.31"
@@ -58,7 +58,7 @@
     "typescript": "~4.9.5"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

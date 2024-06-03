@@ -7,10 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/message-manager` to `^10.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [16.1.0]
+
 ### Added
 
-- Added `changePassword` method ([#4279](https://github.com/MetaMask/core/pull/4279))
-  - This method can be used to change the password used to encrypt the vault
+- Add `changePassword` method ([#4279](https://github.com/MetaMask/core/pull/4279))
+  - This method can be used to change the password used to encrypt the vault.
+- Add support for non-EVM account addresses to most methods ([#4282](https://github.com/MetaMask/core/pull/4282))
+  - Previously, all addresses were assumed to be Ethereum addresses and normalized, but now only Ethereum addresses are treated as such.
+  - Relax type of `account` argument on `removeAccount` from `Hex` to `string`
+
+### Changed
+
+- Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+- Bump `@keystonehq/metamask-airgapped-keyring` to `^0.14.1` ([#4277](https://github.com/MetaMask/core/pull/4277))
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/message-manager` to `^9.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Fixed
+
+- Fix QR keyrings so that they are not initialized with invalid state ([#4256](https://github.com/MetaMask/core/pull/4256))
 
 ## [16.0.0]
 
@@ -445,7 +469,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.1.0...@metamask/keyring-controller@17.0.0
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...@metamask/keyring-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...@metamask/keyring-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1

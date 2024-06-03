@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
 ## [6.0.2]
 
 ### Changed
@@ -193,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.2...@metamask/approval-controller@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.1...@metamask/approval-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.0...@metamask/approval-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.3...@metamask/approval-controller@6.0.0

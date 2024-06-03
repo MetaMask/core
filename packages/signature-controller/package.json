@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "16.0.0",
+  "version": "18.0.0",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -41,12 +41,12 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^6.0.2",
-    "@metamask/base-controller": "^5.0.2",
-    "@metamask/controller-utils": "^9.1.0",
-    "@metamask/keyring-controller": "^16.0.0",
-    "@metamask/logging-controller": "^3.0.1",
-    "@metamask/message-manager": "^8.0.2",
+    "@metamask/approval-controller": "^7.0.0",
+    "@metamask/base-controller": "^6.0.0",
+    "@metamask/controller-utils": "^11.0.0",
+    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/logging-controller": "^5.0.0",
+    "@metamask/message-manager": "^10.0.0",
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/utils": "^8.3.0",
     "lodash": "^4.17.21"
@@ -62,12 +62,12 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/approval-controller": "^6.0.0",
-    "@metamask/keyring-controller": "^16.0.0",
-    "@metamask/logging-controller": "^3.0.0"
+    "@metamask/approval-controller": "^7.0.0",
+    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/logging-controller": "^5.0.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

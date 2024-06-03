@@ -74,7 +74,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'PersonalMessageManager';
+  override name = 'PersonalMessageManager' as const;
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
