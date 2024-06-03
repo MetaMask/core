@@ -43,7 +43,7 @@ import type {
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
-import type { CaipChainId, Hex } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
