@@ -20,14 +20,6 @@ import type {
   PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
 } from '@metamask/push-platform-notifications-controller';
 
-import type {
-  AllowedActions,
-  AllowedEvents,
-} from './MetamaskNotificationsController';
-import {
-  MetamaskNotificationsController,
-  defaultState,
-} from './MetamaskNotificationsController';
 import {
   createMockFeatureAnnouncementAPIResult,
   createMockFeatureAnnouncementRaw,
@@ -45,6 +37,11 @@ import {
   mockMarkNotificationsAsRead,
 } from './mocks/mock-onchain-notifications';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
+import {
+  NotificationsController,
+  defaultState,
+} from './NotificationsController';
+import type { AllowedActions, AllowedEvents } from './NotificationsController';
 import { processNotification } from './processors/process-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
 import type { UserStorage } from './types/user-storage/user-storage';
@@ -52,12 +49,12 @@ import * as MetamaskNotificationsUtils from './utils/utils';
 
 describe('metamask-notifications - constructor()', () => {
   it('initializes state & override state', () => {
-    const controller1 = new MetamaskNotificationsController({
+    const controller1 = new NotificationsController({
       messenger: mockNotificationMessenger().messenger,
     });
     expect(controller1.state).toEqual(defaultState);
 
-    const controller2 = new MetamaskNotificationsController({
+    const controller2 = new NotificationsController({
       messenger: mockNotificationMessenger().messenger,
       state: {
         ...defaultState,
@@ -74,7 +71,7 @@ describe('metamask-notifications - constructor()', () => {
 
     // initialize controller with 1 address
     mockListAccounts.mockResolvedValueOnce(['addr1']);
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
 
     const mockUpdate = jest
       .spyOn(controller, 'updateOnChainTriggersByAccount')
@@ -87,15 +84,15 @@ describe('metamask-notifications - constructor()', () => {
     mockListAccounts.mockResolvedValueOnce(['addr1', 'addr2']);
     await actPublishKeyringStateChange(globalMessenger);
 
-    expect(mockUpdate).not.toBeCalled();
-    expect(mockDelete).not.toBeCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 
   it('keyring Change Event with new triggers will update triggers correctly', async () => {
     const { messenger, globalMessenger, mockListAccounts } = arrangeMocks();
 
     // initialize controller with 1 address
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger,
       state: {
         isMetamaskNotificationsEnabled: true,
@@ -110,6 +107,11 @@ describe('metamask-notifications - constructor()', () => {
       .spyOn(controller, 'deleteOnChainTriggersByAccount')
       .mockResolvedValue({} as UserStorage);
 
+    /**
+     *
+     * @param addresses
+     * @param assertion
+     */
     async function act(addresses: string[], assertion: () => void) {
       mockListAccounts.mockResolvedValueOnce(addresses);
       await actPublishKeyringStateChange(globalMessenger);
@@ -149,13 +151,13 @@ describe('metamask-notifications - constructor()', () => {
     const { messenger, mockEnablePushNotifications } = arrangeMocks();
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _controller = new MetamaskNotificationsController({
+    const _controller = new NotificationsController({
       messenger,
       state: { isMetamaskNotificationsEnabled: true },
     });
 
     await waitFor(() => {
-      expect(mockEnablePushNotifications).toBeCalled();
+      expect(mockEnablePushNotifications).toHaveBeenCalled();
     });
   });
 
@@ -167,18 +169,21 @@ describe('metamask-notifications - constructor()', () => {
     mockPerformGetStorage.mockResolvedValue(null);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _controller = new MetamaskNotificationsController({
+    const _controller = new NotificationsController({
       messenger,
       state: { isMetamaskNotificationsEnabled: true },
     });
 
     await waitFor(() => {
-      expect(mockPerformGetStorage).toBeCalled();
+      expect(mockPerformGetStorage).toHaveBeenCalled();
     });
 
-    expect(mockEnablePushNotifications).not.toBeCalled();
+    expect(mockEnablePushNotifications).not.toHaveBeenCalled();
   });
 
+  /**
+   *
+   */
   function arrangeMocks() {
     const messengerMocks = mockNotificationMessenger();
     jest
@@ -188,6 +193,10 @@ describe('metamask-notifications - constructor()', () => {
     return messengerMocks;
   }
 
+  /**
+   *
+   * @param messenger
+   */
   async function actPublishKeyringStateChange(
     messenger: ControllerMessenger<never, KeyringControllerStateChangeEvent>,
   ) {
@@ -207,7 +216,7 @@ describe('metamask-notifications - checkAccountsPresence()', () => {
       JSON.stringify(createMockFullUserStorage()),
     );
 
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
     const result = await controller.checkAccountsPresence([
       MOCK_USER_STORAGE_ACCOUNT,
       'fake_account',
@@ -224,7 +233,7 @@ describe('metamask-notifications - setFeatureAnnouncementsEnabled()', () => {
     const { messenger, mockIsSignedIn } = mockNotificationMessenger();
     mockIsSignedIn.mockReturnValue(true);
 
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger,
       state: { ...defaultState, isFeatureAnnouncementsEnabled: false },
     });
@@ -244,7 +253,7 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
       mockCreateOnChainTriggers,
       mockPerformGetStorage,
     } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
     mockPerformGetStorage.mockResolvedValue(null); // Mock no storage found.
 
     const result = await controller.createOnChainTriggers();
@@ -256,7 +265,7 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
 
   it('throws if not given a valid auth & storage key', async () => {
     const mocks = arrangeMocks();
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger: mocks.messenger,
     });
 
@@ -297,7 +306,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
       nockMockDeleteTriggersAPI,
       mockDisablePushNotifications,
     } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
     const result = await controller.deleteOnChainTriggersByAccount([
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
@@ -310,7 +319,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
 
   it('does nothing if account does not exist in storage', async () => {
     const { messenger, mockDisablePushNotifications } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
     const result = await controller.deleteOnChainTriggersByAccount([
       'UNKNOWN_ACCOUNT',
     ]);
@@ -323,7 +332,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
 
   it('throws errors when invalid auth and storage', async () => {
     const mocks = arrangeMocks();
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger: mocks.messenger,
     });
 
@@ -359,7 +368,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
       mockPerformSetStorage,
     } = arrangeMocks();
     const MOCK_ACCOUNT = 'MOCK_ACCOUNT2';
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
 
     const result = await controller.updateOnChainTriggersByAccount([
       MOCK_ACCOUNT,
@@ -376,7 +385,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
 
   it('throws errors when invalid auth and storage', async () => {
     const mocks = arrangeMocks();
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger: mocks.messenger,
     });
 
@@ -412,7 +421,7 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
       mockListNotificationsAPIResult,
     } = arrangeMocks();
 
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger,
       state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
     });
@@ -439,7 +448,7 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
       new Error('MOCK - failed to get access token'),
     );
 
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger,
       state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
     });
@@ -489,7 +498,7 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
   it('updates feature announcements as read', async () => {
     const { messenger } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
 
     await controller.markMetamaskNotificationsAsRead([
       processNotification(createMockFeatureAnnouncementRaw()),
@@ -502,7 +511,7 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
 
   it('should at least mark feature announcements locally if external updates fail', async () => {
     const { messenger } = arrangeMocks({ onChainMarkAsReadFails: true });
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new NotificationsController({ messenger });
 
     await controller.markMetamaskNotificationsAsRead([
       processNotification(createMockFeatureAnnouncementRaw()),
@@ -538,7 +547,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
   it('create new notifications when switched on and no new notifications', async () => {
     const mocks = arrangeMocks();
     mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger: mocks.messenger,
     });
 
@@ -562,7 +571,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
     const userStorage = createMockFullUserStorage({ address: '0xAddr1' });
     mocks.mockPerformGetStorage.mockResolvedValue(JSON.stringify(userStorage));
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger: mocks.messenger,
     });
 
@@ -593,7 +602,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 describe('metamask-notifications - disableMetamaskNotifications()', () => {
   it('disable notifications and turn off push notifications', async () => {
     const mocks = arrangeMocks();
-    const controller = new MetamaskNotificationsController({
+    const controller = new NotificationsController({
       messenger: mocks.messenger,
       state: { isMetamaskNotificationsEnabled: true },
     });
@@ -649,7 +658,7 @@ function mockNotificationMessenger() {
   >();
 
   const messenger = globalMessenger.getRestricted({
-    name: 'MetamaskNotificationsController',
+    name: 'NotificationsController',
     allowedActions: [
       'KeyringController:getAccounts',
       'AuthenticationController:getBearerToken',

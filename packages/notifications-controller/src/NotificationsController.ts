@@ -42,12 +42,12 @@ import type { UserStorage } from './types/user-storage/user-storage';
 import * as MetamaskNotificationsUtils from './utils/utils';
 
 // Unique name for the controller
-const controllerName = 'MetamaskNotificationsController';
+const controllerName = 'NotificationsController';
 
 /**
- * State shape for MetamaskNotificationsController
+ * State shape for NotificationsController
  */
-export type MetamaskNotificationsControllerState = {
+export type NotificationsControllerState = {
   /**
    * We store and manage accounts that have been seen/visted through the
    * account subscription. This allows us to track and add notifications for new accounts and not previous accounts added.
@@ -98,7 +98,7 @@ export type MetamaskNotificationsControllerState = {
   isCheckingAccountsPresence: boolean;
 };
 
-const metadata: StateMetadata<MetamaskNotificationsControllerState> = {
+const metadata: StateMetadata<NotificationsControllerState> = {
   subscriptionAccountsSeen: {
     persist: true,
     anonymous: true,
@@ -141,7 +141,7 @@ const metadata: StateMetadata<MetamaskNotificationsControllerState> = {
     anonymous: false,
   },
 };
-export const defaultState: MetamaskNotificationsControllerState = {
+export const defaultState: NotificationsControllerState = {
   subscriptionAccountsSeen: [],
   isMetamaskNotificationsFeatureSeen: false,
   isMetamaskNotificationsEnabled: false,
@@ -154,30 +154,28 @@ export const defaultState: MetamaskNotificationsControllerState = {
   isCheckingAccountsPresence: false,
 };
 
-export declare type MetamaskNotificationsControllerUpdateMetamaskNotificationsList =
-  {
-    type: `${typeof controllerName}:updateMetamaskNotificationsList`;
-    handler: MetamaskNotificationsController['updateMetamaskNotificationsList'];
-  };
+export type NotificationsControllerUpdateMetamaskNotificationsListAction = {
+  type: `${typeof controllerName}:updateMetamaskNotificationsList`;
+  handler: NotificationsController['updateMetamaskNotificationsList'];
+};
 
-export declare type MetamaskNotificationsControllerDisableMetamaskNotifications =
-  {
-    type: `${typeof controllerName}:disableMetamaskNotifications`;
-    handler: MetamaskNotificationsController['disableMetamaskNotifications'];
-  };
+export type NotificationsControllerDisableMetamaskNotificationsAction = {
+  type: `${typeof controllerName}:disableMetamaskNotifications`;
+  handler: NotificationsController['disableMetamaskNotifications'];
+};
 
-export declare type MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled =
+export type NotificationsControllerSelectIsMetamaskNotificationsEnabledAction =
   {
     type: `${typeof controllerName}:selectIsMetamaskNotificationsEnabled`;
-    handler: MetamaskNotificationsController['selectIsMetamaskNotificationsEnabled'];
+    handler: NotificationsController['selectIsMetamaskNotificationsEnabled'];
   };
 
 // Messenger Actions
 export type Actions =
-  | MetamaskNotificationsControllerUpdateMetamaskNotificationsList
-  | MetamaskNotificationsControllerDisableMetamaskNotifications
-  | MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled
-  | ControllerGetStateAction<'state', MetamaskNotificationsControllerState>;
+  | NotificationsControllerUpdateMetamaskNotificationsListAction
+  | NotificationsControllerDisableMetamaskNotificationsAction
+  | NotificationsControllerSelectIsMetamaskNotificationsEnabledAction
+  | ControllerGetStateAction<'state', NotificationsControllerState>;
 
 // Allowed Actions
 export type AllowedActions =
@@ -197,34 +195,32 @@ export type AllowedActions =
   | PushPlatformNotificationsControllerUpdateTriggerPushNotifications;
 
 // Events
-export type MetamaskNotificationsControllerMessengerEvents =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    MetamaskNotificationsControllerState
-  >;
+export type NotificationsControllerMessengerEvents = ControllerStateChangeEvent<
+  typeof controllerName,
+  NotificationsControllerState
+>;
 
 // Allowed Events
 export type AllowedEvents =
   | KeyringControllerStateChangeEvent
   | PushPlatformNotificationsControllerOnNewNotificationEvent;
 
-// Type for the messenger of MetamaskNotificationsController
-export type MetamaskNotificationsControllerMessenger =
-  RestrictedControllerMessenger<
-    typeof controllerName,
-    Actions | AllowedActions,
-    AllowedEvents,
-    AllowedActions['type'],
-    AllowedEvents['type']
-  >;
+// Type for the messenger of NotificationsController
+export type NotificationsControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  Actions | AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller that enables wallet notifications and feature announcements
  */
-export class MetamaskNotificationsController extends BaseController<
+export class NotificationsController extends BaseController<
   typeof controllerName,
-  MetamaskNotificationsControllerState,
-  MetamaskNotificationsControllerMessenger
+  NotificationsControllerState,
+  NotificationsControllerMessenger
 > {
   #auth = {
     getBearerToken: async () => {
@@ -385,7 +381,7 @@ export class MetamaskNotificationsController extends BaseController<
   };
 
   /**
-   * Creates a MetamaskNotificationsController instance.
+   * Creates a NotificationsController instance.
    *
    * @param args - The arguments to this function.
    * @param args.messenger - Messenger used to communicate with BaseV2 controller.
@@ -395,8 +391,8 @@ export class MetamaskNotificationsController extends BaseController<
     messenger,
     state,
   }: {
-    messenger: MetamaskNotificationsControllerMessenger;
-    state?: Partial<MetamaskNotificationsControllerState>;
+    messenger: NotificationsControllerMessenger;
+    state?: Partial<NotificationsControllerState>;
   }) {
     super({
       messenger,
@@ -505,7 +501,7 @@ export class MetamaskNotificationsController extends BaseController<
   }
 
   /**
-   * @deprecated - This needs rework for it to be feasible. Currently this is a half-baked solution, as it fails once we add new triggers (introspection for filters is difficult).
+   * @TODO - This needs rework for it to be feasible. Currently this is a half-baked solution, as it fails once we add new triggers (introspection for filters is difficult).
    *
    * Checks for the complete presence of trigger types by group across all addresses in user storage.
    *
@@ -513,7 +509,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @returns A record indicating whether all expected trigger types for each group are present for every address.
    * @throws {Error} If user storage does not exist.
    */
-  public async checkTriggersPresenceByGroup(): Promise<
+  async checkTriggersPresenceByGroup(): Promise<
     Record<TRIGGER_TYPES_GROUPS, boolean>
   > {
     const userStorage = await this.#getUserStorage();
@@ -531,7 +527,7 @@ export class MetamaskNotificationsController extends BaseController<
    *
    * @returns The enabled state of MetaMask notifications.
    */
-  public selectIsMetamaskNotificationsEnabled(): boolean {
+  selectIsMetamaskNotificationsEnabled(): boolean {
     return this.state.isMetamaskNotificationsEnabled;
   }
 
@@ -614,7 +610,7 @@ export class MetamaskNotificationsController extends BaseController<
     });
   }
 
-  public async checkAccountsPresence(
+  async checkAccountsPresence(
     accounts: string[],
   ): Promise<Record<string, boolean>> {
     try {
@@ -646,9 +642,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @async
    * @throws {Error} If fails to update
    */
-  public async setFeatureAnnouncementsEnabled(
-    featureAnnouncementsEnabled: boolean,
-  ) {
+  async setFeatureAnnouncementsEnabled(featureAnnouncementsEnabled: boolean) {
     try {
       this.update((s) => {
         s.isFeatureAnnouncementsEnabled = featureAnnouncementsEnabled;
@@ -667,7 +661,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @returns The updated or newly created user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async createOnChainTriggers(): Promise<UserStorage> {
+  async createOnChainTriggers(): Promise<UserStorage> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
@@ -735,7 +729,7 @@ export class MetamaskNotificationsController extends BaseController<
    *
    * @throws {Error} If there is an error during the process of enabling notifications.
    */
-  public async enableMetamaskNotifications() {
+  async enableMetamaskNotifications() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
       await this.createOnChainTriggers();
@@ -755,7 +749,7 @@ export class MetamaskNotificationsController extends BaseController<
    *
    * @throws {Error} If the user is not authenticated or if there is an error during the process.
    */
-  public async disableMetamaskNotifications() {
+  async disableMetamaskNotifications() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
@@ -793,7 +787,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @returns A promise that resolves to void or an object containing a success message.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async deleteOnChainTriggersByAccount(
+  async deleteOnChainTriggersByAccount(
     accounts: string[],
   ): Promise<UserStorage> {
     try {
@@ -857,7 +851,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @returns A promise that resolves to the updated user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async updateOnChainTriggersByAccount(
+  async updateOnChainTriggersByAccount(
     accounts: string[],
   ): Promise<UserStorage> {
     try {
@@ -937,7 +931,7 @@ export class MetamaskNotificationsController extends BaseController<
    *
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async fetchAndUpdateMetamaskNotifications(): Promise<INotification[]> {
+  async fetchAndUpdateMetamaskNotifications(): Promise<INotification[]> {
     try {
       this.#setIsFetchingMetamaskNotifications(true);
 
@@ -1018,7 +1012,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @param notifications - An array of notifications to be marked as read. Each notification should include its type and read status.
    * @returns A promise that resolves when the operation is complete.
    */
-  public async markMetamaskNotificationsAsRead(
+  async markMetamaskNotificationsAsRead(
     notifications: MarkAsReadNotificationsParam,
   ): Promise<void> {
     let onchainNotificationIds: string[] = [];
@@ -1093,7 +1087,7 @@ export class MetamaskNotificationsController extends BaseController<
    * @param notification - The new notification object to be added to the list.
    * @returns A promise that resolves when the notification list has been successfully updated.
    */
-  public async updateMetamaskNotificationsList(
+  async updateMetamaskNotificationsList(
     notification: INotification,
   ): Promise<void> {
     if (

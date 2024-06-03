@@ -5,9 +5,9 @@ export type {
   Actions,
   AllowedActions,
   AllowedEvents,
-  MetamaskNotificationsControllerDisableMetamaskNotifications,
-  MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled,
-  MetamaskNotificationsControllerMessenger,
-  MetamaskNotificationsControllerMessengerEvents,
-} from './MetamaskNotificationsController';
-export { MetamaskNotificationsController } from './MetamaskNotificationsController';
+  NotificationsControllerDisableMetamaskNotifications,
+  NotificationsControllerSelectIsMetamaskNotificationsEnabled,
+  NotificationsControllerMessenger,
+  NotificationsControllerMessengerEvents,
+} from './NotificationsController';
+export { NotificationsController } from './NotificationsController';

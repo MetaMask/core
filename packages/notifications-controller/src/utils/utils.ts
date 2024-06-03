@@ -188,7 +188,7 @@ export function traverseUserStorageTriggers<
 }
 
 /**
- * @deprecated - This needs rework for it to be feasible. Currently this is a half-baked solution, as it fails once we add new triggers (introspection for filters is difficult).
+ * @TODO - This needs rework for it to be feasible. Currently this is a half-baked solution, as it fails once we add new triggers (introspection for filters is difficult).
  *
  * Checks for the complete presence of trigger types by group across all addresses in the user storage.
  * This method ensures that each address has at least one trigger of each type expected for every group.
