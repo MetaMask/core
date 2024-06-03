@@ -2,12 +2,11 @@ export * from './types';
 export * from './constants';
 export * from './mocks';
 export type {
-  Actions,
-  AllowedActions,
-  AllowedEvents,
-  NotificationsControllerDisableMetamaskNotifications,
+  NotificationsControllerActions,
   NotificationsControllerSelectIsMetamaskNotificationsEnabled,
+  NotificationsControllerDisableMetamaskNotifications,
+  NotificationsControllerEvents,
   NotificationsControllerMessenger,
-  NotificationsControllerMessengerEvents,
+  getDefaultNotificationsControllerState,
 } from './NotificationsController';
 export { NotificationsController } from './NotificationsController';

@@ -8,7 +8,6 @@
     "baseUrl": "./",
     "outDir": "./dist/types",
     "rootDir": "./src",
-    "skipLibCheck": true
   },
   "references": [
     {

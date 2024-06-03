@@ -1,7 +1,3 @@
-export * from './types';
-export * from './utils';
-
-export { PushPlatformNotificationsController } from './PushPlatformNotificationsController';
 export type {
   PushPlatformNotificationsControllerState,
   PushPlatformNotificationsControllerMessengerActions,
@@ -11,3 +7,5 @@ export type {
   PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
   PushPlatformNotificationsControllerMessenger,
 } from './PushPlatformNotificationsController';
+
+export { PushPlatformNotificationsController } from './PushPlatformNotificationsController';

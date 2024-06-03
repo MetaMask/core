@@ -6,10 +6,10 @@ import type {
 import type nock from 'nock';
 
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
 } from './AuthenticationController';
 import {
   mockEndpointGetUserStorage,
@@ -71,7 +71,7 @@ describe('user-storage/UserStorageController - performGetStorage() tests', () =>
 
     await expect(
       controller.performGetStorage('notification_settings'),
-    ).rejects.toThrow();
+    ).rejects.toThrow('UserStorage is not enabled');
   });
 
   it.each([
@@ -99,7 +99,7 @@ describe('user-storage/UserStorageController - performGetStorage() tests', () =>
 
     await expect(
       controller.performGetStorage('notification_settings'),
-    ).rejects.toThrow();
+    ).rejects.toThrow('MOCK FAILURE');
   });
 
   /**
@@ -138,7 +138,7 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
 
     await expect(
       controller.performSetStorage('notification_settings', 'new data'),
-    ).rejects.toThrow();
+    ).rejects.toThrow('UserStorage is not enabled');
   });
 
   it.each([
@@ -166,7 +166,7 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
 
     await expect(
       controller.performSetStorage('notification_settings', 'new data'),
-    ).rejects.toThrow();
+    ).rejects.toThrow('MOCK FAILURE');
   });
 
   it('rejects if api call fails', async () => {
@@ -179,7 +179,7 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
     });
     await expect(
       controller.performSetStorage('notification_settings', 'new data'),
-    ).rejects.toThrow();
+    ).rejects.toThrow('MOCK FAILURE');
   });
 
   /**
@@ -218,7 +218,9 @@ describe('user-storage/UserStorageController - performSetStorage()  tests', () =
       },
     });
 
-    await expect(controller.getStorageKey()).rejects.toThrow();
+    await expect(controller.getStorageKey()).rejects.toThrow(
+      'UserStorage is not enabled',
+    );
   });
 
   /**
@@ -313,11 +315,11 @@ function mockUserStorageMessenger() {
 
   const mockAuthGetBearerToken =
     typedMockFn<
-      AuthenticationControllerGetBearerToken['handler']
+      AuthenticationControllerGetBearerTokenAction['handler']
     >().mockResolvedValue('MOCK_BEARER_TOKEN');
 
   const mockAuthGetSessionProfile = typedMockFn<
-    AuthenticationControllerGetSessionProfile['handler']
+    AuthenticationControllerGetSessionProfileAction['handler']
   >().mockResolvedValue({
     identifierId: '',
     profileId: 'MOCK_PROFILE_ID',
@@ -325,17 +327,17 @@ function mockUserStorageMessenger() {
 
   const mockAuthPerformSignIn =
     typedMockFn<
-      AuthenticationControllerPerformSignIn['handler']
+      AuthenticationControllerPerformSignInAction['handler']
     >().mockResolvedValue('New Access Token');
 
   const mockAuthIsSignedIn =
     typedMockFn<
-      AuthenticationControllerIsSignedIn['handler']
+      AuthenticationControllerIsSignedInAction['handler']
     >().mockReturnValue(true);
 
   const mockAuthPerformSignOut =
     typedMockFn<
-      AuthenticationControllerIsSignedIn['handler']
+      AuthenticationControllerIsSignedInAction['handler']
     >().mockReturnValue(true);
 
   const mockMetamaskNotificationsIsMetamaskNotificationsEnabled =

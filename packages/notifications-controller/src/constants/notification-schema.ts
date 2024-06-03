@@ -1,45 +1,45 @@
-export enum TRIGGER_TYPES {
-  FEATURES_ANNOUNCEMENT = 'features_announcement',
-  METAMASK_SWAP_COMPLETED = 'metamask_swap_completed',
-  ERC20_SENT = 'erc20_sent',
-  ERC20_RECEIVED = 'erc20_received',
-  ETH_SENT = 'eth_sent',
-  ETH_RECEIVED = 'eth_received',
-  ROCKETPOOL_STAKE_COMPLETED = 'rocketpool_stake_completed',
-  ROCKETPOOL_UNSTAKE_COMPLETED = 'rocketpool_unstake_completed',
-  LIDO_STAKE_COMPLETED = 'lido_stake_completed',
-  LIDO_WITHDRAWAL_REQUESTED = 'lido_withdrawal_requested',
-  LIDO_WITHDRAWAL_COMPLETED = 'lido_withdrawal_completed',
-  LIDO_STAKE_READY_TO_BE_WITHDRAWN = 'lido_stake_ready_to_be_withdrawn',
-  ERC721_SENT = 'erc721_sent',
-  ERC721_RECEIVED = 'erc721_received',
-  ERC1155_SENT = 'erc1155_sent',
-  ERC1155_RECEIVED = 'erc1155_received',
+export enum TriggerType {
+  FeaturesAnnouncement = 'features_announcement',
+  MetamaskSwapCompleted = 'metamask_swap_completed',
+  Erc20Sent = 'erc20_sent',
+  Erc20Received = 'erc20_received',
+  EthSent = 'eth_sent',
+  EthReceived = 'eth_received',
+  RocketpoolStakeCompleted = 'rocketpool_stake_completed',
+  RocketpoolUnstakeCompleted = 'rocketpool_unstake_completed',
+  LidoStakeCompleted = 'lido_stake_completed',
+  LidoWithdrawalRequested = 'lido_withdrawal_requested',
+  LidoWithdrawalCompleted = 'lido_withdrawal_completed',
+  LidoStakeReadyToBeWithdrawn = 'lido_stake_ready_to_be_withdrawn',
+  Erc721Sent = 'erc721_sent',
+  Erc721Received = 'erc721_received',
+  Erc1155Sent = 'erc1155_sent',
+  Erc1155Received = 'erc1155_received',
+}
+
+export enum TriggerTypeGroups {
+  received = 'received',
+  sent = 'sent',
+  defi = 'defi',
 }
 
 export const TRIGGER_TYPES_WALLET_SET: Set<string> = new Set([
-  TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
-  TRIGGER_TYPES.ERC20_SENT,
-  TRIGGER_TYPES.ERC20_RECEIVED,
-  TRIGGER_TYPES.ETH_SENT,
-  TRIGGER_TYPES.ETH_RECEIVED,
-  TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED,
-  TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED,
-  TRIGGER_TYPES.LIDO_STAKE_COMPLETED,
-  TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED,
-  TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED,
-  TRIGGER_TYPES.LIDO_STAKE_READY_TO_BE_WITHDRAWN,
-  TRIGGER_TYPES.ERC721_SENT,
-  TRIGGER_TYPES.ERC721_RECEIVED,
-  TRIGGER_TYPES.ERC1155_SENT,
-  TRIGGER_TYPES.ERC1155_RECEIVED,
-]) satisfies Set<Exclude<TRIGGER_TYPES, TRIGGER_TYPES.FEATURES_ANNOUNCEMENT>>;
-
-export enum TRIGGER_TYPES_GROUPS {
-  RECEIVED = 'received',
-  SENT = 'sent',
-  DEFI = 'defi',
-}
+  TriggerType.MetamaskSwapCompleted,
+  TriggerType.Erc20Sent,
+  TriggerType.Erc20Received,
+  TriggerType.EthSent,
+  TriggerType.EthReceived,
+  TriggerType.RocketpoolStakeCompleted,
+  TriggerType.RocketpoolUnstakeCompleted,
+  TriggerType.LidoStakeCompleted,
+  TriggerType.LidoWithdrawalRequested,
+  TriggerType.LidoWithdrawalCompleted,
+  TriggerType.LidoStakeReadyToBeWithdrawn,
+  TriggerType.Erc721Sent,
+  TriggerType.Erc721Received,
+  TriggerType.Erc1155Sent,
+  TriggerType.Erc1155Received,
+]) satisfies Set<Exclude<TriggerType, TriggerType.FeaturesAnnouncement>>;
 
 export const NOTIFICATION_CHAINS = {
   ETHEREUM: '1',
@@ -59,7 +59,7 @@ export const CHAIN_SYMBOLS = {
   [NOTIFICATION_CHAINS.ARBITRUM]: 'ETH',
   [NOTIFICATION_CHAINS.AVALANCHE]: 'AVAX',
   [NOTIFICATION_CHAINS.LINEA]: 'ETH',
-};
+} as const;
 
 export const SUPPORTED_CHAINS = [
   NOTIFICATION_CHAINS.ETHEREUM,
@@ -69,14 +69,14 @@ export const SUPPORTED_CHAINS = [
   NOTIFICATION_CHAINS.ARBITRUM,
   NOTIFICATION_CHAINS.AVALANCHE,
   NOTIFICATION_CHAINS.LINEA,
-];
+] as const;
 
 export type Trigger = {
   supported_chains: (typeof SUPPORTED_CHAINS)[number][];
 };
 
-export const TRIGGERS: Partial<Record<TRIGGER_TYPES, Trigger>> = {
-  [TRIGGER_TYPES.METAMASK_SWAP_COMPLETED]: {
+export const TRIGGERS: Partial<Record<TriggerType, Trigger>> = {
+  [TriggerType.MetamaskSwapCompleted]: {
     supported_chains: [
       NOTIFICATION_CHAINS.ETHEREUM,
       NOTIFICATION_CHAINS.OPTIMISM,
@@ -86,18 +86,7 @@ export const TRIGGERS: Partial<Record<TRIGGER_TYPES, Trigger>> = {
       NOTIFICATION_CHAINS.AVALANCHE,
     ],
   },
-  [TRIGGER_TYPES.ERC20_SENT]: {
-    supported_chains: [
-      NOTIFICATION_CHAINS.ETHEREUM,
-      NOTIFICATION_CHAINS.OPTIMISM,
-      NOTIFICATION_CHAINS.BSC,
-      NOTIFICATION_CHAINS.POLYGON,
-      NOTIFICATION_CHAINS.ARBITRUM,
-      NOTIFICATION_CHAINS.AVALANCHE,
-      NOTIFICATION_CHAINS.LINEA,
-    ],
-  },
-  [TRIGGER_TYPES.ERC20_RECEIVED]: {
+  [TriggerType.Erc20Sent]: {
     supported_chains: [
       NOTIFICATION_CHAINS.ETHEREUM,
       NOTIFICATION_CHAINS.OPTIMISM,
@@ -108,31 +97,7 @@ export const TRIGGERS: Partial<Record<TRIGGER_TYPES, Trigger>> = {
       NOTIFICATION_CHAINS.LINEA,
     ],
   },
-  [TRIGGER_TYPES.ERC721_SENT]: {
-    supported_chains: [
-      NOTIFICATION_CHAINS.ETHEREUM,
-      NOTIFICATION_CHAINS.POLYGON,
-    ],
-  },
-  [TRIGGER_TYPES.ERC721_RECEIVED]: {
-    supported_chains: [
-      NOTIFICATION_CHAINS.ETHEREUM,
-      NOTIFICATION_CHAINS.POLYGON,
-    ],
-  },
-  [TRIGGER_TYPES.ERC1155_SENT]: {
-    supported_chains: [
-      NOTIFICATION_CHAINS.ETHEREUM,
-      NOTIFICATION_CHAINS.POLYGON,
-    ],
-  },
-  [TRIGGER_TYPES.ERC1155_RECEIVED]: {
-    supported_chains: [
-      NOTIFICATION_CHAINS.ETHEREUM,
-      NOTIFICATION_CHAINS.POLYGON,
-    ],
-  },
-  [TRIGGER_TYPES.ETH_SENT]: {
+  [TriggerType.Erc20Received]: {
     supported_chains: [
       NOTIFICATION_CHAINS.ETHEREUM,
       NOTIFICATION_CHAINS.OPTIMISM,
@@ -143,7 +108,31 @@ export const TRIGGERS: Partial<Record<TRIGGER_TYPES, Trigger>> = {
       NOTIFICATION_CHAINS.LINEA,
     ],
   },
-  [TRIGGER_TYPES.ETH_RECEIVED]: {
+  [TriggerType.Erc721Sent]: {
+    supported_chains: [
+      NOTIFICATION_CHAINS.ETHEREUM,
+      NOTIFICATION_CHAINS.POLYGON,
+    ],
+  },
+  [TriggerType.Erc721Received]: {
+    supported_chains: [
+      NOTIFICATION_CHAINS.ETHEREUM,
+      NOTIFICATION_CHAINS.POLYGON,
+    ],
+  },
+  [TriggerType.Erc1155Sent]: {
+    supported_chains: [
+      NOTIFICATION_CHAINS.ETHEREUM,
+      NOTIFICATION_CHAINS.POLYGON,
+    ],
+  },
+  [TriggerType.Erc1155Received]: {
+    supported_chains: [
+      NOTIFICATION_CHAINS.ETHEREUM,
+      NOTIFICATION_CHAINS.POLYGON,
+    ],
+  },
+  [TriggerType.EthSent]: {
     supported_chains: [
       NOTIFICATION_CHAINS.ETHEREUM,
       NOTIFICATION_CHAINS.OPTIMISM,
@@ -154,19 +143,30 @@ export const TRIGGERS: Partial<Record<TRIGGER_TYPES, Trigger>> = {
       NOTIFICATION_CHAINS.LINEA,
     ],
   },
-  [TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED]: {
+  [TriggerType.EthReceived]: {
+    supported_chains: [
+      NOTIFICATION_CHAINS.ETHEREUM,
+      NOTIFICATION_CHAINS.OPTIMISM,
+      NOTIFICATION_CHAINS.BSC,
+      NOTIFICATION_CHAINS.POLYGON,
+      NOTIFICATION_CHAINS.ARBITRUM,
+      NOTIFICATION_CHAINS.AVALANCHE,
+      NOTIFICATION_CHAINS.LINEA,
+    ],
+  },
+  [TriggerType.RocketpoolStakeCompleted]: {
     supported_chains: [NOTIFICATION_CHAINS.ETHEREUM],
   },
-  [TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED]: {
+  [TriggerType.RocketpoolUnstakeCompleted]: {
     supported_chains: [NOTIFICATION_CHAINS.ETHEREUM],
   },
-  [TRIGGER_TYPES.LIDO_STAKE_COMPLETED]: {
+  [TriggerType.LidoStakeCompleted]: {
     supported_chains: [NOTIFICATION_CHAINS.ETHEREUM],
   },
-  [TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED]: {
+  [TriggerType.LidoWithdrawalRequested]: {
     supported_chains: [NOTIFICATION_CHAINS.ETHEREUM],
   },
-  [TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED]: {
+  [TriggerType.LidoWithdrawalCompleted]: {
     supported_chains: [NOTIFICATION_CHAINS.ETHEREUM],
   },
-};
+} as const satisfies Partial<Record<TriggerType, Trigger>>;

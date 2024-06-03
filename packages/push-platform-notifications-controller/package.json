@@ -1,6 +1,6 @@
 {
   "name": "@metamask/push-platform-notifications-controller",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "description": "Manages push notifications for MetaMask decentralized authentication systems.",
   "keywords": [
     "MetaMask",

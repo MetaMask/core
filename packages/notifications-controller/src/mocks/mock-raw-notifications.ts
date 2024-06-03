@@ -1,4 +1,4 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
+import { TriggerType } from '../constants/notification-schema';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 
 /**
@@ -6,7 +6,7 @@ import type { OnChainRawNotification } from '../types/on-chain-notification/on-c
  */
 export function createMockNotificationEthSent() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ETH_SENT,
+    type: TriggerType.EthSent,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     chain_id: 1,
@@ -38,7 +38,7 @@ export function createMockNotificationEthSent() {
  */
 export function createMockNotificationEthReceived() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ETH_RECEIVED,
+    type: TriggerType.EthReceived,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     chain_id: 1,
@@ -70,7 +70,7 @@ export function createMockNotificationEthReceived() {
  */
 export function createMockNotificationERC20Sent() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ERC20_SENT,
+    type: TriggerType.Erc20Sent,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     chain_id: 1,
@@ -108,7 +108,7 @@ export function createMockNotificationERC20Sent() {
  */
 export function createMockNotificationERC20Received() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ERC20_RECEIVED,
+    type: TriggerType.Erc20Received,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
     chain_id: 1,
@@ -146,7 +146,7 @@ export function createMockNotificationERC20Received() {
  */
 export function createMockNotificationERC721Sent() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ERC721_SENT,
+    type: TriggerType.Erc721Sent,
     block_number: 18576643,
     block_timestamp: '1700043467',
     chain_id: 1,
@@ -188,7 +188,7 @@ export function createMockNotificationERC721Sent() {
  */
 export function createMockNotificationERC721Received() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ERC721_RECEIVED,
+    type: TriggerType.Erc721Received,
     block_number: 18571446,
     block_timestamp: '1699980623',
     chain_id: 1,
@@ -230,7 +230,7 @@ export function createMockNotificationERC721Received() {
  */
 export function createMockNotificationERC1155Sent() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ERC1155_SENT,
+    type: TriggerType.Erc1155Sent,
     block_number: 18615206,
     block_timestamp: '1700510003',
     chain_id: 1,
@@ -272,7 +272,7 @@ export function createMockNotificationERC1155Sent() {
  */
 export function createMockNotificationERC1155Received() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ERC1155_RECEIVED,
+    type: TriggerType.Erc1155Received,
     block_number: 18615206,
     block_timestamp: '1700510003',
     chain_id: 1,
@@ -314,7 +314,7 @@ export function createMockNotificationERC1155Received() {
  */
 export function createMockNotificationMetaMaskSwapsCompleted() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
+    type: TriggerType.MetamaskSwapCompleted,
     block_number: 18377666,
     block_timestamp: '1697637275',
     chain_id: 1,
@@ -362,7 +362,7 @@ export function createMockNotificationMetaMaskSwapsCompleted() {
  */
 export function createMockNotificationRocketPoolStakeCompleted() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED,
+    type: TriggerType.RocketpoolStakeCompleted,
     block_number: 18585057,
     block_timestamp: '1700145059',
     chain_id: 1,
@@ -409,7 +409,7 @@ export function createMockNotificationRocketPoolStakeCompleted() {
  */
 export function createMockNotificationRocketPoolUnStakeCompleted() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED,
+    type: TriggerType.RocketpoolUnstakeCompleted,
     block_number: 18384336,
     block_timestamp: '1697718011',
     chain_id: 1,
@@ -456,7 +456,7 @@ export function createMockNotificationRocketPoolUnStakeCompleted() {
  */
 export function createMockNotificationLidoStakeCompleted() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.LIDO_STAKE_COMPLETED,
+    type: TriggerType.LidoStakeCompleted,
     block_number: 18487118,
     block_timestamp: '1698961091',
     chain_id: 1,
@@ -503,7 +503,7 @@ export function createMockNotificationLidoStakeCompleted() {
  */
 export function createMockNotificationLidoWithdrawalRequested() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED,
+    type: TriggerType.LidoWithdrawalRequested,
     block_number: 18377760,
     block_timestamp: '1697638415',
     chain_id: 1,
@@ -550,7 +550,7 @@ export function createMockNotificationLidoWithdrawalRequested() {
  */
 export function createMockNotificationLidoWithdrawalCompleted() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED,
+    type: TriggerType.LidoWithdrawalCompleted,
     block_number: 18378208,
     block_timestamp: '1697643851',
     chain_id: 1,
@@ -597,7 +597,7 @@ export function createMockNotificationLidoWithdrawalCompleted() {
  */
 export function createMockNotificationLidoReadyToBeWithdrawn() {
   const mockNotification: OnChainRawNotification = {
-    type: TRIGGER_TYPES.LIDO_STAKE_READY_TO_BE_WITHDRAWN,
+    type: TriggerType.LidoStakeReadyToBeWithdrawn,
     block_number: 18378208,
     block_timestamp: '1697643851',
     chain_id: 1,

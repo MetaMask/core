@@ -8,12 +8,17 @@
     "baseUrl": "./",
     "outDir": "./dist/types",
     "rootDir": "./src",
-    "skipLibCheck": true
   },
   "references": [
     {
       "path": "../base-controller/tsconfig.build.json"
     },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../push-platform-notifications-controller/tsconfig.build.json"
+    }
   ],
   "include": [
     "../../types",

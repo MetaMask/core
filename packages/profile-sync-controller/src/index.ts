@@ -3,13 +3,12 @@ export * from './sdk';
 export type {
   AuthenticationControllerMessenger,
   AuthenticationControllerState,
-  Actions as AuthenticationControllerActions,
-  AllowedActions as AuthenticationControllerAllowedActions,
-  AuthenticationControllerIsSignedIn,
-  AuthenticationControllerPerformSignIn,
-  AuthenticationControllerPerformSignOut,
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerGetSessionProfile,
+  AuthenticationControllerActions,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+  AuthenticationControllerPerformSignOutAction,
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
 } from './AuthenticationController';
 
 export {
@@ -20,15 +19,14 @@ export {
 export { AuthenticationController } from './AuthenticationController';
 
 export type {
-  Actions as UserStorageControllerActions,
-  AllowedActions as UserStorageControllerAllowedActions,
+  UserStorageControllerActions,
   UserStorageControllerMessenger,
   UserStorageControllerState,
-  UserStorageControllerPerformGetStorage,
-  UserStorageControllerPerformSetStorage,
-  UserStorageControllerGetStorageKey,
-  UserStorageControllerEnableProfileSyncing,
-  UserStorageControllerDisableProfileSyncing,
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+  UserStorageControllerGetStorageKeyAction,
+  UserStorageControllerEnableProfileSyncingAction,
+  UserStorageControllerDisableProfileSyncingAction,
 } from './UserStorageController';
 
 export { UserStorageController } from './UserStorageController';

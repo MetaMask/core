@@ -16,7 +16,7 @@ import {
   getNonce,
   login,
 } from './services/authentication-controller';
-import type { UserStorageControllerDisableProfileSyncing } from './UserStorageController';
+import type { UserStorageControllerDisableProfileSyncingAction } from './UserStorageController';
 
 const THIRTY_MIN_MS = 1000 * 60 * 30;
 
@@ -52,7 +52,14 @@ export type AuthenticationControllerState = {
     selectedAccount: string;
   };
 };
-const defaultState: AuthenticationControllerState = { isSignedIn: false };
+
+/**
+ *
+ */
+function getDefaultAuthenticationControllerState(): AuthenticationControllerState {
+  return { isSignedIn: false };
+}
+
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     persist: true,
@@ -64,39 +71,40 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   },
 };
 
-// Messenger Actions
-type CreateActionsObj<T extends keyof AuthenticationController> = {
-  [K in T]: {
-    type: `${typeof controllerName}:${K}`;
-    handler: AuthenticationController[K];
-  };
+export type AuthenticationControllerPerformSignInAction = {
+  type: `${typeof controllerName}:performSignInAction`;
+  handler: AuthenticationController['performSignIn'];
 };
-type ActionsObj = CreateActionsObj<
-  | 'performSignIn'
-  | 'performSignOut'
-  | 'getBearerToken'
-  | 'getSessionProfile'
-  | 'isSignedIn'
->;
-export type Actions = ActionsObj[keyof ActionsObj];
-export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
-export type AuthenticationControllerPerformSignOut =
-  ActionsObj['performSignOut'];
-export type AuthenticationControllerGetBearerToken =
-  ActionsObj['getBearerToken'];
-export type AuthenticationControllerGetSessionProfile =
-  ActionsObj['getSessionProfile'];
-export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
+export type AuthenticationControllerPerformSignOutAction = {
+  type: `${typeof controllerName}:performSignOutAction`;
+  handler: AuthenticationController['performSignOut'];
+};
+export type AuthenticationControllerGetBearerTokenAction = {
+  type: `${typeof controllerName}:getBearerToken`;
+  handler: AuthenticationController['getBearerToken'];
+};
+export type AuthenticationControllerGetSessionProfileAction = {
+  type: `${typeof controllerName}:getSessionProfile`;
+  handler: AuthenticationController['getSessionProfile'];
+};
+export type AuthenticationControllerIsSignedInAction = {
+  type: `${typeof controllerName}:isSignedIn`;
+  handler: AuthenticationController['isSignedIn'];
+};
+export type AuthenticationControllerActions =
+  | AuthenticationControllerPerformSignInAction
+  | AuthenticationControllerPerformSignOutAction
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerGetSessionProfileAction
+  | AuthenticationControllerIsSignedInAction;
 
-// Allowed Actions
 export type AllowedActions =
   | HandleSnapRequest
-  | UserStorageControllerDisableProfileSyncing;
+  | UserStorageControllerDisableProfileSyncingAction;
 
-// Messenger
 export type AuthenticationControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  Actions | AllowedActions,
+  AuthenticationControllerActions | AllowedActions,
   never,
   AllowedActions['type'],
   never
@@ -130,7 +138,7 @@ export class AuthenticationController extends BaseController<
       messenger,
       metadata,
       name: controllerName,
-      state: { ...defaultState, ...state },
+      state: { ...getDefaultAuthenticationControllerState(), ...state },
     });
 
     this.#metametrics = metametrics;
@@ -166,12 +174,12 @@ export class AuthenticationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'AuthenticationController:performSignIn',
+      'AuthenticationController:performSignInAction',
       this.performSignIn.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      'AuthenticationController:performSignOut',
+      'AuthenticationController:performSignOutAction',
       this.performSignOut.bind(this),
     );
   }

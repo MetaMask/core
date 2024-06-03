@@ -1,7 +1,7 @@
 import nock from 'nock';
 
 import { FEATURE_ANNOUNCEMENT_URL } from '../constants/constants';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
+import { TriggerType } from '../constants/notification-schema';
 import type { ContentfulResult } from '../services/feature-announcements';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 
@@ -209,7 +209,7 @@ export function createMockFeatureAnnouncementAPIResult(): ContentfulResult {
  */
 export function createMockFeatureAnnouncementRaw(): FeatureAnnouncementRawNotification {
   return {
-    type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+    type: TriggerType.FeaturesAnnouncement,
     createdAt: '2999-04-09T13:24:01.872Z',
     data: {
       id: 'dont-miss-out-on-airdrops-and-new-nft-mints',
