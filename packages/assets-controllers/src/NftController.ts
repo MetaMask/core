@@ -492,6 +492,14 @@ export class NftController extends BaseController<
     });
   }
 
+  /**
+   * Helper function to update the status of nft fetching for a specific address.
+   *
+   * @param newStatus - The new status to set in state
+   * @param passedConfig - Object containing selectedAddress and chainId
+   * @param passedConfig.userAddress - the address passed through the detectNfts function
+   * @param passedConfig.chainId - the chainId passed through the detectNfts function
+   */
   #updateNestedNftFetchingProgressStatus(
     newStatus: boolean,
     { userAddress, chainId }: { userAddress: string; chainId: Hex },
@@ -1845,6 +1853,13 @@ export class NftController extends BaseController<
     });
   }
 
+  /**
+   * Update Nft fetching status for a selectedAddress on a specific chain
+   * @param newValue - fetching status to set in state
+   * @param passedConfig - Object containing selectedAddress and chainId
+   * @param passedConfig.userAddress - the address passed through the detectNfts function
+   * @param passedConfig.networkClientId - the networkClientId passed through the detectNfts function
+   */
   updateNftFetchingProgressStatus(
     newValue: boolean,
     {

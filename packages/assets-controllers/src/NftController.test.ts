@@ -3920,4 +3920,28 @@ describe('NftController', () => {
       expect(spy).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('updateNftFetchingProgressStatus', () => {
+    it('should update nft fetching status correctly', async () => {
+      const selectedAddress = OWNER_ADDRESS;
+      const { nftController } = setupController({
+        options: {
+          chainId: ChainId.mainnet,
+          selectedAddress,
+          getERC721AssetName: jest.fn().mockResolvedValue('Name'),
+        },
+      });
+
+      nftController.updateNftFetchingProgressStatus(true);
+
+      expect(
+        nftController.state.isNftFetchingInProgress[selectedAddress][
+          ChainId.mainnet
+        ],
+      ).toStrictEqual({
+        isFetchingInProgress: true,
+        lastFetchTimestamp: expect.any(Number),
+      });
+    });
+  });
 });
