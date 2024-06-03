@@ -17,8 +17,5 @@
   ],
   "include": [
     "../../types",
-    "./src/encryption",
-    "./src/mocks",
-    "./src"
   ]
 }
