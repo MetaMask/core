@@ -19,9 +19,9 @@ import type {
   UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller';
 import type {
-  PushPlatformNotificationsControllerEnablePushNotifications,
-  PushPlatformNotificationsControllerDisablePushNotifications,
-  PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
+  PushPlatformNotificationsControllerEnablePushNotificationsAction,
+  PushPlatformNotificationsControllerDisablePushNotificationsAction,
+  PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction,
   PushPlatformNotificationsControllerOnNewNotificationEvent,
 } from '@metamask/push-platform-notifications-controller';
 import { isNullOrUndefined } from '@metamask/utils';
@@ -202,9 +202,9 @@ export type AllowedActions =
   | UserStorageControllerPerformGetStorageAction
   | UserStorageControllerPerformSetStorageAction
   // Push Notifications Controller Requests
-  | PushPlatformNotificationsControllerEnablePushNotifications
-  | PushPlatformNotificationsControllerDisablePushNotifications
-  | PushPlatformNotificationsControllerUpdateTriggerPushNotifications;
+  | PushPlatformNotificationsControllerEnablePushNotificationsAction
+  | PushPlatformNotificationsControllerDisablePushNotificationsAction
+  | PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction;
 
 export type NotificationsControllerEvents = ControllerStateChangeEvent<
   typeof controllerName,
@@ -224,6 +224,13 @@ export type NotificationsControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+export type NotificationsControllerOptions = {
+  messenger: NotificationsControllerMessenger;
+  trackMetaMetricsEvent: () => void;
+  contentfulAccessSpaceId: string;
+  contentfulAccessToken: string;
+  state?: Partial<NotificationsControllerState>;
+};
 /**
  * Controller that enables wallet notifications and feature announcements
  */
@@ -400,7 +407,7 @@ export class NotificationsController extends BaseController<
   constructor({
     messenger,
     state,
-  }: {
+  }: NetworkControllerOptions) {
     messenger: NotificationsControllerMessenger;
     state?: Partial<NotificationsControllerState>;
   }) {

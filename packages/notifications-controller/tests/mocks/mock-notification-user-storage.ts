@@ -1,10 +1,10 @@
 /* eslint-disable jsdoc/require-returns */
 /* eslint-disable jsdoc/require-description */
 /* eslint-disable jsdoc/require-jsdoc */
-import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
-import { TriggerType } from '../constants/notification-schema';
-import type { UserStorage } from '../types/user-storage/user-storage';
-import { initializeUserStorage } from '../utils/utils';
+import { USER_STORAGE_VERSION_KEY } from '../../src/constants/constants';
+import { TriggerType } from '../../src/constants/notification-schema';
+import type { UserStorage } from '../../src/types/user-storage/user-storage';
+import { initializeUserStorage } from '../../src/utils/utils';
 
 export const MOCK_USER_STORAGE_ACCOUNT =
   '0x0000000000000000000000000000000000000000';

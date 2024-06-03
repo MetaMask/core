@@ -49,7 +49,7 @@ export const NOTIFICATION_CHAINS = {
   ARBITRUM: '42161',
   AVALANCHE: '43114',
   LINEA: '59144',
-};
+} as const;
 
 export const CHAIN_SYMBOLS = {
   [NOTIFICATION_CHAINS.ETHEREUM]: 'ETH',

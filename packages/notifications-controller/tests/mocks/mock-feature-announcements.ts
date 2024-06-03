@@ -3,10 +3,10 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import nock from 'nock';
 
-import { FEATURE_ANNOUNCEMENT_URL } from '../constants/constants';
-import { TriggerType } from '../constants/notification-schema';
-import type { ContentfulResult } from '../services/feature-announcements';
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
+import { FEATURE_ANNOUNCEMENT_URL } from '../../src/constants/constants';
+import { TriggerType } from '../../src/constants/notification-schema';
+import type { ContentfulResult } from '../../src/services/feature-announcements';
+import type { FeatureAnnouncementRawNotification } from '../../src/types/feature-announcement/feature-announcement';
 
 type MockReply = {
   status: nock.StatusCode;

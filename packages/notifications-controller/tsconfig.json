@@ -2,7 +2,6 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "lib": ["esnext", "dom"]
   },
   "references": [
     {
@@ -15,5 +14,9 @@
       "path": "../push-platform-notifications-controller"
     }
   ],
-  "include": ["../../../types", "./src"]
+  "include": [
+    "../../types",
+    "./src",
+    "./tests"
+  ]
 }

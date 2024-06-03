@@ -6,7 +6,7 @@ import nock from 'nock';
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   TRIGGER_API_BATCH_ENDPOINT,
-} from '../services/onchain-notifications';
+} from '../../src/services/onchain-notifications';
 import { createMockRawOnChainNotifications } from './mock-raw-notifications';
 
 type MockReply = {

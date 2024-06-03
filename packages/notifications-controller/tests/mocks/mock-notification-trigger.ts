@@ -3,12 +3,8 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { v4 as uuidv4 } from 'uuid';
 
-import type { NotificationTrigger } from '../utils/utils';
+import type { NotificationTrigger } from '../../src/utils/utils';
 
-/**
- *
- * @param override
- */
 export function createMockNotificationTrigger(
   override?: Partial<NotificationTrigger>,
 ): NotificationTrigger {
