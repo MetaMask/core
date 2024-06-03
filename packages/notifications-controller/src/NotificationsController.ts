@@ -11,12 +11,12 @@ import type {
   KeyringControllerStateChangeEvent,
 } from '@metamask/keyring-controller';
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerIsSignedIn,
-  UserStorageControllerEnableProfileSyncing,
-  UserStorageControllerGetStorageKey,
-  UserStorageControllerPerformGetStorage,
-  UserStorageControllerPerformSetStorage,
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerIsSignedInAction,
+  UserStorageControllerEnableProfileSyncingAction,
+  UserStorageControllerGetStorageKeyAction,
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
 } from '@metamask/profile-sync-controller';
 import type {
   PushPlatformNotificationsControllerEnablePushNotifications,
@@ -24,6 +24,7 @@ import type {
   PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
   PushPlatformNotificationsControllerOnNewNotificationEvent,
 } from '@metamask/push-platform-notifications-controller';
+import { isNullOrUndefined } from '@metamask/utils';
 import log from 'loglevel';
 
 import { USER_STORAGE_VERSION_KEY } from './constants/constants';
@@ -193,13 +194,13 @@ export type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetAccountsAction
   // Auth Controller Requests
-  | AuthenticationControllerGetBearerToken
-  | AuthenticationControllerIsSignedIn
+  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationControllerIsSignedInAction
   // User Storage Controller Requests
-  | UserStorageControllerEnableProfileSyncing
-  | UserStorageControllerGetStorageKey
-  | UserStorageControllerPerformGetStorage
-  | UserStorageControllerPerformSetStorage
+  | UserStorageControllerEnableProfileSyncingAction
+  | UserStorageControllerGetStorageKeyAction
+  | UserStorageControllerPerformGetStorageAction
+  | UserStorageControllerPerformSetStorageAction
   // Push Notifications Controller Requests
   | PushPlatformNotificationsControllerEnablePushNotifications
   | PushPlatformNotificationsControllerDisablePushNotifications
@@ -509,8 +510,8 @@ export class NotificationsController extends BaseController<
     }
   }
 
+  // @TODO - This needs rework for it to be feasible. Currently this is a half-baked solution, as it fails once we add new triggers (introspection for filters is difficult).
   /**
-   * @TODO - This needs rework for it to be feasible. Currently this is a half-baked solution, as it fails once we add new triggers (introspection for filters is difficult).
    *
    * Checks for the complete presence of trigger types by group across all addresses in user storage.
    *
@@ -978,20 +979,15 @@ export class NotificationsController extends BaseController<
       const readIds = this.state.metamaskNotificationsReadList;
 
       // Combined Notifications
-      const isNotUndefined = <T>(t?: T): t is T => Boolean(t);
+
       const processAndFilter = (
         ns: (FeatureAnnouncementRawNotification | OnChainRawNotification)[],
       ) =>
         ns
           .map((n) => {
-            try {
-              return processNotification(n, readIds);
-            } catch {
-              // So we don't throw and show no notifications
-              return undefined;
-            }
+            return processNotification(n, readIds);
           })
-          .filter(isNotUndefined);
+          .filter(isNullOrUndefined);
 
       const featureAnnouncementNotifications = processAndFilter(
         rawFeatureAnnouncementNotifications,
@@ -1131,8 +1127,6 @@ export class NotificationsController extends BaseController<
   }
 }
 
-const isNotUndefined = <T>(t?: T): t is T => Boolean(t);
-
 /**
  * Processes a single notification and filters out any undefined values.
  *
@@ -1144,7 +1138,7 @@ function processAndFilterSingleNotification(
 ) {
   try {
     const processedNotification = processNotification(n);
-    if (isNotUndefined(processedNotification)) {
+    if (isNullOrUndefined(processedNotification)) {
       return processedNotification;
     }
   } catch {
