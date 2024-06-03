@@ -197,6 +197,7 @@ const nftControllerMetadata = {
   allNftContracts: { persist: true, anonymous: false },
   allNfts: { persist: true, anonymous: false },
   ignoredNfts: { persist: true, anonymous: false },
+  isNftFetchingInProgress: { persist: true, anonymous: false },
 };
 
 const ALL_NFTS_STATE_KEY = 'allNfts';

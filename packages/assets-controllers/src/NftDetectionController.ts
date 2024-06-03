@@ -31,7 +31,6 @@ import {
   type NftMetadata,
 } from './NftController';
 
-
 const DEFAULT_INTERVAL = 180000;
 
 const controllerName = 'NftDetectionController';
