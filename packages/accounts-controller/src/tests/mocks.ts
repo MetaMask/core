@@ -6,7 +6,6 @@ import {
   BtcAccountType,
   BtcMethod,
   EthAccountType,
-  EthErc4337Method,
   EthMethod,
 } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -50,9 +49,9 @@ export const createMockInternalAccount = ({
       break;
     case EthAccountType.Erc4337:
       methods = [
-        EthErc4337Method.PatchUserOperation,
-        EthErc4337Method.PrepareUserOperation,
-        EthErc4337Method.SignUserOperation,
+        EthMethod.PatchUserOperation,
+        EthMethod.PrepareUserOperation,
+        EthMethod.SignUserOperation,
       ];
       break;
     case BtcAccountType.P2wpkh:
