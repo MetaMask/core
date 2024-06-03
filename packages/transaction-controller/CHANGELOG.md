@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^6.0.2` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^16.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove `sign` from `TransactionType` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This represented an `eth_sign` transaction, but support for that RPC method is being removed, so this is no longer needed.
+
+### Fixed
+
+- Pass an unfrozen transaction to the `afterSign` hook so that it is able to modify the transaction ([#4343](https://github.com/MetaMask/core/pull/4343))
+
+## [30.0.0]
+
+### Fixed
+
+- **BREAKING**: Update from `nonce-tracker@^3.0.0` to `@metamask/nonce-tracker@^5.0.0` to mitigate issue with redundant polling loops in block tracker. ([#4309](https://github.com/MetaMask/core/pull/4309))
+  - The constructor now expects the `blockTracker` option being an instance of `@metamask/eth-block-tracker` instead of`eth-block-tracker`.
+
 ## [29.1.0]
 
 ### Changed
@@ -839,7 +876,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...@metamask/transaction-controller@30.0.0
 [29.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.2...@metamask/transaction-controller@29.1.0
 [29.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.1...@metamask/transaction-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.0...@metamask/transaction-controller@29.0.1

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "155.0.0",
+  "version": "159.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -56,8 +56,8 @@
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
     "@metamask/eth-block-tracker": "^9.0.2",
-    "@metamask/eth-json-rpc-provider": "^3.0.2",
-    "@metamask/json-rpc-engine": "^8.0.2",
+    "@metamask/eth-json-rpc-provider": "^4.0.0",
+    "@metamask/json-rpc-engine": "^9.0.0",
     "@metamask/utils": "^8.3.0",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
@@ -90,7 +90,7 @@
   },
   "packageManager": "yarn@3.3.0",
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "lavamoat": {
     "allowScripts": {

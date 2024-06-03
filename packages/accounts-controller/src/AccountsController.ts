@@ -6,7 +6,11 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  EthMethod,
+  isEvmAccountType,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
@@ -21,10 +25,17 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import type { Keyring, Json } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
+import {
+  type Keyring,
+  type Json,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import {
+  deepCloneDraft,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
@@ -69,6 +80,11 @@ export type AccountsControllerGetSelectedAccountAction = {
   handler: AccountsController['getSelectedAccount'];
 };
 
+export type AccountsControllerGetSelectedMultichainAccountAction = {
+  type: `${typeof controllerName}:getSelectedMultichainAccount`;
+  handler: AccountsController['getSelectedMultichainAccount'];
+};
+
 export type AccountsControllerGetAccountByAddressAction = {
   type: `${typeof controllerName}:getAccountByAddress`;
   handler: AccountsController['getAccountByAddress'];
@@ -98,7 +114,8 @@ export type AccountsControllerActions =
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetNextAvailableAccountNameAction
-  | AccountsControllerGetAccountAction;
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -110,11 +127,17 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerSelectedEvmAccountChangeEvent = {
+  type: `${typeof controllerName}:selectedEvmAccountChange`;
+  payload: [InternalAccount];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -204,12 +227,34 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns an array of all internal accounts.
+   * Returns an array of all evm internal accounts.
    *
    * @returns An array of InternalAccount objects.
    */
   listAccounts(): InternalAccount[] {
-    return Object.values(this.state.internalAccounts.accounts);
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    return accounts.filter((account) => isEvmAccountType(account.type));
+  }
+
+  /**
+   * Returns an array of all internal accounts.
+   *
+   * @param chainId - The chain ID.
+   * @returns An array of InternalAccount objects.
+   */
+  listMultichainAccounts(chainId?: CaipChainId): InternalAccount[] {
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    if (!chainId) {
+      return accounts;
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
+    }
+
+    return accounts.filter((account) =>
+      this.#isAccountCompatibleWithChain(account, chainId),
+    );
   }
 
   /**
@@ -247,12 +292,54 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the selected internal account.
+   * Returns the last selected evm account.
    *
    * @returns The selected internal account.
    */
   getSelectedAccount(): InternalAccount {
-    return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+    const selectedAccount = this.getAccountExpect(
+      this.state.internalAccounts.selectedAccount,
+    );
+    if (isEvmAccountType(selectedAccount.type)) {
+      return selectedAccount;
+    }
+
+    const accounts = this.listAccounts();
+
+    if (!accounts.length) {
+      // ! Should never reach this.
+      throw new Error('No EVM accounts');
+    }
+
+    // This will never be undefined because we have already checked if accounts.length is > 0
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this.#getLastSelectedAccount(accounts)!;
+  }
+
+  /**
+   * __WARNING The return value may be undefined if there isn't an account for that chain id.__
+   *
+   * Retrieves the last selected account by chain ID.
+   *
+   * @param chainId - The chain ID to filter the accounts.
+   * @returns The last selected account compatible with the specified chain ID or undefined.
+   */
+  getSelectedMultichainAccount(
+    chainId?: CaipChainId,
+  ): InternalAccount | undefined {
+    if (!chainId) {
+      return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${chainId as string}`);
+    }
+
+    const accounts = Object.values(this.state.internalAccounts.accounts).filter(
+      (account) => this.#isAccountCompatibleWithChain(account, chainId),
+    );
+
+    return this.#getLastSelectedAccount(accounts);
   }
 
   /**
@@ -280,6 +367,13 @@ export class AccountsController extends BaseController<
         Date.now();
       currentState.internalAccounts.selectedAccount = account.id;
     });
+
+    if (isEvmAccountType(account.type)) {
+      this.messagingSystem.publish(
+        'AccountsController:selectedEvmAccountChange',
+        account,
+      );
+    }
 
     this.messagingSystem.publish(
       'AccountsController:selectedAccountChange',
@@ -312,7 +406,12 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] = internalAccount;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[accountId] = internalAccount;
+
+      return newState;
     });
   }
 
@@ -357,10 +456,11 @@ export class AccountsController extends BaseController<
           importTime:
             this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
             Date.now(),
-          lastSelected: this.#populateExistingMetadata(
-            existingAccount?.id,
-            'lastSelected',
-          ),
+          lastSelected:
+            this.#populateExistingMetadata(
+              existingAccount?.id,
+              'lastSelected',
+            ) ?? 0,
         },
       };
 
@@ -368,8 +468,12 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts = accounts;
+
+      return newState;
     });
   }
 
@@ -381,8 +485,12 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
+        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+        const newState = deepCloneDraft(currentState);
+
+        newState.internalAccounts = backup.internalAccounts;
+
+        return newState;
       });
     }
   }
@@ -483,7 +591,7 @@ export class AccountsController extends BaseController<
           name: this.#populateExistingMetadata(id, 'name') ?? '',
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected'),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -693,6 +801,30 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Returns the last selected account from the given array of accounts.
+   *
+   * @param accounts - An array of InternalAccount objects.
+   * @returns The InternalAccount object that was last selected, or undefined if the array is empty.
+   */
+  #getLastSelectedAccount(
+    accounts: InternalAccount[],
+  ): InternalAccount | undefined {
+    return accounts.reduce((prevAccount, currentAccount) => {
+      if (
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        currentAccount.metadata.lastSelected! >
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        prevAccount.metadata.lastSelected!
+      ) {
+        return currentAccount;
+      }
+      return prevAccount;
+    }, accounts[0]);
+  }
+
+  /**
    * Returns the next account number for a given keyring type.
    * @param keyringType - The type of keyring.
    * @returns An object containing the account prefix and index to use.
@@ -731,6 +863,22 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Checks if an account is compatible with a given chain namespace.
+   * @private
+   * @param account - The account to check compatibility for.
+   * @param chainId - The CAIP2 to check compatibility with.
+   * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
+   */
+  #isAccountCompatibleWithChain(
+    account: InternalAccount,
+    chainId: CaipChainId,
+  ): boolean {
+    // TODO: Change this logic to not use account's type
+    // Because we currently only use type, we can only use namespace for now.
+    return account.type.startsWith(parseCaipChainId(chainId).namespace);
+  }
+
+  /**
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
@@ -765,9 +913,10 @@ export class AccountsController extends BaseController<
     );
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
@@ -776,6 +925,8 @@ export class AccountsController extends BaseController<
           lastSelected: Date.now(),
         },
       };
+
+      return newState;
     });
 
     this.setSelectedAccount(newAccount.id);
@@ -833,6 +984,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getSelectedAccount`,
       this.getSelectedAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getSelectedMultichainAccount`,
+      this.getSelectedMultichainAccount.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(

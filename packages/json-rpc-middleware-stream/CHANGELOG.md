@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [7.0.2]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
 ## [7.0.1]
 
 ### Fixed
@@ -116,7 +129,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.2...@metamask/json-rpc-middleware-stream@8.0.0
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.1...@metamask/json-rpc-middleware-stream@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.0...@metamask/json-rpc-middleware-stream@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...@metamask/json-rpc-middleware-stream@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...@metamask/json-rpc-middleware-stream@6.0.2
