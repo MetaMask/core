@@ -1,7 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
-  MetamaskNotificationsControllerDisableMetamaskNotifications,
-  MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled,
+  NotificationsControllerDisableMetamaskNotifications,
+  NotificationsControllerSelectIsMetamaskNotificationsEnabled,
 } from '@metamask/notifications-controller';
 import type nock from 'nock';
 
@@ -301,8 +301,8 @@ function mockUserStorageMessenger() {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
       'AuthenticationController:performSignOut',
-      'MetamaskNotificationsController:disableMetamaskNotifications',
-      'MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled',
+      'NotificationsController:disableMetamaskNotifications',
+      'NotificationsController:selectIsMetamaskNotificationsEnabled',
     ],
   });
 
@@ -340,12 +340,12 @@ function mockUserStorageMessenger() {
 
   const mockMetamaskNotificationsIsMetamaskNotificationsEnabled =
     typedMockFn<
-      MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled['handler']
+      NotificationsControllerSelectIsMetamaskNotificationsEnabled['handler']
     >().mockReturnValue(true);
 
   const mockMetamaskNotificationsDisableNotifications =
     typedMockFn<
-      MetamaskNotificationsControllerDisableMetamaskNotifications['handler']
+      NotificationsControllerDisableMetamaskNotifications['handler']
     >().mockResolvedValue();
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
@@ -382,15 +382,12 @@ function mockUserStorageMessenger() {
 
     if (
       actionType ===
-      'MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled'
+      'NotificationsController:selectIsMetamaskNotificationsEnabled'
     ) {
       return mockMetamaskNotificationsIsMetamaskNotificationsEnabled();
     }
 
-    if (
-      actionType ===
-      'MetamaskNotificationsController:disableMetamaskNotifications'
-    ) {
+    if (actionType === 'NotificationsController:disableMetamaskNotifications') {
       return mockMetamaskNotificationsDisableNotifications();
     }
 

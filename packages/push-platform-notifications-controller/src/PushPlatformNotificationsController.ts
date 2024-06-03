@@ -144,7 +144,7 @@ export class PushPlatformNotificationsController extends BaseController<
    *
    * @param UUIDs - An array of UUIDs to enable push notifications for.
    */
-  public async enablePushNotifications(UUIDs: string[]) {
+  async enablePushNotifications(UUIDs: string[]) {
     // TEMP: disabling push notifications if browser does not support MV3.
     // Will need work to support firefox on MV2
     if (!ENABLE_MV3) {
@@ -188,7 +188,7 @@ export class PushPlatformNotificationsController extends BaseController<
    *
    * @param UUIDs - An array of UUIDs for which push notifications should be disabled.
    */
-  public async disablePushNotifications(UUIDs: string[]) {
+  async disablePushNotifications(UUIDs: string[]) {
     // TEMP: disabling push notifications if browser does not support MV3.
     // Will need work to support firefox on MV2
     if (!ENABLE_MV3) {
@@ -234,7 +234,7 @@ export class PushPlatformNotificationsController extends BaseController<
    *
    * @param UUIDs - An array of UUIDs that should trigger push notifications.
    */
-  public async updateTriggerPushNotifications(UUIDs: string[]) {
+  async updateTriggerPushNotifications(UUIDs: string[]) {
     // TEMP: disabling push notifications if browser does not support MV3.
     // Will need work to support firefox on MV2
     if (!ENABLE_MV3) {

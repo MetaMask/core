@@ -176,12 +176,12 @@ export class AuthenticationController extends BaseController<
     );
   }
 
-  public async performSignIn(): Promise<string> {
+  async performSignIn(): Promise<string> {
     const { accessToken } = await this.#performAuthenticationFlow();
     return accessToken;
   }
 
-  public performSignOut(): void {
+  performSignOut(): void {
     this.#assertLoggedIn();
 
     this.update((state) => {
@@ -190,7 +190,7 @@ export class AuthenticationController extends BaseController<
     });
   }
 
-  public async getBearerToken(): Promise<string> {
+  async getBearerToken(): Promise<string> {
     this.#assertLoggedIn();
 
     if (this.#hasValidSession(this.state.sessionData)) {
@@ -207,7 +207,7 @@ export class AuthenticationController extends BaseController<
    *
    * @returns profile for the session.
    */
-  public async getSessionProfile(): Promise<SessionProfile> {
+  async getSessionProfile(): Promise<SessionProfile> {
     this.#assertLoggedIn();
 
     if (this.#hasValidSession(this.state.sessionData)) {
@@ -218,7 +218,7 @@ export class AuthenticationController extends BaseController<
     return profile;
   }
 
-  public isSignedIn(): boolean {
+  isSignedIn(): boolean {
     return this.state.isSignedIn;
   }
 
@@ -312,9 +312,9 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Returns the auth snap public key.
+   * Returns the auth snap key.
    *
-   * @returns The snap public key.
+   * @returns The snap key.
    */
   #snapGetPublicKey(): Promise<string> {
     return this.messagingSystem.call(
