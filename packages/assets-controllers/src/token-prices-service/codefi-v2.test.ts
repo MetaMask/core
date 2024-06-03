@@ -479,6 +479,59 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
     });
 
+    it('should correctly handle null market data for a token address', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/chains/1/spot-prices')
+        .query({
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          vsCurrency: 'ETH',
+          includeMarketData: 'true',
+        })
+        .reply(200, {
+          '0x0000000000000000000000000000000000000000': {
+            price: 14,
+            currency: 'ETH',
+          },
+          '0xaaa': null, // Simulating API returning null for market data
+          '0xbbb': {
+            price: 33689.98134554716,
+            currency: 'ETH',
+          },
+          '0xccc': {
+            price: 148.1344197578456,
+            currency: 'ETH',
+          },
+        });
+
+      const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+        chainId: '0x1',
+        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        currency: 'ETH',
+      });
+
+      expect(result).toStrictEqual({
+        '0x0000000000000000000000000000000000000000': {
+          tokenAddress: '0x0000000000000000000000000000000000000000',
+          value: 14,
+          currency: 'ETH',
+          price: 14,
+        },
+        '0xBBB': {
+          tokenAddress: '0xBBB',
+          value: 33689.98134554716,
+          currency: 'ETH',
+          price: 33689.98134554716,
+        },
+        '0xCCC': {
+          tokenAddress: '0xCCC',
+          value: 148.1344197578456,
+          currency: 'ETH',
+          price: 148.1344197578456,
+        },
+      });
+    });
+
     it('throws if the request fails consistently', async () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
