@@ -734,7 +734,7 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.getSelectedAccount - Gets the address of the currently selected account.
+   * @param options.getSelectedAccount - Gets the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
