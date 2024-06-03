@@ -2463,7 +2463,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^6.3.1, @metamask/keyring-api@npm:^6.4.0":
+"@metamask/keyring-api@npm:6.4.0, @metamask/keyring-api@npm:^6.3.1, @metamask/keyring-api@npm:^6.4.0":
   version: 6.4.0
   resolution: "@metamask/keyring-api@npm:6.4.0"
   dependencies:
@@ -3149,6 +3149,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^17.0.0
+    "@metamask/keyring-api": 6.4.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
     "@metamask/nonce-tracker": ^5.0.0

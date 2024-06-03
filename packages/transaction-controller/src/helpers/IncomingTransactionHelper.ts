@@ -1,3 +1,4 @@
+import type { InternalAccount } from '@metamask/keyring-api';
 import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -35,7 +36,7 @@ export class IncomingTransactionHelper {
 
   #blockTracker: BlockTracker;
 
-  #getCurrentAccount: () => string;
+  #getCurrentAccount: () => InternalAccount;
 
   #getLastFetchedBlockNumbers: () => Record<string, number>;
 
@@ -72,7 +73,7 @@ export class IncomingTransactionHelper {
     updateTransactions,
   }: {
     blockTracker: BlockTracker;
-    getCurrentAccount: () => string;
+    getCurrentAccount: () => InternalAccount;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
     getChainId: () => Hex;
@@ -144,7 +145,7 @@ export class IncomingTransactionHelper {
         this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
 
       const fromBlock = this.#getFromBlock(latestBlockNumber);
-      const address = this.#getCurrentAccount();
+      const account = this.#getCurrentAccount();
       const currentChainId = this.#getChainId();
 
       let remoteTransactions = [];
@@ -152,7 +153,7 @@ export class IncomingTransactionHelper {
       try {
         remoteTransactions =
           await this.#remoteTransactionSource.fetchTransactions({
-            address,
+            address: account.address,
             currentChainId,
             fromBlock,
             limit: this.#transactionLimit,
@@ -165,7 +166,8 @@ export class IncomingTransactionHelper {
       }
       if (!this.#updateTransactions) {
         remoteTransactions = remoteTransactions.filter(
-          (tx) => tx.txParams.to?.toLowerCase() === address.toLowerCase(),
+          (tx) =>
+            tx.txParams.to?.toLowerCase() === account.address.toLowerCase(),
         );
       }
 
@@ -301,7 +303,7 @@ export class IncomingTransactionHelper {
 
   #getBlockNumberKey(additionalKeys: string[]): string {
     const currentChainId = this.#getChainId();
-    const currentAccount = this.#getCurrentAccount()?.toLowerCase();
+    const currentAccount = this.#getCurrentAccount()?.address.toLowerCase();
 
     return [currentChainId, currentAccount, ...additionalKeys].join('#');
   }
