@@ -1,7 +1,9 @@
+import type { AccountsController } from '@metamask/accounts-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { query, safelyExecuteWithTimeout } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
+import { type InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -79,7 +81,11 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       });
     }
 
-    const addresses = Object.keys(this.getIdentities());
+    const addresses = Object.values(
+      this.getInternalAccounts().map(
+        (internalAccount) => internalAccount.address,
+      ),
+    );
     const newAddresses = addresses.filter(
       (address) => !existing.includes(address),
     );
@@ -114,9 +120,9 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    */
   override name = 'AccountTrackerController' as const;
 
-  private readonly getIdentities: () => PreferencesState['identities'];
+  private readonly getInternalAccounts: AccountsController['listAccounts'];
 
-  private readonly getSelectedAddress: () => PreferencesState['selectedAddress'];
+  private readonly getSelectedAccount: AccountsController['getSelectedAccount'];
 
   private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
@@ -128,29 +134,29 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.getIdentities - Gets the identities from the Preferences store.
-   * @param options.getSelectedAddress - Gets the selected address from the Preferences store.
    * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
    * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
+   * @param options.onSelectedAccountChange - A function that subscribes to selected account changes.
+   * @param options.getInternalAccounts - A function that returns the internal accounts.
+   * @param options.getSelectedAccount - A function that returns the selected account.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
-      onPreferencesStateChange,
-      getIdentities,
-      getSelectedAddress,
+      onSelectedAccountChange,
+      getInternalAccounts,
+      getSelectedAccount,
       getMultiAccountBalancesEnabled,
       getCurrentChainId,
       getNetworkClientById,
     }: {
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
+      onSelectedAccountChange: (
+        listener: (internalAccount: InternalAccount) => void,
       ) => void;
-      getIdentities: () => PreferencesState['identities'];
-      getSelectedAddress: () => PreferencesState['selectedAddress'];
+      getInternalAccounts: AccountsController['listAccounts'];
+      getSelectedAccount: AccountsController['getSelectedAccount'];
       getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
       getCurrentChainId: () => Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -170,12 +176,12 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     };
     this.initialize();
     this.setIntervalLength(this.config.interval);
-    this.getIdentities = getIdentities;
-    this.getSelectedAddress = getSelectedAddress;
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     this.getCurrentChainId = getCurrentChainId;
     this.getNetworkClientById = getNetworkClientById;
-    onPreferencesStateChange(() => {
+    this.getSelectedAccount = getSelectedAccount;
+    this.getInternalAccounts = getInternalAccounts;
+    onSelectedAccountChange(() => {
       this.refresh();
     });
     this.poll();
@@ -253,6 +259,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * @param networkClientId - Optional networkClientId to fetch a network client with
    */
   refresh = async (networkClientId?: NetworkClientId) => {
+    const selectedAccount = this.getSelectedAccount();
     const releaseLock = await this.refreshMutex.acquire();
     try {
       const { chainId, ethQuery } =
@@ -264,7 +271,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
         ? Object.keys(accounts)
-        : [this.getSelectedAddress()];
+        : [selectedAccount.address];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
