@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
 import * as ControllerUtils from '@metamask/controller-utils';
 import type {
@@ -39,7 +42,7 @@ import {
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
 import {
   NotificationsController,
-  defaultState,
+  getDefaultNotificationsControllerState,
 } from './NotificationsController';
 import type { AllowedActions, AllowedEvents } from './NotificationsController';
 import { processNotification } from './processors/process-notifications';
@@ -52,12 +55,14 @@ describe('metamask-notifications - constructor()', () => {
     const controller1 = new NotificationsController({
       messenger: mockNotificationMessenger().messenger,
     });
-    expect(controller1.state).toEqual(defaultState);
+    expect(controller1.state).toStrictEqual(
+      getDefaultNotificationsControllerState(),
+    );
 
     const controller2 = new NotificationsController({
       messenger: mockNotificationMessenger().messenger,
       state: {
-        ...defaultState,
+        ...getDefaultNotificationsControllerState(),
         isFeatureAnnouncementsEnabled: true,
         isMetamaskNotificationsEnabled: true,
       },
@@ -221,7 +226,7 @@ describe('metamask-notifications - checkAccountsPresence()', () => {
       MOCK_USER_STORAGE_ACCOUNT,
       'fake_account',
     ]);
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       [MOCK_USER_STORAGE_ACCOUNT]: true,
       fake_account: false,
     });
@@ -235,7 +240,10 @@ describe('metamask-notifications - setFeatureAnnouncementsEnabled()', () => {
 
     const controller = new NotificationsController({
       messenger,
-      state: { ...defaultState, isFeatureAnnouncementsEnabled: false },
+      state: {
+        ...getDefaultNotificationsControllerState(),
+        isFeatureAnnouncementsEnabled: false,
+      },
     });
 
     await controller.setFeatureAnnouncementsEnabled(true);
@@ -276,7 +284,9 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
 
     for (const mockFailureAction of Object.values(testScenarios)) {
       mockFailureAction();
-      await expect(controller.createOnChainTriggers()).rejects.toThrow();
+      await expect(controller.createOnChainTriggers()).rejects.toThrow(
+        'MOCK FAILURE',
+      );
     }
   });
 
@@ -346,7 +356,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
       mockFailureAction();
       await expect(
         controller.deleteOnChainTriggersByAccount([MOCK_USER_STORAGE_ACCOUNT]),
-      ).rejects.toThrow();
+      ).rejects.toThrow('MOCK FAILURE');
     }
   });
 
@@ -399,7 +409,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
       mockFailureAction();
       await expect(
         controller.deleteOnChainTriggersByAccount([MOCK_USER_STORAGE_ACCOUNT]),
-      ).rejects.toThrow();
+      ).rejects.toThrow('MOCK FAILURE');
     }
   });
 
@@ -423,7 +433,10 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     const controller = new NotificationsController({
       messenger,
-      state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
+      state: {
+        ...getDefaultNotificationsControllerState(),
+        isFeatureAnnouncementsEnabled: true,
+      },
     });
 
     const result = await controller.fetchAndUpdateMetamaskNotifications();
@@ -450,7 +463,10 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     const controller = new NotificationsController({
       messenger,
-      state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
+      state: {
+        ...getDefaultNotificationsControllerState(),
+        isFeatureAnnouncementsEnabled: true,
+      },
     });
 
     // Should only have feature announcement
@@ -582,7 +598,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     const upsertedTriggers =
       mocks.mockCreateOnChainTriggers.mock.calls[0][3].map((t) => t.id);
 
-    expect(existingTriggers).toEqual(upsertedTriggers);
+    expect(existingTriggers).toStrictEqual(upsertedTriggers);
   });
 
   /**

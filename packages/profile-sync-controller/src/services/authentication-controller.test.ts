@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   MOCK_ACCESS_TOKEN,
   MOCK_JWT,

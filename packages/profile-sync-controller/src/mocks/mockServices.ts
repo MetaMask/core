@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import nock from 'nock';
 
 import { USER_STORAGE_ENDPOINT } from '../constants';

@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   MOCK_ENCRYPTED_STORAGE_DATA,
   MOCK_STORAGE_DATA,

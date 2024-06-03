@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import { TriggerType } from '../constants/notification-schema';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 

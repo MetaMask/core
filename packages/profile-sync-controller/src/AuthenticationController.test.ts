@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
 
 import { AuthenticationController } from './AuthenticationController';

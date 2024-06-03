@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
 import { TriggerType } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';

@@ -1,3 +1,6 @@
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import { v4 as uuidv4 } from 'uuid';
 
 import type { NotificationTrigger } from '../utils/utils';
