@@ -36,7 +36,7 @@ import type {
   Token,
   TokenRatesState,
 } from './TokenRatesController';
-import type { TokensState } from './TokensController';
+import type { TokensControllerState } from './TokensController';
 
 const defaultMockInternalAccount = createMockInternalAccount({
   address: '0xA',
@@ -2558,8 +2558,8 @@ describe('TokenRatesController', () => {
  */
 type ControllerEvents = {
   networkStateChange: (state: NetworkState) => void;
-  tokensStateChange: (state: TokensState) => void;
   seletedAccountChange: (internalAccount: InternalAccount) => void;
+  tokensStateChange: (state: TokensControllerState) => void;
 };
 
 /**

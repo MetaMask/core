@@ -73,7 +73,7 @@ export const createMockInternalAccount = ({
       keyring: { type: keyringType },
       importTime,
       lastSelected,
-      snap: snap && snap,
+      snap,
     },
   } as InternalAccount;
 };

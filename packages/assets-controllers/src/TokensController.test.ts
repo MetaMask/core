@@ -42,7 +42,10 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
-import type { TokensControllerMessenger } from './TokensController';
+import type {
+  TokensControllerMessenger,
+  TokensControllerState,
+} from './TokensController';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid');
@@ -747,9 +750,7 @@ describe('TokensController', () => {
           const address = erc721ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          controller.update({
-            tokens: [{ address, symbol, decimals }],
-          });
+          await controller.addToken({ address, symbol, decimals });
 
           const result = await controller.updateTokenType(address);
           expect(result.isERC721).toBe(true);
@@ -765,9 +766,7 @@ describe('TokensController', () => {
           const address = erc20ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          controller.update({
-            tokens: [{ address, symbol, decimals }],
-          });
+          await controller.addToken({ address, symbol, decimals });
 
           const result = await controller.updateTokenType(address);
           expect(result.isERC721).toBe(false);
@@ -781,14 +780,10 @@ describe('TokensController', () => {
           );
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-          controller.update({
-            tokens: [
-              {
-                address: tokenAddress,
-                symbol: 'TESTNFT',
-                decimals: 0,
-              },
-            ],
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
           });
 
           const result = await controller.updateTokenType(tokenAddress);
@@ -803,14 +798,10 @@ describe('TokensController', () => {
           );
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-          controller.update({
-            tokens: [
-              {
-                address: tokenAddress,
-                symbol: 'TESTNFT',
-                decimals: 0,
-              },
-            ],
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
           });
 
           const result = await controller.updateTokenType(tokenAddress);
@@ -952,9 +943,7 @@ describe('TokensController', () => {
       await withController(
         {
           options: {
-            config: {
-              chainId,
-            },
+            chainId,
           },
         },
         async ({ controller }) => {
@@ -1181,113 +1170,6 @@ describe('TokensController', () => {
           expect(controller.state.allTokens['0x5']['0x1']).toStrictEqual(
             dummyTokens,
           );
-        },
-      );
-    });
-  });
-
-  describe('_getNewAllTokensState method', () => {
-    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummySelectedAccount = createMockInternalAccount({
-        address: dummySelectedAddress,
-      });
-      const dummyTokens: Token[] = [
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-        },
-      ];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAccountId: dummySelectedAccount.id,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newTokens: dummyTokens,
-          });
-
-          expect(
-            processedTokens.newAllTokens[ChainId.mainnet][
-              dummySelectedAccount.address
-            ],
-          ).toStrictEqual(dummyTokens);
-        },
-      );
-    });
-
-    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummySelectedAccount = createMockInternalAccount({
-        address: dummySelectedAddress,
-      });
-      const dummyTokens: Token[] = [
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-        },
-      ];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAccountId: dummySelectedAccount.id,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newDetectedTokens: dummyTokens,
-          });
-
-          expect(
-            processedTokens.newAllDetectedTokens[ChainId.mainnet][
-              dummySelectedAddress
-            ],
-          ).toStrictEqual(dummyTokens);
-        },
-      );
-    });
-
-    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummySelectedAccount = createMockInternalAccount({
-        address: dummySelectedAddress,
-      });
-      const dummyIgnoredTokens = ['0x01'];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAccountId: dummySelectedAccount.id,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newIgnoredTokens: dummyIgnoredTokens,
-          });
-          expect(
-            processedTokens.newAllIgnoredTokens[ChainId.mainnet][
-              dummySelectedAddress
-            ],
-          ).toStrictEqual(dummyIgnoredTokens);
         },
       );
     });
@@ -1924,13 +1806,16 @@ describe('TokensController', () => {
             .mockReturnValueOnce('67890');
 
           const acceptedRequest = new Promise<void>((resolve) => {
-            controller.subscribe((state) => {
-              if (
-                state.allTokens?.[chainId]?.[interactingAddress].length === 2
-              ) {
-                resolve();
-              }
-            });
+            messenger.subscribe(
+              'TokensController:stateChange',
+              (state: TokensControllerState) => {
+                if (
+                  state.allTokens?.[chainId]?.[interactingAddress].length === 2
+                ) {
+                  resolve();
+                }
+              },
+            );
           });
 
           const anotherAsset = buildTokenWithName({
@@ -2178,9 +2063,7 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAccountId: selectedAccount.id,
-            },
+            selectedAccountId: selectedAccount.id,
           },
         },
         async ({ controller, getAccountHandler }) => {
@@ -2215,9 +2098,7 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAccountId: selectedAccount.id,
-            },
+            selectedAccountId: selectedAccount.id,
           },
         },
         async ({ controller, getAccountHandler }) => {
@@ -2253,9 +2134,7 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAccountId: selectedAccount.id,
-            },
+            selectedAccountId: selectedAccount.id,
           },
         },
         async ({ controller, getAccountHandler }) => {
@@ -2407,14 +2286,12 @@ async function withController<ReturnValue>(
   });
   const controller = new TokensController({
     chainId: ChainId.mainnet,
-    config: {
-      selectedAccountId: defaultMockInternalAccount.id,
-      // The tests assume that this is set, but they shouldn't make that
-      // assumption. But we have to do this due to a bug in TokensController
-      // where the provider can possibly be `undefined` if `networkClientId` is
-      // not specified.
-      provider: new FakeProvider(),
-    },
+    selectedAccountId: defaultMockInternalAccount.id,
+    // The tests assume that this is set, but they shouldn't make that
+    // assumption. But we have to do this due to a bug in TokensController
+    // where the provider can possibly be `undefined` if `networkClientId` is
+    // not specified.
+    provider: new FakeProvider(),
     messenger: controllerMessenger,
     ...options,
   });

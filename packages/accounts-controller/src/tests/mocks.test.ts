@@ -3,7 +3,7 @@ import { BtcAccountType, EthAccountType } from '@metamask/keyring-api';
 import { createMockInternalAccount } from './mocks';
 
 describe('createMockInternalAccount', () => {
-  it('should create a mock internal account', () => {
+  it('create a mock internal account', () => {
     const account = createMockInternalAccount();
     expect(account).toStrictEqual({
       id: expect.any(String),
@@ -21,7 +21,7 @@ describe('createMockInternalAccount', () => {
     });
   });
 
-  it('should create a mock internal account with custom values', () => {
+  it('create a mock internal account with custom values', () => {
     const customSnap = {
       id: '1',
       enabled: true,
@@ -50,7 +50,7 @@ describe('createMockInternalAccount', () => {
     });
   });
 
-  it('should create a nonevm account', () => {
+  it('create a non-EVM account', () => {
     const account = createMockInternalAccount({ type: BtcAccountType.P2wpkh });
     expect(account).toStrictEqual({
       id: expect.any(String),

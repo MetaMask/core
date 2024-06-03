@@ -197,24 +197,21 @@ export class TokenBalancesController extends BaseController<
     }
     const selectedInternalAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
-      'eip155:*',
     );
 
     const newContractBalances: ContractBalances = {};
     for (const token of this.#tokens) {
       const { address } = token;
-
       try {
-        newContractBalances[address] = toHex(
-          await this.#getERC20BalanceOf(
-            address,
-            selectedInternalAccount.address,
-          ),
+        const balance = await this.#getERC20BalanceOf(
+          address,
+          selectedInternalAccount.address,
         );
-        token.balanceError = null;
+        newContractBalances[address] = toHex(balance);
+        token.hasBalanceError = false;
       } catch (error) {
         newContractBalances[address] = toHex(0);
-        token.balanceError = error;
+        token.hasBalanceError = true;
       }
     }
 

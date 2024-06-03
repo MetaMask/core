@@ -82,7 +82,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     }
 
     const addresses = Object.values(
-      this.getInternalAccounts('eip155:*').map(
+      this.getInternalAccounts().map(
         (internalAccount) => internalAccount.address,
       ),
     );
@@ -118,7 +118,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AccountTrackerController';
+  override name = 'AccountTrackerController' as const;
 
   private readonly getInternalAccounts: AccountsController['listAccounts'];
 

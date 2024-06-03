@@ -1,8 +1,42 @@
 export * from './AccountTrackerController';
 export * from './AssetsContractController';
 export * from './CurrencyRateController';
-export * from './NftController';
-export * from './NftDetectionController';
+export type {
+  NftControllerState,
+  NftControllerMessenger,
+  NftControllerActions,
+  NftControllerGetStateAction,
+  NftControllerEvents,
+  NftControllerStateChangeEvent,
+  Nft,
+  NftContract,
+  NftMetadata,
+} from './NftController';
+export { getDefaultNftControllerState, NftController } from './NftController';
+export type {
+  NftDetectionControllerMessenger,
+  ApiNft,
+  ApiNftContract,
+  ApiNftLastSale,
+  ApiNftCreator,
+  ReservoirResponse,
+  TokensResponse,
+  BlockaidResultType,
+  Blockaid,
+  Market,
+  TokenResponse,
+  TopBid,
+  LastSale,
+  FeeBreakdown,
+  Attributes,
+  Collection,
+  Royalties,
+  Ownership,
+  FloorAsk,
+  Price,
+  Metadata,
+} from './NftDetectionController';
+export { NftDetectionController } from './NftDetectionController';
 export type {
   TokenBalancesControllerMessenger,
   TokenBalancesControllerActions,
@@ -38,8 +72,7 @@ export type {
 } from './TokenRatesController';
 export { TokenRatesController } from './TokenRatesController';
 export type {
-  TokensConfig,
-  TokensState,
+  TokensControllerState,
   TokensControllerActions,
   TokensControllerGetStateAction,
   TokensControllerAddDetectedTokensAction,

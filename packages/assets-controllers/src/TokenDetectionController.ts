@@ -230,7 +230,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     } else {
       const selectedInternalAccount = this.messagingSystem.call(
         'AccountsController:getSelectedAccount',
-        'eip155:*',
       );
       this.#selectedAccountId = selectedInternalAccount.id;
     }
@@ -287,7 +286,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       async ({ useTokenDetection }) => {
         const selectedAccount = this.messagingSystem.call(
           'AccountsController:getSelectedAccount',
-          'eip155:*',
         );
         const isDetectionChangedFromPreferences =
           this.#isDetectionEnabledFromPreferences !== useTokenDetection;

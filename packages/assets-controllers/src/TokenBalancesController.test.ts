@@ -11,7 +11,10 @@ import type {
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
 import type { Token } from './TokenRatesController';
-import { getDefaultTokensState, type TokensState } from './TokensController';
+import {
+  getDefaultTokensState,
+  type TokensControllerState,
+} from './TokensController';
 
 const controllerName = 'TokenBalancesController';
 
@@ -207,7 +210,7 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
       messenger,
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensControllerState) => {
       controllerMessenger.publish('TokensController:stateChange', state, []);
     };
 
@@ -247,7 +250,7 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
       messenger,
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensControllerState) => {
       controllerMessenger.publish('TokensController:stateChange', state, []);
     };
 
@@ -326,7 +329,7 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances();
 
-    expect(tokens[0].balanceError).toBeNull();
+    expect(tokens[0].hasBalanceError).toBe(false);
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
     expect(controller.state.contractBalances[address]).not.toBe(toHex(0));
   });
@@ -361,15 +364,14 @@ describe('TokenBalancesController', () => {
 
     await controller.updateBalances();
 
-    expect(tokens[0].balanceError).toBeInstanceOf(Error);
-    expect(tokens[0].balanceError).toHaveProperty('message', errorMsg);
+    expect(tokens[0].hasBalanceError).toBe(true);
     expect(controller.state.contractBalances[address]).toBe(toHex(0));
 
     getERC20BalanceOfStub.mockReturnValue(new BN(1));
 
     await controller.updateBalances();
 
-    expect(tokens[0].balanceError).toBeNull();
+    expect(tokens[0].hasBalanceError).toBe(false);
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
     expect(controller.state.contractBalances[address]).not.toBe(0);
   });
@@ -386,7 +388,7 @@ describe('TokenBalancesController', () => {
       interval: 1337,
       messenger,
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensControllerState) => {
       controllerMessenger.publish('TokensController:stateChange', state, []);
     };
     const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
@@ -417,7 +419,7 @@ describe('TokenBalancesController', () => {
       getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
       messenger,
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
+    const triggerTokensStateChange = async (state: TokensControllerState) => {
       controllerMessenger.publish('TokensController:stateChange', state, []);
     };
     expect(controller.state.contractBalances).toStrictEqual({});

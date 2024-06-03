@@ -1657,7 +1657,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1720,7 +1720,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/contract-metadata": ^2.4.0
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/keyring-api": ^6.1.1
@@ -1736,7 +1736,7 @@ __metadata:
     "@types/lodash": ^4.14.191
     "@types/node": ^16.18.54
     "@types/uuid": ^8.3.0
-    async-mutex: ^0.2.6
+    async-mutex: ^0.5.0
     bn.js: ^5.2.1
     cockatiel: ^3.1.2
     deepmerge: ^4.2.2
@@ -1897,7 +1897,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@^9.1.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@^10.0.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -1999,7 +1999,7 @@ __metadata:
     "@ethersproject/providers": ^5.7.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/network-controller": ^18.1.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2310,7 +2310,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
     "@metamask/network-controller": ^18.1.2
@@ -2438,7 +2438,7 @@ __metadata:
     "@metamask/scure-bip39": ^2.1.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
-    async-mutex: ^0.2.6
+    async-mutex: ^0.5.0
     deepmerge: ^4.2.2
     ethereumjs-wallet: ^1.0.1
     immer: ^9.0.6
@@ -2459,7 +2459,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2477,7 +2477,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2506,10 +2506,10 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
-    async-mutex: ^0.2.6
+    async-mutex: ^0.5.0
     deepmerge: ^4.2.2
     jest: ^27.5.1
     ts-jest: ^27.1.4
@@ -2526,7 +2526,7 @@ __metadata:
     "@json-rpc-specification/meta-schema": ^1.0.6
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/eth-block-tracker": ^9.0.2
     "@metamask/eth-json-rpc-infura": ^9.1.0
     "@metamask/eth-json-rpc-middleware": ^12.1.1
@@ -2539,7 +2539,7 @@ __metadata:
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
     "@types/lodash": ^4.14.191
-    async-mutex: ^0.2.6
+    async-mutex: ^0.5.0
     deepmerge: ^4.2.2
     immer: ^9.0.6
     jest: ^27.5.1
@@ -2622,7 +2622,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/json-rpc-engine": ^8.0.2
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/utils": ^8.3.0
@@ -2669,7 +2669,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@types/jest": ^27.4.1
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
@@ -2691,7 +2691,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/network-controller": ^18.1.2
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2726,7 +2726,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/keyring-controller": ^16.0.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2788,7 +2788,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/json-rpc-engine": ^8.0.2
     "@metamask/network-controller": ^18.1.2
     "@metamask/rpc-errors": ^6.2.1
@@ -2892,7 +2892,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/keyring-controller": ^16.0.0
     "@metamask/logging-controller": ^3.0.1
     "@metamask/message-manager": ^8.0.2
@@ -3050,7 +3050,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^15.1.2
@@ -3063,7 +3063,7 @@ __metadata:
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.54
-    async-mutex: ^0.2.6
+    async-mutex: ^0.5.0
     bn.js: ^5.2.1
     deepmerge: ^4.2.2
     eth-method-registry: ^4.0.0
@@ -3093,7 +3093,7 @@ __metadata:
     "@metamask/approval-controller": ^6.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
-    "@metamask/controller-utils": ^9.1.0
+    "@metamask/controller-utils": ^10.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/gas-fee-controller": ^15.1.2
     "@metamask/keyring-controller": ^16.0.0
@@ -4507,21 +4507,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"async-mutex@npm:^0.2.6":
-  version: 0.2.6
-  resolution: "async-mutex@npm:0.2.6"
-  dependencies:
-    tslib: ^2.0.0
-  checksum: f50102e0c57f6a958528cff7dff13da070897f17107b42274417a7248905b927b6e51c3387f8aed1f5cd6005b0e692d64a83a0789be602e4e7e7da4afe08b889
-  languageName: node
-  linkType: hard
-
 "async-mutex@npm:^0.3.1":
   version: 0.3.2
   resolution: "async-mutex@npm:0.3.2"
   dependencies:
     tslib: ^2.3.1
   checksum: 620b771dfdea1cad0a6b712915c31a1e3ca880a8cf1eae92b4590f435995e0260929c6ebaae0b9126b1456790ea498064b5bb9a506948cda760f48d3d0dcc4c8
+  languageName: node
+  linkType: hard
+
+"async-mutex@npm:^0.5.0":
+  version: 0.5.0
+  resolution: "async-mutex@npm:0.5.0"
+  dependencies:
+    tslib: ^2.4.0
+  checksum: be1587f4875f3bb15e34e9fcce82eac2966daef4432c8d0046e61947fb9a1b95405284601bc7ce4869319249bc07c75100880191db6af11d1498931ac2a2f9ea
   languageName: node
   linkType: hard
 
@@ -11438,7 +11438,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tslib@npm:^2.0.0, tslib@npm:^2.3.0, tslib@npm:^2.3.1, tslib@npm:^2.6.2":
+"tslib@npm:^2.3.0, tslib@npm:^2.3.1, tslib@npm:^2.4.0, tslib@npm:^2.6.2":
   version: 2.6.2
   resolution: "tslib@npm:2.6.2"
   checksum: 329ea56123005922f39642318e3d1f0f8265d1e7fcb92c633e0809521da75eeaca28d2cf96d7248229deb40e5c19adf408259f4b9640afd20d13aecc1430f3ad
