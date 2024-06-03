@@ -1,5 +1,6 @@
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   fetchWithErrorHandling,
   toChecksumHexAddress,
@@ -16,7 +17,6 @@ import type {
   NetworkControllerStateChangeEvent,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
   PreferencesControllerGetStateAction,
   PreferencesControllerStateChangeEvent,
@@ -31,9 +31,9 @@ import {
   type NftMetadata,
 } from './NftController';
 
-const DEFAULT_INTERVAL = 180000;
-
 const controllerName = 'NftDetectionController';
+
+export type NFTDetectionControllerState = Record<never, never>;
 
 export type AllowedActions =
   | AddApprovalRequest
@@ -354,15 +354,11 @@ const RATE_LIMIT_NFT_DETECTION_INTERVAL = RATE_LIMIT_NFT_DETECTION_DELAY * 1000;
 /**
  * Controller that passively detects nfts for a user address
  */
-export class NftDetectionController extends StaticIntervalPollingController<
+export class NftDetectionController extends BaseController<
   typeof controllerName,
-  Record<never, never>,
+  NFTDetectionControllerState,
   NftDetectionControllerMessenger
 > {
-  #intervalId?: ReturnType<typeof setTimeout>;
-
-  #interval: number;
-
   #disabled: boolean;
 
   readonly #addNft: NftController['addNft'];
@@ -375,7 +371,6 @@ export class NftDetectionController extends StaticIntervalPollingController<
    * The controller options
    *
    * @param options - The controller options.
-   * @param options.interval - The pooling interval.
    * @param options.messenger - A reference to the messaging system.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
    * @param options.addNft - Add an NFT.
@@ -383,14 +378,12 @@ export class NftDetectionController extends StaticIntervalPollingController<
    * @param options.getNftState - Gets the current state of the Assets controller.
    */
   constructor({
-    interval = DEFAULT_INTERVAL,
     messenger,
     disabled = false,
     addNft,
     updateNftFetchingProgressStatus,
     getNftState,
   }: {
-    interval?: number;
     messenger: NftDetectionControllerMessenger;
     disabled: boolean;
     addNft: NftController['addNft'];
@@ -403,7 +396,6 @@ export class NftDetectionController extends StaticIntervalPollingController<
       metadata: {},
       state: {},
     });
-    this.#interval = interval;
     this.#disabled = disabled;
 
     this.#getNftState = getNftState;
@@ -414,51 +406,6 @@ export class NftDetectionController extends StaticIntervalPollingController<
       'PreferencesController:stateChange',
       this.#onPreferencesControllerStateChange.bind(this),
     );
-
-    this.setIntervalLength(this.#interval);
-  }
-
-  async _executePoll(
-    networkClientId: string,
-    options: { address: string },
-  ): Promise<void> {
-    await this.detectNfts({ networkClientId, userAddress: options.address });
-  }
-
-  /**
-   * Start polling for the currency rate.
-   */
-  async start() {
-    if (!this.isMainnet() || this.#disabled) {
-      return;
-    }
-
-    await this.#startPolling();
-  }
-
-  /**
-   * Stop polling for the currency rate.
-   */
-  stop() {
-    this.#stopPolling();
-  }
-
-  #stopPolling() {
-    if (this.#intervalId) {
-      clearInterval(this.#intervalId);
-    }
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   */
-  async #startPolling(): Promise<void> {
-    this.#stopPolling();
-    await this.detectNfts();
-    this.#intervalId = setInterval(async () => {
-      await this.detectNfts();
-    }, this.#interval);
   }
 
   /**

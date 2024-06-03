@@ -251,11 +251,13 @@ describe('NftController', () => {
 
   it('should set default state', () => {
     const { nftController } = setupController();
+    console.log('here', nftController.state);
 
     expect(nftController.state).toStrictEqual({
       allNftContracts: {},
       allNfts: {},
       ignoredNfts: [],
+      isNftFetchingInProgress: {},
     });
   });
 
