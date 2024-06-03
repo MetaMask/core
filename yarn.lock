@@ -1617,7 +1617,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/eth-snap-keyring": ^4.1.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.4.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
@@ -1735,7 +1735,7 @@ __metadata:
     "@metamask/controller-utils": ^11.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.4.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
@@ -1876,7 +1876,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/chain-api": ^0.0.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.4.0
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
     "@metamask/snaps-utils": ^7.4.0
@@ -2479,6 +2479,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/keyring-api@npm:^6.4.0":
+  version: 6.4.0
+  resolution: "@metamask/keyring-api@npm:6.4.0"
+  dependencies:
+    "@metamask/snaps-sdk": ^4.2.0
+    "@metamask/utils": ^8.4.0
+    "@types/uuid": ^9.0.8
+    bech32: ^2.0.0
+    superstruct: ^1.0.3
+    uuid: ^9.0.1
+  peerDependencies:
+    "@metamask/providers": ">=15 <18"
+  checksum: 7845ed5fa73db3165703c2142b6062d03ca5fea329b54d28f424dee2bb393edc1f9a015e771289ef7236c31f30355bf2c52ad74bb47cf531c09c5eec66e06b00
+  languageName: node
+  linkType: hard
+
 "@metamask/keyring-controller@^17.0.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
@@ -2495,7 +2511,7 @@ __metadata:
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^6.4.0
     "@metamask/message-manager": ^10.0.0
     "@metamask/scure-bip39": ^2.1.1
     "@metamask/utils": ^8.3.0
@@ -4000,7 +4016,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/uuid@npm:^9.0.1":
+"@types/uuid@npm:^9.0.1, @types/uuid@npm:^9.0.8":
   version: 9.0.8
   resolution: "@types/uuid@npm:9.0.8"
   checksum: b8c60b7ba8250356b5088302583d1704a4e1a13558d143c549c408bf8920535602ffc12394ede77f8a8083511b023704bc66d1345792714002bfa261b17c5275
