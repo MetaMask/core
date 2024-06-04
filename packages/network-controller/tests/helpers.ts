@@ -126,10 +126,12 @@ export function buildMockGetNetworkClientById(
  * of an Infura network.
  *
  * @param network - The name of an Infura network.
- * @returns the Infura network client configuration.
+ * @param overrides - Properties to merge into the configuration object.
+ * @returns the complete Infura network client configuration.
  */
 export function buildInfuraNetworkClientConfiguration(
   network: InfuraNetworkType,
+  overrides: Partial<InfuraNetworkClientConfiguration> = {},
 ): InfuraNetworkClientConfiguration {
   return {
     type: NetworkClientType.Infura,
@@ -137,6 +139,7 @@ export function buildInfuraNetworkClientConfiguration(
     infuraProjectId: 'test-infura-project-id',
     chainId: BUILT_IN_NETWORKS[network].chainId,
     ticker: BUILT_IN_NETWORKS[network].ticker,
+    ...overrides,
   };
 }
 
