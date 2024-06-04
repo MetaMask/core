@@ -1,5 +1,4 @@
 import type { AccountsController } from '@metamask/accounts-controller';
-import { createMockInternalAccount } from '@metamask/accounts-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
 import {
@@ -22,6 +21,7 @@ import * as sinon from 'sinon';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,

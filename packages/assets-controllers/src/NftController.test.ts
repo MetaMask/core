@@ -4,7 +4,6 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import { createMockInternalAccount } from '@metamask/accounts-controller/src/tests/mocks';
 import type {
   AddApprovalRequest,
   ApprovalStateChange,
@@ -43,6 +42,7 @@ import nock from 'nock';
 import * as sinon from 'sinon';
 import { v4 } from 'uuid';
 
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,

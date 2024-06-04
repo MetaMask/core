@@ -1,10 +1,10 @@
-import { createMockInternalAccount } from '@metamask/accounts-controller';
 import { query } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type { InternalAccount } from '@metamask/keyring-api';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import { AccountTrackerController } from './AccountTrackerController';
 
 jest.mock('@metamask/controller-utils', () => {

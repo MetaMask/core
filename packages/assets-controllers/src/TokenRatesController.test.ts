@@ -1,4 +1,3 @@
-import { createMockInternalAccount } from '@metamask/accounts-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -20,6 +19,7 @@ import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime, flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,

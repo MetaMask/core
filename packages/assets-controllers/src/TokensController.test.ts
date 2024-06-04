@@ -1,6 +1,5 @@
 import { Contract } from '@ethersproject/contracts';
 import type { AccountsController } from '@metamask/accounts-controller';
-import { createMockInternalAccount } from '@metamask/accounts-controller';
 import type { ApprovalStateChange } from '@metamask/approval-controller';
 import {
   ApprovalController,
@@ -29,6 +28,7 @@ import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
 import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,

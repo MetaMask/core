@@ -1,9 +1,9 @@
-import { createMockInternalAccount } from '@metamask/accounts-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
 import BN from 'bn.js';
 
 import { flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   AllowedActions,
   AllowedEvents,
