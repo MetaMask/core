@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.2]
+### Fixed
+- fix: Improve state management to ensure unique smart transactions in a rare edge case. This will be removed in a future version once we have confirmed this is resolved. ([#353](https://github.com/MetaMask/smart-transactions-controller/pull/353))
+- Bring release instructions in README up to date ([#354](https://github.com/MetaMask/smart-transactions-controller/pull/354))
+
 ## [10.1.1]
 ### Fixed
 - Call the "poll" function only once on a network switch ([#348](https://github.com/MetaMask/smart-transactions-controller/pull/348))
@@ -287,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.2...HEAD
+[10.1.2]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.1...v10.1.2
 [10.1.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.0...v10.1.1
 [10.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.0.1...v10.1.0
 [10.0.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.0.0...v10.0.1
