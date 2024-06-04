@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [9.1.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [9.1.0]
 
 ### Added
@@ -226,7 +242,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.1...@metamask/permission-controller@10.0.0
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.0...@metamask/permission-controller@9.1.1
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.2...@metamask/permission-controller@9.1.0
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.1...@metamask/permission-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.0...@metamask/permission-controller@9.0.1

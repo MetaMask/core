@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [15.0.0]
+
+### Added
+
+- Add `getNextAvailableAccountName` method and `AccountsController:getNextAvailableAccountName` controller action ([#4326](https://github.com/MetaMask/core/pull/4326))
+- Add `listMultichainAccounts` method for getting accounts on a specific chain or the default chain ([#4330](https://github.com/MetaMask/core/pull/4330))
+- Add `getSelectedMultichainAccount` method and `AccountsController:getSelectedMultichainAccount` controller action for getting the selected account on a specific chain or the default chain ([#4330](https://github.com/MetaMask/core/pull/4330))
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/snaps-controllers` to `^8.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** `listAccounts` now filters the list of accounts in state to EVM accounts ([#4330](https://github.com/MetaMask/core/pull/4330))
+- **BREAKING:** `getSelectedAccount` now throws if the selected account is not an EVM account ([#4330](https://github.com/MetaMask/core/pull/4330))
+- Bump `@metamask/eth-snap-keyring` to `^4.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+- Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+- Bump `@metamask/snaps-sdk` to `^4.2.0` ([#4262](https://github.com/MetaMask/core/pull/4262))
+- Bump `@metamask/snaps-utils` to `^7.4.0` ([#4262](https://github.com/MetaMask/core/pull/4262))
+
+### Fixed
+
+- Fix "Type instantiation is excessively deep and possibly infinite" TypeScript error ([#4331](https://github.com/MetaMask/core/pull/4331))
+
 ## [14.0.0]
 
 ### Changed
@@ -171,7 +202,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@14.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@15.0.0...@metamask/accounts-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@14.0.0...@metamask/accounts-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@13.0.0...@metamask/accounts-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.1...@metamask/accounts-controller@13.0.0
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@12.0.0...@metamask/accounts-controller@12.0.1
