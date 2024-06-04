@@ -460,6 +460,79 @@ describe('SmartTransactionsController', () => {
       } as NetworkState);
       expect(checkPollSpy).toHaveBeenCalled();
     });
+
+    it('calls "ensureUniqueSmartTransactions" on network change if it is a new chainId', () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
+      const smartTransactionsForChainId = createStateAfterSuccess();
+      smartTransactionsForChainId.push({
+        // Duplicate a smart transaction with the same uuid.
+        ...smartTransactionsForChainId[0],
+        status: 'pending',
+      });
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [ChainId.mainnet]:
+              smartTransactionsForChainId as SmartTransaction[],
+          },
+        },
+      });
+      smartTransactionsController.config.chainId = ChainId.sepolia;
+      networkListener({
+        providerConfig: {
+          chainId: ChainId.mainnet,
+          type: 'rpc',
+          ticker: 'ETH',
+        },
+        selectedNetworkClientId: 'networkClientId',
+        networkConfigurations: {},
+        networksMetadata: {},
+      } as NetworkState);
+      const uniqueSmartTransactionsForChainId =
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[ChainId.mainnet];
+      expect(uniqueSmartTransactionsForChainId).toHaveLength(1);
+      expect(uniqueSmartTransactionsForChainId).toStrictEqual([
+        smartTransactionsForChainId[0],
+      ]);
+    });
+
+    it('does not call "ensureUniqueSmartTransactions" on network change for the same chainId', () => {
+      const { smartTransactionsState } = smartTransactionsController.state;
+      const smartTransactionsForChainId = createStateAfterSuccess();
+      smartTransactionsForChainId.push({
+        // Duplicate a smart transaction with the same uuid.
+        ...smartTransactionsForChainId[0],
+        status: 'pending',
+      });
+      smartTransactionsController.update({
+        smartTransactionsState: {
+          ...smartTransactionsState,
+          smartTransactions: {
+            [ChainId.mainnet]:
+              smartTransactionsForChainId as SmartTransaction[],
+          },
+        },
+      });
+      networkListener({
+        providerConfig: {
+          chainId: ChainId.mainnet,
+          type: 'rpc',
+          ticker: 'ETH',
+        },
+        selectedNetworkClientId: 'networkClientId',
+        networkConfigurations: {},
+        networksMetadata: {},
+      } as NetworkState);
+      const currentSmartTransactionsForChainId =
+        smartTransactionsController.state.smartTransactionsState
+          .smartTransactions[ChainId.mainnet];
+      expect(currentSmartTransactionsForChainId).toHaveLength(2);
+      expect(currentSmartTransactionsForChainId).toStrictEqual(
+        smartTransactionsForChainId,
+      );
+    });
   });
 
   describe('checkPoll', () => {
