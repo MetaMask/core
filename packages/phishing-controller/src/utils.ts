@@ -156,16 +156,21 @@ export const processDomainList = (list: string[]) => {
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
  */
-export const getDefaultPhishingDetectorConfig = (override?: {
+export const getDefaultPhishingDetectorConfig = ({
+  allowlist = [],
+  blocklist = [],
+  fuzzylist = [],
+  tolerance = DEFAULT_TOLERANCE
+}: {
   allowlist?: string[];
   blocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
 }): PhishingDetectorConfiguration => ({
-  allowlist: processDomainList(override?.allowlist || []),
-  blocklist: processDomainList(override?.blocklist || []),
-  fuzzylist: processDomainList(override?.fuzzylist || []),
-  tolerance: override?.tolerance || DEFAULT_TOLERANCE,
+  allowlist,
+  blocklist,
+  fuzzylist,
+  tolerance,
 });
 
 /**
