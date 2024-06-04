@@ -3,12 +3,14 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import nock from 'nock';
 
-import { USER_STORAGE_ENDPOINT } from '../constants';
-import { createEntryPath } from '../schema';
-import type { GetUserStorageResponse } from '../services';
+import { createEntryPath } from '../../src/schema';
+import { Env, getEnvUrls } from '../../src/sdk/env';
+import type { GetUserStorageResponse } from '../../src/services';
 import { MOCK_ENCRYPTED_STORAGE_DATA, MOCK_STORAGE_KEY } from './mockStorage';
 
-export const MOCK_USER_STORAGE_NOTIFICATIONS_ENDPOINT = `${USER_STORAGE_ENDPOINT}${createEntryPath(
+export const MOCK_USER_STORAGE_NOTIFICATIONS_ENDPOINT = `${
+  getEnvUrls(Env.DEV).userStorageApiUrl
+}/api/v1/userstorage/${createEntryPath(
   'notification_settings',
   MOCK_STORAGE_KEY,
 )}`;
@@ -22,10 +24,7 @@ const MOCK_GET_USER_STORAGE_RESPONSE: GetUserStorageResponse = {
   HashedKey: 'HASHED_KEY',
   Data: MOCK_ENCRYPTED_STORAGE_DATA,
 };
-/**
- *
- * @param mockReply
- */
+
 export function mockEndpointGetUserStorage(mockReply?: MockReply) {
   const reply = mockReply ?? {
     status: 200,
@@ -39,10 +38,6 @@ export function mockEndpointGetUserStorage(mockReply?: MockReply) {
   return mockEndpoint;
 }
 
-/**
- *
- * @param mockReply
- */
 export function mockEndpointUpsertUserStorage(
   mockReply?: Pick<MockReply, 'status'>,
 ) {

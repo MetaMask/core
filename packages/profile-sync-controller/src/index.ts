@@ -22,12 +22,12 @@ export type {
   UserStorageControllerActions,
   UserStorageControllerMessenger,
   UserStorageControllerState,
+  UserStorageControllerGetStorageKeyAction,
   UserStorageControllerPerformGetStorageAction,
   UserStorageControllerPerformSetStorageAction,
-  UserStorageControllerGetStorageKeyAction,
   UserStorageControllerEnableProfileSyncingAction,
   UserStorageControllerDisableProfileSyncingAction,
 } from './UserStorageController';
 
 export { UserStorageController } from './UserStorageController';
-export * from './mocks';
+export * from '../tests/mocks';

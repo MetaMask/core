@@ -4,7 +4,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { Notification as INotification } from '@metamask/notifications-controller';
-import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
 import {
@@ -22,30 +22,30 @@ export type PushPlatformNotificationsControllerState = {
   fcmToken: string;
 };
 
-export declare type PushPlatformNotificationsControllerEnablePushNotifications =
+export declare type PushPlatformNotificationsControllerEnablePushNotificationsAction =
   {
     type: `${typeof controllerName}:enablePushNotifications`;
     handler: PushPlatformNotificationsController['enablePushNotifications'];
   };
 
-export declare type PushPlatformNotificationsControllerDisablePushNotifications =
+export declare type PushPlatformNotificationsControllerDisablePushNotificationsAction =
   {
     type: `${typeof controllerName}:disablePushNotifications`;
     handler: PushPlatformNotificationsController['disablePushNotifications'];
   };
-export declare type PushPlatformNotificationsControllerUpdateTriggerPushNotifications =
+export declare type PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction =
   {
     type: `${typeof controllerName}:updateTriggerPushNotifications`;
     handler: PushPlatformNotificationsController['updateTriggerPushNotifications'];
   };
 
 export type PushPlatformNotificationsControllerMessengerActions =
-  | PushPlatformNotificationsControllerEnablePushNotifications
-  | PushPlatformNotificationsControllerDisablePushNotifications
-  | PushPlatformNotificationsControllerUpdateTriggerPushNotifications
+  | PushPlatformNotificationsControllerEnablePushNotificationsAction
+  | PushPlatformNotificationsControllerDisablePushNotificationsAction
+  | PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction
   | ControllerGetStateAction<'state', PushPlatformNotificationsControllerState>;
 
-type AllowedActions = AuthenticationControllerGetBearerToken;
+type AllowedActions = AuthenticationControllerGetBearerTokenAction;
 
 export type PushPlatformNotificationsControllerOnNewNotificationEvent = {
   type: `${typeof controllerName}:onNewNotifications`;

@@ -2,9 +2,9 @@ export type {
   PushPlatformNotificationsControllerState,
   PushPlatformNotificationsControllerMessengerActions,
   PushPlatformNotificationsControllerOnNewNotificationEvent,
-  PushPlatformNotificationsControllerEnablePushNotifications,
-  PushPlatformNotificationsControllerDisablePushNotifications,
-  PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
+  PushPlatformNotificationsControllerEnablePushNotificationsAction,
+  PushPlatformNotificationsControllerDisablePushNotificationsAction,
+  PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction,
   PushPlatformNotificationsControllerMessenger,
 } from './PushPlatformNotificationsController';
 
