@@ -160,16 +160,16 @@ export const getDefaultPhishingDetectorConfig = ({
   allowlist = [],
   blocklist = [],
   fuzzylist = [],
-  tolerance = DEFAULT_TOLERANCE
+  tolerance = DEFAULT_TOLERANCE,
 }: {
   allowlist?: string[];
   blocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
 }): PhishingDetectorConfiguration => ({
-  allowlist,
-  blocklist,
-  fuzzylist,
+  allowlist: processDomainList(allowlist),
+  blocklist: processDomainList(blocklist),
+  fuzzylist: processDomainList(fuzzylist),
   tolerance,
 });
 
