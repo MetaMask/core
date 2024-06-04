@@ -265,9 +265,22 @@ export class AccountsController extends BaseController<
    * @throws An error if the account ID is not found.
    */
   getAccountExpect(accountId: string): InternalAccount {
+    const account = this.getAccount(accountId);
+    if (account === undefined) {
+      throw new Error(`Account Id "${accountId}" not found`);
+    }
+    return account;
+  }
+
+  /**
+   * Returns the last selected evm account.
+   *
+   * @returns The selected internal account.
+   */
+  getSelectedAccount(): InternalAccount {
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
-    if (!accountId) {
+    if (this.state.internalAccounts.selectedAccount === '') {
       return {
         id: '',
         address: '',
@@ -284,19 +297,6 @@ export class AccountsController extends BaseController<
       };
     }
 
-    const account = this.getAccount(accountId);
-    if (account === undefined) {
-      throw new Error(`Account Id "${accountId}" not found`);
-    }
-    return account;
-  }
-
-  /**
-   * Returns the last selected evm account.
-   *
-   * @returns The selected internal account.
-   */
-  getSelectedAccount(): InternalAccount {
     const selectedAccount = this.getAccountExpect(
       this.state.internalAccounts.selectedAccount,
     );
