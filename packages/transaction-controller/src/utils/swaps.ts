@@ -108,6 +108,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
 
 export const SWAP_TRANSACTION_TYPES = [
   TransactionType.swap,
+  TransactionType.swapAndSend,
   TransactionType.swapApproval,
 ];
 
@@ -178,6 +179,16 @@ export function updateSwapsTransaction(
       swapsMeta,
     );
     messenger.publish('TransactionController:transactionNewSwapApproval', {
+      transactionMeta: updatedTransactionMeta,
+    });
+  }
+
+  if (transactionType === TransactionType.swapAndSend) {
+    updatedTransactionMeta = updateSwapAndSendTransaction(
+      transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish('TransactionController:transactionNewSwapAndSend', {
       transactionMeta: updatedTransactionMeta,
     });
   }
@@ -319,6 +330,71 @@ function updateSwapTransaction(
     swapTokenValue,
     estimatedBaseFee,
     approvalTxId,
+  };
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  swapTransaction = pickBy(swapTransaction) as any;
+
+  return merge({}, transactionMeta, swapTransaction);
+}
+
+/**
+ * Updates the transaction meta object with the swap information
+ *
+ * @param transactionMeta - Transaction meta object to update
+ * @param propsToUpdate - Properties to update
+ * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
+ * @param propsToUpdate.destinationTokenAddress - Address of the token to be received
+ * @param propsToUpdate.destinationTokenAmount - The raw amount of the destination token
+ * @param propsToUpdate.destinationTokenDecimals - Decimals of the token to be received
+ * @param propsToUpdate.destinationTokenSymbol - Symbol of the token to be received
+ * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
+ * @param propsToUpdate.sourceTokenAddress - The address of the source token
+ * @param propsToUpdate.sourceTokenAmount - The raw amount of the source token
+ * @param propsToUpdate.sourceTokenDecimals - The decimals of the source token
+ * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
+ * @param propsToUpdate.swapAndSendRecipient - The recipient of the swap and send transaction
+ * @param propsToUpdate.swapMetaData - Metadata of the swap
+ * @param propsToUpdate.swapTokenValue - Value of the token to be swapped – possibly the same as sourceTokenAmount; included for consistency
+ * @param propsToUpdate.type - Type of the transaction
+ * @returns The updated transaction meta object.
+ */
+function updateSwapAndSendTransaction(
+  transactionMeta: TransactionMeta,
+  {
+    approvalTxId,
+    destinationTokenAddress,
+    destinationTokenAmount,
+    destinationTokenDecimals,
+    destinationTokenSymbol,
+    estimatedBaseFee,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    sourceTokenDecimals,
+    sourceTokenSymbol,
+    swapAndSendRecipient,
+    swapMetaData,
+    swapTokenValue,
+    type,
+  }: Partial<TransactionMeta>,
+): TransactionMeta {
+  validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
+
+  let swapTransaction = {
+    approvalTxId,
+    destinationTokenAddress,
+    destinationTokenAmount,
+    destinationTokenDecimals,
+    destinationTokenSymbol,
+    estimatedBaseFee,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    sourceTokenDecimals,
+    sourceTokenSymbol,
+    swapAndSendRecipient,
+    swapMetaData,
+    swapTokenValue,
+    type,
   };
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

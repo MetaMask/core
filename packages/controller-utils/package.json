@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "9.1.0",
+  "version": "11.0.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -63,7 +63,7 @@
     "typescript": "~4.9.5"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

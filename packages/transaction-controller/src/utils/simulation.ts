@@ -91,6 +91,8 @@ const SUPPORTED_TOKEN_ABIS = {
 
 const REVERTED_ERRORS = ['execution reverted', 'insufficient funds for gas'];
 
+type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
+
 /**
  * Generate simulation data for a transaction.
  * @param request - The transaction to simulate.
@@ -199,7 +201,7 @@ function getNativeBalanceChange(
  * @param response - The simulation response.
  * @returns The parsed events.
  */
-function getEvents(response: SimulationResponse): ParsedEvent[] {
+export function getEvents(response: SimulationResponse): ParsedEvent[] {
   /* istanbul ignore next */
   const logs = extractLogs(
     response.transactions[0]?.callTrace ?? ({} as SimulationResponseCallTrace),
@@ -284,41 +286,47 @@ async function getTokenBalanceChanges(
   request: GetSimulationDataRequest,
   events: ParsedEvent[],
 ): Promise<SimulationTokenBalanceChange[]> {
-  const balanceTransactionsByToken = getTokenBalanceTransactions(
+  const balanceTxs = getTokenBalanceTransactions(request, events);
+
+  log('Generated balance transactions', [...balanceTxs.after.values()]);
+
+  const transactions = [
+    ...balanceTxs.before.values(),
     request,
-    events,
-  );
+    ...balanceTxs.after.values(),
+  ];
 
-  const balanceTransactions = [...balanceTransactionsByToken.values()];
-
-  log('Generated balance transactions', balanceTransactions);
-
-  if (!balanceTransactions.length) {
+  if (transactions.length === 1) {
     return [];
   }
 
   const response = await simulateTransactions(request.chainId as Hex, {
-    transactions: [...balanceTransactions, request, ...balanceTransactions],
+    transactions,
   });
 
   log('Balance simulation response', response);
 
-  if (response.transactions.length !== balanceTransactions.length * 2 + 1) {
+  if (response.transactions.length !== transactions.length) {
     throw new SimulationInvalidResponseError();
   }
 
-  return [...balanceTransactionsByToken.keys()]
+  let prevBalanceTxIndex = 0;
+  return [...balanceTxs.after.keys()]
     .map((token, index) => {
-      const previousBalance = getValueFromBalanceTransaction(
-        request.from,
-        token,
-        response.transactions[index],
-      );
+      const previousBalanceCheckSkipped = !balanceTxs.before.get(token);
+      const previousBalance = previousBalanceCheckSkipped
+        ? '0x0'
+        : getValueFromBalanceTransaction(
+            request.from,
+            token,
+            // eslint-disable-next-line no-plusplus
+            response.transactions[prevBalanceTxIndex++],
+          );
 
       const newBalance = getValueFromBalanceTransaction(
         request.from,
         token,
-        response.transactions[index + balanceTransactions.length + 1],
+        response.transactions[index + balanceTxs.before.size + 1],
       );
 
       const balanceChange = getSimulationBalanceChange(
@@ -347,8 +355,13 @@ async function getTokenBalanceChanges(
 function getTokenBalanceTransactions(
   request: GetSimulationDataRequest,
   events: ParsedEvent[],
-): Map<SimulationToken, SimulationRequestTransaction> {
+): {
+  before: BalanceTransactionMap;
+  after: BalanceTransactionMap;
+} {
   const tokenKeys = new Set();
+  const before = new Map();
+  const after = new Map();
 
   const userEvents = events.filter(
     (event) =>
@@ -358,7 +371,7 @@ function getTokenBalanceTransactions(
 
   log('Filtered user events', userEvents);
 
-  return userEvents.reduce((result, event) => {
+  for (const event of userEvents) {
     const tokenIds = getEventTokenIds(event);
 
     log('Extracted token ids', tokenIds);
@@ -388,15 +401,37 @@ function getTokenBalanceTransactions(
         tokenId,
       );
 
-      result.set(simulationToken, {
+      const transaction: SimulationRequestTransaction = {
         from: request.from,
         to: event.contractAddress,
         data,
-      });
-    }
+      };
 
-    return result;
-  }, new Map<SimulationToken, SimulationRequestTransaction>());
+      if (skipPriorBalanceCheck(event)) {
+        after.set(simulationToken, transaction);
+      } else {
+        before.set(simulationToken, transaction);
+        after.set(simulationToken, transaction);
+      }
+    }
+  }
+
+  return { before, after };
+}
+
+/**
+ * Check if an event needs to check the previous balance.
+ * @param event - The parsed event.
+ * @returns True if the prior balance check should be skipped.
+ */
+function skipPriorBalanceCheck(event: ParsedEvent): boolean {
+  // In the case of an NFT mint, we cannot check the NFT owner before the mint
+  // as the balance check transaction would revert.
+  return (
+    event.name === 'Transfer' &&
+    event.tokenStandard === SimulationTokenStandard.erc721 &&
+    parseInt(event.args.from as string, 16) === 0
+  );
 }
 
 /**

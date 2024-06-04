@@ -27,6 +27,8 @@ export const CHAIN_IDS = {
   ARBITRUM: '0xa4b1',
   ZKSYNC_ERA: '0x144',
   ZORA: '0x76adf1',
+  SCROLL: '0x82750',
+  SCROLL_SEPOLIA: '0x8274f',
 } as const;
 
 export const DEFAULT_ETHERSCAN_DOMAIN = 'etherscan.io';

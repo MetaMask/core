@@ -1,5 +1,8 @@
 import EthQuery from '@metamask/eth-query';
-import type { GasFeeState } from '@metamask/gas-fee-controller';
+import type {
+  FetchGasFeeEstimateOptions,
+  GasFeeState,
+} from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
@@ -26,9 +29,13 @@ const INTERVAL_MILLISECONDS = 10000;
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
+  #findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
+
   #gasFeeFlows: GasFeeFlow[];
 
-  #getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+  #getGasFeeControllerEstimates: (
+    options: FetchGasFeeEstimateOptions,
+  ) => Promise<GasFeeState>;
 
   #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
 
@@ -43,6 +50,7 @@ export class GasFeePoller {
   /**
    * Constructs a new instance of the GasFeePoller.
    * @param options - The options for this instance.
+   * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
    * @param options.getProvider - Callback to obtain a provider instance.
@@ -51,6 +59,7 @@ export class GasFeePoller {
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
   constructor({
+    findNetworkClientIdByChainId,
     gasFeeFlows,
     getGasFeeControllerEstimates,
     getProvider,
@@ -58,13 +67,17 @@ export class GasFeePoller {
     layer1GasFeeFlows,
     onStateChange,
   }: {
+    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     gasFeeFlows: GasFeeFlow[];
-    getGasFeeControllerEstimates: () => Promise<GasFeeState>;
+    getGasFeeControllerEstimates: (
+      options: FetchGasFeeEstimateOptions,
+    ) => Promise<GasFeeState>;
     getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
   }) {
+    this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
@@ -119,22 +132,42 @@ export class GasFeePoller {
   async #updateUnapprovedTransactions() {
     const unapprovedTransactions = this.#getUnapprovedTransactions();
 
-    if (unapprovedTransactions.length) {
-      log('Found unapproved transactions', unapprovedTransactions.length);
+    if (!unapprovedTransactions.length) {
+      return;
     }
 
+    log('Found unapproved transactions', unapprovedTransactions.length);
+
+    const gasFeeControllerDataByChainId = await this.#getGasFeeControllerData(
+      unapprovedTransactions,
+    );
+
+    log('Retrieved gas fee controller data', gasFeeControllerDataByChainId);
+
     await Promise.all(
-      unapprovedTransactions.flatMap((tx) =>
-        this.#updateUnapprovedTransaction(tx),
-      ),
+      unapprovedTransactions.flatMap((tx) => {
+        const { chainId } = tx;
+
+        const gasFeeControllerData = gasFeeControllerDataByChainId.get(
+          chainId,
+        ) as GasFeeState;
+
+        return this.#updateUnapprovedTransaction(tx, gasFeeControllerData);
+      }),
     );
   }
 
-  async #updateUnapprovedTransaction(transactionMeta: TransactionMeta) {
+  async #updateUnapprovedTransaction(
+    transactionMeta: TransactionMeta,
+    gasFeeControllerData: GasFeeState,
+  ) {
     const { id } = transactionMeta;
 
     const [gasFeeEstimatesResponse, layer1GasFee] = await Promise.all([
-      this.#updateTransactionGasFeeEstimates(transactionMeta),
+      this.#updateTransactionGasFeeEstimates(
+        transactionMeta,
+        gasFeeControllerData,
+      ),
       this.#updateTransactionLayer1GasFee(transactionMeta),
     ]);
 
@@ -152,6 +185,7 @@ export class GasFeePoller {
 
   async #updateTransactionGasFeeEstimates(
     transactionMeta: TransactionMeta,
+    gasFeeControllerData: GasFeeState,
   ): Promise<
     | { gasFeeEstimates?: GasFeeEstimates; gasFeeEstimatesLoaded: boolean }
     | undefined
@@ -171,7 +205,7 @@ export class GasFeePoller {
 
     const request: GasFeeFlowRequest = {
       ethQuery,
-      getGasFeeControllerEstimates: this.#getGasFeeControllerEstimates,
+      gasFeeControllerData,
       transactionMeta,
     };
 
@@ -221,5 +255,39 @@ export class GasFeePoller {
     return this.#getTransactions().filter(
       (tx) => tx.status === TransactionStatus.unapproved,
     );
+  }
+
+  async #getGasFeeControllerData(
+    transactions: TransactionMeta[],
+  ): Promise<Map<string, GasFeeState>> {
+    const networkClientIdsByChainId = new Map<Hex, NetworkClientId>();
+
+    for (const transaction of transactions) {
+      const { chainId, networkClientId: transactionNetworkClientId } =
+        transaction;
+
+      if (networkClientIdsByChainId.has(chainId)) {
+        continue;
+      }
+
+      const networkClientId =
+        transactionNetworkClientId ??
+        (this.#findNetworkClientIdByChainId(chainId) as string);
+
+      networkClientIdsByChainId.set(chainId, networkClientId);
+    }
+
+    log('Extracted network client IDs by chain ID', networkClientIdsByChainId);
+
+    const entryPromises = Array.from(networkClientIdsByChainId.entries()).map(
+      async ([chainId, networkClientId]) => {
+        return [
+          chainId,
+          await this.#getGasFeeControllerEstimates({ networkClientId }),
+        ] as const;
+      },
+    );
+
+    return new Map(await Promise.all(entryPromises));
   }
 }

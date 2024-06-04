@@ -23,7 +23,6 @@ import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   calculateTimeEstimate,
   fetchGasEstimates,
@@ -167,6 +166,7 @@ const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
+  nonRPCGasFeeApisDisabled: { persist: true, anonymous: false },
 };
 
 export type GasFeeStateEthGasPrice = {
@@ -215,7 +215,10 @@ export type GasFeeEstimatesByChainId = {
   gasFeeEstimatesByChainId?: Record<string, SingleChainGasFeeState>;
 };
 
-export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
+export type GasFeeState = GasFeeEstimatesByChainId &
+  SingleChainGasFeeState & {
+    nonRPCGasFeeApisDisabled?: boolean;
+  };
 
 const name = 'GasFeeController';
 
@@ -248,6 +251,7 @@ const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+  nonRPCGasFeeApisDisabled: false,
 };
 
 /**
@@ -462,7 +466,6 @@ export class GasFeeController extends StaticIntervalPollingController<
         '<chain_id>',
         `${decimalChainId}`,
       ),
-      fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
@@ -473,16 +476,20 @@ export class GasFeeController extends StaticIntervalPollingController<
       clientId: this.clientId,
       ethQuery,
       infuraAPIKey: this.infuraAPIKey,
+      nonRPCGasFeeApisDisabled: this.state.nonRPCGasFeeApisDisabled,
     });
 
     if (shouldUpdateState) {
+      const chainId = toHex(decimalChainId);
       this.update((state) => {
-        state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
-        state.estimatedGasFeeTimeBounds =
-          gasFeeCalculations.estimatedGasFeeTimeBounds;
-        state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        if (this.currentChainId === chainId) {
+          state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
+          state.estimatedGasFeeTimeBounds =
+            gasFeeCalculations.estimatedGasFeeTimeBounds;
+          state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        }
         state.gasFeeEstimatesByChainId ??= {};
-        state.gasFeeEstimatesByChainId[toHex(decimalChainId)] = {
+        state.gasFeeEstimatesByChainId[chainId] = {
           gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
           estimatedGasFeeTimeBounds:
             gasFeeCalculations.estimatedGasFeeTimeBounds,
@@ -588,6 +595,18 @@ export class GasFeeController extends StaticIntervalPollingController<
 
       this.currentChainId = newChainId;
     }
+  }
+
+  enableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = false;
+    });
+  }
+
+  disableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = true;
+    });
   }
 }
 

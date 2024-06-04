@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [12.0.0]
+
+### Added
+
+- Add `smartTransactionsOptInStatus` preference ([#3815](https://github.com/MetaMask/core/pull/3815))
+  - Add `smartTransactionsOptInStatus` property to the `PreferencesController` state (default: `false`)
+  - Add `setSmartTransactionOptInStatus` method to set this property
+- Add `useTransactionSimulations` preference ([#4283](https://github.com/MetaMask/core/pull/4283))
+  - Add `useTransactionSimulations` property to the `PreferencesController` state (default value: `false`)
+  - Add `setUseTransactionSimulations` method to set this property
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove state property `disabledRpcMethodPreferences` along with `setDisabledRpcMethodPreferences` method ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - These were for disabling the `eth_sign` RPC method, but support for this method is being removed, so this preference is no longer needed.
+
+## [11.0.0]
+
+### Added
+
+- Export `ETHERSCAN_SUPPORTED_CHAIN_IDS` constant ([#4233](https://github.com/MetaMask/core/pull/4233))
+
+### Changed
+
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` to `^15.0.0` ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Restore previous behavior of toChecksumHexAddress ([#4046](https://github.com/MetaMask/core/pull/4046))
+
 ## [9.0.1]
 
 ### Fixed
@@ -201,7 +248,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@12.0.0...@metamask/preferences-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...@metamask/preferences-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@10.0.0...@metamask/preferences-controller@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.1...@metamask/preferences-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.0...@metamask/preferences-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@8.0.0...@metamask/preferences-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...@metamask/preferences-controller@8.0.0

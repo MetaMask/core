@@ -107,11 +107,11 @@ export const formatIconUrlWithProxy = ({
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
-  return `https://static.metafi.codefi.network/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
+  return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
 /**
- * Networks where token detection is supported - Values are in decimal format
+ * Networks where token detection is supported - Values are in hex format
  */
 export enum SupportedTokenDetectionNetworks {
   mainnet = '0x1', // decimal: 1
@@ -125,6 +125,13 @@ export enum SupportedTokenDetectionNetworks {
   optimism = '0xa', // decimal: 10
   base = '0x2105', // decimal: 8453
   zksync = '0x144', // decimal: 324
+  cronos = '0x19', // decimal: 25
+  celo = '0xa4ec', // decimal: 42220
+  gnosis = '0x64', // decimal: 100
+  fantom = '0xfa', // decimal: 250
+  polygon_zkevm = '0x44d', // decimal: 1101
+  moonbeam = '0x504', // decimal: 1284
+  moonriver = '0x505', // decimal: 1285
 }
 
 /**

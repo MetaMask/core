@@ -27,6 +27,7 @@ describe('QueuedRequestController', () => {
     const options: QueuedRequestControllerOptions = {
       messenger: buildQueuedRequestControllerMessenger(),
       methodsRequiringNetworkSwitch: [],
+      clearPendingConfirmations: jest.fn(),
     };
 
     const controller = new QueuedRequestController(options);
@@ -81,6 +82,7 @@ describe('QueuedRequestController', () => {
       const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
         methodsRequiringNetworkSwitch: ['method_requiring_network_switch'],
+        clearPendingConfirmations: jest.fn(),
       });
 
       await controller.enqueueRequest(
@@ -809,6 +811,7 @@ describe('QueuedRequestController', () => {
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(messenger),
         methodsRequiringNetworkSwitch: ['eth_sendTransaction'],
+        clearPendingConfirmations: jest.fn(),
       };
 
       const controller = new QueuedRequestController(options);
@@ -881,6 +884,43 @@ describe('QueuedRequestController', () => {
       expect(request1).toHaveBeenCalled();
       expect(request2).toHaveBeenCalled();
       expect(request3).not.toHaveBeenCalled();
+    });
+
+    it('calls clearPendingConfirmations when the SelectedNetworkController "domains" state for that origin has been removed', async () => {
+      const { messenger } = buildControllerMessenger();
+
+      const options: QueuedRequestControllerOptions = {
+        messenger: buildQueuedRequestControllerMessenger(messenger),
+        methodsRequiringNetworkSwitch: ['eth_sendTransaction'],
+        clearPendingConfirmations: jest.fn(),
+      };
+
+      const controller = new QueuedRequestController(options);
+
+      const request1 = jest.fn(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        messenger.publish(
+          'SelectedNetworkController:stateChange',
+          { domains: {} },
+          [
+            {
+              op: 'remove',
+              path: ['domains', 'https://abc.123'],
+            },
+          ],
+        );
+      });
+
+      await controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          method: 'wallet_revokePermissions',
+          origin: 'https://abc.123',
+        },
+        request1,
+      );
+      expect(options.clearPendingConfirmations).toHaveBeenCalledTimes(1);
     });
   });
 });
@@ -988,6 +1028,7 @@ function buildQueuedRequestController(
   const options: QueuedRequestControllerOptions = {
     messenger: buildQueuedRequestControllerMessenger(),
     methodsRequiringNetworkSwitch: [],
+    clearPendingConfirmations: jest.fn(),
     ...overrideOptions,
   };
 

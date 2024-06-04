@@ -25,6 +25,12 @@ const stateMetadata = {
 
 const getDefaultState = () => ({ domains: {} });
 
+// npm and local are currently the only valid prefixes for snap domains
+// TODO: eventually we maybe want to pull this in from snaps-utils to ensure it stays in sync
+// For now it seems like overkill to add a dependency for this one constant
+// https://github.com/MetaMask/snaps/blob/2beee7803bfe9e540788a3558b546b9f55dc3cb4/packages/snaps-utils/src/types.ts#L120
+const snapsPrefixes = ['npm:', 'local:'] as const;
+
 export type Domain = string;
 
 export const METAMASK_DOMAIN = 'metamask' as const;
@@ -92,12 +98,13 @@ export type SelectedNetworkControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
-export type GetUseRequestQueue = () => boolean;
-
 export type SelectedNetworkControllerOptions = {
   state?: SelectedNetworkControllerState;
   messenger: SelectedNetworkControllerMessenger;
-  getUseRequestQueue: GetUseRequestQueue;
+  useRequestQueuePreference: boolean;
+  onPreferencesStateChange: (
+    listener: (preferencesState: { useRequestQueue: boolean }) => void,
+  ) => void;
   domainProxyMap: Map<Domain, NetworkProxy>;
 };
 
@@ -116,7 +123,7 @@ export class SelectedNetworkController extends BaseController<
 > {
   #domainProxyMap: Map<Domain, NetworkProxy>;
 
-  #getUseRequestQueue: GetUseRequestQueue;
+  #useRequestQueuePreference: boolean;
 
   /**
    * Construct a SelectedNetworkController controller.
@@ -124,13 +131,15 @@ export class SelectedNetworkController extends BaseController<
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the EncryptionPublicKey controller.
    * @param options.state - The controllers initial state.
-   * @param options.getUseRequestQueue - feature flag for perDappNetwork & request queueing features
+   * @param options.useRequestQueuePreference - A boolean indicating whether to use the request queue preference.
+   * @param options.onPreferencesStateChange - A callback that is called when the preference state changes.
    * @param options.domainProxyMap - A map for storing domain-specific proxies that are held in memory only during use.
    */
   constructor({
     messenger,
     state = getDefaultState(),
-    getUseRequestQueue,
+    useRequestQueuePreference,
+    onPreferencesStateChange,
     domainProxyMap,
   }: SelectedNetworkControllerOptions) {
     super({
@@ -139,7 +148,7 @@ export class SelectedNetworkController extends BaseController<
       messenger,
       state,
     });
-    this.#getUseRequestQueue = getUseRequestQueue;
+    this.#useRequestQueuePreference = useRequestQueuePreference;
     this.#domainProxyMap = domainProxyMap;
     this.#registerMessageHandlers();
 
@@ -201,6 +210,21 @@ export class SelectedNetworkController extends BaseController<
         });
       },
     );
+
+    onPreferencesStateChange(({ useRequestQueue }) => {
+      if (this.#useRequestQueuePreference !== useRequestQueue) {
+        if (!useRequestQueue) {
+          // Loop through all domains and points each domain's proxy
+          // to the NetworkController's own proxy of the globally selected networkClient
+          Object.keys(this.state.domains).forEach((domain) => {
+            this.#unsetNetworkClientIdForDomain(domain);
+          });
+        } else {
+          this.#resetAllPermissionedDomains();
+        }
+        this.#useRequestQueuePreference = useRequestQueue;
+      }
+    });
   }
 
   #registerMessageHandlers(): void {
@@ -262,6 +286,23 @@ export class SelectedNetworkController extends BaseController<
     );
   }
 
+  // Loop through all domains and for those with permissions it points that domain's proxy
+  // to an unproxied instance of the globally selected network client.
+  // NOT the NetworkController's proxy of the globally selected networkClient
+  #resetAllPermissionedDomains() {
+    this.#domainProxyMap.forEach((_: NetworkProxy, domain: string) => {
+      const { selectedNetworkClientId } = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      // can't use public setNetworkClientIdForDomain because it will throw an error
+      // rather than simply skip if the domain doesn't have permissions which can happen
+      // in this case since proxies are added for each site the user visits
+      if (this.#domainHasPermissions(domain)) {
+        this.#setNetworkClientIdForDomain(domain, selectedNetworkClientId);
+      }
+    });
+  }
+
   setNetworkClientIdForDomain(
     domain: Domain,
     networkClientId: NetworkClientId,
@@ -270,6 +311,10 @@ export class SelectedNetworkController extends BaseController<
       throw new Error(
         `NetworkClientId for domain "${METAMASK_DOMAIN}" cannot be set on the SelectedNetworkController`,
       );
+    }
+
+    if (snapsPrefixes.some((prefix) => domain.startsWith(prefix))) {
+      return;
     }
 
     if (!this.#domainHasPermissions(domain)) {
@@ -284,7 +329,7 @@ export class SelectedNetworkController extends BaseController<
   getNetworkClientIdForDomain(domain: Domain): NetworkClientId {
     const { selectedNetworkClientId: metamaskSelectedNetworkClientId } =
       this.messagingSystem.call('NetworkController:getState');
-    if (!this.#getUseRequestQueue()) {
+    if (!this.#useRequestQueuePreference) {
       return metamaskSelectedNetworkClientId;
     }
     return this.state.domains[domain] ?? metamaskSelectedNetworkClientId;
@@ -297,22 +342,39 @@ export class SelectedNetworkController extends BaseController<
    * @returns The proxy and block tracker proxies.
    */
   getProviderAndBlockTracker(domain: Domain): NetworkProxy {
-    const networkClientId = this.state.domains[domain];
+    // If the domain is 'metamask' or a snap, return the NetworkController's globally selected network client proxy
+    if (
+      domain === METAMASK_DOMAIN ||
+      snapsPrefixes.some((prefix) => domain.startsWith(prefix))
+    ) {
+      const networkClient = this.messagingSystem.call(
+        'NetworkController:getSelectedNetworkClient',
+      );
+      if (networkClient === undefined) {
+        throw new Error('Selected network not initialized');
+      }
+      return networkClient;
+    }
+
     let networkProxy = this.#domainProxyMap.get(domain);
     if (networkProxy === undefined) {
       let networkClient;
-      if (networkClientId === undefined) {
+      if (
+        this.#useRequestQueuePreference &&
+        this.#domainHasPermissions(domain)
+      ) {
+        const networkClientId = this.getNetworkClientIdForDomain(domain);
+        networkClient = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          networkClientId,
+        );
+      } else {
         networkClient = this.messagingSystem.call(
           'NetworkController:getSelectedNetworkClient',
         );
         if (networkClient === undefined) {
           throw new Error('Selected network not initialized');
         }
-      } else {
-        networkClient = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        );
       }
       networkProxy = {
         provider: createEventEmitterProxy(networkClient.provider),
@@ -322,7 +384,6 @@ export class SelectedNetworkController extends BaseController<
       };
       this.#domainProxyMap.set(domain, networkProxy);
     }
-
     return networkProxy;
   }
 }

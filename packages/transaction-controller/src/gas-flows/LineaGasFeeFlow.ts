@@ -11,7 +11,7 @@ import type {
   GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
-import { GasFeeEstimateLevel } from '../types';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 type LineaEstimateGasResponse = {
@@ -100,7 +100,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
           maxPriorityFeePerGas: toHex(priorityFees[level]),
         },
       }),
-      {} as GasFeeEstimates,
+      { type: GasFeeEstimateType.FeeMarket } as GasFeeEstimates,
     );
 
     return { estimates };

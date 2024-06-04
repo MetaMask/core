@@ -80,6 +80,7 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
   methodsRequiringNetworkSwitch: string[];
+  clearPendingConfirmations: () => void;
 };
 
 /**
@@ -144,16 +145,20 @@ export class QueuedRequestController extends BaseController<
    */
   readonly #methodsRequiringNetworkSwitch: string[];
 
+  #clearPendingConfirmations: () => void;
+
   /**
    * Construct a QueuedRequestController.
    *
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
    * @param options.methodsRequiringNetworkSwitch - A list of methods that require the globally selected network to match the dapp selected network.
+   * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
    */
   constructor({
     messenger,
     methodsRequiringNetworkSwitch,
+    clearPendingConfirmations,
   }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
@@ -167,6 +172,7 @@ export class QueuedRequestController extends BaseController<
       state: { queuedRequestCount: 0 },
     });
     this.#methodsRequiringNetworkSwitch = methodsRequiringNetworkSwitch;
+    this.#clearPendingConfirmations = clearPendingConfirmations;
     this.#registerMessageHandlers();
   }
 
@@ -181,12 +187,17 @@ export class QueuedRequestController extends BaseController<
       (_, patch) => {
         patch.forEach(({ op, path }) => {
           if (
-            (op === 'replace' || op === 'add') &&
             path.length === 2 &&
             path[0] === 'domains' &&
             typeof path[1] === 'string'
           ) {
-            this.#flushQueueForOrigin(path[1]);
+            const origin = path[1];
+            this.#flushQueueForOrigin(origin);
+            // When a domain is removed from SelectedNetworkController, its because of revoke permissions.
+            // Rather than subscribe to the permissions controller event in addition to the selectedNetworkController ones, we simplify it and just handle remove on this event alone.
+            if (op === 'remove' && origin === this.#originOfCurrentBatch) {
+              this.#clearPendingConfirmations();
+            }
           }
         });
       },

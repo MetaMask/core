@@ -95,7 +95,7 @@ export class TypedMessageManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'TypedMessageManager';
+  override name = 'TypedMessageManager' as const;
 
   /**
    * Creates a new TypedMessage with an 'unapproved' status using the passed messageParams.

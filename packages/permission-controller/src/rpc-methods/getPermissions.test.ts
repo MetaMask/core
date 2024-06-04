@@ -1,5 +1,8 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
+import { assertIsJsonRpcSuccess } from '@metamask/utils';
 
+import type { PermissionConstraint } from '../Permission';
 import { getPermissionsHandler } from './getPermissions';
 
 describe('getPermissions RPC method', () => {
@@ -10,21 +13,24 @@ describe('getPermissions RPC method', () => {
     });
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        getPermissionsForOrigin: mockGetPermissionsForOrigin,
-      }),
+    engine.push(
+      (
+        req: JsonRpcRequest<[]>,
+        res: PendingJsonRpcResponse<PermissionConstraint[]>,
+        next,
+        end,
+      ) =>
+        implementation(req, res, next, end, {
+          getPermissionsForOrigin: mockGetPermissionsForOrigin,
+        }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
     });
+    assertIsJsonRpcSuccess(response);
     expect(response.result).toStrictEqual(['a', 'b', 'c']);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
@@ -36,21 +42,24 @@ describe('getPermissions RPC method', () => {
       .mockImplementationOnce(() => null);
 
     const engine = new JsonRpcEngine();
-    engine.push((req, res, next, end) =>
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      implementation(req as any, res as any, next, end, {
-        getPermissionsForOrigin: mockGetPermissionsForOrigin,
-      }),
+    engine.push(
+      (
+        req: JsonRpcRequest<[]>,
+        res: PendingJsonRpcResponse<PermissionConstraint[]>,
+        next,
+        end,
+      ) =>
+        implementation(req, res, next, end, {
+          getPermissionsForOrigin: mockGetPermissionsForOrigin,
+        }),
     );
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response: any = await engine.handle({
+    const response = await engine.handle({
       jsonrpc: '2.0',
       id: 1,
       method: 'arbitraryName',
     });
+    assertIsJsonRpcSuccess(response);
     expect(response.result).toStrictEqual([]);
     expect(mockGetPermissionsForOrigin).toHaveBeenCalledTimes(1);
   });
