@@ -1037,16 +1037,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: {
-                'missing-account': {
-                  id: 'missing-account',
+                'missing-account': createMockInternalAccount({
                   address: '0x999',
-                  metadata: {
-                    keyring: {
-                      type: KeyringTypes.hd,
-                    },
-                  },
-                  [mockAccount2.id]: mockAccount2WithoutLastSelected,
-                } as unknown as InternalAccount,
+                  id: 'missing-account',
+                }),
                 [mockAccount.id]: mockAccountWithoutLastSelected,
                 [mockAccount2.id]: mockAccount2WithoutLastSelected,
               },
@@ -1066,10 +1060,10 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccountWithoutLastSelected,
-          mockAccount2WithoutLastSelected,
+          setLastSelectedAsAny(mockAccount2WithoutLastSelected),
         ]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
-          mockAccountWithoutLastSelected,
+          setLastSelectedAsAny(mockAccount2WithoutLastSelected),
         );
       });
     });

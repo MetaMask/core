@@ -943,7 +943,7 @@ export class AccountsController extends BaseController<
 
     // handle the case where the account to be removed is the selected account
     if (accountToBeRemovedIsSelected) {
-      [newAccountToBeSelected] = this.listAccounts()
+      newAccountToBeSelected = this.listAccounts()
         .filter((account) => account.id !== accountId)
         .sort((accountA, accountB) => {
           // sort by lastSelected descending
@@ -951,7 +951,8 @@ export class AccountsController extends BaseController<
             (accountB.metadata.lastSelected || 0) -
             (accountA.metadata.lastSelected || 0)
           );
-        });
+        })
+        .pop();
     }
 
     // we perform the update in the same step instead of using setSelectedAccount
