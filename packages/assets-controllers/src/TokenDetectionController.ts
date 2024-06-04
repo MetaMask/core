@@ -39,6 +39,7 @@ import type { Token } from './TokenRatesController';
 import type {
   TokensControllerAddDetectedTokensAction,
   TokensControllerGetStateAction,
+  TokensState,
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -169,6 +170,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
+  readonly #getTokensState: () => TokensState;
+
   readonly #trackMetaMetricsEvent: (options: {
     event: string;
     category: string;
@@ -195,6 +198,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
+    getTokensState,
     trackMetaMetricsEvent,
     messenger,
   }: {
@@ -202,6 +206,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     interval?: number;
     disabled?: boolean;
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
+    getTokensState: () => TokensState;
     trackMetaMetricsEvent: (options: {
       event: string;
       category: string;
@@ -239,6 +244,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       isTokenDetectionSupportedForNetwork(chainId);
 
     this.#getBalancesInSingleCall = getBalancesInSingleCall;
+
+    this.#getTokensState = getTokensState;
 
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
@@ -519,7 +526,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     selectedAddress: string;
   }): string[][] {
     const { allTokens, allDetectedTokens, allIgnoredTokens } =
-      this.messagingSystem.call('TokensController:getState');
+      this.#getTokensState();
     const [tokensAddresses, detectedTokensAddresses, ignoredTokensAddresses] = [
       allTokens,
       allDetectedTokens,

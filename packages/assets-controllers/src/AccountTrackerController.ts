@@ -9,6 +9,7 @@ import type {
 } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
@@ -23,7 +24,7 @@ import { cloneDeep } from 'lodash';
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface AccountInformation {
-  balance: string;
+  balance: Hex | undefined;
 }
 
 /**
@@ -285,9 +286,11 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
           [chainId]: accountsForChain,
         },
       });
-    } catch (err) {
+    } finally {
+      /**
+       * This change is not present on the core repo
+       */
       releaseLock();
-      throw err;
     }
   };
 
@@ -301,7 +304,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
   private async getBalanceFromChain(
     address: string,
     ethQuery?: EthQuery,
-  ): Promise<string | undefined> {
+  ): Promise<Hex | undefined> {
     return await safelyExecuteWithTimeout(async () => {
       assert(ethQuery, 'Provider not set.');
       return await query(ethQuery, 'getBalance', [address]);

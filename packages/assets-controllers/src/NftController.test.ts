@@ -33,6 +33,10 @@ import nock from 'nock';
 import * as sinon from 'sinon';
 import { v4 } from 'uuid';
 
+import { getFormattedIpfsUrl } from './assetsUtil';
+import { Source } from './constants';
+import type { Nft, NftControllerMessenger } from './NftController';
+import { NftController } from './NftController';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
@@ -41,10 +45,6 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
-import { getFormattedIpfsUrl } from './assetsUtil';
-import { Source } from './constants';
-import type { Nft, NftControllerMessenger } from './NftController';
-import { NftController } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -202,7 +202,7 @@ function setupController({
   };
   triggerPreferencesStateChange({
     ...getDefaultPreferencesState(),
-    openSeaEnabled: true,
+    displayNftMedia: true,
     selectedAddress: OWNER_ADDRESS,
   });
 
@@ -463,7 +463,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        displayNftMedia: false,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -524,7 +524,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -585,7 +585,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        displayNftMedia: false,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -646,7 +646,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -711,7 +711,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        displayNftMedia: false,
         selectedAddress: OWNER_ADDRESS,
       });
       const requestId = 'approval-request-id-1';
@@ -779,7 +779,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
       const requestId = 'approval-request-id-1';
@@ -881,7 +881,7 @@ describe('NftController', () => {
       // this is our account and network status when the watchNFT request is made
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
@@ -977,7 +977,7 @@ describe('NftController', () => {
       // this is our account and network status when the watchNFT request is made
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -990,7 +990,7 @@ describe('NftController', () => {
       // change the network and selectedAddress before accepting the request
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: '0xDifferentAddress',
       });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
@@ -1164,19 +1164,19 @@ describe('NftController', () => {
         .returns({ name: 'name', image: 'url', description: 'description' });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       await nftController.addNft('0x01', '1234');
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: secondAddress,
       });
       await nftController.addNft('0x02', '4321');
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       expect(
@@ -2183,19 +2183,19 @@ describe('NftController', () => {
         .returns({ name: 'name', image: 'url', description: 'description' });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       await nftController.addNftVerifyOwnership('0x01', '1234');
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: secondAddress,
       });
       await nftController.addNftVerifyOwnership('0x02', '4321');
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       expect(
@@ -2220,7 +2220,7 @@ describe('NftController', () => {
       const firstAddress = '0x123';
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       const result = async () =>
@@ -2247,7 +2247,7 @@ describe('NftController', () => {
         .returns({ name: 'name', image: 'url', description: 'description' });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       await nftController.addNftVerifyOwnership('0x01', '1234', {
@@ -2255,7 +2255,7 @@ describe('NftController', () => {
       });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: secondAddress,
       });
       await nftController.addNftVerifyOwnership('0x02', '4321', {
@@ -2292,7 +2292,7 @@ describe('NftController', () => {
       // Ensure that the currently selected address is not the same as either of the userAddresses
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -2409,13 +2409,13 @@ describe('NftController', () => {
       const secondAddress = '0x321';
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       await nftController.addNft('0x02', '4321');
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: secondAddress,
       });
       await nftController.addNft('0x01', '1234');
@@ -2425,7 +2425,7 @@ describe('NftController', () => {
       );
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: firstAddress,
       });
       expect(
@@ -2484,7 +2484,7 @@ describe('NftController', () => {
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: userAddress1,
       });
 
@@ -2513,7 +2513,7 @@ describe('NftController', () => {
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: userAddress2,
       });
 
@@ -2697,7 +2697,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: false,
+        displayNftMedia: false,
       });
 
       sinon
@@ -2938,7 +2938,7 @@ describe('NftController', () => {
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: userAddress1,
       });
 
@@ -2961,7 +2961,7 @@ describe('NftController', () => {
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: userAddress2,
       });
 
@@ -3085,7 +3085,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
           selectedAddress: OWNER_ADDRESS,
         });
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
@@ -3112,7 +3112,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
           selectedAddress: SECOND_OWNER_ADDRESS,
         });
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
@@ -3207,7 +3207,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
           selectedAddress: OWNER_ADDRESS,
         });
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
@@ -3238,7 +3238,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
           selectedAddress: SECOND_OWNER_ADDRESS,
         });
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
@@ -3260,7 +3260,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
           selectedAddress: OWNER_ADDRESS,
         });
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
@@ -3291,7 +3291,7 @@ describe('NftController', () => {
 
         triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          openSeaEnabled: true,
+          displayNftMedia: true,
           selectedAddress: SECOND_OWNER_ADDRESS,
         });
         changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
@@ -3835,7 +3835,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -3878,7 +3878,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
-        openSeaEnabled: true,
+        displayNftMedia: true,
         selectedAddress: OWNER_ADDRESS,
       });
 
@@ -3921,7 +3921,7 @@ describe('NftController', () => {
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: true,
-        openSeaEnabled: false,
+        displayNftMedia: false,
         selectedAddress: OWNER_ADDRESS,
       });
 

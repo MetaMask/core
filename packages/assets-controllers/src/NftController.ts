@@ -159,6 +159,7 @@ export interface NftMetadata {
   creator?: string;
   transactionId?: string;
   tokenURI?: string | null;
+  error?: string;
   collection?: Collection;
   address?: string;
   attributes?: Attributes;
@@ -179,7 +180,7 @@ export interface NftConfig extends BaseConfig {
   selectedAddress: string;
   chainId: Hex;
   ipfsGateway: string;
-  openSeaEnabled: boolean;
+  displayNftMedia: boolean;
   useIPFSSubdomains: boolean;
   isIpfsGatewayEnabled: boolean;
 }
@@ -244,6 +245,11 @@ export const getDefaultNftState = (): NftState => {
     ignoredNfts: [],
   };
 };
+
+/**
+ * Changes regarding displayNftMedia, TokenURI and error nft metadata property are not on the core repo and needed to be refactor to be removed from the patch
+ * updateNftMetadata changes will be introduced on latest versions of changes of assets controllers, v^30 or next
+ */
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -323,6 +329,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         description: null,
         image: null,
         standard: null,
+        error: 'Opensea import error',
       };
     }
 
@@ -379,8 +386,12 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     tokenId: string,
     networkClientId?: NetworkClientId,
   ): Promise<NftMetadata> {
-    const { ipfsGateway, useIPFSSubdomains, isIpfsGatewayEnabled } =
-      this.config;
+    const {
+      ipfsGateway,
+      useIPFSSubdomains,
+      isIpfsGatewayEnabled,
+      displayNftMedia,
+    } = this.config;
     const result = await this.getNftURIAndStandard(
       contractAddress,
       tokenId,
@@ -388,6 +399,17 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     );
     let tokenURI = result[0];
     const standard = result[1];
+
+    if (!displayNftMedia && !isIpfsGatewayEnabled) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI,
+      };
+    }
 
     const hasIpfsTokenURI = tokenURI.startsWith('ipfs://');
 
@@ -402,8 +424,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       };
     }
 
-    const isDisplayNFTMediaToggleEnabled = this.config.openSeaEnabled;
-    if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
+    if (!hasIpfsTokenURI && !displayNftMedia) {
       return {
         image: null,
         name: null,
@@ -441,6 +462,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         standard: standard || null,
         favorite: false,
         tokenURI: tokenURI ?? null,
+        error: 'URI import error',
       };
     }
   }
@@ -523,12 +545,25 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           networkClientId,
         ),
       ),
-      this.config.openSeaEnabled && chainId === '0x1'
+      this.config.displayNftMedia && chainId === '0x1'
         ? safelyExecute(() =>
             this.getNftInformationFromApi(contractAddress, tokenId),
           )
         : undefined,
     ]);
+
+    if (blockchainMetadata?.error && nftApiMetadata?.error) {
+      return {
+        image: null,
+        name: null,
+        description: null,
+        standard: blockchainMetadata.standard ?? null,
+        favorite: false,
+        tokenURI: blockchainMetadata.tokenURI ?? null,
+        error: 'Both import failed',
+      };
+    }
+
     return {
       ...nftApiMetadata,
       name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
@@ -704,6 +739,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
           tokenId: tokenId.toString(),
           standard: nftMetadata.standard,
           source,
+          tokenURI: nftMetadata.tokenURI,
         });
       }
       return newNfts;
@@ -957,6 +993,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
     tokenId: string;
     standard: string | null;
     source: Source;
+    tokenURI?: string | null;
   }) => void;
 
   /**
@@ -1014,10 +1051,11 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
         tokenId: string;
         standard: string | null;
         source: string;
+        tokenURI?: string | null;
       }) => void;
       messenger: NftControllerMessenger;
     },
-    config?: Partial<BaseConfig>,
+    config?: Partial<NftConfig>,
     state?: Partial<NftState>,
   ) {
     super(config, state);
@@ -1025,7 +1063,7 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       selectedAddress: '',
       chainId: initialChainId,
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      openSeaEnabled: false,
+      displayNftMedia: false,
       useIPFSSubdomains: true,
       isIpfsGatewayEnabled: true,
     };
@@ -1046,18 +1084,18 @@ export class NftController extends BaseControllerV1<NftConfig, NftState> {
       async ({
         selectedAddress,
         ipfsGateway,
-        openSeaEnabled,
+        displayNftMedia,
         isIpfsGatewayEnabled,
       }) => {
         this.configure({
           selectedAddress,
           ipfsGateway,
-          openSeaEnabled,
+          displayNftMedia,
           isIpfsGatewayEnabled,
         });
 
         const needsUpdateNftMetadata =
-          (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
+          (isIpfsGatewayEnabled && ipfsGateway !== '') || displayNftMedia;
 
         if (needsUpdateNftMetadata) {
           const { chainId } = this.config;

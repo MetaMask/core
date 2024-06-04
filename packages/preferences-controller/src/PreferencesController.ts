@@ -81,7 +81,7 @@ export type PreferencesState = {
   /**
    * Controls whether the OpenSea API is used
    */
-  openSeaEnabled: boolean;
+  displayNftMedia: boolean;
   /**
    * Controls whether "security alerts" are enabled
    */
@@ -126,7 +126,7 @@ const metadata = {
   isIpfsGatewayEnabled: { persist: true, anonymous: true },
   isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
   lostIdentities: { persist: true, anonymous: false },
-  openSeaEnabled: { persist: true, anonymous: true },
+  displayNftMedia: { persist: true, anonymous: true },
   securityAlertsEnabled: { persist: true, anonymous: true },
   selectedAddress: { persist: true, anonymous: false },
   showTestNetworks: { persist: true, anonymous: true },
@@ -179,7 +179,7 @@ export function getDefaultPreferencesState() {
     isIpfsGatewayEnabled: true,
     isMultiAccountBalancesEnabled: true,
     lostIdentities: {},
-    openSeaEnabled: false,
+    displayNftMedia: false,
     securityAlertsEnabled: false,
     selectedAddress: '',
     showIncomingTransactions: {
@@ -405,9 +405,9 @@ export class PreferencesController extends BaseController<
    * @param useNftDetection - Boolean indicating user preference on NFT detection.
    */
   setUseNftDetection(useNftDetection: boolean) {
-    if (useNftDetection && !this.state.openSeaEnabled) {
+    if (useNftDetection && !this.state.displayNftMedia) {
       throw new Error(
-        'useNftDetection cannot be enabled if openSeaEnabled is false',
+        'useNftDetection cannot be enabled if displayNftMedia is false',
       );
     }
     this.update((state) => {
@@ -418,12 +418,12 @@ export class PreferencesController extends BaseController<
   /**
    * Toggle the opensea enabled setting.
    *
-   * @param openSeaEnabled - Boolean indicating user preference on using OpenSea's API.
+   * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
-  setOpenSeaEnabled(openSeaEnabled: boolean) {
+  setDisplayNftMedia(displayNftMedia: boolean) {
     this.update((state) => {
-      state.openSeaEnabled = openSeaEnabled;
-      if (!openSeaEnabled) {
+      state.displayNftMedia = displayNftMedia;
+      if (!displayNftMedia) {
         state.useNftDetection = false;
       }
     });
