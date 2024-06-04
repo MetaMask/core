@@ -618,7 +618,9 @@ describe('SelectedNetworkController', () => {
 
   describe('When a permission is added or removed', () => {
     it('should add new domain to domains list on permission if and #useRequestQueuePreference is true', async () => {
-      const { controller, messenger } = setup({useRequestQueuePreference: true});
+      const { controller, messenger } = setup({
+        useRequestQueuePreference: true,
+      });
       const mockPermission = {
         parentCapability: 'eth_accounts',
         id: 'example.com',
@@ -639,7 +641,9 @@ describe('SelectedNetworkController', () => {
     });
 
     it('should not add new domain to domains list on permission add if #useRequestQueuePreference is false', async () => {
-      const { controller, messenger } = setup({useRequestQueuePreference: false});
+      const { controller, messenger } = setup({
+        useRequestQueuePreference: false,
+      });
       const mockPermission = {
         parentCapability: 'eth_accounts',
         id: 'example.com',
