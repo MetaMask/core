@@ -1,4 +1,4 @@
-import type { TRIGGER_TYPES } from '../../constants/notification-schema';
+import type { TriggerType } from '../../constants/notification-schema';
 import type { Compute } from '../type-utils';
 import type { components } from './schema';
 
@@ -26,8 +26,8 @@ export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
 type Notification = components['schemas']['Notification'];
 type NotificationDataKinds = NonNullable<Notification['data']>['kind'];
 type ConvertToEnum<Kind> = {
-  [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
-}[TRIGGER_TYPES];
+  [K in TriggerType]: Kind extends `${K}` ? K : never;
+}[TriggerType];
 
 /**
  * Type-Computation.

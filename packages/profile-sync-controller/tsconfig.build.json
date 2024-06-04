@@ -5,7 +5,11 @@
     "outDir": "./dist/types",
     "rootDir": "./src",
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../notifications-controller"
+    },
+  ],
   "include": [
     "../../types",
     "./src"

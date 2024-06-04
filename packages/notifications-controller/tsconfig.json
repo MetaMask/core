@@ -2,6 +2,9 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
+    "lib": [
+      "ESNext"
+    ],
   },
   "references": [
     {
@@ -12,6 +15,9 @@
     },
     {
       "path": "../push-platform-notifications-controller"
+    },
+    {
+      "path": "../keyring-controller"
     }
   ],
   "include": [

@@ -1,4 +1,4 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
+import { TriggerType } from '../constants/notification-schema';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type { Notification as INotification } from '../types/notification/notification';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
@@ -10,7 +10,7 @@ import { processOnChainNotification } from './process-onchain-notifications';
 
 const isOnChainNotification = (
   n: OnChainRawNotification,
-): n is OnChainRawNotification => Object.values(TRIGGER_TYPES).includes(n.type);
+): n is OnChainRawNotification => Object.values(TriggerType).includes(n.type);
 
 /**
  * Processes a notification and returns a processed notification object.
@@ -30,7 +30,7 @@ export function processNotification(
     );
   };
 
-  if (notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT) {
+  if (notification.type === TriggerType.FeaturesAnnouncement) {
     const n = processFeatureAnnouncement(
       notification as FeatureAnnouncementRawNotification,
     );

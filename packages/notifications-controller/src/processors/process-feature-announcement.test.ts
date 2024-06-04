@@ -1,5 +1,5 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
+import { createMockFeatureAnnouncementRaw } from '../../tests/mocks/mock-feature-announcements';
+import { TriggerType } from '../constants/notification-schema';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
@@ -45,7 +45,7 @@ describe('process-feature-announcement - processFeatureAnnouncement()', () => {
     const result = processFeatureAnnouncement(rawNotification);
 
     expect(result.id).toBe(rawNotification.data.id);
-    expect(result.type).toBe(TRIGGER_TYPES.FEATURES_ANNOUNCEMENT);
+    expect(result.type).toBe(TriggerType.FeaturesAnnouncement);
     expect(result.isRead).toBe(false);
     expect(result.data).toBeDefined();
   });

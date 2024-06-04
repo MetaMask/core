@@ -3,18 +3,18 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
 
-import { AuthenticationController } from './AuthenticationController';
-import type {
-  AllowedActions,
-  AuthenticationControllerState,
-} from './AuthenticationController';
 import {
   MOCK_ACCESS_TOKEN,
   MOCK_LOGIN_RESPONSE,
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
-} from './mocks/mockAuthenticationServices';
+} from '../tests/mocks/mockAuthenticationServices';
+import { AuthenticationController } from './AuthenticationController';
+import type {
+  AllowedActions,
+  AuthenticationControllerState,
+} from './AuthenticationController';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,
@@ -87,10 +87,6 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     await testAndAssertFailingEndpoints('token');
   });
 
-  /**
-   *
-   * @param endpointFail
-   */
   async function testAndAssertFailingEndpoints(
     endpointFail: 'nonce' | 'login' | 'token',
   ) {
@@ -101,7 +97,7 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     const metametrics = createMockAuthMetaMetrics();
     const controller = new AuthenticationController({ messenger, metametrics });
 
-    await expect(controller.performSignIn()).rejects.toThrow();
+    await expect(controller.performSignIn()).rejects.toThrow('Error');
     expect(controller.state.isSignedIn).toBe(false);
 
     const endpointsCalled = [
@@ -147,7 +143,7 @@ describe('authentication/authentication-controller - performSignOut() tests', ()
       metametrics,
     });
 
-    expect(() => controller.performSignOut()).toThrow();
+    expect(() => controller.performSignOut()).toThrow('Error');
   });
 });
 
@@ -161,7 +157,7 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
       metametrics,
     });
 
-    await expect(controller.getBearerToken()).rejects.toThrow();
+    await expect(controller.getBearerToken()).rejects.toThrow('Error');
   });
 
   it('should return original access token in state', async () => {
@@ -214,7 +210,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
       metametrics,
     });
 
-    await expect(controller.getSessionProfile()).rejects.toThrow();
+    await expect(controller.getSessionProfile()).rejects.toThrow('Error');
   });
 
   it('should return original access token in state', async () => {
@@ -258,9 +254,6 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
   });
 });
 
-/**
- *
- */
 function createAuthenticationMessenger() {
   const messenger = new ControllerMessenger<AllowedActions, never>();
   return messenger.getRestricted({
@@ -270,9 +263,6 @@ function createAuthenticationMessenger() {
   });
 }
 
-/**
- *
- */
 function createMockAuthenticationMessenger() {
   const messenger = createAuthenticationMessenger();
   const mockCall = jest.spyOn(messenger, 'call');
@@ -297,10 +287,6 @@ function createMockAuthenticationMessenger() {
       );
     }
 
-    /**
-     *
-     * @param action
-     */
     function exhaustedMessengerMocks(action: never) {
       throw new Error(`MOCK_FAIL - unsupported messenger call: ${action}`);
     }
@@ -311,11 +297,6 @@ function createMockAuthenticationMessenger() {
   return { messenger, mockSnapGetPublicKey, mockSnapSignMessage };
 }
 
-/**
- *
- * @param params
- * @param params.endpointFail
- */
 function mockAuthenticationFlowEndpoints(params?: {
   endpointFail: 'nonce' | 'login' | 'token';
 }) {
@@ -336,9 +317,6 @@ function mockAuthenticationFlowEndpoints(params?: {
   };
 }
 
-/**
- *
- */
 function createMockAuthMetaMetrics() {
   const getMetaMetricsId = jest.fn().mockReturnValue('MOCK_METAMETRICS_ID');
 

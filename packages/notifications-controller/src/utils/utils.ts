@@ -6,8 +6,8 @@ import {
   USER_STORAGE_VERSION,
 } from '../constants/constants';
 import {
-  TRIGGER_TYPES,
-  TRIGGER_TYPES_GROUPS,
+  TriggerType,
+  TriggerTypeGroups,
   TRIGGERS,
 } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
@@ -63,26 +63,26 @@ const triggerIdentity = (trigger: NotificationTrigger): NotificationTrigger =>
  * @param type - The trigger type to be categorized.
  * @returns The group to which the trigger type belongs.
  */
-const groupTriggerTypes = (type: TRIGGER_TYPES): TRIGGER_TYPES_GROUPS => {
+const groupTriggerTypes = (type: TriggerType): TriggerTypeGroups => {
   switch (type) {
-    case TRIGGER_TYPES.ERC20_RECEIVED:
-    case TRIGGER_TYPES.ETH_RECEIVED:
-    case TRIGGER_TYPES.ERC721_RECEIVED:
-    case TRIGGER_TYPES.ERC1155_RECEIVED:
-      return TRIGGER_TYPES_GROUPS.RECEIVED;
-    case TRIGGER_TYPES.ERC20_SENT:
-    case TRIGGER_TYPES.ETH_SENT:
-    case TRIGGER_TYPES.ERC721_SENT:
-    case TRIGGER_TYPES.ERC1155_SENT:
-      return TRIGGER_TYPES_GROUPS.SENT;
-    case TRIGGER_TYPES.METAMASK_SWAP_COMPLETED:
-    case TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED:
-    case TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED:
-    case TRIGGER_TYPES.LIDO_STAKE_COMPLETED:
-    case TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED:
-    case TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED:
+    case TriggerType.Erc20Received:
+    case TriggerType.EthReceived:
+    case TriggerType.Erc721Received:
+    case TriggerType.Erc1155Received:
+      return TriggerTypeGroups.received;
+    case TriggerType.Erc20Sent:
+    case TriggerType.EthSent:
+    case TriggerType.Erc721Sent:
+    case TriggerType.Erc1155Sent:
+      return TriggerTypeGroups.sent;
+    case TriggerType.MetamaskSwapCompleted:
+    case TriggerType.RocketpoolStakeCompleted:
+    case TriggerType.RocketpoolUnstakeCompleted:
+    case TriggerType.LidoStakeCompleted:
+    case TriggerType.LidoWithdrawalRequested:
+    case TriggerType.LidoWithdrawalCompleted:
     default:
-      return TRIGGER_TYPES_GROUPS.DEFI;
+      return TriggerTypeGroups.defi;
   }
 };
 
@@ -125,7 +125,7 @@ export function initializeUserStorage(
           }
 
           userStorage[address][chain][uuidv4()] = {
-            k: trigger as TRIGGER_TYPES, // use 'k' instead of 'kind' to reduce the json weight
+            k: trigger as TriggerType, // use 'k' instead of 'kind' to reduce the json weight
             e: state, // use 'e' instead of 'enabled' to reduce the json weight
           };
         });
@@ -196,61 +196,58 @@ export function traverseUserStorageTriggers<
  */
 export function checkTriggersPresenceByGroup(
   userStorage: UserStorage,
-): Record<TRIGGER_TYPES_GROUPS, boolean> {
+): Record<TriggerTypeGroups, boolean> {
   // Initialize a record to track the complete presence of triggers for each group
-  const completeGroupPresence: Record<TRIGGER_TYPES_GROUPS, boolean> = {
-    [TRIGGER_TYPES_GROUPS.RECEIVED]: true,
-    [TRIGGER_TYPES_GROUPS.SENT]: true,
-    [TRIGGER_TYPES_GROUPS.DEFI]: true,
+  const completeGroupPresence: Record<TriggerTypeGroups, boolean> = {
+    [TriggerTypeGroups.received]: true,
+    [TriggerTypeGroups.sent]: true,
+    [TriggerTypeGroups.defi]: true,
   };
 
   // Map to track the required trigger types for each group
-  const requiredTriggersByGroup: Record<
-    TRIGGER_TYPES_GROUPS,
-    Set<TRIGGER_TYPES>
-  > = {
-    [TRIGGER_TYPES_GROUPS.RECEIVED]: new Set([
-      TRIGGER_TYPES.ERC20_RECEIVED,
-      TRIGGER_TYPES.ETH_RECEIVED,
-      TRIGGER_TYPES.ERC721_RECEIVED,
-      TRIGGER_TYPES.ERC1155_RECEIVED,
+  const requiredTriggersByGroup: Record<TriggerTypeGroups, Set<TriggerType>> = {
+    [TriggerTypeGroups.received]: new Set([
+      TriggerType.Erc20Received,
+      TriggerType.EthReceived,
+      TriggerType.Erc721Received,
+      TriggerType.Erc1155Received,
     ]),
-    [TRIGGER_TYPES_GROUPS.SENT]: new Set([
-      TRIGGER_TYPES.ERC20_SENT,
-      TRIGGER_TYPES.ETH_SENT,
-      TRIGGER_TYPES.ERC721_SENT,
-      TRIGGER_TYPES.ERC1155_SENT,
+    [TriggerTypeGroups.sent]: new Set([
+      TriggerType.Erc20Sent,
+      TriggerType.EthSent,
+      TriggerType.Erc721Sent,
+      TriggerType.Erc1155Sent,
     ]),
-    [TRIGGER_TYPES_GROUPS.DEFI]: new Set([
-      TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
-      TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED,
-      TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED,
-      TRIGGER_TYPES.LIDO_STAKE_COMPLETED,
-      TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED,
-      TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED,
-      TRIGGER_TYPES.LIDO_STAKE_READY_TO_BE_WITHDRAWN,
+    [TriggerTypeGroups.defi]: new Set([
+      TriggerType.MetamaskSwapCompleted,
+      TriggerType.RocketpoolStakeCompleted,
+      TriggerType.RocketpoolUnstakeCompleted,
+      TriggerType.LidoStakeCompleted,
+      TriggerType.LidoWithdrawalRequested,
+      TriggerType.LidoWithdrawalCompleted,
+      TriggerType.LidoStakeReadyToBeWithdrawn,
     ]),
   };
 
   // Object to keep track of encountered triggers for each group by address
   const encounteredTriggers: Record<
     string,
-    Record<TRIGGER_TYPES_GROUPS, Set<TRIGGER_TYPES>>
+    Record<TriggerTypeGroups, Set<TriggerType>>
   > = {};
 
   // Use traverseUserStorageTriggers to iterate over all triggers
   traverseUserStorageTriggers(userStorage, {
     mapTrigger: (trigger) => {
-      const group = groupTriggerTypes(trigger.kind as TRIGGER_TYPES);
+      const group = groupTriggerTypes(trigger.kind as TriggerType);
       if (!encounteredTriggers[trigger.address]) {
         encounteredTriggers[trigger.address] = {
-          [TRIGGER_TYPES_GROUPS.RECEIVED]: new Set(),
-          [TRIGGER_TYPES_GROUPS.SENT]: new Set(),
-          [TRIGGER_TYPES_GROUPS.DEFI]: new Set(),
+          [TriggerTypeGroups.received]: new Set(),
+          [TriggerTypeGroups.sent]: new Set(),
+          [TriggerTypeGroups.defi]: new Set(),
         };
       }
       encounteredTriggers[trigger.address][group].add(
-        trigger.kind as TRIGGER_TYPES,
+        trigger.kind as TriggerType,
       );
       return undefined; // We don't need to transform the trigger, just record its presence
     },
@@ -262,12 +259,12 @@ export function checkTriggersPresenceByGroup(
       ([group, requiredTriggers]) => {
         const hasAllTriggers = Array.from(requiredTriggers).every(
           (triggerType) =>
-            encounteredTriggers[address][group as TRIGGER_TYPES_GROUPS].has(
+            encounteredTriggers[address][group as TriggerTypeGroups].has(
               triggerType,
             ),
         );
         if (!hasAllTriggers) {
-          completeGroupPresence[group as TRIGGER_TYPES_GROUPS] = false;
+          completeGroupPresence[group as TriggerTypeGroups] = false;
         }
       },
     );
@@ -302,9 +299,11 @@ export function checkAccountsPresence(
 }
 
 /**
+ * Checks if an account is enabled in the user storage by verifying the presence of all available chains and triggers.
  *
- * @param accountAddress
- * @param userStorage
+ * @param accountAddress - The address of the account to check.
+ * @param userStorage - The user storage object containing notification triggers.
+ * @returns Returns true if the account is enabled, false otherwise.
  */
 function isAccountEnabled(
   accountAddress: string,
@@ -350,12 +349,12 @@ function isAccountEnabled(
  * @param userStorage - The user storage object containing notification triggers.
  * @returns An array of trigger kinds (`TRIGGER_TYPES`) that are enabled in the user storage.
  */
-export function inferEnabledKinds(userStorage: UserStorage): TRIGGER_TYPES[] {
-  const allSupportedKinds = new Set<TRIGGER_TYPES>();
+export function inferEnabledKinds(userStorage: UserStorage): TriggerType[] {
+  const allSupportedKinds = new Set<TriggerType>();
 
   traverseUserStorageTriggers(userStorage, {
     mapTrigger: (t) => {
-      allSupportedKinds.add(t.kind as TRIGGER_TYPES);
+      allSupportedKinds.add(t.kind as TriggerType);
     },
   });
 
@@ -428,13 +427,13 @@ export function getUUIDsForKinds(
 export function getUUIDsForAccountByKinds(
   userStorage: UserStorage,
   address: string,
-  allowedKinds: TRIGGER_TYPES[],
+  allowedKinds: TriggerType[],
 ): NotificationTrigger[] {
   const allowedKindsSet = new Set(allowedKinds);
   return traverseUserStorageTriggers(userStorage, {
     address,
     mapTrigger: (trigger) => {
-      if (allowedKindsSet.has(trigger.kind as TRIGGER_TYPES)) {
+      if (allowedKindsSet.has(trigger.kind as TriggerType)) {
         return trigger;
       }
       return undefined;
@@ -476,7 +475,7 @@ export function upsertAddressTriggers(
         // If the trigger doesn't exist, create a new one with a new UUID
         const uuid = uuidv4();
         userStorage[account][chain][uuid] = {
-          k: trigger as TRIGGER_TYPES,
+          k: trigger as TriggerType,
           e: false,
         };
       }
@@ -496,7 +495,7 @@ export function upsertAddressTriggers(
  * @returns The updated user storage object with upserted triggers of the specified type for all accounts and chains.
  */
 export function upsertTriggerTypeTriggers(
-  triggerType: TRIGGER_TYPES,
+  triggerType: TriggerType,
   userStorage: UserStorage,
 ): UserStorage {
   // Iterate over each account in userStorage

@@ -14,7 +14,7 @@ import {
   createMockNotificationLidoWithdrawalRequested,
   createMockNotificationLidoWithdrawalCompleted,
   createMockNotificationLidoReadyToBeWithdrawn,
-} from '../mocks/mock-raw-notifications';
+} from '../../tests/mocks/mock-raw-notifications';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 import { processOnChainNotification } from './process-onchain-notifications';
 

@@ -4,7 +4,7 @@ import type {
 } from '../../constants/constants';
 import type {
   SUPPORTED_CHAINS,
-  TRIGGER_TYPES,
+  TriggerType,
 } from '../../constants/notification-schema';
 
 export type UserStorage = {
@@ -17,7 +17,7 @@ export type UserStorage = {
     [chain in (typeof SUPPORTED_CHAINS)[number]]: {
       [uuid: string]: {
         /** Trigger Kind 'k' */
-        k: TRIGGER_TYPES;
+        k: TriggerType;
         /**
          * Trigger Enabled 'e'
          * This is mostly an 'acknowledgement' to determine if a trigger has been made

@@ -1,15 +1,18 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   MOCK_USER_STORAGE_ACCOUNT,
   MOCK_USER_STORAGE_CHAIN,
   createMockUserStorageWithTriggers,
-} from '../mocks/mock-notification-user-storage';
+} from '../../tests/mocks/mock-notification-user-storage';
 import {
   mockBatchCreateTriggers,
   mockBatchDeleteTriggers,
   mockListNotifications,
   mockMarkNotificationsAsRead,
-} from '../mocks/mock-onchain-notifications';
+} from '../../tests/mocks/mock-onchain-notifications';
+import { TriggerType } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import * as MetamaskNotificationsUtils from '../utils/utils';
 import * as OnChainNotifications from './onchain-notifications';
@@ -53,7 +56,7 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
 
   it('should throw error if endpoint fails', async () => {
     const mockUserStorage = createMockUserStorageWithTriggers([
-      { id: MOCK_TRIGGER_ID, k: TRIGGER_TYPES.ETH_SENT, e: false },
+      { id: MOCK_TRIGGER_ID, k: TriggerType.EthSent, e: false },
     ]);
     const triggers =
       MetamaskNotificationsUtils.traverseUserStorageTriggers(mockUserStorage);
@@ -80,11 +83,6 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
     assertUserStorageTriggerStatus(mockUserStorage, false);
   });
 
-  /**
-   *
-   * @param userStorage
-   * @param enabled
-   */
   function assertUserStorageTriggerStatus(
     userStorage: UserStorage,
     enabled: boolean,
@@ -96,12 +94,9 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
     ).toBe(enabled);
   }
 
-  /**
-   *
-   */
   function arrangeMocks() {
     const mockUserStorage = createMockUserStorageWithTriggers([
-      { id: MOCK_TRIGGER_ID, k: TRIGGER_TYPES.ETH_SENT, e: false },
+      { id: MOCK_TRIGGER_ID, k: TriggerType.EthSent, e: false },
     ]);
     const triggers =
       MetamaskNotificationsUtils.traverseUserStorageTriggers(mockUserStorage);
@@ -184,11 +179,6 @@ describe('On Chain Notifications - deleteOnChainTriggers()', () => {
     });
   });
 
-  /**
-   *
-   * @param userStorage
-   * @param triggerId
-   */
   function getTriggerFromUserStorage(
     userStorage: UserStorage,
     triggerId: string,
@@ -198,9 +188,6 @@ describe('On Chain Notifications - deleteOnChainTriggers()', () => {
     ];
   }
 
-  /**
-   *
-   */
   function arrangeUserStorage() {
     const triggerId1 = 'TRIGGER_ID_1';
     const triggerId2 = 'TRIGGER_ID_2';

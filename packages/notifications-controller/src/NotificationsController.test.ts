@@ -27,19 +27,19 @@ import {
   createMockFeatureAnnouncementAPIResult,
   createMockFeatureAnnouncementRaw,
   mockFetchFeatureAnnouncementNotifications,
-} from './mocks/mock-feature-announcements';
+} from '../tests/mocks/mock-feature-announcements';
 import {
   MOCK_USER_STORAGE_ACCOUNT,
   createMockFullUserStorage,
   createMockUserStorageWithTriggers,
-} from './mocks/mock-notification-user-storage';
+} from '../tests/mocks/mock-notification-user-storage';
 import {
   mockBatchCreateTriggers,
   mockBatchDeleteTriggers,
   mockListNotifications,
   mockMarkNotificationsAsRead,
-} from './mocks/mock-onchain-notifications';
-import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
+} from '../tests/mocks/mock-onchain-notifications';
+import { createMockNotificationEthSent } from '../tests/mocks/mock-raw-notifications';
 import {
   NotificationsController,
   getDefaultNotificationsControllerState,

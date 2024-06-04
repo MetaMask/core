@@ -14,10 +14,6 @@ type MockReply = {
   body?: nock.Body;
 };
 
-/**
- *
- * @param mockReply
- */
 export function mockBatchCreateTriggers(mockReply?: MockReply) {
   const reply = mockReply ?? { status: 204 };
 
@@ -28,10 +24,6 @@ export function mockBatchCreateTriggers(mockReply?: MockReply) {
   return mockEndpoint;
 }
 
-/**
- *
- * @param mockReply
- */
 export function mockBatchDeleteTriggers(mockReply?: MockReply) {
   const reply = mockReply ?? { status: 204 };
 
@@ -42,10 +34,6 @@ export function mockBatchDeleteTriggers(mockReply?: MockReply) {
   return mockEndpoint;
 }
 
-/**
- *
- * @param mockReply
- */
 export function mockListNotifications(mockReply?: MockReply) {
   const reply = mockReply ?? {
     status: 200,
@@ -60,10 +48,6 @@ export function mockListNotifications(mockReply?: MockReply) {
   return mockEndpoint;
 }
 
-/**
- *
- * @param mockReply
- */
 export function mockMarkNotificationsAsRead(mockReply?: MockReply) {
   const reply = mockReply ?? {
     status: 200,

@@ -3,7 +3,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { NotificationsControllerActions } from '@metamask/notifications-controller';
+import type {
+  NotificationsControllerDisableMetamaskNotificationsAction,
+  NotificationsControllerSelectIsMetamaskNotificationsEnabledAction,
+} from '@metamask/notifications-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import type {
@@ -28,7 +31,6 @@ type SessionProfile = {
   profileId: string;
 };
 
-// State
 export type UserStorageControllerState = {
   /**
    * Condition used by UI and to determine if we can use some of the User Storage methods.
@@ -41,7 +43,11 @@ export type UserStorageControllerState = {
 };
 
 /**
+ * Returns the default state for the UserStorageController.
  *
+ * @returns The default state object with the following properties:
+ * - isProfileSyncingEnabled: a boolean indicating whether profile syncing is enabled (default: true)
+ * - isProfileSyncingUpdateLoading: a boolean indicating whether the profile syncing update is in progress (default: false)
  */
 function getDefaultUserControllerState(): UserStorageControllerState {
   return {
@@ -98,8 +104,8 @@ export type AllowedActions =
   | AuthenticationControllerIsSignedInAction
   | AuthenticationControllerPerformSignOutAction
   // Metamask Notifications
-  | NotificationsControllerActions.NotificationsControllerDisableMetamaskNotificationsAction
-  | NotificationsControllerActions.NotificationsControllerSelectIsMetamaskNotificationsEnabledAction;
+  | NotificationsControllerDisableMetamaskNotificationsAction
+  | NotificationsControllerSelectIsMetamaskNotificationsEnabledAction;
 
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -284,7 +290,7 @@ export class UserStorageController extends BaseController<
    * Allows retrieval of stored data. Data stored is string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
-   * @param entryKey
+   * @param entryKey - The entry you want to retrieve data from.
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   async performGetStorage(
@@ -306,7 +312,7 @@ export class UserStorageController extends BaseController<
    * Allows storage of user data. Data stored must be string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
-   * @param entryKey
+   * @param entryKey - The entry you want to store data in.
    * @param value - The string data you want to store.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */

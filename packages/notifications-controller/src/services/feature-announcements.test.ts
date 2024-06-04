@@ -1,8 +1,8 @@
-import { TRIGGER_TYPES } from '../constants/notification-schema';
 import {
   createMockFeatureAnnouncementAPIResult,
   mockFetchFeatureAnnouncementNotifications,
-} from '../mocks/mock-feature-announcements';
+} from '../../tests/mocks/mock-feature-announcements';
+import { TriggerType } from '../constants/notification-schema';
 import { getFeatureAnnouncementNotifications } from './feature-announcements';
 
 jest.mock('@contentful/rich-text-html-renderer', () => ({
@@ -51,7 +51,7 @@ describe('Feature Announcement Notifications', () => {
     expect(resultNotification).toStrictEqual(
       expect.objectContaining({
         id: 'dont-miss-out-on-airdrops-and-new-nft-mints',
-        type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+        type: TriggerType.FeaturesAnnouncement,
         createdAt: expect.any(String),
         isRead: expect.any(Boolean),
       }),

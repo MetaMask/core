@@ -13,10 +13,6 @@ type MockReply = {
   body?: nock.Body;
 };
 
-/**
- *
- * @param mockReply
- */
 export function mockFetchFeatureAnnouncementNotifications(
   mockReply?: MockReply,
 ) {

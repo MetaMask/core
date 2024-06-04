@@ -8,7 +8,7 @@ import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
-} from '../mocks/mockAuthenticationServices';
+} from '../../tests/mocks/mockAuthenticationServices';
 import {
   createLoginRawMessage,
   getAccessToken,
@@ -28,11 +28,6 @@ describe('authentication/services.ts - getNonce() tests', () => {
   });
 
   it('returns null if request is invalid', async () => {
-    /**
-     *
-     * @param status
-     * @param body
-     */
     async function testInvalidResponse(
       status: number,
       body: Record<string, unknown>,
@@ -64,11 +59,6 @@ describe('authentication/services.ts - login() tests', () => {
   });
 
   it('returns null if request is invalid', async () => {
-    /**
-     *
-     * @param status
-     * @param body
-     */
     async function testInvalidResponse(
       status: number,
       body: Record<string, unknown>,
@@ -99,11 +89,6 @@ describe('authentication/services.ts - getAccessToken() tests', () => {
   });
 
   it('returns null if request is invalid', async () => {
-    /**
-     *
-     * @param status
-     * @param body
-     */
     async function testInvalidResponse(
       status: number,
       body: Record<string, unknown>,

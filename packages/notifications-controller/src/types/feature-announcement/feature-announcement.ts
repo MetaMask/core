@@ -1,4 +1,4 @@
-import type { TRIGGER_TYPES } from '../../constants/notification-schema';
+import type { TriggerType } from '../../constants/notification-schema';
 import type { TypeFeatureAnnouncement } from './type-feature-announcement';
 
 export type FeatureAnnouncementRawNotificationData = Omit<
@@ -24,7 +24,7 @@ export type FeatureAnnouncementRawNotificationData = Omit<
 };
 
 export type FeatureAnnouncementRawNotification = {
-  type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT;
+  type: TriggerType.FeaturesAnnouncement;
   createdAt: string;
   data: FeatureAnnouncementRawNotificationData;
 };

@@ -27,7 +27,7 @@ import type {
 import { isNullOrUndefined } from '@metamask/utils';
 import log from 'loglevel';
 
-import { USER_STORAGE_VERSION_KEY } from './constants/constants';
+import { USER_STORAGE_VERSION_KEY } from './constants';
 import type { TriggerTypeGroups } from './constants/notification-schema';
 import { TriggerType } from './constants/notification-schema';
 import { processNotification } from './processors/process-notifications';
@@ -407,7 +407,7 @@ export class NotificationsController extends BaseController<
   constructor({
     messenger,
     state,
-  }: NetworkControllerOptions) {
+  }: {
     messenger: NotificationsControllerMessenger;
     state?: Partial<NotificationsControllerState>;
   }) {

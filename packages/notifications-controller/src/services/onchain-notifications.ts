@@ -2,7 +2,7 @@ import { createSHA256Hash } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
 import { NOTIFICATIONS_SERVICE_URL, TRIGGERS_SERVICE_URL } from '../constants';
-import type { TRIGGER_TYPES } from '../constants/notification-schema';
+import type { TriggerType } from '../constants/notification-schema';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 import type { components } from '../types/on-chain-notification/schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
@@ -225,7 +225,7 @@ export async function getOnChainNotifications(
 
             return {
               ...n,
-              type: n.data.kind as TRIGGER_TYPES,
+              type: n.data.kind as TriggerType,
             } as OnChainRawNotification;
           },
         )

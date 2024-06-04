@@ -3,7 +3,7 @@ import type { Entry, Asset } from 'contentful';
 import log from 'loglevel';
 
 import { FEATURE_ANNOUNCEMENT_URL } from '../constants/constants';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
+import { TriggerType } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type { TypeActionFields } from '../types/feature-announcement/type-action';
@@ -23,10 +23,12 @@ export type ContentfulResult = {
 };
 
 /**
+ * Fetches data from Contentful using the provided URL.
  *
- * @param url
- * @param retries
- * @param retryDelay
+ * @param url - The URL to fetch data from.
+ * @param [retries] - The number of retries in case of failure. Defaults to 3.
+ * @param [retryDelay] - The delay between retries in milliseconds. Defaults to 1000.
+ * @returns A promise that resolves to the fetched data or null if the fetch fails after the specified number of retries.
  */
 async function fetchFromContentful(
   url: string,
@@ -59,7 +61,9 @@ async function fetchFromContentful(
 }
 
 /**
+ * Fetches feature announcement notifications from Contentful.
  *
+ * @returns A promise that resolves to an array of feature announcement raw notifications.
  */
 async function fetchFeatureAnnouncementNotifications(): Promise<
   FeatureAnnouncementRawNotification[]
@@ -92,7 +96,7 @@ async function fetchFeatureAnnouncementNotifications(): Promise<
         : undefined;
 
       const notification: FeatureAnnouncementRawNotification = {
-        type: TRIGGER_TYPES.FEATURES_ANNOUNCEMENT,
+        type: TriggerType.FeaturesAnnouncement,
         createdAt: new Date(n.sys.createdAt).toString(),
         data: {
           id: fields.id,
@@ -125,7 +129,9 @@ async function fetchFeatureAnnouncementNotifications(): Promise<
 }
 
 /**
+ * Retrieves feature announcement notifications from the server and processes them into a list of shared notification objects.
  *
+ * @returns A promise that resolves to an array of shared notification objects.
  */
 export async function getFeatureAnnouncementNotifications(): Promise<
   INotification[]

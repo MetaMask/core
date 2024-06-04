@@ -3,8 +3,11 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import nock from 'nock';
 
-import type { Env } from '../../src/sdk/env';
-import { getEnvUrls } from '../../src/sdk/env';
+import {
+  AUTH_NONCE_ENDPOINT,
+  AUTH_LOGIN_ENDPOINT,
+  OIDC_TOKENS_ENDPOINT,
+} from '../../src/constants';
 import type {
   LoginResponse,
   NonceResponse,
@@ -23,18 +26,18 @@ const MOCK_NONCE_RESPONSE: NonceResponse = {
 /**
  * Mocks the endpoint for getting a nonce.
  *
- * @param env - The environment DEV | UAT | PRD.
  * @param [mockReply] - The mock reply object.
  * @param [mockReply.status] - The status code to be used in the mock reply. Defaults to 200.
  * @param [mockReply.body] - The body of the mock reply. Defaults to MOCK_NONCE_RESPONSE.
  * @returns The mocked nonce endpoint.
  */
-export function mockEndpointGetNonce(env: Env, mockReply?: MockReply) {
+export function mockEndpointGetNonce(mockReply?: MockReply) {
   const reply = mockReply ?? { status: 200, body: MOCK_NONCE_RESPONSE };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mockNonceEndpoint = `${getEnvUrls(env).authApiUrl}/api/v2/nonce` as any;
-  mockNonceEndpoint.get('').query(true).reply(reply.status, reply.body);
+  const mockNonceEndpoint = nock(AUTH_NONCE_ENDPOINT)
+    .get('')
+    .query(true)
+    .reply(reply.status, reply.body);
 
   return mockNonceEndpoint;
 }
@@ -52,17 +55,14 @@ export const MOCK_LOGIN_RESPONSE: LoginResponse = {
 /**
  * Mocks the login endpoint for testing purposes.
  *
- * @param env - The environment DEV | UAT | PRD.
  * @param [mockReply] - The optional mock reply object.
  * @param [mockReply.status] - The status code to be used in the mock reply. Defaults to 200.
  * @param [mockReply.body] - The body of the mock reply. Defaults to MOCK_LOGIN_RESPONSE.
  * @returns The mocked login endpoint.
  */
-export function mockEndpointLogin(env: Env, mockReply?: MockReply) {
+export function mockEndpointLogin(mockReply?: MockReply) {
   const reply = mockReply ?? { status: 200, body: MOCK_LOGIN_RESPONSE };
-  const mockLoginEndpoint = nock(
-    `${getEnvUrls(env).authApiUrl}/api/v2/srp/login`,
-  )
+  const mockLoginEndpoint = nock(AUTH_LOGIN_ENDPOINT)
     .post('')
     .reply(reply.status, reply.body);
 
@@ -77,17 +77,14 @@ const MOCK_OATH_TOKEN_RESPONSE: OAuthTokenResponse = {
 /**
  * Mocks the endpoint for getting an OAuth access token.
  *
- * @param env - The environment DEV | UAT | PRD.
  * @param [mockReply] - Optional mock reply object.
  * @param [mockReply.status] - The status code to be used in the mock reply. Defaults to 200.
  * @param [mockReply.body] - The body of the mock reply. Defaults to MOCK_OATH_TOKEN_RESPONSE.
  * @returns The mocked OAuth tokens endpoint.
  */
-export function mockEndpointAccessToken(env: Env, mockReply?: MockReply) {
+export function mockEndpointAccessToken(mockReply?: MockReply) {
   const reply = mockReply ?? { status: 200, body: MOCK_OATH_TOKEN_RESPONSE };
-  const mockOidcTokensEndpoint = nock(
-    `${getEnvUrls(env).oidcApiUrl}/oauth2/token`,
-  )
+  const mockOidcTokensEndpoint = nock(OIDC_TOKENS_ENDPOINT)
     .post('')
     .reply(reply.status, reply.body);
 

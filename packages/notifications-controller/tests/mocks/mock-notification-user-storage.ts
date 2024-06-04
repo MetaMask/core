@@ -10,10 +10,6 @@ export const MOCK_USER_STORAGE_ACCOUNT =
   '0x0000000000000000000000000000000000000000';
 export const MOCK_USER_STORAGE_CHAIN = '1';
 
-/**
- *
- * @param override
- */
 export function createMockUserStorage(
   override?: Partial<UserStorage>,
 ): UserStorage {

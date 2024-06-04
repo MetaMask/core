@@ -3,24 +3,24 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
 import type {
-  NotificationsControllerDisableMetamaskNotifications,
-  NotificationsControllerSelectIsMetamaskNotificationsEnabled,
+  NotificationsControllerSelectIsMetamaskNotificationsEnabledAction,
+  NotificationsControllerDisableMetamaskNotificationsAction,
 } from '@metamask/notifications-controller';
 import type nock from 'nock';
 
-import type {
-  AuthenticationControllerGetBearerTokenAction,
-  AuthenticationControllerGetSessionProfileAction,
-  AuthenticationControllerIsSignedInAction,
-  AuthenticationControllerPerformSignInAction,
-} from './AuthenticationController';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
-} from './mocks';
+} from '../tests/mocks';
+import type {
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerGetSessionProfileAction,
+  AuthenticationControllerIsSignedInAction,
+  AuthenticationControllerPerformSignInAction,
+} from './AuthenticationController';
 import type { AllowedActions } from './UserStorageController';
 import { UserStorageController } from './UserStorageController';
 
@@ -38,9 +38,6 @@ describe('user-storage/UserStorageController - constructor() tests', () => {
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
   });
 
-  /**
-   *
-   */
   function arrangeMocks() {
     return {
       messengerMocks: mockUserStorageMessenger(),
@@ -105,9 +102,6 @@ describe('user-storage/UserStorageController - performGetStorage() tests', () =>
     ).rejects.toThrow('MOCK FAILURE');
   });
 
-  /**
-   *
-   */
   function arrangeMocks() {
     return {
       messengerMocks: mockUserStorageMessenger(),
@@ -185,11 +179,6 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
     ).rejects.toThrow('MOCK FAILURE');
   });
 
-  /**
-   *
-   * @param overrides
-   * @param overrides.mockAPI
-   */
   function arrangeMocks(overrides?: { mockAPI?: nock.Scope }) {
     return {
       messengerMocks: mockUserStorageMessenger(),
@@ -226,9 +215,6 @@ describe('user-storage/UserStorageController - performSetStorage()  tests', () =
     );
   });
 
-  /**
-   *
-   */
   function arrangeMocks() {
     return {
       messengerMocks: mockUserStorageMessenger(),
@@ -249,9 +235,6 @@ describe('user-storage/UserStorageController - disableProfileSyncing() tests', (
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
   });
 
-  /**
-   *
-   */
   function arrangeMocks() {
     return {
       messengerMocks: mockUserStorageMessenger(),
@@ -280,9 +263,6 @@ describe('user-storage/UserStorageController - enableProfileSyncing() tests', ()
     expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
   });
 
-  /**
-   *
-   */
   function arrangeMocks() {
     return {
       messengerMocks: mockUserStorageMessenger(),
@@ -290,9 +270,6 @@ describe('user-storage/UserStorageController - enableProfileSyncing() tests', ()
   }
 });
 
-/**
- *
- */
 function mockUserStorageMessenger() {
   const messenger = new ControllerMessenger<
     AllowedActions,
@@ -309,6 +286,7 @@ function mockUserStorageMessenger() {
       'NotificationsController:disableMetamaskNotifications',
       'NotificationsController:selectIsMetamaskNotificationsEnabled',
     ],
+    allowedEvents: [],
   });
 
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
@@ -345,12 +323,12 @@ function mockUserStorageMessenger() {
 
   const mockMetamaskNotificationsIsMetamaskNotificationsEnabled =
     typedMockFn<
-      NotificationsControllerSelectIsMetamaskNotificationsEnabled['handler']
+      NotificationsControllerSelectIsMetamaskNotificationsEnabledAction['handler']
     >().mockReturnValue(true);
 
   const mockMetamaskNotificationsDisableNotifications =
     typedMockFn<
-      NotificationsControllerDisableMetamaskNotifications['handler']
+      NotificationsControllerDisableMetamaskNotificationsAction['handler']
     >().mockResolvedValue();
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
@@ -400,10 +378,6 @@ function mockUserStorageMessenger() {
       return mockAuthPerformSignOut();
     }
 
-    /**
-     *
-     * @param action
-     */
     function exhaustedMessengerMocks(action: never) {
       throw new Error(`MOCK_FAIL - unsupported messenger call: ${action}`);
     }

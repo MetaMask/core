@@ -4,9 +4,6 @@
 import { TriggerType } from '../../src/constants/notification-schema';
 import type { OnChainRawNotification } from '../../src/types/on-chain-notification/on-chain-notification';
 
-/**
- *
- */
 export function createMockNotificationEthSent() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.EthSent,
@@ -36,9 +33,6 @@ export function createMockNotificationEthSent() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationEthReceived() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.EthReceived,
@@ -68,9 +62,6 @@ export function createMockNotificationEthReceived() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationERC20Sent() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.Erc20Sent,
@@ -106,9 +97,6 @@ export function createMockNotificationERC20Sent() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationERC20Received() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.Erc20Received,
@@ -144,9 +132,6 @@ export function createMockNotificationERC20Received() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationERC721Sent() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.Erc721Sent,
@@ -186,9 +171,6 @@ export function createMockNotificationERC721Sent() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationERC721Received() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.Erc721Received,
@@ -228,9 +210,6 @@ export function createMockNotificationERC721Received() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationERC1155Sent() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.Erc1155Sent,
@@ -270,9 +249,6 @@ export function createMockNotificationERC1155Sent() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationERC1155Received() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.Erc1155Received,
@@ -312,9 +288,6 @@ export function createMockNotificationERC1155Received() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationMetaMaskSwapsCompleted() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.MetamaskSwapCompleted,
@@ -360,9 +333,6 @@ export function createMockNotificationMetaMaskSwapsCompleted() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationRocketPoolStakeCompleted() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.RocketpoolStakeCompleted,
@@ -407,9 +377,6 @@ export function createMockNotificationRocketPoolStakeCompleted() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationRocketPoolUnStakeCompleted() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.RocketpoolUnstakeCompleted,
@@ -454,9 +421,6 @@ export function createMockNotificationRocketPoolUnStakeCompleted() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationLidoStakeCompleted() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.LidoStakeCompleted,
@@ -501,9 +465,6 @@ export function createMockNotificationLidoStakeCompleted() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationLidoWithdrawalRequested() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.LidoWithdrawalRequested,
@@ -548,9 +509,6 @@ export function createMockNotificationLidoWithdrawalRequested() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationLidoWithdrawalCompleted() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.LidoWithdrawalCompleted,
@@ -595,9 +553,6 @@ export function createMockNotificationLidoWithdrawalCompleted() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockNotificationLidoReadyToBeWithdrawn() {
   const mockNotification: OnChainRawNotification = {
     type: TriggerType.LidoStakeReadyToBeWithdrawn,
@@ -629,9 +584,6 @@ export function createMockNotificationLidoReadyToBeWithdrawn() {
   return mockNotification;
 }
 
-/**
- *
- */
 export function createMockRawOnChainNotifications(): OnChainRawNotification[] {
   return [1, 2, 3].map((id) => {
     const notification = createMockNotificationEthSent();

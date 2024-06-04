@@ -7,7 +7,7 @@ import {
   MOCK_STORAGE_KEY,
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
-} from '../mocks';
+} from '../../tests/mocks';
 import type { GetUserStorageResponse } from './user-storage-controller';
 import { getUserStorage, upsertUserStorage } from './user-storage-controller';
 
@@ -76,7 +76,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
       status: 500,
     });
 
-    await expect(actCallUpsertUserStorage()).rejects.toThrow();
+    await expect(actCallUpsertUserStorage()).rejects.toThrow('MOCK FAILURE');
     mockUpsertUserStorage.done();
   });
 

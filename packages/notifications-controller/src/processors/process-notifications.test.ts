@@ -1,6 +1,6 @@
-import type { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
-import { createMockNotificationEthSent } from '../mocks/mock-raw-notifications';
+import { createMockFeatureAnnouncementRaw } from '../../tests/mocks/mock-feature-announcements';
+import { createMockNotificationEthSent } from '../../tests/mocks/mock-raw-notifications';
+import type { TriggerType } from '../constants/notification-schema';
 import { processNotification } from './process-notifications';
 
 describe('process-notifications - processNotification()', () => {
@@ -20,7 +20,7 @@ describe('process-notifications - processNotification()', () => {
     const rawNotification = createMockNotificationEthSent();
 
     // Testing Mock with invalid notification type
-    rawNotification.type = 'FAKE_NOTIFICATION_TYPE' as TRIGGER_TYPES.ETH_SENT;
+    rawNotification.type = 'FAKE_NOTIFICATION_TYPE' as TriggerType.EthSent;
 
     expect(() => processNotification(rawNotification)).toThrow('No processor');
   });

@@ -1,14 +1,17 @@
-import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
-import {
-  NOTIFICATION_CHAINS,
-  TRIGGER_TYPES,
-} from '../constants/notification-schema';
+/* eslint-disable jsdoc/require-returns */
+/* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   MOCK_USER_STORAGE_ACCOUNT,
   MOCK_USER_STORAGE_CHAIN,
   createMockFullUserStorage,
   createMockUserStorageWithTriggers,
-} from '../mocks/mock-notification-user-storage';
+} from '../../tests/mocks/mock-notification-user-storage';
+import { USER_STORAGE_VERSION_KEY } from '../constants/constants';
+import {
+  NOTIFICATION_CHAINS,
+  TriggerType,
+} from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import * as MetamaskNotificationsUtils from './utils';
 
@@ -135,15 +138,15 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
 describe('metamask-notifications/utils - inferEnabledKinds()', () => {
   it('returns all kinds from a User Storage Obj', () => {
     const partialStorage = createMockUserStorageWithTriggers([
-      { id: '1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
-      { id: '2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
-      { id: '3', e: true, k: TRIGGER_TYPES.ERC1155_SENT }, // should remove duplicates
+      { id: '1', e: true, k: TriggerType.Erc1155Received },
+      { id: '2', e: true, k: TriggerType.Erc1155Sent },
+      { id: '3', e: true, k: TriggerType.Erc1155Sent }, // should remove duplicates
     ]);
 
     const result = MetamaskNotificationsUtils.inferEnabledKinds(partialStorage);
     expect(result).toHaveLength(2);
-    expect(result).toContain(TRIGGER_TYPES.ERC1155_RECEIVED);
-    expect(result).toContain(TRIGGER_TYPES.ERC1155_SENT);
+    expect(result).toContain(TriggerType.Erc1155Received);
+    expect(result).toContain(TriggerType.Erc1155Sent);
   });
 });
 
@@ -186,22 +189,22 @@ describe('metamask-notifications/utils - getAllUUIDs()', () => {
 describe('metamask-notifications/utils - getUUIDsForKinds()', () => {
   it('returns all triggerIds that match the kind', () => {
     const partialStorage = createMockUserStorageWithTriggers([
-      { id: 't1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
-      { id: 't2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
+      { id: 't1', e: true, k: TriggerType.Erc1155Received },
+      { id: 't2', e: true, k: TriggerType.Erc1155Sent },
     ]);
     const result = MetamaskNotificationsUtils.getUUIDsForKinds(partialStorage, [
-      TRIGGER_TYPES.ERC1155_RECEIVED,
+      TriggerType.Erc1155Received,
     ]);
     expect(result).toStrictEqual(['t1']);
   });
 
   it('returns empty list if no triggers are found matching the kinds', () => {
     const partialStorage = createMockUserStorageWithTriggers([
-      { id: 't1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
-      { id: 't2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
+      { id: 't1', e: true, k: TriggerType.Erc1155Received },
+      { id: 't2', e: true, k: TriggerType.Erc1155Sent },
     ]);
     const result = MetamaskNotificationsUtils.getUUIDsForKinds(partialStorage, [
-      TRIGGER_TYPES.ETH_SENT, // A kind we have not created a trigger for
+      TriggerType.EthSent, // A kind we have not created a trigger for
     ]);
     expect(result).toHaveLength(0);
   });
@@ -210,8 +213,8 @@ describe('metamask-notifications/utils - getUUIDsForKinds()', () => {
 describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
   const createPartialStorage = () =>
     createMockUserStorageWithTriggers([
-      { id: 't1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
-      { id: 't2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
+      { id: 't1', e: true, k: TriggerType.Erc1155Received },
+      { id: 't2', e: true, k: TriggerType.Erc1155Sent },
     ]);
 
   it('returns triggers with correct account and matching kinds', () => {
@@ -219,7 +222,7 @@ describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
     const result = MetamaskNotificationsUtils.getUUIDsForAccountByKinds(
       partialStorage,
       MOCK_USER_STORAGE_ACCOUNT,
-      [TRIGGER_TYPES.ERC1155_RECEIVED],
+      [TriggerType.Erc1155Received],
     );
     expect(result).toHaveLength(1);
   });
@@ -229,7 +232,7 @@ describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
     const result = MetamaskNotificationsUtils.getUUIDsForAccountByKinds(
       partialStorage,
       'ACCOUNT_THAT_DOES_NOT_EXIST_IN_STORAGE',
-      [TRIGGER_TYPES.ERC1155_RECEIVED],
+      [TriggerType.Erc1155Received],
     );
     expect(result).toHaveLength(0);
   });
@@ -239,7 +242,7 @@ describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
     const result = MetamaskNotificationsUtils.getUUIDsForAccountByKinds(
       partialStorage,
       MOCK_USER_STORAGE_ACCOUNT,
-      [TRIGGER_TYPES.ETH_SENT], // this trigger was not created in partial storage
+      [TriggerType.EthSent], // this trigger was not created in partial storage
     );
     expect(result).toHaveLength(0);
   });
@@ -268,8 +271,8 @@ describe('metamask-notifications/utils - upsertAddressTriggers()', () => {
 describe('metamask-notifications/utils - upsertTriggerTypeTriggers()', () => {
   it('updates and adds a new trigger to an address', () => {
     const partialStorage = createMockUserStorageWithTriggers([
-      { id: 't1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
-      { id: 't2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
+      { id: 't1', e: true, k: TriggerType.Erc1155Received },
+      { id: 't2', e: true, k: TriggerType.Erc1155Sent },
     ]);
 
     // Before
@@ -281,7 +284,7 @@ describe('metamask-notifications/utils - upsertTriggerTypeTriggers()', () => {
     ).toHaveLength(2);
 
     MetamaskNotificationsUtils.upsertTriggerTypeTriggers(
-      TRIGGER_TYPES.ETH_SENT,
+      TriggerType.EthSent,
       partialStorage,
     );
 
@@ -299,8 +302,8 @@ describe('metamask-notifications/utils - toggleUserStorageTriggerStatus()', () =
   it('updates Triggers from disabled to enabled', () => {
     // Triggers are initially set to false false.
     const partialStorage = createMockUserStorageWithTriggers([
-      { id: 't1', k: TRIGGER_TYPES.ERC1155_RECEIVED, e: false },
-      { id: 't2', k: TRIGGER_TYPES.ERC1155_SENT, e: false },
+      { id: 't1', k: TriggerType.Erc1155Received, e: false },
+      { id: 't2', k: TriggerType.Erc1155Sent, e: false },
     ]);
 
     MetamaskNotificationsUtils.toggleUserStorageTriggerStatus(

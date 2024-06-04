@@ -3,8 +3,8 @@ export * from './constants';
 export * from '../tests/mocks';
 export type {
   NotificationsControllerActions,
-  NotificationsControllerSelectIsMetamaskNotificationsEnabled,
-  NotificationsControllerDisableMetamaskNotifications,
+  NotificationsControllerSelectIsMetamaskNotificationsEnabledAction,
+  NotificationsControllerDisableMetamaskNotificationsAction,
   NotificationsControllerEvents,
   NotificationsControllerMessenger,
   getDefaultNotificationsControllerState,

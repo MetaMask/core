@@ -54,7 +54,9 @@ export type AuthenticationControllerState = {
 };
 
 /**
+ * Returns the default state for the AuthenticationController.
  *
+ * @returns The default state object with the isSignedIn property set to false.
  */
 function getDefaultAuthenticationControllerState(): AuthenticationControllerState {
   return { isSignedIn: false };
@@ -72,11 +74,11 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
 };
 
 export type AuthenticationControllerPerformSignInAction = {
-  type: `${typeof controllerName}:performSignInAction`;
+  type: `${typeof controllerName}:performSignIn`;
   handler: AuthenticationController['performSignIn'];
 };
 export type AuthenticationControllerPerformSignOutAction = {
-  type: `${typeof controllerName}:performSignOutAction`;
+  type: `${typeof controllerName}:performSignOut`;
   handler: AuthenticationController['performSignOut'];
 };
 export type AuthenticationControllerGetBearerTokenAction = {
@@ -174,12 +176,12 @@ export class AuthenticationController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      'AuthenticationController:performSignInAction',
+      'AuthenticationController:performSignIn',
       this.performSignIn.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      'AuthenticationController:performSignOutAction',
+      'AuthenticationController:performSignOut',
       this.performSignOut.bind(this),
     );
   }
