@@ -455,7 +455,7 @@ export class CodefiTokenPricesServiceV2
 
         const marketData = addressCryptoDataMap[lowercasedTokenAddress];
 
-        if (marketData === undefined) {
+        if (!marketData) {
           return obj;
         }
 
