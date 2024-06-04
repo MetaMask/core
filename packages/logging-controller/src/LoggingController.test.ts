@@ -83,9 +83,9 @@ describe('LoggingController', () => {
       await unrestricted.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'hello',
         },
       }),
     ).toBeUndefined();
@@ -97,9 +97,9 @@ describe('LoggingController', () => {
       log: expect.objectContaining({
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'hello',
         },
       }),
     });
@@ -167,9 +167,9 @@ describe('LoggingController', () => {
       await unrestricted.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'Heya',
         },
       }),
     ).toBeUndefined();

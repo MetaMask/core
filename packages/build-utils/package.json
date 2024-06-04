@@ -1,6 +1,6 @@
 {
   "name": "@metamask/build-utils",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "Utilities for building MetaMask applications",
   "keywords": [
     "MetaMask",
@@ -56,7 +56,7 @@
     "typescript": "~4.9.5"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

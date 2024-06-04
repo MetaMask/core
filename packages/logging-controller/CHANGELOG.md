@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [4.0.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove `EthSign` from `SigningMethod` ([#4319](https://github.com/MetaMask/core/pull/4319))
+
 ## [3.0.1]
 
 ### Fixed
@@ -87,7 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@4.0.0...@metamask/logging-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.1...@metamask/logging-controller@4.0.0
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.0...@metamask/logging-controller@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.3...@metamask/logging-controller@3.0.0
 [2.0.3]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.2...@metamask/logging-controller@2.0.3

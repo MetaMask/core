@@ -21,7 +21,7 @@ function getTokensURL(chainId: Hex) {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
 }
 
 /**
