@@ -578,6 +578,11 @@ export class TransactionController extends BaseController<
         addInitialHistorySnapshot(transactionMeta);
       }
 
+      transactions.push(transactionMeta);
+      this.update({
+        transactions: this.trimTransactionsForState(transactions),
+      });
+
       if (requireApproval !== false) {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#updateSimulationData(transactionMeta);
@@ -585,10 +590,6 @@ export class TransactionController extends BaseController<
         log('Skipping simulation as approval not required');
       }
 
-      transactions.push(transactionMeta);
-      this.update({
-        transactions: this.trimTransactionsForState(transactions),
-      });
       this.hub.emit(`unapprovedTransaction`, transactionMeta);
     }
 
@@ -1019,7 +1020,7 @@ export class TransactionController extends BaseController<
     const { id: transactionId } = transactionMeta;
 
     this.#updateTransactionInternal(
-      { transactionId, note, skipHistory: this.isHistoryDisabled },
+      { transactionId, note },
       () => ({ ...transactionMeta }),
     );
   }
@@ -2349,7 +2350,7 @@ export class TransactionController extends BaseController<
       updatedTransactionParams =
         this.#checkIfTransactionParamsUpdated(transactionMeta);
 
-      if (skipHistory !== true) {
+      if (!this.isHistoryDisabled && skipHistory !== true) {
         updateTransactionHistory(
           transactionMeta,
           note ?? 'Transaction updated',
