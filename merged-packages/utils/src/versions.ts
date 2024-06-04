@@ -1,3 +1,5 @@
+import type { Struct } from '@metamask/superstruct';
+import { is, refine, string } from '@metamask/superstruct';
 import {
   gt as gtSemver,
   gtr as gtrSemver,
@@ -5,8 +7,6 @@ import {
   valid as validSemVerVersion,
   validRange as validSemVerRange,
 } from 'semver';
-import type { Struct } from 'superstruct';
-import { is, refine, string } from 'superstruct';
 
 import { assertStruct } from './assert';
 import type { Opaque } from './opaque';

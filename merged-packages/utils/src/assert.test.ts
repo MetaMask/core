@@ -1,4 +1,4 @@
-import { string, assert as superstructAssert } from 'superstruct';
+import { string, assert as superstructAssert } from '@metamask/superstruct';
 
 import {
   assert,
@@ -7,8 +7,8 @@ import {
   assertStruct,
 } from './assert';
 
-jest.mock('superstruct', () => ({
-  ...jest.requireActual('superstruct'),
+jest.mock('@metamask/superstruct', () => ({
+  ...jest.requireActual('@metamask/superstruct'),
   assert: jest.fn(),
 }));
 
@@ -50,7 +50,7 @@ describe('assertExhaustive', () => {
 
 describe('assertStruct', () => {
   beforeEach(() => {
-    const actual = jest.requireActual('superstruct');
+    const actual = jest.requireActual('@metamask/superstruct');
     (
       superstructAssert as jest.MockedFunction<typeof superstructAssert>
     ).mockImplementation(actual.assert);

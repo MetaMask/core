@@ -8,7 +8,7 @@ import {
   max,
   number,
   optional,
-} from 'superstruct';
+} from '@metamask/superstruct';
 
 import {
   assert,
@@ -46,8 +46,8 @@ import {
   JSON_VALIDATION_FIXTURES,
 } from './__fixtures__';
 
-jest.mock('superstruct', () => ({
-  ...jest.requireActual('superstruct'),
+jest.mock('@metamask/superstruct', () => ({
+  ...jest.requireActual('@metamask/superstruct'),
   assert: jest.fn(),
 }));
 
@@ -225,7 +225,7 @@ describe('exactOptional', () => {
 
 describe('json', () => {
   beforeEach(() => {
-    const actual = jest.requireActual('superstruct');
+    const actual = jest.requireActual('@metamask/superstruct');
     (
       superstructAssert as jest.MockedFunction<typeof superstructAssert>
     ).mockImplementation(actual.assert);

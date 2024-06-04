@@ -1,5 +1,5 @@
-import type { Struct } from 'superstruct';
-import { assert as assertSuperstruct } from 'superstruct';
+import type { Struct } from '@metamask/superstruct';
+import { assert as assertSuperstruct } from '@metamask/superstruct';
 
 import { getErrorMessage } from './errors';
 

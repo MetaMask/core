@@ -1,4 +1,4 @@
-import { is, size, string } from 'superstruct';
+import { is, size, string } from '@metamask/superstruct';
 
 import type { Base64Options } from './base64';
 import { base64 } from './base64';

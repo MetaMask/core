@@ -1,5 +1,5 @@
-import type { Infer } from 'superstruct';
-import { is, pattern, string } from 'superstruct';
+import type { Infer } from '@metamask/superstruct';
+import { is, pattern, string } from '@metamask/superstruct';
 
 export const CAIP_CHAIN_ID_REGEX =
   /^(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32})$/u;

@@ -1,5 +1,5 @@
-import type { Struct } from 'superstruct';
-import { pattern } from 'superstruct';
+import type { Struct } from '@metamask/superstruct';
+import { pattern } from '@metamask/superstruct';
 
 import { assert } from './assert';
 
