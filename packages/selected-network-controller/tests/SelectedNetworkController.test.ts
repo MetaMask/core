@@ -225,39 +225,39 @@ describe('SelectedNetworkController', () => {
     });
   });
 
-  describe('It updates domain state when the network controller state changes', () => {
-    describe('when a networkClient is deleted from the network controller state', () => {
-      it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
-        const { controller, messenger } = setup({
-          state: {
-            domains: {
-              metamask: 'goerli',
-              'example.com': 'test-network-client-id',
-              'test.com': 'test-network-client-id',
-            },
+  it.each([[true], [false]])(
+    'when useRequestQueuePreference is %s and a networkClient is deleted from the network controller state it updates the networkClientId for domains which were previously set to the deleted networkClientId',
+    (useRequestQueuePreference) => {
+      const { controller, messenger } = setup({
+        state: {
+          domains: {
+            metamask: 'goerli',
+            'example.com': 'test-network-client-id',
+            'test.com': 'test-network-client-id',
           },
-        });
-
-        messenger.publish(
-          'NetworkController:stateChange',
-          {
-            providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
-            selectedNetworkClientId: 'goerli',
-            networkConfigurations: {},
-            networksMetadata: {},
-          },
-          [
-            {
-              op: 'remove',
-              path: ['networkConfigurations', 'test-network-client-id'],
-            },
-          ],
-        );
-        expect(controller.state.domains['example.com']).toBe('goerli');
-        expect(controller.state.domains['test.com']).toBe('goerli');
+        },
+        useRequestQueuePreference,
       });
-    });
-  });
+
+      messenger.publish(
+        'NetworkController:stateChange',
+        {
+          providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
+          selectedNetworkClientId: 'goerli',
+          networkConfigurations: {},
+          networksMetadata: {},
+        },
+        [
+          {
+            op: 'remove',
+            path: ['networkConfigurations', 'test-network-client-id'],
+          },
+        ],
+      );
+      expect(controller.state.domains['example.com']).toBe('goerli');
+      expect(controller.state.domains['test.com']).toBe('goerli');
+    },
+  );
 
   describe('setNetworkClientIdForDomain', () => {
     afterEach(() => {
@@ -272,8 +272,11 @@ describe('SelectedNetworkController', () => {
       );
       expect(controller.state.domains.metamask).toBeUndefined();
     });
-    describe('when the useRequestQueue is false', () => {
+    describe('when useRequestQueue is false', () => {
       describe('when the requesting domain is not metamask', () => {
+        // this is strange, you'd think we wouldn't want to set the networkClientId when the useRequestQueue is false
+        // but the reason for this is that if the user toggles back on the useRequestQueue, we want the networkClient
+        // to be up to date for the domain rather than just revert back... this is a weird edge case though.
         it('updates the networkClientId for domain in state', () => {
           const { controller } = setup({
             state: {
@@ -283,6 +286,7 @@ describe('SelectedNetworkController', () => {
                 '3.com': 'mainnet',
               },
             },
+            useRequestQueuePreference: true,
           });
           const domains = ['1.com', '2.com', '3.com'];
           const networkClientIds = ['1', '2', '3'];

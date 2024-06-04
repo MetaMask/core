@@ -12,7 +12,7 @@ import type {
 import type {
   PermissionControllerStateChange,
   GetSubjects as PermissionControllerGetSubjectsAction,
-  HasPermissions as PermissionControllerHasPermissions,
+  HasPermission as PermissionControllerHasPermission,
 } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { Patch } from 'immer';
@@ -80,7 +80,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction
-  | PermissionControllerHasPermissions
+  | PermissionControllerHasPermission
   | PermissionControllerGetSubjectsAction;
 
 export type SelectedNetworkControllerEvents =
@@ -155,7 +155,15 @@ export class SelectedNetworkController extends BaseController<
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected networkClientId (fetched from the NetworkController)
     this.messagingSystem
       .call('PermissionController:getSubjectNames')
-      .filter((domain) => this.state.domains[domain] === undefined)
+      .filter(
+        (domain) =>
+          this.state.domains[domain] === undefined &&
+          this.messagingSystem.call(
+            'PermissionController:hasPermission',
+            domain,
+            'eth_accounts',
+          ),
+      )
       .forEach((domain) =>
         this.setNetworkClientIdForDomain(
           domain,
@@ -172,7 +180,11 @@ export class SelectedNetworkController extends BaseController<
             path[0] === 'subjects' && path[1] !== undefined;
           if (isChangingSubject && typeof path[1] === 'string') {
             const domain = path[1];
-            if (op === 'add' && this.state.domains[domain] === undefined) {
+            if (
+              op === 'add' &&
+              this.state.domains[domain] === undefined &&
+              this.#useRequestQueuePreference
+            ) {
               this.setNetworkClientIdForDomain(
                 domain,
                 this.messagingSystem.call('NetworkController:getState')
@@ -199,7 +211,7 @@ export class SelectedNetworkController extends BaseController<
             Object.entries(this.state.domains).forEach(
               ([domain, networkClientIdForDomain]) => {
                 if (networkClientIdForDomain === removedNetworkClientId) {
-                  this.setNetworkClientIdForDomain(
+                  this.#setNetworkClientIdForDomain(
                     domain,
                     selectedNetworkClientId,
                   );
@@ -279,10 +291,11 @@ export class SelectedNetworkController extends BaseController<
     });
   }
 
-  #domainHasPermissions(domain: Domain): boolean {
+  #domainHasEthAccountsPermission(domain: Domain): boolean {
     return this.messagingSystem.call(
-      'PermissionController:hasPermissions',
+      'PermissionController:hasPermission',
       domain,
+      'eth_accounts',
     );
   }
 
@@ -297,7 +310,7 @@ export class SelectedNetworkController extends BaseController<
       // can't use public setNetworkClientIdForDomain because it will throw an error
       // rather than simply skip if the domain doesn't have permissions which can happen
       // in this case since proxies are added for each site the user visits
-      if (this.#domainHasPermissions(domain)) {
+      if (this.#domainHasEthAccountsPermission(domain)) {
         this.#setNetworkClientIdForDomain(domain, selectedNetworkClientId);
       }
     });
@@ -317,7 +330,7 @@ export class SelectedNetworkController extends BaseController<
       return;
     }
 
-    if (!this.#domainHasPermissions(domain)) {
+    if (!this.#domainHasEthAccountsPermission(domain)) {
       throw new Error(
         'NetworkClientId for domain cannot be called with a domain that has not yet been granted permissions',
       );
@@ -361,7 +374,7 @@ export class SelectedNetworkController extends BaseController<
       let networkClient;
       if (
         this.#useRequestQueuePreference &&
-        this.#domainHasPermissions(domain)
+        this.#domainHasEthAccountsPermission(domain)
       ) {
         const networkClientId = this.getNetworkClientIdForDomain(domain);
         networkClient = this.messagingSystem.call(
