@@ -363,9 +363,13 @@ export class GasFeeController extends StaticIntervalPollingController<
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      this.currentChainId = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messagingSystem.call(
         'NetworkController:getState',
-      ).providerConfig.chainId;
+      );
+      this.currentChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        selectedNetworkClientId,
+      ).configuration.chainId;
       this.messagingSystem.subscribe(
         'NetworkController:networkDidChange',
         async (networkControllerState) => {
@@ -586,8 +590,13 @@ export class GasFeeController extends StaticIntervalPollingController<
     );
   }
 
-  async #onNetworkControllerDidChange(networkControllerState: NetworkState) {
-    const newChainId = networkControllerState.providerConfig.chainId;
+  async #onNetworkControllerDidChange({
+    selectedNetworkClientId,
+  }: NetworkState) {
+    const newChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    ).configuration.chainId;
 
     if (newChainId !== this.currentChainId) {
       this.ethQuery = new EthQuery(this.#getProvider());
