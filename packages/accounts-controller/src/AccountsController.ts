@@ -436,7 +436,7 @@ export class AccountsController extends BaseController<
       const keyringTypeName = keyringTypeToName(
         internalAccount.metadata.keyring.type,
       );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
+      const keyringAccountIndex = keyringTypes.get(keyringTypeName) || 0;
       if (keyringAccountIndex) {
         keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
       } else {
@@ -451,16 +451,16 @@ export class AccountsController extends BaseController<
         metadata: {
           ...internalAccount.metadata,
           name:
-            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+            this.#populateExistingMetadata(existingAccount?.id, 'name') ||
             `${keyringTypeName} ${keyringAccountIndex + 1}`,
           importTime:
-            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
+            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ||
             Date.now(),
           lastSelected:
             this.#populateExistingMetadata(
               existingAccount?.id,
               'lastSelected',
-            ) ?? 0,
+            ) || 0,
         },
       };
 
@@ -588,10 +588,10 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: this.#populateExistingMetadata(id, 'name') ?? '',
+          name: this.#populateExistingMetadata(id, 'name') || '',
           importTime:
-            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
+            this.#populateExistingMetadata(id, 'importTime') || Date.now(),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') || 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -725,24 +725,24 @@ export class AccountsController extends BaseController<
 
       // handle if the selected account was deleted
       if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
-        const [accountToSelect] = this.listAccounts().sort(
-          (accountA, accountB) => {
-            // sort by lastSelected descending
-            return (
-              (accountB.metadata.lastSelected ?? 0) -
-              (accountA.metadata.lastSelected ?? 0)
-            );
-          },
-        );
-
         // if the accountToSelect is undefined, then there are no accounts
         // it mean the keyring was reinitialized.
-        if (!accountToSelect) {
+        if (this.listAccounts().length === 0) {
           this.update((currentState: Draft<AccountsControllerState>) => {
             currentState.internalAccounts.selectedAccount = '';
           });
           return;
         }
+
+        const [accountToSelect] = this.listAccounts().sort(
+          (accountA, accountB) => {
+            // sort by lastSelected descending
+            return (
+              (accountB.metadata.lastSelected || 0) -
+              (accountA.metadata.lastSelected || 0)
+            );
+          },
+        );
 
         this.setSelectedAccount(accountToSelect.id);
       }
@@ -937,8 +937,43 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be removed.
    */
   #handleAccountRemoved(accountId: string) {
+    const accountToBeRemovedIsSelected =
+      accountId === this.state.internalAccounts.selectedAccount;
+    let newAccountToBeSelected: InternalAccount | undefined;
+
+    // handle the case where the account to be removed is the selected account
+    if (accountToBeRemovedIsSelected) {
+      [newAccountToBeSelected] = this.listAccounts()
+        .filter((account) => account.id !== accountId)
+        .sort((accountA, accountB) => {
+          // sort by lastSelected descending
+          return (
+            (accountB.metadata.lastSelected || 0) -
+            (accountA.metadata.lastSelected || 0)
+          );
+        });
+    }
+
+    // we perform the update in the same step instead of using setSelectedAccount
     this.update((currentState: Draft<AccountsControllerState>) => {
-      delete currentState.internalAccounts.accounts[accountId];
+      const updatedState = deepCloneDraft(currentState);
+
+      delete updatedState.internalAccounts.accounts[accountId];
+
+      if (accountToBeRemovedIsSelected) {
+        if (!newAccountToBeSelected) {
+          // if there are no accounts left, set the selected account to an empty string which is the default state
+          updatedState.internalAccounts.selectedAccount = '';
+        } else {
+          updatedState.internalAccounts.selectedAccount =
+            newAccountToBeSelected.id;
+          updatedState.internalAccounts.accounts[
+            newAccountToBeSelected.id
+          ].metadata.lastSelected = Date.now();
+        }
+      }
+
+      return updatedState;
     });
   }
 
