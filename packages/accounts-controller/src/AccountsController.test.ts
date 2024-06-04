@@ -839,6 +839,50 @@ describe('AccountsController', () => {
 
         expect(selectedAccount).toBe('');
       });
+
+      it('selectedAccount remains the same after adding a new account', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to add account
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount2),
+        ]);
+        expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
+      });
     });
 
     describe('deleting account', () => {
