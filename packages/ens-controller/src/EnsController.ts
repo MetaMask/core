@@ -15,7 +15,10 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
 import { toASCII } from 'punycode/';
@@ -69,11 +72,13 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
+type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
 export type EnsControllerMessenger = RestrictedControllerMessenger<
   typeof name,
+  AllowedActions,
   never,
-  never,
-  never,
+  AllowedActions['type'],
   never
 >;
 
@@ -123,7 +128,7 @@ export class EnsController extends BaseController<
     state?: Partial<EnsControllerState>;
     provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkDidChange?: (
-      listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
+      listener: (networkState: NetworkState) => void,
     ) => void;
   }) {
     super({
@@ -149,9 +154,14 @@ export class EnsController extends BaseController<
     });
 
     if (provider && onNetworkDidChange) {
-      onNetworkDidChange((networkState) => {
+      onNetworkDidChange(({ selectedNetworkClientId }) => {
         this.resetState();
-        const currentChainId = networkState.providerConfig.chainId;
+        const selectedNetworkClient = this.messagingSystem.call(
+          'NetworkController:getNetworkClientById',
+          selectedNetworkClientId,
+        );
+        const currentChainId = selectedNetworkClient.configuration.chainId;
+
         if (this.#getChainEnsSupport(currentChainId)) {
           this.#ethProvider = new Web3Provider(provider, {
             chainId: convertHexToDecimal(currentChainId),
