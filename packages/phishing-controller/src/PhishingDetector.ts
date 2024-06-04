@@ -27,8 +27,8 @@ export type FuzzyTolerance =
       fuzzylist: string[];
     }
   | {
-      tolerance?: never;
-      fuzzylist?: never;
+      tolerance: never;
+      fuzzylist: never;
     };
 
 export type PhishingDetectorOptions =
