@@ -19,14 +19,6 @@ import type {
 } from './abstract-token-prices-service';
 
 /**
- * The shape of the data that the /spot-prices endpoint returns.
- */
-type SpotPricesEndpointData<
-  TokenAddress extends Hex,
-  Currency extends string,
-> = Record<TokenAddress, Record<Currency, number>>;
-
-/**
  * The list of currencies that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint, in lowercase form.
  */
@@ -156,6 +148,15 @@ export const SUPPORTED_CURRENCIES = [
 ] as const;
 
 /**
+ * Represents the zero address, commonly used as a placeholder in blockchain transactions.
+ * In the context of fetching market data, the zero address is utilized to retrieve information
+ * specifically for native currencies. This allows for a standardized approach to query market
+ * data for blockchain-native assets without a specific contract address.
+ */
+export const ZERO_ADDRESS: Hex =
+  '0x0000000000000000000000000000000000000000' as const;
+
+/**
  * A currency that can be supplied as the `vsCurrency` parameter to
  * the `/spot-prices` endpoint. Covers both uppercase and lowercase versions.
  */
@@ -258,6 +259,85 @@ const DEFAULT_TOKEN_PRICE_MAX_CONSECUTIVE_FAILURES =
 const DEFAULT_DEGRADED_THRESHOLD = 5_000;
 
 /**
+ * The shape of the data that the /spot-prices endpoint returns.
+ */
+type MarketData = {
+  /**
+   * The all-time highest price of the token.
+   */
+  allTimeHigh: number;
+  /**
+   * The all-time lowest price of the token.
+   */
+  allTimeLow: number;
+  /**
+   * The number of tokens currently in circulation.
+   */
+  circulatingSupply: number;
+  /**
+   * The market cap calculated using the diluted supply.
+   */
+  dilutedMarketCap: number;
+  /**
+   * The highest price of the token in the last 24 hours.
+   */
+  high1d: number;
+  /**
+   * The lowest price of the token in the last 24 hours.
+   */
+  low1d: number;
+  /**
+   * The current market capitalization of the token.
+   */
+  marketCap: number;
+  /**
+   * The percentage change in market capitalization over the last 24 hours.
+   */
+  marketCapPercentChange1d: number;
+  /**
+   * The current price of the token.
+   */
+  price: number;
+  /**
+   * The absolute change in price over the last 24 hours.
+   */
+  priceChange1d: number;
+  /**
+   * The percentage change in price over the last 24 hours.
+   */
+  pricePercentChange1d: number;
+  /**
+   * The percentage change in price over the last hour.
+   */
+  pricePercentChange1h: number;
+  /**
+   * The percentage change in price over the last year.
+   */
+  pricePercentChange1y: number;
+  /**
+   * The percentage change in price over the last 7 days.
+   */
+  pricePercentChange7d: number;
+  /**
+   * The percentage change in price over the last 14 days.
+   */
+  pricePercentChange14d: number;
+  /**
+   * The percentage change in price over the last 30 days.
+   */
+  pricePercentChange30d: number;
+  /**
+   * The percentage change in price over the last 200 days.
+   */
+  pricePercentChange200d: number;
+  /**
+   * The total trading volume of the token in the last 24 hours.
+   */
+  totalVolume: number;
+};
+
+type MarketDataByTokenAddress = { [address: Hex]: MarketData };
+/**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
@@ -351,17 +431,19 @@ export class CodefiTokenPricesServiceV2
     const chainIdAsNumber = hexToNumber(chainId);
 
     const url = new URL(`${BASE_URL}/chains/${chainIdAsNumber}/spot-prices`);
-    url.searchParams.append('tokenAddresses', tokenAddresses.join(','));
-    url.searchParams.append('vsCurrency', currency);
-
-    const pricesByCurrencyByTokenAddress: SpotPricesEndpointData<
-      Lowercase<Hex>,
-      Lowercase<SupportedCurrency>
-    > = await this.#tokenPricePolicy.execute(() =>
-      handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+    url.searchParams.append(
+      'tokenAddresses',
+      [ZERO_ADDRESS, ...tokenAddresses].join(','),
     );
+    url.searchParams.append('vsCurrency', currency);
+    url.searchParams.append('includeMarketData', 'true');
 
-    return tokenAddresses.reduce(
+    const addressCryptoDataMap: MarketDataByTokenAddress =
+      await this.#tokenPricePolicy.execute(() =>
+        handleFetch(url, { headers: { 'Cache-Control': 'no-cache' } }),
+      );
+
+    return [ZERO_ADDRESS, ...tokenAddresses].reduce(
       (
         obj: Partial<TokenPricesByTokenAddress<Hex, SupportedCurrency>>,
         tokenAddress,
@@ -370,32 +452,25 @@ export class CodefiTokenPricesServiceV2
         // to keep track of them and make sure we return the original versions.
         const lowercasedTokenAddress =
           tokenAddress.toLowerCase() as Lowercase<Hex>;
-        const lowercasedCurrency =
-          currency.toLowerCase() as Lowercase<SupportedCurrency>;
 
-        const price =
-          pricesByCurrencyByTokenAddress[lowercasedTokenAddress]?.[
-            lowercasedCurrency
-          ];
+        const marketData = addressCryptoDataMap[lowercasedTokenAddress];
 
-        if (!price) {
-          // console error instead of throwing to not interrupt the fetching of other tokens in case just one fails
-          console.error(
-            `Could not find price for "${tokenAddress}" in "${currency}"`,
-          );
+        if (marketData === undefined) {
+          return obj;
         }
 
-        const tokenPrice: TokenPrice<Hex, SupportedCurrency> = {
+        const { price } = marketData;
+
+        const token: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
           value: price,
           currency,
+          ...marketData,
         };
 
         return {
           ...obj,
-          ...(tokenPrice.value !== undefined
-            ? { [tokenAddress]: tokenPrice }
-            : {}),
+          [tokenAddress]: token,
         };
       },
       {},

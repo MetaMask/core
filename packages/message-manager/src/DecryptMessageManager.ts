@@ -68,7 +68,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'DecryptMessageManager';
+  override name = 'DecryptMessageManager' as const;
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
