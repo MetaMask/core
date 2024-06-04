@@ -73,7 +73,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^6.1.1",
+    "@metamask/keyring-api": "^6.4.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
