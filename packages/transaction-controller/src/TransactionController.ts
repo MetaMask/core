@@ -3648,9 +3648,9 @@ export class TransactionController extends BaseController<
       updatedTransactionParams =
         this.#checkIfTransactionParamsUpdated(transactionMeta);
 
-    const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
+      const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
-    if (!shouldSkipHistory) {
+      if (!shouldSkipHistory) {
         transactionMeta = updateTransactionHistory(
           transactionMeta,
           note ?? 'Transaction updated',
