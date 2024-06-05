@@ -455,15 +455,12 @@ export class CodefiTokenPricesServiceV2
 
         const marketData = addressCryptoDataMap[lowercasedTokenAddress];
 
-        if (marketData === undefined) {
+        if (!marketData) {
           return obj;
         }
 
-        const { price } = marketData;
-
         const token: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
-          value: price,
           currency,
           ...marketData,
         };
