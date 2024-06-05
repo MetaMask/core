@@ -17,4 +17,3 @@ export type {
 } from './AccountsController';
 export { AccountsController } from './AccountsController';
 export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';
-export { createMockInternalAccount } from './tests/mocks';
