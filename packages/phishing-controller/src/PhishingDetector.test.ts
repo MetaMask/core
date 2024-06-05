@@ -961,6 +961,23 @@ describe('PhishingDetector', () => {
           },
         );
       });
+
+      it('uses the type `fuzzy` when the result is in fuzzylist', async () => {
+        await withPhishingDetector(
+          {
+            blacklist: [],
+            fuzzylist: ['fuzzy.com'],
+            tolerance: 2,
+            whitelist: [],
+          },
+          async ({ detector }) => {
+            const { type, result } = detector.check('fupzy.com');
+
+            expect(type).toBe('fuzzy');
+            expect(result).toBe(true);
+          },
+        );
+      });
     });
   });
 });
