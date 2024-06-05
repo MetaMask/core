@@ -862,6 +862,7 @@ describe('NftDetectionController', () => {
 
   it('should return true if mainnet is detected', async () => {
     const mockAddNft = jest.fn();
+    const provider = new FakeProvider();
     const mockNetworkClient: NetworkClient = {
       configuration: {
         chainId: ChainId.mainnet,
@@ -869,8 +870,8 @@ describe('NftDetectionController', () => {
         ticker: 'TEST',
         type: NetworkClientType.Custom,
       },
-      provider: new FakeProvider(),
-      blockTracker: new FakeBlockTracker(),
+      provider,
+      blockTracker: new FakeBlockTracker({ provider }),
       destroy: () => {
         // do nothing
       },
