@@ -150,6 +150,17 @@ describe('applyDiffs', () => {
 });
 
 describe('validateConfig', () => {
+  it('correctly validates a valid config', () => {
+    expect(() =>
+      validateConfig({
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: ['fuzzy.example.com'],
+        tolerance: 2,
+      }),
+    ).not.toThrow();
+  });
+
   it('throws an error if the config is not an object', () => {
     expect(() => validateConfig(null)).toThrow('Invalid config');
   });
