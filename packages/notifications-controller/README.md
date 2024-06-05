@@ -1,6 +1,6 @@
 # `@metamask/notifications-controller`
 
-Manages New MetaMask decentralized Notification system..
+Manages New MetaMask decentralized Notification system.
 
 ## Installation
 
