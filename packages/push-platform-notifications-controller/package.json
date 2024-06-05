@@ -61,6 +61,10 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.9.5"
   },
+  "peerDependencies": {
+    "@metamask/notifications-controller": "^1.0.0",
+    "@metamask/profile-sync-controller": "^1.0.0",
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
