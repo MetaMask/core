@@ -235,9 +235,7 @@ export function createNotificationMessage(
   if (!n?.data?.kind) {
     return null;
   }
-  const notificationMessage = notificationMessageDict[n.data.kind] as
-    | NotificationMessage
-    | undefined;
+  const notificationMessage = notificationMessageDict[n.data.kind];
 
   if (!notificationMessage) {
     return null;

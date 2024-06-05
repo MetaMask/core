@@ -31,9 +31,7 @@ export function processNotification(
   };
 
   if (notification.type === TriggerType.FeaturesAnnouncement) {
-    const n = processFeatureAnnouncement(
-      notification as FeatureAnnouncementRawNotification,
-    );
+    const n = processFeatureAnnouncement(notification);
     n.isRead = isFeatureAnnouncementRead(n, readNotifications);
     return n;
   }
