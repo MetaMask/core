@@ -7,10 +7,10 @@ import { type InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
-  NetworkState,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
@@ -126,7 +126,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
   private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
-  private readonly getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+  private readonly getCurrentChainId: () => Hex;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -158,7 +158,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       getInternalAccounts: AccountsController['listAccounts'];
       getSelectedAccount: AccountsController['getSelectedAccount'];
       getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
-      getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+      getCurrentChainId: () => Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
     },
     config?: Partial<AccountTrackerConfig>,

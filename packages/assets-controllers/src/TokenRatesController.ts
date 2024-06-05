@@ -74,7 +74,6 @@ export interface ContractExchangeRates {
 
 type MarketDataDetails = {
   tokenAddress: `0x${string}`;
-  value: number;
   currency: string;
   allTimeHigh: number;
   allTimeLow: number;
@@ -618,8 +617,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         ...acc,
         [tokenAddress]: {
           ...token,
-          value: token.value
-            ? token.value * fallbackCurrencyToNativeCurrencyConversionRate
+          price: token.price
+            ? token.price * fallbackCurrencyToNativeCurrencyConversionRate
             : undefined,
         },
       };

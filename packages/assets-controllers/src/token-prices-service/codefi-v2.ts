@@ -459,11 +459,8 @@ export class CodefiTokenPricesServiceV2
           return obj;
         }
 
-        const { price } = marketData;
-
         const token: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
-          value: price,
           currency,
           ...marketData,
         };
