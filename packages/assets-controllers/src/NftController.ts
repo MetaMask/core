@@ -244,9 +244,6 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   ignoredNfts: [],
 });
 
-const RATE_LIMIT_NFT_UPDATE_DELAY = 600; // 10 mins
-export const RATE_LIMIT_NFT_INTERVAL = RATE_LIMIT_NFT_UPDATE_DELAY * 1000;
-
 /**
  * Controller that stores assets and exposes convenience methods
  */
@@ -293,8 +290,6 @@ export class NftController extends BaseController<
     standard: string | null;
     source: Source;
   }) => void;
-
-  #lastNftRefreshTime = 0;
 
   /**
    * Creates an NftController instance.
@@ -423,10 +418,6 @@ export class NftController extends BaseController<
     openSeaEnabled,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
-    if (selectedAddress !== this.#selectedAddress) {
-      this.#lastNftRefreshTime = 0;
-    }
-
     this.#selectedAddress = selectedAddress;
     this.#ipfsGateway = ipfsGateway;
     this.#openSeaEnabled = openSeaEnabled;
@@ -1462,13 +1453,6 @@ export class NftController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
 
     try {
-      const time = Date.now();
-      const timeSinceLastNftUpdateRequest = time - this.#lastNftRefreshTime;
-
-      if (timeSinceLastNftUpdateRequest < RATE_LIMIT_NFT_INTERVAL) {
-        return;
-      }
-
       const chainId = this.#getCorrectChainId({ networkClientId });
 
       const nftsWithChecksumAdr = nfts.map((nft) => {
@@ -1490,7 +1474,6 @@ export class NftController extends BaseController<
           };
         }),
       );
-      this.#lastNftRefreshTime = Date.now();
 
       // We want to avoid updating the state if the state and fetched nft info are the same
       const nftsWithDifferentMetadata: NftUpdate[] = [];
