@@ -20,9 +20,9 @@ export type UserStorageEntryKeys = keyof typeof USER_STORAGE_ENTRIES;
  * This can be done due to the uniqueness of the storage key (no users will share the same storage key).
  * The users entry is a unique hash that cannot be reversed.
  *
- * @param entryKey
- * @param storageKey
- * @returns
+ * @param entryKey - The entry you want to store data in.
+ * @param storageKey - The key used for encryption and decryption of the user storage data.
+ * @returns The entry path.
  */
 export function createEntryPath(
   entryKey: UserStorageEntryKeys,

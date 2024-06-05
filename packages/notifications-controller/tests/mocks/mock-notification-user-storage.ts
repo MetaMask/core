@@ -1,5 +1,6 @@
 /* eslint-disable jsdoc/require-returns */
 /* eslint-disable jsdoc/require-description */
+/* eslint-disable jsdoc/require-param-description */
 /* eslint-disable jsdoc/require-jsdoc */
 import { USER_STORAGE_VERSION_KEY } from '../../src/constants/constants';
 import { TriggerType } from '../../src/constants/notification-schema';

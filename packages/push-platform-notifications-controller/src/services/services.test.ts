@@ -23,6 +23,10 @@ describe('PushPlatformNotificationsServices', () => {
       jest.clearAllMocks();
     });
 
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     const utils = services;
 
     it('should return reg token links', async () => {
@@ -115,10 +119,6 @@ describe('PushPlatformNotificationsServices', () => {
         MOCK_TRIGGERS,
       );
       expect(res).toBeNull();
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
     });
   });
 
