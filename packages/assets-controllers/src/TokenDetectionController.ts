@@ -1,6 +1,7 @@
 import type {
   AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerGetAccountAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
@@ -105,6 +106,7 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetAccountAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerGetStateAction
@@ -121,7 +123,7 @@ export type TokenDetectionControllerEvents =
   TokenDetectionControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | KeyringControllerLockEvent
@@ -153,7 +155,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
 
-  #selectedAddress: string;
+  #selectedAccountId: string;
 
   #networkClientId: NetworkClientId;
 
@@ -186,19 +188,19 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.messenger - The controller messaging system.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.selectedAddress - Vault selected address
+   * @param options.selectedAccountId - Vault selected address
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
-    selectedAddress,
+    selectedAccountId,
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
   }: {
-    selectedAddress?: string;
+    selectedAccountId?: string;
     interval?: number;
     disabled?: boolean;
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
@@ -223,10 +225,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
-    this.#selectedAddress =
-      selectedAddress ??
-      this.messagingSystem.call('AccountsController:getSelectedAccount')
-        .address;
+    this.#selectedAccountId =
+      selectedAccountId ??
+      this.messagingSystem.call('AccountsController:getSelectedAccount').id;
 
     const { chainId, networkClientId } =
       this.#getCorrectChainIdAndNetworkClientId();
@@ -277,32 +278,32 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
-      async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
-        const isSelectedAddressChanged =
-          this.#selectedAddress !== newSelectedAddress;
+      async ({ useTokenDetection }) => {
+        const selectedAccount = this.messagingSystem.call(
+          'AccountsController:getSelectedAccount',
+        );
         const isDetectionChangedFromPreferences =
           this.#isDetectionEnabledFromPreferences !== useTokenDetection;
 
-        this.#selectedAddress = newSelectedAddress;
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
 
-        if (isSelectedAddressChanged || isDetectionChangedFromPreferences) {
+        if (isDetectionChangedFromPreferences) {
           await this.#restartTokenDetection({
-            selectedAddress: this.#selectedAddress,
+            selectedAccountId: selectedAccount.id,
           });
         }
       },
     );
 
     this.messagingSystem.subscribe(
-      'AccountsController:selectedAccountChange',
-      async ({ address: newSelectedAddress }) => {
-        const isSelectedAddressChanged =
-          this.#selectedAddress !== newSelectedAddress;
-        if (isSelectedAddressChanged) {
-          this.#selectedAddress = newSelectedAddress;
+      'AccountsController:selectedEvmAccountChange',
+      async (internalAccount) => {
+        const didSelectedAccountIdChanged =
+          this.#selectedAccountId !== internalAccount.id;
+        if (didSelectedAccountIdChanged) {
+          this.#selectedAccountId = internalAccount.id;
           await this.#restartTokenDetection({
-            selectedAddress: this.#selectedAddress,
+            selectedAccountId: this.#selectedAccountId,
           });
         }
       },
@@ -436,16 +437,23 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * in case of address change or user session initialization.
    *
    * @param options - Options for restart token detection.
-   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
+   * @param options.selectedAccountId - the id of the InternalAccount against which to detect for token balances
    * @param options.networkClientId - The ID of the network client to use.
    */
   async #restartTokenDetection({
-    selectedAddress,
+    selectedAccountId,
     networkClientId,
   }: {
-    selectedAddress?: string;
+    selectedAccountId?: string;
     networkClientId?: NetworkClientId;
   } = {}): Promise<void> {
+    const internalAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      selectedAccountId ?? this.#selectedAccountId,
+    );
+
+    const selectedAddress = internalAccount?.address || '';
+
     await this.detectTokens({
       networkClientId,
       selectedAddress,
@@ -472,8 +480,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       return;
     }
 
+    const selectedInternalAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+
     const addressAgainstWhichToDetect =
-      selectedAddress ?? this.#selectedAddress;
+      selectedAddress ?? selectedInternalAccount?.address ?? '';
     const { chainId, networkClientId: selectedNetworkClientId } =
       this.#getCorrectChainIdAndNetworkClientId(networkClientId);
     const chainIdAgainstWhichToDetect = chainId;

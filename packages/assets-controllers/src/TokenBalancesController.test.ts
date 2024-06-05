@@ -3,6 +3,7 @@ import { toHex } from '@metamask/controller-utils';
 import BN from 'bn.js';
 
 import { flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -31,7 +32,7 @@ function getMessenger(
 ): TokenBalancesControllerMessenger {
   return controllerMessenger.getRestricted({
     name: controllerName,
-    allowedActions: ['PreferencesController:getState'],
+    allowedActions: ['AccountsController:getSelectedAccount'],
     allowedEvents: ['TokensController:stateChange'],
   });
 }
@@ -52,8 +53,10 @@ describe('TokenBalancesController', () => {
 
   it('should set default state', () => {
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       getERC20BalanceOf: jest.fn(),
@@ -65,8 +68,10 @@ describe('TokenBalancesController', () => {
 
   it('should poll and update balances in the right interval', async () => {
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const updateBalancesSpy = jest.spyOn(
       TokenBalancesController.prototype,
@@ -91,8 +96,10 @@ describe('TokenBalancesController', () => {
   it('should update balances if enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       disabled: false,
@@ -112,8 +119,10 @@ describe('TokenBalancesController', () => {
   it('should not update balances if disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       disabled: true,
@@ -131,8 +140,10 @@ describe('TokenBalancesController', () => {
   it('should update balances if controller is manually enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       disabled: true,
@@ -157,8 +168,10 @@ describe('TokenBalancesController', () => {
   it('should not update balances if controller is manually disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       disabled: false,
@@ -185,8 +198,10 @@ describe('TokenBalancesController', () => {
   it('should update balances if tokens change and controller is manually enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       disabled: true,
@@ -223,8 +238,10 @@ describe('TokenBalancesController', () => {
   it('should not update balances if tokens change and controller is manually disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       disabled: false,
@@ -262,8 +279,10 @@ describe('TokenBalancesController', () => {
 
   it('should clear previous interval', async () => {
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       interval: 1337,
@@ -292,8 +311,12 @@ describe('TokenBalancesController', () => {
       },
     ];
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(
+          createMockInternalAccount({ address: selectedAddress }),
+        ),
     );
     const controller = new TokenBalancesController({
       interval: 1337,
@@ -327,8 +350,8 @@ describe('TokenBalancesController', () => {
     ];
 
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({}),
+      'AccountsController:getSelectedAccount',
+      jest.fn().mockReturnValue(createMockInternalAccount({ address })),
     );
     const controller = new TokenBalancesController({
       interval: 1337,
@@ -355,8 +378,10 @@ describe('TokenBalancesController', () => {
 
   it('should update balances when tokens change', async () => {
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       getERC20BalanceOf: jest.fn(),
@@ -384,8 +409,10 @@ describe('TokenBalancesController', () => {
 
   it('should update token balances when detected tokens are added', async () => {
     controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
+      'AccountsController:getSelectedAccount',
+      jest
+        .fn()
+        .mockReturnValue(createMockInternalAccount({ address: '0x1234' })),
     );
     const controller = new TokenBalancesController({
       interval: 1337,

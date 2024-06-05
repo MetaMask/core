@@ -1,5 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
+import type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
   RestrictedControllerMessenger,
@@ -19,6 +23,7 @@ import {
   isValidHexAddress,
   safelyExecute,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
@@ -27,10 +32,6 @@ import type {
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import type {
-  PreferencesControllerStateChangeEvent,
-  PreferencesState,
-} from '@metamask/preferences-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -136,7 +137,8 @@ export type TokensControllerAddDetectedTokensAction = {
  */
 export type AllowedActions =
   | AddApprovalRequest
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AccountsControllerGetAccountAction;
 
 export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -147,8 +149,8 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 export type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
-  | PreferencesControllerStateChangeEvent
-  | TokenListStateChange;
+  | TokenListStateChange
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 /**
  * The messenger of the {@link TokensController}.
@@ -184,7 +186,7 @@ export class TokensController extends BaseController<
 
   #chainId: Hex;
 
-  #selectedAddress: string;
+  #selectedAccountId: string;
 
   #provider: Provider | undefined;
 
@@ -194,20 +196,20 @@ export class TokensController extends BaseController<
    * Tokens controller options
    * @param options - Constructor options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.selectedAddress - Vault selected address
+   * @param options.selectedAccountId - Vault selected account id
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
    */
   constructor({
     chainId: initialChainId,
-    selectedAddress,
+    selectedAccountId,
     provider,
     state,
     messenger,
   }: {
     chainId: Hex;
-    selectedAddress: string;
+    selectedAccountId: string;
     provider: Provider | undefined;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
@@ -226,7 +228,7 @@ export class TokensController extends BaseController<
 
     this.#provider = provider;
 
-    this.#selectedAddress = selectedAddress;
+    this.#selectedAccountId = selectedAccountId;
 
     this.#abortController = new AbortController();
 
@@ -236,8 +238,8 @@ export class TokensController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
-      'PreferencesController:stateChange',
-      this.#onPreferenceControllerStateChange.bind(this),
+      'AccountsController:selectedEvmAccountChange',
+      this.#onSelectedAccountChange.bind(this),
     );
 
     this.messagingSystem.subscribe(
@@ -273,29 +275,32 @@ export class TokensController extends BaseController<
     this.#abortController.abort();
     this.#abortController = new AbortController();
     this.#chainId = chainId;
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
     this.update((state) => {
-      state.tokens = allTokens[chainId]?.[this.#selectedAddress] || [];
+      state.tokens = allTokens[chainId]?.[selectedAccount?.address || ''] || [];
       state.ignoredTokens =
-        allIgnoredTokens[chainId]?.[this.#selectedAddress] || [];
+        allIgnoredTokens[chainId]?.[selectedAccount?.address || ''] || [];
       state.detectedTokens =
-        allDetectedTokens[chainId]?.[this.#selectedAddress] || [];
+        allDetectedTokens[chainId]?.[selectedAccount?.address || ''] || [];
     });
   }
 
   /**
-   * Handles the state change of the preference controller.
-   * @param preferencesState - The new state of the preference controller.
-   * @param preferencesState.selectedAddress - The current selected address of the preference controller.
+   * Handles the selected account change in the accounts controller.
+   * @param selectedAccount - The new selected account
    */
-  #onPreferenceControllerStateChange({ selectedAddress }: PreferencesState) {
+  #onSelectedAccountChange(selectedAccount: InternalAccount) {
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    this.#selectedAddress = selectedAddress;
+    this.#selectedAccountId = selectedAccount.id;
     this.update((state) => {
-      state.tokens = allTokens[this.#chainId]?.[selectedAddress] ?? [];
+      state.tokens = allTokens[this.#chainId]?.[selectedAccount.address] ?? [];
       state.ignoredTokens =
-        allIgnoredTokens[this.#chainId]?.[selectedAddress] ?? [];
+        allIgnoredTokens[this.#chainId]?.[selectedAccount.address] ?? [];
       state.detectedTokens =
-        allDetectedTokens[this.#chainId]?.[selectedAddress] ?? [];
+        allDetectedTokens[this.#chainId]?.[selectedAccount.address] ?? [];
     });
   }
 
@@ -357,7 +362,6 @@ export class TokensController extends BaseController<
     networkClientId?: NetworkClientId;
   }): Promise<Token[]> {
     const chainId = this.#chainId;
-    const selectedAddress = this.#selectedAddress;
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     let currentChainId = chainId;
@@ -368,8 +372,15 @@ export class TokensController extends BaseController<
       ).configuration.chainId;
     }
 
-    const accountAddress = interactingAddress || selectedAddress;
-    const isInteractingWithWalletAccount = accountAddress === selectedAddress;
+    const internalAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+
+    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
+    const accountAddress = interactingAddress || internalAccount?.address || '';
+    const isInteractingWithWalletAccount =
+      accountAddress === internalAccount?.address;
 
     try {
       address = toChecksumHexAddress(address);
@@ -578,10 +589,15 @@ export class TokensController extends BaseController<
   ) {
     const releaseLock = await this.#mutex.acquire();
 
-    // Get existing tokens for the chain + account
+    const internalAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+
     const chainId = detectionDetails?.chainId ?? this.#chainId;
+    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
     const accountAddress =
-      detectionDetails?.selectedAddress ?? this.#selectedAddress;
+      detectionDetails?.selectedAddress ?? internalAccount?.address ?? '';
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     let newTokens = [...(allTokens?.[chainId]?.[accountAddress] ?? [])];
@@ -648,9 +664,17 @@ export class TokensController extends BaseController<
 
       // We may be detecting tokens on a different chain/account pair than are currently configured.
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
-      newTokens = newAllTokens?.[this.#chainId]?.[this.#selectedAddress] || [];
+      const currentInternalAccount = this.messagingSystem.call(
+        'AccountsController:getAccount',
+        this.#selectedAccountId,
+      );
+
+      // Previously selectedAddress could be an empty string. This is to preserve the behaviour
+      const currentAddress = currentInternalAccount?.address || '';
+
+      newTokens = newAllTokens?.[this.#chainId]?.[currentAddress] || [];
       newDetectedTokens =
-        newAllDetectedTokens?.[this.#chainId]?.[this.#selectedAddress] || [];
+        newAllDetectedTokens?.[this.#chainId]?.[currentAddress] || [];
 
       this.update((state) => {
         state.tokens = newTokens;
@@ -806,6 +830,12 @@ export class TokensController extends BaseController<
       throw rpcErrors.invalidParams(`Invalid address "${asset.address}"`);
     }
 
+    // Validate if account is an evm account
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+
     // Validate contract
 
     if (await this.#detectIsERC721(asset.address, networkClientId)) {
@@ -896,7 +926,8 @@ export class TokensController extends BaseController<
       id: this.#generateRandomId(),
       time: Date.now(),
       type,
-      interactingAddress: interactingAddress || this.#selectedAddress,
+      // Previously selectedAddress could be an empty string. This is to preserve the behaviour
+      interactingAddress: interactingAddress || selectedAccount?.address || '',
     };
 
     await this.#requestApproval(suggestedAssetMeta);
@@ -940,8 +971,14 @@ export class TokensController extends BaseController<
       interactingChainId,
     } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    const selectedInternalAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
+    const userAddressToAddTokens =
+      interactingAddress ?? selectedInternalAccount?.address ?? '';
 
-    const userAddressToAddTokens = interactingAddress ?? this.#selectedAddress;
     const chainIdToAddTokens = interactingChainId ?? this.#chainId;
 
     let newAllTokens = allTokens;
