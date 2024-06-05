@@ -39,10 +39,11 @@ function buildFakeNetworkClient({
   configuration: NetworkClientConfiguration;
   providerStubs?: FakeProviderStub[];
 }): NetworkClient {
+  const provider = new FakeProvider({ stubs: providerStubs });
   return {
     configuration,
-    provider: new FakeProvider({ stubs: providerStubs }),
-    blockTracker: new FakeBlockTracker(),
+    provider,
+    blockTracker: new FakeBlockTracker({ provider }),
     destroy: () => {
       // do nothing
     },

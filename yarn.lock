@@ -3051,6 +3051,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^5.0.2
     "@metamask/controller-utils": ^10.0.0
+    "@metamask/eth-json-rpc-provider": ^3.0.2
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^16.0.0
