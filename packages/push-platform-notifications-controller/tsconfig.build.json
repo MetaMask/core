@@ -8,6 +8,11 @@
   "references": [
     {
       "path": "../base-controller/tsconfig.build.json"
+    {
+      "path": "../notifications-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
     },
   ],
   "include": [
