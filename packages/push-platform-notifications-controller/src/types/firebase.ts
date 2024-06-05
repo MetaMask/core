@@ -1,14 +1,14 @@
-export declare type Messaging = {
+export type Messaging = {
   app: FirebaseApp;
 };
 
-export declare type FirebaseApp = {
+export type FirebaseApp = {
   readonly name: string;
   readonly options: FirebaseOptions;
   automaticDataCollectionEnabled: boolean;
 };
 
-export declare type FirebaseOptions = {
+export type FirebaseOptions = {
   apiKey?: string;
   authDomain?: string;
   databaseURL?: string;

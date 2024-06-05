@@ -49,12 +49,12 @@
     "@metamask/profile-sync-controller": "^1.0.0",
     "@metamask/push-platform-notifications-controller": "^1.0.0",
     "contentful": "^10.11.3",
-    "deepmerge": "^4.2.2",
     "loglevel": "^1.8.1",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.2",
+    "deepmerge": "^4.2.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",

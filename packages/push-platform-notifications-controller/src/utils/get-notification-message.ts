@@ -4,7 +4,7 @@
 
 import { CHAIN_SYMBOLS } from '@metamask/notifications-controller';
 import type {
-  TRIGGER_TYPES,
+  TriggerType,
   OnChainRawNotification,
 } from '@metamask/notifications-controller';
 
@@ -24,7 +24,7 @@ type NotificationMessage<
 };
 
 type NotificationMessageDict = {
-  [K in TRIGGER_TYPES]?: NotificationMessage<
+  [K in TriggerType]?: NotificationMessage<
     Extract<OnChainRawNotification, { data: { kind: `${K}` } }>
   >;
 };

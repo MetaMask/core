@@ -38,8 +38,8 @@ export function processNotification(
     return n;
   }
 
-  if (isOnChainNotification(notification as OnChainRawNotification)) {
-    return processOnChainNotification(notification as OnChainRawNotification);
+  if (isOnChainNotification(notification)) {
+    return processOnChainNotification(notification);
   }
 
   return exhaustedAllCases(notification as never);
