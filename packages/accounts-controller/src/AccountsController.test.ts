@@ -2318,7 +2318,7 @@ describe('AccountsController', () => {
       expect(account).toBeUndefined();
     });
 
-    it('return a nonevm account by address', async () => {
+    it('returns a non-EVM account by address', async () => {
       const mockNonEvmAccount = createExpectedInternalAccount({
         id: 'mock-non-evm',
         name: 'non-evm',
