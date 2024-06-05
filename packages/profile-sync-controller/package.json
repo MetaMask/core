@@ -49,7 +49,6 @@
     "@metamask/snaps-utils": "^7.4.0",
     "@noble/ciphers": "^0.5.2",
     "@noble/hashes": "^1.4.0",
-    "deepmerge": "^4.2.2",
     "ethers": "^6.12.0",
     "immer": "^9.0.6",
     "loglevel": "^1.8.1",

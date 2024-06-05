@@ -63,7 +63,7 @@
   },
   "peerDependencies": {
     "@metamask/notifications-controller": "^1.0.0",
-    "@metamask/profile-sync-controller": "^1.0.0",
+    "@metamask/profile-sync-controller": "^1.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
