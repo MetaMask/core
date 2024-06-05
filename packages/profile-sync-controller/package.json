@@ -68,7 +68,7 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/notifications-controller": "^1.0.0",
+    "@metamask/notifications-controller": "^0.0.0",
     "@metamask/snaps-controllers": "^8.1.1"
   },
   "engines": {
