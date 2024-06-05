@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.13.0]
-
-### Changed
-
-- **BREAKING:** Bump peer dependency `@metamask/selected-network-controller` to `^14.0.0` ([#4374](https://github.com/MetaMask/core/pull/4374))
-
 ## [0.12.0]
 
 ### Changed
@@ -206,8 +200,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.13.0...HEAD
-[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.12.0...@metamask/queued-request-controller@0.13.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.12.0...HEAD
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.11.0...@metamask/queued-request-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.10.0...@metamask/queued-request-controller@0.11.0
 [0.10.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.9.0...@metamask/queued-request-controller@0.10.0
