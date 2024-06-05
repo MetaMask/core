@@ -119,7 +119,6 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(marketDataTokensByAddress).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           tokenAddress: '0x0000000000000000000000000000000000000000',
-          value: 14,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -142,7 +141,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xAAA': {
           tokenAddress: '0xAAA',
-          value: 148.17205755299946,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -165,7 +163,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -188,7 +185,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -295,7 +291,6 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(result).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           tokenAddress: '0x0000000000000000000000000000000000000000',
-          value: 14,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -318,7 +313,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -341,7 +335,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -428,11 +421,9 @@ describe('CodefiTokenPricesServiceV2', () => {
         '0xAAA': {
           currency: 'ETH',
           tokenAddress: '0xAAA',
-          value: undefined,
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -455,7 +446,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -513,19 +503,16 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(result).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           tokenAddress: '0x0000000000000000000000000000000000000000',
-          value: 14,
           currency: 'ETH',
           price: 14,
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
           price: 33689.98134554716,
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
           price: 148.1344197578456,
         },
@@ -695,7 +682,6 @@ describe('CodefiTokenPricesServiceV2', () => {
       expect(marketDataTokensByAddress).toStrictEqual({
         '0x0000000000000000000000000000000000000000': {
           tokenAddress: '0x0000000000000000000000000000000000000000',
-          value: 14,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -718,7 +704,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xAAA': {
           tokenAddress: '0xAAA',
-          value: 148.17205755299946,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -741,7 +726,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -764,7 +748,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
           pricePercentChange1d: 1,
           priceChange1d: 1,
@@ -1842,7 +1825,6 @@ describe('CodefiTokenPricesServiceV2', () => {
         expect(marketDataTokensByAddress).toStrictEqual({
           '0x0000000000000000000000000000000000000000': {
             tokenAddress: '0x0000000000000000000000000000000000000000',
-            value: 14,
             currency: 'ETH',
             pricePercentChange1d: 1,
             priceChange1d: 1,
@@ -1865,7 +1847,6 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
           '0xAAA': {
             tokenAddress: '0xAAA',
-            value: 148.17205755299946,
             currency: 'ETH',
             pricePercentChange1d: 1,
             priceChange1d: 1,
@@ -1888,7 +1869,6 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
           '0xBBB': {
             tokenAddress: '0xBBB',
-            value: 33689.98134554716,
             currency: 'ETH',
             pricePercentChange1d: 1,
             priceChange1d: 1,
@@ -1911,7 +1891,6 @@ describe('CodefiTokenPricesServiceV2', () => {
           },
           '0xCCC': {
             tokenAddress: '0xCCC',
-            value: 148.1344197578456,
             currency: 'ETH',
             pricePercentChange1d: 1,
             priceChange1d: 1,
