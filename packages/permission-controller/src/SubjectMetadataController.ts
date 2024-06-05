@@ -209,6 +209,8 @@ export class SubjectMetadataController extends BaseController<
     this.subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore something about string-indexing
       draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
@@ -231,7 +233,8 @@ export class SubjectMetadataController extends BaseController<
    */
   trimMetadataState(): void {
     this.update((draftState) => {
-      // @ts-expect-error ts(2589)
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore infinite type-resursion srsly
       return SubjectMetadataController.getTrimmedState(
         draftState,
         this.subjectHasPermissions,

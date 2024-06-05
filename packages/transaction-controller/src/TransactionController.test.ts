@@ -23,7 +23,6 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
-import * as NonceTrackerPackage from '@metamask/nonce-tracker';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
@@ -294,9 +293,6 @@ function waitForTransactionFinished(
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
-const GOERLI_PROVIDER = new HttpProvider(
-  `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
 const MAINNET_PROVIDER = new HttpProvider(
   `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
@@ -327,24 +323,6 @@ const MOCK_NETWORK: MockNetwork = {
       chainId: ChainId.goerli,
       ticker: NetworksTicker.goerli,
     },
-    networkConfigurations: {},
-  },
-  subscribe: () => undefined,
-};
-const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
-  provider: GOERLI_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
-  state: {
-    selectedNetworkClientId: NetworkType.goerli,
-    networksMetadata: {
-      [NetworkType.goerli]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.goerli,
-    } as NetworkState['providerConfig'],
     networkConfigurations: {},
   },
   subscribe: () => undefined,
@@ -572,11 +550,14 @@ describe('TransactionController', () => {
     );
 
     const { messenger: givenRestrictedMessenger, ...otherOptions } = {
-      blockTracker: network.blockTracker,
       disableHistory: false,
       disableSendFlowHistory: false,
       disableSwaps: false,
       getCurrentNetworkEIP1559Compatibility: async () => false,
+      getGlobalProviderAndBlockTracker: () => ({
+        provider: network.provider,
+        blockTracker: network.blockTracker,
+      }),
       getNetworkState: () => network.state,
       // TODO: Replace with a real type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -586,7 +567,6 @@ describe('TransactionController', () => {
       isMultichainEnabled: false,
       hooks: {},
       onNetworkStateChange: network.subscribe,
-      provider: network.provider,
       sign: async (transaction: TypedTransaction) => transaction,
       transactionHistoryLimit: 40,
       ...givenOptions,
@@ -780,21 +760,25 @@ describe('TransactionController', () => {
       return pendingTransactionTrackerMock;
     });
 
-    multichainTrackingHelperClassMock.mockImplementation(({ provider }) => {
-      multichainTrackingHelperMock = {
-        getEthQuery: jest.fn().mockImplementation(() => {
-          return new EthQuery(provider);
-        }),
-        getProvider: jest.fn().mockImplementation(() => {
-          return provider;
-        }),
-        checkForPendingTransactionAndStartPolling: jest.fn(),
-        getNonceLock: getNonceLockSpy,
-        initialize: jest.fn(),
-        has: jest.fn().mockReturnValue(false),
-      } as unknown as jest.Mocked<MultichainTrackingHelper>;
-      return multichainTrackingHelperMock;
-    });
+    multichainTrackingHelperClassMock.mockImplementation(
+      ({ getGlobalProviderAndBlockTracker }) => {
+        multichainTrackingHelperMock = {
+          getEthQuery: jest.fn().mockImplementation(() => {
+            return new EthQuery(
+              getGlobalProviderAndBlockTracker()?.provider as Provider,
+            );
+          }),
+          getProvider: jest.fn().mockImplementation(() => {
+            return getGlobalProviderAndBlockTracker()?.provider as Provider;
+          }),
+          checkForPendingTransactionAndStartPolling: jest.fn(),
+          getNonceLock: getNonceLockSpy,
+          initialize: jest.fn(),
+          has: jest.fn().mockReturnValue(false),
+        } as unknown as jest.Mocked<MultichainTrackingHelper>;
+        return multichainTrackingHelperMock;
+      },
+    );
 
     defaultGasFeeFlowClassMock.mockImplementation(() => {
       defaultGasFeeFlowMock = {
@@ -881,117 +865,6 @@ describe('TransactionController', () => {
       expect(
         pendingTransactionTrackerMock.startIfPendingTransactions,
       ).toHaveBeenCalledTimes(1);
-    });
-
-    describe('nonce tracker', () => {
-      it('uses external pending transactions', async () => {
-        const nonceTrackerMock = jest
-          .spyOn(NonceTrackerPackage, 'NonceTracker')
-          .mockImplementation();
-
-        const externalPendingTransactions = [
-          {
-            from: '0x1',
-          },
-          { from: '0x2' },
-        ];
-
-        const getExternalPendingTransactions = jest
-          .fn()
-          .mockReturnValueOnce(externalPendingTransactions);
-
-        setupController({
-          options: {
-            getExternalPendingTransactions,
-            state: {
-              transactions: [
-                {
-                  ...TRANSACTION_META_MOCK,
-                  chainId: MOCK_NETWORK.state.providerConfig.chainId,
-                  status: TransactionStatus.submitted,
-                },
-              ],
-            },
-          },
-        });
-
-        const pendingTransactions =
-          nonceTrackerMock.mock.calls[0][0].getPendingTransactions(
-            ACCOUNT_MOCK,
-          );
-
-        expect(nonceTrackerMock).toHaveBeenCalledTimes(1);
-        expect(pendingTransactions).toStrictEqual([
-          expect.any(Object),
-          ...externalPendingTransactions,
-        ]);
-        expect(getExternalPendingTransactions).toHaveBeenCalledTimes(1);
-        expect(getExternalPendingTransactions).toHaveBeenCalledWith(
-          ACCOUNT_MOCK,
-          // This is undefined for the base nonceTracker
-          undefined,
-        );
-      });
-    });
-
-    describe('onBootCleanup', () => {
-      afterEach(() => {
-        updateGasMock.mockReset();
-        updateGasFeesMock.mockReset();
-      });
-
-      it('submits approved transactions for all chains', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          status: TransactionStatus.approved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-        const mockedTransactions = [
-          {
-            id: '123',
-            history: [{ ...mockTransactionMeta, id: '123' }],
-            chainId: toHex(5),
-            ...mockTransactionMeta,
-          },
-          {
-            id: '456',
-            history: [{ ...mockTransactionMeta, id: '456' }],
-            chainId: toHex(1),
-            ...mockTransactionMeta,
-          },
-          {
-            id: '789',
-            history: [{ ...mockTransactionMeta, id: '789' }],
-            chainId: toHex(16),
-            ...mockTransactionMeta,
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const { controller } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-          },
-        });
-
-        await flushPromises();
-
-        const { transactions } = controller.state;
-
-        expect(transactions[0].status).toBe(TransactionStatus.submitted);
-        expect(transactions[1].status).toBe(TransactionStatus.submitted);
-        expect(transactions[2].status).toBe(TransactionStatus.submitted);
-      });
     });
   });
 
@@ -1440,6 +1313,8 @@ describe('TransactionController', () => {
         from: ACCOUNT_MOCK,
         to: ACCOUNT_MOCK,
       });
+
+      await flushPromises();
 
       const expectedInitialSnapshot = {
         actionId: undefined,
@@ -1999,19 +1874,6 @@ describe('TransactionController', () => {
           });
 
           await expectTransactionToFail(controller, 'No sign method defined');
-        });
-
-        it('if no chainId defined', async () => {
-          const { controller } = setupController({
-            network: MOCK_NETWORK_WITHOUT_CHAIN_ID,
-            messengerOptions: {
-              addTransactionApprovalRequest: {
-                state: 'approved',
-              },
-            },
-          });
-
-          await expectTransactionToFail(controller, 'No chainId defined');
         });
 
         it('if unexpected status', async () => {
