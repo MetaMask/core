@@ -2317,6 +2317,33 @@ describe('AccountsController', () => {
 
       expect(account).toBeUndefined();
     });
+
+    it('returns a non-EVM account by address', async () => {
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const account = accountsController.getAccountByAddress(
+        mockNonEvmAccount.address,
+      );
+
+      expect(account).toStrictEqual(mockNonEvmAccount);
+    });
   });
 
   describe('actions', () => {

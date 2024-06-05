@@ -14,6 +14,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
@@ -246,10 +247,14 @@ function buildMockEthQuery(): EthQuery {
  *
  * @param latestBlockNumber - The block number that the block tracker should
  * always return.
+ * @param provider - json rpc provider
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker();
+function buildMockBlockTracker(
+  latestBlockNumber: string,
+  provider: SafeEventEmitterProvider,
+): BlockTracker {
+  const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
 }
@@ -313,7 +318,7 @@ type MockNetwork = {
 
 const MOCK_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
@@ -333,7 +338,7 @@ const MOCK_NETWORK: MockNetwork = {
 };
 const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
   provider: GOERLI_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', GOERLI_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
@@ -351,7 +356,7 @@ const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
 };
 const MOCK_MAINNET_NETWORK: MockNetwork = {
   provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networksMetadata: {
@@ -372,7 +377,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -393,7 +398,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
@@ -414,7 +419,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
 
 const MOCK_CUSTOM_NETWORK: MockNetwork = {
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: 'uuid-1',
     networksMetadata: {
