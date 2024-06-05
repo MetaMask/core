@@ -2196,6 +2196,122 @@ describe('TokensController', () => {
       });
     });
   });
+
+  describe('when selectedAccountId is not set or account not found', () => {
+    describe('detectTokens', () => {
+      it('should update the token states to empty arrays if the selectedAccountId account is undefined', async () => {
+        await withController(async ({ controller, changeNetwork }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+
+          // getAccountHandler.mockReturnValue(undefined);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+
+          expect(controller.state.tokens).toStrictEqual([]);
+          expect(controller.state.ignoredTokens).toStrictEqual([]);
+          expect(controller.state.detectedTokens).toStrictEqual([]);
+        });
+      });
+
+      it('should update the token states to empty arrays if the selectedAccountId is not set', async () => {
+        await withController(
+          { options: { selectedAccountId: '' } },
+          async ({ controller, changeNetwork }) => {
+            ContractMock.mockReturnValue(
+              buildMockEthersERC721Contract({ supportsInterface: false }),
+            );
+
+            changeNetwork({
+              selectedNetworkClientId: InfuraNetworkType.sepolia,
+            });
+
+            expect(controller.state.tokens).toStrictEqual([]);
+            expect(controller.state.ignoredTokens).toStrictEqual([]);
+            expect(controller.state.detectedTokens).toStrictEqual([]);
+          },
+        );
+      });
+    });
+
+    describe('addToken', () => {
+      it('should handle undefined selected account', async () => {
+        await withController(async ({ controller, getAccountHandler }) => {
+          getAccountHandler.mockReturnValue(undefined);
+          const contractAddresses = Object.keys(contractMaps);
+          const erc721ContractAddresses = contractAddresses.filter(
+            (contractAddress) => contractMaps[contractAddress].erc721 === true,
+          );
+          const address = erc721ContractAddresses[0];
+          const { symbol, decimals } = contractMaps[address];
+
+          await controller.addToken({ address, symbol, decimals });
+
+          expect(controller.state.tokens).toStrictEqual([]);
+        });
+      });
+    });
+
+    describe('addDetectedTokens', () => {
+      it('should handle undefined selected account', async () => {
+        await withController(async ({ controller, getAccountHandler }) => {
+          getAccountHandler.mockReturnValue(undefined);
+          await controller.addDetectedTokens([
+            {
+              address: '0x01',
+              symbol: 'barA',
+              decimals: 2,
+              aggregators: [],
+            },
+          ]);
+          console.log(controller.state.allDetectedTokens[ChainId.mainnet]);
+          expect(controller.state.detectedTokens[0]).toStrictEqual({
+            address: '0x01',
+            decimals: 2,
+            image: undefined,
+            symbol: 'barA',
+            aggregators: [],
+            isERC721: undefined,
+            name: undefined,
+          });
+        });
+      });
+    });
+
+    describe('watchAsset', () => {
+      it('should handle undefined selected account', async () => {
+        await withController(
+          async ({ controller, approvalController, getAccountHandler }) => {
+            const requestId = '12345';
+            const addAndShowApprovalRequestSpy = jest
+              .spyOn(approvalController, 'addAndShowApprovalRequest')
+              .mockResolvedValue(undefined);
+            const asset = buildToken();
+            ContractMock.mockReturnValue(
+              buildMockEthersERC721Contract({ supportsInterface: false }),
+            );
+            uuidV1Mock.mockReturnValue(requestId);
+            getAccountHandler.mockReturnValue(undefined);
+            await controller.watchAsset({ asset, type: 'ERC20' });
+
+            expect(controller.state.tokens).toHaveLength(0);
+            expect(controller.state.tokens).toStrictEqual([]);
+            expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+            expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+              id: requestId,
+              origin: ORIGIN_METAMASK,
+              type: ApprovalType.WatchAsset,
+              requestData: {
+                id: requestId,
+                interactingAddress: '', // this is the default value if account is not found
+                asset,
+              },
+            });
+          },
+        );
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({

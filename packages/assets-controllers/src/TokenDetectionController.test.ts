@@ -2112,6 +2112,86 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should not trigger `TokensController:addDetectedTokens` action when selectedAccount is not found', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      const mockTrackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
+            selectedAccountId: '',
+          },
+        },
+        async ({
+          controller,
+          mockGetAccount,
+          mockTokenListGetState,
+          callActionSpy,
+        }) => {
+          // @ts-expect-error forcing an undefined value
+          mockGetAccount(undefined);
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          await controller.detectTokens({
+            networkClientId: NetworkType.mainnet,
+          });
+
+          expect(callActionSpy).toHaveBeenLastCalledWith(
+            'TokensController:addDetectedTokens',
+            [
+              {
+                address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+                aggregators: [
+                  'Paraswap',
+                  'PMM',
+                  'AirswapLight',
+                  '0x',
+                  'Bancor',
+                  'CoinGecko',
+                  'Zapper',
+                  'Kleros',
+                  'Zerion',
+                  'CMC',
+                  '1inch',
+                ],
+                decimals: 18,
+                image:
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+                isERC721: false,
+                name: 'Chainlink',
+                symbol: 'LINK',
+              },
+            ],
+            { chainId: '0x1', selectedAddress: '' },
+          );
+        },
+      );
+    });
   });
 });
 
