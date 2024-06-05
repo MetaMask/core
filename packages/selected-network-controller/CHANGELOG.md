@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- No longer add domains that have been granted permissions to `domains` state (nor create for it a selected network proxy) unless the `useRequestQueuePreference` flag is true ([#4368](https://github.com/MetaMask/core/pull/4368))
+- No longer add domains that have been granted permissions to `domains` state (nor create a selected network proxy for it) unless the `useRequestQueuePreference` flag is true ([#4368](https://github.com/MetaMask/core/pull/4368))
 
 ## [15.0.0]
 
