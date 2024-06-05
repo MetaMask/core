@@ -617,7 +617,7 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('When a permission is added or removed', () => {
-    it('should add new domain to domains list on permission if and #useRequestQueuePreference is true', async () => {
+    it('should add new domain to domains list on permission add if #useRequestQueuePreference is true', async () => {
       const { controller, messenger } = setup({
         useRequestQueuePreference: true,
       });
