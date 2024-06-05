@@ -8,6 +8,7 @@
   "references": [
     {
       "path": "../base-controller/tsconfig.build.json"
+    },
     {
       "path": "../notifications-controller/tsconfig.build.json"
     },
