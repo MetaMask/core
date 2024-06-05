@@ -65,7 +65,6 @@ export interface ContractExchangeRates {
 
 type MarketDataDetails = {
   tokenAddress: `0x${string}`;
-  value: number;
   currency: string;
   allTimeHigh: number;
   allTimeLow: number;
@@ -328,8 +327,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
           'NetworkController:getNetworkClientById',
           selectedNetworkClientId,
         );
-        console.log(`chainid: ${chainId}, ticker: ${ticker}`);
-        console.log(`this chainid: ${this.#chainId}, ticker: ${this.#ticker}`);
+
         if (this.#chainId !== chainId || this.#ticker !== ticker) {
           this.update((state) => {
             state.marketData = {};
@@ -423,11 +421,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
     const { allTokens, allDetectedTokens } = this.messagingSystem.call(
       'TokensController:getState',
     );
-    console.log(
-      `allTokens: ${JSON.stringify(
-        allTokens,
-      )}, allDetectedTokens: ${JSON.stringify(allDetectedTokens)}`,
-    );
+
     return {
       allTokens,
       allDetectedTokens,
@@ -574,6 +568,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
         nativeCurrency,
       });
     }
+
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
       tokenAddresses,
       nativeCurrency,
@@ -716,8 +711,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
         ...acc,
         [tokenAddress]: {
           ...token,
-          value: token.value
-            ? token.value * fallbackCurrencyToNativeCurrencyConversionRate
+          price: token.price
+            ? token.price * fallbackCurrencyToNativeCurrencyConversionRate
             : undefined,
         },
       };

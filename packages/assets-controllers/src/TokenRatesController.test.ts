@@ -39,11 +39,7 @@ import type {
   TokenPrice,
   TokenPricesByTokenAddress,
 } from './token-prices-service/abstract-token-prices-service';
-import {
-  controllerName,
-  getDefaultTokenRatesControllerState,
-  TokenRatesController,
-} from './TokenRatesController';
+import { controllerName, TokenRatesController } from './TokenRatesController';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -148,7 +144,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -195,7 +190,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -254,7 +248,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               ...tokensState,
             },
           },
@@ -290,7 +283,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: tokens,
             },
           },
@@ -301,7 +293,6 @@ describe('TokenRatesController', () => {
             await controller.start();
             triggerTokensStateChange({
               ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: tokens,
             });
 
@@ -327,9 +318,7 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: tokens,
-              allDetectedTokens: {},
             },
           },
           async ({ controller, triggerTokensStateChange }) => {
@@ -365,8 +354,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: tokens,
             },
           },
@@ -413,7 +400,6 @@ describe('TokenRatesController', () => {
             await controller.start();
             triggerTokensStateChange({
               ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -438,8 +424,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -461,7 +445,6 @@ describe('TokenRatesController', () => {
             await controller.start();
             triggerTokensStateChange({
               ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -486,8 +469,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -515,7 +496,6 @@ describe('TokenRatesController', () => {
             await controller.start();
             triggerTokensStateChange({
               ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -549,7 +529,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -582,7 +561,6 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
-              allDetectedTokens: {},
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -595,8 +573,6 @@ describe('TokenRatesController', () => {
         await withController(
           {
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -617,7 +593,6 @@ describe('TokenRatesController', () => {
               .mockResolvedValue();
             triggerTokensStateChange({
               ...getDefaultTokensState(),
-              allTokens: {},
               allDetectedTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -718,7 +693,6 @@ describe('TokenRatesController', () => {
             options: {
               interval: 100,
               state: {
-                ...getDefaultTokenRatesControllerState(),
                 marketData: {
                   [ChainId.mainnet]: {
                     '0x02': {
@@ -726,7 +700,6 @@ describe('TokenRatesController', () => {
                       priceChange1d: 0,
                       pricePercentChange1d: 0,
                       tokenAddress: '0x02',
-                      value: 0.001,
                       allTimeHigh: 4000,
                       allTimeLow: 900,
                       circulatingSupply: 2000,
@@ -781,7 +754,6 @@ describe('TokenRatesController', () => {
                       priceChange1d: 0,
                       pricePercentChange1d: 0,
                       tokenAddress: '0x02',
-                      value: 0.001,
                       allTimeHigh: 4000,
                       allTimeLow: 900,
                       circulatingSupply: 2000,
@@ -920,7 +892,6 @@ describe('TokenRatesController', () => {
                       priceChange1d: 0,
                       pricePercentChange1d: 0,
                       tokenAddress: '0x02',
-                      value: 0.001,
                       allTimeHigh: 4000,
                       allTimeLow: 900,
                       circulatingSupply: 2000,
@@ -974,7 +945,6 @@ describe('TokenRatesController', () => {
                       priceChange1d: 0,
                       pricePercentChange1d: 0,
                       tokenAddress: '0x02',
-                      value: 0.001,
                       allTimeHigh: 4000,
                       allTimeLow: 900,
                       circulatingSupply: 2000,
@@ -1038,7 +1008,6 @@ describe('TokenRatesController', () => {
               interval: 100,
             },
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 '0x1': {
                   [alternateSelectedAddress]: [
@@ -1081,7 +1050,6 @@ describe('TokenRatesController', () => {
               interval: 100,
             },
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 '0x1': {
                   [defaultSelectedAddress]: [
@@ -1129,7 +1097,6 @@ describe('TokenRatesController', () => {
               interval: 100,
             },
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 '0x1': {
                   [alternateSelectedAddress]: [
@@ -1189,7 +1156,6 @@ describe('TokenRatesController', () => {
               tokenPricesService,
             },
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -1237,7 +1203,6 @@ describe('TokenRatesController', () => {
               tokenPricesService,
             },
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 [ChainId.mainnet]: {
                   [defaultSelectedAddress]: [
@@ -1293,7 +1258,6 @@ describe('TokenRatesController', () => {
             tokenPricesService,
           },
           mockTokensControllerState: {
-            ...getDefaultTokensState(),
             allTokens: {
               [ChainId.mainnet]: {
                 [defaultSelectedAddress]: [
@@ -1340,7 +1304,6 @@ describe('TokenRatesController', () => {
                 tokenPricesService,
               },
               mockTokensControllerState: {
-                ...getDefaultTokensState(),
                 allTokens: {
                   [ChainId.mainnet]: {
                     [defaultSelectedAddress]: [
@@ -1373,7 +1336,6 @@ describe('TokenRatesController', () => {
                       priceChange1d: 0,
                       pricePercentChange1d: 0,
                       tokenAddress: '0x02',
-                      value: 0.001,
                       allTimeHigh: 4000,
                       allTimeLow: 900,
                       circulatingSupply: 2000,
@@ -1396,7 +1358,6 @@ describe('TokenRatesController', () => {
                       priceChange1d: 0,
                       pricePercentChange1d: 0,
                       tokenAddress: '0x03',
-                      value: 0.002,
                       allTimeHigh: 4000,
                       allTimeLow: 900,
                       circulatingSupply: 2000,
@@ -1432,20 +1393,20 @@ describe('TokenRatesController', () => {
                 return currency !== 'LOL';
               },
             });
-
+            const selectedNetworkClientConfiguration =
+              buildCustomNetworkClientConfiguration({
+                chainId: ChainId.mainnet,
+                ticker: 'LOL',
+              });
             await withController(
               {
                 options: {
                   tokenPricesService,
                 },
                 mockNetworkClientConfigurationsByNetworkClientId: {
-                  'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
-                    chainId: ChainId.mainnet,
-                    ticker: 'LOL',
-                  }),
+                  mainnet: selectedNetworkClientConfiguration,
                 },
                 mockTokensControllerState: {
-                  ...getDefaultTokensState(),
                   allTokens: {
                     [ChainId.mainnet]: {
                       [defaultSelectedAddress]: [
@@ -1465,6 +1426,13 @@ describe('TokenRatesController', () => {
                     },
                   },
                 },
+                mockNetworkState: {
+                  providerConfig: {
+                    ...defaultNetworkState.providerConfig,
+                    chainId: toHex(2),
+                    ticker: 'ticker',
+                  },
+                },
               },
               async ({ controller }) => {
                 controller.startPollingByNetworkClientId('mainnet');
@@ -1472,13 +1440,33 @@ describe('TokenRatesController', () => {
                 // needed because fetch() doesn't resolve immediately, so any
                 // downstream promises aren't flushed until the next advanceTime loop
                 await advanceTime({ clock, duration: 1, stepSize: 1 / 3 });
-
                 expect(controller.state.marketData).toStrictEqual({
                   [ChainId.mainnet]: {
                     // token price in LOL = (token price in ETH) * (ETH value in LOL)
                     '0x02': {
                       tokenAddress: '0x02',
-                      value: 0.001,
+                      currency: 'ETH',
+                      pricePercentChange1d: 0,
+                      priceChange1d: 0,
+                      allTimeHigh: 4000,
+                      allTimeLow: 900,
+                      circulatingSupply: 2000,
+                      dilutedMarketCap: 100,
+                      high1d: 200,
+                      low1d: 100,
+                      marketCap: 1000,
+                      marketCapPercentChange1d: 100,
+                      price: 0.0005,
+                      pricePercentChange14d: 100,
+                      pricePercentChange1h: 1,
+                      pricePercentChange1y: 200,
+                      pricePercentChange200d: 300,
+                      pricePercentChange30d: 200,
+                      pricePercentChange7d: 100,
+                      totalVolume: 100,
+                    },
+                    '0x03': {
+                      tokenAddress: '0x03',
                       currency: 'ETH',
                       pricePercentChange1d: 0,
                       priceChange1d: 0,
@@ -1491,29 +1479,6 @@ describe('TokenRatesController', () => {
                       marketCap: 1000,
                       marketCapPercentChange1d: 100,
                       price: 0.001,
-                      pricePercentChange14d: 100,
-                      pricePercentChange1h: 1,
-                      pricePercentChange1y: 200,
-                      pricePercentChange200d: 300,
-                      pricePercentChange30d: 200,
-                      pricePercentChange7d: 100,
-                      totalVolume: 100,
-                    },
-                    '0x03': {
-                      tokenAddress: '0x03',
-                      value: 0.002,
-                      currency: 'ETH',
-                      pricePercentChange1d: 0,
-                      priceChange1d: 0,
-                      allTimeHigh: 4000,
-                      allTimeLow: 900,
-                      circulatingSupply: 2000,
-                      dilutedMarketCap: 100,
-                      high1d: 200,
-                      low1d: 100,
-                      marketCap: 1000,
-                      marketCapPercentChange1d: 100,
-                      price: 0.002,
                       pricePercentChange14d: 100,
                       pricePercentChange1h: 1,
                       pricePercentChange1y: 200,
@@ -1549,7 +1514,6 @@ describe('TokenRatesController', () => {
                   }),
                 },
                 mockTokensControllerState: {
-                  ...getDefaultTokensState(),
                   allTokens: {
                     '0x1': {
                       [defaultSelectedAddress]: [
@@ -1597,7 +1561,6 @@ describe('TokenRatesController', () => {
               tokenPricesService,
             },
             mockTokensControllerState: {
-              ...getDefaultTokensState(),
               allTokens: {
                 '0x1': {
                   [defaultSelectedAddress]: [
@@ -2014,12 +1977,12 @@ describe('TokenRatesController', () => {
             [tokenAddresses[0]]: {
               currency: 'ETH',
               tokenAddress: tokenAddresses[0],
-              value: 0.001,
+              price: 0.001,
             },
             [tokenAddresses[1]]: {
               currency: 'ETH',
               tokenAddress: tokenAddresses[1],
-              value: 0.002,
+              price: 0.002,
             },
           }),
           validateCurrencySupported: jest.fn().mockReturnValue(
@@ -2083,13 +2046,13 @@ describe('TokenRatesController', () => {
               "0x89": Object {
                 "0x0000000000000000000000000000000000000001": Object {
                   "currency": "ETH",
+                  "price": 0.0005,
                   "tokenAddress": "0x0000000000000000000000000000000000000001",
-                  "value": 0.0005,
                 },
                 "0x0000000000000000000000000000000000000002": Object {
                   "currency": "ETH",
+                  "price": 0.001,
                   "tokenAddress": "0x0000000000000000000000000000000000000002",
-                  "value": 0.001,
                 },
               },
             },
@@ -2382,7 +2345,8 @@ type WithControllerOptions = {
     NetworkClientId,
     NetworkClientConfiguration
   >;
-  mockTokensControllerState?: TokensControllerState;
+  mockTokensControllerState?: Partial<TokensControllerState>;
+  mockNetworkState?: Partial<NetworkState>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2407,6 +2371,7 @@ async function withController<ReturnValue>(
     messenger,
     mockNetworkClientConfigurationsByNetworkClientId,
     mockTokensControllerState,
+    mockNetworkState,
   } = rest;
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
@@ -2432,10 +2397,13 @@ async function withController<ReturnValue>(
     getNetworkClientById,
   );
 
-  const mockNetworkState = jest.fn<NetworkState, []>();
+  const networkStateMock = jest.fn<NetworkState, []>();
   controllerMessenger.registerActionHandler(
     'NetworkController:getState',
-    mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
+    networkStateMock.mockReturnValue({
+      ...defaultNetworkState,
+      ...mockNetworkState,
+    }),
   );
 
   const mockPreferencesState = jest.fn<PreferencesState, []>();
@@ -2546,6 +2514,7 @@ async function callUpdateExchangeRatesMethod({
   // more, as we'd need to update the tests accordingly.
   triggerTokensStateChange({
     ...getDefaultTokensState(),
+    allDetectedTokens: {},
     allTokens,
   });
 
@@ -2623,7 +2592,6 @@ async function fetchTokenPricesWithIncreasingPriceForEachToken<
   >((obj, tokenAddress, i) => {
     const tokenPrice: TokenPrice<TokenAddress, Currency> = {
       tokenAddress,
-      value: (i + 1) / 1000,
       currency,
       pricePercentChange1d: 0,
       priceChange1d: 0,
