@@ -175,6 +175,8 @@ export class SelectedNetworkController extends BaseController<
             if (
               op === 'add' &&
               this.state.domains[domain] === undefined &&
+              // PR: https://github.com/MetaMask/core/pull/4368
+              // Patch Branch: jl/patch-selected-network-controller-13.0.0-permission-state-change-guard
               this.#useRequestQueuePreference
             ) {
               this.setNetworkClientIdForDomain(
