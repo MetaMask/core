@@ -17,10 +17,10 @@ export enum TriggerType {
   Erc1155Received = 'erc1155_received',
 }
 
-export enum TriggerTypeGroups {
-  received = 'received',
-  sent = 'sent',
-  defi = 'defi',
+export enum TriggerTypeGroup {
+  Received = 'received',
+  Sent = 'sent',
+  Defi = 'defi',
 }
 
 export const TRIGGER_TYPES_WALLET_SET: Set<string> = new Set([
