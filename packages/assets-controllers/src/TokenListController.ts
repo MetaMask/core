@@ -175,10 +175,16 @@ export class TokenListController extends StaticIntervalPollingController<
    * @param networkControllerState - The updated network controller state.
    */
   async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    if (this.chainId !== networkControllerState.providerConfig.chainId) {
+    const selectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkControllerState.selectedNetworkClientId,
+    );
+    const { chainId } = selectedNetworkClient.configuration;
+
+    if (this.chainId !== chainId) {
       this.abortController.abort();
       this.abortController = new AbortController();
-      this.chainId = networkControllerState.providerConfig.chainId;
+      this.chainId = chainId;
       if (this.state.preventPollingOnNetworkRestart) {
         this.clearingTokenListData();
       } else {

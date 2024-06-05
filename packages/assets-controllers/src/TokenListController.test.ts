@@ -2,28 +2,30 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
-  NetworksTicker,
   convertHexToDecimal,
   toHex,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type {
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerStateChangeEvent,
-  NetworkState,
-  ProviderConfig,
-} from '@metamask/network-controller';
-import { NetworkStatus } from '@metamask/network-controller';
+import type { NetworkState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildInfuraNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import * as tokenService from './token-service';
 import type {
-  TokenListStateChange,
-  GetTokenListState,
   TokenListMap,
   TokenListState,
+  TokenListControllerMessenger,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
 
@@ -493,8 +495,8 @@ const expiredCacheExistingState: TokenListState = {
 };
 
 type MainControllerMessenger = ControllerMessenger<
-  GetTokenListState | NetworkControllerGetNetworkClientByIdAction,
-  TokenListStateChange | NetworkControllerStateChangeEvent
+  ExtractAvailableAction<TokenListControllerMessenger>,
+  ExtractAvailableEvent<TokenListControllerMessenger>
 >;
 
 const getControllerMessenger = (): MainControllerMessenger => {
@@ -512,31 +514,6 @@ const getRestrictedMessenger = (
 
   return messenger;
 };
-
-/**
- * Builds an object that satisfies the NetworkState shape using the given
- * provider config. This can be used to return a complete value for the
- * `NetworkController:stateChange` event.
- *
- * @param providerConfig - The provider config to use.
- * @returns A complete state object for NetworkController.
- */
-function buildNetworkControllerStateWithProviderConfig(
-  providerConfig: ProviderConfig,
-): NetworkState {
-  const selectedNetworkClientId = providerConfig.type || 'uuid-1';
-  return {
-    selectedNetworkClientId,
-    providerConfig,
-    networksMetadata: {
-      [selectedNetworkClientId]: {
-        EIPS: {},
-        status: NetworkStatus.Available,
-      },
-    },
-    networkConfigurations: {},
-  };
-}
 
 describe('TokenListController', () => {
   afterEach(() => {
@@ -653,8 +630,17 @@ describe('TokenListController', () => {
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleMainnetTokenList)
       .persist();
-
+    const selectedNetworkClientId = 'selectedNetworkClientId';
     const controllerMessenger = getControllerMessenger();
+    const getNetworkClientById = buildMockGetNetworkClientById({
+      [selectedNetworkClientId]: buildCustomNetworkClientConfiguration({
+        chainId: toHex(1337),
+      }),
+    });
+    controllerMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      getNetworkClientById,
+    );
     const messenger = getRestrictedMessenger(controllerMessenger);
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
@@ -669,13 +655,13 @@ describe('TokenListController', () => {
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-    onNetworkStateChangeCallback(
-      buildNetworkControllerStateWithProviderConfig({
-        chainId: ChainId.goerli,
-        type: NetworkType.goerli,
-        ticker: NetworksTicker.goerli,
-      }),
-    );
+    onNetworkStateChangeCallback({
+      selectedNetworkClientId,
+      networkConfigurations: {},
+      networksMetadata: {},
+      // @ts-expect-error This property isn't used and will get removed later.
+      providerConfig: {},
+    });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 500));
 
     expect(controller.state.tokenList).toStrictEqual({});
@@ -971,8 +957,20 @@ describe('TokenListController', () => {
       .get(getTokensPath(toHex(56)))
       .reply(200, sampleBinanceTokenList)
       .persist();
-
+    const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
     const controllerMessenger = getControllerMessenger();
+    const getNetworkClientById = buildMockGetNetworkClientById({
+      [InfuraNetworkType.goerli]: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType.goerli,
+      ),
+      [selectedCustomNetworkClientId]: buildCustomNetworkClientConfiguration({
+        chainId: toHex(56),
+      }),
+    });
+    controllerMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      getNetworkClientById,
+    );
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
@@ -995,11 +993,13 @@ describe('TokenListController', () => {
 
     controllerMessenger.publish(
       'NetworkController:stateChange',
-      buildNetworkControllerStateWithProviderConfig({
-        type: NetworkType.goerli,
-        chainId: ChainId.goerli,
-        ticker: NetworksTicker.goerli,
-      }),
+      {
+        selectedNetworkClientId: InfuraNetworkType.goerli,
+        networkConfigurations: {},
+        networksMetadata: {},
+        // @ts-expect-error This property isn't used and will get removed later.
+        providerConfig: {},
+      },
       [],
     );
 
@@ -1014,12 +1014,13 @@ describe('TokenListController', () => {
 
     controllerMessenger.publish(
       'NetworkController:stateChange',
-      buildNetworkControllerStateWithProviderConfig({
-        type: NetworkType.rpc,
-        chainId: toHex(56),
-        rpcUrl: 'http://localhost:8545',
-        ticker: 'TEST',
-      }),
+      {
+        selectedNetworkClientId: selectedCustomNetworkClientId,
+        networkConfigurations: {},
+        networksMetadata: {},
+        // @ts-expect-error This property isn't used and will get removed later.
+        providerConfig: {},
+      },
       [],
     );
 
@@ -1069,7 +1070,20 @@ describe('TokenListController', () => {
       .reply(200, sampleBinanceTokenList)
       .persist();
 
+    const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
     const controllerMessenger = getControllerMessenger();
+    const getNetworkClientById = buildMockGetNetworkClientById({
+      [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType.mainnet,
+      ),
+      [selectedCustomNetworkClientId]: buildCustomNetworkClientConfiguration({
+        chainId: toHex(56),
+      }),
+    });
+    controllerMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      getNetworkClientById,
+    );
     const messenger = getRestrictedMessenger(controllerMessenger);
     const controller = new TokenListController({
       chainId: ChainId.goerli,
@@ -1080,11 +1094,13 @@ describe('TokenListController', () => {
     await controller.start();
     controllerMessenger.publish(
       'NetworkController:stateChange',
-      buildNetworkControllerStateWithProviderConfig({
-        type: NetworkType.mainnet,
-        chainId: ChainId.mainnet,
-        ticker: NetworksTicker.mainnet,
-      }),
+      {
+        selectedNetworkClientId: InfuraNetworkType.mainnet,
+        networkConfigurations: {},
+        networksMetadata: {},
+        // @ts-expect-error This property isn't used and will get removed later.
+        providerConfig: {},
+      },
       [],
     );
 
@@ -1128,12 +1144,13 @@ describe('TokenListController', () => {
 
       controllerMessenger.publish(
         'NetworkController:stateChange',
-        buildNetworkControllerStateWithProviderConfig({
-          type: NetworkType.rpc,
-          chainId: toHex(56),
-          rpcUrl: 'http://localhost:8545',
-          ticker: 'TEST',
-        }),
+        {
+          selectedNetworkClientId: selectedCustomNetworkClientId,
+          networkConfigurations: {},
+          networksMetadata: {},
+          // @ts-expect-error This property isn't used and will get removed later.
+          providerConfig: {},
+        },
         [],
       );
     });

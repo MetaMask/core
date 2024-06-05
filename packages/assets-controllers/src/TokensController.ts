@@ -260,11 +260,16 @@ export class TokensController extends BaseController<
    * Handles the event when the network changes.
    *
    * @param networkState - The changed network state.
-   * @param networkState.providerConfig - RPC URL and network name provider settings of the currently connected network
+   * @param networkState.selectedNetworkClientId - The ID of the currently
+   * selected network client.
    */
-  #onNetworkDidChange({ providerConfig }: NetworkState) {
+  #onNetworkDidChange({ selectedNetworkClientId }: NetworkState) {
+    const selectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId } = providerConfig;
+    const { chainId } = selectedNetworkClient.configuration;
     this.#abortController.abort();
     this.#abortController = new AbortController();
     this.#chainId = chainId;
