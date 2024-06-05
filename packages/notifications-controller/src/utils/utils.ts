@@ -7,7 +7,7 @@ import {
 } from '../constants/constants';
 import {
   TriggerType,
-  TriggerTypeGroups,
+  TriggerTypeGroup,
   TRIGGERS,
 } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
@@ -63,18 +63,18 @@ const triggerIdentity = (trigger: NotificationTrigger): NotificationTrigger =>
  * @param type - The trigger type to be categorized.
  * @returns The group to which the trigger type belongs.
  */
-const groupTriggerTypes = (type: TriggerType): TriggerTypeGroups => {
+const groupTriggerTypes = (type: TriggerType): TriggerTypeGroup => {
   switch (type) {
     case TriggerType.Erc20Received:
     case TriggerType.EthReceived:
     case TriggerType.Erc721Received:
     case TriggerType.Erc1155Received:
-      return TriggerTypeGroups.received;
+      return TriggerTypeGroup.Received;
     case TriggerType.Erc20Sent:
     case TriggerType.EthSent:
     case TriggerType.Erc721Sent:
     case TriggerType.Erc1155Sent:
-      return TriggerTypeGroups.sent;
+      return TriggerTypeGroup.Sent;
     case TriggerType.MetamaskSwapCompleted:
     case TriggerType.RocketpoolStakeCompleted:
     case TriggerType.RocketpoolUnstakeCompleted:
@@ -82,7 +82,7 @@ const groupTriggerTypes = (type: TriggerType): TriggerTypeGroups => {
     case TriggerType.LidoWithdrawalRequested:
     case TriggerType.LidoWithdrawalCompleted:
     default:
-      return TriggerTypeGroups.defi;
+      return TriggerTypeGroup.Defi;
   }
 };
 
@@ -196,29 +196,29 @@ export function traverseUserStorageTriggers<
  */
 export function checkTriggersPresenceByGroup(
   userStorage: UserStorage,
-): Record<TriggerTypeGroups, boolean> {
+): Record<TriggerTypeGroup, boolean> {
   // Initialize a record to track the complete presence of triggers for each group
-  const completeGroupPresence: Record<TriggerTypeGroups, boolean> = {
-    [TriggerTypeGroups.received]: true,
-    [TriggerTypeGroups.sent]: true,
-    [TriggerTypeGroups.defi]: true,
+  const completeGroupPresence: Record<TriggerTypeGroup, boolean> = {
+    [TriggerTypeGroup.Received]: true,
+    [TriggerTypeGroup.Sent]: true,
+    [TriggerTypeGroup.Defi]: true,
   };
 
   // Map to track the required trigger types for each group
-  const requiredTriggersByGroup: Record<TriggerTypeGroups, Set<TriggerType>> = {
-    [TriggerTypeGroups.received]: new Set([
+  const requiredTriggersByGroup: Record<TriggerTypeGroup, Set<TriggerType>> = {
+    [TriggerTypeGroup.Received]: new Set([
       TriggerType.Erc20Received,
       TriggerType.EthReceived,
       TriggerType.Erc721Received,
       TriggerType.Erc1155Received,
     ]),
-    [TriggerTypeGroups.sent]: new Set([
+    [TriggerTypeGroup.Sent]: new Set([
       TriggerType.Erc20Sent,
       TriggerType.EthSent,
       TriggerType.Erc721Sent,
       TriggerType.Erc1155Sent,
     ]),
-    [TriggerTypeGroups.defi]: new Set([
+    [TriggerTypeGroup.Defi]: new Set([
       TriggerType.MetamaskSwapCompleted,
       TriggerType.RocketpoolStakeCompleted,
       TriggerType.RocketpoolUnstakeCompleted,
@@ -232,7 +232,7 @@ export function checkTriggersPresenceByGroup(
   // Object to keep track of encountered triggers for each group by address
   const encounteredTriggers: Record<
     string,
-    Record<TriggerTypeGroups, Set<TriggerType>>
+    Record<TriggerTypeGroup, Set<TriggerType>>
   > = {};
 
   // Use traverseUserStorageTriggers to iterate over all triggers
@@ -241,9 +241,9 @@ export function checkTriggersPresenceByGroup(
       const group = groupTriggerTypes(trigger.kind as TriggerType);
       if (!encounteredTriggers[trigger.address]) {
         encounteredTriggers[trigger.address] = {
-          [TriggerTypeGroups.received]: new Set(),
-          [TriggerTypeGroups.sent]: new Set(),
-          [TriggerTypeGroups.defi]: new Set(),
+          [TriggerTypeGroup.Received]: new Set(),
+          [TriggerTypeGroup.Sent]: new Set(),
+          [TriggerTypeGroup.Defi]: new Set(),
         };
       }
       encounteredTriggers[trigger.address][group].add(
@@ -259,12 +259,12 @@ export function checkTriggersPresenceByGroup(
       ([group, requiredTriggers]) => {
         const hasAllTriggers = Array.from(requiredTriggers).every(
           (triggerType) =>
-            encounteredTriggers[address][group as TriggerTypeGroups].has(
+            encounteredTriggers[address][group as TriggerTypeGroup].has(
               triggerType,
             ),
         );
         if (!hasAllTriggers) {
-          completeGroupPresence[group as TriggerTypeGroups] = false;
+          completeGroupPresence[group as TriggerTypeGroup] = false;
         }
       },
     );

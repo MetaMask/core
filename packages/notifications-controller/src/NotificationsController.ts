@@ -28,7 +28,7 @@ import { isNullOrUndefined } from '@metamask/utils';
 import log from 'loglevel';
 
 import { USER_STORAGE_VERSION_KEY } from './constants';
-import type { TriggerTypeGroups } from './constants/notification-schema';
+import type { TriggerTypeGroup } from './constants/notification-schema';
 import { TriggerType } from './constants/notification-schema';
 import { processNotification } from './processors/process-notifications';
 import * as FeatureNotifications from './services/feature-announcements';
@@ -527,7 +527,7 @@ export class NotificationsController extends BaseController<
    * @throws {Error} If user storage does not exist.
    */
   async checkTriggersPresenceByGroup(): Promise<
-    Record<TriggerTypeGroups, boolean>
+    Record<TriggerTypeGroup, boolean>
   > {
     const userStorage = await this.#getUserStorage();
     this.#assertUserStorage(userStorage);
