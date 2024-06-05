@@ -75,7 +75,7 @@ export type Trigger = {
   supported_chains: (typeof SUPPORTED_CHAINS)[number][];
 };
 
-export const TRIGGERS: Partial<Record<TriggerType, Trigger>> = {
+export const TRIGGERS = {
   [TriggerType.MetamaskSwapCompleted]: {
     supported_chains: [
       NOTIFICATION_CHAINS.ETHEREUM,
