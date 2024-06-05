@@ -1,5 +1,5 @@
 import { createMockInternalAccount } from '@metamask/accounts-controller';
-import { query } from '@metamask/controller-utils';
+import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type { InternalAccount } from '@metamask/keyring-api';
 import * as sinon from 'sinon';
@@ -15,8 +15,10 @@ jest.mock('@metamask/controller-utils', () => {
 });
 
 const ADDRESS_1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+const CHECKSUM_ADDRESS_1 = toChecksumHexAddress(ADDRESS_1);
 const ACCOUNT_1 = createMockInternalAccount({ address: ADDRESS_1 });
 const ADDRESS_2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+const CHECKSUM_ADDRESS_2 = toChecksumHexAddress(ADDRESS_2);
 const ACCOUNT_2 = createMockInternalAccount({ address: ADDRESS_2 });
 
 const mockedQuery = query as jest.Mock<
@@ -114,13 +116,21 @@ describe('AccountTrackerController', () => {
 
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
-        const bazAccount = createMockInternalAccount({ address: 'baz' });
-        const barAccount = createMockInternalAccount({ address: 'bar' });
+        const mockAddress1 = '0xbabe9bbeab5f83a755ac92c7a09b9ab3ff527f8c';
+        const checksumAddress1 = toChecksumHexAddress(mockAddress1);
+        const mockAddress2 = '0xeb9b5bd1db51ce4cb6c91dc5fb5d9beca9ff99f4';
+        const checksumAddress2 = toChecksumHexAddress(mockAddress2);
+        const mockAccount1 = createMockInternalAccount({
+          address: mockAddress1,
+        });
+        const mockAccount2 = createMockInternalAccount({
+          address: mockAddress2,
+        });
         const controller = new AccountTrackerController(
           {
             onSelectedAccountChange: sinon.stub(),
-            getInternalAccounts: () => [bazAccount, barAccount],
-            getSelectedAccount: () => barAccount,
+            getInternalAccounts: () => [mockAccount1, mockAccount2],
+            getSelectedAccount: () => mockAccount1,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
@@ -128,16 +138,16 @@ describe('AccountTrackerController', () => {
           { provider },
           {
             accounts: {
-              bar: { balance: '0x1' },
+              [checksumAddress1]: { balance: '0x1' },
               foo: { balance: '0x2' },
             },
             accountsByChainId: {
               '0x1': {
-                bar: { balance: '0x1' },
+                [checksumAddress1]: { balance: '0x1' },
                 foo: { balance: '0x2' },
               },
               '0x2': {
-                bar: { balance: '0xa' },
+                [checksumAddress1]: { balance: '0xa' },
                 foo: { balance: '0xb' },
               },
             },
@@ -146,17 +156,17 @@ describe('AccountTrackerController', () => {
         await controller.refresh();
         expect(controller.state).toStrictEqual({
           accounts: {
-            bar: { balance: '0x0' },
-            baz: { balance: '0x0' },
+            [checksumAddress1]: { balance: '0x0' },
+            [checksumAddress2]: { balance: '0x0' },
           },
           accountsByChainId: {
             '0x1': {
-              bar: { balance: '0x0' },
-              baz: { balance: '0x0' },
+              [checksumAddress1]: { balance: '0x0' },
+              [checksumAddress2]: { balance: '0x0' },
             },
             '0x2': {
-              bar: { balance: '0xa' },
-              baz: { balance: '0x0' },
+              [checksumAddress1]: { balance: '0xa' },
+              [checksumAddress2]: { balance: '0x0' },
             },
           },
         });
@@ -181,13 +191,13 @@ describe('AccountTrackerController', () => {
 
         expect(controller.state).toStrictEqual({
           accounts: {
-            [ADDRESS_1]: {
+            [CHECKSUM_ADDRESS_1]: {
               balance: '0x10',
             },
           },
           accountsByChainId: {
             '0x1': {
-              [ADDRESS_1]: {
+              [CHECKSUM_ADDRESS_1]: {
                 balance: '0x10',
               },
             },
@@ -216,13 +226,13 @@ describe('AccountTrackerController', () => {
 
         expect(controller.state).toStrictEqual({
           accounts: {
-            [ADDRESS_1]: { balance: '0x10' },
-            [ADDRESS_2]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
           },
           accountsByChainId: {
             '0x1': {
-              [ADDRESS_1]: { balance: '0x10' },
-              [ADDRESS_2]: { balance: '0x0' },
+              [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
+              [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
             },
           },
         });
@@ -249,13 +259,13 @@ describe('AccountTrackerController', () => {
 
         expect(controller.state).toStrictEqual({
           accounts: {
-            [ADDRESS_1]: { balance: '0x11' },
-            [ADDRESS_2]: { balance: '0x12' },
+            [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
           },
           accountsByChainId: {
             '0x1': {
-              [ADDRESS_1]: { balance: '0x11' },
-              [ADDRESS_2]: { balance: '0x12' },
+              [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
+              [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
             },
           },
         });
@@ -264,13 +274,21 @@ describe('AccountTrackerController', () => {
 
     describe('with networkClientId', () => {
       it('should sync addresses', async () => {
-        const bazAccount = createMockInternalAccount({ address: 'baz' });
-        const barAccount = createMockInternalAccount({ address: 'bar' });
+        const mockAddress1 = '0xbabe9bbeab5f83a755ac92c7a09b9ab3ff527f8c';
+        const checksumAddress1 = toChecksumHexAddress(mockAddress1);
+        const mockAddress2 = '0xeb9b5bd1db51ce4cb6c91dc5fb5d9beca9ff99f4';
+        const checksumAddress2 = toChecksumHexAddress(mockAddress2);
+        const mockAccount1 = createMockInternalAccount({
+          address: mockAddress1,
+        });
+        const mockAccount2 = createMockInternalAccount({
+          address: mockAddress2,
+        });
         const controller = new AccountTrackerController(
           {
             onSelectedAccountChange: sinon.stub(),
-            getInternalAccounts: () => [bazAccount, barAccount],
-            getSelectedAccount: () => bazAccount,
+            getInternalAccounts: () => [mockAccount1, mockAccount2],
+            getSelectedAccount: () => mockAccount1,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn().mockReturnValue({
@@ -283,16 +301,16 @@ describe('AccountTrackerController', () => {
           {},
           {
             accounts: {
-              bar: { balance: '0x1' },
+              [checksumAddress1]: { balance: '0x1' },
               foo: { balance: '0x2' },
             },
             accountsByChainId: {
               '0x1': {
-                bar: { balance: '0x1' },
+                [checksumAddress1]: { balance: '0x1' },
                 foo: { balance: '0x2' },
               },
               '0x2': {
-                bar: { balance: '0xa' },
+                [checksumAddress1]: { balance: '0xa' },
                 foo: { balance: '0xb' },
               },
             },
@@ -301,21 +319,21 @@ describe('AccountTrackerController', () => {
         await controller.refresh('networkClientId1');
         expect(controller.state).toStrictEqual({
           accounts: {
-            bar: { balance: '0x1' },
-            baz: { balance: '0x0' },
+            [checksumAddress1]: { balance: '0x1' },
+            [checksumAddress2]: { balance: '0x0' },
           },
           accountsByChainId: {
             '0x1': {
-              bar: { balance: '0x1' },
-              baz: { balance: '0x0' },
+              [checksumAddress1]: { balance: '0x1' },
+              [checksumAddress2]: { balance: '0x0' },
             },
             '0x2': {
-              bar: { balance: '0xa' },
-              baz: { balance: '0x0' },
+              [checksumAddress1]: { balance: '0xa' },
+              [checksumAddress2]: { balance: '0x0' },
             },
             '0x5': {
-              bar: { balance: '0x0' },
-              baz: { balance: '0x0' },
+              [checksumAddress1]: { balance: '0x0' },
+              [checksumAddress2]: { balance: '0x0' },
             },
           },
         });
@@ -342,18 +360,18 @@ describe('AccountTrackerController', () => {
 
         expect(controller.state).toStrictEqual({
           accounts: {
-            [ADDRESS_1]: {
+            [CHECKSUM_ADDRESS_1]: {
               balance: '0x0',
             },
           },
           accountsByChainId: {
             '0x1': {
-              [ADDRESS_1]: {
+              [CHECKSUM_ADDRESS_1]: {
                 balance: '0x0',
               },
             },
             '0x5': {
-              [ADDRESS_1]: {
+              [CHECKSUM_ADDRESS_1]: {
                 balance: '0x10',
               },
             },
@@ -386,17 +404,17 @@ describe('AccountTrackerController', () => {
 
         expect(controller.state).toStrictEqual({
           accounts: {
-            [ADDRESS_1]: { balance: '0x0' },
-            [ADDRESS_2]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
           },
           accountsByChainId: {
             '0x1': {
-              [ADDRESS_1]: { balance: '0x0' },
-              [ADDRESS_2]: { balance: '0x0' },
+              [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+              [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
             },
             '0x5': {
-              [ADDRESS_1]: { balance: '0x10' },
-              [ADDRESS_2]: { balance: '0x0' },
+              [CHECKSUM_ADDRESS_1]: { balance: '0x10' },
+              [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
             },
           },
         });
@@ -427,17 +445,17 @@ describe('AccountTrackerController', () => {
 
         expect(controller.state).toStrictEqual({
           accounts: {
-            [ADDRESS_1]: { balance: '0x0' },
-            [ADDRESS_2]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
           },
           accountsByChainId: {
             '0x1': {
-              [ADDRESS_1]: { balance: '0x0' },
-              [ADDRESS_2]: { balance: '0x0' },
+              [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+              [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
             },
             '0x5': {
-              [ADDRESS_1]: { balance: '0x11' },
-              [ADDRESS_2]: { balance: '0x12' },
+              [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
+              [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
             },
           },
         });

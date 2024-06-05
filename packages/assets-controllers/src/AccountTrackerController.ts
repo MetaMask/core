@@ -1,6 +1,10 @@
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { query, safelyExecuteWithTimeout } from '@metamask/controller-utils';
+import {
+  query,
+  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
 import { type InternalAccount } from '@metamask/keyring-api';
@@ -82,8 +86,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     }
 
     const addresses = Object.values(
-      this.getInternalAccounts().map(
-        (internalAccount) => internalAccount.address,
+      this.getInternalAccounts().map((internalAccount) =>
+        toChecksumHexAddress(internalAccount.address),
       ),
     );
     const newAddresses = addresses.filter(
@@ -271,7 +275,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
         ? Object.keys(accounts)
-        : [selectedAccount.address];
+        : [toChecksumHexAddress(selectedAccount.address)];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
