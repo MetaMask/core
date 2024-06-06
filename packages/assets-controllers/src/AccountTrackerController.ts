@@ -1,5 +1,14 @@
-import type { AccountsController } from '@metamask/accounts-controller';
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import type {
+  AccountsControllerSelectedEvmAccountChangeEvent,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import type {
+  BaseConfig,
+  BaseState,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import {
   query,
   safelyExecuteWithTimeout,
@@ -7,7 +16,6 @@ import {
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
-import { type InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
@@ -18,6 +26,24 @@ import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
+
+const controllerName = 'AccountTrackerController';
+
+export type AllowedActions =
+  | AccountsControllerListAccountsAction
+  | AccountsControllerGetSelectedAccountAction;
+
+export type AllowedEvents =
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerSelectedAccountChangeEvent;
+
+export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * @type AccountInformation
@@ -86,9 +112,11 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     }
 
     const addresses = Object.values(
-      this.getInternalAccounts().map((internalAccount) =>
-        toChecksumHexAddress(internalAccount.address),
-      ),
+      this.messagingSystem
+        .call('AccountsController:listAccounts')
+        .map((internalAccount) =>
+          toChecksumHexAddress(internalAccount.address),
+        ),
     );
     const newAddresses = addresses.filter(
       (address) => !existing.includes(address),
@@ -124,43 +152,33 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    */
   override name = 'AccountTrackerController' as const;
 
-  private readonly getInternalAccounts: AccountsController['listAccounts'];
-
-  private readonly getSelectedAccount: AccountsController['getSelectedAccount'];
-
   private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
   private readonly getCurrentChainId: () => Hex;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
+  private readonly messagingSystem: AccountTrackerControllerMessenger;
+
   /**
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
+   * @param options.messenger - The messaging system used to communicate with other controllers.
    * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
    * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
-   * @param options.onSelectedAccountChange - A function that subscribes to selected account changes.
-   * @param options.getInternalAccounts - A function that returns the internal accounts.
-   * @param options.getSelectedAccount - A function that returns the selected account.
    * @param config - Initial options used to configure this controller.
    * @param state - Initial state to set on this controller.
    */
   constructor(
     {
-      onSelectedAccountChange,
-      getInternalAccounts,
-      getSelectedAccount,
+      messenger,
       getMultiAccountBalancesEnabled,
       getCurrentChainId,
       getNetworkClientById,
     }: {
-      onSelectedAccountChange: (
-        listener: (internalAccount: InternalAccount) => void,
-      ) => void;
-      getInternalAccounts: AccountsController['listAccounts'];
-      getSelectedAccount: AccountsController['getSelectedAccount'];
+      messenger: AccountTrackerControllerMessenger;
       getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
       getCurrentChainId: () => Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -179,16 +197,18 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       },
     };
     this.initialize();
+    this.messagingSystem = messenger;
     this.setIntervalLength(this.config.interval);
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     this.getCurrentChainId = getCurrentChainId;
     this.getNetworkClientById = getNetworkClientById;
-    this.getSelectedAccount = getSelectedAccount;
-    this.getInternalAccounts = getInternalAccounts;
-    onSelectedAccountChange(() => {
-      this.refresh();
-    });
+
     this.poll();
+
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      () => this.refresh(),
+    );
   }
 
   /**
@@ -263,7 +283,9 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * @param networkClientId - Optional networkClientId to fetch a network client with
    */
   refresh = async (networkClientId?: NetworkClientId) => {
-    const selectedAccount = this.getSelectedAccount();
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
     const releaseLock = await this.refreshMutex.acquire();
     try {
       const { chainId, ethQuery } =
