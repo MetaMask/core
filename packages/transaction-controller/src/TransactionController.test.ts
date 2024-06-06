@@ -17,6 +17,7 @@ import {
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
+import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
 import type {
   BlockTracker,
@@ -566,12 +567,14 @@ describe('TransactionController', () => {
    * messenger.
    * @param args.messengerOptions.addTransactionApprovalRequest - Options to mock
    * the `ApprovalController:addRequest` action call for transactions.
+   * @param args.selectedAccount - The selected account to use with the controller.
    * @returns The new TransactionController instance.
    */
   function setupController({
     options: givenOptions = {},
     network = MOCK_NETWORK,
     messengerOptions = {},
+    selectedAccount = INTERNAL_ACCOUNT_MOCK,
   }: {
     options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
     network?: MockNetwork;
@@ -580,6 +583,7 @@ describe('TransactionController', () => {
         typeof mockAddTransactionApprovalRequest
       >[1];
     };
+    selectedAccount?: InternalAccount;
   } = {}) {
     const unrestrictedMessenger: UnrestrictedControllerMessenger =
       new ControllerMessenger();
@@ -624,12 +628,10 @@ describe('TransactionController', () => {
         allowedEvents: [],
       });
 
-    const mockSelectedAccountCall = jest
-      .fn()
-      .mockReturnValue(INTERNAL_ACCOUNT_MOCK);
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     unrestrictedMessenger.registerActionHandler(
       'AccountsController:getSelectedAccount',
-      mockSelectedAccountCall,
+      mockGetSelectedAccount,
     );
 
     const controller = new TransactionController({
@@ -641,7 +643,7 @@ describe('TransactionController', () => {
       controller,
       messenger: unrestrictedMessenger,
       mockTransactionApprovalRequest,
-      mockSelectedAccountCall,
+      mockGetSelectedAccount,
     };
   }
 
