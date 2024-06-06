@@ -453,6 +453,10 @@ export type SendFlowHistoryEntry = {
  * Represents the status of a transaction within the wallet.
  * Each status reflects the state of the transaction internally,
  * with some statuses corresponding to the transaction's state on the network.
+ *
+ * The typical transaction lifecycle follows this state machine:
+ * unapproved -> approved -> signed -> submitted -> FINAL_STATE
+ * where FINAL_STATE is one of: confirmed, failed, dropped, or rejected.
  */
 export enum TransactionStatus {
   /**
