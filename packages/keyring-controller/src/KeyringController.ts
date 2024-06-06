@@ -611,7 +611,7 @@ export class KeyringController extends BaseController<
     });
 
     this.#keyringBuilders = keyringBuilders
-      ? defaultKeyringBuilders.concat(keyringBuilders)
+      ? keyringBuilders.concat(defaultKeyringBuilders)
       : defaultKeyringBuilders;
 
     this.#encryptor = encryptor;

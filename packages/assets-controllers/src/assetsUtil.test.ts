@@ -510,7 +510,6 @@ describe('assetsUtil', () => {
       jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
         [testTokenAddress]: {
           tokenAddress: testTokenAddress,
-          value: 0.0004588648479937523,
           currency: testNativeCurrency,
           allTimeHigh: 4000,
           allTimeLow: 900,
