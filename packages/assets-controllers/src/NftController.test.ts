@@ -3024,6 +3024,7 @@ describe('NftController', () => {
       const {
         nftController,
         triggerPreferencesStateChange,
+        triggerSelectedAccountChange,
         getInternalAccountMock,
       } = setupController({
         options: {
@@ -3032,6 +3033,7 @@ describe('NftController', () => {
         },
       });
       getInternalAccountMock.mockReturnValue(OWNER_ACCOUNT);
+      triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
         isIpfsGatewayEnabled: false,
