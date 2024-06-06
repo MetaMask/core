@@ -335,24 +335,6 @@ const MOCK_NETWORK: MockNetwork = {
   },
   subscribe: () => undefined,
 };
-const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
-  provider: HTTP_PROVIDERS.palm,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.palm),
-  state: {
-    selectedNetworkClientId: NetworkType.goerli,
-    networksMetadata: {
-      [NetworkType.goerli]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.goerli,
-    } as NetworkState['providerConfig'],
-    networkConfigurations: {},
-  },
-  subscribe: () => undefined,
-};
 const MOCK_MAINNET_NETWORK: MockNetwork = {
   provider: HTTP_PROVIDERS.mainnet,
   blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
