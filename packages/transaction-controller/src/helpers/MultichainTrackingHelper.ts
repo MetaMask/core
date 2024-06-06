@@ -190,7 +190,7 @@ export class MultichainTrackingHelper {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   } = {}): EthQuery | undefined {
-    if (!networkClientId && !chainId) {
+    if (!networkClientId && !chainId || !this.#isMultichainEnabled) {
       const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
       return globalProvider ? new EthQuery(globalProvider) : undefined;
     }
