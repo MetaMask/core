@@ -1,4 +1,4 @@
-import { isValidHexAddress } from '@metamask/controller-utils';
+import { isValidHexAddress, toHex } from '@metamask/controller-utils';
 import {
   TYPED_MESSAGE_SCHEMA,
   typedSignatureHash,
@@ -10,7 +10,10 @@ import { validate } from 'jsonschema';
 import type { DecryptMessageParams } from './DecryptMessageManager';
 import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
 import type { PersonalMessageParams } from './PersonalMessageManager';
-import type { TypedMessageParams } from './TypedMessageManager';
+import type {
+  TypedMessageParams,
+  SignTypedDataMessageV3V4,
+} from './TypedMessageManager';
 
 const hexRe = /^[0-9A-Fa-f]+$/gu;
 /**
@@ -179,4 +182,84 @@ export function validateDecryptedMessageData(
 ) {
   const { from } = messageData;
   validateAddress(from, 'from');
+}
+
+/**
+ * Normalizes the messageData for the eth_signTypedData
+ *
+ * @param messageData - The messageData to normalize.
+ * @returns The normalized messageData.
+ */
+export function normalizeEIP712TypedMessageData(
+  messageData: TypedMessageParams['data'],
+): TypedMessageParams['data'] {
+  const data = parseMessageDataForEIP712Normalization(messageData);
+
+  const { verifyingContract } = data.domain;
+
+  if (verifyingContract) {
+    data.domain.verifyingContract = normalizeAddress(
+      verifyingContract as string,
+    );
+  }
+
+  return data;
+}
+
+/**
+ * Parses the messageData to obtain the data object for EIP712 normalization
+ *
+ * @param data - The messageData to parse.
+ * @returns The data object for EIP712 normalization.
+ */
+function parseMessageDataForEIP712Normalization(
+  data: TypedMessageParams['data'],
+): SignTypedDataMessageV3V4 {
+  let parsedData;
+  if (typeof data === 'string') {
+    try {
+      parsedData = JSON.parse(data);
+    } catch (e) {
+      throw new Error(
+        `Invalid message "data" for normalization. data: ${data}`,
+      );
+    }
+  } else {
+    parsedData = data;
+  }
+
+  if (Array.isArray(parsedData)) {
+    throw new Error(`Provided message "data" is an array.`);
+  }
+
+  return parsedData;
+}
+
+/**
+ * Normalizes the address to a hexadecimal format
+ *
+ * @param address - The address to normalize.
+ * @returns The normalized address.
+ */
+function normalizeAddress(address: string): string {
+  if (isValidHexAddress(address)) {
+    return address;
+  }
+
+  // Check if the address is in octal format, convert to hexadecimal
+  if (address.startsWith('0o')) {
+    // If octal, convert to hexadecimal
+    const decimalAddress = parseInt(address.slice(2), 8).toString(16);
+    return add0x(decimalAddress);
+  }
+
+  // Check if the address is in decimal format, convert to hexadecimal
+  const parsedAddress = parseInt(address, 10);
+  if (!isNaN(parsedAddress)) {
+    return toHex(address);
+  }
+  // Return the original address without normalization
+  console.info(`Invalid address format. ${address}`);
+
+  return address;
 }

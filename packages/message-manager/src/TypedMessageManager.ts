@@ -7,9 +7,11 @@ import type {
   OriginalRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
+import { typedMessageManagerLogger as log } from './logger';
 import {
   validateTypedSignMessageDataV1,
   validateTypedSignMessageDataV3V4,
+  normalizeEIP712TypedMessageData,
 } from './utils';
 
 /**
@@ -120,6 +122,12 @@ export class TypedMessageManager extends AbstractMessageManager<
     if (version === 'V3' || version === 'V4') {
       const currentChainId = this.getCurrentChainId?.();
       validateTypedSignMessageDataV3V4(messageParams, currentChainId);
+    }
+
+    try {
+      messageParams.data = normalizeEIP712TypedMessageData(messageParams.data);
+    } catch (e) {
+      log(`Data normalization failed, ${e}`);
     }
 
     if (
