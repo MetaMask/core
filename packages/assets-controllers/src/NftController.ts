@@ -1556,13 +1556,7 @@ export class NftController extends BaseController<
       userAddress,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {},
   ) {
-    const userAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const addressToSearch = userAddress || userAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const chainId = this.#getCorrectChainId({ networkClientId });
     const checksumHexAddress = toChecksumHexAddress(address);
     this.#removeIndividualNft(checksumHexAddress, tokenId, {
