@@ -225,7 +225,7 @@ describe('SelectedNetworkController', () => {
     });
   });
 
-  describe('It updates domain state when the network controller state changes', () => {
+  describe('networkController:stateChange and useRequestQueuePreference is true', () => {
     describe('when a networkClient is deleted from the network controller state', () => {
       it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
         const { controller, messenger } = setup({
@@ -236,6 +236,7 @@ describe('SelectedNetworkController', () => {
               'test.com': 'test-network-client-id',
             },
           },
+          useRequestQueuePreference: true,
         });
 
         messenger.publish(
@@ -263,18 +264,10 @@ describe('SelectedNetworkController', () => {
     afterEach(() => {
       jest.clearAllMocks();
     });
-    it('should throw an error when passed "metamask" as domain arg', () => {
-      const { controller } = setup();
-      expect(() => {
-        controller.setNetworkClientIdForDomain('metamask', 'mainnet');
-      }).toThrow(
-        'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
-      );
-      expect(controller.state.domains.metamask).toBeUndefined();
-    });
+
     describe('when the useRequestQueue is false', () => {
       describe('when the requesting domain is not metamask', () => {
-        it('updates the networkClientId for domain in state', () => {
+        it('skips setting the networkClientId for the passed in domain', () => {
           const { controller } = setup({
             state: {
               domains: {
@@ -291,14 +284,24 @@ describe('SelectedNetworkController', () => {
             controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
           );
 
-          expect(controller.state.domains['1.com']).toBe('1');
-          expect(controller.state.domains['2.com']).toBe('2');
-          expect(controller.state.domains['3.com']).toBe('3');
+          expect(controller.state.domains).toStrictEqual({
+            '1.com': 'mainnet',
+            '2.com': 'mainnet',
+            '3.com': 'mainnet',
+          });
         });
       });
     });
-
     describe('when the useRequestQueue is true', () => {
+      it('should throw an error when passed "metamask" as domain arg', () => {
+        const { controller } = setup({ useRequestQueuePreference: true });
+        expect(() => {
+          controller.setNetworkClientIdForDomain('metamask', 'mainnet');
+        }).toThrow(
+          'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
+        );
+        expect(controller.state.domains.metamask).toBeUndefined();
+      });
       describe('when the requesting domain is a snap (starts with "npm:" or "local:"', () => {
         it('skips setting the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
@@ -377,6 +380,7 @@ describe('SelectedNetworkController', () => {
         it('throw an error and does not set the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
             state: { domains: {} },
+            useRequestQueuePreference: true,
           });
           mockHasPermissions.mockReturnValue(false);
 
@@ -742,11 +746,12 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('Constructor checks for domains in permissions', () => {
-    it('should set networkClientId for domains not already in state', async () => {
+    it('should set networkClientId for domains not already in state when useRequestQueuePreference is true', async () => {
       const getSubjectNamesMock = ['newdomain.com'];
       const { controller } = setup({
         state: { domains: {} },
         getSubjectNames: getSubjectNamesMock,
+        useRequestQueuePreference: true,
       });
 
       // Now, 'newdomain.com' should have the selectedNetworkClientId set
