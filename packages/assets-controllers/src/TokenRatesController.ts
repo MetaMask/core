@@ -40,7 +40,11 @@ import type {
  * @property address - Hex address of the token contract
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
+ * @property aggregators - Token aggregators
  * @property image - Image of the token, url or bit32 image
+ * @property hasBalanceError - An error while updating the token balance
+ * @property isERC721 - Is this a ERC 721 token
+ * @property name - Name of the token
  */
 
 export type Token = {
