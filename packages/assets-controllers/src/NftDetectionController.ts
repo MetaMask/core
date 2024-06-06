@@ -512,7 +512,7 @@ export class NftDetectionController extends BaseController<
 
     const { isNftFetchingInProgress } = this.#getNftState();
 
-    if (isNftFetchingInProgress.isFetchingInProgress) {
+    if (isNftFetchingInProgress[userAddress]?.[chainId].isFetchingInProgress) {
       return;
     }
 
