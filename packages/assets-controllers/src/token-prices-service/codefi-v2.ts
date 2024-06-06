@@ -215,6 +215,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x504',
   // Moonriver
   '0x505',
+  // Mantle
+  '0x1388',
   // Base
   '0x2105',
   // Shiden
