@@ -201,7 +201,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
   TokenRatesControllerState,
   TokenRatesControllerMessenger
 > {
-  private handle?: ReturnType<typeof setTimeout>;
+  #handle?: ReturnType<typeof setTimeout>;
 
   #pollState = PollState.Inactive;
 
@@ -430,8 +430,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * Clear the active polling timer, if present.
    */
   #stopPoll() {
-    if (this.handle) {
-      clearTimeout(this.handle);
+    if (this.#handle) {
+      clearTimeout(this.#handle);
     }
   }
 
@@ -443,7 +443,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
 
     // Poll using recursive `setTimeout` instead of `setInterval` so that
     // requests don't stack if they take longer than the polling interval
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       this.#poll();
     }, this.#interval);
   }
