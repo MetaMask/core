@@ -1380,7 +1380,7 @@ describe('NftController', () => {
         nftController.state.allNfts[selectedAddress][ChainId.mainnet][0],
       ).toStrictEqual({
         address: ERC721_KUDOSADDRESS,
-        image: 'Kudos Image (directly from tokenURI)',
+        image: 'url',
         name: 'Kudos Name (directly from tokenURI)',
         description: 'Kudos Description (directly from tokenURI)',
         tokenId: ERC721_KUDOS_TOKEN_ID,
@@ -3916,6 +3916,109 @@ describe('NftController', () => {
       });
 
       expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call getNftInformation only one time per interval', async () => {
+      const tokenURI = 'https://api.pudgypenguins.io/lil/4';
+      const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
+      const { nftController, triggerPreferencesStateChange } = setupController({
+        options: {
+          getERC721TokenURI: mockGetERC721TokenURI,
+        },
+      });
+      const selectedAddress = OWNER_ADDRESS;
+      const spy = jest.spyOn(nftController, 'updateNft');
+      const testNetworkClientId = 'sepolia';
+      await nftController.addNft('0xtest', '3', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+        networkClientId: testNetworkClientId,
+      });
+
+      nock('https://api.pudgypenguins.io/lil').get('/4').reply(200, {
+        name: 'name pudgy',
+        image: 'url pudgy',
+        description: 'description pudgy',
+      });
+      const testInputNfts: Nft[] = [
+        {
+          address: '0xtest',
+          description: null,
+          favorite: false,
+          image: null,
+          isCurrentlyOwned: true,
+          name: null,
+          standard: 'ERC721',
+          tokenId: '3',
+          tokenURI: 'https://api.pudgypenguins.io/lil/4',
+        },
+      ];
+
+      // Make first call to updateNftMetadata should trigger state update
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      expect(
+        nftController.state.allNfts[selectedAddress][SEPOLIA.chainId][0],
+      ).toStrictEqual({
+        address: '0xtest',
+        description: 'description pudgy',
+        image: 'url pudgy',
+        name: 'name pudgy',
+        tokenId: '3',
+        standard: 'ERC721',
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: 'https://api.pudgypenguins.io/lil/4',
+      });
+
+      spy.mockClear();
+
+      // trigger calling updateNFTMetadata again on the same account should not trigger state update
+      const spy2 = jest.spyOn(nftController, 'updateNft');
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts,
+        networkClientId: testNetworkClientId,
+      });
+      // No updates to state should be made
+      expect(spy2).toHaveBeenCalledTimes(0);
+
+      // trigger preference change and change selectedAccount
+      const testNewAccountAddress = 'OxDifferentAddress';
+      triggerPreferencesStateChange({
+        ...getDefaultPreferencesState(),
+        selectedAddress: testNewAccountAddress,
+      });
+
+      spy.mockClear();
+      await nftController.addNft('0xtest', '4', {
+        nftMetadata: { name: '', description: '', image: '', standard: '' },
+        networkClientId: testNetworkClientId,
+      });
+
+      const testInputNfts2: Nft[] = [
+        {
+          address: '0xtest',
+          description: null,
+          favorite: false,
+          image: null,
+          isCurrentlyOwned: true,
+          name: null,
+          standard: 'ERC721',
+          tokenId: '4',
+          tokenURI: 'https://api.pudgypenguins.io/lil/4',
+        },
+      ];
+
+      const spy3 = jest.spyOn(nftController, 'updateNft');
+      await nftController.updateNftMetadata({
+        nfts: testInputNfts2,
+        networkClientId: testNetworkClientId,
+      });
+      // When the account changed, and updateNftMetadata is called state update should be triggered
+      expect(spy3).toHaveBeenCalledTimes(1);
     });
   });
 });
