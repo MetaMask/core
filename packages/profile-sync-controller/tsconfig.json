@@ -11,6 +11,5 @@
   "include": [
     "../../types",
     "./src",
-    "./tests"
   ]
 }

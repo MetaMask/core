@@ -80,6 +80,10 @@ describe('PushPlatformNotificationsServices', () => {
       jest.clearAllMocks();
     });
 
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
     it('should append registration token when enabling push', async () => {
       jest
         .spyOn(services, 'activatePushNotifications')
@@ -166,15 +170,15 @@ describe('PushPlatformNotificationsServices', () => {
 
       expect(res).toBe(false);
     });
-
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
   });
 
   describe('updateTriggerPushNotifications()', () => {
     beforeEach(() => {
       jest.clearAllMocks();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
     });
 
     it('should update triggers for push notifications', async () => {
@@ -211,10 +215,6 @@ describe('PushPlatformNotificationsServices', () => {
         isTriggersLinkedToPushNotifications: false,
         fcmToken: undefined,
       });
-    });
-
-    afterEach(() => {
-      jest.restoreAllMocks();
     });
   });
 });

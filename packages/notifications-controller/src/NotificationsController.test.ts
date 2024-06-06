@@ -11,12 +11,12 @@ import type {
 } from '@metamask/keyring-controller';
 import { MOCK_ACCESS_TOKEN } from '@metamask/profile-sync-controller';
 import type {
-  AuthenticationControllerGetBearerToken,
-  AuthenticationControllerIsSignedIn,
-  UserStorageControllerGetStorageKey,
-  UserStorageControllerPerformGetStorage,
-  UserStorageControllerPerformSetStorage,
-  UserStorageControllerEnableProfileSyncing,
+  AuthenticationControllerGetBearerTokenAction,
+  AuthenticationControllerIsSignedInAction,
+  UserStorageControllerGetStorageKeyAction,
+  UserStorageControllerPerformGetStorageAction,
+  UserStorageControllerPerformSetStorageAction,
+  UserStorageControllerEnableProfileSyncingAction,
 } from '@metamask/profile-sync-controller';
 import type {
   PushPlatformNotificationsControllerEnablePushNotifications,
@@ -442,16 +442,13 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     const result = await controller.fetchAndUpdateMetamaskNotifications();
 
-    // Should have 1 feature announcement and 1 wallet notification
     expect(result).toHaveLength(2);
     expect(
       result.find(
         (n) => n.id === mockFeatureAnnouncementAPIResult.items?.[0].fields.id,
       ),
     ).toBeDefined();
-    expect(result.find((n) => n.id === mockListNotificationsAPIResult[0].id));
 
-    // State is also updated
     expect(controller.state.metamaskNotificationsList).toHaveLength(2);
   });
 
@@ -698,12 +695,14 @@ function mockNotificationMessenger() {
     typedMockAction<KeyringControllerGetAccountsAction>().mockResolvedValue([]);
 
   const mockGetBearerToken =
-    typedMockAction<AuthenticationControllerGetBearerToken>().mockResolvedValue(
+    typedMockAction<AuthenticationControllerGetBearerTokenAction>().mockResolvedValue(
       MOCK_ACCESS_TOKEN,
     );
 
   const mockIsSignedIn =
-    typedMockAction<AuthenticationControllerIsSignedIn>().mockReturnValue(true);
+    typedMockAction<AuthenticationControllerIsSignedInAction>().mockReturnValue(
+      true,
+    );
 
   const mockDisablePushNotifications =
     typedMockAction<PushPlatformNotificationsControllerDisablePushNotifications>();
@@ -715,20 +714,20 @@ function mockNotificationMessenger() {
     typedMockAction<PushPlatformNotificationsControllerUpdateTriggerPushNotifications>();
 
   const mockGetStorageKey =
-    typedMockAction<UserStorageControllerGetStorageKey>().mockResolvedValue(
+    typedMockAction<UserStorageControllerGetStorageKeyAction>().mockResolvedValue(
       'MOCK_STORAGE_KEY',
     );
 
   const mockEnableProfileSyncing =
-    typedMockAction<UserStorageControllerEnableProfileSyncing>();
+    typedMockAction<UserStorageControllerEnableProfileSyncingAction>();
 
   const mockPerformGetStorage =
-    typedMockAction<UserStorageControllerPerformGetStorage>().mockResolvedValue(
+    typedMockAction<UserStorageControllerPerformGetStorageAction>().mockResolvedValue(
       JSON.stringify(createMockFullUserStorage()),
     );
 
   const mockPerformSetStorage =
-    typedMockAction<UserStorageControllerPerformSetStorage>();
+    typedMockAction<UserStorageControllerPerformSetStorageAction>();
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType] = args;

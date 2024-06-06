@@ -29,10 +29,6 @@ describe('metamask-notifications/utils - initializeUserStorage()', () => {
   });
 
   it('returns User Storage with no addresses if none provided', () => {
-    /**
-     *
-     * @param storage
-     */
     function assertEmptyStorage(storage: UserStorage) {
       expect(Object.keys(storage).length === 1).toBe(true);
       expect(USER_STORAGE_VERSION_KEY in storage).toBe(true);

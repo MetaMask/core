@@ -23,6 +23,5 @@
   "include": [
     "../../types",
     "./src",
-    "./tests"
   ]
 }

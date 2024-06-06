@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import log from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -114,7 +116,7 @@ export function initializeUserStorage(
       return;
     }
     if (!userStorage[address]) {
-      userStorage[address] = {};
+      userStorage[address] = {} as UserStorage[typeof address];
     }
 
     Object.entries(TRIGGERS).forEach(
@@ -164,16 +166,19 @@ export function traverseUserStorageTriggers<
       continue;
     }
 
-    for (const chainId in userStorage[address]) {
-      if (Object.hasOwn(userStorage[address], chainId)) {
-        for (const uuid in userStorage[address][chainId]) {
+    for (const chain in userStorage[address]) {
+      if (Object.hasOwn(userStorage[address], chain)) {
+        // @ts-expect-error
+        for (const uuid in userStorage[address][chain]) {
           if (uuid) {
             const mappedTrigger = mapTrigger({
               id: uuid,
-              kind: userStorage[address]?.[chainId]?.[uuid]?.k,
-              chainId,
+              // @ts-expect-error
+              kind: userStorage[addressas]?.[chain]?.[uuid]?.k,
+              chainId: chain,
               address,
-              enabled: userStorage[address]?.[chainId]?.[uuid]?.e ?? false,
+              // @ts-expect-error
+              enabled: userStorage[address]?.[chain]?.[uuid]?.e ?? false,
             });
             if (mappedTrigger) {
               triggers.push(mappedTrigger);

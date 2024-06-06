@@ -54,9 +54,9 @@ describe('PushPlatformNotificationsController', () => {
           mockAuthBearerTokenCall(messenger).mockResolvedValue(
             null as unknown as string,
           );
-          await expect(
-            controller.enablePushNotifications([]),
-          ).rejects.toThrow();
+          await expect(controller.enablePushNotifications([])).rejects.toThrow(
+            'No JWT provided',
+          );
         });
       });
     });
@@ -79,9 +79,9 @@ describe('PushPlatformNotificationsController', () => {
           mockAuthBearerTokenCall(messenger).mockResolvedValue(
             null as unknown as string,
           );
-          await expect(
-            controller.disablePushNotifications([]),
-          ).rejects.toThrow();
+          await expect(controller.disablePushNotifications([])).rejects.toThrow(
+            'No JWT provided',
+          );
         });
       });
     });
