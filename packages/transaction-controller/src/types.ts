@@ -450,39 +450,79 @@ export type SendFlowHistoryEntry = {
 };
 
 /**
- * The status of the transaction. Each status represents the state of the transaction internally
- * in the wallet. Some of these correspond with the state of the transaction on the network, but
- * some are wallet-specific.
+ * Represents the status of a transaction within the wallet.
+ * Each status reflects the state of the transaction internally,
+ * with some statuses corresponding to the transaction's state on the network.
  */
 export enum TransactionStatus {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  approved = 'approved',
-  /** @deprecated Determined by the clients using the transaction type. No longer used. */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  cancelled = 'cancelled',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  confirmed = 'confirmed',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  dropped = 'dropped',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  failed = 'failed',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  rejected = 'rejected',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  signed = 'signed',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  submitted = 'submitted',
+  /**
+   * The initial state of a transaction before user approval.
+   */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   unapproved = 'unapproved',
+
+  /**
+   * The transaction has been approved by the user but is not yet signed.
+   * This status is usually brief but may be longer for scenarios like hardware wallet usage.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  approved = 'approved',
+
+  /**
+   * The transaction is signed and in the process of being submitted to the network.
+   * This status is typically short-lived but can be longer for certain cases, such as smart transactions.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  signed = 'signed',
+
+  /**
+   * The transaction has been submitted to the network and is awaiting confirmation.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  submitted = 'submitted',
+
+  /**
+   * The transaction has been successfully executed and confirmed on the blockchain.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  confirmed = 'confirmed',
+
+  /**
+   * The transaction encountered an error during execution on the blockchain and failed.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  failed = 'failed',
+
+  /**
+   * The transaction was superseded by another transaction, resulting in its dismissal.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  dropped = 'dropped',
+
+  /**
+   * The transaction was rejected by the user and not processed further.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  rejected = 'rejected',
+
+  /**
+   * @deprecated This status is no longer used.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  cancelled = 'cancelled',
 }
 
 /**
