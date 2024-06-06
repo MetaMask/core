@@ -1691,7 +1691,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -1741,7 +1741,7 @@ __metadata:
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
     "@metamask/preferences-controller": ^13.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
@@ -2380,7 +2380,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": ^3.0.4
     "@metamask/auto-changelog": ^3.4.4
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2595,7 +2595,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": ^4.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/json-rpc-engine": ^9.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -2686,7 +2686,7 @@ __metadata:
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
     "@metamask/json-rpc-engine": ^9.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/utils": ^8.3.0
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^27.4.1
@@ -2886,7 +2886,7 @@ __metadata:
     "@metamask/controller-utils": ^11.0.0
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/network-controller": ^19.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/selected-network-controller": ^15.0.1
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
@@ -2913,7 +2913,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2932,6 +2932,16 @@ __metadata:
     "@metamask/utils": ^8.3.0
     fast-safe-stringify: ^2.0.6
   checksum: a9223c3cb9ab05734ea0dda990597f90a7cdb143efa0c026b1a970f2094fe5fa3c341ed39b1e7623be13a96b98fb2c697ef51a2e2b87d8f048114841d35ee0a9
+  languageName: node
+  linkType: hard
+
+"@metamask/rpc-errors@npm:^6.3.0":
+  version: 6.3.0
+  resolution: "@metamask/rpc-errors@npm:6.3.0"
+  dependencies:
+    "@metamask/utils": ^8.3.0
+    fast-safe-stringify: ^2.0.6
+  checksum: de79d132f149cba6d2efcf7b17b93d0bad92c7e5c15b3826f889e0b01979883d71acc4445b781098cee13c3837c807ee56f8b03bce78887f6a6bc95de1adfe9d
   languageName: node
   linkType: hard
 
@@ -2991,7 +3001,7 @@ __metadata:
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/logging-controller": ^5.0.0
     "@metamask/message-manager": ^10.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -3153,7 +3163,7 @@ __metadata:
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
     "@metamask/nonce-tracker": ^5.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
@@ -3194,7 +3204,7 @@ __metadata:
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/rpc-errors": ^6.3.0
     "@metamask/transaction-controller": ^32.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
