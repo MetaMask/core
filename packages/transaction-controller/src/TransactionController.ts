@@ -2,7 +2,10 @@ import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsController,
+} from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -634,6 +637,10 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
+  readonly #getSelectedAccount: () => ReturnType<
+    AccountsController['getSelectedAccount']
+  >;
+
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
@@ -784,6 +791,8 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
+    this.#getSelectedAccount = () =>
+      this.messagingSystem.call('AccountsController:getSelectedAccount');
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -1031,8 +1040,7 @@ export class TransactionController extends BaseController<
     if (origin) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
-        this.messagingSystem.call('AccountsController:getSelectedAccount')
-          .address,
+        this.#getSelectedAccount().address,
         txParams.from,
         origin,
       );
@@ -3426,8 +3434,7 @@ export class TransactionController extends BaseController<
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
-      getCurrentAccount: () =>
-        this.messagingSystem.call('AccountsController:getSelectedAccount'),
+      getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
