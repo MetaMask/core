@@ -349,7 +349,7 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    return this.listAccounts().find(
+    return this.listMultichainAccounts().find(
       (account) => account.address.toLowerCase() === address.toLowerCase(),
     );
   }
