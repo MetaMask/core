@@ -116,11 +116,15 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#blockTracker.addListener('latest', this.#onLatestBlock);
     this.#isRunning = true;
   }
 
   stop() {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#blockTracker.removeListener('latest', this.#onLatestBlock);
     this.#isRunning = false;
   }

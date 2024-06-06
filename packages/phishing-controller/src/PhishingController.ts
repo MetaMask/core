@@ -56,7 +56,11 @@ export type EthPhishingResponse = {
  * @property version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_phishing_detect_config: Record<ListTypes, string[]>;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   phishfort_hotlist: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
@@ -119,6 +123,8 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type DataResultWrapper<T> = {
   data: T;
 };
@@ -489,6 +495,8 @@ export class PhishingController extends BaseController<
       return;
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { phishfort_hotlist, eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 

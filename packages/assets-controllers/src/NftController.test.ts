@@ -889,6 +889,8 @@ describe('NftController', () => {
       });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io', {
         userAddress: SECOND_OWNER_ADDRESS,
       });
@@ -896,6 +898,8 @@ describe('NftController', () => {
       await pendingRequest;
 
       // now accept the request
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept(requestId);
       await acceptedRequest;
 
@@ -987,6 +991,8 @@ describe('NftController', () => {
         selectedAddress: OWNER_ADDRESS,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       nftController.watchNft(ERC721_NFT, ERC721, 'https://etherscan.io', {
         networkClientId: 'goerli',
       });
@@ -1001,6 +1007,8 @@ describe('NftController', () => {
       });
       changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       // now accept the request
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept(requestId);
       await acceptedRequest;
 
@@ -1425,8 +1433,12 @@ describe('NftController', () => {
         .reply(200, {
           name: 'name (directly from tokenURI)',
           description: 'description (directly from tokenURI)',
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           external_link: null,
           image: 'image (directly from tokenURI)',
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           animation_url: null,
         });
 

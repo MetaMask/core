@@ -254,6 +254,8 @@ async function mockAllBlockTrackerRequests({
   nockScope,
   blockNumber = DEFAULT_LATEST_BLOCK_NUMBER,
 }: MockBlockTrackerRequestOptions) {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/await-thenable
   const result = await mockRpcCall({
     nockScope,
     request: { method: 'eth_blockNumber', params: [] },

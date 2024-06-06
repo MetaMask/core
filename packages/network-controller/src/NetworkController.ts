@@ -76,6 +76,8 @@ export type NetworkMetadata = {
   /**
    * EIPs supported by the network.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   EIPS: {
     [eipNumber: number]: boolean;
   };
@@ -125,6 +127,8 @@ type NetworkConfigurations = Record<
  * @returns The keys of an object, typed according to the type of the object
  * itself.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function knownKeysOf<K extends PropertyKey>(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1308,6 +1312,8 @@ export class NetworkController extends BaseController<
           url: referrer,
         },
         properties: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           chain_id: chainId,
           symbol: ticker,
           source,

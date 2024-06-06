@@ -34,7 +34,11 @@ export enum SupportedToken {
   ERC20 = 'erc20',
   ERC721 = 'erc721',
   ERC1155 = 'erc1155',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC20_WRAPPED = 'erc20Wrapped',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC721_LEGACY = 'erc721Legacy',
 }
 

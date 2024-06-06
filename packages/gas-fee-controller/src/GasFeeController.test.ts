@@ -86,6 +86,8 @@ const setupNetworkController = async ({
   if (initializeProvider) {
     // Call this without awaiting to simulate what the extension or mobile app
     // might do
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     networkController.initializeProvider();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through
@@ -292,6 +294,8 @@ describe('GasFeeController', () => {
   afterEach(() => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker?.destroy();
     sinon.restore();
     jest.clearAllMocks();
@@ -541,6 +545,8 @@ describe('GasFeeController', () => {
         },
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await gasFeeController.enableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(false);
@@ -556,6 +562,8 @@ describe('GasFeeController', () => {
         },
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await gasFeeController.disableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(true);

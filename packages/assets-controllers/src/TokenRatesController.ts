@@ -249,6 +249,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       this.configure({ disabled: true }, false, false);
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onPreferencesStateChange(async ({ selectedAddress }) => {
       if (this.config.selectedAddress !== selectedAddress) {
         this.configure({ selectedAddress });
@@ -258,6 +260,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       }
     });
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
       const previousTokenAddresses = this.#getTokenAddresses(
         this.config.chainId,
@@ -272,6 +276,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       }
     });
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     onNetworkStateChange(async ({ selectedNetworkClientId }) => {
       const selectedNetworkClient = getNetworkClientById(
         selectedNetworkClientId,
@@ -347,6 +353,8 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     // Poll using recursive `setTimeout` instead of `setInterval` so that
     // requests don't stack if they take longer than the polling interval
     this.handle = setTimeout(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.#poll();
     }, this.config.interval);
   }

@@ -85,6 +85,8 @@ export const validateGasValues = (
     const value = (gasValues as any)[key];
     if (typeof value !== 'string' || !isStrictHexString(value)) {
       throw new TypeError(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `expected hex string for ${key} but received: ${value}`,
       );
     }
@@ -143,8 +145,9 @@ export function validateIfTransactionUnapproved(
 ) {
   if (transactionMeta?.status !== TransactionStatus.unapproved) {
     throw new Error(
-      `TransactionsController: Can only call ${fnName} on an unapproved transaction.
-      Current tx status: ${transactionMeta?.status}`,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `TransactionsController: Can only call ${fnName} on an unapproved transaction.\nCurrent tx status: ${transactionMeta?.status}`,
     );
   }
 }

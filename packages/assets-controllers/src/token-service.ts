@@ -84,6 +84,8 @@ export async function fetchTokenListByChainId(
  * @param options.timeout - The fetch timeout.
  * @returns The token metadata, or `undefined` if the request was either aborted or failed.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export async function fetchTokenMetadata<T>(
   chainId: Hex,
   tokenAddress: string,
@@ -145,6 +147,8 @@ async function parseJsonResponse(apiResponse: Response): Promise<unknown> {
   const responseObj = await apiResponse.json();
   // api may return errors as json without setting an error http status code
   if (responseObj?.error) {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     throw new Error(`TokenService Error: ${responseObj.error}`);
   }
   return responseObj;

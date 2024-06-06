@@ -176,8 +176,12 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     this.getCurrentChainId = getCurrentChainId;
     this.getNetworkClientById = getNetworkClientById;
     onPreferencesStateChange(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.refresh();
     });
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.poll();
   }
 
@@ -232,6 +236,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     this.handle && clearTimeout(this.handle);
     await this.refresh();
     this.handle = setTimeout(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.poll(this.config.interval);
     }, this.config.interval);
   }
@@ -242,6 +248,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * @param networkClientId - The network client ID used to get balances.
    */
   async _executePoll(networkClientId: string): Promise<void> {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.refresh(networkClientId);
   }
 
