@@ -63,6 +63,7 @@ import {
   type AllowedActions,
   type AllowedEvents,
 } from './NftController';
+import { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -172,6 +173,7 @@ function setupController({
     | ExtractAvailableEvent<NftControllerMessenger>
     | AllowedEvents
     | ExtractAvailableEvent<ApprovalControllerMessenger>
+    | AccountsControllerSelectedAccountChangeEvent
   >();
 
   const getNetworkClientById = buildMockGetNetworkClientById(
@@ -229,6 +231,8 @@ function setupController({
       'NetworkController:getNetworkClientById',
     ],
     allowedEvents: [
+      // @ts-expect-error - Adding this for test
+      'AccountsController:selectedAccountChange',
       'AccountsController:selectedEvmAccountChange',
       'PreferencesController:stateChange',
       'NetworkController:networkDidChange',
@@ -4204,5 +4208,24 @@ describe('NftController', () => {
 
       expect(spy).toHaveBeenCalledTimes(1);
     });
+  });
+
+  // Testing to make sure selectedAccountChange isn't used. This can return non evm accounts.
+  it('triggering selectedAccountChange would not trigger anything', async () => {
+    const tokenURI = 'https://url/';
+    const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
+    const { nftController, messenger } = setupController({
+      options: {
+        openSeaEnabled: true,
+        getERC721TokenURI: mockGetERC721TokenURI,
+      },
+    });
+    const updateNftMetadataSpy = jest.spyOn(nftController, 'updateNftMetadata');
+    messenger.publish(
+      'AccountsController:selectedAccountChange',
+      createMockInternalAccount(),
+    );
+
+    expect(updateNftMetadataSpy).not.toHaveBeenCalled();
   });
 });
