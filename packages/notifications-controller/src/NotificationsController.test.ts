@@ -426,11 +426,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
 
 describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () => {
   it('processes and shows feature announcements and wallet notifications', async () => {
-    const {
-      messenger,
-      mockFeatureAnnouncementAPIResult,
-      mockListNotificationsAPIResult,
-    } = arrangeMocks();
+    const { messenger, mockFeatureAnnouncementAPIResult } = arrangeMocks();
 
     const controller = new NotificationsController({
       messenger,
