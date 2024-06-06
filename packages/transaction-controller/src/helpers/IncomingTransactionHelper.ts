@@ -1,4 +1,4 @@
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { AccountsController } from '@metamask/accounts-controller';
 import type { BlockTracker } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -36,7 +36,9 @@ export class IncomingTransactionHelper {
 
   #blockTracker: BlockTracker;
 
-  #getCurrentAccount: () => InternalAccount;
+  #getCurrentAccount: () => ReturnType<
+    AccountsController['getSelectedAccount']
+  >;
 
   #getLastFetchedBlockNumbers: () => Record<string, number>;
 
@@ -73,7 +75,9 @@ export class IncomingTransactionHelper {
     updateTransactions,
   }: {
     blockTracker: BlockTracker;
-    getCurrentAccount: () => InternalAccount;
+    getCurrentAccount: () => ReturnType<
+      AccountsController['getSelectedAccount']
+    >;
     getLastFetchedBlockNumbers: () => Record<string, number>;
     getLocalTransactions?: () => TransactionMeta[];
     getChainId: () => Hex;

@@ -597,7 +597,6 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientRegistry: () => ({} as any),
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
-      getSelectedAccount: () => INTERNAL_ACCOUNT_MOCK,
       isMultichainEnabled: false,
       hooks: {},
       onNetworkStateChange: network.subscribe,
@@ -615,9 +614,18 @@ describe('TransactionController', () => {
           'ApprovalController:addRequest',
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
+          'AccountsController:getSelectedAccount',
         ],
         allowedEvents: [],
       });
+
+    const mockSelectedAccountCall = jest
+      .fn()
+      .mockReturnValue(INTERNAL_ACCOUNT_MOCK);
+    unrestrictedMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      mockSelectedAccountCall,
+    );
 
     const controller = new TransactionController({
       ...otherOptions,
@@ -628,6 +636,7 @@ describe('TransactionController', () => {
       controller,
       messenger: unrestrictedMessenger,
       mockTransactionApprovalRequest,
+      mockSelectedAccountCall,
     };
   }
 

@@ -2,6 +2,7 @@ import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -25,7 +26,6 @@ import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkClientId,
@@ -298,7 +298,6 @@ export type TransactionControllerOptions = {
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  getSelectedAccount: () => InternalAccount;
   incomingTransactions?: IncomingTransactionOptions;
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
@@ -345,7 +344,8 @@ const controllerName = 'TransactionController';
 export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AccountsControllerGetSelectedAccountAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -615,8 +615,6 @@ export class TransactionController extends BaseController<
 
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
-  private readonly getSelectedAccount: () => InternalAccount;
-
   private readonly getExternalPendingTransactions: (
     address: string,
     chainId?: string,
@@ -734,7 +732,6 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.getSelectedAccount - Gets the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
@@ -762,7 +759,6 @@ export class TransactionController extends BaseController<
     getNetworkState,
     getPermittedAccounts,
     getSavedGasFees,
-    getSelectedAccount,
     incomingTransactions = {},
     isMultichainEnabled = false,
     isSimulationEnabled,
@@ -803,7 +799,6 @@ export class TransactionController extends BaseController<
     this.getGasFeeEstimates =
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
-    this.getSelectedAccount = getSelectedAccount;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -1036,7 +1031,8 @@ export class TransactionController extends BaseController<
     if (origin) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
-        this.getSelectedAccount().address,
+        this.messagingSystem.call('AccountsController:getSelectedAccount')
+          .address,
         txParams.from,
         origin,
       );
@@ -3431,7 +3427,8 @@ export class TransactionController extends BaseController<
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
-      getCurrentAccount: this.getSelectedAccount,
+      getCurrentAccount: () =>
+        this.messagingSystem.call('AccountsController:getSelectedAccount'),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,

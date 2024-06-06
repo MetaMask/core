@@ -2463,7 +2463,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:6.4.0, @metamask/keyring-api@npm:^6.3.1, @metamask/keyring-api@npm:^6.4.0":
+"@metamask/keyring-api@npm:^6.3.1, @metamask/keyring-api@npm:^6.4.0":
   version: 6.4.0
   resolution: "@metamask/keyring-api@npm:6.4.0"
   dependencies:
@@ -3142,6 +3142,7 @@ __metadata:
     "@ethersproject/abi": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
+    "@metamask/accounts-controller": ^16.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
@@ -3149,7 +3150,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^17.0.0
-    "@metamask/keyring-api": 6.4.0
+    "@metamask/keyring-api": ^6.4.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
     "@metamask/nonce-tracker": ^5.0.0
@@ -3175,6 +3176,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@babel/runtime": ^7.23.9
+    "@metamask/accounts-controller": ^16.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/gas-fee-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
