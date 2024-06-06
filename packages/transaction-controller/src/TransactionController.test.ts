@@ -307,14 +307,23 @@ function waitForTransactionFinished(
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const HTTP_PROVIDERS = {
-  goerli: new HttpProvider(`https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`),
-  mainnet: new HttpProvider(`https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`),
-  palm: new HttpProvider(`https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`),
-  /*
-  linea: new HttpProvider(`https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`),
-  linea_goerli: new HttpProvider(`https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`),
-  */
-}
+  goerli: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  mainnet: new HttpProvider(
+    `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea_goerli: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
+  palm: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+};
 
 type MockNetwork = {
   chainId: Hex;
@@ -370,8 +379,8 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId['linea-mainnet'],
-  provider: HTTP_PROVIDERS.palm,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.palm),
+  provider: HTTP_PROVIDERS.linea,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -392,8 +401,8 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   chainId: ChainId['linea-goerli'],
-  provider: HTTP_PROVIDERS.palm,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.palm),
+  provider: HTTP_PROVIDERS.linea_goerli,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea_goerli),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
