@@ -9,15 +9,10 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkController,
   NetworkState,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
-import type {
-  CustomNetworkClientConfiguration,
-  NetworkClientConfiguration,
-} from '@metamask/network-controller/src/types';
+import type { NetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -100,7 +95,7 @@ describe('TokenRatesController', () => {
     });
 
     it('should set default state', async () => {
-      await withController({}, async ({ controller }) => {
+      await withController(async ({ controller }) => {
         expect(controller.state).toStrictEqual({
           marketData: {},
         });
@@ -741,7 +736,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should clear contractExchangeRates state when chain ID changes', async () => {
+      it('should clear marketData state when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -2320,19 +2315,11 @@ describe('TokenRatesController', () => {
  */
 type WithControllerCallback<ReturnValue> = ({
   controller,
-  mockGetNetworkClientById,
-  callActionSpy,
   triggerPreferencesStateChange,
   triggerTokensStateChange,
   triggerNetworkStateChange,
 }: {
   controller: TokenRatesController;
-  mockGetNetworkClientById: (
-    handler: (
-      networkClientId: NetworkClientId,
-    ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
-  ) => void;
-  callActionSpy: jest.SpyInstance;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerTokensStateChange: (state: TokensControllerState) => void;
   triggerNetworkStateChange: (state: NetworkState) => void;
@@ -2385,10 +2372,6 @@ async function withController<ReturnValue>(
     }),
   );
 
-  const mockGetNetworkClientById = jest.fn<
-    ReturnType<NetworkController['getNetworkClientById']>,
-    Parameters<NetworkController['getNetworkClientById']>
-  >();
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
   );
@@ -2415,8 +2398,6 @@ async function withController<ReturnValue>(
     }),
   );
 
-  const callActionSpy = jest.spyOn(controllerMessenger, 'call');
-
   const controller = new TokenRatesController({
     tokenPricesService: buildMockTokenPricesService(),
     messenger: buildTokenRatesControllerMessenger(controllerMessenger),
@@ -2425,14 +2406,6 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
-      mockGetNetworkClientById: (
-        handler: (
-          networkClientId: NetworkClientId,
-        ) => AutoManagedNetworkClient<CustomNetworkClientConfiguration>,
-      ) => {
-        mockGetNetworkClientById.mockImplementation(handler);
-      },
-      callActionSpy,
       triggerPreferencesStateChange: (state: PreferencesState) => {
         controllerMessenger.publish(
           'PreferencesController:stateChange',
@@ -2508,10 +2481,7 @@ async function callUpdateExchangeRatesMethod({
       'The "setChainAsCurrent" flag cannot be enabled when calling the "updateExchangeRates" method',
     );
   }
-  // Note that the state given here is intentionally incomplete because the
-  // controller only uses these two properties, and the tests are written to
-  // only consider these two. We want this to break if we start relying on
-  // more, as we'd need to update the tests accordingly.
+
   triggerTokensStateChange({
     ...getDefaultTokensState(),
     allDetectedTokens: {},

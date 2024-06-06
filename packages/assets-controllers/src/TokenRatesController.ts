@@ -56,12 +56,9 @@ export type Token = {
 
 const DEFAULT_INTERVAL = 180000;
 
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ContractExchangeRates {
-  [address: string]: number;
-}
+export type ContractExchangeRates = {
+  [address: string]: number | undefined;
+};
 
 type MarketDataDetails = {
   tokenAddress: `0x${string}`;
@@ -117,9 +114,6 @@ export const controllerName = 'TokenRatesController';
  * Token rates controller state
  * @property marketData - Market data for tokens, keyed by chain ID and then token contract address.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export type TokenRatesControllerState = {
   marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
 };
@@ -131,17 +125,17 @@ export type TokenRatesControllerGetStateAction = ControllerGetStateAction<
 
 export type TokenRatesControllerActions = TokenRatesControllerGetStateAction;
 
+export type TokenRatesControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  TokenRatesControllerState
+>;
+
 export type TokenRatesControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   TokenRatesControllerActions | AllowedActions,
   TokenRatesControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
->;
-
-export type TokenRatesControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  TokenRatesControllerState
 >;
 
 export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
@@ -183,7 +177,7 @@ async function getCurrencyConversionRate({
   }
 }
 
-const metadata = {
+const tokenRatesControllerMetadata = {
   marketData: { persist: true, anonymous: false },
 };
 
@@ -252,7 +246,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
       name: controllerName,
       messenger,
       state: { ...getDefaultTokenRatesControllerState(), ...state },
-      metadata,
+      metadata: tokenRatesControllerMetadata,
     });
 
     this.setIntervalLength(interval);

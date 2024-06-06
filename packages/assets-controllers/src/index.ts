@@ -68,8 +68,15 @@ export type {
   Token,
   ContractExchangeRates,
   TokenRatesControllerState,
+  TokenRatesController,
+  ContractMarketData,
+  TokenRatesControllerGetStateAction,
+  TokenRatesControllerActions,
+  TokenRatesControllerMessenger,
+  TokenRatesControllerStateChangeEvent,
+  TokenRatesControllerEvents,
+  getDefaultTokenRatesControllerState,
 } from './TokenRatesController';
-export { TokenRatesController } from './TokenRatesController';
 export type {
   TokensControllerState,
   TokensControllerActions,
