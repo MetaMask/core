@@ -170,4 +170,4 @@ export const TRIGGERS = {
   [TriggerType.LidoWithdrawalCompleted]: {
     supported_chains: [NOTIFICATION_CHAINS.ETHEREUM],
   },
-} as const satisfies Partial<Record<TriggerType, Trigger>>;
+} as const;
