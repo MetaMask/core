@@ -40,10 +40,10 @@ import type {
  * @property address - Hex address of the token contract
  * @property decimals - Number of decimals the token uses
  * @property symbol - Symbol of the token
- * @property aggregators - Token aggregators
+ * @property aggregators - An array containing the token's aggregators
  * @property image - Image of the token, url or bit32 image
- * @property hasBalanceError - An error while updating the token balance
- * @property isERC721 - Is this a ERC 721 token
+ * @property hasBalanceError - 'true' if there is an error while updating the token balance
+ * @property isERC721 - 'true' if the token is a ERC721 token
  * @property name - Name of the token
  */
 
