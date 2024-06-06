@@ -348,9 +348,6 @@ export type Metadata = {
   tokenURI?: string;
 };
 
-const RATE_LIMIT_NFT_DETECTION_DELAY = 600; // 10 mins
-const RATE_LIMIT_NFT_DETECTION_INTERVAL = RATE_LIMIT_NFT_DETECTION_DELAY * 1000;
-
 /**
  * Controller that passively detects nfts for a user address
  */
@@ -514,11 +511,8 @@ export class NftDetectionController extends BaseController<
     }
 
     const { isNftFetchingInProgress } = this.#getNftState();
-    const time = Date.now();
-    const timeSinceLastRequest =
-      time - isNftFetchingInProgress[userAddress]?.[chainId].lastFetchTimestamp;
 
-    if (timeSinceLastRequest < RATE_LIMIT_NFT_DETECTION_INTERVAL) {
+    if (isNftFetchingInProgress.isFetchingInProgress) {
       return;
     }
 

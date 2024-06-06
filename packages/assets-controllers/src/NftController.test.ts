@@ -3940,7 +3940,6 @@ describe('NftController', () => {
         ],
       ).toStrictEqual({
         isFetchingInProgress: true,
-        lastFetchTimestamp: expect.any(Number),
       });
     });
   });

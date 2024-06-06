@@ -94,7 +94,6 @@ type NftUpdate = {
 
 export type NftFetchStatus = {
   isFetchingInProgress: boolean;
-  lastFetchTimestamp: number;
 };
 
 /**
@@ -511,7 +510,6 @@ export class NftController extends BaseController<
         ...addressState,
         [chainId]: {
           isFetchingInProgress: newStatus,
-          lastFetchTimestamp: Date.now(),
         },
       };
       state[IS_NFTS_FETCHING_IN_PROGRESS_KEY] = {
