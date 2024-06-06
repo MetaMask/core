@@ -147,7 +147,7 @@ export function validateIfTransactionUnapproved(
     throw new Error(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `TransactionsController: Can only call ${fnName} on an unapproved transaction.\nCurrent tx status: ${transactionMeta?.status}`,
+      `TransactionsController: Can only call ${fnName} on an unapproved transaction.\n      Current tx status: ${transactionMeta?.status}`,
     );
   }
 }
