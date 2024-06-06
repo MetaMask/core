@@ -1,8 +1,8 @@
 import { isAddress } from '@ethersproject/address';
-import {
-  type AccountsControllerSelectedEvmAccountChangeEvent,
-  type AccountsControllerGetAccountAction,
-  type AccountsControllerGetSelectedAccountAction,
+import type {
+  AccountsControllerSelectedEvmAccountChangeEvent,
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type {
@@ -305,7 +305,6 @@ export class NftController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.selectedAccountId - The currently selected account id.
    * @param options.ipfsGateway - The configured IPFS gateway.
    * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
    * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
@@ -323,7 +322,6 @@ export class NftController extends BaseController<
    */
   constructor({
     chainId: initialChainId,
-    selectedAccountId = '',
     ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
     openSeaEnabled = false,
     useIpfsSubdomains = true,
@@ -339,7 +337,6 @@ export class NftController extends BaseController<
     state = {},
   }: {
     chainId: Hex;
-    selectedAccountId?: string;
     ipfsGateway?: string;
     openSeaEnabled?: boolean;
     useIpfsSubdomains?: boolean;
@@ -370,7 +367,9 @@ export class NftController extends BaseController<
       },
     });
 
-    this.#selectedAccountId = selectedAccountId;
+    this.#selectedAccountId = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    ).id;
     this.#chainId = initialChainId;
     this.#ipfsGateway = ipfsGateway;
     this.#openSeaEnabled = openSeaEnabled;
@@ -441,20 +440,8 @@ export class NftController extends BaseController<
     const needsUpdateNftMetadata =
       (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
 
-    if (needsUpdateNftMetadata) {
-      const nfts: Nft[] =
-        this.state.allNfts[selectedAccount?.address]?.[this.#chainId] ?? [];
-      // filter only nfts
-      const nftsToUpdate = nfts.filter(
-        (singleNft) =>
-          !singleNft.name && !singleNft.description && !singleNft.image,
-      );
-      if (nftsToUpdate.length !== 0) {
-        await this.updateNftMetadata({
-          nfts: nftsToUpdate,
-          userAddress: selectedAccount?.address,
-        });
-      }
+    if (needsUpdateNftMetadata && selectedAccount) {
+      await this.#updateNftUpdateForAccount(selectedAccount);
     }
   }
 
@@ -464,27 +451,15 @@ export class NftController extends BaseController<
    */
   async #onSelectedAccountChange(internalAccount: InternalAccount) {
     const oldSelectedAccountId = this.#selectedAccountId;
-
     this.#selectedAccountId = internalAccount.id;
+
     const needsUpdateNftMetadata =
       ((this.#isIpfsGatewayEnabled && this.#ipfsGateway !== '') ||
         this.#openSeaEnabled) &&
       oldSelectedAccountId !== internalAccount.id;
 
     if (needsUpdateNftMetadata) {
-      const nfts: Nft[] =
-        this.state.allNfts[internalAccount.address]?.[this.#chainId] ?? [];
-      // filter only nfts
-      const nftsToUpdate = nfts.filter(
-        (singleNft) =>
-          !singleNft.name && !singleNft.description && !singleNft.image,
-      );
-      if (nftsToUpdate.length !== 0) {
-        await this.updateNftMetadata({
-          nfts: nftsToUpdate,
-          userAddress: internalAccount.address,
-        });
-      }
+      await this.#updateNftUpdateForAccount(internalAccount);
     }
   }
 
@@ -1275,18 +1250,12 @@ export class NftController extends BaseController<
       userAddress?: string;
     } = {},
   ) {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    userAddress = userAddress || selectedAccount?.address || '';
-    if (!userAddress) {
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
+    if (!addressToSearch) {
       return;
     }
 
-    await this.#validateWatchNft(asset, type, userAddress);
+    await this.#validateWatchNft(asset, type, addressToSearch);
 
     const nftMetadata = await this.#getNftInformation(
       asset.address,
@@ -1305,7 +1274,7 @@ export class NftController extends BaseController<
       type,
       id: random(),
       time: Date.now(),
-      interactingAddress: userAddress,
+      interactingAddress: addressToSearch,
       origin,
     };
     await this._requestApproval(suggestedNftMeta);
@@ -1410,14 +1379,10 @@ export class NftController extends BaseController<
       source?: Source;
     } = {},
   ) {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-    userAddress = userAddress || selectedAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     if (
-      !(await this.isNftOwner(userAddress, address, tokenId, {
+      !(await this.isNftOwner(addressToSearch, address, tokenId, {
         networkClientId,
       }))
     ) {
@@ -1425,7 +1390,7 @@ export class NftController extends BaseController<
     }
     await this.addNft(address, tokenId, {
       networkClientId,
-      userAddress,
+      userAddress: addressToSearch,
       source,
     });
   }
@@ -1457,13 +1422,8 @@ export class NftController extends BaseController<
       networkClientId?: NetworkClientId;
     } = {},
   ) {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    userAddress = userAddress || selectedAccount?.address || '';
-    if (!userAddress) {
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
+    if (!addressToSearch) {
       return;
     }
 
@@ -1481,7 +1441,7 @@ export class NftController extends BaseController<
 
     const newNftContracts = await this.#addNftContract({
       tokenAddress: checksumHexAddress,
-      userAddress,
+      userAddress: addressToSearch,
       networkClientId,
       source,
       nftMetadata,
@@ -1501,7 +1461,7 @@ export class NftController extends BaseController<
         nftMetadata,
         nftContract,
         chainId,
-        userAddress,
+        addressToSearch,
         source,
       );
     }
@@ -1524,13 +1484,7 @@ export class NftController extends BaseController<
     userAddress?: string;
     networkClientId?: NetworkClientId;
   }) {
-    const userAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const addressToSearch = userAddress || userAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
 
     const chainId = this.#getCorrectChainId({ networkClientId });
 
@@ -1646,13 +1600,7 @@ export class NftController extends BaseController<
       userAddress,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {},
   ) {
-    const userAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const addressToSearch = userAddress || userAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const chainId = this.#getCorrectChainId({ networkClientId });
     const checksumHexAddress = toChecksumHexAddress(address);
     this.#removeAndIgnoreIndividualNft(checksumHexAddress, tokenId, {
@@ -1700,13 +1648,7 @@ export class NftController extends BaseController<
       networkClientId,
     }: { networkClientId?: NetworkClientId; userAddress?: string } = {},
   ) {
-    const userAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const addressToSearch = userAddress || userAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const chainId = this.#getCorrectChainId({ networkClientId });
     const { address, tokenId } = nft;
     let isOwned = nft.isCurrentlyOwned;
@@ -1772,13 +1714,7 @@ export class NftController extends BaseController<
     networkClientId?: NetworkClientId;
     userAddress?: string;
   } = {}) {
-    const userAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const addressToSearch = userAddress || userAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const chainId = this.#getCorrectChainId({ networkClientId });
     const { allNfts } = this.state;
     const nfts = allNfts[addressToSearch]?.[chainId] || [];
@@ -1821,13 +1757,7 @@ export class NftController extends BaseController<
       userAddress?: string;
     } = {},
   ) {
-    const userAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const addressToSearch = userAddress || userAccount?.address || '';
+    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
     const chainId = this.#getCorrectChainId({ networkClientId });
     const { allNfts } = this.state;
     const nfts = [...(allNfts[addressToSearch]?.[chainId] || [])];
@@ -1989,6 +1919,36 @@ export class NftController extends BaseController<
       },
       true,
     );
+  }
+
+  #getAddressOrSelectedAddress(address: string | undefined): string {
+    if (address) {
+      return address;
+    }
+
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    return selectedAccount?.address || '';
+  }
+
+  async #updateNftUpdateForAccount(account: InternalAccount) {
+    const nfts: Nft[] =
+      this.state.allNfts[account.address]?.[this.#chainId] ?? [];
+
+    // Filter only nfts
+    const nftsToUpdate = nfts.filter(
+      (singleNft) =>
+        !singleNft.name && !singleNft.description && !singleNft.image,
+    );
+    if (nftsToUpdate.length !== 0) {
+      await this.updateNftMetadata({
+        nfts: nftsToUpdate,
+        userAddress: account.address,
+      });
+    }
   }
 }
 
