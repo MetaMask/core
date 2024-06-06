@@ -90,7 +90,7 @@ describe('PendingTransactionTracker', () => {
 
     options = {
       approveTransaction: jest.fn(),
-      blockTracker,
+      getBlockTracker: () => blockTracker,
       failTransaction,
       getChainId: () => CHAIN_ID_MOCK,
       getEthQuery: () => ETH_QUERY_MOCK,

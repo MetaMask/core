@@ -11,13 +11,15 @@ import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { incomingTransactionsLogger as log } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import type {
   IncomingTransactionHelper,
   IncomingTransactionOptions,
 } from './IncomingTransactionHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
+
+const log = createModuleLogger(projectLogger, 'multichain');
 
 /**
  * Registry of network clients provided by the NetworkController
@@ -28,11 +30,12 @@ type NetworkClientRegistry = ReturnType<
 
 export type MultichainTrackingHelperOptions = {
   isMultichainEnabled: boolean;
-  provider: Provider;
-  nonceTracker: NonceTracker;
   incomingTransactionOptions: IncomingTransactionOptions;
 
   findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
+  getGlobalProviderAndBlockTracker: () =>
+    | { provider: Provider; blockTracker: BlockTracker }
+    | undefined;
   getNetworkClientById: NetworkController['getNetworkClientById'];
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
 
@@ -48,14 +51,14 @@ export type MultichainTrackingHelperOptions = {
     chainId?: Hex;
   }) => NonceTracker;
   createIncomingTransactionHelper: (opts: {
-    blockTracker: BlockTracker;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
-    chainId?: Hex;
   }) => IncomingTransactionHelper;
   createPendingTransactionTracker: (opts: {
-    provider: Provider;
-    blockTracker: BlockTracker;
-    chainId?: Hex;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
+    getEthQuery: () => EthQuery | undefined;
   }) => PendingTransactionTracker;
   onNetworkStateChange: (
     listener: (
@@ -67,13 +70,15 @@ export type MultichainTrackingHelperOptions = {
 export class MultichainTrackingHelper {
   #isMultichainEnabled: boolean;
 
-  readonly #provider: Provider;
-
-  readonly #nonceTracker: NonceTracker;
+  #globalNonceTracker: NonceTracker | undefined;
 
   readonly #incomingTransactionOptions: IncomingTransactionOptions;
 
   readonly #findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
+
+  readonly #getGlobalProviderAndBlockTracker: () =>
+    | { provider: Provider; blockTracker: BlockTracker }
+    | undefined;
 
   readonly #getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -94,15 +99,15 @@ export class MultichainTrackingHelper {
   }) => NonceTracker;
 
   readonly #createIncomingTransactionHelper: (opts: {
-    blockTracker: BlockTracker;
-    chainId?: Hex;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
   }) => IncomingTransactionHelper;
 
   readonly #createPendingTransactionTracker: (opts: {
-    provider: Provider;
-    blockTracker: BlockTracker;
-    chainId?: Hex;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
+    getEthQuery: () => EthQuery | undefined;
   }) => PendingTransactionTracker;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
@@ -123,10 +128,9 @@ export class MultichainTrackingHelper {
 
   constructor({
     isMultichainEnabled,
-    provider,
-    nonceTracker,
     incomingTransactionOptions,
     findNetworkClientIdByChainId,
+    getGlobalProviderAndBlockTracker,
     getNetworkClientById,
     getNetworkClientRegistry,
     removeIncomingTransactionHelperListeners,
@@ -137,11 +141,10 @@ export class MultichainTrackingHelper {
     onNetworkStateChange,
   }: MultichainTrackingHelperOptions) {
     this.#isMultichainEnabled = isMultichainEnabled;
-    this.#provider = provider;
-    this.#nonceTracker = nonceTracker;
     this.#incomingTransactionOptions = incomingTransactionOptions;
 
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
+    this.#getGlobalProviderAndBlockTracker = getGlobalProviderAndBlockTracker;
     this.#getNetworkClientById = getNetworkClientById;
     this.#getNetworkClientRegistry = getNetworkClientRegistry;
 
@@ -186,8 +189,36 @@ export class MultichainTrackingHelper {
   }: {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
-  } = {}): EthQuery {
-    return new EthQuery(this.getProvider({ networkClientId, chainId }));
+  } = {}): EthQuery | undefined {
+    if (!networkClientId && !chainId) {
+      const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
+      return globalProvider ? new EthQuery(globalProvider) : undefined;
+    }
+    let networkClient: NetworkClient | undefined;
+
+    if (networkClientId) {
+      try {
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('Failed to get network client by networkClientId', networkClientId);
+      }
+    }
+
+    if (!networkClient && chainId) {
+      try {
+        networkClientId = this.#findNetworkClientIdByChainId(chainId);
+        networkClient = this.#getNetworkClientById(networkClientId);
+      } catch (err) {
+        log('Failed to get network client by chainId', chainId);
+      }
+    }
+    if (networkClient) {
+      const provider = this.getProvider({ networkClientId, chainId });
+      if (provider) {
+        return new EthQuery(provider);
+      }
+    }
+    return undefined;
   }
 
   getProvider({
@@ -196,17 +227,16 @@ export class MultichainTrackingHelper {
   }: {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
-  } = {}): Provider {
-    if (!this.#isMultichainEnabled) {
-      return this.#provider;
-    }
-
+  } = {}): Provider | undefined {
     const networkClient = this.#getNetworkClient({
       networkClientId,
       chainId,
     });
 
-    return networkClient?.provider || this.#provider;
+    return (
+      networkClient?.provider ||
+      this.#getGlobalProviderAndBlockTracker()?.provider
+    );
   }
 
   /**
@@ -249,9 +279,15 @@ export class MultichainTrackingHelper {
   async getNonceLock(
     address: string,
     networkClientId?: NetworkClientId,
-  ): Promise<NonceLock> {
+  ): Promise<NonceLock | undefined> {
     let releaseLockForChainIdKey: (() => void) | undefined;
-    let nonceTracker = this.#nonceTracker;
+    let nonceTracker: NonceTracker | undefined;
+
+    if (!networkClientId || !this.#isMultichainEnabled) {
+      this.#globalNonceTracker ??= this.#getGlobalNonceTracker();
+      nonceTracker = this.#globalNonceTracker;
+    }
+
     if (networkClientId && this.#isMultichainEnabled) {
       const networkClient = this.#getNetworkClientById(networkClientId);
       releaseLockForChainIdKey = await this.acquireNonceLockForChainIdKey({
@@ -263,6 +299,10 @@ export class MultichainTrackingHelper {
         throw new Error('missing nonceTracker for networkClientId');
       }
       nonceTracker = trackers.nonceTracker;
+    }
+
+    if (!nonceTracker) {
+      return undefined;
     }
 
     // Acquires the lock for the chainId + address and the nonceLock from the nonceTracker, then
@@ -377,11 +417,9 @@ export class MultichainTrackingHelper {
       return;
     }
 
-    const {
-      provider,
-      blockTracker,
-      configuration: { chainId },
-    } = this.#getNetworkClientById(networkClientId);
+    const networkClient = this.#getNetworkClientById(networkClientId);
+    const { provider, blockTracker, configuration } = networkClient;
+    const { chainId } = configuration;
 
     let etherscanRemoteTransactionSource =
       this.#etherscanRemoteTransactionSourcesMap.get(chainId);
@@ -403,15 +441,15 @@ export class MultichainTrackingHelper {
     });
 
     const incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      blockTracker,
+      getBlockTracker: () => blockTracker,
+      getChainId: () => chainId,
       etherscanRemoteTransactionSource,
-      chainId,
     });
 
     const pendingTransactionTracker = this.#createPendingTransactionTracker({
-      provider,
-      blockTracker,
-      chainId,
+      getBlockTracker: () => blockTracker,
+      getChainId: () => chainId,
+      getEthQuery: () => new EthQuery(provider),
     });
 
     this.#trackingMap.set(networkClientId, {
@@ -442,6 +480,23 @@ export class MultichainTrackingHelper {
       this.#etherscanRemoteTransactionSourcesMap.delete(chainId);
     });
   };
+
+  #getGlobalNonceTracker(): NonceTracker | undefined {
+    const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
+
+    const globalBlockTracker =
+      this.#getGlobalProviderAndBlockTracker()?.blockTracker;
+
+    if (!globalProvider || !globalBlockTracker) {
+      log('Cannot get nonce lock as selected network is not available');
+      return undefined;
+    }
+
+    return this.#createNonceTracker({
+      provider: globalProvider,
+      blockTracker: globalBlockTracker,
+    });
+  }
 
   #getNetworkClient({
     networkClientId,

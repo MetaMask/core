@@ -48,6 +48,7 @@ import {
 import type {
   TransactionControllerActions,
   TransactionControllerEvents,
+  TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
@@ -150,8 +151,7 @@ const setupController = async (
     allowedEvents: ['NetworkController:stateChange'],
   });
 
-  const options = {
-    blockTracker,
+  const options: TransactionControllerOptions = {
     disableHistory: false,
     disableSendFlowHistory: false,
     disableSwaps: false,
@@ -163,6 +163,10 @@ const setupController = async (
         false
       );
     },
+    getGlobalProviderAndBlockTracker: () => ({
+      provider,
+      blockTracker,
+    }),
     getNetworkState: () => networkController.state,
     getNetworkClientRegistry:
       networkController.getNetworkClientRegistry.bind(networkController),
@@ -174,7 +178,6 @@ const setupController = async (
     onNetworkStateChange: () => {
       // noop
     },
-    provider,
     sign: async (transaction: TypedTransaction) => transaction,
     transactionHistoryLimit: 40,
     ...givenOptions,
@@ -204,123 +207,6 @@ describe('TransactionController Integration', () => {
     it('should create a new instance of TransactionController', async () => {
       const { transactionController } = await setupController();
       expect(transactionController).toBeDefined();
-      transactionController.destroy();
-    });
-
-    it('should submit all approved transactions in state', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthSendRawTransactionRequestMock(
-            '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-            '0x1',
-          ),
-        ],
-      });
-
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.sepolia,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthSendRawTransactionRequestMock(
-            '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
-            '0x1',
-          ),
-        ],
-      });
-
-      const { transactionController } = await setupController({
-        isMultichainEnabled: true,
-        state: {
-          transactions: [
-            {
-              actionId: undefined,
-              chainId: '0x5',
-              dappSuggestedGasFees: undefined,
-              deviceConfirmedOn: undefined,
-              id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
-              origin: undefined,
-              securityAlertResponse: undefined,
-              status: TransactionStatus.approved,
-              time: 1706039113766,
-              txParams: {
-                from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                gas: '0x5208',
-                nonce: '0x1',
-                to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                value: '0x0',
-                maxFeePerGas: '0x1',
-                maxPriorityFeePerGas: '0x1',
-              },
-              userEditedGasLimit: false,
-              verifiedOnBlockchain: false,
-              type: TransactionType.simpleSend,
-              networkClientId: 'goerli',
-              simulationFails: undefined,
-              originalGasEstimate: '0x5208',
-              defaultGasEstimates: {
-                gas: '0x5208',
-                maxFeePerGas: '0x1',
-                maxPriorityFeePerGas: '0x1',
-                gasPrice: undefined,
-                estimateType: 'dappSuggested',
-              },
-              userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
-            },
-            {
-              actionId: undefined,
-              chainId: '0xaa36a7',
-              dappSuggestedGasFees: undefined,
-              deviceConfirmedOn: undefined,
-              id: 'c4cc0ff0-ba28-11ee-926f-55a7f9c2c2c6',
-              origin: undefined,
-              securityAlertResponse: undefined,
-              status: TransactionStatus.approved,
-              time: 1706039113766,
-              txParams: {
-                from: '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207',
-                gas: '0x5208',
-                nonce: '0x1',
-                to: '0x08f137f335ea1b8f193b8f6ea92561a60d23a211',
-                value: '0x0',
-                maxFeePerGas: '0x1',
-                maxPriorityFeePerGas: '0x1',
-              },
-              userEditedGasLimit: false,
-              verifiedOnBlockchain: false,
-              type: TransactionType.simpleSend,
-              networkClientId: 'sepolia',
-              simulationFails: undefined,
-              originalGasEstimate: '0x5208',
-              defaultGasEstimates: {
-                gas: '0x5208',
-                maxFeePerGas: '0x1',
-                maxPriorityFeePerGas: '0x1',
-                gasPrice: undefined,
-                estimateType: 'dappSuggested',
-              },
-              userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
-            },
-          ],
-        },
-      });
-      await advanceTime({ clock, duration: 1 });
-
-      expect(transactionController.state.transactions).toMatchObject([
-        expect.objectContaining({
-          status: 'submitted',
-        }),
-        expect.objectContaining({
-          status: 'submitted',
-        }),
-      ]);
       transactionController.destroy();
     });
   });

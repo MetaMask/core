@@ -37,10 +37,7 @@ export class GasFeePoller {
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  #getProvider: (
-    chainId: Hex,
-    networkClientId?: NetworkClientId,
-  ) => Provider | undefined;
+  #getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
 
   #getTransactions: () => TransactionMeta[];
 
@@ -75,10 +72,7 @@ export class GasFeePoller {
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
     ) => Promise<GasFeeState>;
-    getProvider: (
-      chainId: Hex,
-      networkClientId?: NetworkClientId,
-    ) => Provider | undefined;
+    getProvider: (chainId: Hex, networkClientId?: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     onStateChange: (listener: () => void) => void;
@@ -198,18 +192,7 @@ export class GasFeePoller {
   > {
     const { chainId, networkClientId } = transactionMeta;
 
-    const provider = this.#getProvider(chainId, networkClientId);
-    if (!provider) {
-      log('Provider not available', transactionMeta.id);
-      return undefined;
-    }
-
-    const ethQuery = new EthQuery(provider);
-    if (!ethQuery) {
-      log('Provider not available', transactionMeta.id);
-      return undefined;
-    }
-
+    const ethQuery = new EthQuery(this.#getProvider(chainId, networkClientId));
     const gasFeeFlow = getGasFeeFlow(transactionMeta, this.#gasFeeFlows);
 
     if (gasFeeFlow) {
@@ -218,6 +201,11 @@ export class GasFeePoller {
         gasFeeFlow.constructor.name,
         transactionMeta.id,
       );
+    }
+
+    if (!ethQuery) {
+      log('Provider not available', transactionMeta.id);
+      return;
     }
 
     const request: GasFeeFlowRequest = {
@@ -253,12 +241,7 @@ export class GasFeePoller {
     transactionMeta: TransactionMeta,
   ): Promise<Hex | undefined> {
     const { chainId, networkClientId } = transactionMeta;
-
     const provider = this.#getProvider(chainId, networkClientId);
-    if (!provider) {
-      log('Provider not available', transactionMeta.id);
-      throw new Error('provider not available');
-    }
 
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,

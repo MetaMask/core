@@ -15,10 +15,10 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import {
   query,
-  NetworkType,
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  NetworkType,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -280,7 +280,6 @@ export type PendingTransactionOptions = {
  * @property hooks.publish - Alternate logic to publish a transaction.
  */
 export type TransactionControllerOptions = {
-  blockTracker: BlockTracker;
   disableHistory: boolean;
   disableSendFlowHistory: boolean;
   disableSwaps: boolean;
@@ -293,6 +292,9 @@ export type TransactionControllerOptions = {
   getGasFeeEstimates?: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
+  getGlobalProviderAndBlockTracker: () =>
+    | { provider: Provider; blockTracker: BlockTracker }
+    | undefined;
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
@@ -304,7 +306,6 @@ export type TransactionControllerOptions = {
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
   pendingTransactions?: PendingTransactionOptions;
-  provider: Provider;
   securityProviderRequest?: SecurityProviderRequest;
   sign?: (
     transaction: TypedTransaction,
@@ -590,10 +591,6 @@ export class TransactionController extends BaseController<
 
   private readonly approvingTransactionIds: Set<string> = new Set();
 
-  private readonly nonceTracker: NonceTracker;
-
-  private readonly registry: MethodRegistry;
-
   private readonly mutex = new Mutex();
 
   private readonly gasFeeFlows: GasFeeFlow[];
@@ -638,6 +635,13 @@ export class TransactionController extends BaseController<
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
+
+  #getGlobalProviderAndBlockTracker: () =>
+    | {
+        provider: Provider;
+        blockTracker: BlockTracker;
+      }
+    | undefined;
 
   #testGasFeeFlows: boolean;
 
@@ -695,14 +699,23 @@ export class TransactionController extends BaseController<
   }
 
   private async registryLookup(fourBytePrefix: string): Promise<MethodData> {
-    const registryMethod = await this.registry.lookup(fourBytePrefix);
+    const globalProvider = this.#getGlobalProviderAndBlockTracker()?.provider;
+
+    if (!globalProvider) {
+      throw providerErrors.disconnected();
+    }
+
+    // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
+    const registry = new MethodRegistry({ provider: globalProvider });
+
+    const registryMethod = await registry.lookup(fourBytePrefix);
     if (!registryMethod) {
       return {
         registryMethod: '',
         parsedRegistryMethod: { name: undefined, args: undefined },
       };
     }
-    const parsedRegistryMethod = this.registry.parse(registryMethod);
+    const parsedRegistryMethod = registry.parse(registryMethod);
     return { registryMethod, parsedRegistryMethod };
   }
 
@@ -721,7 +734,6 @@ export class TransactionController extends BaseController<
    * Constructs a TransactionController.
    *
    * @param options - The controller options.
-   * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
@@ -729,6 +741,7 @@ export class TransactionController extends BaseController<
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
    * @param options.getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
    * @param options.getGasFeeEstimates - Callback to retrieve gas fee estimates.
+   * @param options.getGlobalProviderAndBlockTracker - Gets the global provider and block tracker.
    * @param options.getNetworkClientRegistry - Gets the network client registry.
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
@@ -740,7 +753,6 @@ export class TransactionController extends BaseController<
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
    * @param options.pendingTransactions - Configuration options for pending transaction support.
-   * @param options.provider - The provider used to create the underlying EthQuery instance.
    * @param options.securityProviderRequest - A function for verifying a transaction, whether it is malicious or not.
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
@@ -749,7 +761,6 @@ export class TransactionController extends BaseController<
    * @param options.hooks - The controller hooks.
    */
   constructor({
-    blockTracker,
     disableHistory,
     disableSendFlowHistory,
     disableSwaps,
@@ -757,6 +768,7 @@ export class TransactionController extends BaseController<
     getCurrentNetworkEIP1559Compatibility,
     getExternalPendingTransactions,
     getGasFeeEstimates,
+    getGlobalProviderAndBlockTracker,
     getNetworkClientRegistry,
     getNetworkState,
     getPermittedAccounts,
@@ -768,7 +780,6 @@ export class TransactionController extends BaseController<
     messenger,
     onNetworkStateChange,
     pendingTransactions = {},
-    provider,
     securityProviderRequest,
     sign,
     state,
@@ -791,9 +802,6 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
-    this.#isSimulationEnabled = isSimulationEnabled ?? (() => true);
-    // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
-    this.registry = new MethodRegistry({ provider });
     this.getSavedGasFees = getSavedGasFees ?? ((_chainId) => undefined);
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility ?? (() => Promise.resolve(true));
@@ -809,6 +817,8 @@ export class TransactionController extends BaseController<
     this.#incomingTransactionOptions = incomingTransactions;
     this.#pendingTransactionOptions = pendingTransactions;
     this.#transactionHistoryLimit = transactionHistoryLimit;
+    this.#isSimulationEnabled = isSimulationEnabled ?? (() => true);
+    this.#getGlobalProviderAndBlockTracker = getGlobalProviderAndBlockTracker;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
 
@@ -824,11 +834,6 @@ export class TransactionController extends BaseController<
     this.publish =
       hooks?.publish ?? (() => Promise.resolve({ transactionHash: undefined }));
 
-    this.nonceTracker = this.#createNonceTracker({
-      provider,
-      blockTracker,
-    });
-
     const findNetworkClientIdByChainId = (chainId: Hex) => {
       return this.messagingSystem.call(
         `NetworkController:findNetworkClientIdByChainId`,
@@ -838,10 +843,9 @@ export class TransactionController extends BaseController<
 
     this.#multichainTrackingHelper = new MultichainTrackingHelper({
       isMultichainEnabled,
-      provider,
-      nonceTracker: this.nonceTracker,
       incomingTransactionOptions: incomingTransactions,
       findNetworkClientIdByChainId,
+      getGlobalProviderAndBlockTracker,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
         return this.messagingSystem.call(
           `NetworkController:getNetworkClientById`,
@@ -873,13 +877,20 @@ export class TransactionController extends BaseController<
       });
 
     this.incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      blockTracker,
+      getBlockTracker: () => getGlobalProviderAndBlockTracker()?.blockTracker,
+      getChainId: () => this.getChainId(),
       etherscanRemoteTransactionSource,
     });
 
+    const getGlobalEthQuery = () => {
+      const globalProvider = getGlobalProviderAndBlockTracker()?.provider;
+      return globalProvider ? new EthQuery(globalProvider) : undefined;
+    };
+
     this.pendingTransactionTracker = this.#createPendingTransactionTracker({
-      provider,
-      blockTracker,
+      getBlockTracker: () => getGlobalProviderAndBlockTracker()?.blockTracker,
+      getChainId: () => this.getChainId(),
+      getEthQuery: getGlobalEthQuery,
     });
 
     this.gasFeeFlows = this.#getGasFeeFlows();
@@ -921,10 +932,9 @@ export class TransactionController extends BaseController<
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       this.pendingTransactionTracker.startIfPendingTransactions();
-      this.onBootCleanup();
+      this.initApprovedTransactions();
     });
 
-    this.onBootCleanup();
     this.#checkForPendingTransactionAndStartPolling();
   }
 
@@ -943,6 +953,7 @@ export class TransactionController extends BaseController<
    */
   async handleMethodData(fourBytePrefix: string): Promise<MethodData> {
     const releaseLock = await this.mutex.acquire();
+
     try {
       const { methodData } = this.state;
       const knownMethod = Object.keys(methodData).find(
@@ -1046,8 +1057,9 @@ export class TransactionController extends BaseController<
       origin,
     );
 
-    const chainId = this.getChainId(networkClientId);
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+    const chainId = this.#getChainIdOrThrow(networkClientId);
+
+    const ethQuery = this.#getEthQueryOrThrow({
       networkClientId,
       chainId,
     });
@@ -1078,7 +1090,12 @@ export class TransactionController extends BaseController<
           networkClientId,
         };
 
-    await this.updateGasProperties(addedTransactionMeta);
+    const provider = this.#getProviderOrThrow({
+      networkClientId,
+      chainId,
+    });
+
+    await this.updateGasProperties(addedTransactionMeta, ethQuery, provider);
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -1299,10 +1316,11 @@ export class TransactionController extends BaseController<
       txParams: newTxParams,
     });
 
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+    const ethQuery = this.#getEthQueryOrThrow({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
+
     const hash = await this.publishTransactionForRetry(
       ethQuery,
       rawTx,
@@ -1472,6 +1490,11 @@ export class TransactionController extends BaseController<
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
+
+    if (!ethQuery) {
+      throw providerErrors.disconnected();
+    }
+
     const hash = await this.publishTransactionForRetry(
       ethQuery,
       rawTx,
@@ -1538,9 +1561,10 @@ export class TransactionController extends BaseController<
     transaction: TransactionParams,
     networkClientId?: NetworkClientId,
   ) {
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+    const ethQuery = this.#getEthQueryOrThrow({
       networkClientId,
     });
+
     const { estimatedGas, simulationFails } = await estimateGas(
       transaction,
       ethQuery,
@@ -1561,9 +1585,10 @@ export class TransactionController extends BaseController<
     multiplier: number,
     networkClientId?: NetworkClientId,
   ) {
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+    const ethQuery = this.#getEthQueryOrThrow({
       networkClientId,
     });
+
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
       transaction,
       ethQuery,
@@ -1638,7 +1663,9 @@ export class TransactionController extends BaseController<
       });
       return;
     }
-    const currentChainId = this.getChainId();
+
+    const currentChainId = this.#getChainIdOrThrow();
+
     const newTransactions = this.state.transactions.filter(
       ({ chainId, txParams }) => {
         const isMatchingNetwork = ignoreNetwork || chainId === currentChainId;
@@ -1911,10 +1938,16 @@ export class TransactionController extends BaseController<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<NonceLock> {
-    return this.#multichainTrackingHelper.getNonceLock(
+    const nonceLock = await this.#multichainTrackingHelper.getNonceLock(
       address,
       networkClientId,
     );
+
+    if (!nonceLock) {
+      throw providerErrors.disconnected();
+    }
+
+    return nonceLock;
   }
 
   /**
@@ -1973,15 +2006,19 @@ export class TransactionController extends BaseController<
     ) as TransactionParams;
 
     const updatedTransaction = merge({}, transactionMeta, editableParams);
-    const provider = this.#multichainTrackingHelper.getProvider({
+    const provider = this.#getProviderOrThrow({
       chainId: transactionMeta.chainId,
       networkClientId: transactionMeta.networkClientId,
     });
-    const ethQuery = new EthQuery(provider);
+    const ethQuery = this.#getEthQueryOrThrow({
+      chainId: transactionMeta.chainId,
+      networkClientId: transactionMeta.networkClientId,
+    });
     const { type } = await determineTransactionType(
       updatedTransaction.txParams,
       ethQuery,
     );
+
     updatedTransaction.type = type;
 
     await updateTransactionLayer1GasFee({
@@ -2166,7 +2203,8 @@ export class TransactionController extends BaseController<
    * Creates approvals for all unapproved transactions persisted.
    */
   initApprovals() {
-    const chainId = this.getChainId();
+    const chainId = this.#getChainIdOrThrow();
+
     const unapprovedTxs = this.state.transactions.filter(
       (transaction) =>
         transaction.status === TransactionStatus.unapproved &&
@@ -2183,6 +2221,32 @@ export class TransactionController extends BaseController<
         }
         console.error('Error during persisted transaction approval', error);
       });
+    }
+  }
+
+  /**
+   * Sign and submit any previously approved transactions.
+   */
+  initApprovedTransactions() {
+    const approvedTransactions = this.state.transactions.filter(
+      (transaction) => transaction.status === TransactionStatus.approved,
+    );
+
+    if (!approvedTransactions.length) {
+      return;
+    }
+
+    log('Processing previously approved transactions', {
+      count: approvedTransactions.length,
+    });
+
+    for (const transactionMeta of approvedTransactions) {
+      if (this.beforeApproveOnInit(transactionMeta)) {
+        this.approveTransaction(transactionMeta.id).catch((error) => {
+          /* istanbul ignore next */
+          console.error('Error while submitting persisted transaction', error);
+        });
+      }
     }
   }
 
@@ -2209,7 +2273,8 @@ export class TransactionController extends BaseController<
     filterToCurrentNetwork?: boolean;
     limit?: number;
   } = {}): TransactionMeta[] {
-    const chainId = this.getChainId();
+    const chainId = this.#getChainIdOrThrow();
+
     // searchCriteria is an object that might have values that aren't predicate
     // methods. When providing any other value type (string, number, etc), we
     // consider this shorthand for "check the value at key for strict equality
@@ -2315,9 +2380,9 @@ export class TransactionController extends BaseController<
       this.gasFeeFlows,
     ) as GasFeeFlow;
 
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-      networkClientId,
-      chainId,
+    const ethQuery = this.#getEthQueryOrThrow({
+      chainId: transactionMeta.chainId,
+      networkClientId: transactionMeta.networkClientId,
     });
 
     const gasFeeControllerData = await this.getGasFeeEstimates({
@@ -2348,7 +2413,7 @@ export class TransactionController extends BaseController<
     chainId?: Hex;
     networkClientId?: NetworkClientId;
   }): Promise<Hex | undefined> {
-    const provider = this.#multichainTrackingHelper.getProvider({
+    const provider = this.#getProviderOrThrow({
       networkClientId,
       chainId,
     });
@@ -2441,7 +2506,11 @@ export class TransactionController extends BaseController<
     });
   }
 
-  private async updateGasProperties(transactionMeta: TransactionMeta) {
+  private async updateGasProperties(
+    transactionMeta: TransactionMeta,
+    ethQuery: EthQuery,
+    provider: Provider,
+  ) {
     const isEIP1559Compatible =
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId)) &&
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
@@ -2449,16 +2518,6 @@ export class TransactionController extends BaseController<
     const { networkClientId, chainId } = transactionMeta;
 
     const isCustomNetwork = this.#isCustomNetwork(networkClientId);
-
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-      networkClientId,
-      chainId,
-    });
-
-    const provider = this.#multichainTrackingHelper.getProvider({
-      networkClientId,
-      chainId,
-    });
 
     await updateGas({
       ethQuery,
@@ -2481,28 +2540,6 @@ export class TransactionController extends BaseController<
       provider,
       transactionMeta,
     });
-  }
-
-  private onBootCleanup() {
-    this.submitApprovedTransactions();
-  }
-
-  /**
-   * Force submit approved transactions for all chains.
-   */
-  private submitApprovedTransactions() {
-    const approvedTransactions = this.state.transactions.filter(
-      (transaction) => transaction.status === TransactionStatus.approved,
-    );
-
-    for (const transactionMeta of approvedTransactions) {
-      if (this.beforeApproveOnInit(transactionMeta)) {
-        this.approveTransaction(transactionMeta.id).catch((error) => {
-          /* istanbul ignore next */
-          console.error('Error while submitting persisted transaction', error);
-        });
-      }
-    }
   }
 
   private async processApproval(
@@ -2654,13 +2691,15 @@ export class TransactionController extends BaseController<
         this.approvingTransactionIds.delete(transactionId),
       );
 
+      const getNonceLock = (
+        address: string,
+        networkClientId?: NetworkClientId,
+      ) =>
+        this.#multichainTrackingHelper.getNonceLock(address, networkClientId);
+
       const [nonce, releaseNonce] = await getNextNonce(
         transactionMeta,
-        (address: string) =>
-          this.#multichainTrackingHelper.getNonceLock(
-            address,
-            transactionMeta.networkClientId,
-          ),
+        getNonceLock,
       );
 
       // must set transaction to submitted/failed before releasing lock
@@ -2707,7 +2746,7 @@ export class TransactionController extends BaseController<
         return ApprovalState.NotApproved;
       }
 
-      const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      const ethQuery = this.#getEthQueryOrThrow({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       });
@@ -2958,7 +2997,19 @@ export class TransactionController extends BaseController<
     return { meta: transaction, isCompleted };
   }
 
-  private getChainId(networkClientId?: NetworkClientId): Hex {
+  /*
+  private getChainId(networkClientId?: NetworkClientId): Hex | undefined {
+    if (networkClientId) {
+      return this.messagingSystem.call(
+        `NetworkController:getNetworkClientById`,
+        networkClientId,
+      ).configuration.chainId;
+    }
+
+    return this.getNetworkState()?.providerConfig.chainId;
+  }
+  */
+  private getChainId(networkClientId?: NetworkClientId): Hex | undefined {
     const globalChainId = this.#getGlobalChainId();
     const globalNetworkClientId = this.#getGlobalNetworkClientId();
 
@@ -3335,10 +3386,12 @@ export class TransactionController extends BaseController<
   private getNonceTrackerTransactions(
     status: TransactionStatus,
     address: string,
-    chainId: string = this.getChainId(),
+    chainId?: Hex,
   ) {
+    const finalChainId = chainId ?? (this.getChainId() as string);
+
     return getAndFormatTransactionsForNonceTracker(
-      chainId,
+      finalChainId,
       address,
       status,
       this.state.transactions,
@@ -3368,10 +3421,11 @@ export class TransactionController extends BaseController<
         return;
       }
 
-      const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      const ethQuery = this.#getEthQueryOrThrow({
         networkClientId: transactionMeta.networkClientId,
         chainId: transactionMeta.chainId,
       });
+
       const { updatedTransactionMeta, approvalTransactionMeta } =
         await updatePostTransactionBalance(transactionMeta, {
           ethQuery,
@@ -3410,27 +3464,29 @@ export class TransactionController extends BaseController<
         this,
         chainId,
       ),
-      getConfirmedTransactions: this.getNonceTrackerTransactions.bind(
-        this,
-        TransactionStatus.confirmed,
-      ),
+      getConfirmedTransactions: (address) =>
+        this.getNonceTrackerTransactions(
+          TransactionStatus.confirmed,
+          address,
+          chainId,
+        ),
     });
   }
 
   #createIncomingTransactionHelper({
-    blockTracker,
+    getBlockTracker,
+    getChainId,
     etherscanRemoteTransactionSource,
-    chainId,
   }: {
-    blockTracker: BlockTracker;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
     etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
-    chainId?: Hex;
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
-      blockTracker,
+      getBlockTracker,
+      getChainId,
       getCurrentAccount: this.getSelectedAddress,
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: etherscanRemoteTransactionSource,
@@ -3444,29 +3500,26 @@ export class TransactionController extends BaseController<
   }
 
   #createPendingTransactionTracker({
-    provider,
-    blockTracker,
-    chainId,
+    getBlockTracker,
+    getChainId,
+    getEthQuery,
   }: {
-    provider: Provider;
-    blockTracker: BlockTracker;
-    chainId?: Hex;
+    getBlockTracker: () => BlockTracker | undefined;
+    getChainId: () => Hex | undefined;
+    getEthQuery: () => EthQuery | undefined;
   }): PendingTransactionTracker {
-    const ethQuery = new EthQuery(provider);
-    const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
-
     const pendingTransactionTracker = new PendingTransactionTracker({
       approveTransaction: async (transactionId: string) => {
         await this.approveTransaction(transactionId);
       },
-      blockTracker,
+      getBlockTracker,
       getChainId,
-      getEthQuery: () => ethQuery,
+      getEthQuery,
       getTransactions: () => this.state.transactions,
       isResubmitEnabled: this.#pendingTransactionOptions.isResubmitEnabled,
-      getGlobalLock: () =>
+      getGlobalLock: (chainId: Hex) =>
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
-          chainId: getChainId(),
+          chainId,
         }),
       publishTransaction: this.publishTransaction.bind(this),
       hooks: {
@@ -3556,7 +3609,7 @@ export class TransactionController extends BaseController<
   }
 
   #getNonceTrackerPendingTransactions(
-    chainId: string | undefined,
+    chainId: Hex | undefined,
     address: string,
   ) {
     const standardPendingTransactions = this.getNonceTrackerTransactions(
@@ -3569,6 +3622,7 @@ export class TransactionController extends BaseController<
       address,
       chainId,
     );
+
     return [...standardPendingTransactions, ...externalPendingTransactions];
   }
 
@@ -3842,5 +3896,53 @@ export class TransactionController extends BaseController<
         networkClientId,
       ).configuration.type === NetworkClientType.Custom
     );
+  }
+
+  #getEthQueryOrThrow({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  }): EthQuery {
+    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
+      networkClientId,
+      chainId,
+    });
+
+    if (!ethQuery) {
+      throw providerErrors.disconnected();
+    }
+
+    return ethQuery;
+  }
+
+  #getChainIdOrThrow(networkClientId?: NetworkClientId): Hex {
+    const chainId = this.getChainId(networkClientId);
+
+    if (!chainId) {
+      throw providerErrors.disconnected();
+    }
+
+    return chainId;
+  }
+
+  #getProviderOrThrow({
+    networkClientId,
+    chainId,
+  }: {
+    networkClientId?: NetworkClientId;
+    chainId?: Hex;
+  }): Provider {
+    const provider = this.#multichainTrackingHelper.getProvider({
+      networkClientId,
+      chainId,
+    });
+
+    if (!provider) {
+      throw providerErrors.disconnected();
+    }
+
+    return provider;
   }
 }
