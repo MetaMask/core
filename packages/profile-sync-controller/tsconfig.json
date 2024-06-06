@@ -1,15 +1,12 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./",
+    "baseUrl": "./"
   },
   "references": [
     {
       "path": "../notifications-controller"
-    },
+    }
   ],
-  "include": [
-    "../../types",
-    "./src",
-  ]
+  "include": ["../../types", "./src"]
 }

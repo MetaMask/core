@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist/types",
-    "rootDir": "./src",
+    "rootDir": "./src"
   },
   "references": [
     {
@@ -14,10 +14,7 @@
     },
     {
       "path": "../profile-sync-controller/tsconfig.build.json"
-    },
+    }
   ],
-  "include": [
-    "../../types",
-    "./src"
-  ]
+  "include": ["../../types", "./src"]
 }

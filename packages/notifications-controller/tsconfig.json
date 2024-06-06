@@ -2,9 +2,7 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "lib": [
-      "ESNext"
-    ],
+    "lib": ["ESNext"]
   },
   "references": [
     {
@@ -20,8 +18,5 @@
       "path": "../keyring-controller"
     }
   ],
-  "include": [
-    "../../types",
-    "./src",
-  ]
+  "include": ["../../types", "./src"]
 }

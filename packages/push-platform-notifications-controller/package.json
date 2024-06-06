@@ -1,7 +1,7 @@
 {
   "name": "@metamask/push-platform-notifications-controller",
   "version": "0.0.0",
-  "description": "Manages push notifications for MetaMask decentralized authentication systems.",
+  "description": "Manages push notifications for MetaMask decentralized authentication systems",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -43,7 +43,7 @@
   "dependencies": {
     "@firebase/app": "^0.10.4",
     "@firebase/messaging": "^0.12.9",
-    "@metamask/base-controller": "^5.0.2",
+    "@metamask/base-controller": "^6.0.0",
     "@metamask/notifications-controller": "^0.0.0",
     "@metamask/profile-sync-controller": "^0.0.0",
     "bignumber.js": "^4.1.0",

@@ -1,7 +1,7 @@
 {
   "name": "@metamask/notifications-controller",
   "version": "0.0.0",
-  "description": "Manages New MetaMask decentralized Notification system.",
+  "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
     "Ethereum"
@@ -42,9 +42,9 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^5.0.2",
-    "@metamask/controller-utils": "^9.1.0",
-    "@metamask/keyring-controller": "^16.0.0",
+    "@metamask/base-controller": "^6.0.0",
+    "@metamask/controller-utils": "^11.0.0",
+    "@metamask/keyring-controller": "^17.0.0",
     "@metamask/profile-sync-controller": "^0.0.0",
     "@metamask/push-platform-notifications-controller": "^0.0.0",
     "@metamask/utils": "^8.3.0",
@@ -67,7 +67,7 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^16.0.0",
+    "@metamask/keyring-controller": "^17.0.0",
     "@metamask/profile-sync-controller": "^0.0.0",
     "@metamask/push-platform-notifications-controller": "^0.0.0"
   },

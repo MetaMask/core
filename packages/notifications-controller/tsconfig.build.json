@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist/types",
-    "rootDir": "./src",
+    "rootDir": "./src"
   },
   "references": [
     {
@@ -19,8 +19,5 @@
       "path": "../keyring-controller/tsconfig.build.json"
     }
   ],
-  "include": [
-    "../../types",
-    "./src"
-  ]
+  "include": ["../../types", "./src"]
 }

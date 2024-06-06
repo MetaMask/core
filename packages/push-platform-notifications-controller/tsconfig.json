@@ -12,10 +12,7 @@
     },
     {
       "path": "../profile-sync-controller"
-    },
+    }
   ],
-  "include": [
-    "../../types",
-    "./src"
-  ]
+  "include": ["../../types", "./src"]
 }

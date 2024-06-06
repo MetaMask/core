@@ -102,7 +102,5 @@
     }
   ],
   "files": [],
-  "include": [
-    "./types"
-  ]
+  "include": ["./types"]
 }
