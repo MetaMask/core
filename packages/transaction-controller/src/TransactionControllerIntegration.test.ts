@@ -195,13 +195,13 @@ const setupController = async (
     allowedEvents: ['NetworkController:stateChange'],
   });
 
-  const mockSelectedAccountCall = jest
+  const mockGetSelectedAccount = jest
     .fn()
     .mockReturnValue(createMockInternalAccount({ address: '0xdeadbeef' }));
 
   unrestrictedMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    mockSelectedAccountCall,
+    mockGetSelectedAccount,
   );
 
   const options = {
@@ -242,7 +242,7 @@ const setupController = async (
     approvalController,
     networkController,
     messenger,
-    mockSelectedAccountCall,
+    mockGetSelectedAccount,
   };
 };
 
@@ -858,12 +858,12 @@ describe('TransactionController Integration', () => {
           approvalController,
           networkController,
           transactionController,
-          mockSelectedAccountCall,
+          mockGetSelectedAccount,
         } = await setupController({
           isMultichainEnabled: true,
           getPermittedAccounts: async () => [ACCOUNT_MOCK],
         });
-        mockSelectedAccountCall.mockReturnValue(INTERNAL_ACCOUNT_MOCK);
+        mockGetSelectedAccount.mockReturnValue(INTERNAL_ACCOUNT_MOCK);
         const otherNetworkClientIdOnGoerli =
           await networkController.upsertNetworkConfiguration(
             {
@@ -942,12 +942,12 @@ describe('TransactionController Integration', () => {
         const {
           approvalController,
           transactionController,
-          mockSelectedAccountCall,
+          mockGetSelectedAccount,
         } = await setupController({
           isMultichainEnabled: true,
           getPermittedAccounts: async () => [ACCOUNT_MOCK],
         });
-        mockSelectedAccountCall.mockReturnValue(INTERNAL_ACCOUNT_MOCK);
+        mockGetSelectedAccount.mockReturnValue(INTERNAL_ACCOUNT_MOCK);
 
         const addTx1 = await transactionController.addTransaction(
           {
@@ -1210,11 +1210,11 @@ describe('TransactionController Integration', () => {
       const {
         networkController,
         transactionController,
-        mockSelectedAccountCall,
+        mockGetSelectedAccount,
       } = await setupController({
         isMultichainEnabled: true,
       });
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       const expectedLastFetchedBlockNumbers: Record<string, number> = {};
       const expectedTransactions: Partial<TransactionMeta>[] = [];
@@ -1297,10 +1297,10 @@ describe('TransactionController Integration', () => {
         )
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-      const { transactionController, mockSelectedAccountCall } =
+      const { transactionController, mockGetSelectedAccount } =
         await setupController({});
 
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       transactionController.startIncomingTransactionPolling();
 
@@ -1394,11 +1394,11 @@ describe('TransactionController Integration', () => {
         const {
           networkController,
           transactionController,
-          mockSelectedAccountCall,
+          mockGetSelectedAccount,
         } = await setupController({
           isMultichainEnabled: true,
         });
-        mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+        mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
         const otherGoerliClientNetworkClientId =
           await networkController.upsertNetworkConfiguration(
@@ -1496,9 +1496,9 @@ describe('TransactionController Integration', () => {
       const {
         networkController,
         transactionController,
-        mockSelectedAccountCall,
+        mockGetSelectedAccount,
       } = await setupController({});
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1542,10 +1542,10 @@ describe('TransactionController Integration', () => {
         address: selectedAddress,
       });
 
-      const { transactionController, mockSelectedAccountCall } =
+      const { transactionController, mockGetSelectedAccount } =
         await setupController({});
 
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1585,9 +1585,9 @@ describe('TransactionController Integration', () => {
       const {
         networkController,
         transactionController,
-        mockSelectedAccountCall,
+        mockGetSelectedAccount,
       } = await setupController({});
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1634,11 +1634,11 @@ describe('TransactionController Integration', () => {
       const {
         networkController,
         transactionController,
-        mockSelectedAccountCall,
+        mockGetSelectedAccount,
       } = await setupController({
         isMultichainEnabled: true,
       });
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       const expectedLastFetchedBlockNumbers: Record<string, number> = {};
       const expectedTransactions: Partial<TransactionMeta>[] = [];
@@ -1703,9 +1703,9 @@ describe('TransactionController Integration', () => {
         address: selectedAddress,
       });
 
-      const { transactionController, mockSelectedAccountCall } =
+      const { transactionController, mockGetSelectedAccount } =
         await setupController({});
-      mockSelectedAccountCall.mockReturnValue(selectedAccountMock);
+      mockGetSelectedAccount.mockReturnValue(selectedAccountMock);
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
