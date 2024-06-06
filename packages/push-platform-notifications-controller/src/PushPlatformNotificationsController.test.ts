@@ -3,7 +3,7 @@
 /* eslint-disable jsdoc/require-param-description */
 /* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
-import type { AuthenticationControllerGetBearerToken } from '@metamask/profile-sync-controller';
+import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller';
 
 import { ENABLE_MV3 } from './constants';
 import { PushPlatformNotificationsController } from './PushPlatformNotificationsController';
@@ -130,7 +130,7 @@ type WithControllerCallback<ReturnValue> = ({
  */
 function buildMessenger() {
   return new ControllerMessenger<
-    AuthenticationControllerGetBearerToken,
+    AuthenticationControllerGetBearerTokenAction,
     never
   >();
 }
@@ -176,7 +176,7 @@ async function withController<ReturnValue>(
 function mockAuthBearerTokenCall(
   messenger: PushPlatformNotificationsControllerMessenger,
 ) {
-  type Fn = AuthenticationControllerGetBearerToken['handler'];
+  type Fn = AuthenticationControllerGetBearerTokenAction['handler'];
   const mockAuthGetBearerToken = jest
     .fn<ReturnType<Fn>, Parameters<Fn>>()
     .mockResolvedValue(MOCK_JWT);

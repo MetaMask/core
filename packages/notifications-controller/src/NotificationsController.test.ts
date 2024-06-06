@@ -19,9 +19,9 @@ import type {
   UserStorageControllerEnableProfileSyncingAction,
 } from '@metamask/profile-sync-controller';
 import type {
-  PushPlatformNotificationsControllerEnablePushNotifications,
-  PushPlatformNotificationsControllerDisablePushNotifications,
-  PushPlatformNotificationsControllerUpdateTriggerPushNotifications,
+  PushPlatformNotificationsControllerEnablePushNotificationsAction,
+  PushPlatformNotificationsControllerDisablePushNotificationsAction,
+  PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction,
 } from '@metamask/push-platform-notifications-controller';
 
 import {
@@ -701,13 +701,13 @@ function mockNotificationMessenger() {
     );
 
   const mockDisablePushNotifications =
-    typedMockAction<PushPlatformNotificationsControllerDisablePushNotifications>();
+    typedMockAction<PushPlatformNotificationsControllerDisablePushNotificationsAction>();
 
   const mockEnablePushNotifications =
-    typedMockAction<PushPlatformNotificationsControllerEnablePushNotifications>();
+    typedMockAction<PushPlatformNotificationsControllerEnablePushNotificationsAction>();
 
   const mockUpdateTriggerPushNotifications =
-    typedMockAction<PushPlatformNotificationsControllerUpdateTriggerPushNotifications>();
+    typedMockAction<PushPlatformNotificationsControllerUpdateTriggerPushNotificationsAction>();
 
   const mockGetStorageKey =
     typedMockAction<UserStorageControllerGetStorageKeyAction>().mockResolvedValue(
