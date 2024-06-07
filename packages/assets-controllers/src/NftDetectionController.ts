@@ -1,3 +1,4 @@
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import {
@@ -37,7 +38,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | PreferencesControllerGetStateAction;
+  | PreferencesControllerGetStateAction
+  | AccountsControllerGetSelectedAccountAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -542,8 +544,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
   }) {
     const userAddress =
       options?.userAddress ??
-      this.messagingSystem.call('PreferencesController:getState')
-        .selectedAddress;
+      this.messagingSystem.call('AccountsController:getSelectedAccount')
+        .address;
     /* istanbul ignore if */
     if (!this.isMainnet() || this.#disabled) {
       return;
