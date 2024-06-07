@@ -874,7 +874,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should clear contractExchangeRates state when ticker changes', async () => {
+      it('should clear marketData state when ticker changes', async () => {
         await withController(
           {
             options: {
@@ -927,7 +927,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should clear contractExchangeRates state when chain ID changes', async () => {
+      it('should clear marketData state when chain ID changes', async () => {
         await withController(
           {
             options: {

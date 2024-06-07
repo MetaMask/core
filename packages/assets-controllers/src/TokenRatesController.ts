@@ -104,6 +104,7 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | PreferencesControllerGetStateAction;
+
 /**
  * The external events available to the {@link TokenRatesController}.
  */
