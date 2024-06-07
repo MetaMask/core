@@ -46,7 +46,6 @@ import type {
  * @property isERC721 - 'true' if the token is a ERC721 token
  * @property name - Name of the token
  */
-
 export type Token = {
   address: string;
   decimals: number;
