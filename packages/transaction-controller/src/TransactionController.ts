@@ -3746,7 +3746,6 @@ export class TransactionController extends BaseController<
     const finalTransactionMeta = this.getTransaction(transactionId);
 
     /* istanbul ignore if */
-    // TODO: Add test for this
     if (!finalTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
