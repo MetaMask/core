@@ -1,3 +1,4 @@
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -38,7 +39,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | PreferencesControllerGetStateAction;
+  | PreferencesControllerGetStateAction
+  | AccountsControllerGetSelectedAccountAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -490,8 +492,8 @@ export class NftDetectionController extends BaseController<
   }) {
     const userAddress =
       options?.userAddress ??
-      this.messagingSystem.call('PreferencesController:getState')
-        .selectedAddress;
+      this.messagingSystem.call('AccountsController:getSelectedAccount')
+        .address;
 
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
@@ -502,6 +504,7 @@ export class NftDetectionController extends BaseController<
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
+
     /* istanbul ignore if */
     if (!supportedNftDetectionNetworks.includes(chainId) || this.#disabled) {
       return;
