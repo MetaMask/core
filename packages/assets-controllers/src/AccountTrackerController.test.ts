@@ -561,6 +561,10 @@ describe('AccountTrackerController', () => {
 
   it('should call refresh every interval on legacy polling', async () => {
     const poll = sinon.spy(AccountTrackerController.prototype, 'poll');
+    const EMPTY_ACCOUNT = {
+      address: '',
+      id: '',
+    } as InternalAccount;
     const { controller } = setupController({
       options: {
         getMultiAccountBalancesEnabled: () => true,
@@ -569,7 +573,7 @@ describe('AccountTrackerController', () => {
       },
       config: { provider, interval: 100 },
       mocks: {
-        selectedAccount: ACCOUNT_1,
+        selectedAccount: EMPTY_ACCOUNT,
         listAccounts: [],
       },
     });
@@ -584,6 +588,10 @@ describe('AccountTrackerController', () => {
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
     sinon.stub(AccountTrackerController.prototype, 'poll');
+    const EMPTY_ACCOUNT = {
+      address: '',
+      id: '',
+    } as InternalAccount;
     const { controller } = setupController({
       options: {
         getMultiAccountBalancesEnabled: () => true,
@@ -592,7 +600,7 @@ describe('AccountTrackerController', () => {
       },
       config: { provider, interval: 100 },
       mocks: {
-        selectedAccount: ACCOUNT_1,
+        selectedAccount: EMPTY_ACCOUNT,
         listAccounts: [],
       },
     });
