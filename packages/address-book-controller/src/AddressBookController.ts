@@ -28,8 +28,6 @@ export type ContactEntry = {
 };
 
 /**
- * @type AddressType
- *
  * The type of address.
  */
 export enum AddressType {
