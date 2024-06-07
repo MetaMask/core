@@ -15,8 +15,11 @@ import {
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
+import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -251,10 +254,14 @@ function buildMockEthQuery(): EthQuery {
  *
  * @param latestBlockNumber - The block number that the block tracker should
  * always return.
+ * @param provider - json rpc provider
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker();
+function buildMockBlockTracker(
+  latestBlockNumber: string,
+  provider: SafeEventEmitterProvider,
+): BlockTracker {
+  const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
 }
@@ -317,7 +324,7 @@ type MockNetwork = {
 const MOCK_NETWORK: MockNetwork = {
   chainId: ChainId.goerli,
   provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
@@ -339,7 +346,7 @@ const MOCK_NETWORK: MockNetwork = {
 const MOCK_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId.mainnet,
   provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networksMetadata: {
@@ -361,7 +368,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId['linea-mainnet'],
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -383,7 +390,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   chainId: ChainId['linea-goerli'],
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
@@ -403,6 +410,20 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
 };
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const INTERNAL_ACCOUNT_MOCK = {
+  id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
+  address: ACCOUNT_MOCK,
+  type: EthAccountType.Eoa,
+  options: {},
+  methods: [],
+  metadata: {
+    name: 'Account 1',
+    keyring: { type: 'HD Key Tree' },
+    importTime: 1631619180000,
+    lastSelected: 1631619180000,
+  },
+};
+
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
@@ -522,6 +543,7 @@ describe('TransactionController', () => {
    * messenger.
    * @param args.messengerOptions.addTransactionApprovalRequest - Options to
    * mock the `ApprovalController:addRequest` action call for transactions.
+   * @param args.selectedAccount - The selected account to use with the controller.
    * @param args.mockNetworkClientConfigurationsByNetworkClientId - Network
    * client configurations by network client ID.
    * @returns The new TransactionController instance.
@@ -530,6 +552,7 @@ describe('TransactionController', () => {
     options: givenOptions = {},
     network = {},
     messengerOptions = {},
+    selectedAccount = INTERNAL_ACCOUNT_MOCK,
     mockNetworkClientConfigurationsByNetworkClientId = {},
   }: {
     options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
@@ -546,6 +569,7 @@ describe('TransactionController', () => {
         typeof mockAddTransactionApprovalRequest
       >[1];
     };
+    selectedAccount?: InternalAccount;
     mockNetworkClientConfigurationsByNetworkClientId?: Record<
       NetworkClientId,
       NetworkClientConfiguration
@@ -556,8 +580,9 @@ describe('TransactionController', () => {
       selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
       ...network.state,
     };
-    const blockTracker = network.blockTracker ?? new FakeBlockTracker();
     const provider = network.provider ?? new FakeProvider();
+    const blockTracker =
+      network.blockTracker ?? new FakeBlockTracker({ provider });
     const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
     const changeNetwork = ({
       selectedNetworkClientId,
@@ -604,7 +629,6 @@ describe('TransactionController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientRegistry: () => ({} as any),
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
-      getSelectedAddress: () => ACCOUNT_MOCK,
       isMultichainEnabled: false,
       hooks: {},
       onNetworkStateChange,
@@ -622,9 +646,16 @@ describe('TransactionController', () => {
           'ApprovalController:addRequest',
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
+          'AccountsController:getSelectedAccount',
         ],
         allowedEvents: [],
       });
+
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    unrestrictedMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      mockGetSelectedAccount,
+    );
 
     const controller = new TransactionController({
       ...otherOptions,
@@ -635,6 +666,7 @@ describe('TransactionController', () => {
       controller,
       messenger: unrestrictedMessenger,
       mockTransactionApprovalRequest,
+      mockGetSelectedAccount,
       changeNetwork,
     };
   }

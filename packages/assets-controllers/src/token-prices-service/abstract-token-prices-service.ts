@@ -5,7 +5,6 @@ import type { Hex } from '@metamask/utils';
  */
 export type TokenPrice<TokenAddress extends Hex, Currency extends string> = {
   tokenAddress: TokenAddress;
-  value: number;
   currency: Currency;
   allTimeHigh: number;
   allTimeLow: number;

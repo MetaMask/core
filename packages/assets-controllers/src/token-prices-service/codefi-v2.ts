@@ -215,6 +215,8 @@ export const SUPPORTED_CHAIN_IDS = [
   '0x504',
   // Moonriver
   '0x505',
+  // Mantle
+  '0x1388',
   // Base
   '0x2105',
   // Shiden
@@ -459,11 +461,8 @@ export class CodefiTokenPricesServiceV2
           return obj;
         }
 
-        const { price } = marketData;
-
         const token: TokenPrice<Hex, SupportedCurrency> = {
           tokenAddress,
-          value: price,
           currency,
           ...marketData,
         };
