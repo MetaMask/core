@@ -14,6 +14,7 @@ import {
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
 } from '@metamask/controller-utils';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
@@ -245,10 +246,14 @@ function buildMockEthQuery(): EthQuery {
  *
  * @param latestBlockNumber - The block number that the block tracker should
  * always return.
+ * @param provider - json rpc provider
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker();
+function buildMockBlockTracker(
+  latestBlockNumber: string,
+  provider: SafeEventEmitterProvider,
+): BlockTracker {
+  const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
 }
@@ -293,12 +298,21 @@ function waitForTransactionFinished(
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
-const MAINNET_PROVIDER = new HttpProvider(
-  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
-const PALM_PROVIDER = new HttpProvider(
-  `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
+const HTTP_PROVIDERS = {
+  mainnet: new HttpProvider(
+    `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  goerli: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea_goerli: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
+};
 
 type MockNetwork = {
   provider: Provider;
@@ -308,8 +322,8 @@ type MockNetwork = {
 };
 
 const MOCK_NETWORK: MockNetwork = {
-  provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  provider: HTTP_PROVIDERS.mainnet,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
@@ -328,8 +342,8 @@ const MOCK_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 const MOCK_MAINNET_NETWORK: MockNetwork = {
-  provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  provider: HTTP_PROVIDERS.mainnet,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networksMetadata: {
@@ -349,8 +363,8 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 };
 
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  provider: HTTP_PROVIDERS.linea,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -370,8 +384,8 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 };
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  provider: HTTP_PROVIDERS.linea_goerli,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea_goerli),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
@@ -391,8 +405,8 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
 };
 
 const MOCK_CUSTOM_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  provider: HTTP_PROVIDERS.custom,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.custom),
   state: {
     selectedNetworkClientId: 'uuid-1',
     networksMetadata: {
