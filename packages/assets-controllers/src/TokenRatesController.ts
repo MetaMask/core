@@ -265,25 +265,10 @@ export class TokenRatesController extends StaticIntervalPollingController<
     messenger,
     state,
   }: {
-    /**
-     * The polling interval in milliseconds.
-     */
     interval?: number;
-    /**
-     * To Allow/Block controller to make active and passive polling requests
-     */
     disabled?: boolean;
-    /**
-     * The token price service instance.
-     */
     tokenPricesService: AbstractTokenPricesService;
-    /**
-     * The messenger instance for communication.
-     */
     messenger: TokenRatesControllerMessenger;
-    /**
-     * The initial state of the controller.
-     */
     state?: Partial<TokenRatesControllerState>;
   }) {
     super({
