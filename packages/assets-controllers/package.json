@@ -59,8 +59,6 @@
     "@metamask/polling-controller": "^8.0.0",
     "@metamask/preferences-controller": "^13.0.0",
     "@metamask/rpc-errors": "^6.2.1",
-    "@metamask/snaps-sdk": "^4.2.0",
-    "@metamask/snaps-utils": "^7.4.0",
     "@metamask/utils": "^8.3.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
@@ -80,7 +78,6 @@
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
     "deepmerge": "^4.2.2",
-    "immer": "^9.0.6",
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
     "nock": "^13.3.1",
@@ -95,8 +92,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^17.0.0",
     "@metamask/network-controller": "^19.0.0",
-    "@metamask/preferences-controller": "^13.0.0",
-    "@metamask/snaps-controllers": "^8.1.1"
+    "@metamask/preferences-controller": "^13.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

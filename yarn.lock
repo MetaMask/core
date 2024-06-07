@@ -1742,8 +1742,6 @@ __metadata:
     "@metamask/polling-controller": ^8.0.0
     "@metamask/preferences-controller": ^13.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/snaps-sdk": ^4.2.0
-    "@metamask/snaps-utils": ^7.4.0
     "@metamask/utils": ^8.3.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
@@ -1754,7 +1752,6 @@ __metadata:
     bn.js: ^5.2.1
     cockatiel: ^3.1.2
     deepmerge: ^4.2.2
-    immer: ^9.0.6
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     lodash: ^4.17.21
@@ -1773,7 +1770,6 @@ __metadata:
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
     "@metamask/preferences-controller": ^13.0.0
-    "@metamask/snaps-controllers": ^8.1.1
   languageName: unknown
   linkType: soft
 
