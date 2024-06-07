@@ -111,6 +111,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       });
     }
 
+    // Note: The address from the preferences controller are checksummed
+    // The addresses from the accounts controller are lowercased
     const addresses = Object.values(
       this.messagingSystem
         .call('AccountsController:listAccounts')
