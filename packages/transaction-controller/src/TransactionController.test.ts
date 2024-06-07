@@ -9,7 +9,6 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
-  NetworksTicker,
   toHex,
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
@@ -333,11 +332,6 @@ const MOCK_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType.goerli,
-      chainId: ChainId.goerli,
-      ticker: NetworksTicker.goerli,
-    },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
@@ -354,11 +348,6 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
-    },
-    providerConfig: {
-      type: NetworkType.mainnet,
-      chainId: ChainId.mainnet,
-      ticker: NetworksTicker.mainnet,
     },
     networkConfigurations: {},
   },
@@ -377,11 +366,6 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType['linea-mainnet'],
-      chainId: ChainId['linea-mainnet'],
-      ticker: NetworksTicker['linea-mainnet'],
-    },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
@@ -398,11 +382,6 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
-    },
-    providerConfig: {
-      type: NetworkType['linea-goerli'],
-      chainId: ChainId['linea-goerli'],
-      ticker: NetworksTicker['linea-goerli'],
     },
     networkConfigurations: {},
   },
@@ -3407,58 +3386,6 @@ describe('TransactionController', () => {
       );
 
       expect(confirmedEventListener).toHaveBeenCalledTimes(1);
-      expect(confirmedEventListener).toHaveBeenCalledWith(
-        expect.objectContaining(externalTransactionToConfirm),
-      );
-    });
-
-    it('publishes TransactionController:transactionConfirmed with transaction chainId regardless of whether it matches globally selected chainId', async () => {
-      const mockGloballySelectedNetwork = {
-        ...MOCK_NETWORK,
-        state: {
-          ...MOCK_NETWORK.state,
-          providerConfig: {
-            type: NetworkType.sepolia,
-            chainId: ChainId.sepolia,
-            ticker: NetworksTicker.sepolia,
-          },
-        },
-      };
-      const { controller, messenger } = setupController({
-        network: mockGloballySelectedNetwork,
-      });
-
-      const confirmedEventListener = jest.fn();
-      messenger.subscribe(
-        'TransactionController:transactionConfirmed',
-        confirmedEventListener,
-      );
-
-      const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        id: '1',
-        chainId: ChainId.goerli, // doesn't match globally selected chainId (which is sepolia)
-        status: TransactionStatus.confirmed,
-        txParams: {
-          gasUsed: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
-      const externalTransactionReceipt = {
-        gasUsed: '0x5208',
-      };
-      const externalBaseFeePerGas = '0x14';
-
-      await controller.confirmExternalTransaction(
-        externalTransactionToConfirm,
-        externalTransactionReceipt,
-        externalBaseFeePerGas,
-      );
-
       expect(confirmedEventListener).toHaveBeenCalledWith(
         expect.objectContaining(externalTransactionToConfirm),
       );
