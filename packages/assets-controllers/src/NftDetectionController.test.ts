@@ -300,7 +300,7 @@ describe('NftDetectionController', () => {
         options: {
           interval: 10,
         },
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         const mockNfts = sinon
@@ -515,9 +515,9 @@ describe('NftDetectionController', () => {
 
   it('should respond to chain ID changing when using legacy polling', async () => {
     const mockAddNft = jest.fn();
-    const mockGetSelectedAccount = jest.fn();
     const pollingInterval = 100;
     const selectedAccount = createMockInternalAccount({ address: '0x1' });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
 
     await withController(
       {
@@ -535,8 +535,7 @@ describe('NftDetectionController', () => {
           selectedNetworkClientId: 'mainnet',
         },
         mockPreferencesState: {},
-        getSelectedAccount:
-          mockGetSelectedAccount.mockReturnValue(selectedAccount),
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         await controller.start();
@@ -617,11 +616,12 @@ describe('NftDetectionController', () => {
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
       {
         options: { addNft: mockAddNft },
         mockPreferencesState: {},
-        getSelectedAccount: jest.fn().mockReturnValue(selectedAccount),
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         controllerEvents.triggerPreferencesStateChange({
@@ -663,11 +663,12 @@ describe('NftDetectionController', () => {
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
       {
         options: { addNft: mockAddNft },
         mockPreferencesState: {},
-        getSelectedAccount: jest.fn().mockReturnValue(selectedAccount),
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         controllerEvents.triggerPreferencesStateChange({
@@ -718,11 +719,12 @@ describe('NftDetectionController', () => {
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
       {
         options: { addNft: mockAddNft },
         mockPreferencesState: {},
-        getSelectedAccount: jest.fn().mockReturnValue(selectedAccount),
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         controllerEvents.triggerPreferencesStateChange({
@@ -787,7 +789,7 @@ describe('NftDetectionController', () => {
         options: {
           addNft: mockAddNft,
         },
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         const selectedAddress = '0x1';
@@ -856,7 +858,7 @@ describe('NftDetectionController', () => {
       {
         options: { addNft: mockAddNft, getNftState: mockGetNftState },
         mockPreferencesState: { selectedAddress },
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         mockGetSelectedAccount.mockReturnValue(selectedAccount);
@@ -881,14 +883,12 @@ describe('NftDetectionController', () => {
   it('should not detect and add NFTs if there is no selectedAddress', async () => {
     const mockAddNft = jest.fn();
     // mock uninitialised selectedAccount when it is ''
-    const mockGetSelectedInternalAccount = jest
-      .fn()
-      .mockReturnValue({ address: '' });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue({ address: '' });
     await withController(
       {
         options: { addNft: mockAddNft },
         mockPreferencesState: {},
-        getSelectedAccount: mockGetSelectedInternalAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         controllerEvents.triggerPreferencesStateChange({
@@ -966,7 +966,7 @@ describe('NftDetectionController', () => {
       {
         options: { addNft: mockAddNft, disabled: false },
         mockPreferencesState: {},
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         mockGetSelectedAccount.mockReturnValue(selectedAccount);
@@ -1007,7 +1007,7 @@ describe('NftDetectionController', () => {
         options: {
           addNft: mockAddNft,
         },
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         controllerEvents.triggerPreferencesStateChange({
@@ -1033,11 +1033,11 @@ describe('NftDetectionController', () => {
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
-    const mockSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
       {
         mockPreferencesState: {},
-        getSelectedAccount: mockSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         // This mock is for the initial detect call after preferences change
@@ -1090,7 +1090,7 @@ describe('NftDetectionController', () => {
       {
         options: { addNft: mockAddNft },
         mockPreferencesState: {},
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         mockGetSelectedAccount.mockReturnValue(selectedAccount);
@@ -1120,7 +1120,7 @@ describe('NftDetectionController', () => {
     await withController(
       {
         options: {},
-        getSelectedAccount: mockGetSelectedAccount,
+        mockGetSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         const detectNfts = sinon.stub(controller, 'detectNfts');
@@ -1172,7 +1172,7 @@ type WithControllerOptions = {
   >;
   mockNetworkState?: Partial<NetworkState>;
   mockPreferencesState?: Partial<PreferencesState>;
-  getSelectedAccount?: jest.Mock<AccountsController['getSelectedAccount']>;
+  mockGetSelectedAccount?: jest.Mock<AccountsController['getSelectedAccount']>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -1197,7 +1197,9 @@ async function withController<ReturnValue>(
       mockNetworkClientConfigurationsByNetworkClientId = {},
       mockNetworkState = {},
       mockPreferencesState = {},
-      getSelectedAccount = jest.fn().mockReturnValue(defaultSelectedAccount),
+      mockGetSelectedAccount = jest
+        .fn()
+        .mockReturnValue(defaultSelectedAccount),
     },
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
@@ -1214,7 +1216,7 @@ async function withController<ReturnValue>(
 
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    getSelectedAccount,
+    mockGetSelectedAccount,
   );
 
   const getNetworkClientById = buildMockGetNetworkClientById(
