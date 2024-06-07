@@ -1,37 +1,104 @@
 {
   "references": [
-    { "path": "./packages/accounts-controller/tsconfig.build.json" },
-    { "path": "./packages/address-book-controller/tsconfig.build.json" },
-    { "path": "./packages/announcement-controller/tsconfig.build.json" },
-    { "path": "./packages/approval-controller/tsconfig.build.json" },
-    { "path": "./packages/assets-controllers/tsconfig.build.json" },
-    { "path": "./packages/base-controller/tsconfig.build.json" },
-    { "path": "./packages/build-utils/tsconfig.build.json" },
-    { "path": "./packages/chain-controller/tsconfig.build.json" },
-    { "path": "./packages/composable-controller/tsconfig.build.json" },
-    { "path": "./packages/controller-utils/tsconfig.build.json" },
-    { "path": "./packages/ens-controller/tsconfig.build.json" },
-    { "path": "./packages/eth-json-rpc-provider/tsconfig.build.json" },
-    { "path": "./packages/gas-fee-controller/tsconfig.build.json" },
-    { "path": "./packages/json-rpc-engine/tsconfig.build.json" },
-    { "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json" },
-    { "path": "./packages/keyring-controller/tsconfig.build.json" },
-    { "path": "./packages/logging-controller/tsconfig.build.json" },
-    { "path": "./packages/message-manager/tsconfig.build.json" },
-    { "path": "./packages/name-controller/tsconfig.build.json" },
-    { "path": "./packages/network-controller/tsconfig.build.json" },
-    { "path": "./packages/notification-controller/tsconfig.build.json" },
-    { "path": "./packages/permission-controller/tsconfig.build.json" },
-    { "path": "./packages/permission-log-controller/tsconfig.build.json" },
-    { "path": "./packages/phishing-controller/tsconfig.build.json" },
-    { "path": "./packages/preferences-controller/tsconfig.build.json" },
-    { "path": "./packages/profile-sync-controller/tsconfig.build.json" },
-    { "path": "./packages/queued-request-controller/tsconfig.build.json" },
-    { "path": "./packages/rate-limit-controller/tsconfig.build.json" },
-    { "path": "./packages/selected-network-controller/tsconfig.build.json" },
-    { "path": "./packages/signature-controller/tsconfig.build.json" },
-    { "path": "./packages/transaction-controller/tsconfig.build.json" },
-    { "path": "./packages/user-operation-controller/tsconfig.build.json" }
+    {
+      "path": "./packages/accounts-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/address-book-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/announcement-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/approval-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/assets-controllers/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/build-utils/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/chain-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/composable-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/controller-utils/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/ens-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/eth-json-rpc-provider/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/gas-fee-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/json-rpc-engine/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/json-rpc-middleware-stream/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/logging-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/message-manager/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/name-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/notification-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/notifications-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/permission-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/permission-log-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/phishing-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/preferences-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/queued-request-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/rate-limit-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/selected-network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/signature-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/transaction-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/user-operation-controller/tsconfig.build.json"
+    }
   ],
   "files": [],
   "include": []
