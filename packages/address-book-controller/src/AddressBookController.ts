@@ -185,12 +185,10 @@ export class AddressBookController extends BaseController<
     }
 
     this.update((state) => {
-      const addressBook = Object.assign({}, state.addressBook);
-      delete addressBook[chainId][address];
-      if (Object.keys(addressBook[chainId]).length === 0) {
-        delete addressBook[chainId];
+      delete state.addressBook[chainId][address];
+      if (Object.keys(state.addressBook[chainId]).length === 0) {
+        delete state.addressBook[chainId];
       }
-      state.addressBook = addressBook;
     });
 
     return true;
