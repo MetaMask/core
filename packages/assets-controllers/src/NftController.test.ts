@@ -193,13 +193,13 @@ function setupController({
     getInternalAccountMock,
   );
 
-  const getSelectedAccountMock = jest
+  const mockGetSelectedAccount = jest
     .fn()
     .mockReturnValue(defaultSelectedAccount ?? OWNER_ACCOUNT);
 
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    getSelectedAccountMock,
+    mockGetSelectedAccount,
   );
 
   const approvalControllerMessenger = messenger.getRestricted({
@@ -291,7 +291,7 @@ function setupController({
     triggerPreferencesStateChange,
     triggerSelectedAccountChange,
     getInternalAccountMock,
-    getSelectedAccountMock,
+    mockGetSelectedAccount,
   };
 }
 
@@ -3025,14 +3025,13 @@ describe('NftController', () => {
         nftController,
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
-        getInternalAccountMock,
       } = setupController({
         options: {
           getERC721TokenURI: jest.fn().mockRejectedValue(''),
           getERC1155TokenURI: jest.fn().mockResolvedValue('ipfs://*'),
         },
+        defaultSelectedAccount: OWNER_ACCOUNT,
       });
-      getInternalAccountMock.mockReturnValue(OWNER_ACCOUNT);
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
@@ -4315,7 +4314,7 @@ describe('NftController', () => {
     });
   });
 
-  // Testing to make sure selectedAccountChange isn't used. This can return non evm accounts.
+  // Testing to make sure selectedAccountChange isn't used. This can return non-EVM accounts.
   it('triggering selectedAccountChange would not trigger anything', async () => {
     const tokenURI = 'https://url/';
     const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);

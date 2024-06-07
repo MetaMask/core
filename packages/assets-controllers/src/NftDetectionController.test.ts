@@ -302,7 +302,6 @@ describe('NftDetectionController', () => {
         },
         getSelectedAccount: mockGetSelectedAccount,
       },
-
       async ({ controller, controllerEvents }) => {
         const mockNfts = sinon
           .stub(controller, 'detectNfts')
@@ -894,7 +893,7 @@ describe('NftDetectionController', () => {
       async ({ controller, controllerEvents }) => {
         controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          useNftDetection: true, // auto-detect is enableds
+          useNftDetection: true, // auto-detect is enabled so it proceeds to check userAddress
         });
 
         await controller.detectNfts();
@@ -1034,10 +1033,11 @@ describe('NftDetectionController', () => {
     const selectedAccount = createMockInternalAccount({
       address: selectedAddress,
     });
+    const mockSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
       {
         mockPreferencesState: {},
-        getSelectedAccount: jest.fn().mockReturnValue(selectedAccount),
+        getSelectedAccount: mockSelectedAccount,
       },
       async ({ controller, controllerEvents }) => {
         // This mock is for the initial detect call after preferences change
