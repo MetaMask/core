@@ -32,7 +32,21 @@ const BLOCK_TRACKER_MOCK = {
 
 const CONTROLLER_ARGS_MOCK = {
   blockTracker: BLOCK_TRACKER_MOCK,
-  getCurrentAccount: () => ADDRESS_MOCK,
+  getCurrentAccount: () => {
+    return {
+      id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
+      address: ADDRESS_MOCK,
+      type: 'eip155:eoa' as const,
+      options: {},
+      methods: [],
+      metadata: {
+        name: 'Account 1',
+        keyring: { type: 'HD Key Tree' },
+        importTime: 1631619180000,
+        lastSelected: 1631619180000,
+      },
+    };
+  },
   getLastFetchedBlockNumbers: () => ({}),
   getChainId: () => CHAIN_ID_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
@@ -546,7 +560,8 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK_2,
           ]),
-          getCurrentAccount: () => undefined as unknown as string,
+          // @ts-expect-error testing undefined
+          getCurrentAccount: () => undefined,
         });
 
         const { blockNumberListener } = await emitBlockTrackerLatestEvent(
