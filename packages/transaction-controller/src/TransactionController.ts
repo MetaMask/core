@@ -16,10 +16,10 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import {
   query,
-  NetworkType,
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  isInfuraNetworkType,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -37,11 +37,11 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
-import { NonceTracker } from '@metamask/nonce-tracker';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
+import { NonceTracker } from '@metamask/nonce-tracker';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
@@ -3742,6 +3742,7 @@ export class TransactionController extends BaseController<
 
     const finalTransactionMeta = this.getTransaction(transactionId);
 
+    /* istanbul ignore if */
     if (!finalTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
@@ -3823,14 +3824,19 @@ export class TransactionController extends BaseController<
   }
 
   #getGlobalChainId() {
-    return this.getNetworkState().providerConfig.chainId;
+    return this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      this.getNetworkState().selectedNetworkClientId,
+    ).configuration.chainId;
   }
 
   #isCustomNetwork(networkClientId?: NetworkClientId) {
     const globalNetworkClientId = this.#getGlobalNetworkClientId();
 
     if (!networkClientId || networkClientId === globalNetworkClientId) {
-      return this.getNetworkState().providerConfig.type === NetworkType.rpc;
+      return !isInfuraNetworkType(
+        this.getNetworkState().selectedNetworkClientId,
+      );
     }
 
     return (
