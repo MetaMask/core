@@ -562,7 +562,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
       (obj, [tokenAddress, token]) => {
         obj = {
           ...obj,
-          [tokenAddress.toLowerCase()]: { ...token },
+          [tokenAddress]: { ...token },
         };
 
         return obj;

@@ -2,6 +2,7 @@ import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -297,7 +298,6 @@ export type TransactionControllerOptions = {
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  getSelectedAddress: () => string;
   incomingTransactions?: IncomingTransactionOptions;
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
@@ -344,7 +344,8 @@ const controllerName = 'TransactionController';
 export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AccountsControllerGetSelectedAccountAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -614,8 +615,6 @@ export class TransactionController extends BaseController<
 
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
-  private readonly getSelectedAddress: () => string;
-
   private readonly getExternalPendingTransactions: (
     address: string,
     chainId?: string,
@@ -733,7 +732,6 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
@@ -761,7 +759,6 @@ export class TransactionController extends BaseController<
     getNetworkState,
     getPermittedAccounts,
     getSavedGasFees,
-    getSelectedAddress,
     incomingTransactions = {},
     isMultichainEnabled = false,
     isSimulationEnabled,
@@ -802,7 +799,6 @@ export class TransactionController extends BaseController<
     this.getGasFeeEstimates =
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
-    this.getSelectedAddress = getSelectedAddress;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -1035,7 +1031,7 @@ export class TransactionController extends BaseController<
     if (origin) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
-        this.getSelectedAddress(),
+        this.#getSelectedAccount().address,
         txParams.from,
         origin,
       );
@@ -3429,7 +3425,7 @@ export class TransactionController extends BaseController<
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
-      getCurrentAccount: this.getSelectedAddress,
+      getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
@@ -3843,5 +3839,9 @@ export class TransactionController extends BaseController<
         networkClientId,
       ).configuration.type === NetworkClientType.Custom
     );
+  }
+
+  #getSelectedAccount() {
+    return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 }
