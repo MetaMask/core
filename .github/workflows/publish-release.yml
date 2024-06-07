@@ -67,7 +67,7 @@ jobs:
           fail-on-cache-miss: true
       - name: Dry Run Publish
         # omit npm-token token to perform dry run publish
-        uses: MetaMask/action-npm-publish@v4
+        uses: MetaMask/action-npm-publish@v5
         with:
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           subteam: S042S7RE4AE # @metamask-npm-publishers
@@ -101,7 +101,7 @@ jobs:
           key: ${{ github.sha }}
           fail-on-cache-miss: true
       - name: Publish
-        uses: MetaMask/action-npm-publish@v4
+        uses: MetaMask/action-npm-publish@v5
         with:
           npm-token: ${{ secrets.NPM_TOKEN }}
         env:
