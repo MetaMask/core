@@ -86,6 +86,9 @@ type MarketDataDetails = {
   totalVolume: number;
 };
 
+/**
+ * Represents a mapping of token contract addresses to their market data.
+ */
 export type ContractMarketData = Record<Hex, MarketDataDetails>;
 
 enum PollState {
@@ -109,6 +112,9 @@ export type AllowedEvents =
   | TokensControllerStateChangeEvent
   | NetworkControllerStateChangeEvent;
 
+/**
+ * The name of the {@link TokenRatesController}.
+ */
 export const controllerName = 'TokenRatesController';
 
 /**
@@ -121,18 +127,35 @@ export type TokenRatesControllerState = {
   marketData: Record<Hex, Record<Hex, MarketDataDetails>>;
 };
 
+/**
+ * The action that can be performed to get the state of the {@link TokenRatesController}.
+ */
 export type TokenRatesControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokenRatesControllerState
 >;
 
+/**
+ * The actions that can be performed using the {@link TokenRatesController}.
+ */
 export type TokenRatesControllerActions = TokenRatesControllerGetStateAction;
 
+/**
+ * The event that {@link TokenRatesController} can emit.
+ */
 export type TokenRatesControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   TokenRatesControllerState
 >;
 
+/**
+ * The events that {@link TokenRatesController} can emit.
+ */
+export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
+
+/**
+ * The messenger of the {@link TokenRatesController} for communication.
+ */
 export type TokenRatesControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   TokenRatesControllerActions | AllowedActions,
@@ -140,8 +163,6 @@ export type TokenRatesControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-
-export type TokenRatesControllerEvents = TokenRatesControllerStateChangeEvent;
 
 /**
  * Uses the CryptoCompare API to fetch the exchange rate between one currency
@@ -184,6 +205,11 @@ const tokenRatesControllerMetadata = {
   marketData: { persist: true, anonymous: false },
 };
 
+/**
+ * Get the default {@link TokenRatesController} state.
+ *
+ * @returns The default {@link TokenRatesController} state.
+ */
 export const getDefaultTokenRatesControllerState =
   (): TokenRatesControllerState => {
     return {
@@ -229,7 +255,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * @param options.interval - The polling interval in ms
    * @param options.disabled - Boolean to track if network requests are blocked
    * @param options.tokenPricesService - An object in charge of retrieving token price
-   * @param options.messenger - The controller messaging system
+   * @param options.messenger - The controller messenger instance for communication
    * @param options.state - Initial state to set on this controller
    */
   constructor({
@@ -239,10 +265,25 @@ export class TokenRatesController extends StaticIntervalPollingController<
     messenger,
     state,
   }: {
+    /**
+     * The polling interval in milliseconds.
+     */
     interval?: number;
+    /**
+     * To Allow/Block controller to make active and passive polling requests
+     */
     disabled?: boolean;
+    /**
+     * The token price service instance.
+     */
     tokenPricesService: AbstractTokenPricesService;
+    /**
+     * The messenger instance for communication.
+     */
     messenger: TokenRatesControllerMessenger;
+    /**
+     * The initial state of the controller.
+     */
     state?: Partial<TokenRatesControllerState>;
   }) {
     super({
