@@ -2,10 +2,7 @@ import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
-import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsController,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -637,10 +634,6 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
-  readonly #getSelectedAccount: () => ReturnType<
-    AccountsController['getSelectedAccount']
-  >;
-
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
@@ -791,8 +784,6 @@ export class TransactionController extends BaseController<
     });
 
     this.messagingSystem = messenger;
-    this.#getSelectedAccount = () =>
-      this.messagingSystem.call('AccountsController:getSelectedAccount');
     this.getNetworkState = getNetworkState;
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
@@ -3848,5 +3839,9 @@ export class TransactionController extends BaseController<
         networkClientId,
       ).configuration.type === NetworkClientType.Custom
     );
+  }
+
+  #getSelectedAccount() {
+    return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 }
