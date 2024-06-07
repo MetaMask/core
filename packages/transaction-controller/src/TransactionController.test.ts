@@ -2012,7 +2012,7 @@ describe('TransactionController', () => {
           const { controller } = setupController({
             messengerOptions: {
               addTransactionApprovalRequest: {
-                state: 'rejected',
+                state: TransactionStatus.rejected,
                 error: new Error('Unknown problem'),
               },
             },
