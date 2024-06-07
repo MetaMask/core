@@ -225,37 +225,77 @@ describe('SelectedNetworkController', () => {
     });
   });
 
-  describe('networkController:stateChange and useRequestQueuePreference is true', () => {
-    describe('when a networkClient is deleted from the network controller state', () => {
-      it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
-        const { controller, messenger } = setup({
-          state: {
-            domains: {
-              metamask: 'goerli',
-              'example.com': 'test-network-client-id',
-              'test.com': 'test-network-client-id',
+  describe('networkController:stateChange', () => {
+    describe('when useRequestQueuePreference is false', () => {
+      describe('when a networkClient is deleted from the network controller state', () => {
+        it('does not update the networkClientId for domains which were previously set to the deleted networkClientId', () => {
+          const { controller, messenger } = setup({
+            state: {
+              // normally there would not be any domains in state if useRequestQueuePreference is false
+              domains: {
+                metamask: 'goerli',
+                'example.com': 'test-network-client-id',
+                'test.com': 'test-network-client-id',
+              },
             },
-          },
-          useRequestQueuePreference: true,
-        });
+          });
 
-        messenger.publish(
-          'NetworkController:stateChange',
-          {
-            providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
-            selectedNetworkClientId: 'goerli',
-            networkConfigurations: {},
-            networksMetadata: {},
-          },
-          [
+          messenger.publish(
+            'NetworkController:stateChange',
             {
-              op: 'remove',
-              path: ['networkConfigurations', 'test-network-client-id'],
+              providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
+              selectedNetworkClientId: 'goerli',
+              networkConfigurations: {},
+              networksMetadata: {},
             },
-          ],
-        );
-        expect(controller.state.domains['example.com']).toBe('goerli');
-        expect(controller.state.domains['test.com']).toBe('goerli');
+            [
+              {
+                op: 'remove',
+                path: ['networkConfigurations', 'test-network-client-id'],
+              },
+            ],
+          );
+          expect(controller.state.domains).toStrictEqual({
+            metamask: 'goerli',
+            'example.com': 'test-network-client-id',
+            'test.com': 'test-network-client-id',
+          });
+        });
+      });
+    });
+
+    describe('when useRequestQueuePreference is true', () => {
+      describe('when a networkClient is deleted from the network controller state', () => {
+        it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
+          const { controller, messenger } = setup({
+            state: {
+              domains: {
+                metamask: 'goerli',
+                'example.com': 'test-network-client-id',
+                'test.com': 'test-network-client-id',
+              },
+            },
+            useRequestQueuePreference: true,
+          });
+
+          messenger.publish(
+            'NetworkController:stateChange',
+            {
+              providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
+              selectedNetworkClientId: 'goerli',
+              networkConfigurations: {},
+              networksMetadata: {},
+            },
+            [
+              {
+                op: 'remove',
+                path: ['networkConfigurations', 'test-network-client-id'],
+              },
+            ],
+          );
+          expect(controller.state.domains['example.com']).toBe('goerli');
+          expect(controller.state.domains['test.com']).toBe('goerli');
+        });
       });
     });
   });
