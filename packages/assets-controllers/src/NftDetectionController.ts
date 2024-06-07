@@ -2,13 +2,12 @@ import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
-  fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
   NFT_API_BASE_URL,
   NFT_API_VERSION,
-  NFT_API_TIMEOUT,
   convertHexToDecimal,
+  handleFetch,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -459,20 +458,22 @@ export class NftDetectionController extends BaseController<
   ) {
     // Convert hex chainId to number
     const convertedChainId = convertHexToDecimal(chainId).toString();
-    const nftApiResponse: ReservoirResponse = await fetchWithErrorHandling({
-      url: this.#getOwnerNftApi({
-        chainId: convertedChainId,
-        address,
-        next: cursor,
-      }),
-      options: {
+    const url = this.#getOwnerNftApi({
+      chainId: convertedChainId,
+      address,
+      next: cursor,
+    });
+    try {
+      const nftApiResponse: ReservoirResponse = await handleFetch(url, {
         headers: {
           Version: NFT_API_VERSION,
         },
-      },
-      timeout: NFT_API_TIMEOUT,
-    });
-    return nftApiResponse;
+      });
+      return nftApiResponse;
+    } catch (err) {
+      this.#updateNftFetchingProgressStatus(false);
+      throw err;
+    }
   }
 
   /**

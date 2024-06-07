@@ -779,6 +779,49 @@ describe('NftDetectionController', () => {
     );
   });
 
+  it('should call updateNftFetchingProgressStatus when call to NFT-API fails', async () => {
+    const selectedAddress = '0x4444';
+    const mockAddNft = jest.fn();
+    const mockUpdateNftFetchingProgressStatus = jest.fn();
+    await withController(
+      {
+        mockPreferencesState: { selectedAddress },
+        options: {
+          addNft: mockAddNft,
+          updateNftFetchingProgressStatus: mockUpdateNftFetchingProgressStatus,
+        },
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          selectedAddress,
+          useNftDetection: true,
+        });
+        // Wait for detect call triggered by preferences state change to settle
+        await advanceTime({
+          clock,
+          duration: 1,
+        });
+        // This mock is for the call under test
+        nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/tokens`)
+          .query({
+            continuation: '',
+            limit: '50',
+            chainIds: '1',
+            includeTopBid: true,
+          })
+          .replyWithError(new Error('UNEXPECTED ERROR!!'));
+
+        await expect(() => controller.detectNfts()).rejects.toThrow(
+          'UNEXPECTED ERROR!!',
+        );
+        expect(mockAddNft).not.toHaveBeenCalled();
+        expect(mockUpdateNftFetchingProgressStatus).toHaveBeenCalledWith(false);
+      },
+    );
+  });
+
   it('should rethrow error when Nft APi server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
     await withController(
