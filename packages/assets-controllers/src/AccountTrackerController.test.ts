@@ -30,6 +30,10 @@ const ACCOUNT_1 = createMockInternalAccount({ address: ADDRESS_1 });
 const ADDRESS_2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
 const CHECKSUM_ADDRESS_2 = toChecksumHexAddress(ADDRESS_2);
 const ACCOUNT_2 = createMockInternalAccount({ address: ADDRESS_2 });
+const EMPTY_ACCOUNT = {
+  address: '',
+  id: '',
+} as InternalAccount;
 
 const mockedQuery = query as jest.Mock<
   ReturnType<typeof query>,
@@ -561,10 +565,7 @@ describe('AccountTrackerController', () => {
 
   it('should call refresh every interval on legacy polling', async () => {
     const poll = sinon.spy(AccountTrackerController.prototype, 'poll');
-    const EMPTY_ACCOUNT = {
-      address: '',
-      id: '',
-    } as InternalAccount;
+
     const { controller } = setupController({
       options: {
         getMultiAccountBalancesEnabled: () => true,
@@ -588,10 +589,6 @@ describe('AccountTrackerController', () => {
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
     sinon.stub(AccountTrackerController.prototype, 'poll');
-    const EMPTY_ACCOUNT = {
-      address: '',
-      id: '',
-    } as InternalAccount;
     const { controller } = setupController({
       options: {
         getMultiAccountBalancesEnabled: () => true,
