@@ -1,7 +1,7 @@
 import * as sinon from 'sinon';
 
 import { ListKeys, ListNames } from './PhishingController';
-import { applyDiffs, fetchTimeNow } from './utils';
+import { applyDiffs, fetchTimeNow, isValidHostname } from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
@@ -139,4 +139,42 @@ describe('applyDiffs', () => {
       name: ListNames.Phishfort,
     });
   });
+});
+
+describe('isValidHostname', () => {
+  it('returns true for a valid hostname', () =>
+    expect(isValidHostname('example.com')).toBe(true));
+
+  it('returns true for FQDN', () =>
+    expect(isValidHostname('example.com.')).toBe(true));
+
+  it('returns true for IPv4 addresses', () =>
+    expect(isValidHostname('192.168.1.1')).toBe(true));
+
+  it('returns true for IPv6 addresses', () =>
+    expect(isValidHostname('[2001:db8::1]')).toBe(true));
+
+  it('returns true for internationalized domain names', () =>
+    expect(isValidHostname('münchen.de')).toBe(true));
+
+  it('returns true for hostnames with hyphens', () =>
+    expect(isValidHostname('example-test.com')).toBe(true));
+
+  it('returns false for origin', () =>
+    expect(isValidHostname('http://example.com')).toBe(false));
+
+  it('returns false if port provided', () =>
+    expect(isValidHostname('example.com:443')).toBe(false));
+
+  it('returns false if query string provided', () =>
+    expect(isValidHostname('example.com?x=foo')).toBe(false));
+
+  it('returns false if hash provided', () =>
+    expect(isValidHostname('example.com#')).toBe(false));
+
+  it('returns false if invalid URL provided', () =>
+    expect(isValidHostname('@')).toBe(false));
+
+  it('returns false if hostname has trailing slash', () =>
+    expect(isValidHostname('example.com/')).toBe(false));
 });

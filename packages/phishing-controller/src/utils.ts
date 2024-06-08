@@ -1,9 +1,12 @@
+import { toASCII } from 'punycode/';
+
 import type {
   Hotlist,
   ListKeys,
   PhishingListState,
 } from './PhishingController';
 import { phishingListKeyNameMap } from './PhishingController';
+
 /**
  * Fetches current epoch time in seconds.
  *
@@ -80,4 +83,21 @@ export const applyDiffs = (
     tolerance: listState.tolerance,
     lastUpdated: latestDiffTimestamp,
   };
+};
+
+/**
+ * Checks if a given string is a valid hostname.
+ *
+ * @param str - The hostname string to check.
+ * @returns True if the string is a valid hostname, false otherwise.
+ */
+export const isValidHostname = (str: string): boolean => {
+  try {
+    const url = new URL(`https://${str}`);
+    const punycodeHostname = toASCII(str);
+
+    return url.hostname === punycodeHostname;
+  } catch (e) {
+    return false;
+  }
 };

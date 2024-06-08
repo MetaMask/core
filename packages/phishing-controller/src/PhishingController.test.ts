@@ -780,6 +780,24 @@ describe('PhishingController', () => {
     });
   });
 
+  it('raises an error if test input is an origin instead of a hostname', async () => {
+    const url = 'https://opensea.io';
+    const controller = getPhishingController();
+
+    expect(() => {
+      controller.test(url);
+    }).toThrow(`Invalid Input: Expected a valid hostname, recieved ${url}`);
+  });
+
+  it('raises an error if bypass input is an origin instead of a domain', async () => {
+    const url = 'https://opensea.io';
+    const controller = getPhishingController();
+
+    expect(() => {
+      controller.bypass(url);
+    }).toThrow(`Invalid Input: Expected a valid hostname, recieved ${url}`);
+  });
+
   it('should bypass a given domain, and return a negative result', async () => {
     nock(PHISHING_CONFIG_BASE_URL)
       .get(METAMASK_STALELIST_FILE)
