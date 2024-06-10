@@ -8,6 +8,7 @@
     { "path": "./packages/assets-controllers" },
     { "path": "./packages/base-controller" },
     { "path": "./packages/build-utils" },
+    { "path": "./packages/caip-stream" },
     { "path": "./packages/composable-controller" },
     { "path": "./packages/controller-utils" },
     { "path": "./packages/ens-controller" },
