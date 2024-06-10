@@ -1,6 +1,16 @@
-import { NFT_API_BASE_URL, ChainId, toHex } from '@metamask/controller-utils';
-import { NetworkClientType } from '@metamask/network-controller';
-import type { NetworkClient } from '@metamask/network-controller';
+import type { AccountsController } from '@metamask/accounts-controller';
+import { ControllerMessenger } from '@metamask/base-controller';
+import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
+import {
+  NetworkClientType,
+  defaultState as defaultNetworkState,
+} from '@metamask/network-controller';
+import type {
+  NetworkClient,
+  NetworkClientConfiguration,
+  NetworkClientId,
+  NetworkState,
+} from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
@@ -11,15 +21,25 @@ import * as sinon from 'sinon';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { advanceTime } from '../../../tests/helpers';
-import { Source } from './constants';
-import { getDefaultNftState, type NftState } from './NftController';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import {
-  type NftDetectionConfig,
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
+import { Source } from './constants';
+import { getDefaultNftControllerState } from './NftController';
+import {
   NftDetectionController,
   BlockaidResultType,
+  type AllowedActions,
+  type AllowedEvents,
 } from './NftDetectionController';
 
 const DEFAULT_INTERVAL = 180000;
+
+const controllerName = 'NftDetectionController' as const;
+
+const defaultSelectedAccount = createMockInternalAccount();
 
 describe('NftDetectionController', () => {
   let clock: sinon.SinonFakeTimers;
@@ -264,7 +284,6 @@ describe('NftDetectionController', () => {
           },
         ],
       });
-    console.log(nock.activeMocks());
   });
 
   afterEach(() => {
@@ -272,23 +291,22 @@ describe('NftDetectionController', () => {
     sinon.restore();
   });
 
-  it('should set default config', async () => {
-    await withController(({ controller }) => {
-      expect(controller.config).toStrictEqual({
-        interval: DEFAULT_INTERVAL,
-        chainId: toHex(1),
-        selectedAddress: '',
-        disabled: true,
-      });
-    });
-  });
-
   it('should poll and detect NFTs on interval while on mainnet', async () => {
+    const mockGetSelectedAccount = jest
+      .fn()
+      .mockReturnValue(defaultSelectedAccount);
     await withController(
-      { config: { interval: 10 } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const mockNfts = sinon.stub(controller, 'detectNfts');
-        triggerPreferencesStateChange({
+      {
+        options: {
+          interval: 10,
+        },
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        const mockNfts = sinon
+          .stub(controller, 'detectNfts')
+          .returns(Promise.resolve());
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           useNftDetection: true,
         });
@@ -311,60 +329,177 @@ describe('NftDetectionController', () => {
   });
 
   it('should poll and detect NFTs by networkClientId on interval while on mainnet', async () => {
-    await withController(async ({ controller }) => {
-      const spy = jest
-        .spyOn(controller, 'detectNfts')
-        .mockImplementation(() => {
-          return Promise.resolve();
+    await withController(
+      {
+        options: {},
+      },
+      async ({ controller }) => {
+        const spy = jest
+          .spyOn(controller, 'detectNfts')
+          .mockImplementation(() => {
+            return Promise.resolve();
+          });
+
+        controller.startPollingByNetworkClientId('mainnet', {
+          address: '0x1',
         });
 
-      controller.startPollingByNetworkClientId('mainnet', {
-        address: '0x1',
-      });
-
-      await advanceTime({ clock, duration: 0 });
-      expect(spy.mock.calls).toHaveLength(1);
-      await advanceTime({
-        clock,
-        duration: DEFAULT_INTERVAL / 2,
-      });
-      expect(spy.mock.calls).toHaveLength(1);
-      await advanceTime({
-        clock,
-        duration: DEFAULT_INTERVAL / 2,
-      });
-      expect(spy.mock.calls).toHaveLength(2);
-      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
-      expect(spy.mock.calls).toMatchObject([
-        [
-          {
-            networkClientId: 'mainnet',
-            userAddress: '0x1',
-          },
-        ],
-        [
-          {
-            networkClientId: 'mainnet',
-            userAddress: '0x1',
-          },
-        ],
-        [
-          {
-            networkClientId: 'mainnet',
-            userAddress: '0x1',
-          },
-        ],
-      ]);
-    });
+        await advanceTime({ clock, duration: 0 });
+        expect(spy.mock.calls).toHaveLength(1);
+        await advanceTime({
+          clock,
+          duration: DEFAULT_INTERVAL / 2,
+        });
+        expect(spy.mock.calls).toHaveLength(1);
+        await advanceTime({
+          clock,
+          duration: DEFAULT_INTERVAL / 2,
+        });
+        expect(spy.mock.calls).toHaveLength(2);
+        await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+        expect(spy.mock.calls).toMatchObject([
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+        ]);
+      },
+    );
   });
 
-  it('should detect mainnet correctly', async () => {
-    await withController(({ controller }) => {
-      controller.configure({ chainId: ChainId.mainnet });
-      expect(controller.isMainnet()).toBe(true);
-      controller.configure({ chainId: ChainId.goerli });
-      expect(controller.isMainnet()).toBe(false);
-    });
+  it('should not rely on the currently selected chain to poll for NFTs when a specific chain is being targeted for polling', async () => {
+    await withController(
+      {
+        mockNetworkClientConfigurationsByNetworkClientId: {
+          'AAAA-AAAA-AAAA-AAAA': buildCustomNetworkClientConfiguration({
+            chainId: '0x1337',
+          }),
+        },
+      },
+      async ({ controller, controllerEvents }) => {
+        const spy = jest
+          .spyOn(controller, 'detectNfts')
+          .mockImplementation(() => {
+            return Promise.resolve();
+          });
+
+        controller.startPollingByNetworkClientId('mainnet', {
+          address: '0x1',
+        });
+
+        await advanceTime({ clock, duration: 0 });
+        expect(spy.mock.calls).toHaveLength(1);
+        await advanceTime({
+          clock,
+          duration: DEFAULT_INTERVAL / 2,
+        });
+        expect(spy.mock.calls).toHaveLength(1);
+        await advanceTime({
+          clock,
+          duration: DEFAULT_INTERVAL / 2,
+        });
+        expect(spy.mock.calls).toHaveLength(2);
+        await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+        expect(spy.mock.calls).toMatchObject([
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+        ]);
+
+        controllerEvents.triggerNetworkStateChange({
+          ...defaultNetworkState,
+          selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+        });
+        await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+        expect(spy.mock.calls).toMatchObject([
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+          [
+            {
+              networkClientId: 'mainnet',
+              userAddress: '0x1',
+            },
+          ],
+        ]);
+      },
+    );
+  });
+
+  it('should detect mainnet truthy', async () => {
+    await withController(
+      {
+        mockNetworkState: {
+          selectedNetworkClientId: 'mainnet',
+        },
+        mockPreferencesState: {
+          selectedAddress: '',
+        },
+      },
+      ({ controller }) => {
+        expect(controller.isMainnet()).toBe(true);
+      },
+    );
+  });
+
+  it('should detect mainnet falsy', async () => {
+    await withController(
+      {
+        mockNetworkState: {
+          selectedNetworkClientId: 'goerli',
+        },
+        mockPreferencesState: {
+          selectedAddress: '',
+        },
+      },
+      ({ controller }) => {
+        expect(controller.isMainnet()).toBe(false);
+      },
+    );
   });
 
   it('should not autodetect while not on mainnet', async () => {
@@ -378,15 +513,119 @@ describe('NftDetectionController', () => {
     });
   });
 
+  it('should respond to chain ID changing when using legacy polling', async () => {
+    const mockAddNft = jest.fn();
+    const pollingInterval = 100;
+    const selectedAccount = createMockInternalAccount({ address: '0x1' });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    await withController(
+      {
+        options: {
+          interval: pollingInterval,
+          addNft: mockAddNft,
+          disabled: false,
+        },
+        mockNetworkClientConfigurationsByNetworkClientId: {
+          'AAAA-AAAA-AAAA-AAAA': buildCustomNetworkClientConfiguration({
+            chainId: '0x123',
+          }),
+        },
+        mockNetworkState: {
+          selectedNetworkClientId: 'mainnet',
+        },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        await controller.start();
+        // await clock.tickAsync(pollingInterval);
+
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          1,
+          '0xCE7ec4B2DfB30eB6c0BB5656D33aAd6BFb4001Fc',
+          '2577',
+          {
+            nftMetadata: {
+              description:
+                "Redacted Remilio Babies is a collection of 10,000 neochibi pfpNFT's expanding the Milady Maker paradigm with the introduction of young J.I.T. energy and schizophrenic reactionary aesthetics. We are #REMILIONAIREs.",
+              image: 'https://imgtest',
+              imageOriginal: 'https://remilio.org/remilio/632.png',
+              imageThumbnail: 'https://imgSmall',
+              name: 'Remilio 632',
+              rarityRank: 8872,
+              rarityScore: 343.443,
+              standard: 'ERC721',
+            },
+            userAddress: '0x1',
+            source: Source.Detected,
+          },
+        );
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          2,
+          '0x0B0fa4fF58D28A88d63235bd0756EDca69e49e6d',
+          '2578',
+          {
+            nftMetadata: {
+              description: 'Description 2578',
+              image: 'https://imgtest',
+              imageOriginal: 'https://remilio.org/remilio/632.png',
+              imageThumbnail: 'https://imgSmall',
+              name: 'ID 2578',
+              rarityRank: 8872,
+              rarityScore: 343.443,
+              standard: 'ERC721',
+            },
+            userAddress: '0x1',
+            source: Source.Detected,
+          },
+        );
+        expect(mockAddNft).toHaveBeenNthCalledWith(
+          3,
+          '0xebE4e5E773AFD2bAc25De0cFafa084CFb3cBf1eD',
+          '2574',
+          {
+            nftMetadata: {
+              description: 'Description 2574',
+              image: 'image/2574.png',
+              imageOriginal: 'imageOriginal/2574.png',
+              name: 'ID 2574',
+              standard: 'ERC721',
+            },
+            userAddress: '0x1',
+            source: Source.Detected,
+          },
+        );
+
+        controllerEvents.triggerNetworkStateChange({
+          ...defaultNetworkState,
+          selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+        });
+        await clock.tickAsync(pollingInterval);
+
+        // Not 6 times, which is what would happen if detectNfts were called
+        // again
+        expect(mockAddNft).toHaveBeenCalledTimes(3);
+      },
+    );
+  });
+
   it('should detect and add NFTs correctly when blockaid result is not included in response', async () => {
     const mockAddNft = jest.fn();
+    const selectedAddress = '0x1';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x1';
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -409,7 +648,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2574.png',
             },
-            userAddress: selectedAddress,
+            userAddress: selectedAccount.address,
             source: Source.Detected,
             networkClientId: undefined,
           },
@@ -420,13 +659,20 @@ describe('NftDetectionController', () => {
 
   it('should detect and add NFTs correctly when blockaid result is in response', async () => {
     const mockAddNft = jest.fn();
+    const selectedAddress = '0x123';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x123';
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -447,7 +693,7 @@ describe('NftDetectionController', () => {
             standard: 'ERC721',
             imageOriginal: 'imageOriginal/2574.png',
           },
-          userAddress: selectedAddress,
+          userAddress: selectedAccount.address,
           source: Source.Detected,
           networkClientId: undefined,
         });
@@ -459,7 +705,7 @@ describe('NftDetectionController', () => {
             standard: 'ERC721',
             imageOriginal: 'imageOriginal/2575.png',
           },
-          userAddress: selectedAddress,
+          userAddress: selectedAccount.address,
           source: Source.Detected,
           networkClientId: undefined,
         });
@@ -469,13 +715,20 @@ describe('NftDetectionController', () => {
 
   it('should detect and add NFTs and filter them correctly', async () => {
     const mockAddNft = jest.fn();
+    const selectedAddress = '0x12345';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x12345';
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -502,7 +755,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/1.png',
             },
-            userAddress: selectedAddress,
+            userAddress: selectedAccount.address,
             source: Source.Detected,
             networkClientId: undefined,
           },
@@ -519,7 +772,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2.png',
             },
-            userAddress: selectedAddress,
+            userAddress: selectedAccount.address,
             source: Source.Detected,
             networkClientId: undefined,
           },
@@ -530,13 +783,22 @@ describe('NftDetectionController', () => {
 
   it('should detect and add NFTs by networkClientId correctly', async () => {
     const mockAddNft = jest.fn();
+    const mockGetSelectedAccount = jest.fn();
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
+      {
+        options: {
+          addNft: mockAddNft,
+        },
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
         const selectedAddress = '0x1';
-        triggerPreferencesStateChange({
+        const updatedSelectedAccount = createMockInternalAccount({
+          address: selectedAddress,
+        });
+        mockGetSelectedAccount.mockReturnValue(updatedSelectedAccount);
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -573,9 +835,10 @@ describe('NftDetectionController', () => {
 
   it('should not autodetect NFTs that exist in the ignoreList', async () => {
     const mockAddNft = jest.fn();
+    const mockGetSelectedAccount = jest.fn();
     const mockGetNftState = jest.fn().mockImplementation(() => {
       return {
-        ...getDefaultNftState(),
+        ...getDefaultNftControllerState(),
         ignoredNfts: [
           // This address and token ID are always detected, as determined by
           // the nock mocks setup in `beforeEach`
@@ -587,13 +850,20 @@ describe('NftDetectionController', () => {
         ],
       };
     });
+    const selectedAddress = '0x9';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
     await withController(
-      { options: { addNft: mockAddNft, getNftState: mockGetNftState } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x9';
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft, getNftState: mockGetNftState },
+        mockPreferencesState: { selectedAddress },
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        mockGetSelectedAccount.mockReturnValue(selectedAccount);
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -612,18 +882,19 @@ describe('NftDetectionController', () => {
 
   it('should not detect and add NFTs if there is no selectedAddress', async () => {
     const mockAddNft = jest.fn();
+    // mock uninitialised selectedAccount when it is ''
+    const mockGetSelectedAccount = jest.fn().mockReturnValue({ address: '' });
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = ''; // Emtpy selected address
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true, // auto-detect is enabled so it proceeds to check userAddress
         });
-
-        // confirm that default selected address is an empty string
-        expect(controller.config.selectedAddress).toBe('');
 
         await controller.detectNfts();
 
@@ -634,15 +905,16 @@ describe('NftDetectionController', () => {
 
   it('should return true if mainnet is detected', async () => {
     const mockAddNft = jest.fn();
+    const provider = new FakeProvider();
     const mockNetworkClient: NetworkClient = {
       configuration: {
-        chainId: toHex(1),
+        chainId: ChainId.mainnet,
         rpcUrl: 'https://test.network',
         ticker: 'TEST',
         type: NetworkClientType.Custom,
       },
-      provider: new FakeProvider(),
-      blockTracker: new FakeBlockTracker(),
+      provider,
+      blockTracker: new FakeBlockTracker({ provider }),
       destroy: () => {
         // do nothing
       },
@@ -658,10 +930,10 @@ describe('NftDetectionController', () => {
 
   it('should not detectNfts when disabled is false and useNftDetection is true', async () => {
     await withController(
-      { config: { interval: 10 }, options: { disabled: false } },
-      async ({ controller, triggerPreferencesStateChange }) => {
+      { options: { disabled: false, interval: 10 } },
+      async ({ controller, controllerEvents }) => {
         const mockNfts = sinon.stub(controller, 'detectNfts');
-        triggerPreferencesStateChange({
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           useNftDetection: true,
         });
@@ -685,13 +957,21 @@ describe('NftDetectionController', () => {
 
   it('should not detect and add NFTs if preferences controller useNftDetection is set to false', async () => {
     const mockAddNft = jest.fn();
+    const mockGetSelectedAccount = jest.fn();
+    const selectedAddress = '0x9';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x9';
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft, disabled: false },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        mockGetSelectedAccount.mockReturnValue(selectedAccount);
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: false,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -709,9 +989,9 @@ describe('NftDetectionController', () => {
   });
 
   it('should do nothing when the request to Nft API fails', async () => {
-    const selectedAddress = '0x3';
+    const selectedAccount = createMockInternalAccount({ address: '0x3' });
     nock(NFT_API_BASE_URL)
-      .get(`/users/${selectedAddress}/tokens`)
+      .get(`/users/${selectedAccount.address}/tokens`)
       .query({
         continuation: '',
         limit: '50',
@@ -721,12 +1001,17 @@ describe('NftDetectionController', () => {
       .replyWithError(new Error('Failed to fetch'))
       .persist();
     const mockAddNft = jest.fn();
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        triggerPreferencesStateChange({
+      {
+        options: {
+          addNft: mockAddNft,
+        },
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -745,8 +1030,16 @@ describe('NftDetectionController', () => {
 
   it('should rethrow error when Nft APi server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
     await withController(
-      async ({ controller, triggerPreferencesStateChange }) => {
+      {
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
         // This mock is for the initial detect call after preferences change
         nock(NFT_API_BASE_URL)
           .get(`/users/${selectedAddress}/tokens`)
@@ -759,9 +1052,8 @@ describe('NftDetectionController', () => {
           .reply(200, {
             tokens: [],
           });
-        triggerPreferencesStateChange({
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -789,13 +1081,21 @@ describe('NftDetectionController', () => {
 
   it('should rethrow error when attempt to add NFT fails', async () => {
     const mockAddNft = jest.fn();
+    const mockGetSelectedAccount = jest.fn();
+    const selectedAddress = '0x1';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
     await withController(
-      { options: { addNft: mockAddNft } },
-      async ({ controller, triggerPreferencesStateChange }) => {
-        const selectedAddress = '0x1';
-        triggerPreferencesStateChange({
+      {
+        options: { addNft: mockAddNft },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        mockGetSelectedAccount.mockReturnValue(selectedAccount);
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
-          selectedAddress,
           useNftDetection: true,
         });
         // Wait for detect call triggered by preferences state change to settle
@@ -814,23 +1114,30 @@ describe('NftDetectionController', () => {
   });
 
   it('should only re-detect when relevant settings change', async () => {
+    const mockGetSelectedAccount = jest
+      .fn()
+      .mockReturnValue(defaultSelectedAccount);
     await withController(
-      {},
-      async ({ controller, triggerPreferencesStateChange }) => {
+      {
+        options: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
         const detectNfts = sinon.stub(controller, 'detectNfts');
 
         // Repeated preference changes should only trigger 1 detection
         for (let i = 0; i < 5; i++) {
-          triggerPreferencesStateChange({
+          controllerEvents.triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useNftDetection: true,
+            securityAlertsEnabled: true,
           });
         }
         await advanceTime({ clock, duration: 1 });
         expect(detectNfts.callCount).toBe(1);
 
         // Irrelevant preference changes shouldn't trigger a detection
-        triggerPreferencesStateChange({
+        controllerEvents.triggerPreferencesStateChange({
           ...getDefaultPreferencesState(),
           useNftDetection: true,
           securityAlertsEnabled: true,
@@ -842,17 +1149,30 @@ describe('NftDetectionController', () => {
   });
 });
 
+/**
+ * A collection of mock external controller events.
+ */
+type ControllerEvents = {
+  triggerPreferencesStateChange: (state: PreferencesState) => void;
+  triggerNetworkStateChange: (state: NetworkState) => void;
+};
+
 type WithControllerCallback<ReturnValue> = ({
   controller,
 }: {
   controller: NftDetectionController;
-  triggerNftStateChange: (state: NftState) => void;
-  triggerPreferencesStateChange: (state: PreferencesState) => void;
+  controllerEvents: ControllerEvents;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof NftDetectionController>[0]>;
-  config?: Partial<NftDetectionConfig>;
+  mockNetworkClientConfigurationsByNetworkClientId?: Record<
+    NetworkClientId,
+    NetworkClientConfiguration
+  >;
+  mockNetworkState?: Partial<NetworkState>;
+  mockPreferencesState?: Partial<PreferencesState>;
+  mockGetSelectedAccount?: jest.Mock<AccountsController['getSelectedAccount']>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -871,57 +1191,85 @@ type WithControllerArgs<ReturnValue> =
 async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
-  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, config } = rest;
+  const [
+    {
+      options = {},
+      mockNetworkClientConfigurationsByNetworkClientId = {},
+      mockNetworkState = {},
+      mockPreferencesState = {},
+      mockGetSelectedAccount = jest
+        .fn()
+        .mockReturnValue(defaultSelectedAccount),
+    },
+    testFunction,
+  ] = args.length === 2 ? args : [{}, args[0]];
 
-  const getNetworkClientById = jest.fn().mockImplementation(() => {
-    return {
-      configuration: {
-        chainId: ChainId.mainnet,
-      },
-      provider: jest.fn(),
-      blockTracker: jest.fn(),
-      destroy: jest.fn(),
-    };
+  const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
+
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    jest.fn<NetworkState, []>().mockReturnValue({
+      ...defaultNetworkState,
+      ...mockNetworkState,
+    }),
+  );
+
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount,
+  );
+
+  const getNetworkClientById = buildMockGetNetworkClientById(
+    mockNetworkClientConfigurationsByNetworkClientId,
+  );
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    getNetworkClientById,
+  );
+
+  messenger.registerActionHandler(
+    'PreferencesController:getState',
+    jest.fn<PreferencesState, []>().mockReturnValue({
+      ...getDefaultPreferencesState(),
+      ...mockPreferencesState,
+    }),
+  );
+
+  const controllerMessenger = messenger.getRestricted({
+    name: controllerName,
+    allowedActions: [
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+      'PreferencesController:getState',
+      'AccountsController:getSelectedAccount',
+    ],
+    allowedEvents: [
+      'NetworkController:stateChange',
+      'PreferencesController:stateChange',
+    ],
   });
 
-  const nftStateChangeListeners: ((state: NftState) => void)[] = [];
-  const preferencesStateChangeListeners: ((state: PreferencesState) => void)[] =
-    [];
-  const controller = new NftDetectionController(
-    {
-      chainId: ChainId.mainnet,
-      onNftsStateChange: (listener) => {
-        nftStateChangeListeners.push(listener);
-      },
-      onPreferencesStateChange: (listener) => {
-        preferencesStateChangeListeners.push(listener);
-      },
-      onNetworkStateChange: jest.fn(),
-      getOpenSeaApiKey: jest.fn(),
-      addNft: jest.fn(),
-      getNftApi: jest.fn(),
-      getNetworkClientById,
-      getNftState: getDefaultNftState,
-      disabled: true,
-      selectedAddress: '',
-      ...options,
+  const controller = new NftDetectionController({
+    messenger: controllerMessenger,
+    disabled: true,
+    addNft: jest.fn(),
+    getNftState: getDefaultNftControllerState,
+    ...options,
+  });
+
+  const controllerEvents = {
+    triggerPreferencesStateChange: (state: PreferencesState) => {
+      messenger.publish('PreferencesController:stateChange', state, []);
     },
-    config,
-  );
+    triggerNetworkStateChange: (state: NetworkState) => {
+      messenger.publish('NetworkController:stateChange', state, []);
+    },
+  };
+
   try {
-    return await fn({
+    return await testFunction({
       controller,
-      triggerNftStateChange: (state: NftState) => {
-        for (const listener of nftStateChangeListeners) {
-          listener(state);
-        }
-      },
-      triggerPreferencesStateChange: (state: PreferencesState) => {
-        for (const listener of preferencesStateChangeListeners) {
-          listener(state);
-        }
-      },
+      controllerEvents,
     });
   } finally {
     controller.stop();

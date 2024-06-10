@@ -6,6 +6,7 @@
     "rootDir": "./src"
   },
   "references": [
+    { "path": "../accounts-controller/tsconfig.build.json" },
     { "path": "../approval-controller/tsconfig.build.json" },
     { "path": "../base-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },

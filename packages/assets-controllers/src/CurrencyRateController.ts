@@ -14,7 +14,7 @@ import type {
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
-import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
+import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare-service';
 
 /**
  * @type CurrencyRateState

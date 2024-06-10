@@ -94,6 +94,7 @@ type ExtractCaveatValueFromDecorator<
 /**
  * A function for validating caveats of a particular type.
  *
+ * @see `validator` in {@link CaveatSpecificationBase} for more details.
  * @template ParentCaveat - The caveat type associated with this validator.
  * @param caveat - The caveat object to validate.
  * @param origin - The origin associated with the parent permission.
@@ -104,6 +105,29 @@ export type CaveatValidator<ParentCaveat extends CaveatConstraint> = (
   origin?: string,
   target?: string,
 ) => void;
+
+/**
+ * A map of caveat type strings to {@link CaveatDiff} values.
+ */
+export type CaveatDiffMap<ParentCaveat extends CaveatConstraint> = {
+  [CaveatType in ParentCaveat['type']]: ParentCaveat['value'];
+};
+
+/**
+ * A function that merges two caveat values of the same type. The values must be
+ * merged in the fashion of a right-biased union.
+ *
+ * @see `ARCHITECTURE.md` for more details.
+ * @template Value - The type of the values to merge.
+ * @param leftValue - The left-hand value.
+ * @param rightValue - The right-hand value.
+ * @returns `[newValue, diff]`, i.e. the merged value and the diff between the left value
+ * and the new value. The diff must be expressed in the same type as the value itself.
+ */
+export type CaveatValueMerger<Value extends Json> = (
+  leftValue: Value,
+  rightValue: Value,
+) => [Value, Value] | [];
 
 export type CaveatSpecificationBase = {
   /**
@@ -125,6 +149,17 @@ export type CaveatSpecificationBase = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validator?: CaveatValidator<any>;
+
+  /**
+   * The merger function used to merge a pair of values of the associated caveat type
+   * during incremental permission requests. The values must be merged in the fashion
+   * of a right-biased union.
+   *
+   * @see `ARCHITECTURE.md` for more details.
+   */
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  merger?: CaveatValueMerger<any>;
 };
 
 export type RestrictedMethodCaveatSpecificationConstraint =

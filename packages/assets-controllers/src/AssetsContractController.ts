@@ -107,7 +107,7 @@ export class AssetsContractController extends BaseControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AssetsContractController';
+  override name = 'AssetsContractController' as const;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
@@ -154,10 +154,15 @@ export class AssetsContractController extends BaseControllerV1<
       this.configure({ ipfsGateway });
     });
 
-    onNetworkDidChange((networkState) => {
-      if (this.config.chainId !== networkState.providerConfig.chainId) {
+    onNetworkDidChange(({ selectedNetworkClientId }) => {
+      const selectedNetworkClient = getNetworkClientById(
+        selectedNetworkClientId,
+      );
+      const { chainId } = selectedNetworkClient.configuration;
+
+      if (this.config.chainId !== chainId) {
         this.configure({
-          chainId: networkState.providerConfig.chainId,
+          chainId: selectedNetworkClient.configuration.chainId,
         });
       }
     });

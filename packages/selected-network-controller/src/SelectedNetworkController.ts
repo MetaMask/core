@@ -172,7 +172,11 @@ export class SelectedNetworkController extends BaseController<
             path[0] === 'subjects' && path[1] !== undefined;
           if (isChangingSubject && typeof path[1] === 'string') {
             const domain = path[1];
-            if (op === 'add' && this.state.domains[domain] === undefined) {
+            if (
+              op === 'add' &&
+              this.state.domains[domain] === undefined &&
+              this.#useRequestQueuePreference
+            ) {
               this.setNetworkClientIdForDomain(
                 domain,
                 this.messagingSystem.call('NetworkController:getState')

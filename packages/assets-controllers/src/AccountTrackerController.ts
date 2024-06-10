@@ -1,17 +1,49 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { query, safelyExecuteWithTimeout } from '@metamask/controller-utils';
+import type {
+  AccountsControllerSelectedEvmAccountChangeEvent,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerListAccountsAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import type {
+  BaseConfig,
+  BaseState,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import {
+  query,
+  safelyExecuteWithTimeout,
+  toChecksumHexAddress,
+} from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
 import type {
   NetworkClientId,
   NetworkController,
-  NetworkState,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
+import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
+
+const controllerName = 'AccountTrackerController';
+
+export type AllowedActions =
+  | AccountsControllerListAccountsAction
+  | AccountsControllerGetSelectedAccountAction;
+
+export type AllowedEvents =
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerSelectedAccountChangeEvent;
+
+export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * @type AccountInformation
@@ -79,7 +111,15 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       });
     }
 
-    const addresses = Object.keys(this.getIdentities());
+    // Note: The address from the preferences controller are checksummed
+    // The addresses from the accounts controller are lowercased
+    const addresses = Object.values(
+      this.messagingSystem
+        .call('AccountsController:listAccounts')
+        .map((internalAccount) =>
+          toChecksumHexAddress(internalAccount.address),
+        ),
+    );
     const newAddresses = addresses.filter(
       (address) => !existing.includes(address),
     );
@@ -112,25 +152,21 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
   /**
    * Name of this controller used during composition
    */
-  override name = 'AccountTrackerController';
-
-  private readonly getIdentities: () => PreferencesState['identities'];
-
-  private readonly getSelectedAddress: () => PreferencesState['selectedAddress'];
+  override name = 'AccountTrackerController' as const;
 
   private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
 
-  private readonly getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+  private readonly getCurrentChainId: () => Hex;
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+
+  private readonly messagingSystem: AccountTrackerControllerMessenger;
 
   /**
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.getIdentities - Gets the identities from the Preferences store.
-   * @param options.getSelectedAddress - Gets the selected address from the Preferences store.
+   * @param options.messenger - The messaging system used to communicate with other controllers.
    * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
    * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
@@ -139,20 +175,14 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    */
   constructor(
     {
-      onPreferencesStateChange,
-      getIdentities,
-      getSelectedAddress,
+      messenger,
       getMultiAccountBalancesEnabled,
       getCurrentChainId,
       getNetworkClientById,
     }: {
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      getIdentities: () => PreferencesState['identities'];
-      getSelectedAddress: () => PreferencesState['selectedAddress'];
+      messenger: AccountTrackerControllerMessenger;
       getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
-      getCurrentChainId: () => NetworkState['providerConfig']['chainId'];
+      getCurrentChainId: () => Hex;
       getNetworkClientById: NetworkController['getNetworkClientById'];
     },
     config?: Partial<AccountTrackerConfig>,
@@ -169,16 +199,18 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       },
     };
     this.initialize();
+    this.messagingSystem = messenger;
     this.setIntervalLength(this.config.interval);
-    this.getIdentities = getIdentities;
-    this.getSelectedAddress = getSelectedAddress;
     this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     this.getCurrentChainId = getCurrentChainId;
     this.getNetworkClientById = getNetworkClientById;
-    onPreferencesStateChange(() => {
-      this.refresh();
-    });
+
     this.poll();
+
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      () => this.refresh(),
+    );
   }
 
   /**
@@ -253,6 +285,9 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * @param networkClientId - Optional networkClientId to fetch a network client with
    */
   refresh = async (networkClientId?: NetworkClientId) => {
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
     const releaseLock = await this.refreshMutex.acquire();
     try {
       const { chainId, ethQuery } =
@@ -264,7 +299,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
         ? Object.keys(accounts)
-        : [this.getSelectedAddress()];
+        : [toChecksumHexAddress(selectedAccount.address)];
 
       const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
@@ -285,9 +320,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
           [chainId]: accountsForChain,
         },
       });
-    } catch (err) {
+    } finally {
       releaseLock();
-      throw err;
     }
   };
 

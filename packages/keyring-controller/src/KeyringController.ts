@@ -8,7 +8,7 @@ import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
-import { normalize } from '@metamask/eth-sig-util';
+import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
 import type {
   EthBaseTransaction,
@@ -34,6 +34,7 @@ import {
   bytesToHex,
   hasProperty,
   isObject,
+  isStrictHexString,
   isValidHexAddress,
   isValidJson,
   remove0x,
@@ -457,6 +458,22 @@ function assertIsExportableKeyEncryptor(
 }
 
 /**
+ * Assert that the provided password is a valid non-empty string.
+ *
+ * @param password - The password to check.
+ * @throws If the password is not a valid string.
+ */
+function assertIsValidPassword(password: unknown): asserts password is string {
+  if (typeof password !== 'string') {
+    throw new Error(KeyringControllerError.WrongPasswordType);
+  }
+
+  if (!password || !password.length) {
+    throw new Error(KeyringControllerError.InvalidEmptyPassword);
+  }
+}
+
+/**
  * Checks if the provided value is a serialized keyrings array.
  *
  * @param array - The value to check.
@@ -487,10 +504,42 @@ async function displayForKeyring(
 
   return {
     type: keyring.type,
-    // Cast to `Hex[]` here is safe here because `accounts` has no nullish
-    // values, and `normalize` returns `Hex` unless given a nullish value
-    accounts: accounts.map(normalize) as Hex[],
+    // Cast to `string[]` here is safe here because `accounts` has no nullish
+    // values, and `normalize` returns `string` unless given a nullish value
+    accounts: accounts.map(normalize) as string[],
   };
+}
+
+/**
+ * Check if address is an ethereum address
+ *
+ * @param address - An address.
+ * @returns Returns true if the address is an ethereum one, false otherwise.
+ */
+function isEthAddress(address: string): boolean {
+  // We first check if it's a matching `Hex` string, so that is narrows down
+  // `address` as an `Hex` type, allowing us to use `isValidHexAddress`
+  return (
+    // NOTE: This function only checks for lowercased strings
+    isStrictHexString(address.toLowerCase()) &&
+    // This checks for lowercased addresses and checksum addresses too
+    isValidHexAddress(address as Hex)
+  );
+}
+
+/**
+ * Normalize ethereum or non-EVM address.
+ *
+ * @param address - Ethereum or non-EVM address.
+ * @returns The normalized address.
+ */
+function normalize(address: string): string | undefined {
+  // Since the `KeyringController` is only dealing with address, we have
+  // no other way to get the associated account type with this address. So we
+  // are down to check the actual address format for now
+  // TODO: Find a better way to not have those runtime checks based on the
+  //       address value!
+  return isEthAddress(address) ? ethNormalize(address) : address;
 }
 
 /**
@@ -562,7 +611,7 @@ export class KeyringController extends BaseController<
     });
 
     this.#keyringBuilders = keyringBuilders
-      ? defaultKeyringBuilders.concat(keyringBuilders)
+      ? keyringBuilders.concat(defaultKeyringBuilders)
       : defaultKeyringBuilders;
 
     this.#encryptor = encryptor;
@@ -628,6 +677,10 @@ export class KeyringController extends BaseController<
     keyring: EthKeyring<Json>,
     accountCount?: number,
   ): Promise<Hex> {
+    // READ THIS CAREFULLY:
+    // We still uses `Hex` here, since we are not using this method when creating
+    // and account using a "Snap Keyring". This function assume the `keyring` is
+    // ethereum compatible, but "Snap Keyring" might not be.
     return this.#persistOrRollback(async () => {
       const oldAccounts = await this.#getAccountsFromKeyrings();
 
@@ -686,9 +739,7 @@ export class KeyringController extends BaseController<
     seed: Uint8Array,
   ): Promise<void> {
     return this.#persistOrRollback(async () => {
-      if (!password || !password.length) {
-        throw new Error('Invalid password');
-      }
+      assertIsValidPassword(password);
 
       await this.#createNewVaultWithKeyring(password, {
         type: KeyringTypes.hd,
@@ -814,7 +865,7 @@ export class KeyringController extends BaseController<
     account: string,
     opts?: Record<string, unknown>,
   ): Promise<string> {
-    const normalizedAddress = normalize(account) as Hex;
+    const address = ethNormalize(account) as Hex;
     const keyring = (await this.getKeyringForAccount(
       account,
     )) as EthKeyring<Json>;
@@ -822,7 +873,7 @@ export class KeyringController extends BaseController<
       throw new Error(KeyringControllerError.UnsupportedGetEncryptionPublicKey);
     }
 
-    return await keyring.getEncryptionPublicKey(normalizedAddress, opts);
+    return await keyring.getEncryptionPublicKey(address, opts);
   }
 
   /**
@@ -837,7 +888,7 @@ export class KeyringController extends BaseController<
     from: string;
     data: Eip1024EncryptedData;
   }): Promise<string> {
-    const address = normalize(messageParams.from) as Hex;
+    const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -859,9 +910,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to keyring of the `account` if one exists.
    */
   async getKeyringForAccount(account: string): Promise<unknown> {
-    // Cast to `Hex` here is safe here because `address` is not nullish.
-    // `normalizeToHex` returns `Hex` unless given a nullish value.
-    const hexed = normalize(account) as Hex;
+    const address = normalize(account);
 
     const candidates = await Promise.all(
       this.#keyrings.map(async (keyring) => {
@@ -871,7 +920,7 @@ export class KeyringController extends BaseController<
 
     const winners = candidates.filter((candidate) => {
       const accounts = candidate[1].map(normalize);
-      return accounts.includes(hexed);
+      return accounts.includes(address);
     });
 
     if (winners.length && winners[0]?.length) {
@@ -880,9 +929,7 @@ export class KeyringController extends BaseController<
 
     // Adding more info to the error
     let errorInfo = '';
-    if (!isValidHexAddress(hexed)) {
-      errorInfo = 'The address passed in is invalid/empty';
-    } else if (!candidates.length) {
+    if (!candidates.length) {
       errorInfo = 'There are no keyrings';
     } else if (!winners.length) {
       errorInfo = 'There are keyrings, but none match the address';
@@ -985,7 +1032,7 @@ export class KeyringController extends BaseController<
    * @fires KeyringController:accountRemoved
    * @returns Promise resolving when the account is removed.
    */
-  async removeAccount(address: Hex): Promise<void> {
+  async removeAccount(address: string): Promise<void> {
     await this.#persistOrRollback(async () => {
       const keyring = (await this.getKeyringForAccount(
         address,
@@ -999,7 +1046,10 @@ export class KeyringController extends BaseController<
       // The `removeAccount` method of snaps keyring is async. We have to update
       // the interface of the other keyrings to be async as well.
       // eslint-disable-next-line @typescript-eslint/await-thenable
-      await keyring.removeAccount(address);
+      // FIXME: We do cast to `Hex` to makes the type checker happy here, and
+      // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
+      // type would need to be updated for a full non-EVM support.
+      await keyring.removeAccount(address as Hex);
 
       const accounts = await keyring.getAccounts();
       // Check if this was the last/only account
@@ -1043,7 +1093,7 @@ export class KeyringController extends BaseController<
       throw new Error("Can't sign an empty message");
     }
 
-    const address = normalize(messageParams.from) as Hex;
+    const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -1061,7 +1111,7 @@ export class KeyringController extends BaseController<
    * @returns Promise resolving to a signed message string.
    */
   async signPersonalMessage(messageParams: PersonalMessageParams) {
-    const address = normalize(messageParams.from) as Hex;
+    const address = ethNormalize(messageParams.from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -1099,7 +1149,7 @@ export class KeyringController extends BaseController<
 
       // Cast to `Hex` here is safe here because `messageParams.from` is not nullish.
       // `normalize` returns `Hex` unless given a nullish value.
-      const address = normalize(messageParams.from) as Hex;
+      const address = ethNormalize(messageParams.from) as Hex;
       const keyring = (await this.getKeyringForAccount(
         address,
       )) as EthKeyring<Json>;
@@ -1133,7 +1183,7 @@ export class KeyringController extends BaseController<
     from: string,
     opts?: Record<string, unknown>,
   ): Promise<TxData> {
-    const address = normalize(from) as Hex;
+    const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -1157,7 +1207,7 @@ export class KeyringController extends BaseController<
     transactions: EthBaseTransaction[],
     executionContext: KeyringExecutionContext,
   ): Promise<EthBaseUserOperation> {
-    const address = normalize(from) as Hex;
+    const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -1187,7 +1237,7 @@ export class KeyringController extends BaseController<
     userOp: EthUserOperation,
     executionContext: KeyringExecutionContext,
   ): Promise<EthUserOperationPatch> {
-    const address = normalize(from) as Hex;
+    const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -1212,7 +1262,7 @@ export class KeyringController extends BaseController<
     userOp: EthUserOperation,
     executionContext: KeyringExecutionContext,
   ): Promise<string> {
-    const address = normalize(from) as Hex;
+    const address = ethNormalize(from) as Hex;
     const keyring = (await this.getKeyringForAccount(
       address,
     )) as EthKeyring<Json>;
@@ -1222,6 +1272,33 @@ export class KeyringController extends BaseController<
     }
 
     return await keyring.signUserOperation(address, userOp, executionContext);
+  }
+
+  /**
+   * Changes the password used to encrypt the vault.
+   *
+   * @param password - The new password.
+   * @returns Promise resolving when the operation completes.
+   */
+  changePassword(password: string): Promise<void> {
+    return this.#persistOrRollback(async () => {
+      if (!this.state.isUnlocked) {
+        throw new Error(KeyringControllerError.MissingCredentials);
+      }
+
+      assertIsValidPassword(password);
+
+      this.#password = password;
+      // We need to clear encryption key and salt from state
+      // to force the controller to re-encrypt the vault using
+      // the new password.
+      if (this.#cacheEncryptionKey) {
+        this.update((state) => {
+          delete state.encryptionKey;
+          delete state.encryptionSalt;
+        });
+      }
+    });
   }
 
   /**
@@ -1643,9 +1720,7 @@ export class KeyringController extends BaseController<
     this.#assertControllerMutexIsLocked();
 
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
-    return (await this.#newKeyring(KeyringTypes.qr, {
-      accounts: [],
-    })) as unknown as QRKeyring;
+    return (await this.#newKeyring(KeyringTypes.qr)) as unknown as QRKeyring;
   }
 
   /**
@@ -1909,9 +1984,7 @@ export class KeyringController extends BaseController<
           updatedState.encryptionKey = exportedKeyString;
         }
       } else {
-        if (typeof this.#password !== 'string') {
-          throw new TypeError(KeyringControllerError.WrongPasswordType);
-        }
+        assertIsValidPassword(this.#password);
         updatedState.vault = await this.#encryptor.encrypt(
           this.#password,
           serializedKeyrings,
@@ -1942,7 +2015,7 @@ export class KeyringController extends BaseController<
    *
    * @returns A promise resolving to an array of accounts.
    */
-  async #getAccountsFromKeyrings(): Promise<Hex[]> {
+  async #getAccountsFromKeyrings(): Promise<string[]> {
     const keyrings = this.#keyrings;
 
     const keyringArrays = await Promise.all(
@@ -1952,9 +2025,9 @@ export class KeyringController extends BaseController<
       return res.concat(arr);
     }, []);
 
-    // Cast to `Hex[]` here is safe here because `addresses` has no nullish
-    // values, and `normalize` returns `Hex` unless given a nullish value
-    return addresses.map(normalize) as Hex[];
+    // Cast to `string[]` here is safe here because `addresses` has no nullish
+    // values, and `normalize` returns `string` unless given a nullish value
+    return addresses.map(normalize) as string[];
   }
 
   /**
@@ -1987,7 +2060,7 @@ export class KeyringController extends BaseController<
    * @returns The new keyring.
    * @throws If the keyring includes duplicated accounts.
    */
-  async #newKeyring(type: string, data: unknown): Promise<EthKeyring<Json>> {
+  async #newKeyring(type: string, data?: unknown): Promise<EthKeyring<Json>> {
     this.#assertControllerMutexIsLocked();
 
     const keyringBuilder = this.#getKeyringBuilderForType(type);

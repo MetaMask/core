@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/logging-controller` to `^5.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/message-manager` to `^10.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Update `messages` getter to return `Record<string, PersonalMessage | TypedMessage>` instead of `Record<string, Message | PersonalMessage | TypedMessage>` ([#4319](https://github.com/MetaMask/core/pull/4319))
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING** Bump `@metamask/logging-controller` peer dependency to `^4.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/message-manager` to `^9.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove state properties `unapprovedMsgs` and `unapprovedMsgCount` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - These properties were related to handling of the `eth_sign` RPC method, but support for that is being removed, so these are no longer needed.
+- **BREAKING:** Remove `isEthSignEnabled` option from constructor ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This option governed whether handling of the `eth_sign` RPC method was enabled, but support for that method is being removed, so this is no longer needed.
+- **BREAKING:** Remove `newUnsignedMessage` method ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This method was called when a dapp used the `eth_sign` RPC method, but support for that method is being removed, so this is no longer needed.
+
 ## [16.0.0]
 
 ### Changed
@@ -239,7 +270,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@17.0.0...@metamask/signature-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@16.0.0...@metamask/signature-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@15.0.0...@metamask/signature-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.1...@metamask/signature-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.0...@metamask/signature-controller@14.0.1

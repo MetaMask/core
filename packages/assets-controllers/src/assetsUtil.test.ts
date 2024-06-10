@@ -152,7 +152,7 @@ describe('assetsUtil', () => {
         chainId: ChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${convertHexToDecimal(
+      const expectedValue = `https://static.cx.metamask.io/api/v1/tokenIcons/${convertHexToDecimal(
         ChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
@@ -510,8 +510,25 @@ describe('assetsUtil', () => {
       jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
         [testTokenAddress]: {
           tokenAddress: testTokenAddress,
-          value: 0.0004588648479937523,
           currency: testNativeCurrency,
+          allTimeHigh: 4000,
+          allTimeLow: 900,
+          circulatingSupply: 2000,
+          dilutedMarketCap: 100,
+          high1d: 200,
+          low1d: 100,
+          marketCap: 1000,
+          marketCapPercentChange1d: 100,
+          price: 0.0004588648479937523,
+          pricePercentChange14d: 100,
+          pricePercentChange1h: 1,
+          pricePercentChange1y: 200,
+          pricePercentChange200d: 300,
+          pricePercentChange30d: 200,
+          pricePercentChange7d: 100,
+          totalVolume: 100,
+          priceChange1d: 100,
+          pricePercentChange1d: 100,
         },
       });
 

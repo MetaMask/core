@@ -108,11 +108,16 @@ export function getTransactionMetadata(
     approvalTxId: swapsMetadata?.approvalTxId ?? undefined,
     destinationTokenAddress:
       swapsMetadata?.destinationTokenAddress ?? undefined,
+    destinationTokenAmount: swapsMetadata?.destinationTokenAmount ?? undefined,
     destinationTokenDecimals:
       swapsMetadata?.destinationTokenDecimals ?? undefined,
     destinationTokenSymbol: swapsMetadata?.destinationTokenSymbol ?? undefined,
     estimatedBaseFee: swapsMetadata?.estimatedBaseFee ?? undefined,
+    sourceTokenAddress: swapsMetadata?.sourceTokenAddress ?? undefined,
+    sourceTokenAmount: swapsMetadata?.sourceTokenAmount ?? undefined,
+    sourceTokenDecimals: swapsMetadata?.sourceTokenDecimals ?? undefined,
     sourceTokenSymbol: swapsMetadata?.sourceTokenSymbol ?? undefined,
+    swapAndSendRecipient: swapsMetadata?.swapAndSendRecipient ?? undefined,
     swapMetaData: swapsMetadata?.swapMetaData ?? undefined,
     swapTokenValue: swapsMetadata?.swapTokenValue ?? undefined,
   };

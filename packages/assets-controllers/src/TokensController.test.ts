@@ -11,14 +11,11 @@ import {
   ChainId,
   ORIGIN_METAMASK,
   convertHexToDecimal,
-  NetworkType,
-  toHex,
-  NetworksTicker,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
-  ProviderConfig,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -41,7 +38,10 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
-import type { TokensControllerMessenger } from './TokensController';
+import type {
+  TokensControllerMessenger,
+  TokensControllerState,
+} from './TokensController';
 
 jest.mock('@ethersproject/contracts');
 jest.mock('uuid');
@@ -57,17 +57,6 @@ const ContractMock = jest.mocked(Contract);
 const uuidV1Mock = jest.mocked(uuidV1);
 const ERC20StandardMock = jest.mocked(ERC20Standard);
 const ERC1155StandardMock = jest.mocked(ERC1155Standard);
-
-const SEPOLIA = {
-  chainId: toHex(11155111),
-  type: NetworkType.sepolia,
-  ticker: NetworksTicker.sepolia,
-};
-const GOERLI = {
-  chainId: toHex(5),
-  type: NetworkType.goerli,
-  ticker: NetworksTicker.goerli,
-};
 
 describe('TokensController', () => {
   beforeEach(() => {
@@ -109,8 +98,7 @@ describe('TokensController', () => {
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         symbol: 'bar',
         isERC721: false,
         aggregators: [],
@@ -125,8 +113,7 @@ describe('TokensController', () => {
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
-        image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+        image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         symbol: 'baz',
         isERC721: false,
         aggregators: [],
@@ -308,8 +295,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -321,22 +307,22 @@ describe('TokensController', () => {
 
   it('should add token by network', async () => {
     await withController(async ({ controller, changeNetwork }) => {
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
       });
 
-      changeNetwork(GOERLI);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       expect(controller.state.tokens).toHaveLength(0);
 
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
+          'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x01.png',
         symbol: 'bar',
         isERC721: false,
         aggregators: [],
@@ -369,8 +355,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -380,8 +365,7 @@ describe('TokensController', () => {
           {
             address: '0x01',
             decimals: 2,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x01.png',
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x01.png',
             symbol: 'bar',
             isERC721: false,
             aggregators: [],
@@ -459,8 +443,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x02',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
           symbol: 'baz',
           isERC721: false,
           aggregators: [],
@@ -475,13 +458,13 @@ describe('TokensController', () => {
       ContractMock.mockReturnValue(
         buildMockEthersERC721Contract({ supportsInterface: false }),
       );
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x02',
         symbol: 'baz',
         decimals: 2,
       });
-      changeNetwork(GOERLI);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
@@ -491,12 +474,12 @@ describe('TokensController', () => {
       controller.ignoreTokens(['0x01']);
       expect(controller.state.tokens).toHaveLength(0);
 
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x02',
         decimals: 2,
         image:
-          'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
+          'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x02.png',
         symbol: 'baz',
         isERC721: false,
         aggregators: [],
@@ -547,7 +530,7 @@ describe('TokensController', () => {
             ...getDefaultPreferencesState(),
             selectedAddress,
           });
-          changeNetwork(SEPOLIA);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -594,7 +577,7 @@ describe('TokensController', () => {
             ...getDefaultPreferencesState(),
             selectedAddress,
           });
-          changeNetwork(SEPOLIA);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -632,7 +615,7 @@ describe('TokensController', () => {
             ...getDefaultPreferencesState(),
             selectedAddress: selectedAddress1,
           });
-          changeNetwork(SEPOLIA);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -644,7 +627,7 @@ describe('TokensController', () => {
           expect(controller.state.tokens).toHaveLength(0);
           expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
 
-          changeNetwork(GOERLI);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
           expect(controller.state.ignoredTokens).toHaveLength(0);
 
           await controller.addToken({
@@ -702,8 +685,7 @@ describe('TokensController', () => {
         {
           address: '0x01',
           decimals: 4,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           isERC721: false,
           symbol: 'A',
           aggregators: [],
@@ -712,8 +694,7 @@ describe('TokensController', () => {
         {
           address: '0x02',
           decimals: 5,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
           isERC721: false,
           symbol: 'B',
           aggregators: [],
@@ -737,9 +718,7 @@ describe('TokensController', () => {
           const address = erc721ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          controller.update({
-            tokens: [{ address, symbol, decimals }],
-          });
+          await controller.addToken({ address, symbol, decimals });
 
           const result = await controller.updateTokenType(address);
           expect(result.isERC721).toBe(true);
@@ -755,9 +734,7 @@ describe('TokensController', () => {
           const address = erc20ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          controller.update({
-            tokens: [{ address, symbol, decimals }],
-          });
+          await controller.addToken({ address, symbol, decimals });
 
           const result = await controller.updateTokenType(address);
           expect(result.isERC721).toBe(false);
@@ -771,14 +748,10 @@ describe('TokensController', () => {
           );
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-          controller.update({
-            tokens: [
-              {
-                address: tokenAddress,
-                symbol: 'TESTNFT',
-                decimals: 0,
-              },
-            ],
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
           });
 
           const result = await controller.updateTokenType(tokenAddress);
@@ -793,14 +766,10 @@ describe('TokensController', () => {
           );
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-          controller.update({
-            tokens: [
-              {
-                address: tokenAddress,
-                symbol: 'TESTNFT',
-                decimals: 0,
-              },
-            ],
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
           });
 
           const result = await controller.updateTokenType(tokenAddress);
@@ -851,7 +820,7 @@ describe('TokensController', () => {
               symbol: 'REST',
               isERC721: true,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
               decimals: 4,
               aggregators: [],
               name: undefined,
@@ -901,7 +870,7 @@ describe('TokensController', () => {
               symbol: 'LEST',
               isERC721: false,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0xda5584cc586d07c7141aa427224a4bd58e64af7d.png',
               decimals: 5,
               aggregators: [],
               name: undefined,
@@ -920,7 +889,7 @@ describe('TokensController', () => {
             symbol: 'LINK',
             decimals: 18,
           });
-          changeNetwork(GOERLI);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
 
           await expect(addTokenPromise).rejects.toThrow(
             'TokensController Error: Switched networks while adding token',
@@ -935,9 +904,7 @@ describe('TokensController', () => {
       await withController(
         {
           options: {
-            config: {
-              chainId,
-            },
+            chainId,
           },
         },
         async ({ controller }) => {
@@ -981,8 +948,7 @@ describe('TokensController', () => {
         };
         const dummyAddedToken: Token = {
           ...dummyDetectedToken,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
         };
 
         await controller.addDetectedTokens([dummyDetectedToken]);
@@ -1012,9 +978,12 @@ describe('TokensController', () => {
           );
 
           // The currently configured chain + address
-          const CONFIGURED_CHAIN = SEPOLIA;
+          const CONFIGURED_CHAIN = ChainId.sepolia;
+          const CONFIGURED_NETWORK_CLIENT_ID = InfuraNetworkType.sepolia;
           const CONFIGURED_ADDRESS = '0xConfiguredAddress';
-          changeNetwork(CONFIGURED_CHAIN);
+          changeNetwork({
+            selectedNetworkClientId: CONFIGURED_NETWORK_CLIENT_ID,
+          });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             selectedAddress: CONFIGURED_ADDRESS,
@@ -1033,7 +1002,7 @@ describe('TokensController', () => {
               aggregators: [],
               name: undefined,
               isERC721: false,
-              image: `https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x${i}.png`,
+              image: `https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x${i}.png`,
             }));
 
           const [
@@ -1066,12 +1035,12 @@ describe('TokensController', () => {
 
             // Expect tokens under the correct chain + account
             expect(controller.state.allTokens).toStrictEqual({
-              [CONFIGURED_CHAIN.chainId]: {
+              [CONFIGURED_CHAIN]: {
                 [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
               },
             });
             expect(controller.state.allDetectedTokens).toStrictEqual({
-              [CONFIGURED_CHAIN.chainId]: {
+              [CONFIGURED_CHAIN]: {
                 [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
               },
               [OTHER_CHAIN]: {
@@ -1162,102 +1131,6 @@ describe('TokensController', () => {
           expect(controller.state.allTokens['0x5']['0x1']).toStrictEqual(
             dummyTokens,
           );
-        },
-      );
-    });
-  });
-
-  describe('_getNewAllTokensState method', () => {
-    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummyTokens: Token[] = [
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-        },
-      ];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAddress: dummySelectedAddress,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newTokens: dummyTokens,
-          });
-
-          expect(
-            processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
-          ).toStrictEqual(dummyTokens);
-        },
-      );
-    });
-
-    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummyTokens: Token[] = [
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-        },
-      ];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAddress: dummySelectedAddress,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newDetectedTokens: dummyTokens,
-          });
-
-          expect(
-            processedTokens.newAllDetectedTokens[ChainId.mainnet][
-              dummySelectedAddress
-            ],
-          ).toStrictEqual(dummyTokens);
-        },
-      );
-    });
-
-    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummyIgnoredTokens = ['0x01'];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAddress: dummySelectedAddress,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newIgnoredTokens: dummyIgnoredTokens,
-          });
-          expect(
-            processedTokens.newAllIgnoredTokens[ChainId.mainnet][
-              dummySelectedAddress
-            ],
-          ).toStrictEqual(dummyIgnoredTokens);
         },
       );
     });
@@ -1896,13 +1769,16 @@ describe('TokensController', () => {
             .mockReturnValueOnce('67890');
 
           const acceptedRequest = new Promise<void>((resolve) => {
-            controller.subscribe((state) => {
-              if (
-                state.allTokens?.[chainId]?.[interactingAddress].length === 2
-              ) {
-                resolve();
-              }
-            });
+            messenger.subscribe(
+              'TokensController:stateChange',
+              (state: TokensControllerState) => {
+                if (
+                  state.allTokens?.[chainId]?.[interactingAddress].length === 2
+                ) {
+                  resolve();
+                }
+              },
+            );
           });
 
           const anotherAsset = buildTokenWithName({
@@ -2006,7 +1882,7 @@ describe('TokensController', () => {
               address: '0x01',
               decimals: 4,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
               isERC721: false,
               symbol: 'A',
               aggregators: [],
@@ -2016,7 +1892,7 @@ describe('TokensController', () => {
               address: '0x02',
               decimals: 5,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x02.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x02.png',
               isERC721: false,
               symbol: 'B',
               aggregators: [],
@@ -2033,7 +1909,7 @@ describe('TokensController', () => {
               address: '0x03',
               decimals: 6,
               image:
-                'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x03.png',
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x03.png',
               isERC721: false,
               symbol: 'C',
               aggregators: [],
@@ -2052,7 +1928,7 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
 
-        changeNetwork(SEPOLIA);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         await controller.addToken({
           address: '0x01',
           symbol: 'A',
@@ -2065,7 +1941,7 @@ describe('TokensController', () => {
         });
         const initialTokensFirst = controller.state.tokens;
 
-        changeNetwork(GOERLI);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         await controller.addToken({
           address: '0x03',
           symbol: 'C',
@@ -2084,7 +1960,7 @@ describe('TokensController', () => {
             address: '0x01',
             decimals: 4,
             image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x01.png',
+              'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x01.png',
             isERC721: false,
             symbol: 'A',
             aggregators: [],
@@ -2094,7 +1970,7 @@ describe('TokensController', () => {
             address: '0x02',
             decimals: 5,
             image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/11155111/0x02.png',
+              'https://static.cx.metamask.io/api/v1/tokenIcons/11155111/0x02.png',
             isERC721: false,
             symbol: 'B',
             aggregators: [],
@@ -2105,8 +1981,7 @@ describe('TokensController', () => {
           {
             address: '0x03',
             decimals: 4,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x03.png',
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x03.png',
             isERC721: false,
             symbol: 'C',
             aggregators: [],
@@ -2115,8 +1990,7 @@ describe('TokensController', () => {
           {
             address: '0x04',
             decimals: 5,
-            image:
-              'https://static.metafi.codefi.network/api/v1/tokenIcons/5/0x04.png',
+            image: 'https://static.cx.metamask.io/api/v1/tokenIcons/5/0x04.png',
             isERC721: false,
             symbol: 'D',
             aggregators: [],
@@ -2124,10 +1998,10 @@ describe('TokensController', () => {
           },
         ]);
 
-        changeNetwork(SEPOLIA);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         expect(initialTokensFirst).toStrictEqual(controller.state.tokens);
 
-        changeNetwork(GOERLI);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         expect(initialTokensSecond).toStrictEqual(controller.state.tokens);
       });
     });
@@ -2151,9 +2025,7 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAddress,
-            },
+            selectedAddress,
           },
         },
         async ({ controller }) => {
@@ -2184,9 +2056,7 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAddress,
-            },
+            selectedAddress,
           },
         },
         async ({ controller }) => {
@@ -2218,9 +2088,7 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAddress,
-            },
+            selectedAddress,
           },
         },
         async ({ controller }) => {
@@ -2251,8 +2119,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -2271,7 +2138,7 @@ describe('TokensController', () => {
                 occurrences: 1,
                 name: 'BarName',
                 iconUrl:
-                  'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
                 aggregators: ['Aave'],
               },
             },
@@ -2282,8 +2149,7 @@ describe('TokensController', () => {
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
-          image:
-            'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x01.png',
+          image: 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x01.png',
           symbol: 'bar',
           isERC721: false,
           aggregators: [],
@@ -2302,7 +2168,9 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange,
 }: {
   controller: TokensController;
-  changeNetwork: (providerConfig: ProviderConfig) => void;
+  changeNetwork: (networkControllerState: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => void;
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
@@ -2368,14 +2236,12 @@ async function withController<ReturnValue>(
   });
   const controller = new TokensController({
     chainId: ChainId.mainnet,
-    config: {
-      selectedAddress: '0x1',
-      // The tests assume that this is set, but they shouldn't make that
-      // assumption. But we have to do this due to a bug in TokensController
-      // where the provider can possibly be `undefined` if `networkClientId` is
-      // not specified.
-      provider: new FakeProvider(),
-    },
+    selectedAddress: '0x1',
+    // The tests assume that this is set, but they shouldn't make that
+    // assumption. But we have to do this due to a bug in TokensController
+    // where the provider can possibly be `undefined` if `networkClientId` is
+    // not specified.
+    provider: new FakeProvider(),
     messenger: controllerMessenger,
     ...options,
   });
@@ -2384,10 +2250,14 @@ async function withController<ReturnValue>(
     messenger.publish('PreferencesController:stateChange', state, []);
   };
 
-  const changeNetwork = (providerConfig: ProviderConfig) => {
+  const changeNetwork = ({
+    selectedNetworkClientId,
+  }: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => {
     messenger.publish('NetworkController:networkDidChange', {
       ...defaultNetworkState,
-      providerConfig,
+      selectedNetworkClientId,
     });
   };
 
