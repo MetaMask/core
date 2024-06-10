@@ -336,7 +336,7 @@ type MockNetwork = {
 const MOCK_NETWORK: MockNetwork = {
   chainId: ChainId.goerli,
   provider: HTTP_PROVIDERS.goerli,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.goerli),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
