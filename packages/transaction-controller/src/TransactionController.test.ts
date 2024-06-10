@@ -13,25 +13,40 @@ import {
   toHex,
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
+import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
 import type {
   BlockTracker,
-  NetworkController,
+  NetworkClientConfiguration,
+  NetworkClientId,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
-import { NetworkClientType, NetworkStatus } from '@metamask/network-controller';
+import {
+  NetworkClientType,
+  NetworkStatus,
+  defaultState as defaultNetworkState,
+} from '@metamask/network-controller';
 import * as NonceTrackerPackage from '@metamask/nonce-tracker';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
 import * as uuidModule from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
 import { flushPromises } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
@@ -80,13 +95,6 @@ import {
 type UnrestrictedControllerMessenger = ControllerMessenger<
   TransactionControllerActions | AllowedActions,
   TransactionControllerEvents | AllowedEvents
->;
-
-type NetworkClient = ReturnType<NetworkController['getNetworkClientById']>;
-
-type NetworkClientConfiguration = Pick<
-  NetworkClient['configuration'],
-  'chainId'
 >;
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
@@ -246,10 +254,14 @@ function buildMockEthQuery(): EthQuery {
  *
  * @param latestBlockNumber - The block number that the block tracker should
  * always return.
+ * @param provider - json rpc provider
  * @returns The mocked block tracker.
  */
-function buildMockBlockTracker(latestBlockNumber: string): BlockTracker {
-  const fakeBlockTracker = new FakeBlockTracker();
+function buildMockBlockTracker(
+  latestBlockNumber: string,
+  provider: SafeEventEmitterProvider,
+): BlockTracker {
+  const fakeBlockTracker = new FakeBlockTracker({ provider });
   fakeBlockTracker.mockLatestBlockNumber(latestBlockNumber);
   return fakeBlockTracker;
 }
@@ -294,9 +306,6 @@ function waitForTransactionFinished(
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
-const GOERLI_PROVIDER = new HttpProvider(
-  `https://goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
 const MAINNET_PROVIDER = new HttpProvider(
   `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
 );
@@ -305,6 +314,7 @@ const PALM_PROVIDER = new HttpProvider(
 );
 
 type MockNetwork = {
+  chainId: Hex;
   provider: Provider;
   blockTracker: BlockTracker;
   state: NetworkState;
@@ -312,8 +322,9 @@ type MockNetwork = {
 };
 
 const MOCK_NETWORK: MockNetwork = {
+  chainId: ChainId.goerli,
   provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
@@ -331,27 +342,11 @@ const MOCK_NETWORK: MockNetwork = {
   },
   subscribe: () => undefined,
 };
-const MOCK_NETWORK_WITHOUT_CHAIN_ID: MockNetwork = {
-  provider: GOERLI_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
-  state: {
-    selectedNetworkClientId: NetworkType.goerli,
-    networksMetadata: {
-      [NetworkType.goerli]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.goerli,
-    } as NetworkState['providerConfig'],
-    networkConfigurations: {},
-  },
-  subscribe: () => undefined,
-};
+
 const MOCK_MAINNET_NETWORK: MockNetwork = {
+  chainId: ChainId.mainnet,
   provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C'),
+  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networksMetadata: {
@@ -371,8 +366,9 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 };
 
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
+  chainId: ChainId['linea-mainnet'],
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -383,7 +379,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
     },
     providerConfig: {
       type: NetworkType['linea-mainnet'],
-      chainId: toHex(59144),
+      chainId: ChainId['linea-mainnet'],
       ticker: NetworksTicker['linea-mainnet'],
     },
     networkConfigurations: {},
@@ -392,8 +388,9 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 };
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
+  chainId: ChainId['linea-goerli'],
   provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
+  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
@@ -404,7 +401,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
     },
     providerConfig: {
       type: NetworkType['linea-goerli'],
-      chainId: toHex(59140),
+      chainId: ChainId['linea-goerli'],
       ticker: NetworksTicker['linea-goerli'],
     },
     networkConfigurations: {},
@@ -412,32 +409,25 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 
-const MOCK_CUSTOM_NETWORK: MockNetwork = {
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC'),
-  state: {
-    selectedNetworkClientId: 'uuid-1',
-    networksMetadata: {
-      'uuid-1': {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    providerConfig: {
-      type: NetworkType.rpc,
-      chainId: toHex(11297108109),
-      ticker: 'TEST',
-    },
-    networkConfigurations: {},
+const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const INTERNAL_ACCOUNT_MOCK = {
+  id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
+  address: ACCOUNT_MOCK,
+  type: EthAccountType.Eoa,
+  options: {},
+  methods: [],
+  metadata: {
+    name: 'Account 1',
+    keyring: { type: 'HD Key Tree' },
+    importTime: 1631619180000,
+    lastSelected: 1631619180000,
   },
-  subscribe: () => undefined,
 };
 
-const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
-const CHAIN_ID_MOCK = MOCK_NETWORK.state.providerConfig.chainId;
+const CHAIN_ID_MOCK = MOCK_NETWORK.chainId;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 
 const TRANSACTION_META_MOCK = {
@@ -542,27 +532,84 @@ describe('TransactionController', () => {
    * @param args - The arguments to this function.
    * @param args.options - TransactionController options.
    * @param args.network - The mock network to use with the controller.
+   * @param args.network.blockTracker - The desired block tracker associated
+   * with the network.
+   * @param args.network.provider - The desired provider associated with the
+   * provider.
+   * @param args.network.state - The desired NetworkController state.
+   * @param args.network.onNetworkStateChange - The function to subscribe to
+   * changes in the NetworkController state.
    * @param args.messengerOptions - Options to build the mock unrestricted
    * messenger.
-   * @param args.messengerOptions.addTransactionApprovalRequest - Options to mock
-   * the `ApprovalController:addRequest` action call for transactions.
+   * @param args.messengerOptions.addTransactionApprovalRequest - Options to
+   * mock the `ApprovalController:addRequest` action call for transactions.
+   * @param args.selectedAccount - The selected account to use with the controller.
+   * @param args.mockNetworkClientConfigurationsByNetworkClientId - Network
+   * client configurations by network client ID.
    * @returns The new TransactionController instance.
    */
   function setupController({
     options: givenOptions = {},
-    network = MOCK_NETWORK,
+    network = {},
     messengerOptions = {},
+    selectedAccount = INTERNAL_ACCOUNT_MOCK,
+    mockNetworkClientConfigurationsByNetworkClientId = {},
   }: {
     options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
-    network?: MockNetwork;
+    network?: {
+      blockTracker?: BlockTracker;
+      provider?: Provider;
+      state?: Partial<NetworkState>;
+      onNetworkStateChange?: (
+        listener: (networkState: NetworkState) => void,
+      ) => void;
+    };
     messengerOptions?: {
       addTransactionApprovalRequest?: Parameters<
         typeof mockAddTransactionApprovalRequest
       >[1];
     };
+    selectedAccount?: InternalAccount;
+    mockNetworkClientConfigurationsByNetworkClientId?: Record<
+      NetworkClientId,
+      NetworkClientConfiguration
+    >;
   } = {}) {
+    let networkState = {
+      ...defaultNetworkState,
+      selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
+      ...network.state,
+    };
+    const provider = network.provider ?? new FakeProvider();
+    const blockTracker =
+      network.blockTracker ?? new FakeBlockTracker({ provider });
+    const onNetworkDidChangeListeners: ((state: NetworkState) => void)[] = [];
+    const changeNetwork = ({
+      selectedNetworkClientId,
+    }: {
+      selectedNetworkClientId: NetworkClientId;
+    }) => {
+      networkState = {
+        ...networkState,
+        selectedNetworkClientId,
+      };
+      onNetworkDidChangeListeners.forEach((listener) => {
+        listener(networkState);
+      });
+    };
+    const onNetworkStateChange = (
+      listener: (networkState: NetworkState) => void,
+    ) => onNetworkDidChangeListeners.push(listener);
+
     const unrestrictedMessenger: UnrestrictedControllerMessenger =
       new ControllerMessenger();
+    const getNetworkClientById = buildMockGetNetworkClientById(
+      mockNetworkClientConfigurationsByNetworkClientId,
+    );
+    unrestrictedMessenger.registerActionHandler(
+      'NetworkController:getNetworkClientById',
+      getNetworkClientById,
+    );
 
     const { addTransactionApprovalRequest = { state: 'pending' } } =
       messengerOptions;
@@ -572,21 +619,20 @@ describe('TransactionController', () => {
     );
 
     const { messenger: givenRestrictedMessenger, ...otherOptions } = {
-      blockTracker: network.blockTracker,
+      blockTracker,
       disableHistory: false,
       disableSendFlowHistory: false,
       disableSwaps: false,
       getCurrentNetworkEIP1559Compatibility: async () => false,
-      getNetworkState: () => network.state,
+      getNetworkState: () => networkState,
       // TODO: Replace with a real type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       getNetworkClientRegistry: () => ({} as any),
       getPermittedAccounts: async () => [ACCOUNT_MOCK],
-      getSelectedAddress: () => ACCOUNT_MOCK,
       isMultichainEnabled: false,
       hooks: {},
-      onNetworkStateChange: network.subscribe,
-      provider: network.provider,
+      onNetworkStateChange,
+      provider,
       sign: async (transaction: TypedTransaction) => transaction,
       transactionHistoryLimit: 40,
       ...givenOptions,
@@ -600,9 +646,16 @@ describe('TransactionController', () => {
           'ApprovalController:addRequest',
           'NetworkController:getNetworkClientById',
           'NetworkController:findNetworkClientIdByChainId',
+          'AccountsController:getSelectedAccount',
         ],
         allowedEvents: [],
       });
+
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+    unrestrictedMessenger.registerActionHandler(
+      'AccountsController:getSelectedAccount',
+      mockGetSelectedAccount,
+    );
 
     const controller = new TransactionController({
       ...otherOptions,
@@ -613,6 +666,8 @@ describe('TransactionController', () => {
       controller,
       messenger: unrestrictedMessenger,
       mockTransactionApprovalRequest,
+      mockGetSelectedAccount,
+      changeNetwork,
     };
   }
 
@@ -621,17 +676,18 @@ describe('TransactionController', () => {
    * TransactionController calls as it creates transactions.
    *
    * This helper allows the `addRequest` action to be in one of three states:
-   * approved, rejected, or pending. In the approved state, the promise which the
-   * action returns is resolved ahead of time, and in the rejected state, the
-   * promise is rejected ahead of time. Otherwise, in the pending state, the
-   * promise is unresolved and it is assumed that the test will resolve or reject
-   * the promise.
+   * approved, rejected, or pending. In the approved state, the promise which
+   * the action returns is resolved ahead of time, and in the rejected state,
+   * the promise is rejected ahead of time. Otherwise, in the pending state, the
+   * promise is unresolved and it is assumed that the test will resolve or
+   * reject the promise.
    *
    * @param messenger - The unrestricted messenger.
-   * @param options - Options for the mock. `state` controls the state of the
-   * promise as outlined above. Note, if the `state` is approved, then its
-   * `result` may be specified; if the `state` is rejected, then its `error` may
-   * be specified.
+   * @param options - An options bag which will be used to create an action
+   * handler that places the approval request in a certain state. The `state`
+   * option controls the state of the promise as outlined above: if the `state`
+   * is approved, then its `result` may be specified; if the `state` is
+   * rejected, then its `error` may be specified.
    * @returns An object which contains the aforementioned promise, functions to
    * manually approve or reject the approval (and therefore the promise), and
    * finally the mocked version of the action handler itself.
@@ -687,7 +743,6 @@ describe('TransactionController', () => {
       ReturnType<AddApprovalRequest['handler']>,
       Parameters<AddApprovalRequest['handler']>
     > = jest.fn().mockReturnValue(promise);
-
     if (options.state === 'approved') {
       approveTransaction(options.result);
     } else if (options.state === 'rejected') {
@@ -705,22 +760,6 @@ describe('TransactionController', () => {
       reject: rejectTransaction,
       actionHandlerMock,
     };
-  }
-
-  /**
-   * Builds a network client that is only used in tests to get a chain ID.
-   *
-   * @param networkClient - The properties in the desired network client.
-   * Only needs to contain `configuration`.
-   * @param networkClient.configuration - The desired network client
-   * configuration. Only needs to contain `chainId`>
-   * @returns The network client.
-   */
-  function buildMockNetworkClient(networkClient: {
-    configuration: NetworkClientConfiguration;
-  }): NetworkClient {
-    // Type assertion: We don't expect anything but the configuration to get used.
-    return networkClient as unknown as NetworkClient;
   }
 
   /**
@@ -765,18 +804,19 @@ describe('TransactionController', () => {
       return incomingTransactionHelperMock;
     });
 
+    pendingTransactionTrackerMock = {
+      start: jest.fn(),
+      stop: jest.fn(),
+      startIfPendingTransactions: jest.fn(),
+      hub: {
+        on: jest.fn(),
+        removeAllListeners: jest.fn(),
+      },
+      onStateChange: jest.fn(),
+      forceCheckTransaction: jest.fn(),
+    } as unknown as jest.Mocked<PendingTransactionTracker>;
+
     pendingTransactionTrackerClassMock.mockImplementation(() => {
-      pendingTransactionTrackerMock = {
-        start: jest.fn(),
-        stop: jest.fn(),
-        startIfPendingTransactions: jest.fn(),
-        hub: {
-          on: jest.fn(),
-          removeAllListeners: jest.fn(),
-        },
-        onStateChange: jest.fn(),
-        forceCheckTransaction: jest.fn(),
-      } as unknown as jest.Mocked<PendingTransactionTracker>;
       return pendingTransactionTrackerMock;
     });
 
@@ -907,7 +947,7 @@ describe('TransactionController', () => {
               transactions: [
                 {
                   ...TRANSACTION_META_MOCK,
-                  chainId: MOCK_NETWORK.state.providerConfig.chainId,
+                  chainId: MOCK_NETWORK.chainId,
                   status: TransactionStatus.submitted,
                 },
               ],
@@ -1315,9 +1355,7 @@ describe('TransactionController', () => {
 
       expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
       expect(transactionMeta.txParams.from).toBe(ACCOUNT_MOCK);
-      expect(transactionMeta.chainId).toBe(
-        MOCK_NETWORK.state.providerConfig.chainId,
-      );
+      expect(transactionMeta.chainId).toBe(MOCK_NETWORK.chainId);
       expect(transactionMeta.deviceConfirmedOn).toBe(mockDeviceConfirmedOn);
       expect(transactionMeta.origin).toBe(mockOrigin);
       expect(transactionMeta.status).toBe(TransactionStatus.unapproved);
@@ -1331,26 +1369,9 @@ describe('TransactionController', () => {
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
-        const { controller, messenger } = setupController({
+        const { controller } = setupController({
           options: { isMultichainEnabled: true },
         });
-        messenger.registerActionHandler(
-          'NetworkController:getNetworkClientById',
-          (networkClientId) => {
-            switch (networkClientId) {
-              case 'sepolia':
-                return buildMockNetworkClient({
-                  configuration: {
-                    chainId: ChainId.sepolia,
-                  },
-                });
-              default:
-                throw new Error(
-                  `Unknown network client ID: ${networkClientId}`,
-                );
-            }
-          },
-        );
         const sepoliaTxParams: TransactionParams = {
           chainId: ChainId.sepolia,
           from: ACCOUNT_MOCK,
@@ -1362,7 +1383,7 @@ describe('TransactionController', () => {
         await controller.addTransaction(sepoliaTxParams, {
           origin: 'metamask',
           actionId: ACTION_ID_MOCK,
-          networkClientId: 'sepolia',
+          networkClientId: InfuraNetworkType.sepolia,
         });
 
         const transactionMeta = controller.state.transactions[0];
@@ -1384,23 +1405,6 @@ describe('TransactionController', () => {
             },
           },
         });
-        messenger.registerActionHandler(
-          'NetworkController:getNetworkClientById',
-          (networkClientId) => {
-            switch (networkClientId) {
-              case 'sepolia':
-                return buildMockNetworkClient({
-                  configuration: {
-                    chainId: ChainId.sepolia,
-                  },
-                });
-              default:
-                throw new Error(
-                  `Unknown network client ID: ${networkClientId}`,
-                );
-            }
-          },
-        );
         multichainTrackingHelperMock.has.mockReturnValue(true);
 
         const submittedEventListener = jest.fn();
@@ -1418,7 +1422,7 @@ describe('TransactionController', () => {
         const { result } = await controller.addTransaction(sepoliaTxParams, {
           origin: 'metamask',
           actionId: ACTION_ID_MOCK,
-          networkClientId: 'sepolia',
+          networkClientId: InfuraNetworkType.sepolia,
         });
 
         await result;
@@ -1516,49 +1520,54 @@ describe('TransactionController', () => {
       );
     });
 
-    it.each([
-      ['mainnet', MOCK_MAINNET_NETWORK],
-      ['custom network', MOCK_CUSTOM_NETWORK],
-    ])(
-      'adds unapproved transaction to state after switching to %s',
-      async (_networkName, newNetwork) => {
-        const getNetworkState = jest.fn().mockReturnValue(MOCK_NETWORK.state);
+    it('adds unapproved transaction to state after switching to Infura network', async () => {
+      const { controller, changeNetwork } = setupController({
+        network: {
+          state: {
+            selectedNetworkClientId: InfuraNetworkType.goerli,
+          },
+        },
+      });
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.mainnet });
 
-        let networkStateChangeListener: ((state: NetworkState) => void) | null =
-          null;
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
 
-        const onNetworkStateChange = (
-          listener: (state: NetworkState) => void,
-        ) => {
-          networkStateChangeListener = listener;
-        };
+      expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
+      expect(controller.state.transactions[0].chainId).toBe(ChainId.mainnet);
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.unapproved,
+      );
+    });
 
-        const { controller } = setupController({
-          options: { getNetworkState, onNetworkStateChange },
-        });
+    it('adds unapproved transaction to state after switching to custom network', async () => {
+      const { controller, changeNetwork } = setupController({
+        network: {
+          state: {
+            selectedNetworkClientId: InfuraNetworkType.goerli,
+          },
+        },
+        mockNetworkClientConfigurationsByNetworkClientId: {
+          'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
+            chainId: '0x1337',
+          }),
+        },
+      });
+      changeNetwork({ selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD' });
 
-        // switch from Goerli to Mainnet
-        getNetworkState.mockReturnValue(newNetwork.state);
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
 
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        networkStateChangeListener!(newNetwork.state);
-
-        await controller.addTransaction({
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-        });
-
-        expect(controller.state.transactions[0].txParams.from).toBe(
-          ACCOUNT_MOCK,
-        );
-        expect(controller.state.transactions[0].chainId).toBe(
-          newNetwork.state.providerConfig.chainId,
-        );
-        expect(controller.state.transactions[0].status).toBe(
-          TransactionStatus.unapproved,
-        );
-      },
-    );
+      expect(controller.state.transactions[0].txParams.from).toBe(ACCOUNT_MOCK);
+      expect(controller.state.transactions[0].chainId).toBe('0x1337');
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.unapproved,
+      );
+    });
 
     it('throws if address invalid', async () => {
       const { controller } = setupController();
@@ -1622,15 +1631,19 @@ describe('TransactionController', () => {
 
     it('requests approval using the approval controller', async () => {
       const { controller, messenger } = setupController();
-      jest.spyOn(messenger, 'call');
+      const messengerCallSpy = jest.spyOn(messenger, 'call');
 
       await controller.addTransaction({
         from: ACCOUNT_MOCK,
         to: ACCOUNT_MOCK,
       });
 
-      expect(messenger.call).toHaveBeenCalledTimes(1);
-      expect(messenger.call).toHaveBeenCalledWith(
+      expect(
+        messengerCallSpy.mock.calls.filter(
+          (args) => args[0] === 'ApprovalController:addRequest',
+        ),
+      ).toHaveLength(1);
+      expect(messengerCallSpy).toHaveBeenCalledWith(
         'ApprovalController:addRequest',
         {
           id: expect.any(String),
@@ -1657,7 +1670,9 @@ describe('TransactionController', () => {
         },
       );
 
-      expect(messenger.call).toHaveBeenCalledTimes(0);
+      expect(messenger.call).not.toHaveBeenCalledWith(
+        'ApprovalController:addRequest',
+      );
     });
 
     it('calls security provider with transaction meta and sets response in to securityProviderResponse', async () => {
@@ -1711,9 +1726,9 @@ describe('TransactionController', () => {
       expect(updateGasMock).toHaveBeenCalledTimes(1);
       expect(updateGasMock).toHaveBeenCalledWith({
         ethQuery: expect.any(Object),
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
-        isCustomNetwork:
-          MOCK_NETWORK.state.providerConfig.type === NetworkType.rpc,
+        chainId: MOCK_NETWORK.chainId,
+        // XXX: Is this right?
+        isCustomNetwork: false,
         txMeta: expect.any(Object),
       });
     });
@@ -1757,7 +1772,7 @@ describe('TransactionController', () => {
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
         expect(getSimulationDataMock).toHaveBeenCalledWith({
-          chainId: MOCK_NETWORK.state.providerConfig.chainId,
+          chainId: MOCK_NETWORK.chainId,
           data: undefined,
           from: ACCOUNT_MOCK,
           to: ACCOUNT_MOCK,
@@ -2003,7 +2018,18 @@ describe('TransactionController', () => {
 
         it('if no chainId defined', async () => {
           const { controller } = setupController({
-            network: MOCK_NETWORK_WITHOUT_CHAIN_ID,
+            mockNetworkClientConfigurationsByNetworkClientId: {
+              'AAAA-BBBB-CCCC-DDDD': buildCustomNetworkClientConfiguration({
+                rpcUrl: 'https://test.network',
+                ticker: 'TEST',
+                chainId: undefined,
+              }),
+            },
+            network: {
+              state: {
+                selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
+              },
+            },
             messengerOptions: {
               addTransactionApprovalRequest: {
                 state: 'approved',
@@ -2015,10 +2041,13 @@ describe('TransactionController', () => {
         });
 
         it('if unexpected status', async () => {
-          const { controller, messenger } = setupController();
-
-          jest.spyOn(messenger, 'call').mockImplementationOnce(() => {
-            throw new Error('Unknown problem');
+          const { controller } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: TransactionStatus.rejected,
+                error: new Error('Unknown problem'),
+              },
+            },
           });
 
           const { result } = await controller.addTransaction({
@@ -2033,10 +2062,13 @@ describe('TransactionController', () => {
         });
 
         it('if unrecognised error', async () => {
-          const { controller, messenger } = setupController();
-
-          jest.spyOn(messenger, 'call').mockImplementationOnce(() => {
-            throw new Error('TestError');
+          const { controller } = setupController({
+            messengerOptions: {
+              addTransactionApprovalRequest: {
+                state: TransactionStatus.rejected,
+                error: new Error('TestError'),
+              },
+            },
           });
 
           const { result } = await controller.addTransaction({
@@ -2051,12 +2083,8 @@ describe('TransactionController', () => {
         });
 
         it('if transaction removed', async () => {
-          const { controller, messenger } = setupController();
-
-          jest.spyOn(messenger, 'call').mockImplementationOnce(() => {
-            controller.clearUnapprovedTransactions();
-            throw new Error('Unknown problem');
-          });
+          const { controller, mockTransactionApprovalRequest } =
+            setupController();
 
           const { result } = await controller.addTransaction({
             from: ACCOUNT_MOCK,
@@ -2065,6 +2093,9 @@ describe('TransactionController', () => {
             to: ACCOUNT_MOCK,
             value: '0x0',
           });
+
+          controller.clearUnapprovedTransactions();
+          mockTransactionApprovalRequest.reject(new Error('Unknown problem'));
 
           await expect(result).rejects.toThrow('Unknown problem');
         });
@@ -4051,7 +4082,7 @@ describe('TransactionController', () => {
         const confirmed = {
           ...TRANSACTION_META_MOCK,
           id: 'testId1',
-          chainId: MOCK_NETWORK.state.providerConfig.chainId,
+          chainId: MOCK_NETWORK.chainId,
           hash: '0x3',
           status: TransactionStatus.confirmed,
           txParams: { ...TRANSACTION_META_MOCK.txParams, nonce: '0x1' },
@@ -4263,7 +4294,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       await expect(
@@ -4293,7 +4324,7 @@ describe('TransactionController', () => {
         gas: '0x5208',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       // Send the transaction to put it in the process of being signed
@@ -4324,7 +4355,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
       const mockTransactionParam2 = {
         from: ACCOUNT_MOCK,
@@ -4332,7 +4363,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       const result = await controller.approveTransactionsWithSameNonce([
@@ -4363,7 +4394,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
       const mockTransactionParam2 = {
         from: ACCOUNT_MOCK,
@@ -4371,7 +4402,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       await expect(
@@ -4391,7 +4422,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       const mockTransactionParam2 = {
@@ -4400,7 +4431,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       await controller.approveTransactionsWithSameNonce(
@@ -4424,7 +4455,7 @@ describe('TransactionController', () => {
         gas: '0x111',
         to: ACCOUNT_2_MOCK,
         value: '0x0',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       const mockTransactionParam2 = {
@@ -4433,7 +4464,7 @@ describe('TransactionController', () => {
         gas: '0x222',
         to: ACCOUNT_2_MOCK,
         value: '0x1',
-        chainId: MOCK_NETWORK.state.providerConfig.chainId,
+        chainId: MOCK_NETWORK.chainId,
       };
 
       await controller.approveTransactionsWithSameNonce([
@@ -5005,13 +5036,17 @@ describe('TransactionController', () => {
             state: mockedControllerState as any,
           },
         });
-        jest.spyOn(messenger, 'call');
+        const messengerCallSpy = jest.spyOn(messenger, 'call');
 
         controller.initApprovals();
         await flushPromises();
 
-        expect(messenger.call).toHaveBeenCalledTimes(2);
-        expect(messenger.call).toHaveBeenCalledWith(
+        expect(
+          messengerCallSpy.mock.calls.filter(
+            (args) => args[0] === 'ApprovalController:addRequest',
+          ),
+        ).toHaveLength(2);
+        expect(messengerCallSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
             expectsResult: true,
@@ -5022,7 +5057,7 @@ describe('TransactionController', () => {
           },
           false,
         );
-        expect(messenger.call).toHaveBeenCalledWith(
+        expect(messengerCallSpy).toHaveBeenCalledWith(
           'ApprovalController:addRequest',
           {
             expectsResult: true,
@@ -5067,16 +5102,17 @@ describe('TransactionController', () => {
 
         const mockedErrorMessage = 'mocked error';
 
-        const { controller, messenger } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-          },
-        });
+        const { controller, messenger, mockTransactionApprovalRequest } =
+          setupController({
+            options: {
+              // TODO: Replace `any` with type
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              state: mockedControllerState as any,
+            },
+          });
+        const messengerCallSpy = jest.spyOn(messenger, 'call');
         // Expect both calls to throw error, one with code property to check if it is handled
-        jest
-          .spyOn(messenger, 'call')
+        mockTransactionApprovalRequest.actionHandlerMock
           .mockImplementationOnce(() => {
             // eslint-disable-next-line @typescript-eslint/no-throw-literal
             throw { message: mockedErrorMessage };
@@ -5099,7 +5135,11 @@ describe('TransactionController', () => {
           'Error during persisted transaction approval',
           new Error(mockedErrorMessage),
         );
-        expect(messenger.call).toHaveBeenCalledTimes(2);
+        expect(
+          messengerCallSpy.mock.calls.filter((args) => {
+            return args[0] === 'ApprovalController:addRequest';
+          }),
+        ).toHaveLength(2);
       });
 
       it('does not create any approval when there is no unapproved transaction', async () => {
@@ -5107,7 +5147,9 @@ describe('TransactionController', () => {
         jest.spyOn(messenger, 'call');
         controller.initApprovals();
         await flushPromises();
-        expect(messenger.call).not.toHaveBeenCalled();
+        expect(messenger.call).not.toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+        );
       });
     });
 
@@ -5273,7 +5315,7 @@ describe('TransactionController', () => {
       it('returns transactions matching current network', () => {
         const transactions: TransactionMeta[] = [
           {
-            chainId: MOCK_NETWORK.state.providerConfig.chainId,
+            chainId: MOCK_NETWORK.chainId,
             id: 'testId1',
             status: TransactionStatus.confirmed,
             time: 1,
@@ -5287,7 +5329,7 @@ describe('TransactionController', () => {
             txParams: { from: '0x2' },
           },
           {
-            chainId: MOCK_NETWORK.state.providerConfig.chainId,
+            chainId: MOCK_NETWORK.chainId,
             id: 'testId3',
             status: TransactionStatus.submitted,
             time: 1,

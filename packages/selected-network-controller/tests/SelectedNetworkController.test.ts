@@ -617,8 +617,10 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('When a permission is added or removed', () => {
-    it('should add new domain to domains list on permission add', async () => {
-      const { controller, messenger } = setup();
+    it('should add new domain to domains list on permission add if #useRequestQueuePreference is true', async () => {
+      const { controller, messenger } = setup({
+        useRequestQueuePreference: true,
+      });
       const mockPermission = {
         parentCapability: 'eth_accounts',
         id: 'example.com',
@@ -636,6 +638,29 @@ describe('SelectedNetworkController', () => {
 
       const { domains } = controller.state;
       expect(domains['example.com']).toBeDefined();
+    });
+
+    it('should not add new domain to domains list on permission add if #useRequestQueuePreference is false', async () => {
+      const { controller, messenger } = setup({
+        useRequestQueuePreference: false,
+      });
+      const mockPermission = {
+        parentCapability: 'eth_accounts',
+        id: 'example.com',
+        date: Date.now(),
+        caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
+      };
+
+      messenger.publish('PermissionController:stateChange', { subjects: {} }, [
+        {
+          op: 'add',
+          path: ['subjects', 'example.com', 'permissions'],
+          value: mockPermission,
+        },
+      ]);
+
+      const { domains } = controller.state;
+      expect(domains['example.com']).toBeUndefined();
     });
 
     describe('on permission removal', () => {
