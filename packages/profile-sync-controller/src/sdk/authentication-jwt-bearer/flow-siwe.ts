@@ -16,10 +16,14 @@ import type {
   UserProfile,
 } from './types';
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type JwtBearerAuth_SIWE_Options = {
   storage: AuthStorageOptions;
 };
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type JwtBearerAuth_SIWE_Signer = {
   address: string;
   chainId: number;

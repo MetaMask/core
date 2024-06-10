@@ -32,6 +32,8 @@ import {
 
 export const GAS_API_BASE_URL = 'https://gas.api.infura.io';
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type unknownString = 'unknown';
 
 // Fee Market describes the way gas is set after the london hardfork, and was
@@ -270,6 +272,8 @@ export class GasFeeController extends StaticIntervalPollingController<
 
   private readonly legacyAPIEndpoint: string;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   private readonly EIP1559APIEndpoint: string;
 
   private readonly getCurrentNetworkEIP1559Compatibility;
@@ -359,6 +363,8 @@ export class GasFeeController extends StaticIntervalPollingController<
 
     if (onNetworkDidChange && getChainId) {
       this.currentChainId = getChainId();
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onNetworkDidChange(async (networkControllerState) => {
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
@@ -372,6 +378,8 @@ export class GasFeeController extends StaticIntervalPollingController<
       ).configuration.chainId;
       this.messagingSystem.subscribe(
         'NetworkController:networkDidChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
           await this.#onNetworkControllerDidChange(networkControllerState);
         },
@@ -540,6 +548,8 @@ export class GasFeeController extends StaticIntervalPollingController<
       clearInterval(this.intervalId);
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);

@@ -14,6 +14,8 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (
         req: JsonRpcRequest<[]>,
         res: PendingJsonRpcResponse<PermissionConstraint[]>,
@@ -43,6 +45,8 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (
         req: JsonRpcRequest<[]>,
         res: PendingJsonRpcResponse<PermissionConstraint[]>,
