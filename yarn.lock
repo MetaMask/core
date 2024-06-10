@@ -2906,6 +2906,7 @@ __metadata:
     "@types/punycode": ^2.1.0
     deepmerge: ^4.2.2
     eth-phishing-detect: ^1.2.0
+    fastest-levenshtein: ^1.0.16
     jest: ^27.5.1
     nock: ^13.3.1
     punycode: ^2.1.1
@@ -3319,6 +3320,7 @@ __metadata:
     "@ethersproject/abi": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
+    "@metamask/accounts-controller": ^16.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
@@ -3327,6 +3329,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^17.0.0
+    "@metamask/keyring-api": ^6.4.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
     "@metamask/nonce-tracker": ^5.0.0
@@ -3352,6 +3355,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@babel/runtime": ^7.23.9
+    "@metamask/accounts-controller": ^16.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/gas-fee-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
@@ -7085,6 +7089,13 @@ __metadata:
   bin:
     fxparser: src/cli/cli.js
   checksum: 12795c55f4564699c3cee13f7e892423244ac1125775e9b85bf948a1d4b65352da8f688d334bad530972288bb7ee0cf3d2605088d475123fce40d95003f045fa
+  languageName: node
+  linkType: hard
+
+"fastest-levenshtein@npm:^1.0.16":
+  version: 1.0.16
+  resolution: "fastest-levenshtein@npm:1.0.16"
+  checksum: a78d44285c9e2ae2c25f3ef0f8a73f332c1247b7ea7fb4a191e6bb51aa6ee1ef0dfb3ed113616dcdc7023e18e35a8db41f61c8d88988e877cf510df8edafbc71
   languageName: node
   linkType: hard
 
