@@ -311,14 +311,10 @@ const HTTP_PROVIDERS = {
   mainnet: new HttpProvider(
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
-  linea: new HttpProvider(`https://linea.infura.io/v3/${INFURA_PROJECT_ID}`),
-  linea_goerli: new HttpProvider(
-    `https://linea-goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
-  ),
+  linea: new HttpProvider('https://linea.infura.io/v3/linea-pid'),
+  linea_goerli: new HttpProvider('https://linea-g.infura.io/v3/linea-g-pid'),
   custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
-  palm: new HttpProvider(
-    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-  ),
+  palm: new HttpProvider('https://palm-mainnet.infura.io/v3/palm-pid'),
 };
 
 type MockNetwork = {
