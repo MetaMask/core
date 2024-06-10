@@ -29,6 +29,7 @@ Examples:
   yarn workspace @metamask/accounts-controller run since-latest-release
   yarn workspace @metamask/accounts-controller run since-latest-release diff
   yarn workspace @metamask/accounts-controller run since-latest-release log -p
+  yarn workspace @metamask/accounts-controller run since-latest-release --include-head -- log -p
 
 EOT
 }
@@ -104,7 +105,7 @@ main() {
         ;;
       *)
         if [[ $any_options_given -eq 1 ]]; then
-          red "ERROR: Unknown argument '$1'." $'\n'
+          red "ERROR: Unknown argument '$1'. (Tip: When specifying options to this script and \`git\` at the same time, use \`--\` to divide git options.)" $'\n'
           echo
           print-usage
           exit 1
