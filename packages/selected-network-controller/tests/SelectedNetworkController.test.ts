@@ -820,7 +820,7 @@ describe('SelectedNetworkController', () => {
     });
 
     describe('when useRequestQueuePreference is false', () => {
-      it('should set networkClientId for domains not already in state', async () => {
+      it('should not set networkClientId for new domains', async () => {
         const { controller } = setup({
           state: {
             domains: {
