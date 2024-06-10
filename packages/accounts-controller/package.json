@@ -46,7 +46,7 @@
     "@metamask/eth-snap-keyring": "^4.1.1",
     "@metamask/keyring-api": "^6.4.0",
     "@metamask/snaps-sdk": "^4.2.0",
-    "@metamask/snaps-utils": "^7.4.0",
+    "@metamask/snaps-utils": "^7.5.0",
     "@metamask/utils": "^8.3.0",
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
