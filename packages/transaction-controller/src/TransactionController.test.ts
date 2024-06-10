@@ -305,7 +305,7 @@ function waitForTransactionFinished(
 }
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
-const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
+const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
   goerli: new HttpProvider(
     `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
