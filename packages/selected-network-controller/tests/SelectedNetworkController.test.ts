@@ -306,29 +306,27 @@ describe('SelectedNetworkController', () => {
     });
 
     describe('when the useRequestQueue is false', () => {
-      describe('when the requesting domain is not metamask', () => {
-        it('skips setting the networkClientId for the passed in domain', () => {
-          const { controller } = setup({
-            state: {
-              domains: {
-                '1.com': 'mainnet',
-                '2.com': 'mainnet',
-                '3.com': 'mainnet',
-              },
+      it('skips setting the networkClientId for the passed in domain', () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              '1.com': 'mainnet',
+              '2.com': 'mainnet',
+              '3.com': 'mainnet',
             },
-          });
-          const domains = ['1.com', '2.com', '3.com'];
-          const networkClientIds = ['1', '2', '3'];
+          },
+        });
+        const domains = ['1.com', '2.com', '3.com'];
+        const networkClientIds = ['1', '2', '3'];
 
-          domains.forEach((domain, i) =>
-            controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
-          );
+        domains.forEach((domain, i) =>
+          controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
+        );
 
-          expect(controller.state.domains).toStrictEqual({
-            '1.com': 'mainnet',
-            '2.com': 'mainnet',
-            '3.com': 'mainnet',
-          });
+        expect(controller.state.domains).toStrictEqual({
+          '1.com': 'mainnet',
+          '2.com': 'mainnet',
+          '3.com': 'mainnet',
         });
       });
     });
@@ -786,32 +784,71 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('Constructor checks for domains in permissions', () => {
-    it('should set networkClientId for domains not already in state when useRequestQueuePreference is true', async () => {
-      const getSubjectNamesMock = ['newdomain.com'];
-      const { controller } = setup({
-        state: { domains: {} },
-        getSubjectNames: getSubjectNamesMock,
-        useRequestQueuePreference: true,
+    describe('when useRequestQueuePreference is true', () => {
+      it('should set networkClientId for domains not already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
+          },
+          getSubjectNames: ['newdomain.com'],
+          useRequestQueuePreference: true,
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'newdomain.com': 'mainnet',
+          'existingdomain.com': 'initialNetworkId',
+        });
       });
 
-      // Now, 'newdomain.com' should have the selectedNetworkClientId set
-      expect(controller.state.domains['newdomain.com']).toBe('mainnet');
+      it('should not modify domains already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
+          },
+          getSubjectNames: ['existingdomain.com'],
+          useRequestQueuePreference: true,
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'existingdomain.com': 'initialNetworkId',
+        });
+      });
     });
 
-    it('should not modify domains already in state', async () => {
-      const { controller } = setup({
-        state: {
-          domains: {
-            'existingdomain.com': 'initialNetworkId',
+    describe('when useRequestQueuePreference is false', () => {
+      it('should set networkClientId for domains not already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
           },
-        },
-        getSubjectNames: ['existingdomain.com'],
+          getSubjectNames: ['newdomain.com'],
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'existingdomain.com': 'initialNetworkId',
+        });
       });
 
-      // The 'existingdomain.com' should retain its initial networkClientId
-      expect(controller.state.domains['existingdomain.com']).toBe(
-        'initialNetworkId',
-      );
+      it('should not modify domains already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
+          },
+          getSubjectNames: ['existingdomain.com'],
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'existingdomain.com': 'initialNetworkId',
+        });
+      });
     });
   });
 
