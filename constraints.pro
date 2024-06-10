@@ -331,8 +331,6 @@ gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
 gen_enforced_field(WorkspaceCwd, 'scripts.since-latest-release', '../../scripts/since-latest-release.sh') :-
   WorkspaceCwd \= '.'.
 
-gen_enforced_field(WorkspaceCwd, 'scripts.git-since-latest-release', null).
-
 % All dependency ranges must be recognizable (this makes it possible to apply
 % the next two rules effectively).
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, 'a range optionally starting with ^ or ~', DependencyType) :-
