@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- fix: use listMultichainAccount in getAccountByAddress ([#4375](https://github.com/MetaMask/core/pull/4375))
+- fix: remove mock export ([#4369](https://github.com/MetaMask/core/pull/4369))
+- deps: @metamask/keyring-api@^6.1.1->^6.4.0 ([#4355](https://github.com/MetaMask/core/pull/4355))
+
 ## [16.0.0]
 
 ### Changed
