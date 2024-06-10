@@ -5,6 +5,7 @@
     "target": "ES2022"
   },
   "references": [
+    { "path": "../accounts-controller" },
     { "path": "../approval-controller" },
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
