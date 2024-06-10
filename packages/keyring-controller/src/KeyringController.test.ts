@@ -1097,7 +1097,9 @@ describe('KeyringController', () => {
                 '',
                 somePassword,
               ]),
-            ).rejects.toThrow('Unexpected end of JSON input');
+            ).rejects.toThrow(
+              'Key derivation failed - possibly wrong passphrase',
+            );
           });
         });
 
