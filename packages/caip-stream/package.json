@@ -30,14 +30,14 @@
     "dist/"
   ],
   "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/caip-stream",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
     "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch",
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/utils": "^8.3.0",
