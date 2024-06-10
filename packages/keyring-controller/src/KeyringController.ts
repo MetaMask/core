@@ -1546,7 +1546,7 @@ export class KeyringController extends BaseController<
    * Get QR keyring state.
    *
    * @returns Promise resolving to the keyring state.
-   * @deprecated Use `withKeyring` or subscribe to KeyringController:qrKeyringStateChange
+   * @deprecated Use `withKeyring` or subscribe to `"KeyringController:qrKeyringStateChange"`
    * instead.
    */
   async getQRKeyringState(): Promise<IQRKeyringState> {
@@ -1617,7 +1617,7 @@ export class KeyringController extends BaseController<
    * @param page - The page to connect to.
    * @returns Promise resolving to the connected accounts.
    * @deprecated Use of this method is discouraged as it creates a dangling promise
-   * internal to the QRKeyring, which can lead to unpredictable deadlocks. Please use
+   * internal to the `QRKeyring`, which can lead to unpredictable deadlocks. Please use
    * `withKeyring` instead.
    */
   async connectQRHardware(
