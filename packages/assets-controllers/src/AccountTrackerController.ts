@@ -205,10 +205,14 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     this.getCurrentChainId = getCurrentChainId;
     this.getNetworkClientById = getNetworkClientById;
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.poll();
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       () => this.refresh(),
     );
   }

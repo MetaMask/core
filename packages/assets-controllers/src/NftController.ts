@@ -398,6 +398,8 @@ export class NftController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onSelectedAccountChange.bind(this),
     );
   }
