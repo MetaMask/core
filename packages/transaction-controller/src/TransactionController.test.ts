@@ -308,7 +308,9 @@ const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
   goerli: new HttpProvider('https://goerli.infura.io/v3/goerli-pid'),
-  mainnet: new HttpProvider('https://mainnet.infura.io/v3/mainnet-pid'),
+  mainnet: new HttpProvider(
+    `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
   linea: new HttpProvider(`https://linea.infura.io/v3/${INFURA_PROJECT_ID}`),
   linea_goerli: new HttpProvider(
     `https://linea-goerli.infura.io/v3/${INFURA_PROJECT_ID}`,
