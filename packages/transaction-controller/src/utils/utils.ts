@@ -128,6 +128,8 @@ export function validateMinimumIncrease(proposed: string, min: string) {
   if (proposedDecimal >= minDecimal) {
     return proposed;
   }
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
   throw new Error(errorMsg);
 }

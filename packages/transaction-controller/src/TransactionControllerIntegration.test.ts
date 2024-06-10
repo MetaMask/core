@@ -1241,6 +1241,8 @@ describe('TransactionController Integration', () => {
           ]);
 
           expectedLastFetchedBlockNumbers[
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
@@ -1652,6 +1654,8 @@ describe('TransactionController Integration', () => {
           transactionController.updateIncomingTransactions([networkClientId]);
 
           expectedLastFetchedBlockNumbers[
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({

@@ -55,6 +55,8 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
         this.#activeListeners[key] = updateOnNewBlock;
       } else {
         throw new Error(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `Unable to retrieve blockTracker for networkClientId ${networkClientId}`,
         );
       }

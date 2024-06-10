@@ -379,6 +379,8 @@ describe('NftController', () => {
       // @ts-ignore-next-line
       const erc721Result = nftController.watchNft(ERC721_NFT, ERC20);
       await expect(erc721Result).rejects.toThrow(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Non NFT asset type ${ERC20} not supported by watchNft`,
       );
 
@@ -386,6 +388,8 @@ describe('NftController', () => {
       // @ts-ignore-next-line
       const erc1155Result = nftController.watchNft(ERC1155_NFT, ERC20);
       await expect(erc1155Result).rejects.toThrow(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Non NFT asset type ${ERC20} not supported by watchNft`,
       );
     });
@@ -414,6 +418,8 @@ describe('NftController', () => {
       // @ts-ignore-next-line
       const erc721Result = nftController.watchNft(ERC721_NFT, ERC1155);
       await expect(erc721Result).rejects.toThrow(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Suggested NFT of type ${ERC721} does not match received type ${ERC1155}`,
       );
     });

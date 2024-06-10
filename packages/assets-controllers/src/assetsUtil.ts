@@ -107,6 +107,8 @@ export const formatIconUrlWithProxy = ({
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 

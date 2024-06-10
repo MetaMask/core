@@ -544,6 +544,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
   }
 
   #getOwnerNftApi({ address, next }: { address: string; next?: string }) {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;

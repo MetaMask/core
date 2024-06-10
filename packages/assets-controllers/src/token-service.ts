@@ -19,6 +19,8 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  */
 function getTokensURL(chainId: Hex) {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
@@ -32,6 +34,8 @@ function getTokensURL(chainId: Hex) {
  * @returns The token metadata URL.
  */
 function getTokenMetadataURL(chainId: Hex, tokenAddress: string) {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `${TOKEN_END_POINT_API}/token/${convertHexToDecimal(
     chainId,
   )}?address=${tokenAddress}`;
