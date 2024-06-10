@@ -33,8 +33,6 @@ const mockedCalculateTimeEstimate = calculateTimeEstimate as jest.Mock<
   Parameters<typeof calculateTimeEstimate>
 >;
 
-const INFURA_API_KEY_MOCK = 'test';
-
 /**
  * Builds mock data for the `fetchGasEstimates` function. All of the data here is filled in to make
  * the gas fee estimation code function in a way that represents a reasonably happy path; it does
@@ -126,7 +124,6 @@ describe('determineGasFeeCalculations', () => {
     calculateTimeEstimate: mockedCalculateTimeEstimate,
     clientId: 'some-client-id',
     ethQuery: {},
-    infuraAPIKey: INFURA_API_KEY_MOCK,
   };
 
   describe('when isEIP1559Compatible is true', () => {

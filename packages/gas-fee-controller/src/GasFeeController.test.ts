@@ -24,11 +24,7 @@ import {
   fetchEthGasPriceEstimate,
   calculateTimeEstimate,
 } from './gas-util';
-import {
-  GAS_API_BASE_URL,
-  GAS_ESTIMATE_TYPES,
-  GasFeeController,
-} from './GasFeeController';
+import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
 import type {
   GasFeeState,
   GasFeeStateChange,
@@ -222,19 +218,23 @@ describe('GasFeeController', () => {
    * GasFeeController.
    * @param options.getCurrentNetworkLegacyGasAPICompatibility - Sets
    * getCurrentNetworkLegacyGasAPICompatibility on the GasFeeController.
+   * @param options.legacyAPIEndpoint - Sets legacyAPIEndpoint on the GasFeeController.
+   * @param options.EIP1559APIEndpoint - Sets EIP1559APIEndpoint on the GasFeeController.
    * @param options.clientId - Sets clientId on the GasFeeController.
    * @param options.networkControllerState - State object to initialize
    * NetworkController with.
    * @param options.interval - The polling interval.
    * @param options.state - The initial GasFeeController state
-   * @param options.infuraAPIKey - The Infura API key.
+   * @param options.initializeNetworkProvider - Whether to instruct the
+   * NetworkController to initialize its provider.
    */
   async function setupGasFeeController({
     getIsEIP1559Compatible = jest.fn().mockResolvedValue(true),
     getCurrentNetworkLegacyGasAPICompatibility = jest
       .fn()
       .mockReturnValue(false),
-    infuraAPIKey = 'INFURA_API_KEY',
+    legacyAPIEndpoint = 'http://legacy.endpoint/<chain_id>',
+    EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
     clientId,
     getChainId,
     onNetworkDidChange,
@@ -246,11 +246,14 @@ describe('GasFeeController', () => {
     onNetworkDidChange?: jest.Mock<void>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
+    legacyAPIEndpoint?: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    EIP1559APIEndpoint?: string;
     clientId?: string;
     networkControllerState?: Partial<NetworkState>;
     state?: GasFeeState;
     interval?: number;
-    infuraAPIKey?: string;
+    initializeNetworkProvider?: boolean;
   } = {}) {
     const controllerMessenger = getControllerMessenger();
     networkController = await setupNetworkController({
@@ -266,10 +269,11 @@ describe('GasFeeController', () => {
       messenger,
       getCurrentNetworkLegacyGasAPICompatibility,
       getCurrentNetworkEIP1559Compatibility: getIsEIP1559Compatible, // change this for networkDetails.state.networkDetails.isEIP1559Compatible ???
+      legacyAPIEndpoint,
+      EIP1559APIEndpoint,
       state,
       clientId,
       interval,
-      infuraAPIKey,
     });
   }
 
@@ -322,6 +326,8 @@ describe('GasFeeController', () => {
             getCurrentNetworkLegacyGasAPICompatibility: jest
               .fn()
               .mockReturnValue(true),
+            legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
+            EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
             networkControllerState: {
               providerConfig: {
                 type: NetworkType.rpc,
@@ -339,14 +345,14 @@ describe('GasFeeController', () => {
             isEIP1559Compatible: false,
             isLegacyGasAPICompatible: true,
             fetchGasEstimates,
-            fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
+            fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/1337',
             fetchLegacyGasPriceEstimates,
-            fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
+            fetchLegacyGasPriceEstimatesUrl:
+              'https://some-legacy-endpoint/1337',
             fetchEthGasPriceEstimate,
             calculateTimeEstimate,
             clientId: '99999',
             ethQuery: expect.any(EthQuery),
-            infuraAPIKey: expect.any(String),
             nonRPCGasFeeApisDisabled: false,
           });
         });
@@ -376,6 +382,8 @@ describe('GasFeeController', () => {
             getCurrentNetworkLegacyGasAPICompatibility: jest
               .fn()
               .mockReturnValue(true),
+            legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
+            EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
             networkControllerState: {
               providerConfig: {
                 type: NetworkType.rpc,
@@ -395,14 +403,14 @@ describe('GasFeeController', () => {
             isEIP1559Compatible: false,
             isLegacyGasAPICompatible: true,
             fetchGasEstimates,
-            fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
+            fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/1337',
             fetchLegacyGasPriceEstimates,
-            fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
+            fetchLegacyGasPriceEstimatesUrl:
+              'https://some-legacy-endpoint/1337',
             fetchEthGasPriceEstimate,
             calculateTimeEstimate,
             clientId: '99999',
             ethQuery: expect.any(EthQuery),
-            infuraAPIKey: expect.any(String),
             nonRPCGasFeeApisDisabled: false,
           });
         });
@@ -715,6 +723,8 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
+          EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
           networkControllerState: {
             providerConfig: {
               type: NetworkType.rpc,
@@ -732,14 +742,13 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: false,
           isLegacyGasAPICompatible: true,
           fetchGasEstimates,
-          fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
+          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/1337',
           fetchLegacyGasPriceEstimates,
-          fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
+          fetchLegacyGasPriceEstimatesUrl: 'https://some-legacy-endpoint/1337',
           fetchEthGasPriceEstimate,
           calculateTimeEstimate,
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
-          infuraAPIKey: expect.any(String),
           nonRPCGasFeeApisDisabled: false,
         });
       });
@@ -765,6 +774,7 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations correctly when getChainId returns a number input', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',
           getChainId: jest.fn().mockReturnValue(1),
         });
 
@@ -772,7 +782,7 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1/gasPrices`,
+            fetchLegacyGasPriceEstimatesUrl: 'http://legacy.endpoint/1',
           }),
         );
       });
@@ -780,6 +790,7 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations correctly when getChainId returns a hexstring input', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',
           getChainId: jest.fn().mockReturnValue('0x1'),
         });
 
@@ -787,7 +798,7 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1/gasPrices`,
+            fetchLegacyGasPriceEstimatesUrl: 'http://legacy.endpoint/1',
           }),
         );
       });
@@ -831,6 +842,7 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations correctly when getChainId returns a numeric string input', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          legacyAPIEndpoint: 'http://legacy.endpoint/<chain_id>',
           getChainId: jest.fn().mockReturnValue('1'),
         });
 
@@ -838,7 +850,7 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1/gasPrices`,
+            fetchLegacyGasPriceEstimatesUrl: 'http://legacy.endpoint/1',
           }),
         );
       });
@@ -859,6 +871,8 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
+          EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
           networkControllerState: {
             providerConfig: {
               type: NetworkType.rpc,
@@ -876,14 +890,13 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
-          fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/suggestedGasFees`,
+          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/1337',
           fetchLegacyGasPriceEstimates,
-          fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/1337/gasPrices`,
+          fetchLegacyGasPriceEstimatesUrl: 'https://some-legacy-endpoint/1337',
           fetchEthGasPriceEstimate,
           calculateTimeEstimate,
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
-          infuraAPIKey: expect.any(String),
           nonRPCGasFeeApisDisabled: false,
         });
       });
@@ -909,6 +922,7 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
           getChainId: jest.fn().mockReturnValue('0x1'),
         });
 
@@ -916,7 +930,7 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/1/suggestedGasFees`,
+            fetchGasEstimatesUrl: 'http://eip-1559.endpoint/1',
           }),
         );
       });
@@ -958,6 +972,8 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
+          EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
           clientId: '99999',
         });
 
@@ -969,18 +985,19 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
-          fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
-            ChainId.goerli,
-          )}/suggestedGasFees`,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          fetchGasEstimatesUrl: 'https://some-eip-1559-endpoint/5',
           fetchLegacyGasPriceEstimates,
-          fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          fetchLegacyGasPriceEstimatesUrl: `https://some-legacy-endpoint/${convertHexToDecimal(
             ChainId.goerli,
-          )}/gasPrices`,
+          )}`,
           fetchEthGasPriceEstimate,
           calculateTimeEstimate,
           clientId: '99999',
           ethQuery: expect.any(EthQuery),
-          infuraAPIKey: expect.any(String),
           nonRPCGasFeeApisDisabled: false,
         });
       });
@@ -1068,6 +1085,7 @@ describe('GasFeeController', () => {
       it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
           ...defaultConstructorOptions,
+          EIP1559APIEndpoint: 'http://eip-1559.endpoint/<chain_id>',
         });
 
         await gasFeeController.fetchGasFeeEstimates({
@@ -1076,9 +1094,11 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            fetchGasEstimatesUrl: `http://eip-1559.endpoint/${convertHexToDecimal(
               ChainId.sepolia,
-            )}/suggestedGasFees`,
+            )}`,
           }),
         );
       });
@@ -1093,6 +1113,8 @@ describe('GasFeeController', () => {
         getCurrentNetworkLegacyGasAPICompatibility: jest
           .fn()
           .mockReturnValue(true),
+        legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
+        EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
         networkControllerState: {
           networksMetadata: {
             goerli: {
@@ -1118,9 +1140,11 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.goerli,
-          )}/suggestedGasFees`,
+          )}`,
         }),
       );
       await clock.tickAsync(pollingInterval / 2);
@@ -1129,9 +1153,11 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.goerli,
-          )}/suggestedGasFees`,
+          )}`,
         }),
       );
       expect(
@@ -1142,9 +1168,11 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
-          fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
-          )}/suggestedGasFees`,
+          )}`,
         }),
       );
     });
