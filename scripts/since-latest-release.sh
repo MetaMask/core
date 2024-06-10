@@ -26,9 +26,9 @@ View changes for a package since its latest release.
 
 Examples:
 
-  yarn workspace @metamask/accounts-controller run git-since-latest-release
-  yarn workspace @metamask/accounts-controller run git-since-latest-release diff
-  yarn workspace @metamask/accounts-controller run git-since-latest-release log -p
+  yarn workspace @metamask/accounts-controller run since-latest-release
+  yarn workspace @metamask/accounts-controller run since-latest-release diff
+  yarn workspace @metamask/accounts-controller run since-latest-release log -p
 
 EOT
 }
@@ -58,6 +58,7 @@ determine-commit-range() {
 
 main() {
   local force_head_as_final_branch_name
+  local any_options_given
   local start_processing_git_command
   local package_name
   local package_directory
@@ -67,6 +68,7 @@ main() {
   local latest_release_commit
   local commit_range
 
+  any_options_given=0
   force_head_as_final_branch_name=0
   start_processing_git_command=0
   if [[ -f package.json ]]; then
@@ -78,6 +80,7 @@ main() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --include-head)
+        any_options_given=1
         force_head_as_final_branch_name=1
         shift
         ;;
@@ -100,13 +103,13 @@ main() {
         fi
         ;;
       *)
-        if [[ $start_processing_git_command -eq 1 ]]; then
-          given_git_command+=("$1")
-        else
+        if [[ $any_options_given -eq 1 ]]; then
           red "ERROR: Unknown argument '$1'." $'\n'
           echo
           print-usage
           exit 1
+        else
+          given_git_command+=("$1")
         fi
         shift
         ;;
