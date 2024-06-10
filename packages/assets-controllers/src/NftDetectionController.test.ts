@@ -161,6 +161,8 @@ describe('NftDetectionController', () => {
               isSpam: false,
             },
             blockaidResult: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -180,6 +182,8 @@ describe('NftDetectionController', () => {
               isSpam: false,
             },
             blockaidResult: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -206,6 +210,8 @@ describe('NftDetectionController', () => {
               isSpam: false,
             },
             blockaidResult: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -241,6 +247,8 @@ describe('NftDetectionController', () => {
               isSpam: false,
             },
             blockaidResult: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Malicious,
             },
           },
@@ -260,6 +268,8 @@ describe('NftDetectionController', () => {
               isSpam: true,
             },
             blockaidResult: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Benign,
             },
           },
@@ -279,6 +289,8 @@ describe('NftDetectionController', () => {
               isSpam: true,
             },
             blockaidResult: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               result_type: BlockaidResultType.Malicious,
             },
           },

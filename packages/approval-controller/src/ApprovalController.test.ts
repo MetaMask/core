@@ -740,12 +740,16 @@ describe('approval controller', () => {
     });
 
     it('returns true for existing entry by origin', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
     });
 
     it('returns true for existing entry by origin and type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(
@@ -754,24 +758,32 @@ describe('approval controller', () => {
     });
 
     it('returns true for existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(approvalController.has({ type: 'myType' })).toBe(true);
     });
 
     it('returns false for non-existing entry by id', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(approvalController.has({ id: 'fizz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by origin', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
     });
 
     it('returns false for non-existing entry by existing origin and non-existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: TYPE });
 
       expect(
@@ -780,6 +792,8 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by non-existing origin and existing type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType' });
 
       expect(
@@ -788,6 +802,8 @@ describe('approval controller', () => {
     });
 
     it('returns false for non-existing entry by type', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'myType1' });
 
       expect(approvalController.has({ type: 'myType2' })).toBe(false);
@@ -801,6 +817,8 @@ describe('approval controller', () => {
         origin: 'bar.baz',
         type: 'myType',
       });
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo', 'success');
 
       const result = await approvalPromise;
@@ -819,11 +837,15 @@ describe('approval controller', () => {
         type: 'myType2',
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo2', 'success2');
 
       let result = await approvalPromise2;
       expect(result).toBe('success2');
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo1', 'success1');
 
       result = await approvalPromise1;
@@ -886,6 +908,8 @@ describe('approval controller', () => {
         expectsResult: true,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept(ID_MOCK, VALUE_MOCK);
 
       expect(await approvalPromise).toStrictEqual({
@@ -895,6 +919,8 @@ describe('approval controller', () => {
     });
 
     it('throws if accept wants to wait but request does not expect result', async () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({
         id: ID_MOCK,
         origin: ORIGIN_MOCK,
@@ -909,8 +935,12 @@ describe('approval controller', () => {
     });
 
     it('deletes entry', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type' });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo');
 
       expect(
@@ -922,9 +952,15 @@ describe('approval controller', () => {
     });
 
     it('deletes one entry out of many without side-effects', () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'foo', origin: 'bar.baz', type: 'type1' });
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({ id: 'fizz', origin: 'bar.baz', type: 'type2' });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('fizz');
 
       expect(
@@ -1034,6 +1070,8 @@ describe('approval controller', () => {
         type: 'myType4',
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo2', 'success2');
 
       let result = await promise2;
@@ -1048,6 +1086,8 @@ describe('approval controller', () => {
       expect(approvalController.has({ origin: 'fizz.buzz' })).toBe(false);
       expect(approvalController.has({ origin: 'bar.baz' })).toBe(true);
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept('foo1', 'success1');
 
       result = await promise1;
@@ -1154,6 +1194,8 @@ describe('approval controller', () => {
         showApprovalRequest,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       messenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
@@ -1178,6 +1220,8 @@ describe('approval controller', () => {
         showApprovalRequest,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       messenger.call(
         'ApprovalController:addRequest',
         { id: 'foo', origin: 'bar.baz', type: TYPE },
@@ -1202,6 +1246,8 @@ describe('approval controller', () => {
         showApprovalRequest,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.add({
         id: 'foo',
         origin: 'bar.baz',
@@ -1375,6 +1421,8 @@ describe('approval controller', () => {
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       )[0].id;
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept(resultRequestId);
       await promise;
 
@@ -1391,9 +1439,13 @@ describe('approval controller', () => {
     async function doesNotThrowIfAddingRequestFails(
       methodCallback: () => Promise<unknown>,
     ) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       methodCallback();
 
       // Second call will fail as mocked nanoid will generate the same ID.
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       methodCallback();
 
       expect(console.info).toHaveBeenCalledTimes(1);
@@ -1419,6 +1471,8 @@ describe('approval controller', () => {
         approvalController.state[PENDING_APPROVALS_STORE_KEY],
       )[0].id;
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       approvalController.accept(resultRequestId);
       await promise;
 
@@ -1431,11 +1485,15 @@ describe('approval controller', () => {
 
     describe('success', () => {
       it('adds request with result success approval type', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.success(SUCCESS_OPTIONS_MOCK);
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, SUCCESS_OPTIONS_MOCK);
       });
 
       it('adds request with no options', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.success();
 
         expectRequestAdded(APPROVAL_TYPE_RESULT_SUCCESS, {
@@ -1447,6 +1505,8 @@ describe('approval controller', () => {
       });
 
       it('only includes relevant options in request data', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.success({
           ...SUCCESS_OPTIONS_MOCK,
           extra: 'testValue',
@@ -1460,6 +1520,8 @@ describe('approval controller', () => {
       });
 
       it('shows approval request', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.success(SUCCESS_OPTIONS_MOCK);
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       });
@@ -1474,6 +1536,8 @@ describe('approval controller', () => {
       });
 
       it('does not throw if adding request fails', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         doesNotThrowIfAddingRequestFails(() =>
           approvalController.success(SUCCESS_OPTIONS_MOCK),
         );
@@ -1491,11 +1555,15 @@ describe('approval controller', () => {
 
     describe('error', () => {
       it('adds request with result error approval type', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.error(ERROR_OPTIONS_MOCK);
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, ERROR_OPTIONS_MOCK);
       });
 
       it('adds request with no options', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.error();
 
         expectRequestAdded(APPROVAL_TYPE_RESULT_ERROR, {
@@ -1507,6 +1575,8 @@ describe('approval controller', () => {
       });
 
       it('only includes relevant options in request data', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.error({
           ...ERROR_OPTIONS_MOCK,
           extra: 'testValue',
@@ -1520,6 +1590,8 @@ describe('approval controller', () => {
       });
 
       it('shows approval request', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         approvalController.error(ERROR_OPTIONS_MOCK);
         expect(showApprovalRequest).toHaveBeenCalledTimes(1);
       });
@@ -1534,6 +1606,8 @@ describe('approval controller', () => {
       });
 
       it('does not throw if adding request fails', async () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         doesNotThrowIfAddingRequestFails(() =>
           approvalController.error(ERROR_OPTIONS_MOCK),
         );

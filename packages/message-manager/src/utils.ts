@@ -74,6 +74,8 @@ export function validateTypedSignMessageDataV1(
 
   if (!messageData.data || !Array.isArray(messageData.data)) {
     throw new Error(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `Invalid message "data": ${messageData.data} must be a valid array.`,
     );
   }
@@ -143,12 +145,16 @@ export function validateTypedSignMessageDataV3V4(
     const activeChainId = parseInt(currentChainId, 16);
     if (Number.isNaN(activeChainId)) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,
       );
     }
 
     if (chainId !== activeChainId) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Provided chainId "${chainId}" must match the active chainId "${activeChainId}"`,
       );
     }

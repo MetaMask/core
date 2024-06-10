@@ -54,6 +54,8 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
@@ -80,6 +82,8 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
@@ -114,6 +118,8 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
@@ -127,6 +133,8 @@ describe('LoggingController', () => {
     }
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log 2`,
@@ -164,6 +172,8 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
