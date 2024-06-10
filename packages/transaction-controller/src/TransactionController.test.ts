@@ -308,6 +308,7 @@ const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
 const INFURA_PROJECT_ID = 'testinfuraid';
 const HTTP_PROVIDERS = {
   goerli: new HttpProvider('https://goerli.infura.io/v3/goerli-pid'),
+  // TODO: Investigate and address why tests break when mainet has a different INFURA_PROJECT_ID
   mainnet: new HttpProvider(
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
