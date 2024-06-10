@@ -1,7 +1,15 @@
 import * as sinon from 'sinon';
 
 import { ListKeys, ListNames } from './PhishingController';
-import { applyDiffs, fetchTimeNow } from './utils';
+import {
+  applyDiffs,
+  domainToParts,
+  fetchTimeNow,
+  matchPartsAgainstList,
+  processConfigs,
+  processDomainList,
+  validateConfig,
+} from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
@@ -138,5 +146,123 @@ describe('applyDiffs', () => {
       ...testExistingState,
       name: ListNames.Phishfort,
     });
+  });
+});
+
+describe('validateConfig', () => {
+  it('correctly validates a valid config', () => {
+    expect(() =>
+      validateConfig({
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: ['fuzzy.example.com'],
+        tolerance: 2,
+      }),
+    ).not.toThrow();
+  });
+
+  it('throws an error if the config is not an object', () => {
+    expect(() => validateConfig(null)).toThrow('Invalid config');
+  });
+
+  it('throws an error if the config contains a tolerance without a fuzzylist', () => {
+    expect(() => validateConfig({ tolerance: 2 })).toThrow(
+      'Fuzzylist tolerance provided without fuzzylist',
+    );
+  });
+
+  it('throws an error if the config contains an invalid name', () => {
+    expect(() => validateConfig({ name: 123 })).toThrow(
+      "Invalid config parameter: 'name'",
+    );
+  });
+
+  it('throws an error if the config contains an invalid version', () => {
+    expect(() => validateConfig({ version: { foo: 'bar' } })).toThrow(
+      "Invalid config parameter: 'version'",
+    );
+  });
+});
+
+describe('domainToParts', () => {
+  it('correctly converts a domain string to an array of parts', () => {
+    const domain = 'example.com';
+    const result = domainToParts(domain);
+    expect(result).toStrictEqual(['com', 'example']);
+  });
+
+  it('correctly converts a domain string with subdomains to an array of parts', () => {
+    const domain = 'sub.example.com';
+    const result = domainToParts(domain);
+    expect(result).toStrictEqual(['com', 'example', 'sub']);
+  });
+
+  it('throws an error if the domain string is invalid', () => {
+    // @ts-expect-error testing invalid input
+    expect(() => domainToParts(123)).toThrow('123');
+  });
+});
+
+describe('processConfigs', () => {
+  it('correctly converts a list of configs to a list of processed configs', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: ['fuzzy.example.com'],
+        tolerance: 2,
+      },
+    ];
+
+    const result = processConfigs(configs);
+
+    expect(result).toStrictEqual([
+      {
+        allowlist: [['com', 'example']],
+        blocklist: [['com', 'example', 'sub']],
+        fuzzylist: [['com', 'example', 'fuzzy']],
+        tolerance: 2,
+      },
+    ]);
+  });
+
+  it('can be called with no arguments', () => {
+    expect(processConfigs()).toStrictEqual([]);
+  });
+});
+
+describe('processDomainList', () => {
+  it('correctly converts a list of domains to an array of parts', () => {
+    const domainList = ['example.com', 'sub.example.com'];
+
+    const result = processDomainList(domainList);
+
+    expect(result).toStrictEqual([
+      ['com', 'example'],
+      ['com', 'example', 'sub'],
+    ]);
+  });
+});
+
+describe('matchPartsAgainstList', () => {
+  it('matches a domain against a list of parts', () => {
+    const domainParts = ['com', 'example'];
+    const list = [
+      ['com', 'example', 'sub'],
+      ['com', 'example'],
+    ];
+
+    const result = matchPartsAgainstList(domainParts, list);
+
+    expect(result).toStrictEqual(['com', 'example']);
+  });
+
+  it('returns undefined if there is no match', () => {
+    const domainParts = ['com', 'examplea'];
+    const list = [['com', 'exampleb']];
+
+    const result = matchPartsAgainstList(domainParts, list);
+
+    expect(result).toBeUndefined();
   });
 });
