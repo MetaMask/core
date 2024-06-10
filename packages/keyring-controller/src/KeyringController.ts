@@ -52,12 +52,26 @@ const name = 'KeyringController';
  * Available keyring types
  */
 export enum KeyringTypes {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   simple = 'Simple Key Pair',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   hd = 'HD Key Tree',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   qr = 'QR Hardware Wallet Device',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   trezor = 'Trezor Hardware',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ledger = 'Ledger Hardware',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   lattice = 'Lattice Hardware',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   snap = 'Snap Keyring',
 }
 
@@ -246,7 +260,11 @@ export type KeyringObject = {
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   privateKey = 'privateKey',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   json = 'json',
 }
 
@@ -380,6 +398,8 @@ export type KeyringSelector =
  *
  * @param releaseLock - A function to release the lock.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type MutuallyExclusiveCallback<T> = ({
   releaseLock,
 }: {
@@ -1049,7 +1069,7 @@ export class KeyringController extends BaseController<
       // FIXME: We do cast to `Hex` to makes the type checker happy here, and
       // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
       // type would need to be updated for a full non-EVM support.
-      await keyring.removeAccount(address as Hex);
+      keyring.removeAccount(address as Hex);
 
       const accounts = await keyring.getAccounts();
       // Check if this was the last/only account
@@ -1166,6 +1186,8 @@ export class KeyringController extends BaseController<
         { version },
       );
     } catch (error) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Keyring Controller signTypedMessage: ${error}`);
     }
   }
@@ -1586,6 +1608,8 @@ export class KeyringController extends BaseController<
       } catch (e) {
         // TODO: Add test case for when keyring throws
         /* istanbul ignore next */
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
       }
     });
@@ -2239,6 +2263,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withRollback(async ({ releaseLock }) => {
       const callbackResult = await fn({ releaseLock });
@@ -2256,6 +2282,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute atomically.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
@@ -2296,6 +2324,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute while the controller mutex is locked.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withControllerLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return withLock(this.#controllerOperationMutex, fn);
   }
@@ -2311,6 +2341,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute while the vault mutex is locked.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withVaultLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     this.#assertControllerMutexIsLocked();
 
@@ -2327,6 +2359,8 @@ export class KeyringController extends BaseController<
  * @param fn - The function to execute while the mutex is locked.
  * @returns The result of the function.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 async function withLock<T>(
   mutex: Mutex,
   fn: MutuallyExclusiveCallback<T>,

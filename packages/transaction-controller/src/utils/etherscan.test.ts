@@ -81,7 +81,11 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&offset=${REQUEST_MOCK.limit}` +
           `&sort=desc` +
           `&action=${action}` +
@@ -107,7 +111,11 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&offset=${REQUEST_MOCK.limit}` +
           `&sort=desc` +
           `&action=${action}` +

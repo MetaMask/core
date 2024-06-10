@@ -28,6 +28,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
           revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
@@ -40,6 +42,8 @@ describe('revokePermissions RPC method', () => {
       method: 'wallet_revokePermissions',
       params: [
         {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           snap_dialog: {},
         },
       ],
@@ -59,6 +63,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
           revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
@@ -79,6 +85,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
     delete response.error.stack;
@@ -92,6 +100,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
           revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
@@ -112,6 +122,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
     delete response.error.stack;
@@ -125,6 +137,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
           revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
@@ -144,6 +158,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
     delete response.error.stack;
@@ -157,6 +173,8 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
           revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
@@ -177,6 +195,8 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
     delete response.error.stack;
