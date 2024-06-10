@@ -7,25 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- upgrade TokenRatesController to BaseControllerV2 ([#4314](https://github.com/MetaMask/core/pull/4314))
-- refactor: update Nft Controllers to use selectedAccountId instead of selectedAddress ([#4221](https://github.com/MetaMask/core/pull/4221))
-- refactor: update account tracker to use selected account ([#4225](https://github.com/MetaMask/core/pull/4225))
-- [TokenRatesController] - Keep addresses in checksum format ([#4377](https://github.com/MetaMask/core/pull/4377))
-- fix: avoid multiple calls to refresh nft metadata ([#4325](https://github.com/MetaMask/core/pull/4325))
-- feat: add mantle to price api supported chains ([#4376](https://github.com/MetaMask/core/pull/4376))
-- chore(test): Refactor FakeBlockTracker provider injection ([#4345](https://github.com/MetaMask/core/pull/4345))
-- fix: remove value from price api call ([#4364](https://github.com/MetaMask/core/pull/4364))
-- TokenListController: providerConfig -> selectedNetworkClientId ([#4316](https://github.com/MetaMask/core/pull/4316))
-- TokensController: providerConfig -> selectedNetworkClientId ([#4353](https://github.com/MetaMask/core/pull/4353))
-- AccountTrackerController: Remove ref to providerConfig ([#4306](https://github.com/MetaMask/core/pull/4306))
-- AssetsContractController: providerConfig -> selectedNetworkClientId ([#4315](https://github.com/MetaMask/core/pull/4315))
-- fix: fix market data of assets controller if no data ([#4361](https://github.com/MetaMask/core/pull/4361))
-- deps: @metamask/keyring-api@^6.1.1->^6.4.0 ([#4355](https://github.com/MetaMask/core/pull/4355))
-- fix: Mutex never gets released on refresh function of AccountTrackerController ([#4270](https://github.com/MetaMask/core/pull/4270))
-
 ## [32.0.0]
 
 ### Changed

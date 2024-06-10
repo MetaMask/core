@@ -7,16 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- testfix(transaction-controller): Refactor provider setup to provide correct providers and tracker ([#4391](https://github.com/MetaMask/core/pull/4391))
-- fix(transaction-controller): Return global ethQuery when `!isMultichainEnabled` ([#4390](https://github.com/MetaMask/core/pull/4390))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- TransactionController: providerConfig -> selectedNetworkClientId ([#4357](https://github.com/MetaMask/core/pull/4357))
-- fix: update transaction controllers to use selected account ([#4244](https://github.com/MetaMask/core/pull/4244))
-- chore(test): Refactor FakeBlockTracker provider injection ([#4345](https://github.com/MetaMask/core/pull/4345))
-- fix: support skipping updates to the simulation history for clients with disabled history ([#4349](https://github.com/MetaMask/core/pull/4349))
-
 ## [32.0.0]
 
 ### Changed
