@@ -313,7 +313,7 @@ const HTTP_PROVIDERS = {
     `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
   linea: new HttpProvider('https://linea.infura.io/v3/linea-pid'),
-  linea_goerli: new HttpProvider('https://linea-g.infura.io/v3/linea-g-pid'),
+  lineaGoerli: new HttpProvider('https://linea-g.infura.io/v3/linea-g-pid'),
   custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
   palm: new HttpProvider('https://palm-mainnet.infura.io/v3/palm-pid'),
 };
@@ -394,8 +394,8 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   chainId: ChainId['linea-goerli'],
-  provider: HTTP_PROVIDERS.linea_goerli,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea_goerli),
+  provider: HTTP_PROVIDERS.lineaGoerli,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaGoerli),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
