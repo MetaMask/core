@@ -305,18 +305,24 @@ function waitForTransactionFinished(
 }
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
-const INFURA_PROJECT_ID = 'testinfuraid';
+const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
 const HTTP_PROVIDERS = {
-  goerli: new HttpProvider(`https://goerli.ethrpc.test/${INFURA_PROJECT_ID}`),
-  mainnet: new HttpProvider(`https://mainnet.ethrpc.test/${INFURA_PROJECT_ID}`),
-  linea: new HttpProvider(`https://linea.ethrpc.test/${INFURA_PROJECT_ID}`),
+  goerli: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  mainnet: new HttpProvider(
+    `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
   linea_goerli: new HttpProvider(
-    `https://linea-goerli.ethrpc.test/${INFURA_PROJECT_ID}`,
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
-  custom: new HttpProvider(
-    `http://127.0.0.123:456/ethrpc?apiKey=foobar&somekey=someval`,
+  custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
+  palm: new HttpProvider(
+    `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
   ),
-  palm: new HttpProvider(`https://palm.ethrpc.test/${INFURA_PROJECT_ID}`),
 };
 
 type MockNetwork = {
