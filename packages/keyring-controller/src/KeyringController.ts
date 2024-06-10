@@ -1069,7 +1069,7 @@ export class KeyringController extends BaseController<
       // FIXME: We do cast to `Hex` to makes the type checker happy here, and
       // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
       // type would need to be updated for a full non-EVM support.
-      await keyring.removeAccount(address as Hex);
+      keyring.removeAccount(address as Hex);
 
       const accounts = await keyring.getAccounts();
       // Check if this was the last/only account
