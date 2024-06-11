@@ -1518,6 +1518,7 @@ export class KeyringController extends BaseController<
    * Get QR Hardware keyring.
    *
    * @returns The QR Keyring if defined, otherwise undefined
+   * @deprecated Use `withKeyring` instead.
    */
   getQRKeyring(): QRKeyring | undefined {
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
@@ -1528,6 +1529,7 @@ export class KeyringController extends BaseController<
    * Get QR hardware keyring. If it doesn't exist, add it.
    *
    * @returns The added keyring
+   * @deprecated Use `addNewKeyring` and `withKeyring` instead.
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
     return (
@@ -1536,6 +1538,13 @@ export class KeyringController extends BaseController<
     );
   }
 
+  /**
+   * Restore QR keyring from serialized data.
+   *
+   * @param serialized - Serialized data to restore the keyring from.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
@@ -1545,22 +1554,57 @@ export class KeyringController extends BaseController<
     });
   }
 
+  /**
+   * Reset QR keyring state.
+   *
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async resetQRKeyringState(): Promise<void> {
     (await this.getOrAddQRKeyring()).resetStore();
   }
 
+  /**
+   * Get QR keyring state.
+   *
+   * @returns Promise resolving to the keyring state.
+   * @deprecated Use `withKeyring` or subscribe to `"KeyringController:qrKeyringStateChange"`
+   * instead.
+   */
   async getQRKeyringState(): Promise<IQRKeyringState> {
     return (await this.getOrAddQRKeyring()).getMemStore();
   }
 
+  /**
+   * Submit QR hardware wallet public HDKey.
+   *
+   * @param cryptoHDKey - The key to submit.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async submitQRCryptoHDKey(cryptoHDKey: string): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
   }
 
+  /**
+   * Submit QR hardware wallet account.
+   *
+   * @param cryptoAccount - The account to submit.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async submitQRCryptoAccount(cryptoAccount: string): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
   }
 
+  /**
+   * Submit QR hardware wallet signature.
+   *
+   * @param requestId - The request ID.
+   * @param ethSignature - The signature to submit.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async submitQRSignature(
     requestId: string,
     ethSignature: string,
@@ -1568,18 +1612,36 @@ export class KeyringController extends BaseController<
     (await this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
   }
 
+  /**
+   * Cancel QR sign request.
+   *
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async cancelQRSignRequest(): Promise<void> {
     (await this.getOrAddQRKeyring()).cancelSignRequest();
   }
 
   /**
    * Cancels qr keyring sync.
+   *
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
    */
   async cancelQRSynchronization(): Promise<void> {
     // eslint-disable-next-line n/no-sync
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
+  /**
+   * Connect to QR hardware wallet.
+   *
+   * @param page - The page to connect to.
+   * @returns Promise resolving to the connected accounts.
+   * @deprecated Use of this method is discouraged as it creates a dangling promise
+   * internal to the `QRKeyring`, which can lead to unpredictable deadlocks. Please use
+   * `withKeyring` instead.
+   */
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
@@ -1615,6 +1677,13 @@ export class KeyringController extends BaseController<
     });
   }
 
+  /**
+   * Unlock a QR hardware wallet account.
+   *
+   * @param index - The index of the account to unlock.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
     return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
@@ -1631,6 +1700,12 @@ export class KeyringController extends BaseController<
     return keyring.type;
   }
 
+  /**
+   * Forget the QR hardware wallet.
+   *
+   * @returns Promise resolving to the removed accounts and the remaining accounts.
+   * @deprecated Use `withKeyring` instead.
+   */
   async forgetQRDevice(): Promise<{
     removedAccounts: string[];
     remainingAccounts: string[];
