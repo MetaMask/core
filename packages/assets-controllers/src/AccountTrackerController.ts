@@ -187,6 +187,14 @@ export class AccountTrackerController extends StaticIntervalPollingController<
   }
 
   /**
+   * Sets a new provider.
+   * @param provider - Provider used to create a new underlying EthQuery instance.
+   */
+  setProvider(provider: Provider) {
+    this.#provider = provider;
+  }
+
+  /**
    * Retrieves the current network client based on the selected network client ID.
    * @returns The current network client.
    */
@@ -281,11 +289,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<
 
     const {
       configuration: { chainId },
-      provider,
     } = this.#getCurrentNetworkClient();
     return {
       chainId,
-      ethQuery: new EthQuery(this.#provider ?? provider),
+      ethQuery: this.#provider ? new EthQuery(this.#provider) : undefined,
     };
   }
 
