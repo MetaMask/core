@@ -186,14 +186,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     );
   }
 
-  /**
-   * Sets a new provider.
-   * @param provider - Provider used to create a new underlying EthQuery instance.
-   */
-  setProvider(provider: Provider) {
-    this.#provider = provider;
-  }
-
   #getCurrentChainId = (): Hex => {
     const {
       providerConfig: { chainId },
