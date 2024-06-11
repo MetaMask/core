@@ -162,13 +162,11 @@ describe('AccountTrackerController', () => {
         getCurrentChainId: () => '0x1',
       },
     });
-    controller.refresh = sinon.stub();
+    const refreshSpy = jest.spyOn(controller, 'refresh');
 
     triggerSelectedAccountChange(ACCOUNT_1);
 
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((controller.refresh as any).called).toBe(true);
+    expect(refreshSpy).toHaveBeenCalled();
   });
 
   describe('refresh', () => {
@@ -561,8 +559,7 @@ describe('AccountTrackerController', () => {
   });
 
   it('should call refresh every interval on legacy polling', async () => {
-    const poll = sinon.spy(AccountTrackerController.prototype, 'poll');
-
+    const pollSpy = jest.spyOn(AccountTrackerController.prototype, 'poll');
     const { controller } = setupController({
       options: {
         provider,
@@ -575,17 +572,21 @@ describe('AccountTrackerController', () => {
         listAccounts: [],
       },
     });
-    sinon.stub(controller, 'refresh');
+    jest.spyOn(controller, 'refresh').mockResolvedValue();
 
-    expect(poll.called).toBe(true);
+    expect(pollSpy).toHaveBeenCalledTimes(1);
+
     await advanceTime({ clock, duration: 50 });
-    expect(poll.calledTwice).toBe(false);
+
+    expect(pollSpy).toHaveBeenCalledTimes(1);
+
     await advanceTime({ clock, duration: 50 });
-    expect(poll.calledTwice).toBe(true);
+
+    expect(pollSpy).toHaveBeenCalledTimes(2);
   });
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
-    sinon.stub(AccountTrackerController.prototype, 'poll');
+    jest.spyOn(AccountTrackerController.prototype, 'poll').mockResolvedValue();
     const networkClientId1 = 'networkClientId1';
     const networkClientId2 = 'networkClientId2';
     const { controller } = setupController({
