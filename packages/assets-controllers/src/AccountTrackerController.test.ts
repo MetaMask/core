@@ -57,17 +57,14 @@ const setupController = ({
   mocks = {
     selectedAccount: ACCOUNT_1,
     listAccounts: [],
-    networkClientConfigurationsByNetworkClientId: {},
+    networkClientById: {},
   },
 }: {
   options?: Partial<ConstructorParameters<typeof AccountTrackerController>[0]>;
   mocks?: {
     selectedAccount: InternalAccount;
     listAccounts: InternalAccount[];
-    networkClientConfigurationsByNetworkClientId?: Record<
-      NetworkClientId,
-      NetworkClientConfiguration
-    >;
+    networkClientById?: Record<NetworkClientId, NetworkClientConfiguration>;
   };
 } = {}) => {
   const messenger = new ControllerMessenger<
@@ -91,7 +88,7 @@ const setupController = ({
   );
 
   const getNetworkClientById = buildMockGetNetworkClientById(
-    mocks.networkClientConfigurationsByNetworkClientId,
+    mocks.networkClientById,
   );
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
@@ -370,7 +367,7 @@ describe('AccountTrackerController', () => {
           mocks: {
             selectedAccount: mockAccount1,
             listAccounts: [mockAccount1, mockAccount2],
-            networkClientConfigurationsByNetworkClientId: {
+            networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
                 chainId: '0x5',
               }),
@@ -414,7 +411,7 @@ describe('AccountTrackerController', () => {
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1],
-            networkClientConfigurationsByNetworkClientId: {
+            networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
                 chainId: '0x5',
               }),
@@ -459,7 +456,7 @@ describe('AccountTrackerController', () => {
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
-            networkClientConfigurationsByNetworkClientId: {
+            networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
                 chainId: '0x5',
               }),
@@ -502,7 +499,7 @@ describe('AccountTrackerController', () => {
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
-            networkClientConfigurationsByNetworkClientId: {
+            networkClientById: {
               [networkClientId]: buildCustomNetworkClientConfiguration({
                 chainId: '0x5',
               }),
