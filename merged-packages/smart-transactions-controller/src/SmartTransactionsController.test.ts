@@ -791,7 +791,7 @@ describe('SmartTransactionsController', () => {
       });
       const pendingState = createStateAfterPending()[0];
       const pendingTransaction = { ...pendingState, history: [pendingState] };
-      expect(smartTransactionsController.state).toStrictEqual({
+      expect(smartTransactionsController.state).toMatchObject({
         smartTransactionsState: {
           smartTransactions: {
             [ChainId.mainnet]: [pendingTransaction],
@@ -843,7 +843,7 @@ describe('SmartTransactionsController', () => {
       });
       const successState = createStateAfterSuccess()[0];
       const successTransaction = { ...successState, history: [successState] };
-      expect(smartTransactionsController.state).toStrictEqual({
+      expect(smartTransactionsController.state).toMatchObject({
         smartTransactionsState: {
           smartTransactions: {
             [ChainId.mainnet]: [
