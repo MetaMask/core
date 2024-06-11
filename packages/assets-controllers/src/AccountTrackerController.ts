@@ -186,6 +186,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     );
   }
 
+  /**
+   * Retrieves the current network client based on the selected network client ID.
+   * @returns The current network client.
+   */
   #getCurrentNetworkClient(): NetworkClient {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
