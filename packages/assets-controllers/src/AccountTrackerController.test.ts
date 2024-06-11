@@ -4,7 +4,6 @@ import type {
   ExtractAvailableEvent,
 } from '@metamask/base-controller/tests/helpers';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
-import HttpProvider from '@metamask/ethjs-provider-http';
 import type { InternalAccount } from '@metamask/keyring-api';
 import {
   type NetworkClientId,
@@ -53,10 +52,6 @@ const mockedQuery = query as jest.Mock<
   Parameters<typeof query>
 >;
 
-const provider = new HttpProvider(
-  'https://goerli.infura.io/v3/341eacb578dd44a1a049cbc5f6fd4035',
-);
-
 describe('AccountTrackerController', () => {
   let clock: sinon.SinonFakeTimers;
 
@@ -89,9 +84,6 @@ describe('AccountTrackerController', () => {
   it('should refresh when selectedAccount changes', async () => {
     await withController(
       {
-        options: {
-          provider,
-        },
         isMultiAccountBalancesEnabled: true,
       },
       ({ controller, triggerSelectedAccountChange }) => {
@@ -142,7 +134,6 @@ describe('AccountTrackerController', () => {
                   },
                 },
               },
-              provider,
             },
             isMultiAccountBalancesEnabled: true,
             mocks: {
@@ -177,9 +168,6 @@ describe('AccountTrackerController', () => {
 
         await withController(
           {
-            options: {
-              provider,
-            },
             isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: ACCOUNT_1,
@@ -214,9 +202,6 @@ describe('AccountTrackerController', () => {
 
         await withController(
           {
-            options: {
-              provider,
-            },
             isMultiAccountBalancesEnabled: false,
             mocks: {
               selectedAccount: ACCOUNT_1,
@@ -249,9 +234,6 @@ describe('AccountTrackerController', () => {
 
         await withController(
           {
-            options: {
-              provider,
-            },
             isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: ACCOUNT_1,
@@ -319,7 +301,6 @@ describe('AccountTrackerController', () => {
                 [networkClientId]: buildCustomNetworkClientConfiguration({
                   chainId: '0x5',
                 }),
-                provider,
               },
             },
           },
@@ -363,7 +344,6 @@ describe('AccountTrackerController', () => {
                 [networkClientId]: buildCustomNetworkClientConfiguration({
                   chainId: '0x5',
                 }),
-                provider,
               },
             },
           },
@@ -409,7 +389,6 @@ describe('AccountTrackerController', () => {
                 [networkClientId]: buildCustomNetworkClientConfiguration({
                   chainId: '0x5',
                 }),
-                provider,
               },
             },
           },
@@ -452,7 +431,6 @@ describe('AccountTrackerController', () => {
                 [networkClientId]: buildCustomNetworkClientConfiguration({
                   chainId: '0x5',
                 }),
-                provider,
               },
             },
           },
@@ -485,9 +463,6 @@ describe('AccountTrackerController', () => {
     it('should sync balance with addresses', async () => {
       await withController(
         {
-          options: {
-            provider,
-          },
           isMultiAccountBalancesEnabled: true,
           mocks: {
             selectedAccount: ACCOUNT_1,
@@ -514,7 +489,6 @@ describe('AccountTrackerController', () => {
     await withController(
       {
         options: {
-          provider,
           interval: 100,
         },
         isMultiAccountBalancesEnabled: true,
@@ -546,7 +520,6 @@ describe('AccountTrackerController', () => {
     await withController(
       {
         options: {
-          provider,
           interval: 100,
         },
         isMultiAccountBalancesEnabled: true,

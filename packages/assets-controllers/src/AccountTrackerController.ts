@@ -15,16 +15,14 @@ import {
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { Provider } from '@metamask/eth-query';
 import type {
-  NetworkClient,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import { assert } from '@metamask/utils';
+import { type Hex, assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
 
@@ -130,8 +128,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
   AccountTrackerControllerState,
   AccountTrackerControllerMessenger
 > {
-  #provider?: Provider;
-
   readonly #refreshMutex = new Mutex();
 
   #handle?: ReturnType<typeof setTimeout>;
@@ -142,18 +138,15 @@ export class AccountTrackerController extends StaticIntervalPollingController<
    * @param options - The controller options.
    * @param options.state - Initial state to set on this controller.
    * @param options.interval - Polling interval used to fetch new account balances.
-   * @param options.provider - Network provider.
    * @param options.messenger - The controller messaging system.
    */
   constructor({
     state,
     interval = 10000,
-    provider,
     messenger,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
-    provider?: Provider;
     messenger: AccountTrackerControllerMessenger;
   }) {
     const {
@@ -171,7 +164,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
       },
       metadata: accountTrackerMetadata,
     });
-    this.#provider = provider;
     this.setIntervalLength(interval);
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -186,26 +178,17 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     );
   }
 
-  /**
-   * Sets a new provider.
-   * @param provider - Provider used to create a new underlying EthQuery instance.
-   */
-  setProvider(provider: Provider) {
-    this.#provider = provider;
-  }
-
-  /**
-   * Retrieves the current network client based on the selected network client ID.
-   * @returns The current network client.
-   */
-  #getCurrentNetworkClient(): NetworkClient {
+  #getCurrentChainId(): Hex {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    return this.messagingSystem.call(
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
+    return chainId;
   }
 
   private syncAccounts(newChainId: string) {
@@ -272,27 +255,21 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     chainId: string;
     ethQuery?: EthQuery;
   } {
-    if (networkClientId) {
-      const {
-        configuration: { chainId },
-        provider,
-      } = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-
-      return {
-        chainId,
-        ethQuery: new EthQuery(provider),
-      };
-    }
-
+    const selectedNetworkClientId =
+      networkClientId ||
+      this.messagingSystem.call('NetworkController:getState')
+        .selectedNetworkClientId;
     const {
       configuration: { chainId },
-    } = this.#getCurrentNetworkClient();
+      provider,
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+
     return {
       chainId,
-      ethQuery: this.#provider ? new EthQuery(this.#provider) : undefined,
+      ethQuery: new EthQuery(provider),
     };
   }
 
@@ -360,11 +337,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<
         }
       }
 
-      const {
-        configuration: { chainId: selectedChainId },
-      } = this.#getCurrentNetworkClient();
       this.update((state) => {
-        if (chainId === selectedChainId) {
+        if (chainId === this.#getCurrentChainId()) {
           state.accounts = accountsForChain;
         }
         state.accountsByChainId[chainId] = accountsForChain;
