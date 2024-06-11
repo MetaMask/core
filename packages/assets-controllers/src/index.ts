@@ -8,7 +8,14 @@ export type {
   AccountTrackerControllerEvents,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
-export * from './AssetsContractController';
+export type {
+  BalanceMap,
+  AssetsContractControllerMessenger,
+} from './AssetsContractController';
+export {
+  SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
+  AssetsContractController,
+} from './AssetsContractController';
 export * from './CurrencyRateController';
 export type {
   NftControllerState,
