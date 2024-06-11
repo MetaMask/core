@@ -618,6 +618,8 @@ export class NetworkController extends BaseController<
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
           networkClientId
         ];
+      // This is impossible to reach
+      /* istanbul ignore if */
       if (!infuraNetworkClient) {
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -1310,9 +1312,6 @@ export class NetworkController extends BaseController<
         const autoManagedNetworkClient = createAutoManagedNetworkClient(
           networkClientConfiguration,
         );
-        if (networkClientId in registry[networkClientType]) {
-          return registry;
-        }
         return {
           ...registry,
           [networkClientType]: {
@@ -1365,12 +1364,6 @@ export class NetworkController extends BaseController<
   ][] {
     return Object.entries(this.state.networkConfigurations).map(
       ([networkConfigurationId, networkConfiguration]) => {
-        if (networkConfiguration.chainId === undefined) {
-          throw new Error('chainId must be provided for custom RPC endpoints');
-        }
-        if (networkConfiguration.rpcUrl === undefined) {
-          throw new Error('rpcUrl must be provided for custom RPC endpoints');
-        }
         const networkClientId = networkConfigurationId;
         const networkClientConfiguration: CustomNetworkClientConfiguration = {
           type: NetworkClientType.Custom,
@@ -1417,8 +1410,9 @@ export class NetworkController extends BaseController<
           networkClientId
         ];
 
+      // This is impossible to reach
+      /* istanbul ignore if */
       if (!possibleAutoManagedNetworkClient) {
-        // This shouldn't happen, but is here just in case
         throw new Error(
           `Infura network client not found with ID '${networkClientId}'`,
         );
