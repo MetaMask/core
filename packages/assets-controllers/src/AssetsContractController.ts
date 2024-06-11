@@ -24,7 +24,7 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -61,7 +61,7 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-};
+} as const satisfies Record<Hex, string>;
 
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
@@ -509,7 +509,10 @@ export class AssetsContractController {
   ) {
     const chainId = this.getChainId(networkClientId);
     const provider = this.getProvider(networkClientId);
-    if (!(chainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)) {
+    if (
+      !((id): id is keyof typeof SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID =>
+        id in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)(chainId)
+    ) {
       // Only fetch balance if contract address exists
       return {};
     }
