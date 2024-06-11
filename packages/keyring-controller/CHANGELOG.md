@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Deprecate QR keyring methods ([#4365](https://github.com/MetaMask/core/pull/4365))
+  - `cancelQRSignRequest`
+  - `cancelQRSynchronization`
+  - `connectQRHardware`
+  - `forgetQRDevice`
+  - `getOrAddQRKeyring`
+  - `getQRKeyring`
+  - `getQRKeyringState`
+  - `resetQRKeyringState`
+  - `restoreQRKeyring`
+  - `submitQRCryptoHDKey`
+  - `submitQRCryptoAccount`
+  - `submitQRSignature`
+  - `unlockQRHardwareWalletAccount`
+
 ## [17.0.0]
 
 ### Changed
