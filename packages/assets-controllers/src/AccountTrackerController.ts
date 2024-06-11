@@ -178,6 +178,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     );
   }
 
+  /**
+   * Gets the current chain ID.
+   * @returns The current chain ID.
+   */
   #getCurrentChainId(): Hex {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
