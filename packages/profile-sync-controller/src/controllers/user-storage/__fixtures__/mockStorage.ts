@@ -1,4 +1,4 @@
-import encryption, { createSHA256Hash } from '../../src/encryption';
+import encryption, { createSHA256Hash } from '../encryption';
 
 export const MOCK_STORAGE_KEY_SIGNATURE = 'mockStorageKey';
 export const MOCK_STORAGE_KEY = createSHA256Hash(MOCK_STORAGE_KEY_SIGNATURE);

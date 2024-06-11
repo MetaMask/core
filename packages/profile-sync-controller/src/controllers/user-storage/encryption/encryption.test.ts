@@ -1,26 +1,19 @@
-/* eslint-disable jsdoc/require-returns */
-/* eslint-disable jsdoc/require-description */
-/* eslint-disable jsdoc/require-jsdoc */
-import { createMockFullUserStorage } from '@metamask/notifications-controller';
-
 import encryption, { createSHA256Hash } from './encryption';
 
 describe('encryption tests', () => {
   const PASSWORD = '123';
   const DATA1 = 'Hello World';
   const DATA2 = JSON.stringify({ foo: 'bar' });
-  const DATA3 = JSON.stringify(createMockFullUserStorage());
 
   it('should encrypt and decrypt data', () => {
-    function actEncryptDecrypt(data: string) {
+    const actEncryptDecrypt = (data: string) => {
       const encryptedString = encryption.encryptString(data, PASSWORD);
       const decryptString = encryption.decryptString(encryptedString, PASSWORD);
       return decryptString;
-    }
+    };
 
     expect(actEncryptDecrypt(DATA1)).toBe(DATA1);
     expect(actEncryptDecrypt(DATA2)).toBe(DATA2);
-    expect(actEncryptDecrypt(DATA3)).toBe(DATA3);
   });
 
   it('should decrypt some existing data', () => {

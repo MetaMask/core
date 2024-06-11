@@ -1,20 +1,19 @@
-/* eslint-disable jsdoc/require-returns */
-/* eslint-disable jsdoc/require-description */
-/* eslint-disable jsdoc/require-jsdoc */
 import {
   MOCK_ACCESS_TOKEN,
   MOCK_JWT,
   MOCK_NONCE,
+} from './__fixtures__/mockResponses';
+import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
-} from '../../tests/mocks/mockAuthenticationServices';
+} from './__fixtures__/mockServices';
 import {
   createLoginRawMessage,
   getAccessToken,
   getNonce,
   login,
-} from './authentication-controller';
+} from './services';
 
 const MOCK_METAMETRICS_ID = '0x123';
 
@@ -28,16 +27,16 @@ describe('authentication/services.ts - getNonce() tests', () => {
   });
 
   it('returns null if request is invalid', async () => {
-    async function testInvalidResponse(
+    const testInvalidResponse = async (
       status: number,
       body: Record<string, unknown>,
-    ) {
+    ) => {
       const mockNonceEndpoint = mockEndpointGetNonce({ status, body });
       const response = await getNonce('MOCK_PUBLIC_KEY');
 
       mockNonceEndpoint.done();
       expect(response).toBeNull();
-    }
+    };
 
     await testInvalidResponse(500, { error: 'mock server error' });
     await testInvalidResponse(400, { error: 'mock bad request' });
@@ -59,10 +58,10 @@ describe('authentication/services.ts - login() tests', () => {
   });
 
   it('returns null if request is invalid', async () => {
-    async function testInvalidResponse(
+    const testInvalidResponse = async (
       status: number,
       body: Record<string, unknown>,
-    ) {
+    ) => {
       const mockLoginEndpoint = mockEndpointLogin({ status, body });
       const response = await login(
         'mock raw message',
@@ -72,7 +71,7 @@ describe('authentication/services.ts - login() tests', () => {
 
       mockLoginEndpoint.done();
       expect(response).toBeNull();
-    }
+    };
 
     await testInvalidResponse(500, { error: 'mock server error' });
     await testInvalidResponse(400, { error: 'mock bad request' });
@@ -89,16 +88,16 @@ describe('authentication/services.ts - getAccessToken() tests', () => {
   });
 
   it('returns null if request is invalid', async () => {
-    async function testInvalidResponse(
+    const testInvalidResponse = async (
       status: number,
       body: Record<string, unknown>,
-    ) {
+    ) => {
       const mockLoginEndpoint = mockEndpointAccessToken({ status, body });
       const response = await getAccessToken('mock single-use jwt');
 
       mockLoginEndpoint.done();
       expect(response).toBeNull();
-    }
+    };
 
     await testInvalidResponse(500, { error: 'mock server error' });
     await testInvalidResponse(400, { error: 'mock bad request' });

@@ -43,7 +43,6 @@
   "dependencies": {
     "@metamask/base-controller": "^6.0.0",
     "@metamask/keyring-api": "^6.1.1",
-    "@metamask/notifications-controller": "^0.0.0",
     "@metamask/snaps-controllers": "^8.1.1",
     "@metamask/snaps-sdk": "^4.2.0",
     "@metamask/snaps-utils": "^7.4.0",
@@ -68,7 +67,6 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/notifications-controller": "^0.0.0",
     "@metamask/snaps-controllers": "^8.1.1"
   },
   "engines": {
@@ -79,9 +77,6 @@
     "registry": "https://registry.npmjs.org/"
   },
   "lavamoat": {
-    "allowScripts": {
-      "@metamask/notifications-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "@metamask/notifications-controller>@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
-    }
+    "allowScripts": {}
   }
 }

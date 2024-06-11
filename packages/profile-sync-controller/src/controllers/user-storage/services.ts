@@ -1,9 +1,14 @@
 import log from 'loglevel';
 
-import { USER_STORAGE_ENDPOINT } from '../constants';
-import encryption from '../encryption';
-import type { UserStorageEntryKeys } from '../schema';
-import { createEntryPath } from '../schema';
+import { Env, getEnvUrls } from '../../sdk';
+import encryption from './encryption';
+import type { UserStorageEntryKeys } from './schema';
+import { createEntryPath } from './schema';
+
+const ENV_URLS = getEnvUrls(Env.PRD);
+
+export const USER_STORAGE_API: string = ENV_URLS.userStorageApiUrl;
+export const USER_STORAGE_ENDPOINT = `${USER_STORAGE_API}/api/v1/userstorage`;
 
 export type GetUserStorageResponse = {
   HashedKey: string;
@@ -17,13 +22,10 @@ export type UserStorageOptions = {
 };
 
 /**
- * Retrieves the user storage data for the given options.
+ * User Storage Service - Get Storage Entry.
  *
- * @param opts - The options for retrieving the user storage data.
- * @param opts.bearerToken - The bearer token for authentication.
- * @param opts.entryKey - The key of the user storage entry.
- * @param opts.storageKey - The key used for encryption and decryption of the user storage data.
- * @returns The decrypted user storage data, or null if the entry does not exist or an error occurs.
+ * @param opts - User Storage Options
+ * @returns The storage entry, or null if fails to find entry
  */
 export async function getUserStorage(
   opts: UserStorageOptions,
@@ -69,15 +71,10 @@ export async function getUserStorage(
 }
 
 /**
- * Upserts user storage data.
+ * User Storage Service - Set Storage Entry.
  *
- * @param data - The data to be encrypted and stored.
- * @param opts - The options for storing the data.
- * @param opts.storageKey - The key used for encryption and decryption.
- * @param opts.bearerToken - The bearer token for authentication.
- * @param opts.entryKey - The key of the user storage entry.
- * @returns A promise that resolves when the data is successfully stored.
- * @throws {Error} If the data cannot be upserted.
+ * @param data - data to store
+ * @param opts - storage options
  */
 export async function upsertUserStorage(
   data: string,

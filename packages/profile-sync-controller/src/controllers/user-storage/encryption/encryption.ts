@@ -47,7 +47,7 @@ class EncryptorDecryptor {
     try {
       return this.#encryptStringV1(plaintext, password);
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : e;
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
     }
   }
@@ -64,7 +64,7 @@ class EncryptorDecryptor {
         `Unsupported encrypted data payload - ${encryptedDataStr}`,
       );
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : e;
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to decrypt string - ${errorMessage}`);
     }
   }
@@ -192,10 +192,9 @@ const encryption = new EncryptorDecryptor();
 export default encryption;
 
 /**
- * Generates a SHA-256 hash of the given data and returns it as a hexadecimal string.
- *
- * @param data - The data to be hashed.
- * @returns The SHA-256 hash of the data as a hexadecimal string.
+ * Receive a SHA256 hash from a given string
+ * @param data - input
+ * @returns sha256 hash
  */
 export function createSHA256Hash(data: string): string {
   const hashedData = sha256(data);

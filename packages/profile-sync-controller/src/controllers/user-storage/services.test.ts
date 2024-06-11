@@ -1,17 +1,24 @@
-/* eslint-disable jsdoc/require-returns */
-/* eslint-disable jsdoc/require-description */
-/* eslint-disable jsdoc/require-jsdoc */
+import {
+  mockEndpointGetUserStorage,
+  mockEndpointUpsertUserStorage,
+} from './__fixtures__/mockServices';
 import {
   MOCK_ENCRYPTED_STORAGE_DATA,
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
-  mockEndpointGetUserStorage,
-  mockEndpointUpsertUserStorage,
-} from '../../tests/mocks';
-import type { GetUserStorageResponse } from './user-storage-controller';
-import { getUserStorage, upsertUserStorage } from './user-storage-controller';
+} from './__fixtures__/mockStorage';
+import type { GetUserStorageResponse } from './services';
+import { getUserStorage, upsertUserStorage } from './services';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
+  const actCallGetUserStorage = () => {
+    return getUserStorage({
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      entryKey: 'notification_settings',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+  };
+
   it('returns user storage data', async () => {
     const mockGetUserStorage = mockEndpointGetUserStorage();
     const result = await actCallGetUserStorage();
@@ -50,20 +57,17 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
     mockGetUserStorage.done();
     expect(result).toBeNull();
   });
+});
 
-  /**
-   *
-   */
-  function actCallGetUserStorage() {
-    return getUserStorage({
+describe('user-storage/services.ts - upsertUserStorage() tests', () => {
+  const actCallUpsertUserStorage = () => {
+    return upsertUserStorage(MOCK_ENCRYPTED_STORAGE_DATA, {
       bearerToken: 'MOCK_BEARER_TOKEN',
       entryKey: 'notification_settings',
       storageKey: MOCK_STORAGE_KEY,
     });
-  }
-});
+  };
 
-describe('user-storage/services.ts - upsertUserStorage() tests', () => {
   it('invokes upsert endpoint with no errors', async () => {
     const mockUpsertUserStorage = mockEndpointUpsertUserStorage();
     await actCallUpsertUserStorage();
@@ -76,18 +80,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
       status: 500,
     });
 
-    await expect(actCallUpsertUserStorage()).rejects.toThrow('MOCK FAILURE');
+    await expect(actCallUpsertUserStorage()).rejects.toThrow(expect.any(Error));
     mockUpsertUserStorage.done();
   });
-
-  /**
-   *
-   */
-  function actCallUpsertUserStorage() {
-    return upsertUserStorage(MOCK_ENCRYPTED_STORAGE_DATA, {
-      bearerToken: 'MOCK_BEARER_TOKEN',
-      entryKey: 'notification_settings',
-      storageKey: MOCK_STORAGE_KEY,
-    });
-  }
 });

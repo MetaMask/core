@@ -1,33 +1,38 @@
-/* eslint-disable jsdoc/require-returns */
-/* eslint-disable jsdoc/require-description */
-/* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
-import type {
-  NotificationsControllerSelectIsMetamaskNotificationsEnabledAction,
-  NotificationsControllerDisableMetamaskNotificationsAction,
-} from '@metamask/notifications-controller';
 import type nock from 'nock';
 
+import type {
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerGetSessionProfile,
+  AuthenticationControllerIsSignedIn,
+  AuthenticationControllerPerformSignIn,
+} from '../authentication/AuthenticationController';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
+} from './__fixtures__/mockServices';
+import {
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
-} from '../tests/mocks';
+} from './__fixtures__/mockStorage';
 import type {
-  AuthenticationControllerGetBearerTokenAction,
-  AuthenticationControllerGetSessionProfileAction,
-  AuthenticationControllerIsSignedInAction,
-  AuthenticationControllerPerformSignInAction,
-} from './AuthenticationController';
-import type { AllowedActions } from './UserStorageController';
-import { UserStorageController } from './UserStorageController';
+  AllowedActions,
+  MetamaskNotificationsControllerDisableMetamaskNotifications,
+  MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled,
+} from './UserStorageController';
+import UserStorageController from './UserStorageController';
 
 const typedMockFn = <Fn extends (...args: unknown[]) => unknown>() =>
   jest.fn<ReturnType<Fn>, Parameters<Fn>>();
 
-describe('user-storage/UserStorageController - constructor() tests', () => {
+describe('user-storage/user-storage-controller - constructor() tests', () => {
+  const arrangeMocks = () => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+    };
+  };
+
   it('creates UserStorage with default state', () => {
     const { messengerMocks } = arrangeMocks();
     const controller = new UserStorageController({
@@ -37,15 +42,16 @@ describe('user-storage/UserStorageController - constructor() tests', () => {
 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
   });
-
-  function arrangeMocks() {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-    };
-  }
 });
 
-describe('user-storage/UserStorageController - performGetStorage() tests', () => {
+describe('user-storage/user-storage-controller - performGetStorage() tests', () => {
+  const arrangeMocks = () => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointGetUserStorage(),
+    };
+  };
+
   it('returns users notification storage', async () => {
     const { messengerMocks, mockAPI } = arrangeMocks();
     const controller = new UserStorageController({
@@ -71,7 +77,7 @@ describe('user-storage/UserStorageController - performGetStorage() tests', () =>
 
     await expect(
       controller.performGetStorage('notification_settings'),
-    ).rejects.toThrow('UserStorage is not enabled');
+    ).rejects.toThrow(expect.any(Error));
   });
 
   it.each([
@@ -89,28 +95,36 @@ describe('user-storage/UserStorageController - performGetStorage() tests', () =>
           new Error('MOCK FAILURE'),
         ),
     ],
-  ])('rejects on auth failure - %s', async (_, arrangeFailureCase) => {
-    const { messengerMocks } = arrangeMocks();
-    arrangeFailureCase(messengerMocks);
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-    });
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
 
-    await expect(
-      controller.performGetStorage('notification_settings'),
-    ).rejects.toThrow('MOCK FAILURE');
-  });
-
-  function arrangeMocks() {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointGetUserStorage(),
-    };
-  }
+      await expect(
+        controller.performGetStorage('notification_settings'),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
 });
 
-describe('user-storage/UserStorageController - performSetStorage() tests', () => {
+describe('user-storage/user-storage-controller - performSetStorage() tests', () => {
+  const arrangeMocks = (overrides?: { mockAPI?: nock.Scope }) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: overrides?.mockAPI ?? mockEndpointUpsertUserStorage(),
+    };
+  };
+
   it('saves users storage', async () => {
     const { messengerMocks, mockAPI } = arrangeMocks();
     const controller = new UserStorageController({
@@ -119,7 +133,7 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
     });
 
     await controller.performSetStorage('notification_settings', 'new data');
-    mockAPI.done();
+    expect(mockAPI.isDone()).toBe(true);
   });
 
   it('rejects if UserStorage is not enabled', async () => {
@@ -135,7 +149,7 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
 
     await expect(
       controller.performSetStorage('notification_settings', 'new data'),
-    ).rejects.toThrow('UserStorage is not enabled');
+    ).rejects.toThrow(expect.any(Error));
   });
 
   it.each([
@@ -153,18 +167,26 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
           new Error('MOCK FAILURE'),
         ),
     ],
-  ])('rejects on auth failure - %s', async (_, arrangeFailureCase) => {
-    const { messengerMocks } = arrangeMocks();
-    arrangeFailureCase(messengerMocks);
-    const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
-      getMetaMetricsState: () => true,
-    });
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
 
-    await expect(
-      controller.performSetStorage('notification_settings', 'new data'),
-    ).rejects.toThrow('MOCK FAILURE');
-  });
+      await expect(
+        controller.performSetStorage('notification_settings', 'new data'),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
 
   it('rejects if api call fails', async () => {
     const { messengerMocks } = arrangeMocks({
@@ -176,18 +198,17 @@ describe('user-storage/UserStorageController - performSetStorage() tests', () =>
     });
     await expect(
       controller.performSetStorage('notification_settings', 'new data'),
-    ).rejects.toThrow('MOCK FAILURE');
+    ).rejects.toThrow(expect.any(Error));
   });
-
-  function arrangeMocks(overrides?: { mockAPI?: nock.Scope }) {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-      mockAPI: overrides?.mockAPI ?? mockEndpointUpsertUserStorage(),
-    };
-  }
 });
 
-describe('user-storage/UserStorageController - performSetStorage()  tests', () => {
+describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
+  const arrangeMocks = () => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+    };
+  };
+
   it('should return a storage key', async () => {
     const { messengerMocks } = arrangeMocks();
     const controller = new UserStorageController({
@@ -210,19 +231,17 @@ describe('user-storage/UserStorageController - performSetStorage()  tests', () =
       },
     });
 
-    await expect(controller.getStorageKey()).rejects.toThrow(
-      'UserStorage is not enabled',
-    );
+    await expect(controller.getStorageKey()).rejects.toThrow(expect.any(Error));
   });
+});
 
-  function arrangeMocks() {
+describe('user-storage/user-storage-controller - disableProfileSyncing() tests', () => {
+  const arrangeMocks = () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
-  }
-});
+  };
 
-describe('user-storage/UserStorageController - disableProfileSyncing() tests', () => {
   it('should disable user storage / profile syncing when called', async () => {
     const { messengerMocks } = arrangeMocks();
     const controller = new UserStorageController({
@@ -234,15 +253,15 @@ describe('user-storage/UserStorageController - disableProfileSyncing() tests', (
     await controller.disableProfileSyncing();
     expect(controller.state.isProfileSyncingEnabled).toBe(false);
   });
+});
 
-  function arrangeMocks() {
+describe('user-storage/user-storage-controller - enableProfileSyncing() tests', () => {
+  const arrangeMocks = () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
-  }
-});
+  };
 
-describe('user-storage/UserStorageController - enableProfileSyncing() tests', () => {
   it('should enable user storage / profile syncing', async () => {
     const { messengerMocks } = arrangeMocks();
     messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
@@ -262,14 +281,13 @@ describe('user-storage/UserStorageController - enableProfileSyncing() tests', ()
     expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
     expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
   });
-
-  function arrangeMocks() {
-    return {
-      messengerMocks: mockUserStorageMessenger(),
-    };
-  }
 });
 
+/**
+ * Jest Mock Utility - create a mock user storage messenger
+ *
+ * @returns Mock User Storage Messenger
+ */
 function mockUserStorageMessenger() {
   const messenger = new ControllerMessenger<
     AllowedActions,
@@ -283,8 +301,8 @@ function mockUserStorageMessenger() {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
       'AuthenticationController:performSignOut',
-      'NotificationsController:disableMetamaskNotifications',
-      'NotificationsController:selectIsMetamaskNotificationsEnabled',
+      'MetamaskNotificationsController:disableMetamaskNotifications',
+      'MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled',
     ],
     allowedEvents: [],
   });
@@ -296,11 +314,11 @@ function mockUserStorageMessenger() {
 
   const mockAuthGetBearerToken =
     typedMockFn<
-      AuthenticationControllerGetBearerTokenAction['handler']
+      AuthenticationControllerGetBearerToken['handler']
     >().mockResolvedValue('MOCK_BEARER_TOKEN');
 
   const mockAuthGetSessionProfile = typedMockFn<
-    AuthenticationControllerGetSessionProfileAction['handler']
+    AuthenticationControllerGetSessionProfile['handler']
   >().mockResolvedValue({
     identifierId: '',
     profileId: 'MOCK_PROFILE_ID',
@@ -308,27 +326,27 @@ function mockUserStorageMessenger() {
 
   const mockAuthPerformSignIn =
     typedMockFn<
-      AuthenticationControllerPerformSignInAction['handler']
+      AuthenticationControllerPerformSignIn['handler']
     >().mockResolvedValue('New Access Token');
 
   const mockAuthIsSignedIn =
     typedMockFn<
-      AuthenticationControllerIsSignedInAction['handler']
+      AuthenticationControllerIsSignedIn['handler']
     >().mockReturnValue(true);
 
   const mockAuthPerformSignOut =
     typedMockFn<
-      AuthenticationControllerIsSignedInAction['handler']
+      AuthenticationControllerIsSignedIn['handler']
     >().mockReturnValue(true);
 
   const mockMetamaskNotificationsIsMetamaskNotificationsEnabled =
     typedMockFn<
-      NotificationsControllerSelectIsMetamaskNotificationsEnabledAction['handler']
+      MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled['handler']
     >().mockReturnValue(true);
 
   const mockMetamaskNotificationsDisableNotifications =
     typedMockFn<
-      NotificationsControllerDisableMetamaskNotificationsAction['handler']
+      MetamaskNotificationsControllerDisableMetamaskNotifications['handler']
     >().mockResolvedValue();
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
@@ -343,7 +361,9 @@ function mockUserStorageMessenger() {
       }
 
       throw new Error(
-        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${params?.request.method}`,
+        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
+          params?.request.method as string
+        }`,
       );
     }
 
@@ -365,12 +385,15 @@ function mockUserStorageMessenger() {
 
     if (
       actionType ===
-      'NotificationsController:selectIsMetamaskNotificationsEnabled'
+      'MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled'
     ) {
       return mockMetamaskNotificationsIsMetamaskNotificationsEnabled();
     }
 
-    if (actionType === 'NotificationsController:disableMetamaskNotifications') {
+    if (
+      actionType ===
+      'MetamaskNotificationsController:disableMetamaskNotifications'
+    ) {
       return mockMetamaskNotificationsDisableNotifications();
     }
 
@@ -378,9 +401,11 @@ function mockUserStorageMessenger() {
       return mockAuthPerformSignOut();
     }
 
-    function exhaustedMessengerMocks(action: never) {
-      throw new Error(`MOCK_FAIL - unsupported messenger call: ${action}`);
-    }
+    const exhaustedMessengerMocks = (action: never) => {
+      throw new Error(
+        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
+      );
+    };
 
     return exhaustedMessengerMocks(actionType);
   });

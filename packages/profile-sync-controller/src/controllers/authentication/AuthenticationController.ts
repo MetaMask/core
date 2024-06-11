@@ -3,25 +3,25 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
+import type { UserStorageControllerDisableProfileSyncing } from '../user-storage/UserStorageController';
 import {
   createSnapPublicKeyRequest,
   createSnapSignMessageRequest,
-} from './AuthSnapRequests';
+} from './auth-snap-requests';
 import {
   createLoginRawMessage,
   getAccessToken,
   getNonce,
   login,
-} from './services/authentication-controller';
-import type { UserStorageControllerDisableProfileSyncingAction } from './UserStorageController';
+} from './services';
 
 const THIRTY_MIN_MS = 1000 * 60 * 30;
 
 const controllerName = 'AuthenticationController';
 
+// State
 type SessionProfile = {
   identifierId: string;
   profileId: string;
@@ -47,21 +47,8 @@ export type AuthenticationControllerState = {
    */
   isSignedIn: boolean;
   sessionData?: SessionData;
-  internalAccounts?: {
-    accounts: Record<string, InternalAccount>;
-    selectedAccount: string;
-  };
 };
-
-/**
- * Returns the default state for the AuthenticationController.
- *
- * @returns The default state object with the isSignedIn property set to false.
- */
-function getDefaultAuthenticationControllerState(): AuthenticationControllerState {
-  return { isSignedIn: false };
-}
-
+const defaultState: AuthenticationControllerState = { isSignedIn: false };
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     persist: true,
@@ -73,40 +60,39 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
   },
 };
 
-export type AuthenticationControllerPerformSignInAction = {
-  type: `${typeof controllerName}:performSignIn`;
-  handler: AuthenticationController['performSignIn'];
+// Messenger Actions
+type CreateActionsObj<T extends keyof AuthenticationController> = {
+  [K in T]: {
+    type: `${typeof controllerName}:${K}`;
+    handler: AuthenticationController[K];
+  };
 };
-export type AuthenticationControllerPerformSignOutAction = {
-  type: `${typeof controllerName}:performSignOut`;
-  handler: AuthenticationController['performSignOut'];
-};
-export type AuthenticationControllerGetBearerTokenAction = {
-  type: `${typeof controllerName}:getBearerToken`;
-  handler: AuthenticationController['getBearerToken'];
-};
-export type AuthenticationControllerGetSessionProfileAction = {
-  type: `${typeof controllerName}:getSessionProfile`;
-  handler: AuthenticationController['getSessionProfile'];
-};
-export type AuthenticationControllerIsSignedInAction = {
-  type: `${typeof controllerName}:isSignedIn`;
-  handler: AuthenticationController['isSignedIn'];
-};
-export type AuthenticationControllerActions =
-  | AuthenticationControllerPerformSignInAction
-  | AuthenticationControllerPerformSignOutAction
-  | AuthenticationControllerGetBearerTokenAction
-  | AuthenticationControllerGetSessionProfileAction
-  | AuthenticationControllerIsSignedInAction;
+type ActionsObj = CreateActionsObj<
+  | 'performSignIn'
+  | 'performSignOut'
+  | 'getBearerToken'
+  | 'getSessionProfile'
+  | 'isSignedIn'
+>;
+export type Actions = ActionsObj[keyof ActionsObj];
+export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
+export type AuthenticationControllerPerformSignOut =
+  ActionsObj['performSignOut'];
+export type AuthenticationControllerGetBearerToken =
+  ActionsObj['getBearerToken'];
+export type AuthenticationControllerGetSessionProfile =
+  ActionsObj['getSessionProfile'];
+export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
+// Allowed Actions
 export type AllowedActions =
   | HandleSnapRequest
-  | UserStorageControllerDisableProfileSyncingAction;
+  | UserStorageControllerDisableProfileSyncing;
 
+// Messenger
 export type AuthenticationControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  AuthenticationControllerActions | AllowedActions,
+  Actions | AllowedActions,
   never,
   AllowedActions['type'],
   never
@@ -116,7 +102,7 @@ export type AuthenticationControllerMessenger = RestrictedControllerMessenger<
  * Controller that enables authentication for restricted endpoints.
  * Used for Global Profile Syncing and Notifications
  */
-export class AuthenticationController extends BaseController<
+export default class AuthenticationController extends BaseController<
   typeof controllerName,
   AuthenticationControllerState,
   AuthenticationControllerMessenger
@@ -140,19 +126,12 @@ export class AuthenticationController extends BaseController<
       messenger,
       metadata,
       name: controllerName,
-      state: { ...getDefaultAuthenticationControllerState(), ...state },
+      state: { ...defaultState, ...state },
     });
 
     this.#metametrics = metametrics;
 
     this.#registerMessageHandlers();
-  }
-
-  listAccounts(): InternalAccount[] | undefined {
-    return (
-      this.state.internalAccounts &&
-      Object.values(this.state.internalAccounts.accounts)
-    );
   }
 
   /**
@@ -186,12 +165,12 @@ export class AuthenticationController extends BaseController<
     );
   }
 
-  async performSignIn(): Promise<string> {
+  public async performSignIn(): Promise<string> {
     const { accessToken } = await this.#performAuthenticationFlow();
     return accessToken;
   }
 
-  performSignOut(): void {
+  public performSignOut(): void {
     this.#assertLoggedIn();
 
     this.update((state) => {
@@ -200,7 +179,7 @@ export class AuthenticationController extends BaseController<
     });
   }
 
-  async getBearerToken(): Promise<string> {
+  public async getBearerToken(): Promise<string> {
     this.#assertLoggedIn();
 
     if (this.#hasValidSession(this.state.sessionData)) {
@@ -217,7 +196,7 @@ export class AuthenticationController extends BaseController<
    *
    * @returns profile for the session.
    */
-  async getSessionProfile(): Promise<SessionProfile> {
+  public async getSessionProfile(): Promise<SessionProfile> {
     this.#assertLoggedIn();
 
     if (this.#hasValidSession(this.state.sessionData)) {
@@ -228,7 +207,7 @@ export class AuthenticationController extends BaseController<
     return profile;
   }
 
-  isSignedIn(): boolean {
+  public isSignedIn(): boolean {
     return this.state.isSignedIn;
   }
 
@@ -294,7 +273,9 @@ export class AuthenticationController extends BaseController<
     } catch (e) {
       console.error('Failed to authenticate', e);
       // Disable Profile Syncing
-      this.messagingSystem.call('UserStorageController:disableProfileSyncing');
+      await this.messagingSystem.call(
+        'UserStorageController:disableProfileSyncing',
+      );
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new Error(
@@ -322,9 +303,9 @@ export class AuthenticationController extends BaseController<
   }
 
   /**
-   * Returns the auth snap key.
+   * Returns the auth snap public key.
    *
-   * @returns The snap key.
+   * @returns The snap public key.
    */
   #snapGetPublicKey(): Promise<string> {
     return this.messagingSystem.call(

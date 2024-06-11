@@ -3,34 +3,36 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  NotificationsControllerDisableMetamaskNotificationsAction,
-  NotificationsControllerSelectIsMetamaskNotificationsEnabledAction,
-} from '@metamask/notifications-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
+import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
-  AuthenticationControllerGetBearerTokenAction,
-  AuthenticationControllerGetSessionProfileAction,
-  AuthenticationControllerIsSignedInAction,
-  AuthenticationControllerPerformSignInAction,
-  AuthenticationControllerPerformSignOutAction,
-} from '.';
-import { createSnapSignMessageRequest } from './AuthSnapRequests';
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerGetSessionProfile,
+  AuthenticationControllerIsSignedIn,
+  AuthenticationControllerPerformSignIn,
+  AuthenticationControllerPerformSignOut,
+} from '../authentication/AuthenticationController';
 import { createSHA256Hash } from './encryption';
 import type { UserStorageEntryKeys } from './schema';
-import {
-  getUserStorage,
-  upsertUserStorage,
-} from './services/user-storage-controller';
+import { getUserStorage, upsertUserStorage } from './services';
+
+// TODO: fix external dependencies
+export declare type MetamaskNotificationsControllerDisableMetamaskNotifications =
+  {
+    type: `MetamaskNotificationsController:disableMetamaskNotifications`;
+    handler: () => Promise<void>;
+  };
+
+export declare type MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled =
+  {
+    type: `MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled`;
+    handler: () => boolean;
+  };
 
 const controllerName = 'UserStorageController';
 
-type SessionProfile = {
-  identifierId: string;
-  profileId: string;
-};
-
+// State
 export type UserStorageControllerState = {
   /**
    * Condition used by UI and to determine if we can use some of the User Storage methods.
@@ -42,19 +44,10 @@ export type UserStorageControllerState = {
   isProfileSyncingUpdateLoading: boolean;
 };
 
-/**
- * Returns the default state for the UserStorageController.
- *
- * @returns The default state object with the following properties:
- * - isProfileSyncingEnabled: a boolean indicating whether profile syncing is enabled (default: true)
- * - isProfileSyncingUpdateLoading: a boolean indicating whether the profile syncing update is in progress (default: false)
- */
-function getDefaultUserControllerState(): UserStorageControllerState {
-  return {
-    isProfileSyncingEnabled: true,
-    isProfileSyncingUpdateLoading: false,
-  };
-}
+const defaultState: UserStorageControllerState = {
+  isProfileSyncingEnabled: true,
+  isProfileSyncingUpdateLoading: false,
+};
 
 const metadata: StateMetadata<UserStorageControllerState> = {
   isProfileSyncingEnabled: {
@@ -67,49 +60,49 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   },
 };
 
-export type UserStorageControllerPerformGetStorageAction = {
-  type: `${typeof controllerName}:performGetStorage`;
-  handler: UserStorageController['performGetStorage'];
+// Messenger Actions
+type CreateActionsObj<T extends keyof UserStorageController> = {
+  [K in T]: {
+    type: `${typeof controllerName}:${K}`;
+    handler: UserStorageController[K];
+  };
 };
-export type UserStorageControllerPerformSetStorageAction = {
-  type: `${typeof controllerName}:performSetStorage`;
-  handler: UserStorageController['performSetStorage'];
-};
-export type UserStorageControllerGetStorageKeyAction = {
-  type: `${typeof controllerName}:getStorageKey`;
-  handler: UserStorageController['getStorageKey'];
-};
-export type UserStorageControllerEnableProfileSyncingAction = {
-  type: `${typeof controllerName}:enableProfileSyncing`;
-  handler: UserStorageController['enableProfileSyncing'];
-};
-export type UserStorageControllerDisableProfileSyncingAction = {
-  type: `${typeof controllerName}:disableProfileSyncing`;
-  handler: UserStorageController['disableProfileSyncing'];
-};
-export type UserStorageControllerActions =
-  | UserStorageControllerPerformGetStorageAction
-  | UserStorageControllerPerformSetStorageAction
-  | UserStorageControllerGetStorageKeyAction
-  | UserStorageControllerEnableProfileSyncingAction
-  | UserStorageControllerDisableProfileSyncingAction;
+type ActionsObj = CreateActionsObj<
+  | 'performGetStorage'
+  | 'performSetStorage'
+  | 'getStorageKey'
+  | 'enableProfileSyncing'
+  | 'disableProfileSyncing'
+>;
+export type Actions = ActionsObj[keyof ActionsObj];
+export type UserStorageControllerPerformGetStorage =
+  ActionsObj['performGetStorage'];
+export type UserStorageControllerPerformSetStorage =
+  ActionsObj['performSetStorage'];
+export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
+export type UserStorageControllerEnableProfileSyncing =
+  ActionsObj['enableProfileSyncing'];
+export type UserStorageControllerDisableProfileSyncing =
+  ActionsObj['disableProfileSyncing'];
 
+// Allowed Actions
 export type AllowedActions =
   // Snap Requests
   | HandleSnapRequest
   // Auth Requests
-  | AuthenticationControllerGetBearerTokenAction
-  | AuthenticationControllerGetSessionProfileAction
-  | AuthenticationControllerPerformSignInAction
-  | AuthenticationControllerIsSignedInAction
-  | AuthenticationControllerPerformSignOutAction
+  | AuthenticationControllerGetBearerToken
+  | AuthenticationControllerGetSessionProfile
+  | AuthenticationControllerPerformSignIn
+  | AuthenticationControllerIsSignedIn
+  | AuthenticationControllerPerformSignOut
   // Metamask Notifications
-  | NotificationsControllerDisableMetamaskNotificationsAction
-  | NotificationsControllerSelectIsMetamaskNotificationsEnabledAction;
+  | MetamaskNotificationsControllerDisableMetamaskNotifications
+  | MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled;
 
+// Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
-  UserStorageControllerActions | AllowedActions,
+  Actions | AllowedActions,
   never,
   AllowedActions['type'],
   never
@@ -123,7 +116,7 @@ export type UserStorageControllerMessenger = RestrictedControllerMessenger<
  * - data stored on UserStorage is FULLY encrypted, with the only keys stored/managed on the client.
  * - No one can access this data unless they are have the SRP and are able to run the signing snap.
  */
-export class UserStorageController extends BaseController<
+export default class UserStorageController extends BaseController<
   typeof controllerName,
   UserStorageControllerState,
   UserStorageControllerMessenger
@@ -135,9 +128,9 @@ export class UserStorageController extends BaseController<
       );
     },
     getProfileId: async () => {
-      const sessionProfile = (await this.messagingSystem.call(
+      const sessionProfile = await this.messagingSystem.call(
         'AuthenticationController:getSessionProfile',
-      )) as SessionProfile;
+      );
       return sessionProfile?.profileId;
     },
     isAuthEnabled: () => {
@@ -149,7 +142,7 @@ export class UserStorageController extends BaseController<
       );
     },
     signOut: async () => {
-      return await this.messagingSystem.call(
+      return this.messagingSystem.call(
         'AuthenticationController:performSignOut',
       );
     },
@@ -158,12 +151,12 @@ export class UserStorageController extends BaseController<
   #metamaskNotifications = {
     disableMetamaskNotifications: async () => {
       return await this.messagingSystem.call(
-        'NotificationsController:disableMetamaskNotifications',
+        'MetamaskNotificationsController:disableMetamaskNotifications',
       );
     },
     selectIsMetamaskNotificationsEnabled: async () => {
-      return await this.messagingSystem.call(
-        'NotificationsController:selectIsMetamaskNotificationsEnabled',
+      return this.messagingSystem.call(
+        'MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled',
       );
     },
   };
@@ -179,7 +172,7 @@ export class UserStorageController extends BaseController<
       messenger: params.messenger,
       metadata,
       name: controllerName,
-      state: { ...getDefaultUserControllerState(), ...params.state },
+      state: { ...defaultState, ...params.state },
     });
 
     this.getMetaMetricsState = params.getMetaMetricsState;
@@ -217,9 +210,9 @@ export class UserStorageController extends BaseController<
     );
   }
 
-  async enableProfileSyncing(): Promise<void> {
+  public async enableProfileSyncing(): Promise<void> {
     try {
-      await this.#setIsProfileSyncingUpdateLoading(true);
+      this.#setIsProfileSyncingUpdateLoading(true);
 
       const authEnabled = this.#auth.isAuthEnabled();
       if (!authEnabled) {
@@ -230,17 +223,17 @@ export class UserStorageController extends BaseController<
         state.isProfileSyncingEnabled = true;
       });
 
-      await this.#setIsProfileSyncingUpdateLoading(false);
+      this.#setIsProfileSyncingUpdateLoading(false);
     } catch (e) {
-      await this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : e;
+      this.#setIsProfileSyncingUpdateLoading(false);
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
         `${controllerName} - failed to enable profile syncing - ${errorMessage}`,
       );
     }
   }
 
-  async setIsProfileSyncingEnabled(
+  public async setIsProfileSyncingEnabled(
     isProfileSyncingEnabled: boolean,
   ): Promise<void> {
     this.update((state) => {
@@ -248,14 +241,14 @@ export class UserStorageController extends BaseController<
     });
   }
 
-  async disableProfileSyncing(): Promise<void> {
+  public async disableProfileSyncing(): Promise<void> {
     const isAlreadyDisabled = !this.state.isProfileSyncingEnabled;
     if (isAlreadyDisabled) {
       return;
     }
 
     try {
-      await this.#setIsProfileSyncingUpdateLoading(true);
+      this.#setIsProfileSyncingUpdateLoading(true);
 
       const isMetamaskNotificationsEnabled =
         await this.#metamaskNotifications.selectIsMetamaskNotificationsEnabled();
@@ -267,19 +260,17 @@ export class UserStorageController extends BaseController<
       const isMetaMetricsParticipation = this.getMetaMetricsState();
 
       if (!isMetaMetricsParticipation) {
-        await this.messagingSystem.call(
-          'AuthenticationController:performSignOut',
-        );
+        this.messagingSystem.call('AuthenticationController:performSignOut');
       }
 
-      await this.#setIsProfileSyncingUpdateLoading(false);
+      this.#setIsProfileSyncingUpdateLoading(false);
 
       this.update((state) => {
         state.isProfileSyncingEnabled = false;
       });
     } catch (e) {
-      await this.#setIsProfileSyncingUpdateLoading(false);
-      const errorMessage = e instanceof Error ? e.message : e;
+      this.#setIsProfileSyncingUpdateLoading(false);
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
         `${controllerName} - failed to disable profile syncing - ${errorMessage}`,
       );
@@ -290,10 +281,10 @@ export class UserStorageController extends BaseController<
    * Allows retrieval of stored data. Data stored is string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
-   * @param entryKey - The entry you want to retrieve data from.
+   * @param entryKey - entry key that matches schema
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
-  async performGetStorage(
+  public async performGetStorage(
     entryKey: UserStorageEntryKeys,
   ): Promise<string | null> {
     this.#assertProfileSyncingEnabled();
@@ -312,11 +303,11 @@ export class UserStorageController extends BaseController<
    * Allows storage of user data. Data stored must be string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
-   * @param entryKey - The entry you want to store data in.
+   * @param entryKey - entry key that matches schema
    * @param value - The string data you want to store.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  async performSetStorage(
+  public async performSetStorage(
     entryKey: UserStorageEntryKeys,
     value: string,
   ): Promise<void> {
@@ -336,7 +327,7 @@ export class UserStorageController extends BaseController<
    *
    * @returns the storage key
    */
-  async getStorageKey(): Promise<string> {
+  public async getStorageKey(): Promise<string> {
     this.#assertProfileSyncingEnabled();
     const storageKey = await this.#createStorageKey();
     return storageKey;
@@ -372,7 +363,7 @@ export class UserStorageController extends BaseController<
    * @returns the storage key
    */
   async #createStorageKey(): Promise<string> {
-    const id = await this.#auth.getProfileId();
+    const id: string = await this.#auth.getProfileId();
     if (!id) {
       throw new Error('UserStorageController - unable to create storage key');
     }
@@ -395,9 +386,9 @@ export class UserStorageController extends BaseController<
     ) as Promise<string>;
   }
 
-  async #setIsProfileSyncingUpdateLoading(
+  #setIsProfileSyncingUpdateLoading(
     isProfileSyncingUpdateLoading: boolean,
-  ): Promise<void> {
+  ): void {
     this.update((state) => {
       state.isProfileSyncingUpdateLoading = isProfileSyncingUpdateLoading;
     });

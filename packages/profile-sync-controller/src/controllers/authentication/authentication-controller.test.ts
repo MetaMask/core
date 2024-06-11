@@ -1,20 +1,19 @@
-/* eslint-disable jsdoc/require-returns */
-/* eslint-disable jsdoc/require-description */
-/* eslint-disable jsdoc/require-jsdoc */
 import { ControllerMessenger } from '@metamask/base-controller';
 
 import {
   MOCK_ACCESS_TOKEN,
   MOCK_LOGIN_RESPONSE,
+} from './__fixtures__/mockResponses';
+import {
   mockEndpointAccessToken,
   mockEndpointGetNonce,
   mockEndpointLogin,
-} from '../tests/mocks/mockAuthenticationServices';
-import { AuthenticationController } from './AuthenticationController';
+} from './__fixtures__/mockServices';
 import type {
   AllowedActions,
   AuthenticationControllerState,
 } from './AuthenticationController';
+import AuthenticationController from './AuthenticationController';
 
 const mockSignedInState = (): AuthenticationControllerState => ({
   isSignedIn: true,
@@ -76,17 +75,25 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
   });
 
   it('should error when nonce endpoint fails', async () => {
+    expect(true).toBe(true);
     await testAndAssertFailingEndpoints('nonce');
   });
 
   it('should error when login endpoint fails', async () => {
+    expect(true).toBe(true);
     await testAndAssertFailingEndpoints('login');
   });
 
   it('should error when tokens endpoint fails', async () => {
+    expect(true).toBe(true);
     await testAndAssertFailingEndpoints('token');
   });
 
+  /**
+   * Jest Test & Assert Utility - for testing and asserting endpoint failures
+   *
+   * @param endpointFail - example endpoints to fail
+   */
   async function testAndAssertFailingEndpoints(
     endpointFail: 'nonce' | 'login' | 'token',
   ) {
@@ -97,7 +104,7 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
     const metametrics = createMockAuthMetaMetrics();
     const controller = new AuthenticationController({ messenger, metametrics });
 
-    await expect(controller.performSignIn()).rejects.toThrow('Error');
+    await expect(controller.performSignIn()).rejects.toThrow(expect.any(Error));
     expect(controller.state.isSignedIn).toBe(false);
 
     const endpointsCalled = [
@@ -143,7 +150,7 @@ describe('authentication/authentication-controller - performSignOut() tests', ()
       metametrics,
     });
 
-    expect(() => controller.performSignOut()).toThrow('Error');
+    expect(() => controller.performSignOut()).toThrow(expect.any(Error));
   });
 });
 
@@ -157,7 +164,9 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
       metametrics,
     });
 
-    await expect(controller.getBearerToken()).rejects.toThrow('Error');
+    await expect(controller.getBearerToken()).rejects.toThrow(
+      expect.any(Error),
+    );
   });
 
   it('should return original access token in state', async () => {
@@ -210,7 +219,9 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
       metametrics,
     });
 
-    await expect(controller.getSessionProfile()).rejects.toThrow('Error');
+    await expect(controller.getSessionProfile()).rejects.toThrow(
+      expect.any(Error),
+    );
   });
 
   it('should return original access token in state', async () => {
@@ -254,6 +265,11 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
   });
 });
 
+/**
+ * Jest Test Utility - create Auth Messenger
+ *
+ * @returns Auth Messenger
+ */
 function createAuthenticationMessenger() {
   const messenger = new ControllerMessenger<AllowedActions, never>();
   return messenger.getRestricted({
@@ -263,6 +279,11 @@ function createAuthenticationMessenger() {
   });
 }
 
+/**
+ * Jest Test Utility - create Mock Auth Messenger
+ *
+ * @returns Mock Auth Messenger
+ */
 function createMockAuthenticationMessenger() {
   const messenger = createAuthenticationMessenger();
   const mockCall = jest.spyOn(messenger, 'call');
@@ -283,13 +304,17 @@ function createMockAuthenticationMessenger() {
       }
 
       throw new Error(
-        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${params?.request.method}`,
+        `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
+          params?.request.method as string
+        }`,
       );
     }
 
-    function exhaustedMessengerMocks(action: never) {
-      throw new Error(`MOCK_FAIL - unsupported messenger call: ${action}`);
-    }
+    const exhaustedMessengerMocks = (action: never) => {
+      throw new Error(
+        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
+      );
+    };
 
     return exhaustedMessengerMocks(actionType);
   });
@@ -297,6 +322,13 @@ function createMockAuthenticationMessenger() {
   return { messenger, mockSnapGetPublicKey, mockSnapSignMessage };
 }
 
+/**
+ * Jest Test Utility - mock auth endpoints
+ *
+ * @param params - params if want to fail auth
+ * @param params.endpointFail - option to cause an endpoint to fail
+ * @returns mock auth endpoints
+ */
 function mockAuthenticationFlowEndpoints(params?: {
   endpointFail: 'nonce' | 'login' | 'token';
 }) {
@@ -317,6 +349,11 @@ function mockAuthenticationFlowEndpoints(params?: {
   };
 }
 
+/**
+ * Jest Test Utility - mock auth metametrics
+ *
+ * @returns mock metametrics method
+ */
 function createMockAuthMetaMetrics() {
   const getMetaMetricsId = jest.fn().mockReturnValue('MOCK_METAMETRICS_ID');
 

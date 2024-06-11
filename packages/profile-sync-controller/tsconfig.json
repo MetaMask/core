@@ -3,10 +3,6 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [
-    {
-      "path": "../notifications-controller"
-    }
-  ],
+  "references": [{ "path": "../base-controller" }],
   "include": ["../../types", "./src"]
 }
