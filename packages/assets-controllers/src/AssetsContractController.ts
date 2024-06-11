@@ -288,7 +288,7 @@ export class AssetsContractController {
    * @param networkClientId - Network Client ID to fetch the provider with.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getERC721NftTokenId(
+  async getERC721NftTokenId(
     address: string,
     selectedAddress: string,
     index: number,
