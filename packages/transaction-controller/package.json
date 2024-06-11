@@ -70,7 +70,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.0.0",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^6.4.0",
+    "@metamask/keyring-api": "^8.0.0",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
