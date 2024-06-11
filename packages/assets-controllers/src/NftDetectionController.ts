@@ -495,8 +495,9 @@ export class NftDetectionController extends BaseController<
     address: string;
     next?: string;
   }) {
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=${chainId}&limit=50&includeTopBid=true&continuation=${
+    return `${
+      NFT_API_BASE_URL as string
+    }/users/${address}/tokens?chainIds=${chainId}&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;
   }
@@ -589,12 +590,12 @@ export class NftDetectionController extends BaseController<
         );
         const addNftPromises = apiNfts.map(async (nft) => {
           const {
-            tokenId: TokenId,
+            tokenId,
             contract,
             kind,
-            image: ImageUrl,
-            imageSmall: ImageThumbnailUrl,
-            metadata: { imageOriginal: ImageOriginalUrl } = {},
+            image: imageUrl,
+            imageSmall: imageThumbnailUrl,
+            metadata: { imageOriginal: imageOriginalUrl } = {},
             name,
             description,
             attributes,
@@ -613,7 +614,7 @@ export class NftDetectionController extends BaseController<
               /* istanbul ignore next */
               return (
                 c.address === toChecksumHexAddress(contract) &&
-                c.tokenId === TokenId
+                c.tokenId === tokenId
               );
             });
           }
@@ -625,9 +626,9 @@ export class NftDetectionController extends BaseController<
               {},
               { name },
               description && { description },
-              ImageUrl && { image: ImageUrl },
-              ImageThumbnailUrl && { imageThumbnail: ImageThumbnailUrl },
-              ImageOriginalUrl && { imageOriginal: ImageOriginalUrl },
+              imageUrl && { image: imageUrl },
+              imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
+              imageOriginalUrl && { imageOriginal: imageOriginalUrl },
               kind && { standard: kind.toUpperCase() },
               lastSale && { lastSale },
               attributes && { attributes },
@@ -637,7 +638,7 @@ export class NftDetectionController extends BaseController<
               collection && { collection },
             );
 
-            await this.#addNft(contract, TokenId, {
+            await this.#addNft(contract, tokenId, {
               nftMetadata,
               userAddress,
               source: Source.Detected,
