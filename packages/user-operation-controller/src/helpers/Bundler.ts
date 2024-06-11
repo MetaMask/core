@@ -98,6 +98,8 @@ export class Bundler {
     return hash;
   }
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #query<T>(method: string, params: unknown[]): Promise<T> {
     const request = {
       method: 'POST',

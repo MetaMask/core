@@ -182,6 +182,8 @@ export function validateSignUserOperationResponse(
  * @param struct - The struct to validate against.
  * @param message - The message to throw if validation fails.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function validate<T>(data: unknown, struct: Struct<T>, message: string) {
   try {
     assert(data, struct, message);
