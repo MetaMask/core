@@ -123,8 +123,6 @@ const setupController = ({
   return {
     controller: accountTrackerController,
     triggerSelectedAccountChange,
-    mockGetSelectedAccount,
-    mockListAccounts,
   };
 };
 
