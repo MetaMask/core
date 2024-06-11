@@ -495,6 +495,7 @@ export class NftDetectionController extends BaseController<
     address: string;
     next?: string;
   }) {
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=${chainId}&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;
@@ -556,6 +557,7 @@ export class NftDetectionController extends BaseController<
       return;
     }
 
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     const updateKey: `${Hex}:${string}` = `${chainId}:${userAddress}`;
     if (updateKey in this.#inProcessNftFetchingUpdates) {
       // This prevents redundant updates
