@@ -102,7 +102,8 @@ const waitForFinishStatusMock = jest.fn();
 const approveMessageMock = jest.fn();
 
 // TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/naming-convention
 const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
   const messageManagerMock = Object.create(prototype);
 
@@ -783,6 +784,8 @@ describe('SignatureController', () => {
     });
 
     it('updates state on message manager state change', async () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await personalMessageManagerMock.subscribe.mock.calls[0][0]({
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -790,6 +793,8 @@ describe('SignatureController', () => {
         unapprovedMessagesCount: 3,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       expect(await signatureController.state).toStrictEqual({
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -801,6 +806,8 @@ describe('SignatureController', () => {
     });
 
     it('updates state on personal message manager state change', async () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await personalMessageManagerMock.subscribe.mock.calls[0][0]({
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -808,6 +815,8 @@ describe('SignatureController', () => {
         unapprovedMessagesCount: 4,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       expect(await signatureController.state).toStrictEqual({
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -819,6 +828,8 @@ describe('SignatureController', () => {
     });
 
     it('updates state on typed message manager state change', async () => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await typedMessageManagerMock.subscribe.mock.calls[0][0]({
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -826,6 +837,8 @@ describe('SignatureController', () => {
         unapprovedMessagesCount: 5,
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       expect(await signatureController.state).toStrictEqual({
         unapprovedPersonalMsgs: {},
         // TODO: Replace `any` with type

@@ -86,6 +86,8 @@ const setupNetworkController = async ({
   if (initializeProvider) {
     // Call this without awaiting to simulate what the extension or mobile app
     // might do
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     networkController.initializeProvider();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through
@@ -292,6 +294,8 @@ describe('GasFeeController', () => {
   afterEach(() => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker?.destroy();
     sinon.restore();
     jest.clearAllMocks();
@@ -541,6 +545,8 @@ describe('GasFeeController', () => {
         },
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await gasFeeController.enableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(false);
@@ -556,6 +562,8 @@ describe('GasFeeController', () => {
         },
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await gasFeeController.disableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(true);
@@ -1018,10 +1026,14 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
           fetchLegacyGasPriceEstimates,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/gasPrices`,
@@ -1125,6 +1137,8 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
               ChainId.sepolia,
             )}/suggestedGasFees`,
@@ -1167,6 +1181,8 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
@@ -1178,6 +1194,8 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
@@ -1191,6 +1209,8 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.sepolia,
           )}/suggestedGasFees`,

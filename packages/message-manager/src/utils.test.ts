@@ -256,6 +256,8 @@ describe('utils', () => {
           unexpectedChainId,
         ),
       ).toThrow(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Cannot sign messages for chainId "${convertHexToDecimal(
           mockedCurrentChainId,
         )}", because MetaMask is switching networks.`,
@@ -275,8 +277,12 @@ describe('utils', () => {
           chainId,
         ),
       ).toThrow(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Provided chainId "${convertHexToDecimal(
           mockedCurrentChainId,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         )}" must match the active chainId "${convertHexToDecimal(chainId)}"`,
       );
     });

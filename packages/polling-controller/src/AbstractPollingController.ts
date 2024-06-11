@@ -12,6 +12,8 @@ import type {
 export const getKey = (
   networkClientId: NetworkClientId,
   options: Json,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
 ): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
 
 /**
@@ -20,6 +22,8 @@ export const getKey = (
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
   Base: TBase,
 ) {

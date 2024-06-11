@@ -29,37 +29,67 @@ export const MOCK_ACCESS_JWT =
 const MOCK_NONCE_RESPONSE = {
   nonce: 'xGMm9SoihEKeAEfV',
   identifier: '0xd8641601Cb79a94FD872fE42d5b4a067A44a7e88',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   expires_in: 300,
 };
 
 const MOCK_SIWE_LOGIN_RESPONSE = {
   token: MOCK_JWT,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   expires_in: 3600,
   profile: {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     profile_id: 'fa2bbf82-bd9a-4e6b-aabc-9ca0d0319b6e',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     metametrics_id: 'de742679-4960-4977-a415-4718b5f8e86c',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_id:
       'ec9a4e9906836497efad2fd4d4290b34d2c6a2c0d93eb174aa3cd88a133adbaf',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_type: 'SIWE',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     encrypted_storage_key: '2c6a2c0d93eb174aa3cd88a133adbaf',
   },
 };
 
 export const MOCK_SRP_LOGIN_RESPONSE = {
   token: MOCK_JWT,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   expires_in: 3600,
   profile: {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     profile_id: 'f88227bd-b615-41a3-b0be-467dd781a4ad',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     metametrics_id: '561ec651-a844-4b36-a451-04d6eac35740',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_id:
       'da9a9fc7b09edde9cc23cec9b7e11a71fb0ab4d2ddd8af8af905306f3e1456fb',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_type: 'SRP',
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     encrypted_storage_key: 'd2ddd8af8af905306f3e1456fb',
   },
 };
 
 export const MOCK_OIDC_TOKEN_RESPONSE = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   access_token: MOCK_ACCESS_JWT,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   expires_in: 3600,
 };
 
