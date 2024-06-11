@@ -19,9 +19,10 @@ import type { Provider } from '@metamask/eth-query';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
@@ -64,28 +65,48 @@ const accountTrackerMetadata = {
   },
 };
 
+/**
+ * The action that can be performed to get the state of the {@link AccountTrackerController}.
+ */
 export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AccountTrackerControllerState
 >;
 
+/**
+ * The actions that can be performed using the {@link AccountTrackerController}.
+ */
 export type AccountTrackerControllerActions =
   AccountTrackerControllerGetStateAction;
 
+/**
+ * The messenger of the {@link AccountTrackerController} for communication.
+ */
 export type AllowedActions =
   | AccountsControllerListAccountsAction
+  | PreferencesControllerGetStateAction
   | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction;
 
+/**
+ * The event that {@link AccountTrackerController} can emit.
+ */
 export type AccountTrackerControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
     AccountTrackerControllerState
   >;
 
+/**
+ * The events that {@link AccountTrackerController} can emit.
+ */
 export type AccountTrackerControllerEvents =
   AccountTrackerControllerStateChangeEvent;
 
+/**
+ * The external events available to the {@link AccountTrackerController}.
+ */
 export type AllowedEvents =
   | AccountsControllerSelectedEvmAccountChangeEvent
   | AccountsControllerSelectedAccountChangeEvent;
@@ -115,10 +136,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
 
   #handle?: ReturnType<typeof setTimeout>;
 
-  readonly #getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
-
-  readonly #getCurrentChainId: () => Hex;
-
   /**
    * Creates an AccountTracker instance.
    *
@@ -127,31 +144,28 @@ export class AccountTrackerController extends StaticIntervalPollingController<
    * @param options.interval - Polling interval used to fetch new account balances.
    * @param options.provider - Network provider.
    * @param options.messenger - The controller messaging system.
-   * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
-   * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
    */
   constructor({
     state,
     interval = 10000,
     provider,
     messenger,
-    getMultiAccountBalancesEnabled,
-    getCurrentChainId,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
     provider?: Provider;
     messenger: AccountTrackerControllerMessenger;
-    getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
-    getCurrentChainId: () => Hex;
   }) {
+    const {
+      providerConfig: { chainId },
+    } = messenger.call('NetworkController:getState');
     super({
       name: controllerName,
       messenger,
       state: {
         accounts: {},
         accountsByChainId: {
-          [getCurrentChainId()]: {},
+          [chainId]: {},
         },
         ...state,
       },
@@ -159,8 +173,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     });
     this.#provider = provider;
     this.setIntervalLength(interval);
-    this.#getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
-    this.#getCurrentChainId = getCurrentChainId;
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -181,6 +193,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<
   setProvider(provider: Provider) {
     this.#provider = provider;
   }
+
+  #getCurrentChainId = (): Hex => {
+    const {
+      providerConfig: { chainId },
+    } = this.messagingSystem.call('NetworkController:getState');
+    return chainId;
+  };
 
   private syncAccounts(newChainId: string) {
     const accounts = { ...this.state.accounts };
@@ -310,8 +329,9 @@ export class AccountTrackerController extends StaticIntervalPollingController<
         this.#getCorrectNetworkClient(networkClientId);
       this.syncAccounts(chainId);
       const { accounts, accountsByChainId } = this.state;
-      const isMultiAccountBalancesEnabled =
-        this.#getMultiAccountBalancesEnabled();
+      const { isMultiAccountBalancesEnabled } = this.messagingSystem.call(
+        'PreferencesController:getState',
+      );
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
         ? Object.keys(accounts)

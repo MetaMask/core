@@ -6,14 +6,19 @@ import type {
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type { InternalAccount } from '@metamask/keyring-api';
-import type {
-  NetworkClientId,
-  NetworkClientConfiguration,
+import {
+  type NetworkClientId,
+  type NetworkClientConfiguration,
+  defaultState as defaultnetworkControllerState,
 } from '@metamask/network-controller';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '@metamask/network-controller/tests/helpers';
+import {
+  type PreferencesState,
+  getDefaultPreferencesState,
+} from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -68,10 +73,7 @@ describe('AccountTrackerController', () => {
   it('should set default state', async () => {
     await withController(
       {
-        options: {
-          getMultiAccountBalancesEnabled: () => true,
-          getCurrentChainId: () => '0x1',
-        },
+        isMultiAccountBalancesEnabled: true,
       },
       ({ controller }) => {
         expect(controller.state).toStrictEqual({
@@ -89,9 +91,8 @@ describe('AccountTrackerController', () => {
       {
         options: {
           provider,
-          getMultiAccountBalancesEnabled: () => true,
-          getCurrentChainId: () => '0x1',
         },
+        isMultiAccountBalancesEnabled: true,
       },
       ({ controller, triggerSelectedAccountChange }) => {
         const refreshSpy = jest.spyOn(controller, 'refresh');
@@ -142,9 +143,8 @@ describe('AccountTrackerController', () => {
                 },
               },
               provider,
-              getMultiAccountBalancesEnabled: () => true,
-              getCurrentChainId: () => '0x1',
             },
+            isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: mockAccount1,
               listAccounts: [mockAccount1, mockAccount2],
@@ -179,9 +179,8 @@ describe('AccountTrackerController', () => {
           {
             options: {
               provider,
-              getMultiAccountBalancesEnabled: () => true,
-              getCurrentChainId: () => '0x1',
             },
+            isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: ACCOUNT_1,
               listAccounts: [ACCOUNT_1],
@@ -217,9 +216,8 @@ describe('AccountTrackerController', () => {
           {
             options: {
               provider,
-              getMultiAccountBalancesEnabled: () => false,
-              getCurrentChainId: () => '0x1',
             },
+            isMultiAccountBalancesEnabled: false,
             mocks: {
               selectedAccount: ACCOUNT_1,
               listAccounts: [ACCOUNT_1, ACCOUNT_2],
@@ -253,9 +251,8 @@ describe('AccountTrackerController', () => {
           {
             options: {
               provider,
-              getMultiAccountBalancesEnabled: () => true,
-              getCurrentChainId: () => '0x1',
             },
+            isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: ACCOUNT_1,
               listAccounts: [ACCOUNT_1, ACCOUNT_2],
@@ -313,9 +310,8 @@ describe('AccountTrackerController', () => {
                   },
                 },
               },
-              getMultiAccountBalancesEnabled: () => true,
-              getCurrentChainId: () => '0x1',
             },
+            isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: mockAccount1,
               listAccounts: [mockAccount1, mockAccount2],
@@ -359,10 +355,7 @@ describe('AccountTrackerController', () => {
 
         await withController(
           {
-            options: {
-              getMultiAccountBalancesEnabled: () => true,
-              getCurrentChainId: () => '0x1',
-            },
+            isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: ACCOUNT_1,
               listAccounts: [ACCOUNT_1],
@@ -408,10 +401,7 @@ describe('AccountTrackerController', () => {
 
         await withController(
           {
-            options: {
-              getMultiAccountBalancesEnabled: () => false,
-              getCurrentChainId: () => '0x1',
-            },
+            isMultiAccountBalancesEnabled: false,
             mocks: {
               selectedAccount: ACCOUNT_1,
               listAccounts: [ACCOUNT_1, ACCOUNT_2],
@@ -454,10 +444,7 @@ describe('AccountTrackerController', () => {
 
         await withController(
           {
-            options: {
-              getMultiAccountBalancesEnabled: () => true,
-              getCurrentChainId: () => '0x1',
-            },
+            isMultiAccountBalancesEnabled: true,
             mocks: {
               selectedAccount: ACCOUNT_1,
               listAccounts: [ACCOUNT_1, ACCOUNT_2],
@@ -500,9 +487,8 @@ describe('AccountTrackerController', () => {
         {
           options: {
             provider,
-            getMultiAccountBalancesEnabled: () => true,
-            getCurrentChainId: () => '0x1',
           },
+          isMultiAccountBalancesEnabled: true,
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [],
@@ -530,9 +516,8 @@ describe('AccountTrackerController', () => {
         options: {
           provider,
           interval: 100,
-          getMultiAccountBalancesEnabled: () => true,
-          getCurrentChainId: () => '0x1',
         },
+        isMultiAccountBalancesEnabled: true,
         mocks: {
           selectedAccount: EMPTY_ACCOUNT,
           listAccounts: [],
@@ -563,9 +548,8 @@ describe('AccountTrackerController', () => {
         options: {
           provider,
           interval: 100,
-          getMultiAccountBalancesEnabled: () => true,
-          getCurrentChainId: () => '0x1',
         },
+        isMultiAccountBalancesEnabled: true,
         mocks: {
           selectedAccount: EMPTY_ACCOUNT,
           listAccounts: [],
@@ -623,10 +607,12 @@ type WithControllerCallback<ReturnValue> = ({
 
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof AccountTrackerController>[0]>;
+  isMultiAccountBalancesEnabled?: boolean;
   mocks?: {
-    selectedAccount: InternalAccount;
-    listAccounts: InternalAccount[];
+    selectedAccount?: InternalAccount;
+    listAccounts?: InternalAccount[];
     networkClientById?: Record<NetworkClientId, NetworkClientConfiguration>;
+    preferencesState?: Partial<PreferencesState>;
   };
 };
 
@@ -649,10 +635,12 @@ async function withController<ReturnValue>(
   const [
     {
       options = {},
+      isMultiAccountBalancesEnabled = false,
       mocks = {
         selectedAccount: ACCOUNT_1,
         listAccounts: [],
         networkClientById: {},
+        isMultiAccountBalancesEnabled: false,
       },
     },
     testFunction,
@@ -666,13 +654,12 @@ async function withController<ReturnValue>(
   const mockGetSelectedAccount = jest
     .fn()
     .mockReturnValue(mocks.selectedAccount);
-  const mockListAccounts = jest.fn().mockReturnValue(mocks.listAccounts);
-
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
   );
 
+  const mockListAccounts = jest.fn().mockReturnValue(mocks.listAccounts);
   messenger.registerActionHandler(
     'AccountsController:listAccounts',
     mockListAccounts,
@@ -686,10 +673,30 @@ async function withController<ReturnValue>(
     getNetworkClientById,
   );
 
+  const mockGetPreferencesControllerState = jest.fn().mockReturnValue({
+    ...getDefaultPreferencesState(),
+    isMultiAccountBalancesEnabled,
+  });
+  messenger.registerActionHandler(
+    'PreferencesController:getState',
+    mockGetPreferencesControllerState,
+  );
+
+  const mockNetworkState = jest.fn().mockReturnValue({
+    ...defaultnetworkControllerState,
+    chainId: '0x1',
+  });
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    mockNetworkState,
+  );
+
   const accountTrackerMessenger = messenger.getRestricted({
     name: 'AccountTrackerController',
     allowedActions: [
       'NetworkController:getNetworkClientById',
+      'NetworkController:getState',
+      'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
@@ -702,9 +709,6 @@ async function withController<ReturnValue>(
 
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
-    getMultiAccountBalancesEnabled: jest.fn(),
-
-    getCurrentChainId: jest.fn(),
     ...options,
   });
 
