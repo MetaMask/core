@@ -6,6 +6,14 @@ import type {
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import type { InternalAccount } from '@metamask/keyring-api';
+import type {
+  NetworkClientId,
+  NetworkClientConfiguration,
+} from '@metamask/network-controller';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '@metamask/network-controller/tests/helpers';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -49,12 +57,17 @@ const setupController = ({
   mocks = {
     selectedAccount: ACCOUNT_1,
     listAccounts: [],
+    networkClientConfigurationsByNetworkClientId: {},
   },
 }: {
   options?: Partial<ConstructorParameters<typeof AccountTrackerController>[0]>;
   mocks?: {
     selectedAccount: InternalAccount;
     listAccounts: InternalAccount[];
+    networkClientConfigurationsByNetworkClientId?: Record<
+      NetworkClientId,
+      NetworkClientConfiguration
+    >;
   };
 } = {}) => {
   const messenger = new ControllerMessenger<
@@ -77,9 +90,18 @@ const setupController = ({
     mockListAccounts,
   );
 
+  const getNetworkClientById = buildMockGetNetworkClientById(
+    mocks.networkClientConfigurationsByNetworkClientId,
+  );
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    getNetworkClientById,
+  );
+
   const accountTrackerMessenger = messenger.getRestricted({
     name: 'AccountTrackerController',
     allowedActions: [
+      'NetworkController:getNetworkClientById',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
     ],
@@ -93,7 +115,7 @@ const setupController = ({
   const accountTrackerController = new AccountTrackerController({
     messenger: accountTrackerMessenger,
     getMultiAccountBalancesEnabled: jest.fn(),
-    getNetworkClientById: jest.fn(),
+
     getCurrentChainId: jest.fn(),
     ...options,
   });
@@ -140,7 +162,6 @@ describe('AccountTrackerController', () => {
         provider,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
-        getNetworkClientById: jest.fn(),
       },
     });
     controller.refresh = sinon.stub();
@@ -192,7 +213,6 @@ describe('AccountTrackerController', () => {
             provider,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn(),
           },
           mocks: {
             selectedAccount: mockAccount1,
@@ -226,7 +246,6 @@ describe('AccountTrackerController', () => {
             provider,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn(),
           },
           mocks: {
             selectedAccount: ACCOUNT_1,
@@ -262,7 +281,6 @@ describe('AccountTrackerController', () => {
             provider,
             getMultiAccountBalancesEnabled: () => false,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn(),
           },
           mocks: {
             selectedAccount: ACCOUNT_1,
@@ -296,7 +314,6 @@ describe('AccountTrackerController', () => {
             provider,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn(),
           },
           mocks: {
             selectedAccount: ACCOUNT_1,
@@ -332,6 +349,7 @@ describe('AccountTrackerController', () => {
         const mockAccount2 = createMockInternalAccount({
           address: mockAddress2,
         });
+        const networkClientId = 'networkClientId1';
         const { controller } = setupController({
           options: {
             state: {
@@ -352,20 +370,20 @@ describe('AccountTrackerController', () => {
             },
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x5',
-              },
-              provider,
-            }),
           },
           mocks: {
             selectedAccount: mockAccount1,
             listAccounts: [mockAccount1, mockAccount2],
+            networkClientConfigurationsByNetworkClientId: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
+              provider,
+            },
           },
         });
 
-        await controller.refresh('networkClientId1');
+        await controller.refresh(networkClientId);
         expect(controller.state).toStrictEqual({
           accounts: {
             [checksumAddress1]: { balance: '0x1' },
@@ -390,24 +408,25 @@ describe('AccountTrackerController', () => {
 
       it('should get real balance', async () => {
         mockedQuery.mockReturnValueOnce(Promise.resolve('0x10'));
+        const networkClientId = 'networkClientId1';
 
         const { controller } = setupController({
           options: {
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x5',
-              },
-              provider,
-            }),
           },
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1],
+            networkClientConfigurationsByNetworkClientId: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
+              provider,
+            },
           },
         });
-        await controller.refresh('networkClientId1');
+        await controller.refresh(networkClientId);
 
         expect(controller.state).toStrictEqual({
           accounts: {
@@ -434,25 +453,26 @@ describe('AccountTrackerController', () => {
         mockedQuery
           .mockReturnValueOnce(Promise.resolve('0x10'))
           .mockReturnValueOnce(Promise.resolve('0x11'));
+        const networkClientId = 'networkClientId1';
 
         const { controller } = setupController({
           options: {
             getMultiAccountBalancesEnabled: () => false,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x5',
-              },
-              provider,
-            }),
           },
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientConfigurationsByNetworkClientId: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
+              provider,
+            },
           },
         });
 
-        await controller.refresh('networkClientId1');
+        await controller.refresh(networkClientId);
 
         expect(controller.state).toStrictEqual({
           accounts: {
@@ -476,25 +496,26 @@ describe('AccountTrackerController', () => {
         mockedQuery
           .mockReturnValueOnce(Promise.resolve('0x11'))
           .mockReturnValueOnce(Promise.resolve('0x12'));
+        const networkClientId = 'networkClientId1';
 
         const { controller } = setupController({
           options: {
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn().mockReturnValue({
-              configuration: {
-                chainId: '0x5',
-              },
-              provider,
-            }),
           },
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientConfigurationsByNetworkClientId: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
+              provider,
+            },
           },
         });
 
-        await controller.refresh('networkClientId1');
+        await controller.refresh(networkClientId);
 
         expect(controller.state).toStrictEqual({
           accounts: {
@@ -523,7 +544,6 @@ describe('AccountTrackerController', () => {
           provider,
           getMultiAccountBalancesEnabled: () => true,
           getCurrentChainId: () => '0x1',
-          getNetworkClientById: jest.fn(),
         },
         mocks: {
           selectedAccount: ACCOUNT_1,
@@ -551,7 +571,6 @@ describe('AccountTrackerController', () => {
         interval: 100,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
-        getNetworkClientById: jest.fn(),
       },
       mocks: {
         selectedAccount: EMPTY_ACCOUNT,
@@ -569,13 +588,14 @@ describe('AccountTrackerController', () => {
 
   it('should call refresh every interval for each networkClientId being polled', async () => {
     sinon.stub(AccountTrackerController.prototype, 'poll');
+    const networkClientId1 = 'networkClientId1';
+    const networkClientId2 = 'networkClientId2';
     const { controller } = setupController({
       options: {
         provider,
         interval: 100,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
-        getNetworkClientById: jest.fn(),
       },
       mocks: {
         selectedAccount: EMPTY_ACCOUNT,
@@ -585,32 +605,32 @@ describe('AccountTrackerController', () => {
 
     const refreshSpy = jest.spyOn(controller, 'refresh').mockResolvedValue();
 
-    controller.startPollingByNetworkClientId('networkClientId1');
+    controller.startPollingByNetworkClientId(networkClientId1);
 
     await advanceTime({ clock, duration: 0 });
-    expect(refreshSpy).toHaveBeenNthCalledWith(1, 'networkClientId1');
+    expect(refreshSpy).toHaveBeenNthCalledWith(1, networkClientId1);
     expect(refreshSpy).toHaveBeenCalledTimes(1);
     await advanceTime({ clock, duration: 50 });
     expect(refreshSpy).toHaveBeenCalledTimes(1);
     await advanceTime({ clock, duration: 50 });
-    expect(refreshSpy).toHaveBeenNthCalledWith(2, 'networkClientId1');
+    expect(refreshSpy).toHaveBeenNthCalledWith(2, networkClientId1);
     expect(refreshSpy).toHaveBeenCalledTimes(2);
 
     const pollToken =
-      controller.startPollingByNetworkClientId('networkClientId2');
+      controller.startPollingByNetworkClientId(networkClientId2);
 
     await advanceTime({ clock, duration: 0 });
-    expect(refreshSpy).toHaveBeenNthCalledWith(3, 'networkClientId2');
+    expect(refreshSpy).toHaveBeenNthCalledWith(3, networkClientId2);
     expect(refreshSpy).toHaveBeenCalledTimes(3);
     await advanceTime({ clock, duration: 100 });
-    expect(refreshSpy).toHaveBeenNthCalledWith(4, 'networkClientId1');
-    expect(refreshSpy).toHaveBeenNthCalledWith(5, 'networkClientId2');
+    expect(refreshSpy).toHaveBeenNthCalledWith(4, networkClientId1);
+    expect(refreshSpy).toHaveBeenNthCalledWith(5, networkClientId2);
     expect(refreshSpy).toHaveBeenCalledTimes(5);
 
     controller.stopPollingByPollingToken(pollToken);
 
     await advanceTime({ clock, duration: 100 });
-    expect(refreshSpy).toHaveBeenNthCalledWith(6, 'networkClientId1');
+    expect(refreshSpy).toHaveBeenNthCalledWith(6, networkClientId1);
     expect(refreshSpy).toHaveBeenCalledTimes(6);
 
     controller.stopAllPolling();

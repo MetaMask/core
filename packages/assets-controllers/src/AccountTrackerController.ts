@@ -18,7 +18,7 @@ import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
 import type {
   NetworkClientId,
-  NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -74,7 +74,8 @@ export type AccountTrackerControllerActions =
 
 export type AllowedActions =
   | AccountsControllerListAccountsAction
-  | AccountsControllerGetSelectedAccountAction;
+  | AccountsControllerGetSelectedAccountAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type AccountTrackerControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -118,8 +119,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
 
   readonly #getCurrentChainId: () => Hex;
 
-  readonly #getNetworkClientById: NetworkController['getNetworkClientById'];
-
   /**
    * Creates an AccountTracker instance.
    *
@@ -130,7 +129,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
    * @param options.messenger - The controller messaging system.
    * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
    * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    */
   constructor({
     state,
@@ -139,7 +137,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     messenger,
     getMultiAccountBalancesEnabled,
     getCurrentChainId,
-    getNetworkClientById,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -147,7 +144,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     messenger: AccountTrackerControllerMessenger;
     getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
     getCurrentChainId: () => Hex;
-    getNetworkClientById: NetworkController['getNetworkClientById'];
   }) {
     super({
       name: controllerName,
@@ -165,7 +161,6 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     this.setIntervalLength(interval);
     this.#getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
     this.#getCurrentChainId = getCurrentChainId;
-    this.#getNetworkClientById = getNetworkClientById;
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -252,7 +247,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     ethQuery?: EthQuery;
   } {
     if (networkClientId) {
-      const networkClient = this.#getNetworkClientById(networkClientId);
+      const networkClient = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      );
 
       return {
         chainId: networkClient.configuration.chainId,
