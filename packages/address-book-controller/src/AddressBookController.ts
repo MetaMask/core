@@ -31,8 +31,14 @@ export type ContactEntry = {
  * The type of address.
  */
 export enum AddressType {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   contractAccounts = 'CONTRACT_ACCOUNTS',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   nonAccounts = 'NON_ACCOUNTS',
 }
 

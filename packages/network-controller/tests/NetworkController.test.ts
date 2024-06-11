@@ -289,7 +289,11 @@ describe('NetworkController', () => {
     });
 
     for (const { networkType } of INFURA_NETWORKS) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the type in the provider config is "${networkType}"`, () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`does not create another network client for the ${networkType} Infura network, since it is built in`, async () => {
           await withController(
             {
@@ -929,7 +933,11 @@ describe('NetworkController', () => {
     });
 
     for (const { networkType } of INFURA_NETWORKS) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`when the type in the provider configuration is changed to "${networkType}"`, () => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`returns a provider object that was pointed to another network before the switch and is pointed to "${networkType}" afterward`, async () => {
           await withController(
             {
@@ -2193,6 +2201,8 @@ describe('NetworkController', () => {
 
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`when the provider config in state contains a network type of "${networkType}"`, () => {
           describe('if the network was switched after the eth_getBlockByNumber request started but before it completed', () => {
             it('stores the network status of the second network, not the first', async () => {
@@ -2228,6 +2238,8 @@ describe('NetworkController', () => {
                         },
                         response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                         beforeCompleting: () => {
+                          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2327,6 +2339,8 @@ describe('NetworkController', () => {
                           result: POST_1559_BLOCK,
                         },
                         beforeCompleting: () => {
+                          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2423,6 +2437,8 @@ describe('NetworkController', () => {
                         },
                         error: BLOCKED_INFURA_JSON_RPC_ERROR,
                         beforeCompleting: () => {
+                          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                          // eslint-disable-next-line @typescript-eslint/no-floating-promises
                           controller.setActiveNetwork(
                             'testNetworkConfigurationId',
                           );
@@ -2539,6 +2555,8 @@ describe('NetworkController', () => {
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     beforeCompleting: () => {
+                      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
@@ -2631,6 +2649,8 @@ describe('NetworkController', () => {
                       result: POST_1559_BLOCK,
                     },
                     beforeCompleting: () => {
+                      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
@@ -2722,6 +2742,8 @@ describe('NetworkController', () => {
                     },
                     response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
                     beforeCompleting: () => {
+                      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                      // eslint-disable-next-line @typescript-eslint/no-floating-promises
                       controller.setProviderType(NetworkType.goerli);
                     },
                   },
@@ -2806,6 +2828,8 @@ describe('NetworkController', () => {
       ticker,
       blockExplorerUrl,
     } of INFURA_NETWORKS) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given a network type of "${networkType}"`, () => {
         refreshNetworkTests({
           expectedProviderConfig: buildProviderConfig({
@@ -2817,6 +2841,8 @@ describe('NetworkController', () => {
         });
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`overwrites the provider configuration using a predetermined chainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
         await withController(
           {
@@ -2853,6 +2879,8 @@ describe('NetworkController', () => {
         );
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`updates state.selectedNetworkClientId, setting it to ${networkType}`, async () => {
         await withController({}, async ({ controller }) => {
           const fakeProvider = buildFakeProvider();
@@ -3242,6 +3270,8 @@ describe('NetworkController', () => {
       ticker,
       blockExplorerUrl,
     } of INFURA_NETWORKS) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       describe(`given a network type of "${networkType}"`, () => {
         refreshNetworkTests({
           expectedProviderConfig: buildProviderConfig({
@@ -3253,6 +3283,8 @@ describe('NetworkController', () => {
         });
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`overwrites the provider configuration using a predetermined chainId, ticker, and blockExplorerUrl for "${networkType}", clearing id, rpcUrl, and nickname`, async () => {
         await withController(
           {
@@ -3289,6 +3321,8 @@ describe('NetworkController', () => {
         );
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`updates state.selectedNetworkClientId, setting it to ${networkType}`, async () => {
         await withController({}, async ({ controller }) => {
           const fakeProvider = buildFakeProvider();
@@ -3471,6 +3505,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller, messenger }) => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             setFakeProvider(controller, {
               stubLookupNetworkWhileSetting: true,
             });
@@ -3502,6 +3538,8 @@ describe('NetworkController', () => {
             },
           },
           async ({ controller }) => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             setFakeProvider(controller, {
               stubLookupNetworkWhileSetting: true,
             });
@@ -3520,6 +3558,8 @@ describe('NetworkController', () => {
         describe('if the latest block has a "baseFeePerGas" property', () => {
           it('sets the "1559" property to true', async () => {
             await withController(async ({ controller }) => {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               setFakeProvider(controller, {
                 stubs: [
                   {
@@ -3547,6 +3587,8 @@ describe('NetworkController', () => {
 
           it('returns true', async () => {
             await withController(async ({ controller }) => {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               setFakeProvider(controller, {
                 stubs: [
                   {
@@ -3573,6 +3615,8 @@ describe('NetworkController', () => {
         describe('if the latest block does not have a "baseFeePerGas" property', () => {
           it('sets the "1559" property to false', async () => {
             await withController(async ({ controller }) => {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               setFakeProvider(controller, {
                 stubs: [
                   {
@@ -3600,6 +3644,8 @@ describe('NetworkController', () => {
 
           it('returns false', async () => {
             await withController(async ({ controller }) => {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               setFakeProvider(controller, {
                 stubs: [
                   {
@@ -3635,6 +3681,8 @@ describe('NetworkController', () => {
           };
           it('keeps the "1559" property as undefined', async () => {
             await withController(async ({ controller }) => {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               setFakeProvider(controller, {
                 stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
@@ -3652,6 +3700,8 @@ describe('NetworkController', () => {
 
           it('returns undefined', async () => {
             await withController(async ({ controller }) => {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               setFakeProvider(controller, {
                 stubs: [latestBlockRespondsNull],
                 stubLookupNetworkWhileSetting: true,
@@ -3669,6 +3719,8 @@ describe('NetworkController', () => {
       describe('if the request for the latest block is unsuccessful', () => {
         it('does not make any state changes', async () => {
           await withController(async ({ controller, messenger }) => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             setFakeProvider(controller, {
               stubs: [
                 {
@@ -3704,6 +3756,8 @@ describe('NetworkController', () => {
   describe('resetConnection', () => {
     [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
       (networkType) => {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`when the type in the provider configuration is "${networkType}"`, () => {
           refreshNetworkTests({
             expectedProviderConfig: buildProviderConfig({ type: networkType }),
@@ -3743,6 +3797,8 @@ describe('NetworkController', () => {
           },
         },
         async ({ messenger }) => {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/await-thenable
           const providerConfig = await messenger.call(
             'NetworkController:getProviderConfig',
           );
@@ -4484,6 +4540,8 @@ describe('NetworkController', () => {
                 url: 'https://test-dapp.com',
               },
               properties: {
+                // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                // eslint-disable-next-line @typescript-eslint/naming-convention
                 chain_id: toHex(111),
                 symbol: 'TICKER',
                 source: 'dapp',
@@ -4850,6 +4908,8 @@ describe('NetworkController', () => {
           controller.upsertNetworkConfiguration(
             {
               rpcUrl: 'https://test.network',
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
               chainId: toHex(MAX_SAFE_CHAIN_ID + 1),
               ticker: 'TICKER',
             },
@@ -5176,6 +5236,8 @@ describe('NetworkController', () => {
     describe('if a provider has not been set', () => {
       [NetworkType.mainnet, NetworkType.goerli, NetworkType.sepolia].forEach(
         (networkType) => {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           describe(`when the type in the provider configuration is "${networkType}"`, () => {
             refreshNetworkTests({
               expectedProviderConfig: buildProviderConfig({
@@ -5209,6 +5271,8 @@ describe('NetworkController', () => {
 
     describe('if a provider has been set', () => {
       for (const { networkType } of INFURA_NETWORKS) {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         describe(`if the previous provider configuration had a type of "${networkType}"`, () => {
           it('emits networkWillChange with state payload', async () => {
             await withController(
@@ -5244,6 +5308,8 @@ describe('NetworkController', () => {
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
+                    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises
                     controller.rollbackToPreviousProvider();
                   },
                 });
@@ -5287,6 +5353,8 @@ describe('NetworkController', () => {
                   operation: () => {
                     // Intentionally not awaited because we're capturing an event
                     // emitted partway through the operation
+                    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises
                     controller.rollbackToPreviousProvider();
                   },
                 });
@@ -5433,6 +5501,8 @@ describe('NetworkController', () => {
                   operation: () => {
                     // Intentionally not awaited because we want to check state
                     // while this operation is in-progress
+                    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                    // eslint-disable-next-line @typescript-eslint/no-floating-promises
                     controller.rollbackToPreviousProvider();
                   },
                   beforeResolving: () => {
@@ -5447,6 +5517,8 @@ describe('NetworkController', () => {
             );
           });
 
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           it(`initializes a provider pointed to the "${networkType}" Infura network`, async () => {
             await withController(
               {
@@ -5836,6 +5908,8 @@ describe('NetworkController', () => {
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
+                  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
                   controller.rollbackToPreviousProvider();
                 },
               });
@@ -5867,6 +5941,8 @@ describe('NetworkController', () => {
                 operation: () => {
                   // Intentionally not awaited because we're capturing an event
                   // emitted partway through the operation
+                  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
                   controller.rollbackToPreviousProvider();
                 },
               });
@@ -6009,6 +6085,8 @@ describe('NetworkController', () => {
                 operation: () => {
                   // Intentionally not awaited because we want to check state
                   // while this operation is in-progress
+                  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
                   controller.rollbackToPreviousProvider();
                 },
                 beforeResolving: () => {
@@ -6478,6 +6556,8 @@ function refreshNetworkTests({
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             operation(controller);
           },
         });
@@ -6504,6 +6584,8 @@ function refreshNetworkTests({
           operation: () => {
             // Intentionally not awaited because we're capturing an event
             // emitted partway through the operation
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             operation(controller);
           },
         });
@@ -6558,6 +6640,8 @@ function refreshNetworkTests({
       );
     });
   } else {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     it(`sets the provider to an Infura provider pointed to ${expectedProviderConfig.type}`, async () => {
       await withController(
         {
@@ -7524,6 +7608,8 @@ async function withController<ReturnValue>(
     return await fn({ controller, messenger });
   } finally {
     const { blockTracker } = controller.getProviderAndBlockTracker();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker?.destroy();
   }
 }
@@ -7674,6 +7760,8 @@ async function setFakeProvider(
  * @returns A promise that resolves to the list of payloads for the set of
  * events, optionally filtered, when a specific number of them have occurred.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 async function waitForPublishedEvents<E extends NetworkControllerEvents>({
   messenger,
   eventType,
@@ -7718,6 +7806,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
           interestingEventPayloads.push(payload);
           if (interestingEventPayloads.length === expectedNumberOfEvents) {
             stopTimer();
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             end();
           } else {
             resetTimer();
@@ -7740,6 +7830,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
             // Using a string instead of an Error leads to better backtraces.
             /* eslint-disable-next-line prefer-promise-reject-errors */
             reject(
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `Expected to receive ${expectedNumberOfEvents} ${eventType} event(s), but received ${
                 interestingEventPayloads.length
               } after ${timeBeforeAssumingNoMoreEvents}ms.\n\nAll payloads:\n\n${inspect(
@@ -7767,6 +7859,8 @@ async function waitForPublishedEvents<E extends NetworkControllerEvents>({
       function resetTimer() {
         stopTimer();
         timer = setTimeout(() => {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           end();
         }, timeBeforeAssumingNoMoreEvents);
       }

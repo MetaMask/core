@@ -189,7 +189,11 @@ function createExpectedInternalAccount({
 }): InternalAccount {
   const accountTypeToMethods = {
     [`${EthAccountType.Eoa}`]: [...Object.values(ETH_EOA_METHODS)],
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     [`${EthAccountType.Erc4337}`]: [...Object.values(ETH_ERC_4337_METHODS)],
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     [`${BtcAccountType.P2wpkh}`]: [...Object.values(BtcMethod)],
   };
 

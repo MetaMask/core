@@ -92,6 +92,8 @@ export class RatesController extends BaseController<
    * // Execute criticalLogic within a lock.
    * const result = await this.#withLock(criticalLogic);
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withLock<R>(callback: () => R) {
     const releaseLock = await this.#mutex.acquire();
     try {

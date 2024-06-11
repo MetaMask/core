@@ -173,9 +173,13 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
       if (stub.delay) {
         originalSetTimeout(() => {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#handleRequest(stub, callback);
         }, stub.delay);
       } else {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#handleRequest(stub, callback);
       }
 

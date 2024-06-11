@@ -79,6 +79,8 @@ describe('PendingTransactionTracker', () => {
       );
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     await blockTracker.on.mock.calls[0][1](latestBlockNumber);
   }
 

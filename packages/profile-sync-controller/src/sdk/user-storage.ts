@@ -159,6 +159,8 @@ export class UserStorage {
     return hashedKey;
   }
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #getAuthorizationHeader(): Promise<{ Authorization: string }> {
     const accessToken = await this.config.auth.getAccessToken();
     return { Authorization: `Bearer ${accessToken}` };
