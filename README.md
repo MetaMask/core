@@ -28,7 +28,7 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-controller`](packages/notification-controller)
-- [`@metamask/notifications-controller`](packages/notifications-controller)
+- [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
@@ -73,7 +73,7 @@ linkStyle default opacity:0.5
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
   notification_controller(["@metamask/notification-controller"]);
-  notifications_controller(["@metamask/notifications-controller"]);
+  notifications_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);

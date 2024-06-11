@@ -62,7 +62,7 @@
       "path": "./packages/notification-controller"
     },
     {
-      "path": "./packages/notifications-controller"
+      "path": "./packages/notification-services-controller"
     },
     {
       "path": "./packages/permission-controller"

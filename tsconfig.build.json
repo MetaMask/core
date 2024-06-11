@@ -64,7 +64,7 @@
       "path": "./packages/notification-controller/tsconfig.build.json"
     },
     {
-      "path": "./packages/notifications-controller/tsconfig.build.json"
+      "path": "./packages/notification-services-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/permission-controller/tsconfig.build.json"
