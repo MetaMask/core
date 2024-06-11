@@ -1,15 +1,14 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkState,
-  NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerNetworkDidChangeEvent,
   Provider,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
@@ -68,104 +67,84 @@ export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**
- * @type AssetsContractConfig
- *
- * Assets Contract controller configuration
- * @property provider - Provider used to create a new web3 instance
- */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AssetsContractConfig extends BaseConfig {
-  provider: Provider | undefined;
-  ipfsGateway: string;
-  chainId: Hex;
-}
-
-/**
  * @type BalanceMap
  *
  * Key value object containing the balance for each tokenAddress
  * @property [tokenAddress] - Address of the token
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface BalanceMap {
+export type BalanceMap = {
   [tokenAddress: string]: BN;
-}
+};
+
+export const name = 'AssetsContractController';
+
+export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+
+export type AllowedEvents =
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent;
+
+export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
  */
-export class AssetsContractController extends BaseControllerV1<
-  AssetsContractConfig,
-  BaseState
-> {
-  private _provider?: Provider;
+export class AssetsContractController {
+  protected messagingSystem: AssetsContractControllerMessenger;
 
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AssetsContractController' as const;
+  #provider: Provider | undefined;
 
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+  ipfsGateway: string;
+
+  chainId: Hex;
 
   /**
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
+   * @param options.messenger -
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      chainId: initialChainId,
-      onPreferencesStateChange,
-      onNetworkDidChange,
-      getNetworkClientById,
-    }: {
-      chainId: Hex;
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkDidChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-    },
-    config?: Partial<AssetsContractConfig>,
-    state?: Partial<BaseState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      provider: undefined,
-      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: initialChainId,
-    };
-    this.initialize();
-    this.getNetworkClientById = getNetworkClientById;
+  constructor({
+    messenger,
+    chainId: initialChainId,
+  }: {
+    messenger: AssetsContractControllerMessenger;
+    chainId: Hex;
+  }) {
+    this.chainId = initialChainId;
+    this.#provider = undefined;
+    this.ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
+    this.messagingSystem = messenger;
 
-    onPreferencesStateChange(({ ipfsGateway }) => {
-      this.configure({ ipfsGateway });
-    });
+    this.messagingSystem.subscribe(
+      `PreferencesController:stateChange`,
+      ({ ipfsGateway }) => {
+        this.ipfsGateway = ipfsGateway;
+      },
+    );
 
-    onNetworkDidChange(({ selectedNetworkClientId }) => {
-      const selectedNetworkClient = getNetworkClientById(
-        selectedNetworkClientId,
-      );
-      const { chainId } = selectedNetworkClient.configuration;
+    this.messagingSystem.subscribe(
+      `NetworkController:networkDidChange`,
+      ({ selectedNetworkClientId }) => {
+        const {
+          configuration: { chainId },
+        } = this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          selectedNetworkClientId,
+        );
 
-      if (this.config.chainId !== chainId) {
-        this.configure({
-          chainId: selectedNetworkClient.configuration.chainId,
-        });
-      }
-    });
+        if (this.chainId !== chainId) {
+          this.chainId = chainId;
+        }
+      },
+    );
   }
 
   /**
@@ -175,8 +154,8 @@ export class AssetsContractController extends BaseControllerV1<
    *
    * @property provider - Provider used to create a new underlying Web3 instance
    */
-  set provider(provider: Provider) {
-    this._provider = provider;
+  set provider(provider: Provider | undefined) {
+    this.#provider = provider;
   }
 
   get provider() {
@@ -191,8 +170,11 @@ export class AssetsContractController extends BaseControllerV1<
    */
   getProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
-      ? this.getNetworkClientById(networkClientId).provider
-      : this._provider;
+      ? this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        ).provider
+      : this.#provider;
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
@@ -210,8 +192,11 @@ export class AssetsContractController extends BaseControllerV1<
    */
   getChainId(networkClientId?: NetworkClientId): Hex {
     return networkClientId
-      ? this.getNetworkClientById(networkClientId).configuration.chainId
-      : this.config.chainId;
+      ? this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        ).configuration.chainId
+      : this.chainId;
   }
 
   /**
@@ -338,15 +323,13 @@ export class AssetsContractController extends BaseControllerV1<
     // Asserts provider is available
     this.getProvider(networkClientId);
 
-    const { ipfsGateway } = this.config;
-
     // ERC721
     try {
       const erc721Standard = this.getERC721Standard(networkClientId);
       return {
         ...(await erc721Standard.getDetails(
           tokenAddress,
-          ipfsGateway,
+          this.ipfsGateway,
           tokenId,
         )),
       };
@@ -360,7 +343,7 @@ export class AssetsContractController extends BaseControllerV1<
       return {
         ...(await erc1155Standard.getDetails(
           tokenAddress,
-          ipfsGateway,
+          this.ipfsGateway,
           tokenId,
         )),
       };
