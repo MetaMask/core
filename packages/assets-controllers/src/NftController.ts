@@ -98,10 +98,6 @@ type NftUpdate = {
   newMetadata: NftMetadata;
 };
 
-export type NftFetchStatus = {
-  isFetchingInProgress: boolean;
-};
-
 /**
  * @type NftContract
  *
@@ -179,7 +175,6 @@ export type NftMetadata = {
  * @property allNftContracts - Object containing NFT contract information
  * @property allNfts - Object containing NFTs per account and network
  * @property ignoredNfts - List of NFTs that should be ignored
- * @property isNftFetchingInProgress - Object containing boolean param indicating whether core finished fetching nfts per account and network
  */
 export type NftControllerState = {
   allNftContracts: {
@@ -193,21 +188,16 @@ export type NftControllerState = {
     };
   };
   ignoredNfts: Nft[];
-  isNftFetchingInProgress: {
-    [key: string]: { [chainId: Hex]: NftFetchStatus };
-  };
 };
 
 const nftControllerMetadata = {
   allNftContracts: { persist: true, anonymous: false },
   allNfts: { persist: true, anonymous: false },
   ignoredNfts: { persist: true, anonymous: false },
-  isNftFetchingInProgress: { persist: true, anonymous: false },
 };
 
 const ALL_NFTS_STATE_KEY = 'allNfts';
 const ALL_NFTS_CONTRACTS_STATE_KEY = 'allNftContracts';
-const IS_NFTS_FETCHING_IN_PROGRESS_KEY = 'isNftFetchingInProgress';
 
 type NftAsset = {
   address: string;
@@ -261,7 +251,6 @@ export const getDefaultNftControllerState = (): NftControllerState => ({
   allNftContracts: {},
   allNfts: {},
   ignoredNfts: [],
-  isNftFetchingInProgress: {},
 });
 
 /**
@@ -517,34 +506,6 @@ export class NftController extends BaseController<
         [chainId]: newCollection,
       };
       state[baseStateKey] = {
-        ...oldState,
-        [userAddress]: newAddressState,
-      };
-    });
-  }
-
-  /**
-   * Helper function to update the status of nft fetching for a specific address.
-   *
-   * @param newStatus - The new status to set in state
-   * @param passedConfig - Object containing selectedAddress and chainId
-   * @param passedConfig.userAddress - the address passed through the detectNfts function
-   * @param passedConfig.chainId - the chainId passed through the detectNfts function
-   */
-  #updateNestedNftFetchingProgressStatus(
-    newStatus: boolean,
-    { userAddress, chainId }: { userAddress: string; chainId: Hex },
-  ) {
-    this.update((state) => {
-      const oldState = state[IS_NFTS_FETCHING_IN_PROGRESS_KEY];
-      const addressState = oldState[userAddress] || {};
-      const newAddressState = {
-        ...addressState,
-        [chainId]: {
-          isFetchingInProgress: newStatus,
-        },
-      };
-      state[IS_NFTS_FETCHING_IN_PROGRESS_KEY] = {
         ...oldState,
         [userAddress]: newAddressState,
       };
@@ -1926,31 +1887,6 @@ export class NftController extends BaseController<
     this.#updateNestedNftState(newNfts, ALL_NFTS_STATE_KEY, {
       chainId,
       userAddress: selectedAddress,
-    });
-  }
-
-  /**
-   * Update Nft fetching status for a selectedAddress on a specific chain
-   * @param newValue - fetching status to set in state
-   * @param passedConfig - Object containing selectedAddress and chainId
-   * @param passedConfig.userAddress - the address passed through the detectNfts function
-   * @param passedConfig.networkClientId - the networkClientId passed through the detectNfts function
-   */
-  updateNftFetchingProgressStatus(
-    newValue: boolean,
-    {
-      networkClientId,
-      userAddress,
-    }: {
-      networkClientId?: NetworkClientId;
-      userAddress?: string;
-    } = {},
-  ) {
-    const addressToSearch = this.#getAddressOrSelectedAddress(userAddress);
-    const chainId = this.#getCorrectChainId({ networkClientId });
-    this.#updateNestedNftFetchingProgressStatus(newValue, {
-      userAddress: addressToSearch,
-      chainId,
     });
   }
 

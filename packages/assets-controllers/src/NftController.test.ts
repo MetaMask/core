@@ -331,11 +331,11 @@ describe('NftController', () => {
 
   it('should set default state', () => {
     const { nftController } = setupController();
+
     expect(nftController.state).toStrictEqual({
       allNftContracts: {},
       allNfts: {},
       ignoredNfts: [],
-      isNftFetchingInProgress: {},
     });
   });
 
@@ -4349,27 +4349,5 @@ describe('NftController', () => {
     );
 
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
-  });
-
-  describe('updateNftFetchingProgressStatus', () => {
-    it('should update nft fetching status correctly', async () => {
-      const selectedAddress = OWNER_ADDRESS;
-      const { nftController } = setupController({
-        options: {
-          chainId: ChainId.mainnet,
-          getERC721AssetName: jest.fn().mockResolvedValue('Name'),
-        },
-      });
-
-      nftController.updateNftFetchingProgressStatus(true);
-
-      expect(
-        nftController.state.isNftFetchingInProgress[selectedAddress][
-          ChainId.mainnet
-        ],
-      ).toStrictEqual({
-        isFetchingInProgress: true,
-      });
-    });
   });
 });

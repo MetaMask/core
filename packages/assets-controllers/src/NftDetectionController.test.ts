@@ -841,54 +841,6 @@ describe('NftDetectionController', () => {
     );
   });
 
-  it('should call updateNftFetchingProgressStatus when call to NFT-API fails', async () => {
-    const selectedAddress = '0x4';
-    const mockAddNft = jest.fn();
-    const mockUpdateNftFetchingProgressStatus = jest.fn();
-    const selectedAccount = createMockInternalAccount({
-      address: selectedAddress,
-    });
-    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
-    await withController(
-      {
-        mockPreferencesState: {},
-        options: {
-          addNft: mockAddNft,
-          updateNftFetchingProgressStatus: mockUpdateNftFetchingProgressStatus,
-        },
-        mockGetSelectedAccount,
-      },
-      async ({ controller, controllerEvents }) => {
-        controllerEvents.triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress,
-          useNftDetection: true,
-        });
-        // Wait for detect call triggered by preferences state change to settle
-        await advanceTime({
-          clock,
-          duration: 1,
-        });
-        // This mock is for the call under test
-        nock(NFT_API_BASE_URL)
-          .get(`/users/${selectedAddress}/tokens`)
-          .query({
-            continuation: '',
-            limit: '50',
-            chainIds: '1',
-            includeTopBid: true,
-          })
-          .replyWithError(new Error('UNEXPECTED ERROR!!'));
-
-        await expect(() => controller.detectNfts()).rejects.toThrow(
-          'UNEXPECTED ERROR!!',
-        );
-        expect(mockAddNft).not.toHaveBeenCalled();
-        expect(mockUpdateNftFetchingProgressStatus).toHaveBeenCalledWith(false);
-      },
-    );
-  });
-
   it('should rethrow error when Nft APi server fails with error other than fetch failure', async () => {
     const selectedAddress = '0x4';
     const selectedAccount = createMockInternalAccount({
@@ -990,6 +942,32 @@ describe('NftDetectionController', () => {
         });
         await advanceTime({ clock, duration: 1 });
         expect(detectNfts.callCount).toBe(0);
+      },
+    );
+  });
+
+  it('should only updates once when detectNfts called twice', async () => {
+    const mockAddNft = jest.fn();
+    const mockGetSelectedAccount = jest.fn();
+    const selectedAddress = '0x9';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    await withController(
+      {
+        options: { addNft: mockAddNft, disabled: false },
+        mockPreferencesState: {},
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        mockGetSelectedAccount.mockReturnValue(selectedAccount);
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+        });
+        await Promise.all([controller.detectNfts(), controller.detectNfts()]);
+
+        expect(mockAddNft).toHaveBeenCalledTimes(1);
       },
     );
   });
@@ -1099,7 +1077,6 @@ async function withController<ReturnValue>(
     messenger: controllerMessenger,
     disabled: true,
     addNft: jest.fn(),
-    updateNftFetchingProgressStatus: jest.fn(),
     getNftState: getDefaultNftControllerState,
     ...options,
   });
