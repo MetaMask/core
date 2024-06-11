@@ -476,6 +476,8 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             withController({ cacheEncryptionKey }, async ({ controller }) => {
               await controller.createNewVaultAndRestore(
                 password,
@@ -588,6 +590,8 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             withController({ cacheEncryptionKey }, async ({ initialState }) => {
               expect(initialState.encryptionKey).toBeDefined();
               expect(initialState.encryptionSalt).toBeDefined();
@@ -981,6 +985,8 @@ describe('KeyringController', () => {
           });
         });
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line jest/expect-expect
         it('should not select imported account', async () => {
           await withController(async ({ controller }) => {
             await controller.importAccountWithStrategy(
@@ -1052,6 +1058,8 @@ describe('KeyringController', () => {
           });
         });
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line jest/expect-expect
         it('should not select imported account', async () => {
           await withController(async ({ controller }) => {
             const somePassword = 'holachao123';
@@ -2124,6 +2132,8 @@ describe('KeyringController', () => {
 
         cacheEncryptionKey &&
           it('should set encryptionKey and encryptionSalt in state', async () => {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             withController({ cacheEncryptionKey }, async ({ controller }) => {
               await controller.submitPassword(password);
               expect(controller.state.encryptionKey).toBeDefined();
@@ -3425,6 +3435,8 @@ describe('KeyringController', () => {
             await controller.persistAllKeyrings();
           }
         });
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         messenger.subscribe('KeyringController:stateChange', listener);
 
         await controller.submitPassword(password);

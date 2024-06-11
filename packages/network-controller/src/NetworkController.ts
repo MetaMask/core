@@ -53,6 +53,8 @@ export type NetworkMetadata = {
   /**
    * EIPs supported by the network.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   EIPS: {
     [eipNumber: number]: boolean;
   };
@@ -102,6 +104,8 @@ type NetworkConfigurations = Record<
  * @returns The keys of an object, typed according to the type of the object
  * itself.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export function knownKeysOf<K extends PropertyKey>(
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -459,6 +463,8 @@ export class NetworkController extends BaseController<
     this.#trackMetaMetricsEvent = trackMetaMetricsEvent;
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEthQuery`,
       () => {
         return this.#ethQuery;
@@ -466,36 +472,50 @@ export class NetworkController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkClientById`,
       this.getNetworkClientById.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getEIP1559Compatibility`,
       this.getEIP1559Compatibility.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setActiveNetwork`,
       this.setActiveNetwork.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:setProviderType`,
       this.setProviderType.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:findNetworkClientIdByChainId`,
       this.findNetworkClientIdByChainId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getNetworkConfigurationByNetworkClientId`,
       this.getNetworkConfigurationByNetworkClientId.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
     );
@@ -600,6 +620,8 @@ export class NetworkController extends BaseController<
         ];
       if (!infuraNetworkClient) {
         throw new Error(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `No Infura network client was found with the ID "${networkClientId}".`,
         );
       }
@@ -612,6 +634,8 @@ export class NetworkController extends BaseController<
       ];
     if (!customNetworkClient) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `No custom network client was found with the ID "${networkClientId}".`,
       );
     }
@@ -855,10 +879,14 @@ export class NetworkController extends BaseController<
     assert.notStrictEqual(
       type,
       NetworkType.rpc,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
     );
     assert.ok(
       isInfuraNetworkType(type),
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `Unknown Infura provider type "${type}".`,
     );
 
@@ -1004,6 +1032,8 @@ export class NetworkController extends BaseController<
     networkClientId: NetworkClientId,
   ): NetworkConfiguration | undefined {
     if (isInfuraNetworkType(networkClientId)) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       const rpcUrl = `https://${networkClientId}.infura.io/v3/${
         this.#infuraProjectId
       }`;
@@ -1141,6 +1171,8 @@ export class NetworkController extends BaseController<
           url: referrer,
         },
         properties: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           chain_id: chainId,
           symbol: ticker,
           source,

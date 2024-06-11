@@ -48,19 +48,13 @@ module.exports = {
         // TODO: auto-fix breaks stuff
         '@typescript-eslint/promise-function-async': 'off',
 
-        // TODO: re-enble most of these rules
-        '@typescript-eslint/await-thenable': 'warn',
-        '@typescript-eslint/naming-convention': 'off',
-        '@typescript-eslint/no-floating-promises': 'warn',
-        '@typescript-eslint/no-misused-promises': 'warn',
+        // TODO: re-enable most of these rules
         '@typescript-eslint/no-unnecessary-type-assertion': 'off',
         '@typescript-eslint/unbound-method': 'off',
         '@typescript-eslint/prefer-enum-initializers': 'off',
         '@typescript-eslint/prefer-nullish-coalescing': 'off',
         '@typescript-eslint/prefer-optional-chain': 'off',
         '@typescript-eslint/prefer-reduce-type-parameter': 'off',
-        '@typescript-eslint/restrict-plus-operands': 'warn',
-        '@typescript-eslint/restrict-template-expressions': 'warn',
         'no-restricted-syntax': 'off',
         'no-restricted-globals': 'off',
       },

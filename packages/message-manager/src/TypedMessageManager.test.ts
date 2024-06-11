@@ -127,6 +127,8 @@ describe('TypedMessageManager', () => {
     };
     const originalRequest = {
       origin: 'origin',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       securityAlertResponse: { result_type: 'result_type', reason: 'reason' },
     };
     const messageId = await controller.addUnapprovedMessage(
@@ -308,6 +310,8 @@ describe('TypedMessageManager', () => {
     const messageData = typedMessage;
     const firstMessage = { from: fromMock, data: messageData };
     const version = 'V1';
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     const messageId = await await controller.addUnapprovedMessage(
       firstMessage,
       undefined,

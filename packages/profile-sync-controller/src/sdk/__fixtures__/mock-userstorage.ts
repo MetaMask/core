@@ -13,6 +13,8 @@ type MockReply = {
 const MOCK_STORAGE_URL = STORAGE_URL(Env.DEV, 'notifications', '');
 
 export const MOCK_STORAGE_KEY = 'MOCK_STORAGE_KEY';
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const MOCK_NOTIFICATIONS_DATA = { is_compact: false };
 export const MOCK_NOTIFICATIONS_DATA_ENCRYPTED = encryption.encryptString(
   JSON.stringify(MOCK_NOTIFICATIONS_DATA),

@@ -484,7 +484,8 @@ describe('updatePostTransactionBalance', () => {
       .spyOn(request, 'getTransaction')
       .mockImplementation(() => transactionMeta);
 
-    // eslint-disable-next-line jest/valid-expect-in-promise
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line jest/valid-expect-in-promise, @typescript-eslint/no-floating-promises
     updatePostTransactionBalance(transactionMeta, request).then(
       ({ updatedTransactionMeta }) => {
         expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);

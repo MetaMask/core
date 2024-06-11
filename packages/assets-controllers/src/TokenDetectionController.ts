@@ -174,7 +174,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     category: string;
     properties: {
       tokens: string[];
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       token_standard: string;
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       asset_type: string;
     };
   }) => void;
@@ -207,7 +211,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       category: string;
       properties: {
         tokens: string[];
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         token_standard: string;
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         asset_type: string;
       };
     }) => void;
@@ -254,6 +262,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * Constructor helper for registering this controller's messaging system subscriptions to controller events.
    */
   #registerEventListeners() {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.messagingSystem.subscribe('KeyringController:unlock', async () => {
       this.#isUnlocked = true;
       await this.#restartTokenDetection();
@@ -266,6 +276,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'TokenListController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ tokenList }) => {
         const hasTokens = Object.keys(tokenList).length;
 
@@ -277,6 +289,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
         const isSelectedAddressChanged =
           this.#selectedAddress !== newSelectedAddress;
@@ -296,6 +310,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedAccountChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ address: newSelectedAddress }) => {
         const isSelectedAddressChanged =
           this.#selectedAddress !== newSelectedAddress;
@@ -310,6 +326,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     this.messagingSystem.subscribe(
       'NetworkController:networkDidChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ selectedNetworkClientId }) => {
         const isNetworkClientIdChanged =
           this.#networkClientId !== selectedNetworkClientId;
@@ -382,6 +400,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
     this.#stopPolling();
     await this.detectTokens();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#intervalId = setInterval(async () => {
       await this.detectTokens();
     }, this.getIntervalLength());
@@ -597,7 +617,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<
           category: 'Wallet',
           properties: {
             tokens: eventTokensDetails,
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             token_standard: 'ERC20',
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             asset_type: 'TOKEN',
           },
         });

@@ -25,6 +25,8 @@ export type StateConstraint = Record<string, Json>;
  * @param patches - A list of patches describing any changes (see here for more
  * information: https://immerjs.github.io/immer/docs/patches)
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type Listener<T> = (state: T, patches: Patch[]) => void;
 
 /**
@@ -36,6 +38,8 @@ export type Listener<T> = (state: T, patches: Patch[]) => void;
  * @param value - A piece of controller state.
  * @returns Something derived from controller state.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type StateDeriver<T extends Json> = (value: T) => Json;
 
 /**
@@ -44,6 +48,8 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
  * This metadata describes which parts of state should be persisted, and how to
  * get an anonymized representation of the state.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type StateMetadata<T extends StateConstraint> = {
   [P in keyof T]: StatePropertyMetadata<T[P]>;
 };
@@ -59,6 +65,8 @@ export type StateMetadata<T extends StateConstraint> = {
  * identifiable), or is set to a function that returns an anonymized
  * representation of this state.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type StatePropertyMetadata<T extends Json> = {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
@@ -96,6 +104,8 @@ export type ControllerEvents<
 export class BaseController<
   ControllerName extends string,
   ControllerState extends StateConstraint,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   messenger extends RestrictedControllerMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,

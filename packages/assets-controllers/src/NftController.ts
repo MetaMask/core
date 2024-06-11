@@ -386,6 +386,8 @@ export class NftController extends BaseController<
 
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onPreferencesControllerStateChange.bind(this),
     );
 
@@ -396,6 +398,8 @@ export class NftController extends BaseController<
 
     this.messagingSystem.subscribe(
       'AccountsController:selectedEvmAccountChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onSelectedAccountChange.bind(this),
     );
   }
@@ -464,6 +468,8 @@ export class NftController extends BaseController<
   }
 
   getNftApi() {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/tokens`;
   }
 
@@ -820,9 +826,13 @@ export class NftController extends BaseController<
       return {
         address: contractAddress,
         ...blockchainContractData,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         schema_name: nftMetadataFromApi?.standard ?? null,
         collection: {
           name: null,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           image_url:
             nftMetadataFromApi?.collection?.image ??
             nftMetadataFromApi?.collection?.imageUrl ??
@@ -837,13 +847,25 @@ export class NftController extends BaseController<
     /* istanbul ignore next */
     return {
       address: contractAddress,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       asset_contract_type: null,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       created_date: null,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       schema_name: null,
       symbol: null,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       total_supply: null,
       description: null,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       external_link: null,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       collection: { name: null, image_url: null },
     };
   }
@@ -987,12 +1009,22 @@ export class NftController extends BaseController<
         networkClientId,
       );
       const {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         asset_contract_type,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         created_date,
         symbol,
         description,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         external_link,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         schema_name,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         collection: { name, image_url, tokenCount },
       } = contractInformation;
 
@@ -1167,6 +1199,8 @@ export class NftController extends BaseController<
 
     if (type !== ERC721 && type !== ERC1155) {
       throw rpcErrors.invalidParams(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Non NFT asset type ${type} not supported by watchNft`,
       );
     }
