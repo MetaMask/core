@@ -46,16 +46,12 @@ const provider = new HttpProvider(
 
 const setupController = ({
   options = {},
-  config = {},
-  state = {},
   mocks = {
     selectedAccount: ACCOUNT_1,
     listAccounts: [],
   },
 }: {
   options?: Partial<ConstructorParameters<typeof AccountTrackerController>[0]>;
-  config?: Partial<ConstructorParameters<typeof AccountTrackerController>[1]>;
-  state?: Partial<ConstructorParameters<typeof AccountTrackerController>[2]>;
   mocks?: {
     selectedAccount: InternalAccount;
     listAccounts: InternalAccount[];
@@ -94,17 +90,13 @@ const setupController = ({
     messenger.publish('AccountsController:selectedEvmAccountChange', account);
   };
 
-  const accountTrackerController = new AccountTrackerController(
-    {
-      messenger: accountTrackerMessenger,
-      getMultiAccountBalancesEnabled: jest.fn(),
-      getNetworkClientById: jest.fn(),
-      getCurrentChainId: jest.fn(),
-      ...options,
-    },
-    config,
-    state,
-  );
+  const accountTrackerController = new AccountTrackerController({
+    messenger: accountTrackerMessenger,
+    getMultiAccountBalancesEnabled: jest.fn(),
+    getNetworkClientById: jest.fn(),
+    getCurrentChainId: jest.fn(),
+    ...options,
+  });
 
   return {
     controller: accountTrackerController,
@@ -142,27 +134,14 @@ describe('AccountTrackerController', () => {
     });
   });
 
-  it('should throw when provider property is accessed', () => {
-    const { controller } = setupController({
-      options: {
-        getMultiAccountBalancesEnabled: () => true,
-        getCurrentChainId: () => '0x1',
-        getNetworkClientById: jest.fn(),
-      },
-    });
-    expect(() => console.log(controller.provider)).toThrow(
-      'Property only used for setting',
-    );
-  });
-
   it('should refresh when selectedAccount changes', async () => {
     const { controller, triggerSelectedAccountChange } = setupController({
       options: {
+        provider,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
         getNetworkClientById: jest.fn(),
       },
-      config: { provider },
     });
     controller.refresh = sinon.stub();
 
@@ -194,26 +173,26 @@ describe('AccountTrackerController', () => {
         });
         const { controller } = setupController({
           options: {
-            getMultiAccountBalancesEnabled: () => true,
-            getCurrentChainId: () => '0x1',
-            getNetworkClientById: jest.fn(),
-          },
-          config: { provider },
-          state: {
-            accounts: {
-              [checksumAddress1]: { balance: '0x1' },
-              foo: { balance: '0x2' },
-            },
-            accountsByChainId: {
-              '0x1': {
+            state: {
+              accounts: {
                 [checksumAddress1]: { balance: '0x1' },
                 foo: { balance: '0x2' },
               },
-              '0x2': {
-                [checksumAddress1]: { balance: '0xa' },
-                foo: { balance: '0xb' },
+              accountsByChainId: {
+                '0x1': {
+                  [checksumAddress1]: { balance: '0x1' },
+                  foo: { balance: '0x2' },
+                },
+                '0x2': {
+                  [checksumAddress1]: { balance: '0xa' },
+                  foo: { balance: '0xb' },
+                },
               },
             },
+            provider,
+            getMultiAccountBalancesEnabled: () => true,
+            getCurrentChainId: () => '0x1',
+            getNetworkClientById: jest.fn(),
           },
           mocks: {
             selectedAccount: mockAccount1,
@@ -244,11 +223,11 @@ describe('AccountTrackerController', () => {
 
         const { controller } = setupController({
           options: {
+            provider,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
           },
-          config: { provider },
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1],
@@ -280,11 +259,11 @@ describe('AccountTrackerController', () => {
 
         const { controller } = setupController({
           options: {
+            provider,
             getMultiAccountBalancesEnabled: () => false,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
           },
-          config: { provider },
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
@@ -314,11 +293,11 @@ describe('AccountTrackerController', () => {
 
         const { controller } = setupController({
           options: {
+            provider,
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn(),
           },
-          config: { provider },
           mocks: {
             selectedAccount: ACCOUNT_1,
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
@@ -355,6 +334,22 @@ describe('AccountTrackerController', () => {
         });
         const { controller } = setupController({
           options: {
+            state: {
+              accounts: {
+                [checksumAddress1]: { balance: '0x1' },
+                foo: { balance: '0x2' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [checksumAddress1]: { balance: '0x1' },
+                  foo: { balance: '0x2' },
+                },
+                '0x2': {
+                  [checksumAddress1]: { balance: '0xa' },
+                  foo: { balance: '0xb' },
+                },
+              },
+            },
             getMultiAccountBalancesEnabled: () => true,
             getCurrentChainId: () => '0x1',
             getNetworkClientById: jest.fn().mockReturnValue({
@@ -363,22 +358,6 @@ describe('AccountTrackerController', () => {
               },
               provider,
             }),
-          },
-          state: {
-            accounts: {
-              [checksumAddress1]: { balance: '0x1' },
-              foo: { balance: '0x2' },
-            },
-            accountsByChainId: {
-              '0x1': {
-                [checksumAddress1]: { balance: '0x1' },
-                foo: { balance: '0x2' },
-              },
-              '0x2': {
-                [checksumAddress1]: { balance: '0xa' },
-                foo: { balance: '0xb' },
-              },
-            },
           },
           mocks: {
             selectedAccount: mockAccount1,
@@ -541,11 +520,11 @@ describe('AccountTrackerController', () => {
     it('should sync balance with addresses', async () => {
       const { controller } = setupController({
         options: {
+          provider,
           getMultiAccountBalancesEnabled: () => true,
           getCurrentChainId: () => '0x1',
           getNetworkClientById: jest.fn(),
         },
-        config: { provider },
         mocks: {
           selectedAccount: ACCOUNT_1,
           listAccounts: [],
@@ -568,11 +547,12 @@ describe('AccountTrackerController', () => {
 
     const { controller } = setupController({
       options: {
+        provider,
+        interval: 100,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
         getNetworkClientById: jest.fn(),
       },
-      config: { provider, interval: 100 },
       mocks: {
         selectedAccount: EMPTY_ACCOUNT,
         listAccounts: [],
@@ -591,11 +571,12 @@ describe('AccountTrackerController', () => {
     sinon.stub(AccountTrackerController.prototype, 'poll');
     const { controller } = setupController({
       options: {
+        provider,
+        interval: 100,
         getMultiAccountBalancesEnabled: () => true,
         getCurrentChainId: () => '0x1',
         getNetworkClientById: jest.fn(),
       },
-      config: { provider, interval: 100 },
       mocks: {
         selectedAccount: EMPTY_ACCOUNT,
         listAccounts: [],

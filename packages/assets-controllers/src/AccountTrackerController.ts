@@ -5,8 +5,8 @@ import type {
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
-  BaseConfig,
-  BaseState,
+  ControllerStateChangeEvent,
+  ControllerGetStateAction,
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import {
@@ -20,30 +20,17 @@ import type {
   NetworkClientId,
   NetworkController,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
 
+/**
+ * The name of the {@link AccountTrackerController}.
+ */
 const controllerName = 'AccountTrackerController';
-
-export type AllowedActions =
-  | AccountsControllerListAccountsAction
-  | AccountsControllerGetSelectedAccountAction;
-
-export type AllowedEvents =
-  | AccountsControllerSelectedEvmAccountChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
-
-export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
-  typeof controllerName,
-  AllowedActions,
-  AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
 
 /**
  * @type AccountInformation
@@ -51,53 +38,154 @@ export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
  * Account information object
  * @property balance - Hex string of an account balancec in wei
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AccountInformation {
+export type AccountInformation = {
   balance: string;
-}
+};
 
 /**
- * @type AccountTrackerConfig
- *
- * Account tracker controller configuration
- * @property provider - Provider used to create a new underlying EthQuery instance
- */
-// This interface was created before this ESLint rule was added.
-// Remove in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AccountTrackerConfig extends BaseConfig {
-  interval: number;
-  provider?: Provider;
-}
-
-/**
- * @type AccountTrackerState
+ * @type AccountTrackerControllerState
  *
  * Account tracker controller state
  * @property accounts - Map of addresses to account information
  */
-// This interface was created before this ESLint rule was added.
-// Remove in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AccountTrackerState extends BaseState {
+export type AccountTrackerControllerState = {
   accounts: { [address: string]: AccountInformation };
   accountsByChainId: Record<string, { [address: string]: AccountInformation }>;
-}
+};
+
+const accountTrackerMetadata = {
+  accounts: {
+    persist: true,
+    anonymous: false,
+  },
+  accountsByChainId: {
+    persist: true,
+    anonymous: false,
+  },
+};
+
+export type AccountTrackerControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AccountTrackerControllerState
+>;
+
+export type AccountTrackerControllerActions =
+  AccountTrackerControllerGetStateAction;
+
+export type AllowedActions =
+  | AccountsControllerListAccountsAction
+  | AccountsControllerGetSelectedAccountAction;
+
+export type AccountTrackerControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    AccountTrackerControllerState
+  >;
+
+export type AccountTrackerControllerEvents =
+  AccountTrackerControllerStateChangeEvent;
+
+export type AllowedEvents =
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerSelectedAccountChangeEvent;
+
+/**
+ * The messenger of the {@link AccountTrackerController}.
+ */
+export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AccountTrackerControllerActions | AllowedActions,
+  AccountTrackerControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends StaticIntervalPollingControllerV1<
-  AccountTrackerConfig,
-  AccountTrackerState
+export class AccountTrackerController extends StaticIntervalPollingController<
+  typeof controllerName,
+  AccountTrackerControllerState,
+  AccountTrackerControllerMessenger
 > {
-  private _provider?: Provider;
+  #provider?: Provider;
 
-  private readonly refreshMutex = new Mutex();
+  readonly #refreshMutex = new Mutex();
 
-  private handle?: ReturnType<typeof setTimeout>;
+  #handle?: ReturnType<typeof setTimeout>;
+
+  readonly #getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+
+  readonly #getCurrentChainId: () => Hex;
+
+  readonly #getNetworkClientById: NetworkController['getNetworkClientById'];
+
+  /**
+   * Creates an AccountTracker instance.
+   *
+   * @param options - The controller options.
+   * @param options.state - Initial state to set on this controller.
+   * @param options.interval - Polling interval used to fetch new account balances.
+   * @param options.provider - Network provider.
+   * @param options.messenger - The controller messaging system.
+   * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
+   * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
+   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
+   */
+  constructor({
+    state,
+    interval = 10000,
+    provider,
+    messenger,
+    getMultiAccountBalancesEnabled,
+    getCurrentChainId,
+    getNetworkClientById,
+  }: {
+    interval?: number;
+    state?: Partial<AccountTrackerControllerState>;
+    provider?: Provider;
+    messenger: AccountTrackerControllerMessenger;
+    getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
+    getCurrentChainId: () => Hex;
+    getNetworkClientById: NetworkController['getNetworkClientById'];
+  }) {
+    super({
+      name: controllerName,
+      messenger,
+      state: {
+        accounts: {},
+        accountsByChainId: {
+          [getCurrentChainId()]: {},
+        },
+        ...state,
+      },
+      metadata: accountTrackerMetadata,
+    });
+    this.#provider = provider;
+    this.setIntervalLength(interval);
+    this.#getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
+    this.#getCurrentChainId = getCurrentChainId;
+    this.#getNetworkClientById = getNetworkClientById;
+
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.poll();
+
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      () => this.refresh(),
+    );
+  }
+
+  /**
+   * Sets a new provider.
+   * @param provider - Provider used to create a new underlying EthQuery instance.
+   */
+  setProvider(provider: Provider) {
+    this.#provider = provider;
+  }
 
   private syncAccounts(newChainId: string) {
     const accounts = { ...this.state.accounts };
@@ -146,90 +234,10 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
       });
     });
 
-    this.update({ accounts, accountsByChainId });
-  }
-
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AccountTrackerController' as const;
-
-  private readonly getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
-
-  private readonly getCurrentChainId: () => Hex;
-
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
-
-  private readonly messagingSystem: AccountTrackerControllerMessenger;
-
-  /**
-   * Creates an AccountTracker instance.
-   *
-   * @param options - The controller options.
-   * @param options.messenger - The messaging system used to communicate with other controllers.
-   * @param options.getMultiAccountBalancesEnabled - Gets the multi account balances enabled flag from the Preferences store.
-   * @param options.getCurrentChainId - Gets the chain ID for the current network from the Network store.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
-   */
-  constructor(
-    {
-      messenger,
-      getMultiAccountBalancesEnabled,
-      getCurrentChainId,
-      getNetworkClientById,
-    }: {
-      messenger: AccountTrackerControllerMessenger;
-      getMultiAccountBalancesEnabled: () => PreferencesState['isMultiAccountBalancesEnabled'];
-      getCurrentChainId: () => Hex;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-    },
-    config?: Partial<AccountTrackerConfig>,
-    state?: Partial<AccountTrackerState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      interval: 10000,
-    };
-    this.defaultState = {
-      accounts: {},
-      accountsByChainId: {
-        [getCurrentChainId()]: {},
-      },
-    };
-    this.initialize();
-    this.messagingSystem = messenger;
-    this.setIntervalLength(this.config.interval);
-    this.getMultiAccountBalancesEnabled = getMultiAccountBalancesEnabled;
-    this.getCurrentChainId = getCurrentChainId;
-    this.getNetworkClientById = getNetworkClientById;
-
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.poll();
-
-    this.messagingSystem.subscribe(
-      'AccountsController:selectedEvmAccountChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      () => this.refresh(),
-    );
-  }
-
-  /**
-   * Sets a new provider.
-   *
-   * TODO: Replace this wth a method.
-   *
-   * @param provider - Provider used to create a new underlying EthQuery instance.
-   */
-  set provider(provider: Provider) {
-    this._provider = provider;
-  }
-
-  get provider() {
-    throw new Error('Property only used for setting');
+    this.update((state) => {
+      state.accounts = accounts;
+      state.accountsByChainId = accountsByChainId;
+    });
   }
 
   /**
@@ -244,7 +252,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     ethQuery?: EthQuery;
   } {
     if (networkClientId) {
-      const networkClient = this.getNetworkClientById(networkClientId);
+      const networkClient = this.#getNetworkClientById(networkClientId);
 
       return {
         chainId: networkClient.configuration.chainId,
@@ -253,8 +261,8 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
     }
 
     return {
-      chainId: this.getCurrentChainId(),
-      ethQuery: this._provider ? new EthQuery(this._provider) : undefined,
+      chainId: this.#getCurrentChainId(),
+      ethQuery: this.#provider ? new EthQuery(this.#provider) : undefined,
     };
   }
 
@@ -264,14 +272,16 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * @param interval - Polling interval trigger a 'refresh'.
    */
   async poll(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.handle && clearTimeout(this.handle);
+    if (interval) {
+      this.setIntervalLength(interval);
+    }
+    this.#handle && clearTimeout(this.#handle);
     await this.refresh();
-    this.handle = setTimeout(() => {
+    this.#handle = setTimeout(() => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.poll(this.config.interval);
-    }, this.config.interval);
+      this.poll(this.getIntervalLength());
+    }, this.getIntervalLength());
   }
 
   /**
@@ -292,18 +302,18 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    *
    * @param networkClientId - Optional networkClientId to fetch a network client with
    */
-  refresh = async (networkClientId?: NetworkClientId) => {
+  async refresh(networkClientId?: NetworkClientId) {
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
-    const releaseLock = await this.refreshMutex.acquire();
+    const releaseLock = await this.#refreshMutex.acquire();
     try {
       const { chainId, ethQuery } =
         this.#getCorrectNetworkClient(networkClientId);
       this.syncAccounts(chainId);
       const { accounts, accountsByChainId } = this.state;
       const isMultiAccountBalancesEnabled =
-        this.getMultiAccountBalancesEnabled();
+        this.#getMultiAccountBalancesEnabled();
 
       const accountsToUpdate = isMultiAccountBalancesEnabled
         ? Object.keys(accounts)
@@ -311,7 +321,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
 
       const accountsForChain = { ...accountsByChainId[chainId] };
       for (const address of accountsToUpdate) {
-        const balance = await this.getBalanceFromChain(address, ethQuery);
+        const balance = await this.#getBalanceFromChain(address, ethQuery);
         if (balance) {
           accountsForChain[address] = {
             balance,
@@ -319,19 +329,16 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
         }
       }
 
-      this.update({
-        ...(chainId === this.getCurrentChainId() && {
-          accounts: accountsForChain,
-        }),
-        accountsByChainId: {
-          ...this.state.accountsByChainId,
-          [chainId]: accountsForChain,
-        },
+      this.update((state) => {
+        if (chainId === this.#getCurrentChainId()) {
+          state.accounts = accountsForChain;
+        }
+        state.accountsByChainId[chainId] = accountsForChain;
       });
     } finally {
       releaseLock();
     }
-  };
+  }
 
   /**
    * Fetches the balance of a given address from the blockchain.
@@ -340,7 +347,7 @@ export class AccountTrackerController extends StaticIntervalPollingControllerV1<
    * @param ethQuery - The EthQuery instance to query getBalnce with.
    * @returns A promise that resolves to the balance in a hex string format.
    */
-  private async getBalanceFromChain(
+  async #getBalanceFromChain(
     address: string,
     ethQuery?: EthQuery,
   ): Promise<string | undefined> {
