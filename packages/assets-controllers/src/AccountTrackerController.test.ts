@@ -14,10 +14,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '@metamask/network-controller/tests/helpers';
-import {
-  type PreferencesState,
-  getDefaultPreferencesState,
-} from '@metamask/preferences-controller';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
@@ -136,10 +133,8 @@ describe('AccountTrackerController', () => {
               },
             },
             isMultiAccountBalancesEnabled: true,
-            mocks: {
-              selectedAccount: mockAccount1,
-              listAccounts: [mockAccount1, mockAccount2],
-            },
+            selectedAccount: mockAccount1,
+            listAccounts: [mockAccount1, mockAccount2],
           },
           async ({ controller }) => {
             await controller.refresh();
@@ -169,10 +164,8 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             isMultiAccountBalancesEnabled: true,
-            mocks: {
-              selectedAccount: ACCOUNT_1,
-              listAccounts: [ACCOUNT_1],
-            },
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1],
           },
           async ({ controller }) => {
             await controller.refresh();
@@ -203,10 +196,8 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             isMultiAccountBalancesEnabled: false,
-            mocks: {
-              selectedAccount: ACCOUNT_1,
-              listAccounts: [ACCOUNT_1, ACCOUNT_2],
-            },
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
             await controller.refresh();
@@ -235,10 +226,8 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             isMultiAccountBalancesEnabled: true,
-            mocks: {
-              selectedAccount: ACCOUNT_1,
-              listAccounts: [ACCOUNT_1, ACCOUNT_2],
-            },
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller }) => {
             await controller.refresh();
@@ -294,14 +283,12 @@ describe('AccountTrackerController', () => {
               },
             },
             isMultiAccountBalancesEnabled: true,
-            mocks: {
-              selectedAccount: mockAccount1,
-              listAccounts: [mockAccount1, mockAccount2],
-              networkClientById: {
-                [networkClientId]: buildCustomNetworkClientConfiguration({
-                  chainId: '0x5',
-                }),
-              },
+            selectedAccount: mockAccount1,
+            listAccounts: [mockAccount1, mockAccount2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
             },
           },
           async ({ controller }) => {
@@ -337,14 +324,12 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             isMultiAccountBalancesEnabled: true,
-            mocks: {
-              selectedAccount: ACCOUNT_1,
-              listAccounts: [ACCOUNT_1],
-              networkClientById: {
-                [networkClientId]: buildCustomNetworkClientConfiguration({
-                  chainId: '0x5',
-                }),
-              },
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
             },
           },
           async ({ controller }) => {
@@ -382,14 +367,12 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             isMultiAccountBalancesEnabled: false,
-            mocks: {
-              selectedAccount: ACCOUNT_1,
-              listAccounts: [ACCOUNT_1, ACCOUNT_2],
-              networkClientById: {
-                [networkClientId]: buildCustomNetworkClientConfiguration({
-                  chainId: '0x5',
-                }),
-              },
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
             },
           },
           async ({ controller }) => {
@@ -424,14 +407,12 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             isMultiAccountBalancesEnabled: true,
-            mocks: {
-              selectedAccount: ACCOUNT_1,
-              listAccounts: [ACCOUNT_1, ACCOUNT_2],
-              networkClientById: {
-                [networkClientId]: buildCustomNetworkClientConfiguration({
-                  chainId: '0x5',
-                }),
-              },
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x5',
+              }),
             },
           },
           async ({ controller }) => {
@@ -464,10 +445,8 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           isMultiAccountBalancesEnabled: true,
-          mocks: {
-            selectedAccount: ACCOUNT_1,
-            listAccounts: [],
-          },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
         },
         async ({ controller }) => {
           mockedQuery
@@ -488,14 +467,10 @@ describe('AccountTrackerController', () => {
     const pollSpy = jest.spyOn(AccountTrackerController.prototype, 'poll');
     await withController(
       {
-        options: {
-          interval: 100,
-        },
+        options: { interval: 100 },
         isMultiAccountBalancesEnabled: true,
-        mocks: {
-          selectedAccount: EMPTY_ACCOUNT,
-          listAccounts: [],
-        },
+        selectedAccount: EMPTY_ACCOUNT,
+        listAccounts: [],
       },
       async ({ controller }) => {
         jest.spyOn(controller, 'refresh').mockResolvedValue();
@@ -519,14 +494,10 @@ describe('AccountTrackerController', () => {
     const networkClientId2 = 'networkClientId2';
     await withController(
       {
-        options: {
-          interval: 100,
-        },
+        options: { interval: 100 },
         isMultiAccountBalancesEnabled: true,
-        mocks: {
-          selectedAccount: EMPTY_ACCOUNT,
-          listAccounts: [],
-        },
+        selectedAccount: EMPTY_ACCOUNT,
+        listAccounts: [],
       },
       async ({ controller }) => {
         const refreshSpy = jest
@@ -581,12 +552,9 @@ type WithControllerCallback<ReturnValue> = ({
 type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof AccountTrackerController>[0]>;
   isMultiAccountBalancesEnabled?: boolean;
-  mocks?: {
-    selectedAccount?: InternalAccount;
-    listAccounts?: InternalAccount[];
-    networkClientById?: Record<NetworkClientId, NetworkClientConfiguration>;
-    preferencesState?: Partial<PreferencesState>;
-  };
+  selectedAccount?: InternalAccount;
+  listAccounts?: InternalAccount[];
+  networkClientById?: Record<NetworkClientId, NetworkClientConfiguration>;
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -609,12 +577,9 @@ async function withController<ReturnValue>(
     {
       options = {},
       isMultiAccountBalancesEnabled = false,
-      mocks = {
-        selectedAccount: ACCOUNT_1,
-        listAccounts: [],
-        networkClientById: {},
-        isMultiAccountBalancesEnabled: false,
-      },
+      selectedAccount = ACCOUNT_1,
+      listAccounts = [],
+      networkClientById = {},
     },
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
@@ -624,23 +589,19 @@ async function withController<ReturnValue>(
     ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
   >();
 
-  const mockGetSelectedAccount = jest
-    .fn()
-    .mockReturnValue(mocks.selectedAccount);
+  const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
   );
 
-  const mockListAccounts = jest.fn().mockReturnValue(mocks.listAccounts);
+  const mockListAccounts = jest.fn().mockReturnValue(listAccounts);
   messenger.registerActionHandler(
     'AccountsController:listAccounts',
     mockListAccounts,
   );
 
-  const getNetworkClientById = buildMockGetNetworkClientById(
-    mocks.networkClientById,
-  );
+  const getNetworkClientById = buildMockGetNetworkClientById(networkClientById);
   messenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     getNetworkClientById,
