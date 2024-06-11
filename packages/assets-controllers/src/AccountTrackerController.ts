@@ -17,13 +17,13 @@ import {
 import EthQuery from '@metamask/eth-query';
 import type { Provider } from '@metamask/eth-query';
 import type {
+  NetworkClient,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
@@ -186,12 +186,15 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     );
   }
 
-  #getCurrentChainId = (): Hex => {
-    const {
-      providerConfig: { chainId },
-    } = this.messagingSystem.call('NetworkController:getState');
-    return chainId;
-  };
+  #getCurrentNetworkClient(): NetworkClient {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    return this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+  }
 
   private syncAccounts(newChainId: string) {
     const accounts = { ...this.state.accounts };
@@ -258,20 +261,27 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     ethQuery?: EthQuery;
   } {
     if (networkClientId) {
-      const networkClient = this.messagingSystem.call(
+      const {
+        configuration: { chainId },
+        provider,
+      } = this.messagingSystem.call(
         'NetworkController:getNetworkClientById',
         networkClientId,
       );
 
       return {
-        chainId: networkClient.configuration.chainId,
-        ethQuery: new EthQuery(networkClient.provider),
+        chainId,
+        ethQuery: new EthQuery(provider),
       };
     }
 
+    const {
+      configuration: { chainId },
+      provider,
+    } = this.#getCurrentNetworkClient();
     return {
-      chainId: this.#getCurrentChainId(),
-      ethQuery: this.#provider ? new EthQuery(this.#provider) : undefined,
+      chainId,
+      ethQuery: new EthQuery(this.#provider ?? provider),
     };
   }
 
@@ -339,8 +349,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<
         }
       }
 
+      const {
+        configuration: { chainId: selectedChainId },
+      } = this.#getCurrentNetworkClient();
       this.update((state) => {
-        if (chainId === this.#getCurrentChainId()) {
+        if (chainId === selectedChainId) {
           state.accounts = accountsForChain;
         }
         state.accountsByChainId[chainId] = accountsForChain;
