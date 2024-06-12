@@ -1699,7 +1699,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/polling-controller@npm:^6.0.1, @metamask/polling-controller@npm:^6.0.2":
+"@metamask/polling-controller@npm:^6.0.2":
   version: 6.0.2
   resolution: "@metamask/polling-controller@npm:6.0.2"
   dependencies:
@@ -1713,6 +1713,23 @@ __metadata:
   peerDependencies:
     "@metamask/network-controller": ^18.0.0
   checksum: 900b4365c0992bd8cb4e134d513296e0c8fc7c4c6df75ea2572a2d6e3cb9b48a98283bb3db6b7d618c87cd937143a44961bcc85fba49e46299ae059ff7275bc3
+  languageName: node
+  linkType: hard
+
+"@metamask/polling-controller@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "@metamask/polling-controller@npm:8.0.0"
+  dependencies:
+    "@metamask/base-controller": ^6.0.0
+    "@metamask/controller-utils": ^11.0.0
+    "@metamask/network-controller": ^19.0.0
+    "@metamask/utils": ^8.3.0
+    "@types/uuid": ^8.3.0
+    fast-json-stable-stringify: ^2.1.0
+    uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/network-controller": ^19.0.0
+  checksum: ca753fd9b3f1fe026b9feacf9670b2e71f479ece37e4c1219f11e825cf8af34f40a7f32f29b742589fc4a292a7552e3b243bc27feb04b05dc23d526e077d83e4
   languageName: node
   linkType: hard
 
@@ -1751,7 +1768,7 @@ __metadata:
     "@metamask/eslint-config-typescript": ^12.1.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/network-controller": ^19.0.0
-    "@metamask/polling-controller": ^6.0.1
+    "@metamask/polling-controller": ^8.0.0
     "@metamask/transaction-controller": ^30.0.0
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194
