@@ -35,10 +35,10 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/network-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
+    "test": "jest --reporters=jest-silent-reporter",
+    "test:clean": "jest --clearCache",
     "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch",
-    "test:clean-only": "jest --clearCache"
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^6.0.0",
