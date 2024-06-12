@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Add `messenger` as a constructor option for `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
   - Add `AccountTrackerControllerMessenger` type
-- `NftController` now allows `AccountsController:getAccount`, `AccountsController:getSelectedAccount` as messenger actions and subscribes to the `AccountsController:selectedEvmAccountChange` messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** The `NftController` messenger must now allow `AccountsController:getAccount` and `AccountsController:getSelectedAccount` as messenger actions and `AccountsController:selectedEvmAccountChange` as a messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `NftDetectionController` now allows `AccountsController:getSelectedAccount` as a messenger action ([#4221](https://github.com/MetaMask/core/pull/4221))
 - Token price API support for mantle network ([#4376](https://github.com/MetaMask/core/pull/4376))
 
