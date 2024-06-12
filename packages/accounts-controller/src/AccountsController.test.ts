@@ -189,7 +189,11 @@ function createExpectedInternalAccount({
 }): InternalAccount {
   const accountTypeToMethods = {
     [`${EthAccountType.Eoa}`]: [...Object.values(ETH_EOA_METHODS)],
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     [`${EthAccountType.Erc4337}`]: [...Object.values(ETH_ERC_4337_METHODS)],
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     [`${BtcAccountType.P2wpkh}`]: [...Object.values(BtcMethod)],
   };
 
@@ -2360,6 +2364,33 @@ describe('AccountsController', () => {
       const account = accountsController.getAccountByAddress('unknown address');
 
       expect(account).toBeUndefined();
+    });
+
+    it('returns a non-EVM account by address', async () => {
+      const mockNonEvmAccount = createExpectedInternalAccount({
+        id: 'mock-non-evm',
+        name: 'non-evm',
+        address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+        keyringType: KeyringTypes.snap,
+        type: BtcAccountType.P2wpkh,
+      });
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {
+              [mockAccount.id]: mockAccount,
+              [mockNonEvmAccount.id]: mockNonEvmAccount,
+            },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const account = accountsController.getAccountByAddress(
+        mockNonEvmAccount.address,
+      );
+
+      expect(account).toStrictEqual(mockNonEvmAccount);
     });
   });
 

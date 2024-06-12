@@ -10,6 +10,8 @@ import type { Env } from './env';
 import { PairError, UnsupportedAuthTypeError } from './errors';
 
 // Computing the Classes, so we only get back the public methods for the interface.
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type Compute<T> = T extends infer U ? { [K in keyof U]: U[K] } : never;
 type SIWEInterface = Compute<SIWEJwtBearerAuth>;
 type SRPInterface = Compute<SRPJwtBearerAuth>;
@@ -69,8 +71,14 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
           const sig = await p.signMessage(raw);
           return {
             signature: sig,
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             raw_message: raw,
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             encrypted_storage_key: p.encryptedStorageKey,
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             identifier_type: p.identifierType,
           };
         } catch (e) {

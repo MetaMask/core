@@ -11,14 +11,11 @@ import {
   ChainId,
   ORIGIN_METAMASK,
   convertHexToDecimal,
-  NetworkType,
-  toHex,
-  NetworksTicker,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
-  ProviderConfig,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
@@ -60,17 +57,6 @@ const ContractMock = jest.mocked(Contract);
 const uuidV1Mock = jest.mocked(uuidV1);
 const ERC20StandardMock = jest.mocked(ERC20Standard);
 const ERC1155StandardMock = jest.mocked(ERC1155Standard);
-
-const SEPOLIA = {
-  chainId: toHex(11155111),
-  type: NetworkType.sepolia,
-  ticker: NetworksTicker.sepolia,
-};
-const GOERLI = {
-  chainId: toHex(5),
-  type: NetworkType.goerli,
-  ticker: NetworksTicker.goerli,
-};
 
 describe('TokensController', () => {
   beforeEach(() => {
@@ -321,17 +307,17 @@ describe('TokensController', () => {
 
   it('should add token by network', async () => {
     await withController(async ({ controller, changeNetwork }) => {
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
       });
 
-      changeNetwork(GOERLI);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       expect(controller.state.tokens).toHaveLength(0);
 
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
@@ -472,13 +458,13 @@ describe('TokensController', () => {
       ContractMock.mockReturnValue(
         buildMockEthersERC721Contract({ supportsInterface: false }),
       );
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x02',
         symbol: 'baz',
         decimals: 2,
       });
-      changeNetwork(GOERLI);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
@@ -488,7 +474,7 @@ describe('TokensController', () => {
       controller.ignoreTokens(['0x01']);
       expect(controller.state.tokens).toHaveLength(0);
 
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x02',
         decimals: 2,
@@ -544,7 +530,7 @@ describe('TokensController', () => {
             ...getDefaultPreferencesState(),
             selectedAddress,
           });
-          changeNetwork(SEPOLIA);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -591,7 +577,7 @@ describe('TokensController', () => {
             ...getDefaultPreferencesState(),
             selectedAddress,
           });
-          changeNetwork(SEPOLIA);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -629,7 +615,7 @@ describe('TokensController', () => {
             ...getDefaultPreferencesState(),
             selectedAddress: selectedAddress1,
           });
-          changeNetwork(SEPOLIA);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -641,7 +627,7 @@ describe('TokensController', () => {
           expect(controller.state.tokens).toHaveLength(0);
           expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
 
-          changeNetwork(GOERLI);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
           expect(controller.state.ignoredTokens).toHaveLength(0);
 
           await controller.addToken({
@@ -903,7 +889,7 @@ describe('TokensController', () => {
             symbol: 'LINK',
             decimals: 18,
           });
-          changeNetwork(GOERLI);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
 
           await expect(addTokenPromise).rejects.toThrow(
             'TokensController Error: Switched networks while adding token',
@@ -928,6 +914,8 @@ describe('TokensController', () => {
           const fullErrorMessage = `TokenService Error: ${error}`;
           nock(TOKEN_END_POINT_API)
             .get(
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `/token/${convertHexToDecimal(
                 chainId,
               )}?address=${dummyTokenAddress}`,
@@ -992,9 +980,12 @@ describe('TokensController', () => {
           );
 
           // The currently configured chain + address
-          const CONFIGURED_CHAIN = SEPOLIA;
+          const CONFIGURED_CHAIN = ChainId.sepolia;
+          const CONFIGURED_NETWORK_CLIENT_ID = InfuraNetworkType.sepolia;
           const CONFIGURED_ADDRESS = '0xConfiguredAddress';
-          changeNetwork(CONFIGURED_CHAIN);
+          changeNetwork({
+            selectedNetworkClientId: CONFIGURED_NETWORK_CLIENT_ID,
+          });
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             selectedAddress: CONFIGURED_ADDRESS,
@@ -1046,12 +1037,12 @@ describe('TokensController', () => {
 
             // Expect tokens under the correct chain + account
             expect(controller.state.allTokens).toStrictEqual({
-              [CONFIGURED_CHAIN.chainId]: {
+              [CONFIGURED_CHAIN]: {
                 [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
               },
             });
             expect(controller.state.allDetectedTokens).toStrictEqual({
-              [CONFIGURED_CHAIN.chainId]: {
+              [CONFIGURED_CHAIN]: {
                 [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
               },
               [OTHER_CHAIN]: {
@@ -1939,7 +1930,7 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
 
-        changeNetwork(SEPOLIA);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         await controller.addToken({
           address: '0x01',
           symbol: 'A',
@@ -1952,7 +1943,7 @@ describe('TokensController', () => {
         });
         const initialTokensFirst = controller.state.tokens;
 
-        changeNetwork(GOERLI);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         await controller.addToken({
           address: '0x03',
           symbol: 'C',
@@ -2009,10 +2000,10 @@ describe('TokensController', () => {
           },
         ]);
 
-        changeNetwork(SEPOLIA);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         expect(initialTokensFirst).toStrictEqual(controller.state.tokens);
 
-        changeNetwork(GOERLI);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         expect(initialTokensSecond).toStrictEqual(controller.state.tokens);
       });
     });
@@ -2179,7 +2170,9 @@ type WithControllerCallback<ReturnValue> = ({
   triggerPreferencesStateChange,
 }: {
   controller: TokensController;
-  changeNetwork: (providerConfig: ProviderConfig) => void;
+  changeNetwork: (networkControllerState: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => void;
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
@@ -2259,10 +2252,14 @@ async function withController<ReturnValue>(
     messenger.publish('PreferencesController:stateChange', state, []);
   };
 
-  const changeNetwork = (providerConfig: ProviderConfig) => {
+  const changeNetwork = ({
+    selectedNetworkClientId,
+  }: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => {
     messenger.publish('NetworkController:networkDidChange', {
       ...defaultNetworkState,
-      providerConfig,
+      selectedNetworkClientId,
     });
   };
 

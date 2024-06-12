@@ -32,6 +32,8 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (req, res, next, end) =>
         implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
@@ -66,6 +68,8 @@ describe('requestPermissions RPC method', () => {
     // is catched.
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
       createAsyncMiddleware(async (req, res, next) =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
         }),
@@ -99,6 +103,8 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) => {
         await implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
@@ -122,6 +128,8 @@ describe('requestPermissions RPC method', () => {
       delete expectedError.stack;
 
       // @ts-expect-error Intentional destructive testing
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       delete response.error.stack;

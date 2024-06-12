@@ -52,12 +52,26 @@ const name = 'KeyringController';
  * Available keyring types
  */
 export enum KeyringTypes {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   simple = 'Simple Key Pair',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   hd = 'HD Key Tree',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   qr = 'QR Hardware Wallet Device',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   trezor = 'Trezor Hardware',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ledger = 'Ledger Hardware',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   lattice = 'Lattice Hardware',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   snap = 'Snap Keyring',
 }
 
@@ -246,7 +260,11 @@ export type KeyringObject = {
  * A strategy for importing an account
  */
 export enum AccountImportStrategy {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   privateKey = 'privateKey',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   json = 'json',
 }
 
@@ -380,6 +398,8 @@ export type KeyringSelector =
  *
  * @param releaseLock - A function to release the lock.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type MutuallyExclusiveCallback<T> = ({
   releaseLock,
 }: {
@@ -611,7 +631,7 @@ export class KeyringController extends BaseController<
     });
 
     this.#keyringBuilders = keyringBuilders
-      ? defaultKeyringBuilders.concat(keyringBuilders)
+      ? keyringBuilders.concat(defaultKeyringBuilders)
       : defaultKeyringBuilders;
 
     this.#encryptor = encryptor;
@@ -1049,7 +1069,7 @@ export class KeyringController extends BaseController<
       // FIXME: We do cast to `Hex` to makes the type checker happy here, and
       // because `Keyring<State>.removeAccount` requires address to be `Hex`. Those
       // type would need to be updated for a full non-EVM support.
-      await keyring.removeAccount(address as Hex);
+      keyring.removeAccount(address as Hex);
 
       const accounts = await keyring.getAccounts();
       // Check if this was the last/only account
@@ -1166,6 +1186,8 @@ export class KeyringController extends BaseController<
         { version },
       );
     } catch (error) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       throw new Error(`Keyring Controller signTypedMessage: ${error}`);
     }
   }
@@ -1496,6 +1518,7 @@ export class KeyringController extends BaseController<
    * Get QR Hardware keyring.
    *
    * @returns The QR Keyring if defined, otherwise undefined
+   * @deprecated Use `withKeyring` instead.
    */
   getQRKeyring(): QRKeyring | undefined {
     // QRKeyring is not yet compatible with Keyring type from @metamask/utils
@@ -1506,6 +1529,7 @@ export class KeyringController extends BaseController<
    * Get QR hardware keyring. If it doesn't exist, add it.
    *
    * @returns The added keyring
+   * @deprecated Use `addNewKeyring` and `withKeyring` instead.
    */
   async getOrAddQRKeyring(): Promise<QRKeyring> {
     return (
@@ -1514,6 +1538,13 @@ export class KeyringController extends BaseController<
     );
   }
 
+  /**
+   * Restore QR keyring from serialized data.
+   *
+   * @param serialized - Serialized data to restore the keyring from.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async restoreQRKeyring(serialized: any): Promise<void> {
@@ -1523,22 +1554,57 @@ export class KeyringController extends BaseController<
     });
   }
 
+  /**
+   * Reset QR keyring state.
+   *
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async resetQRKeyringState(): Promise<void> {
     (await this.getOrAddQRKeyring()).resetStore();
   }
 
+  /**
+   * Get QR keyring state.
+   *
+   * @returns Promise resolving to the keyring state.
+   * @deprecated Use `withKeyring` or subscribe to `"KeyringController:qrKeyringStateChange"`
+   * instead.
+   */
   async getQRKeyringState(): Promise<IQRKeyringState> {
     return (await this.getOrAddQRKeyring()).getMemStore();
   }
 
+  /**
+   * Submit QR hardware wallet public HDKey.
+   *
+   * @param cryptoHDKey - The key to submit.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async submitQRCryptoHDKey(cryptoHDKey: string): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoHDKey(cryptoHDKey);
   }
 
+  /**
+   * Submit QR hardware wallet account.
+   *
+   * @param cryptoAccount - The account to submit.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async submitQRCryptoAccount(cryptoAccount: string): Promise<void> {
     (await this.getOrAddQRKeyring()).submitCryptoAccount(cryptoAccount);
   }
 
+  /**
+   * Submit QR hardware wallet signature.
+   *
+   * @param requestId - The request ID.
+   * @param ethSignature - The signature to submit.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async submitQRSignature(
     requestId: string,
     ethSignature: string,
@@ -1546,18 +1612,36 @@ export class KeyringController extends BaseController<
     (await this.getOrAddQRKeyring()).submitSignature(requestId, ethSignature);
   }
 
+  /**
+   * Cancel QR sign request.
+   *
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async cancelQRSignRequest(): Promise<void> {
     (await this.getOrAddQRKeyring()).cancelSignRequest();
   }
 
   /**
    * Cancels qr keyring sync.
+   *
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
    */
   async cancelQRSynchronization(): Promise<void> {
     // eslint-disable-next-line n/no-sync
     (await this.getOrAddQRKeyring()).cancelSync();
   }
 
+  /**
+   * Connect to QR hardware wallet.
+   *
+   * @param page - The page to connect to.
+   * @returns Promise resolving to the connected accounts.
+   * @deprecated Use of this method is discouraged as it creates a dangling promise
+   * internal to the `QRKeyring`, which can lead to unpredictable deadlocks. Please use
+   * `withKeyring` instead.
+   */
   async connectQRHardware(
     page: number,
   ): Promise<{ balance: string; address: string; index: number }[]> {
@@ -1586,11 +1670,20 @@ export class KeyringController extends BaseController<
       } catch (e) {
         // TODO: Add test case for when keyring throws
         /* istanbul ignore next */
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unspecified error when connect QR Hardware, ${e}`);
       }
     });
   }
 
+  /**
+   * Unlock a QR hardware wallet account.
+   *
+   * @param index - The index of the account to unlock.
+   * @returns Promise resolving when the operation completes.
+   * @deprecated Use `withKeyring` instead.
+   */
   async unlockQRHardwareWalletAccount(index: number): Promise<void> {
     return this.#persistOrRollback(async () => {
       const keyring = this.getQRKeyring() || (await this.#addQRKeyring());
@@ -1607,6 +1700,12 @@ export class KeyringController extends BaseController<
     return keyring.type;
   }
 
+  /**
+   * Forget the QR hardware wallet.
+   *
+   * @returns Promise resolving to the removed accounts and the remaining accounts.
+   * @deprecated Use `withKeyring` instead.
+   */
   async forgetQRDevice(): Promise<{
     removedAccounts: string[];
     remainingAccounts: string[];
@@ -2239,6 +2338,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #persistOrRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withRollback(async ({ releaseLock }) => {
       const callbackResult = await fn({ releaseLock });
@@ -2256,6 +2357,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute atomically.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withRollback<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return this.#withControllerLock(async ({ releaseLock }) => {
       const currentSerializedKeyrings = await this.#getSerializedKeyrings();
@@ -2296,6 +2399,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute while the controller mutex is locked.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withControllerLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     return withLock(this.#controllerOperationMutex, fn);
   }
@@ -2311,6 +2416,8 @@ export class KeyringController extends BaseController<
    * @param fn - The function to execute while the vault mutex is locked.
    * @returns The result of the function.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withVaultLock<T>(fn: MutuallyExclusiveCallback<T>): Promise<T> {
     this.#assertControllerMutexIsLocked();
 
@@ -2327,6 +2434,8 @@ export class KeyringController extends BaseController<
  * @param fn - The function to execute while the mutex is locked.
  * @returns The result of the function.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 async function withLock<T>(
   mutex: Mutex,
   fn: MutuallyExclusiveCallback<T>,

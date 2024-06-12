@@ -260,11 +260,16 @@ export class TokensController extends BaseController<
    * Handles the event when the network changes.
    *
    * @param networkState - The changed network state.
-   * @param networkState.providerConfig - RPC URL and network name provider settings of the currently connected network
+   * @param networkState.selectedNetworkClientId - The ID of the currently
+   * selected network client.
    */
-  #onNetworkDidChange({ providerConfig }: NetworkState) {
+  #onNetworkDidChange({ selectedNetworkClientId }: NetworkState) {
+    const selectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const { chainId } = providerConfig;
+    const { chainId } = selectedNetworkClient.configuration;
     this.#abortController.abort();
     this.#abortController = new AbortController();
     this.#chainId = chainId;
@@ -805,6 +810,8 @@ export class TokensController extends BaseController<
 
     if (await this.#detectIsERC721(asset.address, networkClientId)) {
       throw rpcErrors.invalidParams(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC721}`,
       );
     }
@@ -817,6 +824,8 @@ export class TokensController extends BaseController<
     );
     if (isErc1155) {
       throw rpcErrors.invalidParams(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC1155}`,
       );
     }
@@ -844,6 +853,8 @@ export class TokensController extends BaseController<
       asset.symbol.toUpperCase() !== contractSymbol.toUpperCase()
     ) {
       throw rpcErrors.invalidParams(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
       );
     }
@@ -873,6 +884,8 @@ export class TokensController extends BaseController<
       String(asset.decimals) !== contractDecimals
     ) {
       throw rpcErrors.invalidParams(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The decimals in the request (${asset.decimals}) do not match the decimals in the contract (${contractDecimals})`,
       );
     }
@@ -881,6 +894,8 @@ export class TokensController extends BaseController<
     const decimalsNum = parseInt(decimalsStr as unknown as string, 10);
     if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
       throw rpcErrors.invalidParams(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid decimals "${decimalsStr}": must be an integer 0 <= 36`,
       );
     }

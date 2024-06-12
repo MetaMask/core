@@ -39,10 +39,11 @@ function buildFakeNetworkClient({
   configuration: NetworkClientConfiguration;
   providerStubs?: FakeProviderStub[];
 }): NetworkClient {
+  const provider = new FakeProvider({ stubs: providerStubs });
   return {
     configuration,
-    provider: new FakeProvider({ stubs: providerStubs }),
-    blockTracker: new FakeBlockTracker(),
+    provider,
+    blockTracker: new FakeBlockTracker({ provider }),
     destroy: () => {
       // do nothing
     },
@@ -126,10 +127,12 @@ export function buildMockGetNetworkClientById(
  * of an Infura network.
  *
  * @param network - The name of an Infura network.
- * @returns the Infura network client configuration.
+ * @param overrides - Properties to merge into the configuration object.
+ * @returns the complete Infura network client configuration.
  */
 export function buildInfuraNetworkClientConfiguration(
   network: InfuraNetworkType,
+  overrides: Partial<InfuraNetworkClientConfiguration> = {},
 ): InfuraNetworkClientConfiguration {
   return {
     type: NetworkClientType.Infura,
@@ -137,6 +140,7 @@ export function buildInfuraNetworkClientConfiguration(
     infuraProjectId: 'test-infura-project-id',
     chainId: BUILT_IN_NETWORKS[network].chainId,
     ticker: BUILT_IN_NETWORKS[network].ticker,
+    ...overrides,
   };
 }
 

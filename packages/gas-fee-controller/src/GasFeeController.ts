@@ -32,6 +32,8 @@ import {
 
 export const GAS_API_BASE_URL = 'https://gas.api.infura.io';
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type unknownString = 'unknown';
 
 // Fee Market describes the way gas is set after the london hardfork, and was
@@ -270,6 +272,8 @@ export class GasFeeController extends StaticIntervalPollingController<
 
   private readonly legacyAPIEndpoint: string;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   private readonly EIP1559APIEndpoint: string;
 
   private readonly getCurrentNetworkEIP1559Compatibility;
@@ -359,15 +363,23 @@ export class GasFeeController extends StaticIntervalPollingController<
 
     if (onNetworkDidChange && getChainId) {
       this.currentChainId = getChainId();
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onNetworkDidChange(async (networkControllerState) => {
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      this.currentChainId = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messagingSystem.call(
         'NetworkController:getState',
-      ).providerConfig.chainId;
+      );
+      this.currentChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        selectedNetworkClientId,
+      ).configuration.chainId;
       this.messagingSystem.subscribe(
         'NetworkController:networkDidChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
           await this.#onNetworkControllerDidChange(networkControllerState);
         },
@@ -536,6 +548,8 @@ export class GasFeeController extends StaticIntervalPollingController<
       clearInterval(this.intervalId);
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
@@ -586,8 +600,13 @@ export class GasFeeController extends StaticIntervalPollingController<
     );
   }
 
-  async #onNetworkControllerDidChange(networkControllerState: NetworkState) {
-    const newChainId = networkControllerState.providerConfig.chainId;
+  async #onNetworkControllerDidChange({
+    selectedNetworkClientId,
+  }: NetworkState) {
+    const newChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    ).configuration.chainId;
 
     if (newChainId !== this.currentChainId) {
       this.ethQuery = new EthQuery(this.#getProvider());

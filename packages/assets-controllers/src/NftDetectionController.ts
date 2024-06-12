@@ -1,3 +1,4 @@
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import {
@@ -37,7 +38,8 @@ export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
-  | PreferencesControllerGetStateAction;
+  | PreferencesControllerGetStateAction
+  | AccountsControllerGetSelectedAccountAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -72,20 +74,44 @@ export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property lastSale - When this item was last sold
  */
 export type ApiNft = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_id: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   num_sales: number | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   background_color: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_preview_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_thumbnail_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_original_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_original_url: string | null;
   name: string | null;
   description: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract: ApiNftContract;
   creator: ApiNftCreator;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   last_sale: ApiNftLastSale | null;
 };
 
@@ -105,15 +131,27 @@ export type ApiNft = {
  */
 export type ApiNftContract = {
   address: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract_type: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   created_date: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   schema_name: string | null;
   symbol: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_supply: string | null;
   description: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
   collection: {
     name: string | null;
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     image_url?: string | null;
     tokenCount?: string | null;
   };
@@ -128,8 +166,14 @@ export type ApiNftContract = {
  * @property transaction - Object containing transaction_hash and block_hash
  */
 export type ApiNftLastSale = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   event_timestamp: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_price: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   transaction: { transaction_hash: string; block_hash: string };
 };
 
@@ -143,6 +187,8 @@ export type ApiNftLastSale = {
  */
 export type ApiNftCreator = {
   user: { username: string };
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   profile_img_url: string;
   address: string;
 };
@@ -169,8 +215,14 @@ export enum BlockaidResultType {
 export type Blockaid = {
   contract: string;
   chainId: number;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: BlockaidResultType;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   malicious_score: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   attack_types: object;
 };
 
@@ -444,6 +496,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
   async #startPolling(): Promise<void> {
     this.#stopPolling();
     await this.detectNfts();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#intervalId = setInterval(async () => {
       await this.detectNfts();
     }, this.#interval);
@@ -480,6 +534,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
     if (!useNftDetection !== this.#disabled) {
       this.#disabled = !useNftDetection;
       if (useNftDetection) {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.start();
       } else {
         this.stop();
@@ -488,6 +544,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
   }
 
   #getOwnerNftApi({ address, next }: { address: string; next?: string }) {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
       next ?? ''
     }`;
@@ -542,8 +600,8 @@ export class NftDetectionController extends StaticIntervalPollingController<
   }) {
     const userAddress =
       options?.userAddress ??
-      this.messagingSystem.call('PreferencesController:getState')
-        .selectedAddress;
+      this.messagingSystem.call('AccountsController:getSelectedAccount')
+        .address;
     /* istanbul ignore if */
     if (!this.isMainnet() || this.#disabled) {
       return;
@@ -556,11 +614,19 @@ export class NftDetectionController extends StaticIntervalPollingController<
     const apiNfts = await this.#getOwnerNfts(userAddress);
     const addNftPromises = apiNfts.map(async (nft) => {
       const {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         tokenId: token_id,
         contract,
         kind,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         image: image_url,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         imageSmall: image_thumbnail_url,
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         metadata: { imageOriginal: image_original_url } = {},
         name,
         description,

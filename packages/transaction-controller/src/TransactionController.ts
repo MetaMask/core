@@ -2,6 +2,7 @@ import { Hardfork, Common, type ChainConfig } from '@ethereumjs/common';
 import type { TypedTransaction } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { bufferToHex } from '@ethereumjs/util';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
   AddApprovalRequest,
@@ -15,10 +16,10 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import {
   query,
-  NetworkType,
   ApprovalType,
   ORIGIN_METAMASK,
   convertHexToDecimal,
+  isInfuraNetworkType,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
@@ -36,11 +37,11 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { NetworkClientType } from '@metamask/network-controller';
-import { NonceTracker } from '@metamask/nonce-tracker';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
 } from '@metamask/nonce-tracker';
+import { NonceTracker } from '@metamask/nonce-tracker';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
@@ -297,7 +298,6 @@ export type TransactionControllerOptions = {
   getNetworkState: () => NetworkState;
   getPermittedAccounts: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  getSelectedAddress: () => string;
   incomingTransactions?: IncomingTransactionOptions;
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
@@ -344,7 +344,8 @@ const controllerName = 'TransactionController';
 export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerFindNetworkClientIdByChainIdAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AccountsControllerGetSelectedAccountAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -614,8 +615,6 @@ export class TransactionController extends BaseController<
 
   private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
 
-  private readonly getSelectedAddress: () => string;
-
   private readonly getExternalPendingTransactions: (
     address: string,
     chainId?: string,
@@ -733,7 +732,6 @@ export class TransactionController extends BaseController<
    * @param options.getNetworkState - Gets the state of the network controller.
    * @param options.getPermittedAccounts - Get accounts that a given origin has permissions for.
    * @param options.getSavedGasFees - Gets the saved gas fee config.
-   * @param options.getSelectedAddress - Gets the address of the currently selected account.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
@@ -761,7 +759,6 @@ export class TransactionController extends BaseController<
     getNetworkState,
     getPermittedAccounts,
     getSavedGasFees,
-    getSelectedAddress,
     incomingTransactions = {},
     isMultichainEnabled = false,
     isSimulationEnabled,
@@ -802,7 +799,6 @@ export class TransactionController extends BaseController<
     this.getGasFeeEstimates =
       getGasFeeEstimates || (() => Promise.resolve({} as GasFeeState));
     this.getPermittedAccounts = getPermittedAccounts;
-    this.getSelectedAddress = getSelectedAddress;
     this.getExternalPendingTransactions =
       getExternalPendingTransactions ?? (() => []);
     this.securityProviderRequest = securityProviderRequest;
@@ -1035,7 +1031,7 @@ export class TransactionController extends BaseController<
     if (origin) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
-        this.getSelectedAddress(),
+        this.#getSelectedAccount().address,
         txParams.from,
         origin,
       );
@@ -1586,10 +1582,9 @@ export class TransactionController extends BaseController<
   updateTransaction(transactionMeta: TransactionMeta, note: string) {
     const { id: transactionId } = transactionMeta;
 
-    this.#updateTransactionInternal(
-      { transactionId, note, skipHistory: this.isHistoryDisabled },
-      () => ({ ...transactionMeta }),
-    );
+    this.#updateTransactionInternal({ transactionId, note }, () => ({
+      ...transactionMeta,
+    }));
   }
 
   /**
@@ -2812,6 +2807,8 @@ export class TransactionController extends BaseController<
       updatedTransactionMeta,
     );
     this.#internalEvents.emit(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${transactionMeta.id}:finished`,
       updatedTransactionMeta,
     );
@@ -2847,6 +2844,8 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           const key = `${String(txParams.nonce)}-${convertHexToDecimal(
             chainId,
           )}-${new Date(time).toDateString()}`;
@@ -3430,7 +3429,7 @@ export class TransactionController extends BaseController<
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
       blockTracker,
-      getCurrentAccount: this.getSelectedAddress,
+      getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
@@ -3650,7 +3649,9 @@ export class TransactionController extends BaseController<
       updatedTransactionParams =
         this.#checkIfTransactionParamsUpdated(transactionMeta);
 
-      if (skipHistory !== true) {
+      const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
+
+      if (!shouldSkipHistory) {
         transactionMeta = updateTransactionHistory(
           transactionMeta,
           note ?? 'Transaction updated',
@@ -3745,6 +3746,7 @@ export class TransactionController extends BaseController<
 
     const finalTransactionMeta = this.getTransaction(transactionId);
 
+    /* istanbul ignore if */
     if (!finalTransactionMeta) {
       log(
         'Cannot update simulation data as transaction not found',
@@ -3826,14 +3828,19 @@ export class TransactionController extends BaseController<
   }
 
   #getGlobalChainId() {
-    return this.getNetworkState().providerConfig.chainId;
+    return this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      this.getNetworkState().selectedNetworkClientId,
+    ).configuration.chainId;
   }
 
   #isCustomNetwork(networkClientId?: NetworkClientId) {
     const globalNetworkClientId = this.#getGlobalNetworkClientId();
 
     if (!networkClientId || networkClientId === globalNetworkClientId) {
-      return this.getNetworkState().providerConfig.type === NetworkType.rpc;
+      return !isInfuraNetworkType(
+        this.getNetworkState().selectedNetworkClientId,
+      );
     }
 
     return (
@@ -3842,5 +3849,9 @@ export class TransactionController extends BaseController<
         networkClientId,
       ).configuration.type === NetworkClientType.Custom
     );
+  }
+
+  #getSelectedAccount() {
+    return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 }

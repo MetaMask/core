@@ -307,6 +307,10 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
+    if (!this.#useRequestQueuePreference) {
+      return;
+    }
+
     if (domain === METAMASK_DOMAIN) {
       throw new Error(
         `NetworkClientId for domain "${METAMASK_DOMAIN}" cannot be set on the SelectedNetworkController`,

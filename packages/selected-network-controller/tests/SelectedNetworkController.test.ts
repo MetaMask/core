@@ -225,36 +225,77 @@ describe('SelectedNetworkController', () => {
     });
   });
 
-  describe('It updates domain state when the network controller state changes', () => {
-    describe('when a networkClient is deleted from the network controller state', () => {
-      it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
-        const { controller, messenger } = setup({
-          state: {
-            domains: {
-              metamask: 'goerli',
-              'example.com': 'test-network-client-id',
-              'test.com': 'test-network-client-id',
+  describe('networkController:stateChange', () => {
+    describe('when useRequestQueuePreference is false', () => {
+      describe('when a networkClient is deleted from the network controller state', () => {
+        it('does not update the networkClientId for domains which were previously set to the deleted networkClientId', () => {
+          const { controller, messenger } = setup({
+            state: {
+              // normally there would not be any domains in state if useRequestQueuePreference is false
+              domains: {
+                metamask: 'goerli',
+                'example.com': 'test-network-client-id',
+                'test.com': 'test-network-client-id',
+              },
             },
-          },
-        });
+          });
 
-        messenger.publish(
-          'NetworkController:stateChange',
-          {
-            providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
-            selectedNetworkClientId: 'goerli',
-            networkConfigurations: {},
-            networksMetadata: {},
-          },
-          [
+          messenger.publish(
+            'NetworkController:stateChange',
             {
-              op: 'remove',
-              path: ['networkConfigurations', 'test-network-client-id'],
+              providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
+              selectedNetworkClientId: 'goerli',
+              networkConfigurations: {},
+              networksMetadata: {},
             },
-          ],
-        );
-        expect(controller.state.domains['example.com']).toBe('goerli');
-        expect(controller.state.domains['test.com']).toBe('goerli');
+            [
+              {
+                op: 'remove',
+                path: ['networkConfigurations', 'test-network-client-id'],
+              },
+            ],
+          );
+          expect(controller.state.domains).toStrictEqual({
+            metamask: 'goerli',
+            'example.com': 'test-network-client-id',
+            'test.com': 'test-network-client-id',
+          });
+        });
+      });
+    });
+
+    describe('when useRequestQueuePreference is true', () => {
+      describe('when a networkClient is deleted from the network controller state', () => {
+        it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
+          const { controller, messenger } = setup({
+            state: {
+              domains: {
+                metamask: 'goerli',
+                'example.com': 'test-network-client-id',
+                'test.com': 'test-network-client-id',
+              },
+            },
+            useRequestQueuePreference: true,
+          });
+
+          messenger.publish(
+            'NetworkController:stateChange',
+            {
+              providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
+              selectedNetworkClientId: 'goerli',
+              networkConfigurations: {},
+              networksMetadata: {},
+            },
+            [
+              {
+                op: 'remove',
+                path: ['networkConfigurations', 'test-network-client-id'],
+              },
+            ],
+          );
+          expect(controller.state.domains['example.com']).toBe('goerli');
+          expect(controller.state.domains['test.com']).toBe('goerli');
+        });
       });
     });
   });
@@ -263,42 +304,42 @@ describe('SelectedNetworkController', () => {
     afterEach(() => {
       jest.clearAllMocks();
     });
-    it('should throw an error when passed "metamask" as domain arg', () => {
-      const { controller } = setup();
-      expect(() => {
-        controller.setNetworkClientIdForDomain('metamask', 'mainnet');
-      }).toThrow(
-        'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
-      );
-      expect(controller.state.domains.metamask).toBeUndefined();
-    });
+
     describe('when the useRequestQueue is false', () => {
-      describe('when the requesting domain is not metamask', () => {
-        it('updates the networkClientId for domain in state', () => {
-          const { controller } = setup({
-            state: {
-              domains: {
-                '1.com': 'mainnet',
-                '2.com': 'mainnet',
-                '3.com': 'mainnet',
-              },
+      it('skips setting the networkClientId for the passed in domain', () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              '1.com': 'mainnet',
+              '2.com': 'mainnet',
+              '3.com': 'mainnet',
             },
-          });
-          const domains = ['1.com', '2.com', '3.com'];
-          const networkClientIds = ['1', '2', '3'];
+          },
+        });
+        const domains = ['1.com', '2.com', '3.com'];
+        const networkClientIds = ['1', '2', '3'];
 
-          domains.forEach((domain, i) =>
-            controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
-          );
+        domains.forEach((domain, i) =>
+          controller.setNetworkClientIdForDomain(domain, networkClientIds[i]),
+        );
 
-          expect(controller.state.domains['1.com']).toBe('1');
-          expect(controller.state.domains['2.com']).toBe('2');
-          expect(controller.state.domains['3.com']).toBe('3');
+        expect(controller.state.domains).toStrictEqual({
+          '1.com': 'mainnet',
+          '2.com': 'mainnet',
+          '3.com': 'mainnet',
         });
       });
     });
-
     describe('when the useRequestQueue is true', () => {
+      it('should throw an error when passed "metamask" as domain arg', () => {
+        const { controller } = setup({ useRequestQueuePreference: true });
+        expect(() => {
+          controller.setNetworkClientIdForDomain('metamask', 'mainnet');
+        }).toThrow(
+          'NetworkClientId for domain "metamask" cannot be set on the SelectedNetworkController',
+        );
+        expect(controller.state.domains.metamask).toBeUndefined();
+      });
       describe('when the requesting domain is a snap (starts with "npm:" or "local:"', () => {
         it('skips setting the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
@@ -377,6 +418,7 @@ describe('SelectedNetworkController', () => {
         it('throw an error and does not set the networkClientId for the passed in domain', () => {
           const { controller, mockHasPermissions } = setup({
             state: { domains: {} },
+            useRequestQueuePreference: true,
           });
           mockHasPermissions.mockReturnValue(false);
 
@@ -617,8 +659,10 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('When a permission is added or removed', () => {
-    it('should add new domain to domains list on permission add', async () => {
-      const { controller, messenger } = setup();
+    it('should add new domain to domains list on permission add if #useRequestQueuePreference is true', async () => {
+      const { controller, messenger } = setup({
+        useRequestQueuePreference: true,
+      });
       const mockPermission = {
         parentCapability: 'eth_accounts',
         id: 'example.com',
@@ -636,6 +680,29 @@ describe('SelectedNetworkController', () => {
 
       const { domains } = controller.state;
       expect(domains['example.com']).toBeDefined();
+    });
+
+    it('should not add new domain to domains list on permission add if #useRequestQueuePreference is false', async () => {
+      const { controller, messenger } = setup({
+        useRequestQueuePreference: false,
+      });
+      const mockPermission = {
+        parentCapability: 'eth_accounts',
+        id: 'example.com',
+        date: Date.now(),
+        caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
+      };
+
+      messenger.publish('PermissionController:stateChange', { subjects: {} }, [
+        {
+          op: 'add',
+          path: ['subjects', 'example.com', 'permissions'],
+          value: mockPermission,
+        },
+      ]);
+
+      const { domains } = controller.state;
+      expect(domains['example.com']).toBeUndefined();
     });
 
     describe('on permission removal', () => {
@@ -717,31 +784,71 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('Constructor checks for domains in permissions', () => {
-    it('should set networkClientId for domains not already in state', async () => {
-      const getSubjectNamesMock = ['newdomain.com'];
-      const { controller } = setup({
-        state: { domains: {} },
-        getSubjectNames: getSubjectNamesMock,
+    describe('when useRequestQueuePreference is true', () => {
+      it('should set networkClientId for domains not already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
+          },
+          getSubjectNames: ['newdomain.com'],
+          useRequestQueuePreference: true,
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'newdomain.com': 'mainnet',
+          'existingdomain.com': 'initialNetworkId',
+        });
       });
 
-      // Now, 'newdomain.com' should have the selectedNetworkClientId set
-      expect(controller.state.domains['newdomain.com']).toBe('mainnet');
+      it('should not modify domains already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
+          },
+          getSubjectNames: ['existingdomain.com'],
+          useRequestQueuePreference: true,
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'existingdomain.com': 'initialNetworkId',
+        });
+      });
     });
 
-    it('should not modify domains already in state', async () => {
-      const { controller } = setup({
-        state: {
-          domains: {
-            'existingdomain.com': 'initialNetworkId',
+    describe('when useRequestQueuePreference is false', () => {
+      it('should not set networkClientId for new domains', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
           },
-        },
-        getSubjectNames: ['existingdomain.com'],
+          getSubjectNames: ['newdomain.com'],
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'existingdomain.com': 'initialNetworkId',
+        });
       });
 
-      // The 'existingdomain.com' should retain its initial networkClientId
-      expect(controller.state.domains['existingdomain.com']).toBe(
-        'initialNetworkId',
-      );
+      it('should not modify domains already in state', async () => {
+        const { controller } = setup({
+          state: {
+            domains: {
+              'existingdomain.com': 'initialNetworkId',
+            },
+          },
+          getSubjectNames: ['existingdomain.com'],
+        });
+
+        expect(controller.state.domains).toStrictEqual({
+          'existingdomain.com': 'initialNetworkId',
+        });
+      });
     });
   });
 

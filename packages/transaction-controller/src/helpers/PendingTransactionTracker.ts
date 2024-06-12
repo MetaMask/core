@@ -48,11 +48,15 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): this;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 }
 
