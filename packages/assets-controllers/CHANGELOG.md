@@ -11,17 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Mutex` lock in the `updateNftMetadata` function ([#4325](https://github.com/MetaMask/core/pull/4325))
+- **BREAKING:** Add `messenger` as a constructor option for `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
+(https://github.com/MetaMask/core/pull/4225))
+  - Add `AccountTrackerControllerMessenger` type
+- `NftController` now allows `AccountsController:getAccount`, `AccountsController:getSelectedAccount` as messenger actions and subscribes to the `AccountsController:selectedEvmAccountChange` messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
+- `NftDetectionController` now allows `AccountsController:getSelectedAccount` as a messenger action ([#4221](https://github.com/MetaMask/core/pull/4221))
+- Add `Mutex` lock in the `updateNftMetadata` function ([#4325](https://github.com/MetaMask/core/pull/4325))
 - Token price API support for mantle network ([#4376](https://github.com/MetaMask/core/pull/4376))
 
 ### Changed
 
-- **BREAKING:** `NftController` constructor argument `selectedAddress` has been removed. ([#4221](https://github.com/MetaMask/core/pull/4221))
-- **BREAKING:** `NftController` now requires `AccountsController:get{Account,SelectedAccount}` messenger actions. ([#4221](https://github.com/MetaMask/core/pull/4221))
-- **BREAKING:** `NftController` now requires `AccountsController:selectedEvmAccountChange` event. ([#4221](https://github.com/MetaMask/core/pull/4221))
-- **BREAKING:** `NftDetectionController` now requires `AccountsControlelr:getSelectedAccount` messenger actions. ([#4221](https://github.com/MetaMask/core/pull/4221))
-- **BREAKING:** `AccountTrackerController` now requires a controller messenger ([#4225](https://github.com/MetaMask/core/pull/4225))
-- **BREAKING:** Removed `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange` from the constructor arguments of the `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
 - **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^17.0.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
 - Upgrade `TokenRatesController` to `BaseControllerV2` ([#4314](https://github.com/MetaMask/core/pull/4314))
 - Update Nft controllers to use `selectedAccountId` instead of `selectedAddress` ([#4221](https://github.com/MetaMask/core/pull/4221))
@@ -32,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `NftController` constructor options `selectedAddress`. ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** Remove `AccountTrackerController` constructor options `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange`  ([#4225]
 - Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
 
 ### Fixed
