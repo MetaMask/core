@@ -43,6 +43,7 @@ const EMPTY_ACCOUNT = {
   address: '',
   id: '',
 } as InternalAccount;
+const defaultChainId = '0x1';
 
 const mockedQuery = query as jest.Mock<
   ReturnType<typeof query>,
@@ -71,7 +72,7 @@ describe('AccountTrackerController', () => {
         expect(controller.state).toStrictEqual({
           accounts: {},
           accountsByChainId: {
-            '0x1': {},
+            [defaultChainId]: {},
           },
         });
       },
@@ -618,7 +619,7 @@ async function withController<ReturnValue>(
 
   const mockNetworkState = jest.fn().mockReturnValue({
     ...defaultnetworkControllerState,
-    chainId: '0x1',
+    chainId: defaultChainId,
   });
   messenger.registerActionHandler(
     'NetworkController:getState',
