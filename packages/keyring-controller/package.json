@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "17.0.0",
+  "version": "17.1.0",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
