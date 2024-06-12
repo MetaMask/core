@@ -165,7 +165,9 @@ class SetTimeoutRecorder {
    *
    * @param timeout - A Timeout object as returned by `setTimeout`.
    */
-  _mockClearTimeoutImplementation = (timeout: NodeJS.Timeout): void => {
+  _mockClearTimeoutImplementation = (
+    timeout?: NodeJS.Timeout | string | number,
+  ): void => {
     const index = this.calls.findIndex((c) => c.timeout === timeout);
 
     if (index !== -1) {
