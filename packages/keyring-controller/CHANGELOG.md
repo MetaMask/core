@@ -9,15 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.1.0]
 
-### Uncategorized
-
-- chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- feat: Allow overwriting built-in keyring builders ([#4362](https://github.com/MetaMask/core/pull/4362))
-- deps: @metamask/keyring-api@^6.1.1->^6.4.0 ([#4355](https://github.com/MetaMask/core/pull/4355))
-
 ### Changed
 
+- Add support for overwriting built-in keyring builders for the Simple and HD keyring ([#4362](https://github.com/MetaMask/core/pull/4362))
 - Deprecate QR keyring methods ([#4365](https://github.com/MetaMask/core/pull/4365))
   - `cancelQRSignRequest`
   - `cancelQRSynchronization`
@@ -32,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `submitQRCryptoAccount`
   - `submitQRSignature`
   - `unlockQRHardwareWalletAccount`
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
 
 ## [17.0.0]
 
