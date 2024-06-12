@@ -260,7 +260,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     ethQuery?: EthQuery;
   } {
     const selectedNetworkClientId =
-      networkClientId ||
+      networkClientId ??
       this.messagingSystem.call('NetworkController:getState')
         .selectedNetworkClientId;
     const {
@@ -286,8 +286,13 @@ export class AccountTrackerController extends StaticIntervalPollingController<
     if (interval) {
       this.setIntervalLength(interval);
     }
-    this.#handle && clearTimeout(this.#handle);
+
+    if (this.#handle) {
+      clearTimeout(this.#handle);
+    }
+
     await this.refresh();
+
     this.#handle = setTimeout(() => {
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
