@@ -9,16 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.0.0]
 
-### Uncategorized
+### Changed
 
-- chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
-- testfix(transaction-controller): Refactor provider setup to provide correct providers and tracker ([#4391](https://github.com/MetaMask/core/pull/4391))
-- fix(transaction-controller): Return global ethQuery when `!isMultichainEnabled` ([#4390](https://github.com/MetaMask/core/pull/4390))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- TransactionController: providerConfig -> selectedNetworkClientId ([#4357](https://github.com/MetaMask/core/pull/4357))
-- fix: update transaction controllers to use selected account ([#4244](https://github.com/MetaMask/core/pull/4244))
-- chore(test): Refactor FakeBlockTracker provider injection ([#4345](https://github.com/MetaMask/core/pull/4345))
-- fix: support skipping updates to the simulation history for clients with disabled history ([#4349](https://github.com/MetaMask/core/pull/4349))
+- **BREAKING:** `getSelectedAddress` is replaced with `getSelectedAccount` in the `TransactionController` ([#4244](https://github.com/MetaMask/core/pull/4244))
+- **BREAKING:** `getCurrentAccount` returns an `InternalAccount` instead of a `string` in the `IncomingTransactionHelper` ([#4244](https://github.com/MetaMask/core/pull/4244))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Fixed
+
+- `MultichainTrackingHelper.getEthQuery` now returns global `ethQuery` with ([#4390](https://github.com/MetaMask/core/pull/4390))
+- Support skipping updates to the simulation history for clients with disabled history ([#4349](https://github.com/MetaMask/core/pull/4349))
 
 ## [32.0.0]
 
