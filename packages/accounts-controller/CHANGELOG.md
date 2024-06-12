@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Newly added account is no longer set as the last selected account ([#4363](https://github.com/MetaMask/core/pull/4363))
 - Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-controller` to `^17.1.0` (`devDependencies`) ([#4413](https://github.com/MetaMask/core/pull/4413))
 
 ### Fixed
 
