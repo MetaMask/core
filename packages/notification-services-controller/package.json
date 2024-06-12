@@ -53,7 +53,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.2",
+    "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",

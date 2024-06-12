@@ -8,6 +8,7 @@ This repository contains the following packages [^fn1]:
 
 <!-- start package list -->
 
+- [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -52,6 +53,7 @@ Or, in graph form [^fn1]:
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
+  accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -72,7 +74,7 @@ linkStyle default opacity:0.5
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
   notification_controller(["@metamask/notification-controller"]);
-  notifications_controller(["@metamask/notification-services-controller"]);
+  notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
@@ -85,6 +87,8 @@ linkStyle default opacity:0.5
   signature_controller(["@metamask/signature-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  accounts_controller --> base_controller;
+  accounts_controller --> keyring_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
@@ -122,10 +126,10 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   notification_controller --> base_controller;
-  notifications_controller --> base_controller;
-  notifications_controller --> keyring_controller;
-  notifications_controller --> profile_sync_controller;
-  notifications_controller --> push_platform_notifications_controller;
+  notification_services_controller --> base_controller;
+  notification_services_controller --> controller_utils;
+  notification_services_controller --> keyring_controller;
+  notification_services_controller --> profile_sync_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
   permission_controller --> json_rpc_engine;
@@ -141,10 +145,6 @@ linkStyle default opacity:0.5
   preferences_controller --> controller_utils;
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
-  profile_sync_controller --> notifications_controller;
-  push_platform_notifications_controller --> base_controller;
-  push_platform_notifications_controller --> notifications_controller;
-  push_platform_notifications_controller --> profile_sync_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
   queued_request_controller --> json_rpc_engine;

@@ -1,102 +1,37 @@
 {
-  "compilerOptions": {
-    "esModuleInterop": true,
-    "noEmit": true
-  },
+  "compilerOptions": { "esModuleInterop": true, "noEmit": true },
   "references": [
-    {
-      "path": "./packages/accounts-controller"
-    },
-    {
-      "path": "./packages/address-book-controller"
-    },
-    {
-      "path": "./packages/announcement-controller"
-    },
-    {
-      "path": "./packages/approval-controller"
-    },
-    {
-      "path": "./packages/assets-controllers"
-    },
-    {
-      "path": "./packages/base-controller"
-    },
-    {
-      "path": "./packages/build-utils"
-    },
-    {
-      "path": "./packages/composable-controller"
-    },
-    {
-      "path": "./packages/controller-utils"
-    },
-    {
-      "path": "./packages/ens-controller"
-    },
-    {
-      "path": "./packages/eth-json-rpc-provider"
-    },
-    {
-      "path": "./packages/gas-fee-controller"
-    },
-    {
-      "path": "./packages/json-rpc-engine"
-    },
-    {
-      "path": "./packages/json-rpc-middleware-stream"
-    },
-    {
-      "path": "./packages/keyring-controller"
-    },
-    {
-      "path": "./packages/message-manager"
-    },
-    {
-      "path": "./packages/name-controller"
-    },
-    {
-      "path": "./packages/network-controller"
-    },
-    {
-      "path": "./packages/notification-controller"
-    },
-    {
-      "path": "./packages/notification-services-controller"
-    },
-    {
-      "path": "./packages/permission-controller"
-    },
-    {
-      "path": "./packages/permission-log-controller"
-    },
-    {
-      "path": "./packages/phishing-controller"
-    },
-    {
-      "path": "./packages/preferences-controller"
-    },
-    {
-      "path": "./packages/profile-sync-controller"
-    },
-    {
-      "path": "./packages/queued-request-controller"
-    },
-    {
-      "path": "./packages/rate-limit-controller"
-    },
-    {
-      "path": "./packages/selected-network-controller"
-    },
-    {
-      "path": "./packages/signature-controller"
-    },
-    {
-      "path": "./packages/transaction-controller"
-    },
-    {
-      "path": "./packages/user-operation-controller"
-    }
+    { "path": "./packages/accounts-controller" },
+    { "path": "./packages/address-book-controller" },
+    { "path": "./packages/announcement-controller" },
+    { "path": "./packages/approval-controller" },
+    { "path": "./packages/assets-controllers" },
+    { "path": "./packages/base-controller" },
+    { "path": "./packages/build-utils" },
+    { "path": "./packages/composable-controller" },
+    { "path": "./packages/controller-utils" },
+    { "path": "./packages/ens-controller" },
+    { "path": "./packages/eth-json-rpc-provider" },
+    { "path": "./packages/gas-fee-controller" },
+    { "path": "./packages/json-rpc-engine" },
+    { "path": "./packages/json-rpc-middleware-stream" },
+    { "path": "./packages/keyring-controller" },
+    { "path": "./packages/message-manager" },
+    { "path": "./packages/name-controller" },
+    { "path": "./packages/network-controller" },
+    { "path": "./packages/notification-controller" },
+    { "path": "./packages/notification-services-controller" },
+    { "path": "./packages/permission-controller" },
+    { "path": "./packages/permission-log-controller" },
+    { "path": "./packages/phishing-controller" },
+    { "path": "./packages/preferences-controller" },
+    { "path": "./packages/profile-sync-controller" },
+    { "path": "./packages/queued-request-controller" },
+    { "path": "./packages/rate-limit-controller" },
+    { "path": "./packages/selected-network-controller" },
+    { "path": "./packages/signature-controller" },
+    { "path": "./packages/transaction-controller" },
+    { "path": "./packages/user-operation-controller" }
   ],
   "files": [],
   "include": ["./types"]
