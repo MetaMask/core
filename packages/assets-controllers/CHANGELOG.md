@@ -30,7 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `TokenRatesController` now inherits from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#4314](https://github.com/MetaMask/core/pull/4314))
   - The constructor now takes a single options object rather than three arguments. Some options have been removed; see later entries.
 - **BREAKING:** Rename `TokenRatesState` to `TokenRatesControllerState`, and convert from `interface` to `type` ([#4314](https://github.com/MetaMask/core/pull/4314))
-- Update Nft controllers to use `selectedAccountId` instead of `selectedAddress` ([#4221](https://github.com/MetaMask/core/pull/4221))
+- The `NftController` now reads the selected address via the `AccountsController`, using the `AccountsController:selectedEvmAccountChange` messenger event to stay up to date ([#4221](https://github.com/MetaMask/core/pull/4221))
+- `NftDetectionController` now reads the currently selected account from `AccountsController` instead of `PreferencesController` ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `TokenRatesController` uses checksum instead of lowercase format for token addresses ([#4377](https://github.com/MetaMask/core/pull/4377))
 - Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
