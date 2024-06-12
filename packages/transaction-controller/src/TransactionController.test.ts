@@ -9,7 +9,6 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
-  NetworksTicker,
   toHex,
   BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
@@ -305,13 +304,18 @@ function waitForTransactionFinished(
 }
 
 const MOCK_PREFERENCES = { state: { selectedAddress: 'foo' } };
-const INFURA_PROJECT_ID = '341eacb578dd44a1a049cbc5f6fd4035';
-const MAINNET_PROVIDER = new HttpProvider(
-  `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
-const PALM_PROVIDER = new HttpProvider(
-  `https://palm-mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
-);
+const INFURA_PROJECT_ID = 'testinfuraid';
+const HTTP_PROVIDERS = {
+  goerli: new HttpProvider('https://goerli.infura.io/v3/goerli-pid'),
+  // TODO: Investigate and address why tests break when mainet has a different INFURA_PROJECT_ID
+  mainnet: new HttpProvider(
+    `https://mainnet.infura.io/v3/${INFURA_PROJECT_ID}`,
+  ),
+  linea: new HttpProvider('https://linea.infura.io/v3/linea-pid'),
+  lineaGoerli: new HttpProvider('https://linea-g.infura.io/v3/linea-g-pid'),
+  custom: new HttpProvider(`http://127.0.0.123:456/ethrpc?apiKey=foobar`),
+  palm: new HttpProvider('https://palm-mainnet.infura.io/v3/palm-pid'),
+};
 
 type MockNetwork = {
   chainId: Hex;
@@ -323,8 +327,8 @@ type MockNetwork = {
 
 const MOCK_NETWORK: MockNetwork = {
   chainId: ChainId.goerli,
-  provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
+  provider: HTTP_PROVIDERS.goerli,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.goerli),
   state: {
     selectedNetworkClientId: NetworkType.goerli,
     networksMetadata: {
@@ -333,11 +337,6 @@ const MOCK_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType.goerli,
-      chainId: ChainId.goerli,
-      ticker: NetworksTicker.goerli,
-    },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
@@ -345,8 +344,8 @@ const MOCK_NETWORK: MockNetwork = {
 
 const MOCK_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId.mainnet,
-  provider: MAINNET_PROVIDER,
-  blockTracker: buildMockBlockTracker('0x102833C', MAINNET_PROVIDER),
+  provider: HTTP_PROVIDERS.mainnet,
+  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
   state: {
     selectedNetworkClientId: NetworkType.mainnet,
     networksMetadata: {
@@ -355,11 +354,6 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType.mainnet,
-      chainId: ChainId.mainnet,
-      ticker: NetworksTicker.mainnet,
-    },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
@@ -367,8 +361,8 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId['linea-mainnet'],
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
+  provider: HTTP_PROVIDERS.linea,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.linea),
   state: {
     selectedNetworkClientId: NetworkType['linea-mainnet'],
     networksMetadata: {
@@ -377,11 +371,6 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    providerConfig: {
-      type: NetworkType['linea-mainnet'],
-      chainId: ChainId['linea-mainnet'],
-      ticker: NetworksTicker['linea-mainnet'],
-    },
     networkConfigurations: {},
   },
   subscribe: () => undefined,
@@ -389,8 +378,8 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
 
 const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
   chainId: ChainId['linea-goerli'],
-  provider: PALM_PROVIDER,
-  blockTracker: buildMockBlockTracker('0xA6EDFC', PALM_PROVIDER),
+  provider: HTTP_PROVIDERS.lineaGoerli,
+  blockTracker: buildMockBlockTracker('0xA6EDFC', HTTP_PROVIDERS.lineaGoerli),
   state: {
     selectedNetworkClientId: NetworkType['linea-goerli'],
     networksMetadata: {
@@ -398,11 +387,6 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
         EIPS: { 1559: false },
         status: NetworkStatus.Available,
       },
-    },
-    providerConfig: {
-      type: NetworkType['linea-goerli'],
-      chainId: ChainId['linea-goerli'],
-      ticker: NetworksTicker['linea-goerli'],
     },
     networkConfigurations: {},
   },
@@ -1322,6 +1306,8 @@ describe('TransactionController', () => {
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         result_type: 'Malicious',
         reason: 'blur_farming',
         description:
@@ -3411,58 +3397,6 @@ describe('TransactionController', () => {
         expect.objectContaining(externalTransactionToConfirm),
       );
     });
-
-    it('publishes TransactionController:transactionConfirmed with transaction chainId regardless of whether it matches globally selected chainId', async () => {
-      const mockGloballySelectedNetwork = {
-        ...MOCK_NETWORK,
-        state: {
-          ...MOCK_NETWORK.state,
-          providerConfig: {
-            type: NetworkType.sepolia,
-            chainId: ChainId.sepolia,
-            ticker: NetworksTicker.sepolia,
-          },
-        },
-      };
-      const { controller, messenger } = setupController({
-        network: mockGloballySelectedNetwork,
-      });
-
-      const confirmedEventListener = jest.fn();
-      messenger.subscribe(
-        'TransactionController:transactionConfirmed',
-        confirmedEventListener,
-      );
-
-      const externalTransactionToConfirm = {
-        from: ACCOUNT_MOCK,
-        to: ACCOUNT_2_MOCK,
-        id: '1',
-        chainId: ChainId.goerli, // doesn't match globally selected chainId (which is sepolia)
-        status: TransactionStatus.confirmed,
-        txParams: {
-          gasUsed: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_2_MOCK,
-        },
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any;
-      const externalTransactionReceipt = {
-        gasUsed: '0x5208',
-      };
-      const externalBaseFeePerGas = '0x14';
-
-      await controller.confirmExternalTransaction(
-        externalTransactionToConfirm,
-        externalTransactionReceipt,
-        externalBaseFeePerGas,
-      );
-
-      expect(confirmedEventListener).toHaveBeenCalledWith(
-        expect.objectContaining(externalTransactionToConfirm),
-      );
-    });
   });
 
   describe('updateTransactionSendFlowHistory', () => {
@@ -4088,18 +4022,24 @@ describe('TransactionController', () => {
           txParams: { ...TRANSACTION_META_MOCK.txParams, nonce: '0x1' },
         };
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_1 = {
           ...confirmed,
           id: 'testId2',
           status: TransactionStatus.submitted,
         };
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_2 = {
           ...duplicate_1,
           id: 'testId3',
           status: TransactionStatus.approved,
         };
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         const duplicate_3 = {
           ...duplicate_1,
           id: 'testId4',
@@ -4328,6 +4268,8 @@ describe('TransactionController', () => {
       };
 
       // Send the transaction to put it in the process of being signed
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       controller.approveTransactionsWithSameNonce([mockTransactionParam]);
 
       // Now send it one more time to test that it doesn't get signed again
@@ -4707,6 +4649,8 @@ describe('TransactionController', () => {
 
       controller.updateSecurityAlertResponse(transactionMeta.id, {
         reason: 'NA',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         result_type: 'Benign',
       });
 
@@ -4728,6 +4672,8 @@ describe('TransactionController', () => {
         // @ts-expect-error Intentionally passing invalid input
         controller.updateSecurityAlertResponse(undefined, {
           reason: 'NA',
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           result_type: 'Benign',
         }),
       ).toThrow(
@@ -4793,6 +4739,8 @@ describe('TransactionController', () => {
       expect(() =>
         controller.updateSecurityAlertResponse('456', {
           reason: 'NA',
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           result_type: 'Benign',
         }),
       ).toThrow(

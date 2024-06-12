@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "32.0.0",
+  "version": "33.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -47,13 +47,13 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@metamask/abi-utils": "^2.0.2",
-    "@metamask/accounts-controller": "^16.0.0",
+    "@metamask/accounts-controller": "^17.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/base-controller": "^6.0.0",
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/keyring-controller": "^17.1.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^19.0.0",
     "@metamask/polling-controller": "^8.0.0",
@@ -73,7 +73,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^6.1.1",
+    "@metamask/keyring-api": "^8.0.0",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
@@ -88,7 +88,7 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^16.0.0",
+    "@metamask/accounts-controller": "^17.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^17.0.0",
     "@metamask/network-controller": "^19.0.0",

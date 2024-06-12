@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.1.0]
+
+### Added
+
+- Add support for overwriting built-in keyring builders for the Simple and HD keyring ([#4362](https://github.com/MetaMask/core/pull/4362))
+
+### Changed
+
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Deprecated
+
+- Deprecate QR keyring methods ([#4365](https://github.com/MetaMask/core/pull/4365))
+  - `cancelQRSignRequest`
+  - `cancelQRSynchronization`
+  - `connectQRHardware`
+  - `forgetQRDevice`
+  - `getOrAddQRKeyring`
+  - `getQRKeyring`
+  - `getQRKeyringState`
+  - `resetQRKeyringState`
+  - `restoreQRKeyring`
+  - `submitQRCryptoHDKey`
+  - `submitQRCryptoAccount`
+  - `submitQRSignature`
+  - `unlockQRHardwareWalletAccount`
+
 ## [17.0.0]
 
 ### Changed
@@ -469,7 +497,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.0...HEAD
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...@metamask/keyring-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.1.0...@metamask/keyring-controller@17.0.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...@metamask/keyring-controller@16.1.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...@metamask/keyring-controller@16.0.0

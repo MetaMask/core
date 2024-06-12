@@ -305,6 +305,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
   #subscribeToPreferencesStateChange() {
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (selectedAddress: string) => {
         if (this.#selectedAddress !== selectedAddress) {
           this.#selectedAddress = selectedAddress;
@@ -322,6 +324,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
   #subscribeToTokensStateChange() {
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
         const previousTokenAddresses = this.#getTokenAddresses(this.#chainId);
         this.#allTokens = allTokens;
@@ -344,6 +348,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
   #subscribeToNetworkStateChange() {
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ selectedNetworkClientId }) => {
         const {
           configuration: { chainId, ticker },
@@ -429,12 +435,16 @@ export class TokenRatesController extends StaticIntervalPollingController<
     chainId: Hex;
     ticker: string;
   } {
-    const { providerConfig } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
     return {
-      chainId: providerConfig.chainId,
-      ticker: providerConfig.ticker,
+      chainId: networkClient.configuration.chainId,
+      ticker: networkClient.configuration.ticker,
     };
   }
 
@@ -470,6 +480,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
     // Poll using recursive `setTimeout` instead of `setInterval` so that
     // requests don't stack if they take longer than the polling interval
     this.#handle = setTimeout(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.#poll();
     }, this.#interval);
   }

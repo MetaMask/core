@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Newly added account is no longer set as the last selected account ([#4363](https://github.com/MetaMask/core/pull/4363))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-controller` to `^17.1.0` (`devDependencies`) ([#4413](https://github.com/MetaMask/core/pull/4413))
+
+### Fixed
+
+- Use `listMultichainAccount` in `getAccountByAddress` ([#4375](https://github.com/MetaMask/core/pull/4375))
+
 ## [16.0.0]
 
 ### Changed
@@ -202,7 +215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@16.0.0...@metamask/accounts-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@15.0.0...@metamask/accounts-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@14.0.0...@metamask/accounts-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@13.0.0...@metamask/accounts-controller@14.0.0

@@ -44,7 +44,7 @@
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
-    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/keyring-controller": "^17.1.0",
     "@metamask/profile-sync-controller": "^0.0.0",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.3.6",
@@ -76,11 +76,5 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
-  },
-  "lavamoat": {
-    "allowScripts": {
-      "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>keccak": false,
-      "@metamask/keyring-controller>ethereumjs-wallet>ethereum-cryptography>secp256k1": false
-    }
   }
 }

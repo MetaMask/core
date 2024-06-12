@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+
+### Changed
+
+- **BREAKING:** The `TransactionController` messenger must now allow the `AccountsController:getSelectedAccount` action ([#4244](https://github.com/MetaMask/core/pull/4244))
+- **BREAKING:** `getCurrentAccount` returns an `InternalAccount` instead of a `string` in the `IncomingTransactionHelper` ([#4244](https://github.com/MetaMask/core/pull/4244))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^17.0.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Removed
+
+- **BREAKING:** Remove `getSelectedAddress` option from `TransactionController` ([#4244](https://github.com/MetaMask/core/pull/4244))
+  - The AccountsController is used to get the currently selected address automatically.
+
+### Fixed
+
+- `MultichainTrackingHelper.getEthQuery` now returns global `ethQuery` with ([#4390](https://github.com/MetaMask/core/pull/4390))
+- Support skipping updates to the simulation history for clients with disabled history ([#4349](https://github.com/MetaMask/core/pull/4349))
+
 ## [32.0.0]
 
 ### Changed
@@ -876,7 +896,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...@metamask/transaction-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...@metamask/transaction-controller@30.0.0

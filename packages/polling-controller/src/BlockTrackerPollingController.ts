@@ -18,6 +18,8 @@ import type { Constructor, PollingTokenSetId } from './types';
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
@@ -47,10 +49,14 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
           networkClientId,
           options,
         );
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         networkClient.blockTracker.addListener('latest', updateOnNewBlock);
         this.#activeListeners[key] = updateOnNewBlock;
       } else {
         throw new Error(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `Unable to retrieve blockTracker for networkClientId ${networkClientId}`,
         );
       }
@@ -65,6 +71,8 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
       if (networkClient && this.#activeListeners[key]) {
         const listener = this.#activeListeners[key];
         if (listener) {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
           networkClient.blockTracker.removeListener('latest', listener);
           delete this.#activeListeners[key];
         }

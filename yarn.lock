@@ -2193,16 +2193,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@^16.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@^17.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
     "@ethereumjs/util": ^8.1.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
-    "@metamask/eth-snap-keyring": ^4.1.1
-    "@metamask/keyring-api": ^6.1.1
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/eth-snap-keyring": ^4.3.1
+    "@metamask/keyring-api": ^8.0.0
+    "@metamask/keyring-controller": ^17.1.0
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
     "@metamask/snaps-utils": ^7.4.0
@@ -2311,7 +2311,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/accounts-controller": ^16.0.0
+    "@metamask/accounts-controller": ^17.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
@@ -2319,8 +2319,8 @@ __metadata:
     "@metamask/controller-utils": ^11.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
-    "@metamask/keyring-api": ^6.1.1
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/keyring-api": ^8.0.0
+    "@metamask/keyring-controller": ^17.1.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
@@ -2349,7 +2349,7 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/accounts-controller": ^16.0.0
+    "@metamask/accounts-controller": ^17.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
@@ -2460,7 +2460,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/chain-api": ^0.0.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^8.0.0
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
     "@metamask/snaps-utils": ^7.4.0
@@ -2821,7 +2821,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-snap-keyring@npm:^4.1.1":
+"@metamask/eth-snap-keyring@npm:^4.3.1":
   version: 4.3.1
   resolution: "@metamask/eth-snap-keyring@npm:4.3.1"
   dependencies:
@@ -3058,22 +3058,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^6.1.1, @metamask/keyring-api@npm:^6.4.0":
-  version: 6.4.0
-  resolution: "@metamask/keyring-api@npm:6.4.0"
-  dependencies:
-    "@metamask/snaps-sdk": ^4.2.0
-    "@metamask/utils": ^8.4.0
-    "@types/uuid": ^9.0.8
-    bech32: ^2.0.0
-    superstruct: ^1.0.3
-    uuid: ^9.0.1
-  peerDependencies:
-    "@metamask/providers": ">=15 <18"
-  checksum: 7845ed5fa73db3165703c2142b6062d03ca5fea329b54d28f424dee2bb393edc1f9a015e771289ef7236c31f30355bf2c52ad74bb47cf531c09c5eec66e06b00
-  languageName: node
-  linkType: hard
-
 "@metamask/keyring-api@npm:^8.0.0":
   version: 8.0.0
   resolution: "@metamask/keyring-api@npm:8.0.0"
@@ -3090,7 +3074,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-controller@^17.0.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
+"@metamask/keyring-controller@^17.1.0, @metamask/keyring-controller@workspace:packages/keyring-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/keyring-controller@workspace:packages/keyring-controller"
   dependencies:
@@ -3106,7 +3090,7 @@ __metadata:
     "@metamask/eth-hd-keyring": ^7.0.1
     "@metamask/eth-sig-util": ^7.0.1
     "@metamask/eth-simple-keyring": ^6.0.1
-    "@metamask/keyring-api": ^6.1.1
+    "@metamask/keyring-api": ^8.0.0
     "@metamask/message-manager": ^10.0.0
     "@metamask/scure-bip39": ^2.1.1
     "@metamask/utils": ^8.3.0
@@ -3267,7 +3251,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/keyring-controller": ^17.1.0
     "@metamask/profile-sync-controller": ^0.0.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
@@ -3465,7 +3449,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/keyring-controller": ^17.1.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -3486,7 +3470,6 @@ __metadata:
     "@lavamoat/allow-scripts": ^3.0.2
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
-    "@metamask/keyring-api": ^6.1.1
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.2.0
     "@metamask/snaps-utils": ^7.4.0
@@ -3541,7 +3524,7 @@ __metadata:
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/network-controller": ^19.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/selected-network-controller": ^15.0.1
+    "@metamask/selected-network-controller": ^15.0.2
     "@metamask/swappable-obj-proxy": ^2.2.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
@@ -3606,7 +3589,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/selected-network-controller@^15.0.1, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
+"@metamask/selected-network-controller@^15.0.2, @metamask/selected-network-controller@workspace:packages/selected-network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/selected-network-controller@workspace:packages/selected-network-controller"
   dependencies:
@@ -3642,7 +3625,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/keyring-controller": ^17.1.0
     "@metamask/logging-controller": ^5.0.0
     "@metamask/message-manager": ^10.0.0
     "@metamask/rpc-errors": ^6.2.1
@@ -3792,7 +3775,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^32.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^33.0.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3803,7 +3786,7 @@ __metadata:
     "@ethersproject/abi": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
-    "@metamask/accounts-controller": ^16.0.0
+    "@metamask/accounts-controller": ^17.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
@@ -3812,7 +3795,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-provider-http": ^0.3.0
     "@metamask/gas-fee-controller": ^17.0.0
-    "@metamask/keyring-api": ^6.4.0
+    "@metamask/keyring-api": ^8.0.0
     "@metamask/metamask-eth-abis": ^3.1.1
     "@metamask/network-controller": ^19.0.0
     "@metamask/nonce-tracker": ^5.0.0
@@ -3838,7 +3821,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@babel/runtime": ^7.23.9
-    "@metamask/accounts-controller": ^16.0.0
+    "@metamask/accounts-controller": ^17.0.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/gas-fee-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
@@ -3855,11 +3838,11 @@ __metadata:
     "@metamask/controller-utils": ^11.0.0
     "@metamask/eth-query": ^4.0.0
     "@metamask/gas-fee-controller": ^17.0.0
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/keyring-controller": ^17.1.0
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/transaction-controller": ^32.0.0
+    "@metamask/transaction-controller": ^33.0.0
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     bn.js: ^5.2.1
@@ -3878,7 +3861,7 @@ __metadata:
     "@metamask/gas-fee-controller": ^17.0.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
-    "@metamask/transaction-controller": ^32.0.0
+    "@metamask/transaction-controller": ^33.0.0
   languageName: unknown
   linkType: soft
 

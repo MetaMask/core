@@ -271,6 +271,8 @@ export class ComposableController<
       isBaseController(controller)
     ) {
       this.messagingSystem.subscribe(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${name}:stateChange`,
         (childState: Record<string, unknown>) => {
           this.update((state) => {
