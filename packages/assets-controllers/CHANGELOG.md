@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add `messenger` as a constructor option for `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
+- **BREAKING:** Add `messenger` option to `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - This messenger must allow the actions `TokensController:getState`, `NetworkController:getNetworkClientById`, `NetworkController:getState`, and `PreferencesController:getState` and allow the events `PreferencesController:stateChange`, `TokensController:stateChange`, and `NetworkController:stateChange`.
+- Add types `TokenRatesControllerGetStateAction`, `TokenRatesControllerActions`, `TokenRatesControllerStateChangeEvent`, `TokenRatesControllerEvents`, `TokenRatesControllerMessenger`([#4314](https://github.com/MetaMask/core/pull/4314))
+- Add function `getDefaultTokenRatesControllerState` ([#4314](https://github.com/MetaMask/core/pull/4314))
+- Add `enable` and `disable` methods to `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - These are used to stop and restart polling.
+- Export `ContractExchangeRates` type ([#4314](https://github.com/MetaMask/core/pull/4314))
   - Add `AccountTrackerControllerMessenger` type
 - **BREAKING:** The `NftController` messenger must now allow `AccountsController:getAccount` and `AccountsController:getSelectedAccount` as messenger actions and `AccountsController:selectedEvmAccountChange` as a messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
 - **BREAKING:** `NftDetectionController` messenger must now allow `AccountsController:getSelectedAccount` as a messenger action ([#4221](https://github.com/MetaMask/core/pull/4221))
@@ -20,7 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^17.0.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
-- Upgrade `TokenRatesController` to `BaseControllerV2` ([#4314](https://github.com/MetaMask/core/pull/4314))
+- **BREAKING:** `TokenRatesController` now inherits from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - The constructor now takes a single options object rather than three arguments. Some options have been removed; see later entries.
+- **BREAKING:** Rename `TokenRatesState` to `TokenRatesControllerState`, and convert from `interface` to `type` ([#4314](https://github.com/MetaMask/core/pull/4314))
 - Update Nft controllers to use `selectedAccountId` instead of `selectedAddress` ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `TokenRatesController` uses checksum instead of lowercase format for token addresses ([#4377](https://github.com/MetaMask/core/pull/4377))
 - Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
@@ -29,6 +38,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **BREAKING:** Remove `nativeCurrency`, `chainId`, `selectedAddress`, `allTokens`, and `allDetectedTokens` from configuration options for `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - The messenger is now used to obtain information from other controllers where this data was originally expected to come from.
+- **BREAKING:** Remove `config` property and `configure` method from `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - The controller now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `TokenRatesConfig` type ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - Some of these properties have been merged into the options that `TokenRatesController` takes.
 - **BREAKING:** Remove `NftController` constructor options `selectedAddress`. ([#4221](https://github.com/MetaMask/core/pull/4221))
 - **BREAKING:** Remove `AccountTrackerController` constructor options `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange` ([#4225](https://github.com/MetaMask/core/pull/4225))
 - Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
