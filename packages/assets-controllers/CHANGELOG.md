@@ -9,25 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.0.0]
 
-### Uncategorized
+### Added
 
-- chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- upgrade TokenRatesController to BaseControllerV2 ([#4314](https://github.com/MetaMask/core/pull/4314))
-- refactor: update Nft Controllers to use selectedAccountId instead of selectedAddress ([#4221](https://github.com/MetaMask/core/pull/4221))
-- refactor: update account tracker to use selected account ([#4225](https://github.com/MetaMask/core/pull/4225))
-- [TokenRatesController] - Keep addresses in checksum format ([#4377](https://github.com/MetaMask/core/pull/4377))
-- fix: avoid multiple calls to refresh nft metadata ([#4325](https://github.com/MetaMask/core/pull/4325))
-- feat: add mantle to price api supported chains ([#4376](https://github.com/MetaMask/core/pull/4376))
-- chore(test): Refactor FakeBlockTracker provider injection ([#4345](https://github.com/MetaMask/core/pull/4345))
-- fix: remove value from price api call ([#4364](https://github.com/MetaMask/core/pull/4364))
-- TokenListController: providerConfig -> selectedNetworkClientId ([#4316](https://github.com/MetaMask/core/pull/4316))
-- TokensController: providerConfig -> selectedNetworkClientId ([#4353](https://github.com/MetaMask/core/pull/4353))
-- AccountTrackerController: Remove ref to providerConfig ([#4306](https://github.com/MetaMask/core/pull/4306))
-- AssetsContractController: providerConfig -> selectedNetworkClientId ([#4315](https://github.com/MetaMask/core/pull/4315))
-- fix: fix market data of assets controller if no data ([#4361](https://github.com/MetaMask/core/pull/4361))
-- deps: @metamask/keyring-api@^6.1.1->^6.4.0 ([#4355](https://github.com/MetaMask/core/pull/4355))
-- fix: Mutex never gets released on refresh function of AccountTrackerController ([#4270](https://github.com/MetaMask/core/pull/4270))
+- Added `Mutex` lock in the `updateNftMetadata` function ([#4325](https://github.com/MetaMask/core/pull/4325))
+- Token price API support for mantle network ([#4376](https://github.com/MetaMask/core/pull/4376))
+
+### Changed
+
+- **BREAKING:** `NftController` constructor argument `selectedAddress` has been removed. ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** `NftController` now requires `AccountsController:get{Account,SelectedAccount}` messenger actions. ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** `NftController` now requires `AccountsController:selectedEvmAccountChange` event. ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** `NftDetectionController` now requires `AccountsControlelr:getSelectedAccount` messenger actions. ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** `AccountTrackerController` now requires a controller messenger ([#4225](https://github.com/MetaMask/core/pull/4225))
+- Removed `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange` from the constructor arguments of the `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
+- Upgrade `TokenRatesController` to `BaseControllerV2` ([#4314](https://github.com/MetaMask/core/pull/4314))
+- Update Nft controllers to use `selectedAccountId` instead of `selectedAddress` ([#4221](https://github.com/MetaMask/core/pull/4221))
+- `TokenRatesController` uses checksum instead of lowercase format for token addresses ([#4377](https://github.com/MetaMask/core/pull/4377))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Fixed
+
+- Catch the case when data are not available for given token ([#4361](https://github.com/MetaMask/core/pull/4361))
+- Mutex released on the finally block of refresh function ([#4270](https://github.com/MetaMask/core/pull/4270))
+
+### Removed
+
+- Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
 
 ## [32.0.0]
 
