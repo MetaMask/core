@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `AccountTrackerControllerMessenger` type
 - `NftController` now allows `AccountsController:getAccount`, `AccountsController:getSelectedAccount` as messenger actions and subscribes to the `AccountsController:selectedEvmAccountChange` messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `NftDetectionController` now allows `AccountsController:getSelectedAccount` as a messenger action ([#4221](https://github.com/MetaMask/core/pull/4221))
-- Add `Mutex` lock in the `updateNftMetadata` function ([#4325](https://github.com/MetaMask/core/pull/4325))
 - Token price API support for mantle network ([#4376](https://github.com/MetaMask/core/pull/4376))
 
 ### Changed
@@ -24,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade `TokenRatesController` to `BaseControllerV2` ([#4314](https://github.com/MetaMask/core/pull/4314))
 - Update Nft controllers to use `selectedAccountId` instead of `selectedAddress` ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `TokenRatesController` uses checksum instead of lowercase format for token addresses ([#4377](https://github.com/MetaMask/core/pull/4377))
+- Add `Mutex` lock in the `updateNftMetadata` function ([#4325](https://github.com/MetaMask/core/pull/4325))
 - Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/keyring-controller` to `^17.1.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
