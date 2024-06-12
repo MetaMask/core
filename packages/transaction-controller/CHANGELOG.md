@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+
 ### Uncategorized
 
 - chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
@@ -887,7 +889,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...@metamask/transaction-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0
 [30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...@metamask/transaction-controller@30.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.2]
+
 ### Uncategorized
 
 - fix: add `SelectedNetworkController` setNetworkClientId useRequestQueuePreference guard ([#4388](https://github.com/MetaMask/core/pull/4388))
@@ -233,7 +235,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.2...HEAD
+[15.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.1...@metamask/selected-network-controller@15.0.2
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.0...@metamask/selected-network-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@14.0.0...@metamask/selected-network-controller@15.0.0
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@13.0.0...@metamask/selected-network-controller@14.0.0

@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0]
+
 ### Uncategorized
 
 - chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.0...HEAD
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-controller@0.1.0
