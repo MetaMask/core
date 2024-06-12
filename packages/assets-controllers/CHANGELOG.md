@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add `messenger` as a constructor option for `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
-(https://github.com/MetaMask/core/pull/4225))
   - Add `AccountTrackerControllerMessenger` type
 - `NftController` now allows `AccountsController:getAccount`, `AccountsController:getSelectedAccount` as messenger actions and subscribes to the `AccountsController:selectedEvmAccountChange` messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `NftDetectionController` now allows `AccountsController:getSelectedAccount` as a messenger action ([#4221](https://github.com/MetaMask/core/pull/4221))
@@ -32,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `NftController` constructor options `selectedAddress`. ([#4221](https://github.com/MetaMask/core/pull/4221))
-- **BREAKING:** Remove `AccountTrackerController` constructor options `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange`  ([#4225]
+- **BREAKING:** Remove `AccountTrackerController` constructor options `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange` ([#4225](https://github.com/MetaMask/core/pull/4225))
 - Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
 
 ### Fixed
