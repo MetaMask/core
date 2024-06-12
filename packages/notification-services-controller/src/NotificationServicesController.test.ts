@@ -41,6 +41,11 @@ import * as OnChainNotifications from './services/onchain-notifications';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as MetamaskNotificationsUtils from './utils/utils';
 
+const featureAnnouncementsEnv = {
+  spaceId: ':space_id',
+  accessToken: ':access_token',
+};
+
 describe('metamask-notifications - constructor()', () => {
   const arrangeMocks = () => {
     const messengerMocks = mockNotificationMessenger();
@@ -65,11 +70,13 @@ describe('metamask-notifications - constructor()', () => {
   it('initializes state & override state', () => {
     const controller1 = new MetamaskNotificationsController({
       messenger: mockNotificationMessenger().messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
     });
     expect(controller1.state).toStrictEqual(defaultState);
 
     const controller2 = new MetamaskNotificationsController({
       messenger: mockNotificationMessenger().messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: {
         ...defaultState,
         isFeatureAnnouncementsEnabled: true,
@@ -85,7 +92,10 @@ describe('metamask-notifications - constructor()', () => {
 
     // initialize controller with 1 address
     mockListAccounts.mockResolvedValueOnce(['addr1']);
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
 
     const mockUpdate = jest
       .spyOn(controller, 'updateOnChainTriggersByAccount')
@@ -108,6 +118,7 @@ describe('metamask-notifications - constructor()', () => {
     // initialize controller with 1 address
     const controller = new MetamaskNotificationsController({
       messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: {
         isMetamaskNotificationsEnabled: true,
         subscriptionAccountsSeen: ['addr1'],
@@ -164,6 +175,7 @@ describe('metamask-notifications - constructor()', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _controller = new MetamaskNotificationsController({
       messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { isMetamaskNotificationsEnabled: true },
     });
 
@@ -182,6 +194,7 @@ describe('metamask-notifications - constructor()', () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const _controller = new MetamaskNotificationsController({
       messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { isMetamaskNotificationsEnabled: true },
     });
 
@@ -201,7 +214,10 @@ describe('metamask-notifications - checkAccountsPresence()', () => {
       JSON.stringify(createMockFullUserStorage()),
     );
 
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
     const result = await controller.checkAccountsPresence([
       MOCK_USER_STORAGE_ACCOUNT,
       'fake_account',
@@ -220,6 +236,7 @@ describe('metamask-notifications - setFeatureAnnouncementsEnabled()', () => {
 
     const controller = new MetamaskNotificationsController({
       messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { ...defaultState, isFeatureAnnouncementsEnabled: false },
     });
 
@@ -253,7 +270,10 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
       mockCreateOnChainTriggers,
       mockPerformGetStorage,
     } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
     mockPerformGetStorage.mockResolvedValue(null); // Mock no storage found.
 
     const result = await controller.createOnChainTriggers();
@@ -267,6 +287,7 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
     const mocks = arrangeMocks();
     const controller = new MetamaskNotificationsController({
       messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
     });
 
     const testScenarios = {
@@ -296,7 +317,10 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
       nockMockDeleteTriggersAPI,
       mockDisablePushNotifications,
     } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
     const result = await controller.deleteOnChainTriggersByAccount([
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
@@ -309,7 +333,10 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
 
   it('does nothing if account does not exist in storage', async () => {
     const { messenger, mockDisablePushNotifications } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
     const result = await controller.deleteOnChainTriggersByAccount([
       'UNKNOWN_ACCOUNT',
     ]);
@@ -324,6 +351,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
     const mocks = arrangeMocks();
     const controller = new MetamaskNotificationsController({
       messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
     });
 
     const testScenarios = {
@@ -355,7 +383,10 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
       mockPerformSetStorage,
     } = arrangeMocks();
     const MOCK_ACCOUNT = 'MOCK_ACCOUNT2';
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
 
     const result = await controller.updateOnChainTriggersByAccount([
       MOCK_ACCOUNT,
@@ -374,6 +405,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
     const mocks = arrangeMocks();
     const controller = new MetamaskNotificationsController({
       messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
     });
 
     const testScenarios = {
@@ -426,6 +458,7 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     const controller = new MetamaskNotificationsController({
       messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
     });
 
@@ -455,6 +488,7 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     const controller = new MetamaskNotificationsController({
       messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
     });
 
@@ -488,7 +522,10 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
 
   it('updates feature announcements as read', async () => {
     const { messenger } = arrangeMocks();
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
 
     await controller.markMetamaskNotificationsAsRead([
       processNotification(createMockFeatureAnnouncementRaw()),
@@ -501,7 +538,10 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
 
   it('should at least mark feature announcements locally if external updates fail', async () => {
     const { messenger } = arrangeMocks({ onChainMarkAsReadFails: true });
-    const controller = new MetamaskNotificationsController({ messenger });
+    const controller = new MetamaskNotificationsController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
 
     await controller.markMetamaskNotificationsAsRead([
       processNotification(createMockFeatureAnnouncementRaw()),
@@ -531,6 +571,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     mocks.mockListAccounts.mockResolvedValue(['0xAddr1']);
     const controller = new MetamaskNotificationsController({
       messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
     });
 
     const promise = controller.enableMetamaskNotifications();
@@ -555,6 +596,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
     mocks.mockPerformGetStorage.mockResolvedValue(JSON.stringify(userStorage));
     const controller = new MetamaskNotificationsController({
       messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
     });
 
     await controller.enableMetamaskNotifications();
@@ -583,6 +625,7 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     const mocks = arrangeMocks();
     const controller = new MetamaskNotificationsController({
       messenger: mocks.messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { isMetamaskNotificationsEnabled: true },
     });
 

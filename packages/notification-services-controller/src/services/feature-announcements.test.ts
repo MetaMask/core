@@ -9,6 +9,11 @@ jest.mock('@contentful/rich-text-html-renderer', () => ({
     .mockImplementation((richText: string) => `<p>${richText}</p>`),
 }));
 
+const featureAnnouncementsEnv = {
+  spaceId: ':space_id',
+  accessToken: ':access_token',
+};
+
 describe('Feature Announcement Notifications', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -19,7 +24,9 @@ describe('Feature Announcement Notifications', () => {
       status: 500,
     });
 
-    const notifications = await getFeatureAnnouncementNotifications();
+    const notifications = await getFeatureAnnouncementNotifications(
+      featureAnnouncementsEnv,
+    );
     mockEndpoint.done();
     expect(notifications).toStrictEqual([]);
   });
@@ -30,7 +37,9 @@ describe('Feature Announcement Notifications', () => {
       body: { items: [] },
     });
 
-    const notifications = await getFeatureAnnouncementNotifications();
+    const notifications = await getFeatureAnnouncementNotifications(
+      featureAnnouncementsEnv,
+    );
     mockEndpoint.done();
     expect(notifications).toStrictEqual([]);
   });
@@ -41,7 +50,9 @@ describe('Feature Announcement Notifications', () => {
       body: createMockFeatureAnnouncementAPIResult(),
     });
 
-    const notifications = await getFeatureAnnouncementNotifications();
+    const notifications = await getFeatureAnnouncementNotifications(
+      featureAnnouncementsEnv,
+    );
     expect(notifications).toHaveLength(1);
     mockEndpoint.done();
 

@@ -32,19 +32,17 @@ import * as MetamaskNotificationsUtils from './utils/utils';
 
 // TODO: Fix Circular Type Dependencies
 // This indicates that control flow of messages is everywhere, lets orchestrate these better
-export declare type PushPlatformNotificationsControllerEnablePushNotifications =
-  {
-    type: `PushPlatformNotificationsController:enablePushNotifications`;
-    handler: (UUIDs: string[]) => Promise<void>;
-  };
+export type PushPlatformNotificationsControllerEnablePushNotifications = {
+  type: `PushPlatformNotificationsController:enablePushNotifications`;
+  handler: (UUIDs: string[]) => Promise<void>;
+};
 
-export declare type PushPlatformNotificationsControllerDisablePushNotifications =
-  {
-    type: `PushPlatformNotificationsController:disablePushNotifications`;
-    handler: (UUIDs: string[]) => Promise<void>;
-  };
+export type PushPlatformNotificationsControllerDisablePushNotifications = {
+  type: `PushPlatformNotificationsController:disablePushNotifications`;
+  handler: (UUIDs: string[]) => Promise<void>;
+};
 
-export declare type PushPlatformNotificationsControllerUpdateTriggerPushNotifications =
+export type PushPlatformNotificationsControllerUpdateTriggerPushNotifications =
   {
     type: `PushPlatformNotificationsController:updateTriggerPushNotifications`;
     handler: (UUIDs: string[]) => Promise<void>;
@@ -168,19 +166,17 @@ export const defaultState: MetamaskNotificationsControllerState = {
   isCheckingAccountsPresence: false,
 };
 
-export declare type MetamaskNotificationsControllerUpdateMetamaskNotificationsList =
-  {
-    type: `${typeof controllerName}:updateMetamaskNotificationsList`;
-    handler: MetamaskNotificationsController['updateMetamaskNotificationsList'];
-  };
+export type MetamaskNotificationsControllerUpdateMetamaskNotificationsList = {
+  type: `${typeof controllerName}:updateMetamaskNotificationsList`;
+  handler: MetamaskNotificationsController['updateMetamaskNotificationsList'];
+};
 
-export declare type MetamaskNotificationsControllerDisableMetamaskNotifications =
-  {
-    type: `${typeof controllerName}:disableMetamaskNotifications`;
-    handler: MetamaskNotificationsController['disableMetamaskNotifications'];
-  };
+export type MetamaskNotificationsControllerDisableMetamaskNotifications = {
+  type: `${typeof controllerName}:disableMetamaskNotifications`;
+  handler: MetamaskNotificationsController['disableMetamaskNotifications'];
+};
 
-export declare type MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled =
+export type MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled =
   {
     type: `${typeof controllerName}:selectIsMetamaskNotificationsEnabled`;
     handler: MetamaskNotificationsController['selectIsMetamaskNotificationsEnabled'];
@@ -231,6 +227,8 @@ export type MetamaskNotificationsControllerMessenger =
     AllowedActions['type'],
     AllowedEvents['type']
   >;
+
+type FeatureAnnouncementEnv = { spaceId: string; accessToken: string };
 
 /**
  * Controller that enables wallet notifications and feature announcements
@@ -400,19 +398,27 @@ export class MetamaskNotificationsController extends BaseController<
     },
   };
 
+  #featureAnnouncementEnv: FeatureAnnouncementEnv;
+
   /**
    * Creates a MetamaskNotificationsController instance.
    *
    * @param args - The arguments to this function.
    * @param args.messenger - Messenger used to communicate with BaseV2 controller.
    * @param args.state - Initial state to set on this controller.
+   * @param args.env - environment variables for a given controller.
+   * @param args.env.featureAnnouncements - env variables for feature announcements.
    */
   constructor({
     messenger,
     state,
+    env,
   }: {
     messenger: MetamaskNotificationsControllerMessenger;
     state?: Partial<MetamaskNotificationsControllerState>;
+    env: {
+      featureAnnouncements: FeatureAnnouncementEnv;
+    };
   }) {
     super({
       messenger,
@@ -421,6 +427,7 @@ export class MetamaskNotificationsController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
+    this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -943,9 +950,9 @@ export class MetamaskNotificationsController extends BaseController<
       // Raw Feature Notifications
       const rawFeatureAnnouncementNotifications = this.state
         .isFeatureAnnouncementsEnabled
-        ? await FeatureNotifications.getFeatureAnnouncementNotifications().catch(
-            () => [],
-          )
+        ? await FeatureNotifications.getFeatureAnnouncementNotifications(
+            this.#featureAnnouncementEnv,
+          ).catch(() => [])
         : [];
 
       // Raw On Chain Notifications

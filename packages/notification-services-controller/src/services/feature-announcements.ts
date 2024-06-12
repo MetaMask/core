@@ -15,10 +15,15 @@ import type { INotification } from '../types/notification/notification';
 // TODO - pass correct environemnt variables
 // const spaceId = process.env.CONTENTFUL_ACCESS_SPACE_ID || ':space_id';
 // const accessToken = process.env.CONTENTFUL_ACCESS_TOKEN || '';
-const spaceId = ':space_id';
-const accessToken = '';
-export const FEATURE_ANNOUNCEMENT_API = `https://cdn.contentful.com/spaces/${spaceId}/environments/master/entries`;
-export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${accessToken}&content_type=productAnnouncement&include=10&fields.clients=extension`;
+const DEFAULT_SPACE_ID = ':space_id';
+const DEFAULT_ACCESS_TOKEN = ':access_token';
+export const FEATURE_ANNOUNCEMENT_API = `https://cdn.contentful.com/spaces/${DEFAULT_SPACE_ID}/environments/master/entries`;
+export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients=extension`;
+
+type Env = {
+  spaceId: string;
+  accessToken: string;
+};
 
 export type ContentfulResult = {
   includes?: {
@@ -59,10 +64,14 @@ const fetchFromContentful = async (
   return null;
 };
 
-const fetchFeatureAnnouncementNotifications = async (): Promise<
-  FeatureAnnouncementRawNotification[]
-> => {
-  const data = await fetchFromContentful(FEATURE_ANNOUNCEMENT_URL);
+const fetchFeatureAnnouncementNotifications = async (
+  env: Env,
+): Promise<FeatureAnnouncementRawNotification[]> => {
+  const url = FEATURE_ANNOUNCEMENT_URL.replace(
+    DEFAULT_SPACE_ID,
+    env.spaceId,
+  ).replace(DEFAULT_ACCESS_TOKEN, env.accessToken);
+  const data = await fetchFromContentful(url);
 
   if (!data) {
     return [];
@@ -117,12 +126,13 @@ const fetchFeatureAnnouncementNotifications = async (): Promise<
 
 /**
  * Gets Feature Announcement from our services
+ * @param env - environment for feature announcements
  * @returns Raw Feature Announcements
  */
-export async function getFeatureAnnouncementNotifications(): Promise<
-  INotification[]
-> {
-  const rawNotifications = await fetchFeatureAnnouncementNotifications();
+export async function getFeatureAnnouncementNotifications(
+  env: Env,
+): Promise<INotification[]> {
+  const rawNotifications = await fetchFeatureAnnouncementNotifications(env);
   const notifications = rawNotifications.map((notification) =>
     processFeatureAnnouncement(notification),
   );
