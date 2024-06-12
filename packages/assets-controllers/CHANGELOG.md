@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Catch the case when data are not available for given token ([#4361](https://github.com/MetaMask/core/pull/4361))
-- Mutex released on the finally block of refresh function ([#4270](https://github.com/MetaMask/core/pull/4270))
+- Fix `refresh` method remaining locked indefinitely after it was run successfully. Now lock is released on successful as well as failed runs. ([#4270](https://github.com/MetaMask/core/pull/4270))
 
 ## [32.0.0]
 
