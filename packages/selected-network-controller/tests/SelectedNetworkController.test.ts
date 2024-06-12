@@ -243,7 +243,6 @@ describe('SelectedNetworkController', () => {
           messenger.publish(
             'NetworkController:stateChange',
             {
-              providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
               selectedNetworkClientId: 'goerli',
               networkConfigurations: {},
               networksMetadata: {},
@@ -281,7 +280,6 @@ describe('SelectedNetworkController', () => {
           messenger.publish(
             'NetworkController:stateChange',
             {
-              providerConfig: { chainId: '0x5', ticker: 'ETH', type: 'goerli' },
               selectedNetworkClientId: 'goerli',
               networkConfigurations: {},
               networksMetadata: {},
