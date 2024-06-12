@@ -1,8 +1,6 @@
 // We are defining that this file uses a webworker global scope.
 // eslint-disable-next-line spaced-comment
 /// <reference lib="webworker" />
-import { Processors } from '@metamask/notification-services-controller';
-import type { Types } from '@metamask/notification-services-controller';
 import type { FirebaseApp } from 'firebase/app';
 import { getApp, initializeApp } from 'firebase/app';
 import { getToken, deleteToken } from 'firebase/messaging';
@@ -10,6 +8,8 @@ import { getMessaging, onBackgroundMessage } from 'firebase/messaging/sw';
 import type { Messaging, MessagePayload } from 'firebase/messaging/sw';
 import log from 'loglevel';
 
+import type { Types } from '../../../NotificationServicesController';
+import { Processors } from '../../../NotificationServicesController';
 import type { PushNotificationEnv } from '../../types/firebase';
 
 const sw = self as unknown as ServiceWorkerGlobalScope;

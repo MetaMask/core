@@ -3258,7 +3258,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/notification-services-controller@^0.0.0, @metamask/notification-services-controller@workspace:packages/notification-services-controller":
+"@metamask/notification-services-controller@workspace:packages/notification-services-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/notification-services-controller@workspace:packages/notification-services-controller"
   dependencies:
@@ -3271,8 +3271,10 @@ __metadata:
     "@metamask/profile-sync-controller": ^0.0.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
+    bignumber.js: ^4.1.0
     contentful: ^10.3.6
     deepmerge: ^4.2.2
+    firebase: ^10.11.0
     jest: ^27.5.1
     jest-environment-jsdom: ^27.5.1
     loglevel: ^1.8.1
@@ -3284,33 +3286,6 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@metamask/keyring-controller": ^17.0.0
-    "@metamask/profile-sync-controller": ^0.0.0
-  languageName: unknown
-  linkType: soft
-
-"@metamask/notification-services-push-controller@workspace:packages/notification-services-push-controller":
-  version: 0.0.0-use.local
-  resolution: "@metamask/notification-services-push-controller@workspace:packages/notification-services-push-controller"
-  dependencies:
-    "@lavamoat/allow-scripts": ^3.0.2
-    "@metamask/auto-changelog": ^3.4.4
-    "@metamask/base-controller": ^6.0.0
-    "@metamask/notification-services-controller": ^0.0.0
-    "@metamask/profile-sync-controller": ^0.0.0
-    "@types/jest": ^27.4.1
-    "@types/readable-stream": ^2.3.0
-    bignumber.js: ^4.1.0
-    deepmerge: ^4.2.2
-    firebase: ^10.11.0
-    jest: ^27.5.1
-    jest-environment-jsdom: ^27.5.1
-    loglevel: ^1.8.1
-    ts-jest: ^27.1.4
-    typedoc: ^0.24.8
-    typedoc-plugin-missing-exports: ^2.0.0
-    typescript: ~4.9.5
-  peerDependencies:
-    "@metamask/notification-services-controller": ^0.0.0
     "@metamask/profile-sync-controller": ^0.0.0
   languageName: unknown
   linkType: soft

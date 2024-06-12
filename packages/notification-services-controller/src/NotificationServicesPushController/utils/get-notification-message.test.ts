@@ -1,5 +1,4 @@
-import { Mocks, Processors } from '@metamask/notification-services-controller';
-
+import { Mocks, Processors } from '../../NotificationServicesController';
 import type { TranslationKeys } from './get-notification-message';
 import { createOnChainPushNotificationMessage } from './get-notification-message';
 

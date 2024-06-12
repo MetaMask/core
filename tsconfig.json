@@ -77,9 +77,6 @@
       "path": "./packages/preferences-controller"
     },
     {
-      "path": "./packages/notification-services-push-controller"
-    },
-    {
       "path": "./packages/profile-sync-controller"
     },
     {

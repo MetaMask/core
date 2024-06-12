@@ -1,7 +1,7 @@
-import type { Types } from '@metamask/notification-services-controller';
 import log from 'loglevel';
-import type { PushNotificationEnv } from 'src/types';
 
+import type { Types } from '../../NotificationServicesController';
+import type { PushNotificationEnv } from '../types';
 import * as endpoints from './endpoints';
 import type { CreateRegToken, DeleteRegToken } from './push';
 import {

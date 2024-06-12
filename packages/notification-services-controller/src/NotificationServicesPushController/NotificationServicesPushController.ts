@@ -3,10 +3,10 @@ import type {
   ControllerGetStateAction,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { Types } from '@metamask/notification-services-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
+import type { Types } from '../NotificationServicesController';
 import { createRegToken, deleteRegToken } from './services/push/push-web';
 import {
   activatePushNotifications,

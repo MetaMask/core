@@ -1,6 +1,5 @@
-import type { Types } from '@metamask/notification-services-controller';
-import { Constants } from '@metamask/notification-services-controller';
-
+import type { Types } from '../../NotificationServicesController';
+import { Constants } from '../../NotificationServicesController';
 import { getAmount, formatAmount } from './get-notification-data';
 
 export type TranslationKeys = {
