@@ -1,4 +1,13 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import type {
+  BaseConfig,
+  BaseState,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import {
   safelyExecute,
   toChecksumHexAddress,
@@ -9,6 +18,7 @@ import { type InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkController,
+  NetworkControllerStateChangeEvent,
   NetworkState,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
@@ -19,7 +29,10 @@ import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import { fetchExchangeRate as fetchNativeCurrencyExchangeRate } from './crypto-compare-service';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { ZERO_ADDRESS } from './token-prices-service/codefi-v2';
-import type { TokensControllerState } from './TokensController';
+import type {
+  TokensControllerState,
+  TokensControllerStateChangeEvent,
+} from './TokensController';
 
 /**
  * @type Token
@@ -152,6 +165,23 @@ async function getCurrencyConversionRate({
   }
 }
 
+export type AllowedActions =
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction;
+
+export type AllowedEvents =
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | NetworkControllerStateChangeEvent
+  | TokensControllerStateChangeEvent;
+
+export type TokenRatesControllerMessenger = RestrictedControllerMessenger<
+  'TokenRatesController',
+  AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
@@ -175,7 +205,7 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
-  private readonly getInternalAccount: (accountId: string) => InternalAccount;
+  private readonly messagingSystem: TokenRatesControllerMessenger;
 
   /**
    * Creates a TokenRatesController instance.
@@ -183,12 +213,10 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    * @param options - The controller options.
    * @param options.interval - The polling interval in ms
    * @param options.threshold - The duration in ms before metadata fetched from CoinGecko is considered stale
+   * @param options.messenger - The messaging system used to communicate between controllers.
    * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
    * @param options.chainId - The chain ID of the current network.
    * @param options.ticker - The ticker for the current network.
-   * @param options.getInternalAccount - A callback to get an InternalAccount by id.
-   * @param options.selectedAccountId - The current selected address.
-   * @param options.onSelectedAccountChange - Allows subscribing to changes of selected account.
    * @param options.onTokensStateChange - Allows subscribing to token controller state changes.
    * @param options.onNetworkStateChange - Allows subscribing to network state changes.
    * @param options.tokenPricesService - An object in charge of retrieving token prices.
@@ -199,26 +227,21 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     {
       interval = 3 * 60 * 1000,
       threshold = 6 * 60 * 60 * 1000,
+      messenger,
       getNetworkClientById,
       chainId: initialChainId,
       ticker: initialTicker,
-      selectedAccountId,
-      getInternalAccount,
-      onSelectedAccountChange,
       onTokensStateChange,
       onNetworkStateChange,
       tokenPricesService,
     }: {
       interval?: number;
       threshold?: number;
+      messenger: TokenRatesControllerMessenger;
       getNetworkClientById: NetworkController['getNetworkClientById'];
       chainId: Hex;
       ticker: string;
-      selectedAccountId: string;
-      getInternalAccount: (accountId: string) => InternalAccount;
-      onSelectedAccountChange: (
-        listener: (internalAccount: InternalAccount) => void,
-      ) => void;
+
       onTokensStateChange: (
         listener: (tokensState: TokensControllerState) => void,
       ) => void;
@@ -231,13 +254,18 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     state?: Partial<TokenRatesState>,
   ) {
     super(config, state);
+
+    this.messagingSystem = messenger;
+
     this.defaultConfig = {
       interval,
       threshold,
       disabled: false,
       nativeCurrency: initialTicker,
       chainId: initialChainId,
-      selectedAccountId,
+      selectedAccountId: this.messagingSystem.call(
+        'AccountsController:getSelectedAccount',
+      ).id,
       allTokens: {}, // TODO: initialize these correctly, maybe as part of BaseControllerV2 migration
       allDetectedTokens: {},
     };
@@ -248,21 +276,11 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     this.initialize();
     this.setIntervalLength(interval);
     this.getNetworkClientById = getNetworkClientById;
-    this.getInternalAccount = getInternalAccount;
     this.#tokenPricesService = tokenPricesService;
 
     if (config?.disabled) {
       this.configure({ disabled: true }, false, false);
     }
-
-    onSelectedAccountChange(async (internalAccount) => {
-      if (this.config.selectedAccountId !== internalAccount.id) {
-        this.configure({ selectedAccountId: internalAccount.id });
-        if (this.#pollState === PollState.Active) {
-          await this.updateExchangeRates();
-        }
-      }
-    });
 
     onTokensStateChange(async ({ allTokens, allDetectedTokens }) => {
       const previousTokenAddresses = this.#getTokenAddresses(
@@ -295,6 +313,11 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
         }
       }
     });
+
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      (internalAccount) => this.#onSelectedAccountChange(internalAccount),
+    );
   }
 
   /**
@@ -305,10 +328,13 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
    */
   #getTokenAddresses(chainId: Hex): Hex[] {
     const { allTokens, allDetectedTokens, selectedAccountId } = this.config;
-    const internalAccount = this.getInternalAccount(selectedAccountId);
-    const tokens = allTokens[chainId]?.[internalAccount.address] || [];
+    const internalAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      selectedAccountId,
+    );
+    const tokens = allTokens[chainId]?.[internalAccount?.address ?? ''] || [];
     const detectedTokens =
-      allDetectedTokens[chainId]?.[internalAccount.address] || [];
+      allDetectedTokens[chainId]?.[internalAccount?.address ?? ''] || [];
 
     return [
       ...new Set(
@@ -625,6 +651,15 @@ export class TokenRatesController extends StaticIntervalPollingControllerV1<
     }, {});
 
     return updatedContractExchangeRates;
+  }
+
+  async #onSelectedAccountChange(newInternalAccount: InternalAccount) {
+    if (this.config.selectedAccountId !== newInternalAccount.id) {
+      this.configure({ selectedAccountId: newInternalAccount.id });
+      if (this.#pollState === PollState.Active) {
+        await this.updateExchangeRates();
+      }
+    }
   }
 }
 

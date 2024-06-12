@@ -1,3 +1,4 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ChainId,
   InfuraNetworkType,
@@ -35,6 +36,8 @@ import type {
   TokenRatesConfig,
   Token,
   TokenRatesState,
+  AllowedActions,
+  AllowedEvents,
 } from './TokenRatesController';
 import type { TokensControllerState } from './TokensController';
 
@@ -42,6 +45,62 @@ const defaultMockInternalAccount = createMockInternalAccount({
   address: '0xA',
 });
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
+
+/**
+ * Builds a new ControllerMessenger instance for TokenRatesController.
+ * @returns A new ControllerMessenger instance.
+ */
+const buildMessenger = (): ControllerMessenger<
+  AllowedActions,
+  AllowedEvents
+> => {
+  return new ControllerMessenger<AllowedActions, AllowedEvents>();
+};
+
+const buildTokenRatesControllerMessenger = ({
+  messenger = buildMessenger(),
+  mocks: {
+    getSelectedAccount = defaultMockInternalAccount,
+    getAccount = defaultMockInternalAccount,
+  } = {},
+} = {}) => {
+  const tokenRatesControllerMessenger = messenger.getRestricted({
+    name: 'TokenRatesController',
+    allowedActions: [
+      'AccountsController:getAccount',
+      'AccountsController:getSelectedAccount',
+    ],
+    allowedEvents: [
+      'AccountsController:selectedEvmAccountChange',
+      'TokensController:stateChange',
+      'NetworkController:stateChange',
+    ],
+  });
+
+  const mockGetAccount = jest.fn().mockReturnValue(getAccount);
+  const mockGetSelectedAccount = jest.fn().mockReturnValue(getSelectedAccount);
+
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount,
+  );
+
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount,
+  );
+
+  const triggerSelectedAccountChange = (account: InternalAccount) => {
+    messenger.publish('AccountsController:selectedEvmAccountChange', account);
+  };
+
+  return {
+    messenger: tokenRatesControllerMessenger,
+    triggerSelectedAccountChange,
+    mockGetAccount,
+    mockGetSelectedAccount,
+  };
+};
 
 describe('TokenRatesController', () => {
   afterEach(() => {
@@ -60,13 +119,12 @@ describe('TokenRatesController', () => {
     });
 
     it('should set default state', () => {
+      const { messenger } = buildTokenRatesControllerMessenger();
       const controller = new TokenRatesController({
+        messenger,
         getNetworkClientById: jest.fn(),
-        getInternalAccount: jest.fn(),
         chainId: '0x1',
         ticker: NetworksTicker.mainnet,
-        selectedAccountId: defaultMockInternalAccount.id,
-        onSelectedAccountChange: jest.fn(),
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
         tokenPricesService: buildMockTokenPricesService(),
@@ -77,13 +135,12 @@ describe('TokenRatesController', () => {
     });
 
     it('should initialize with the default config', () => {
+      const { messenger } = buildTokenRatesControllerMessenger();
       const controller = new TokenRatesController({
+        messenger,
         getNetworkClientById: jest.fn(),
-        getInternalAccount: jest.fn(),
         chainId: '0x1',
         ticker: NetworksTicker.mainnet,
-        selectedAccountId: defaultMockInternalAccount.id,
-        onSelectedAccountChange: jest.fn(),
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
         tokenPricesService: buildMockTokenPricesService(),
@@ -102,14 +159,13 @@ describe('TokenRatesController', () => {
 
     it('should not poll by default', async () => {
       const fetchSpy = jest.spyOn(globalThis, 'fetch');
+      const { messenger } = buildTokenRatesControllerMessenger();
       new TokenRatesController({
+        messenger,
         interval: 100,
         getNetworkClientById: jest.fn(),
-        getInternalAccount: jest.fn(),
         chainId: '0x1',
         ticker: NetworksTicker.mainnet,
-        selectedAccountId: defaultMockInternalAccount.id,
-        onSelectedAccountChange: jest.fn(),
         onTokensStateChange: jest.fn(),
         onNetworkStateChange: jest.fn(),
         tokenPricesService: buildMockTokenPricesService(),
@@ -137,15 +193,10 @@ describe('TokenRatesController', () => {
         const chainId = '0xC';
         const selectedAccount = defaultMockInternalAccount;
         const tokenAddresses = ['0xE1', '0xE2'];
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {
@@ -161,6 +212,10 @@ describe('TokenRatesController', () => {
                 },
               },
               allDetectedTokens: {},
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -196,15 +251,10 @@ describe('TokenRatesController', () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
         const tokenAddresses = ['0xE1', '0xE2'];
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {},
@@ -220,6 +270,10 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -254,9 +308,6 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates if both the "all tokens" or "all detected tokens" are exactly the same', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         const tokensState = {
           allTokens: {
             [chainId]: {
@@ -276,10 +327,12 @@ describe('TokenRatesController', () => {
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: tokensState,
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
+            },
           },
           async ({ controller, controllerEvents }) => {
             const updateExchangeRatesSpy = jest
@@ -315,14 +368,14 @@ describe('TokenRatesController', () => {
           {
             options: {
               chainId,
-              getInternalAccount: jest
-                .fn()
-                .mockReturnValue(defaultMockInternalAccount),
             },
             config: {
               allTokens: tokens,
               allDetectedTokens: {},
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -346,15 +399,14 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates if a new token is added to "all detected tokens" but is already present in "all tokens"', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
             config: {
               allTokens: {
@@ -415,15 +467,10 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates if a new token is added to "all tokens" but is already present in "all detected tokens"', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {},
@@ -439,6 +486,10 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -484,15 +535,10 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates if none of the addresses in "all tokens" or "all detected tokens" change, even if other parts of the token change', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {},
@@ -508,6 +554,10 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -544,15 +594,10 @@ describe('TokenRatesController', () => {
         const selectedAccount = createMockInternalAccount({
           address: '0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
         });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {},
@@ -568,6 +613,10 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -602,15 +651,10 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates if any of the addresses in "all tokens" or "all detected tokens" merely change order', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {},
@@ -632,6 +676,10 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -674,16 +722,11 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates when any of the addresses in the "all tokens" collection change', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {
@@ -699,6 +742,10 @@ describe('TokenRatesController', () => {
                 },
               },
               allDetectedTokens: {},
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -731,16 +778,11 @@ describe('TokenRatesController', () => {
       it('should not update exchange rates when any of the addresses in the "all detected tokens" collection change', async () => {
         const chainId = '0xC';
         const selectedAccount = createMockInternalAccount({ address: '0xA' });
-        const mockGetInternalAccount = jest
-          .fn()
-          .mockReturnValue(selectedAccount);
         const tokenAddresses = ['0xE1', '0xE2'];
         await withController(
           {
             options: {
               chainId,
-              selectedAccountId: selectedAccount.id,
-              getInternalAccount: mockGetInternalAccount,
             },
             config: {
               allTokens: {},
@@ -756,6 +798,10 @@ describe('TokenRatesController', () => {
                   ],
                 },
               },
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({ controller, controllerEvents }) => {
@@ -812,14 +858,14 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -851,14 +897,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -890,14 +935,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
           interval: 100,
-          getInternalAccount: jest.fn(),
+          messenger,
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -927,14 +971,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -964,14 +1007,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -1005,14 +1047,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -1043,14 +1084,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -1081,14 +1121,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -1117,14 +1156,13 @@ describe('TokenRatesController', () => {
           .mockImplementation((listener) => {
             networkStateChangeListener = listener;
           });
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController({
+          messenger,
           interval: 100,
-          getInternalAccount: jest.fn(),
           getNetworkClientById,
           chainId: toHex(1337),
           ticker: 'TEST',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange,
           tokenPricesService: buildMockTokenPricesService(),
@@ -1159,24 +1197,15 @@ describe('TokenRatesController', () => {
           address: alternateSelectedAddress,
         });
 
-        let selectedAccountChangeListener: (
-          interalAccount: InternalAccount,
-        ) => Promise<void>;
-        const onSelectedAccountChange = jest
-          .fn()
-          .mockImplementation((listener) => {
-            selectedAccountChangeListener = listener;
-          });
-
+        const { messenger, triggerSelectedAccountChange } =
+          buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController(
           {
+            messenger,
             interval: 100,
             getNetworkClientById: jest.fn(),
-            getInternalAccount: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
-            selectedAccountId: defaultMockInternalAccount.id,
-            onSelectedAccountChange,
             onTokensStateChange: jest.fn(),
             onNetworkStateChange: jest.fn(),
             tokenPricesService: buildMockTokenPricesService(),
@@ -1197,32 +1226,21 @@ describe('TokenRatesController', () => {
           .spyOn(controller, 'updateExchangeRates')
           .mockResolvedValue();
 
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await selectedAccountChangeListener!(alternativeAccount);
+        triggerSelectedAccountChange(alternativeAccount);
 
         expect(updateExchangeRatesSpy).toHaveBeenCalled();
       });
 
       it('should not update exchange rates when preferences state changes without selected address changing', async () => {
-        // TODO: Replace `any` with type
-
-        let selectedAccountChangeListener: (
-          interalAccount: InternalAccount,
-        ) => Promise<void>;
-        const onSelectedAccountChange = jest
-          .fn()
-          .mockImplementation((listener) => {
-            selectedAccountChangeListener = listener;
-          });
+        const { messenger, triggerSelectedAccountChange } =
+          buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController(
           {
+            messenger,
             interval: 100,
-            getInternalAccount: jest.fn(),
             getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
-            selectedAccountId: defaultMockInternalAccount.id,
-            onSelectedAccountChange,
             onTokensStateChange: jest.fn(),
             onNetworkStateChange: jest.fn(),
             tokenPricesService: buildMockTokenPricesService(),
@@ -1243,8 +1261,7 @@ describe('TokenRatesController', () => {
           .spyOn(controller, 'updateExchangeRates')
           .mockResolvedValue();
 
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await selectedAccountChangeListener!(defaultMockInternalAccount);
+        triggerSelectedAccountChange(defaultMockInternalAccount);
 
         expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
       });
@@ -1257,24 +1274,15 @@ describe('TokenRatesController', () => {
         const alternateAccount = createMockInternalAccount({
           address: alternateSelectedAddress,
         });
-        let selectedAccountChangeListener: (
-          interalAccount: InternalAccount,
-        ) => Promise<void>;
-        const onSelectedAccountChange = jest
-          .fn()
-          .mockImplementation((listener) => {
-            selectedAccountChangeListener = listener;
-          });
-
+        const { messenger, triggerSelectedAccountChange } =
+          buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController(
           {
+            messenger,
             interval: 100,
-            getInternalAccount: jest.fn(),
             getNetworkClientById: jest.fn(),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
-            selectedAccountId: defaultMockInternalAccount.id,
-            onSelectedAccountChange,
             onTokensStateChange: jest.fn(),
             onNetworkStateChange: jest.fn(),
             tokenPricesService: buildMockTokenPricesService(),
@@ -1294,8 +1302,7 @@ describe('TokenRatesController', () => {
           .spyOn(controller, 'updateExchangeRates')
           .mockResolvedValue();
 
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await selectedAccountChangeListener!(alternateAccount);
+        triggerSelectedAccountChange(alternateAccount);
 
         expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
       });
@@ -1318,17 +1325,14 @@ describe('TokenRatesController', () => {
         const interval = 100;
         const tokenPricesService = buildMockTokenPricesService();
         jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController(
           {
+            messenger,
             interval,
             getNetworkClientById: jest.fn(),
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
-            selectedAccountId: defaultMockInternalAccount.id,
-            onSelectedAccountChange: jest.fn(),
             onTokensStateChange: jest.fn(),
             onNetworkStateChange: jest.fn(),
             tokenPricesService,
@@ -1365,17 +1369,14 @@ describe('TokenRatesController', () => {
         const interval = 100;
         const tokenPricesService = buildMockTokenPricesService();
         jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+        const { messenger } = buildTokenRatesControllerMessenger();
         const controller = new TokenRatesController(
           {
+            messenger,
             interval,
             getNetworkClientById: jest.fn(),
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
             chainId: '0x1',
             ticker: NetworksTicker.mainnet,
-            selectedAccountId: defaultMockInternalAccount.id,
-            onSelectedAccountChange: jest.fn(),
             onTokensStateChange: jest.fn(),
             onNetworkStateChange: jest.fn(),
             tokenPricesService,
@@ -1422,13 +1423,13 @@ describe('TokenRatesController', () => {
       const interval = 100;
       const tokenPricesService = buildMockTokenPricesService();
       jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      const { messenger } = buildTokenRatesControllerMessenger();
       const controller = new TokenRatesController(
         {
+          messenger,
           interval,
           chainId: '0x2',
           ticker: 'ticker',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange: jest.fn(),
           getNetworkClientById: jest.fn().mockReturnValue({
@@ -1437,9 +1438,6 @@ describe('TokenRatesController', () => {
               ticker: NetworksTicker.mainnet,
             },
           }),
-          getInternalAccount: jest
-            .fn()
-            .mockReturnValue(defaultMockInternalAccount),
           tokenPricesService,
         },
         {
@@ -1478,12 +1476,12 @@ describe('TokenRatesController', () => {
               return currency === 'ETH';
             },
           });
+          const { messenger } = buildTokenRatesControllerMessenger();
           const controller = new TokenRatesController(
             {
+              messenger,
               chainId: '0x2',
               ticker: 'ticker',
-              selectedAccountId: defaultMockInternalAccount.id,
-              onSelectedAccountChange: jest.fn(),
               onTokensStateChange: jest.fn(),
               onNetworkStateChange: jest.fn(),
               getNetworkClientById: jest.fn().mockReturnValue({
@@ -1492,9 +1490,6 @@ describe('TokenRatesController', () => {
                   ticker: NetworksTicker.mainnet,
                 },
               }),
-              getInternalAccount: jest
-                .fn()
-                .mockReturnValue(defaultMockInternalAccount),
               tokenPricesService,
             },
             {
@@ -1586,12 +1581,12 @@ describe('TokenRatesController', () => {
               return currency !== 'LOL';
             },
           });
+          const { messenger } = buildTokenRatesControllerMessenger();
           const controller = new TokenRatesController(
             {
+              messenger,
               chainId: '0x2',
               ticker: 'ticker',
-              selectedAccountId: defaultMockInternalAccount.id,
-              onSelectedAccountChange: jest.fn(),
               onTokensStateChange: jest.fn(),
               onNetworkStateChange: jest.fn(),
               getNetworkClientById: jest.fn().mockReturnValue({
@@ -1600,9 +1595,6 @@ describe('TokenRatesController', () => {
                   ticker: 'LOL',
                 },
               }),
-              getInternalAccount: jest
-                .fn()
-                .mockReturnValue(defaultMockInternalAccount),
               tokenPricesService,
             },
             {
@@ -1693,12 +1685,12 @@ describe('TokenRatesController', () => {
             );
 
           const tokenPricesService = buildMockTokenPricesService();
+          const { messenger } = buildTokenRatesControllerMessenger();
           const controller = new TokenRatesController(
             {
+              messenger,
               chainId: '0x2',
               ticker: 'ETH',
-              selectedAccountId: defaultMockInternalAccount.id,
-              onSelectedAccountChange: jest.fn(),
               onTokensStateChange: jest.fn(),
               onNetworkStateChange: jest.fn(),
               getNetworkClientById: jest.fn().mockReturnValue({
@@ -1707,9 +1699,6 @@ describe('TokenRatesController', () => {
                   ticker: 'LOL',
                 },
               }),
-              getInternalAccount: jest
-                .fn()
-                .mockReturnValue(defaultMockInternalAccount),
               tokenPricesService,
             },
             {
@@ -1752,13 +1741,13 @@ describe('TokenRatesController', () => {
       const interval = 100;
       const tokenPricesService = buildMockTokenPricesService();
       jest.spyOn(tokenPricesService, 'fetchTokenPrices');
+      const { messenger } = buildTokenRatesControllerMessenger();
       const controller = new TokenRatesController(
         {
+          messenger,
           interval,
           chainId: '0x2',
           ticker: 'ticker',
-          selectedAccountId: defaultMockInternalAccount.id,
-          onSelectedAccountChange: jest.fn(),
           onTokensStateChange: jest.fn(),
           onNetworkStateChange: jest.fn(),
           getNetworkClientById: jest.fn().mockReturnValue({
@@ -1767,9 +1756,6 @@ describe('TokenRatesController', () => {
               ticker: NetworksTicker.mainnet,
             },
           }),
-          getInternalAccount: jest
-            .fn()
-            .mockReturnValue(defaultMockInternalAccount),
           tokenPricesService,
         },
         {
@@ -1815,14 +1801,8 @@ describe('TokenRatesController', () => {
     it('does not update state when disabled', async () => {
       await withController(
         {
-          options: {
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
           config: {
             disabled: true,
-            selectedAccountId: defaultMockInternalAccount.id,
           },
         },
         async ({ controller, controllerEvents }) => {
@@ -1855,65 +1835,53 @@ describe('TokenRatesController', () => {
     });
 
     it('does not update state if there are no tokens for the given chain and address', async () => {
-      await withController(
-        {
-          options: {
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
-          },
-        },
-        async ({ controller, controllerEvents }) => {
-          const tokenAddress = '0x0000000000000000000000000000000000000001';
-          const differentAccount = '0x1000000000000000000000000000000000000000';
+      await withController(async ({ controller, controllerEvents }) => {
+        const tokenAddress = '0x0000000000000000000000000000000000000001';
+        const differentAccount = '0x1000000000000000000000000000000000000000';
 
-          await callUpdateExchangeRatesMethod({
-            allTokens: {
-              // These tokens are for the right chain but wrong account
-              [ChainId.mainnet]: {
-                [differentAccount]: [
-                  {
-                    address: tokenAddress,
-                    decimals: 18,
-                    symbol: 'TST',
-                    aggregators: [],
-                  },
-                ],
-              },
-              // These tokens are for the right account but wrong chain
-              [toHex(2)]: {
-                [defaultMockInternalAccount.address]: [
-                  {
-                    address: tokenAddress,
-                    decimals: 18,
-                    symbol: 'TST',
-                    aggregators: [],
-                  },
-                ],
-              },
-            },
-            chainId: toHex(1),
-            controller,
-            controllerEvents,
-            method,
-            nativeCurrency: 'ETH',
-            selectedNetworkClientId: InfuraNetworkType.mainnet,
-          });
-
-          expect(controller.state).toStrictEqual({
-            marketData: {
-              '0x1': {
-                '0x0000000000000000000000000000000000000000': {
-                  currency: 'ETH',
+        await callUpdateExchangeRatesMethod({
+          allTokens: {
+            // These tokens are for the right chain but wrong account
+            [ChainId.mainnet]: {
+              [differentAccount]: [
+                {
+                  address: tokenAddress,
+                  decimals: 18,
+                  symbol: 'TST',
+                  aggregators: [],
                 },
+              ],
+            },
+            // These tokens are for the right account but wrong chain
+            [toHex(2)]: {
+              [defaultMockInternalAccount.address]: [
+                {
+                  address: tokenAddress,
+                  decimals: 18,
+                  symbol: 'TST',
+                  aggregators: [],
+                },
+              ],
+            },
+          },
+          chainId: toHex(1),
+          controller,
+          controllerEvents,
+          method,
+          nativeCurrency: 'ETH',
+          selectedNetworkClientId: InfuraNetworkType.mainnet,
+        });
+
+        expect(controller.state).toStrictEqual({
+          marketData: {
+            '0x1': {
+              '0x0000000000000000000000000000000000000000': {
+                currency: 'ETH',
               },
             },
-          });
-        },
-      );
+          },
+        });
+      });
     });
 
     it('does not update state if the price update fails', async () => {
@@ -1926,12 +1894,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
         },
         async ({ controller, controllerEvents }) => {
@@ -1986,12 +1948,6 @@ describe('TokenRatesController', () => {
           options: {
             ticker,
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
         },
         async ({ controller, controllerEvents }) => {
@@ -2051,12 +2007,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
         },
         async ({ controller, controllerEvents }) => {
@@ -2133,11 +2083,7 @@ describe('TokenRatesController', () => {
           {
             options: {
               tokenPricesService,
-              getInternalAccount: jest
-                .fn()
-                .mockReturnValue(defaultMockInternalAccount),
             },
-            config: { selectedAccountId: defaultMockInternalAccount.id },
           },
           async ({ controller, controllerEvents }) => {
             await callUpdateExchangeRatesMethod({
@@ -2232,12 +2178,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
           mockNetworkClientConfigurationsByNetworkClientId: {
             [selectedNetworkClientId]: selectedNetworkClientConfiguration,
@@ -2328,12 +2268,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
           mockNetworkClientConfigurationsByNetworkClientId: {
             [selectedNetworkClientId]: selectedNetworkClientConfiguration,
@@ -2407,12 +2341,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
           mockNetworkClientConfigurationsByNetworkClientId: {
             [selectedNetworkClientId]: selectedNetworkClientConfiguration,
@@ -2484,12 +2412,6 @@ describe('TokenRatesController', () => {
         {
           options: {
             tokenPricesService,
-            getInternalAccount: jest
-              .fn()
-              .mockReturnValue(defaultMockInternalAccount),
-          },
-          config: {
-            selectedAccountId: defaultMockInternalAccount.id,
           },
         },
         async ({ controller, controllerEvents }) => {
@@ -2582,6 +2504,10 @@ type PartialConstructorParameters = {
     NetworkClientId,
     NetworkClientConfiguration
   >;
+  mocks?: {
+    getSelectedAccount: InternalAccount;
+    getAccount: InternalAccount;
+  };
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2606,13 +2532,28 @@ async function withController<ReturnValue>(
       config = {},
       state = {},
       mockNetworkClientConfigurationsByNetworkClientId = {},
+      mocks = {} as {
+        getSelectedAccount: InternalAccount;
+        getAccount: InternalAccount;
+      },
     },
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
+  const { messenger, triggerSelectedAccountChange } =
+    buildTokenRatesControllerMessenger({
+      mocks: {
+        getSelectedAccount:
+          mocks?.getSelectedAccount ?? defaultMockInternalAccount,
+        getAccount: mocks?.getAccount ?? defaultMockInternalAccount,
+      },
+    });
+
   // explit cast used here because we know the `on____` functions are always
   // set in the constructor.
   const controllerEvents = {} as ControllerEvents;
+
+  controllerEvents.seletedAccountChange = triggerSelectedAccountChange;
 
   const getNetworkClientById = buildMockGetNetworkClientById(
     mockNetworkClientConfigurationsByNetworkClientId,
@@ -2621,19 +2562,15 @@ async function withController<ReturnValue>(
   const controllerOptions: ConstructorParameters<
     typeof TokenRatesController
   >[0] = {
+    messenger,
     chainId: toHex(1),
     getNetworkClientById,
     onNetworkStateChange: (listener) => {
       controllerEvents.networkStateChange = listener;
     },
-    onSelectedAccountChange: (listener) => {
-      controllerEvents.seletedAccountChange = listener;
-    },
     onTokensStateChange: (listener) => {
       controllerEvents.tokensStateChange = listener;
     },
-    getInternalAccount: jest.fn(),
-    selectedAccountId: defaultMockInternalAccount.id,
     ticker: NetworksTicker.mainnet,
     tokenPricesService: buildMockTokenPricesService(),
     ...options,
