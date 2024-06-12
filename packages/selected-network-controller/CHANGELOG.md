@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [15.0.2]
 
-### Uncategorized
+### Fixed
 
-- fix: add `SelectedNetworkController` setNetworkClientId useRequestQueuePreference guard ([#4388](https://github.com/MetaMask/core/pull/4388))
+- `setNetworkClientId()` no longer modifies state nor creates/updates proxies when the `useRequestQueuePreference` flag is false ([#4388](https://github.com/MetaMask/core/pull/4388))
 
 ## [15.0.1]
 
