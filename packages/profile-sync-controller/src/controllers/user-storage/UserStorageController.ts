@@ -18,15 +18,15 @@ import type { UserStorageEntryKeys } from './schema';
 import { getUserStorage, upsertUserStorage } from './services';
 
 // TODO: fix external dependencies
-export declare type NotificationServicesControllerDisableMetamaskNotifications =
+export declare type NotificationServicesControllerDisableNotificationServices =
   {
-    type: `NotificationServicesController:disableMetamaskNotifications`;
+    type: `NotificationServicesController:disableNotificationServices`;
     handler: () => Promise<void>;
   };
 
-export declare type NotificationServicesControllerSelectIsMetamaskNotificationsEnabled =
+export declare type NotificationServicesControllerSelectIsNotificationServicesEnabled =
   {
-    type: `NotificationServicesController:selectIsMetamaskNotificationsEnabled`;
+    type: `NotificationServicesController:selectIsNotificationServicesEnabled`;
     handler: () => boolean;
   };
 
@@ -96,8 +96,8 @@ export type AllowedActions =
   | AuthenticationControllerIsSignedIn
   | AuthenticationControllerPerformSignOut
   // Metamask Notifications
-  | NotificationServicesControllerDisableMetamaskNotifications
-  | NotificationServicesControllerSelectIsMetamaskNotificationsEnabled;
+  | NotificationServicesControllerDisableNotificationServices
+  | NotificationServicesControllerSelectIsNotificationServicesEnabled;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -148,15 +148,15 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  #metamaskNotifications = {
-    disableMetamaskNotifications: async () => {
+  #notificationServices = {
+    disableNotificationServices: async () => {
       return await this.messagingSystem.call(
-        'NotificationServicesController:disableMetamaskNotifications',
+        'NotificationServicesController:disableNotificationServices',
       );
     },
-    selectIsMetamaskNotificationsEnabled: async () => {
+    selectIsNotificationServicesEnabled: async () => {
       return this.messagingSystem.call(
-        'NotificationServicesController:selectIsMetamaskNotificationsEnabled',
+        'NotificationServicesController:selectIsNotificationServicesEnabled',
       );
     },
   };
@@ -250,11 +250,11 @@ export default class UserStorageController extends BaseController<
     try {
       this.#setIsProfileSyncingUpdateLoading(true);
 
-      const isMetamaskNotificationsEnabled =
-        await this.#metamaskNotifications.selectIsMetamaskNotificationsEnabled();
+      const isNotificationServicesEnabled =
+        await this.#notificationServices.selectIsNotificationServicesEnabled();
 
-      if (isMetamaskNotificationsEnabled) {
-        await this.#metamaskNotifications.disableMetamaskNotifications();
+      if (isNotificationServicesEnabled) {
+        await this.#notificationServices.disableNotificationServices();
       }
 
       const isMetaMetricsParticipation = this.getMetaMetricsState();

@@ -39,7 +39,7 @@ import type {
 import { processNotification } from './processors/process-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
 import type { UserStorage } from './types/user-storage/user-storage';
-import * as MetamaskNotificationsUtils from './utils/utils';
+import * as Utils from './utils/utils';
 
 const featureAnnouncementsEnv = {
   spaceId: ':space_id',
@@ -80,11 +80,11 @@ describe('metamask-notifications - constructor()', () => {
       state: {
         ...defaultState,
         isFeatureAnnouncementsEnabled: true,
-        isMetamaskNotificationsEnabled: true,
+        isNotificationServicesEnabled: true,
       },
     });
     expect(controller2.state.isFeatureAnnouncementsEnabled).toBe(true);
-    expect(controller2.state.isMetamaskNotificationsEnabled).toBe(true);
+    expect(controller2.state.isNotificationServicesEnabled).toBe(true);
   });
 
   it('keyring Change Event but feature not enabled will not add or remove triggers', async () => {
@@ -120,7 +120,7 @@ describe('metamask-notifications - constructor()', () => {
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
       state: {
-        isMetamaskNotificationsEnabled: true,
+        isNotificationServicesEnabled: true,
         subscriptionAccountsSeen: ['addr1'],
       },
     });
@@ -176,7 +176,7 @@ describe('metamask-notifications - constructor()', () => {
     const _controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { isMetamaskNotificationsEnabled: true },
+      state: { isNotificationServicesEnabled: true },
     });
 
     await waitFor(() => {
@@ -195,7 +195,7 @@ describe('metamask-notifications - constructor()', () => {
     const _controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { isMetamaskNotificationsEnabled: true },
+      state: { isNotificationServicesEnabled: true },
     });
 
     await waitFor(() => {
@@ -253,7 +253,7 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
       .spyOn(OnChainNotifications, 'createOnChainTriggers')
       .mockResolvedValue();
     const mockInitializeUserStorage = jest
-      .spyOn(MetamaskNotificationsUtils, 'initializeUserStorage')
+      .spyOn(Utils, 'initializeUserStorage')
       .mockReturnValue(createMockUserStorageWithTriggers(['t1', 't2']));
     return {
       ...messengerMocks,
@@ -324,9 +324,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
     const result = await controller.deleteOnChainTriggersByAccount([
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
-    expect(
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(result),
-    ).toHaveLength(0);
+    expect(Utils.traverseUserStorageTriggers(result)).toHaveLength(0);
     expect(nockMockDeleteTriggersAPI.isDone()).toBe(true);
     expect(mockDisablePushNotifications).toHaveBeenCalled();
   });
@@ -340,9 +338,7 @@ describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
     const result = await controller.deleteOnChainTriggersByAccount([
       'UNKNOWN_ACCOUNT',
     ]);
-    expect(
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(result),
-    ).not.toHaveLength(0);
+    expect(Utils.traverseUserStorageTriggers(result)).not.toHaveLength(0);
 
     expect(mockDisablePushNotifications).not.toHaveBeenCalled();
   });
@@ -392,7 +388,7 @@ describe('metamask-notifications - updateOnChainTriggersByAccount()', () => {
       MOCK_ACCOUNT,
     ]);
     expect(
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(result, {
+      Utils.traverseUserStorageTriggers(result, {
         address: MOCK_ACCOUNT.toLowerCase(),
       }).length > 0,
     ).toBe(true);
@@ -583,7 +579,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 
     // Act - final state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(false);
-    expect(controller.state.isMetamaskNotificationsEnabled).toBe(true);
+    expect(controller.state.isNotificationServicesEnabled).toBe(true);
 
     // Act - services called
     expect(mocks.mockCreateOnChainTriggers).toHaveBeenCalled();
@@ -601,8 +597,7 @@ describe('metamask-notifications - enableMetamaskNotifications()', () => {
 
     await controller.enableMetamaskNotifications();
 
-    const existingTriggers =
-      MetamaskNotificationsUtils.getAllUUIDs(userStorage);
+    const existingTriggers = Utils.getAllUUIDs(userStorage);
     const upsertedTriggers =
       mocks.mockCreateOnChainTriggers.mock.calls[0][3].map((t) => t.id);
 
@@ -626,10 +621,10 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     const controller = new NotificationServicesController({
       messenger: mocks.messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { isMetamaskNotificationsEnabled: true },
+      state: { isNotificationServicesEnabled: true },
     });
 
-    const promise = controller.disableMetamaskNotifications();
+    const promise = controller.disableNotificationServices();
 
     // Act - intermediate state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(true);
@@ -638,7 +633,7 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
 
     // Act - final state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(false);
-    expect(controller.state.isMetamaskNotificationsEnabled).toBe(false);
+    expect(controller.state.isNotificationServicesEnabled).toBe(false);
 
     expect(mocks.mockDisablePushNotifications).toHaveBeenCalled();
 

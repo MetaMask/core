@@ -11,7 +11,7 @@ import {
 } from '../__fixtures__/mockServices';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
-import * as MetamaskNotificationsUtils from '../utils/utils';
+import * as Utils from '../utils/utils';
 import * as OnChainNotifications from './onchain-notifications';
 
 const MOCK_STORAGE_KEY = 'MOCK_USER_STORAGE_KEY';
@@ -34,8 +34,7 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
     const mockUserStorage = createMockUserStorageWithTriggers([
       { id: MOCK_TRIGGER_ID, k: TRIGGER_TYPES.ETH_SENT, e: false },
     ]);
-    const triggers =
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(mockUserStorage);
+    const triggers = Utils.traverseUserStorageTriggers(mockUserStorage);
     const mockEndpoint = mockBatchCreateTriggers();
 
     return {
@@ -80,8 +79,7 @@ describe('On Chain Notifications - createOnChainTriggers()', () => {
     const mockUserStorage = createMockUserStorageWithTriggers([
       { id: MOCK_TRIGGER_ID, k: TRIGGER_TYPES.ETH_SENT, e: false },
     ]);
-    const triggers =
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(mockUserStorage);
+    const triggers = Utils.traverseUserStorageTriggers(mockUserStorage);
     const mockBadEndpoint = mockBatchCreateTriggers({
       status: 500,
       body: { error: 'mock api failure' },

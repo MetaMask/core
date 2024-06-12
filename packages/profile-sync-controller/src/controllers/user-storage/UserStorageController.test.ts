@@ -18,8 +18,8 @@ import {
 } from './__fixtures__/mockStorage';
 import type {
   AllowedActions,
-  NotificationServicesControllerDisableMetamaskNotifications,
-  NotificationServicesControllerSelectIsMetamaskNotificationsEnabled,
+  NotificationServicesControllerDisableNotificationServices,
+  NotificationServicesControllerSelectIsNotificationServicesEnabled,
 } from './UserStorageController';
 import UserStorageController from './UserStorageController';
 
@@ -301,8 +301,8 @@ function mockUserStorageMessenger() {
       'AuthenticationController:isSignedIn',
       'AuthenticationController:performSignIn',
       'AuthenticationController:performSignOut',
-      'NotificationServicesController:disableMetamaskNotifications',
-      'NotificationServicesController:selectIsMetamaskNotificationsEnabled',
+      'NotificationServicesController:disableNotificationServices',
+      'NotificationServicesController:selectIsNotificationServicesEnabled',
     ],
     allowedEvents: [],
   });
@@ -339,14 +339,14 @@ function mockUserStorageMessenger() {
       AuthenticationControllerIsSignedIn['handler']
     >().mockReturnValue(true);
 
-  const mockMetamaskNotificationsIsMetamaskNotificationsEnabled =
+  const mockNotificationServicesIsEnabled =
     typedMockFn<
-      NotificationServicesControllerSelectIsMetamaskNotificationsEnabled['handler']
+      NotificationServicesControllerSelectIsNotificationServicesEnabled['handler']
     >().mockReturnValue(true);
 
-  const mockMetamaskNotificationsDisableNotifications =
+  const mockNotificationServicesDisableNotifications =
     typedMockFn<
-      NotificationServicesControllerDisableMetamaskNotifications['handler']
+      NotificationServicesControllerDisableNotificationServices['handler']
     >().mockResolvedValue();
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
@@ -385,16 +385,16 @@ function mockUserStorageMessenger() {
 
     if (
       actionType ===
-      'NotificationServicesController:selectIsMetamaskNotificationsEnabled'
+      'NotificationServicesController:selectIsNotificationServicesEnabled'
     ) {
-      return mockMetamaskNotificationsIsMetamaskNotificationsEnabled();
+      return mockNotificationServicesIsEnabled();
     }
 
     if (
       actionType ===
-      'NotificationServicesController:disableMetamaskNotifications'
+      'NotificationServicesController:disableNotificationServices'
     ) {
-      return mockMetamaskNotificationsDisableNotifications();
+      return mockNotificationServicesDisableNotifications();
     }
 
     if (actionType === 'AuthenticationController:performSignOut') {
@@ -418,8 +418,8 @@ function mockUserStorageMessenger() {
     mockAuthGetSessionProfile,
     mockAuthPerformSignIn,
     mockAuthIsSignedIn,
-    mockMetamaskNotificationsIsMetamaskNotificationsEnabled,
-    mockMetamaskNotificationsDisableNotifications,
+    mockNotificationServicesIsEnabled,
+    mockNotificationServicesDisableNotifications,
     mockAuthPerformSignOut,
   };
 }

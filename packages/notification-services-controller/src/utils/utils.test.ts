@@ -10,12 +10,12 @@ import {
   TRIGGER_TYPES,
 } from '../constants/notification-schema';
 import type { UserStorage } from '../types/user-storage/user-storage';
-import * as MetamaskNotificationsUtils from './utils';
+import * as Utils from './utils';
 
 describe('metamask-notifications/utils - initializeUserStorage()', () => {
   it('creates a new user storage object based on the accounts provided', () => {
     const mockAddress = 'MOCK_ADDRESS';
-    const userStorage = MetamaskNotificationsUtils.initializeUserStorage(
+    const userStorage = Utils.initializeUserStorage(
       [{ address: mockAddress }],
       true,
     );
@@ -31,13 +31,10 @@ describe('metamask-notifications/utils - initializeUserStorage()', () => {
       expect(USER_STORAGE_VERSION_KEY in storage).toBe(true);
     };
 
-    const userStorageTest1 = MetamaskNotificationsUtils.initializeUserStorage(
-      [],
-      true,
-    );
+    const userStorageTest1 = Utils.initializeUserStorage([], true);
     assertEmptyStorage(userStorageTest1);
 
-    const userStorageTest2 = MetamaskNotificationsUtils.initializeUserStorage(
+    const userStorageTest2 = Utils.initializeUserStorage(
       [{ address: undefined }],
       true,
     );
@@ -48,8 +45,7 @@ describe('metamask-notifications/utils - initializeUserStorage()', () => {
 describe('metamask-notifications/utils - traverseUserStorageTriggers()', () => {
   it('traverses User Storage to return triggers', () => {
     const storage = createMockFullUserStorage();
-    const triggersObjArray =
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(storage);
+    const triggersObjArray = Utils.traverseUserStorageTriggers(storage);
     expect(triggersObjArray.length > 0).toBe(true);
     expect(typeof triggersObjArray[0] === 'object').toBe(true);
   });
@@ -58,18 +54,16 @@ describe('metamask-notifications/utils - traverseUserStorageTriggers()', () => {
     const storage = createMockFullUserStorage();
 
     // as the type suggests, the mapper returns a string, so expect this to be a string
-    const triggersStrArray =
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(storage, {
-        mapTrigger: (t) => t.id,
-      });
+    const triggersStrArray = Utils.traverseUserStorageTriggers(storage, {
+      mapTrigger: (t) => t.id,
+    });
     expect(triggersStrArray.length > 0).toBe(true);
     expect(typeof triggersStrArray[0] === 'string').toBe(true);
 
     // if the mapper returns a falsy value, it is filtered out
-    const emptyTriggersArray =
-      MetamaskNotificationsUtils.traverseUserStorageTriggers(storage, {
-        mapTrigger: (_t): string | undefined => undefined,
-      });
+    const emptyTriggersArray = Utils.traverseUserStorageTriggers(storage, {
+      mapTrigger: (_t): string | undefined => undefined,
+    });
     expect(emptyTriggersArray.length === 0).toBe(true);
   });
 });
@@ -77,7 +71,7 @@ describe('metamask-notifications/utils - traverseUserStorageTriggers()', () => {
 describe('metamask-notifications/utils - checkAccountsPresence()', () => {
   it('returns record of addresses that are in storage', () => {
     const storage = createMockFullUserStorage();
-    const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
+    const result = Utils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
     expect(result).toStrictEqual({
@@ -88,7 +82,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
   it('returns record of addresses in storage and not fully in storage', () => {
     const storage = createMockFullUserStorage();
     const MOCK_MISSING_ADDRESS = '0x2';
-    const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
+    const result = Utils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
       MOCK_MISSING_ADDRESS,
     ]);
@@ -102,7 +96,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
     const storage = createMockFullUserStorage();
     delete storage[MOCK_USER_STORAGE_ACCOUNT][NOTIFICATION_CHAINS.ETHEREUM];
 
-    const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
+    const result = Utils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
     expect(result).toStrictEqual({
@@ -119,7 +113,7 @@ describe('metamask-notifications/utils - checkAccountsPresence()', () => {
       MOCK_TRIGGER_TO_DELETE
     ];
 
-    const result = MetamaskNotificationsUtils.checkAccountsPresence(storage, [
+    const result = Utils.checkAccountsPresence(storage, [
       MOCK_USER_STORAGE_ACCOUNT,
     ]);
     expect(result).toStrictEqual({
@@ -136,7 +130,7 @@ describe('metamask-notifications/utils - inferEnabledKinds()', () => {
       { id: '3', e: true, k: TRIGGER_TYPES.ERC1155_SENT }, // should remove duplicates
     ]);
 
-    const result = MetamaskNotificationsUtils.inferEnabledKinds(partialStorage);
+    const result = Utils.inferEnabledKinds(partialStorage);
     expect(result).toHaveLength(2);
     expect(result).toContain(TRIGGER_TYPES.ERC1155_RECEIVED);
     expect(result).toContain(TRIGGER_TYPES.ERC1155_SENT);
@@ -147,7 +141,7 @@ describe('metamask-notifications/utils - getUUIDsForAccount()', () => {
   it('returns all trigger IDs in user storage from a given address', () => {
     const partialStorage = createMockUserStorageWithTriggers(['t1', 't2']);
 
-    const result = MetamaskNotificationsUtils.getUUIDsForAccount(
+    const result = Utils.getUUIDsForAccount(
       partialStorage,
       MOCK_USER_STORAGE_ACCOUNT,
     );
@@ -157,7 +151,7 @@ describe('metamask-notifications/utils - getUUIDsForAccount()', () => {
   });
   it('returns an empty array if the address does not exist or has any triggers', () => {
     const partialStorage = createMockUserStorageWithTriggers(['t1', 't2']);
-    const result = MetamaskNotificationsUtils.getUUIDsForAccount(
+    const result = Utils.getUUIDsForAccount(
       partialStorage,
       'ACCOUNT_THAT_DOES_NOT_EXIST_IN_STORAGE',
     );
@@ -168,13 +162,13 @@ describe('metamask-notifications/utils - getUUIDsForAccount()', () => {
 describe('metamask-notifications/utils - getAllUUIDs()', () => {
   it('returns all triggerIds in User Storage', () => {
     const partialStorage = createMockUserStorageWithTriggers(['t1', 't2']);
-    const result1 = MetamaskNotificationsUtils.getAllUUIDs(partialStorage);
+    const result1 = Utils.getAllUUIDs(partialStorage);
     expect(result1).toHaveLength(2);
     expect(result1).toContain('t1');
     expect(result1).toContain('t2');
 
     const fullStorage = createMockFullUserStorage();
-    const result2 = MetamaskNotificationsUtils.getAllUUIDs(fullStorage);
+    const result2 = Utils.getAllUUIDs(fullStorage);
     expect(result2.length).toBeGreaterThan(2); // we expect there to be more than 2 triggers. We have multiple chains to there should be quite a few UUIDs.
   });
 });
@@ -185,7 +179,7 @@ describe('metamask-notifications/utils - getUUIDsForKinds()', () => {
       { id: 't1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
       { id: 't2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
     ]);
-    const result = MetamaskNotificationsUtils.getUUIDsForKinds(partialStorage, [
+    const result = Utils.getUUIDsForKinds(partialStorage, [
       TRIGGER_TYPES.ERC1155_RECEIVED,
     ]);
     expect(result).toStrictEqual(['t1']);
@@ -196,7 +190,7 @@ describe('metamask-notifications/utils - getUUIDsForKinds()', () => {
       { id: 't1', e: true, k: TRIGGER_TYPES.ERC1155_RECEIVED },
       { id: 't2', e: true, k: TRIGGER_TYPES.ERC1155_SENT },
     ]);
-    const result = MetamaskNotificationsUtils.getUUIDsForKinds(partialStorage, [
+    const result = Utils.getUUIDsForKinds(partialStorage, [
       TRIGGER_TYPES.ETH_SENT, // A kind we have not created a trigger for
     ]);
     expect(result).toHaveLength(0);
@@ -212,7 +206,7 @@ describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
 
   it('returns triggers with correct account and matching kinds', () => {
     const partialStorage = createPartialStorage();
-    const result = MetamaskNotificationsUtils.getUUIDsForAccountByKinds(
+    const result = Utils.getUUIDsForAccountByKinds(
       partialStorage,
       MOCK_USER_STORAGE_ACCOUNT,
       [TRIGGER_TYPES.ERC1155_RECEIVED],
@@ -222,7 +216,7 @@ describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
 
   it('returns empty when using incorrect account', () => {
     const partialStorage = createPartialStorage();
-    const result = MetamaskNotificationsUtils.getUUIDsForAccountByKinds(
+    const result = Utils.getUUIDsForAccountByKinds(
       partialStorage,
       'ACCOUNT_THAT_DOES_NOT_EXIST_IN_STORAGE',
       [TRIGGER_TYPES.ERC1155_RECEIVED],
@@ -232,7 +226,7 @@ describe('metamask-notifications/utils - getUUIDsForAccountByKinds()', () => {
 
   it('returns empty when using incorrect kind', () => {
     const partialStorage = createPartialStorage();
-    const result = MetamaskNotificationsUtils.getUUIDsForAccountByKinds(
+    const result = Utils.getUUIDsForAccountByKinds(
       partialStorage,
       MOCK_USER_STORAGE_ACCOUNT,
       [TRIGGER_TYPES.ETH_SENT], // this trigger was not created in partial storage
@@ -249,14 +243,11 @@ describe('metamask-notifications/utils - upsertAddressTriggers()', () => {
     // Before
     expect(storage[MOCK_NEW_ADDRESS]).toBeUndefined();
 
-    MetamaskNotificationsUtils.upsertAddressTriggers(MOCK_NEW_ADDRESS, storage);
+    Utils.upsertAddressTriggers(MOCK_NEW_ADDRESS, storage);
 
     // After
     expect(storage[MOCK_NEW_ADDRESS]).toBeDefined();
-    const newTriggers = MetamaskNotificationsUtils.getUUIDsForAccount(
-      storage,
-      MOCK_NEW_ADDRESS,
-    );
+    const newTriggers = Utils.getUUIDsForAccount(storage, MOCK_NEW_ADDRESS);
     expect(newTriggers.length > 0).toBe(true);
   });
 });
@@ -270,23 +261,14 @@ describe('metamask-notifications/utils - upsertTriggerTypeTriggers()', () => {
 
     // Before
     expect(
-      MetamaskNotificationsUtils.getUUIDsForAccount(
-        partialStorage,
-        MOCK_USER_STORAGE_ACCOUNT,
-      ),
+      Utils.getUUIDsForAccount(partialStorage, MOCK_USER_STORAGE_ACCOUNT),
     ).toHaveLength(2);
 
-    MetamaskNotificationsUtils.upsertTriggerTypeTriggers(
-      TRIGGER_TYPES.ETH_SENT,
-      partialStorage,
-    );
+    Utils.upsertTriggerTypeTriggers(TRIGGER_TYPES.ETH_SENT, partialStorage);
 
     // After
     expect(
-      MetamaskNotificationsUtils.getUUIDsForAccount(
-        partialStorage,
-        MOCK_USER_STORAGE_ACCOUNT,
-      ),
+      Utils.getUUIDsForAccount(partialStorage, MOCK_USER_STORAGE_ACCOUNT),
     ).toHaveLength(3);
   });
 });
@@ -299,7 +281,7 @@ describe('metamask-notifications/utils - toggleUserStorageTriggerStatus()', () =
       { id: 't2', k: TRIGGER_TYPES.ERC1155_SENT, e: false },
     ]);
 
-    MetamaskNotificationsUtils.toggleUserStorageTriggerStatus(
+    Utils.toggleUserStorageTriggerStatus(
       partialStorage,
       MOCK_USER_STORAGE_ACCOUNT,
       MOCK_USER_STORAGE_CHAIN,

@@ -28,7 +28,7 @@ import type {
 } from './types/notification/notification';
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from './types/user-storage/user-storage';
-import * as MetamaskNotificationsUtils from './utils/utils';
+import * as Utils from './utils/utils';
 
 // TODO: Fix Circular Type Dependencies
 // This indicates that control flow of messages is everywhere, lets orchestrate these better
@@ -73,7 +73,7 @@ export type NotificationServicesControllerState = {
   /**
    * Flag that indicates if the metamask notifications are enabled
    */
-  isMetamaskNotificationsEnabled: boolean;
+  isNotificationServicesEnabled: boolean;
 
   /**
    * Flag that indicates if the feature announcements are enabled
@@ -119,7 +119,7 @@ const metadata: StateMetadata<NotificationServicesControllerState> = {
     persist: true,
     anonymous: false,
   },
-  isMetamaskNotificationsEnabled: {
+  isNotificationServicesEnabled: {
     persist: true,
     anonymous: false,
   },
@@ -155,7 +155,7 @@ const metadata: StateMetadata<NotificationServicesControllerState> = {
 export const defaultState: NotificationServicesControllerState = {
   subscriptionAccountsSeen: [],
   isMetamaskNotificationsFeatureSeen: false,
-  isMetamaskNotificationsEnabled: false,
+  isNotificationServicesEnabled: false,
   isFeatureAnnouncementsEnabled: false,
   metamaskNotificationsList: [],
   metamaskNotificationsReadList: [],
@@ -170,22 +170,22 @@ export type NotificationServicesControllerUpdateMetamaskNotificationsList = {
   handler: NotificationServicesController['updateMetamaskNotificationsList'];
 };
 
-export type NotificationServicesControllerDisableMetamaskNotifications = {
-  type: `${typeof controllerName}:disableMetamaskNotifications`;
-  handler: NotificationServicesController['disableMetamaskNotifications'];
+export type NotificationServicesControllerDisableNotificationServices = {
+  type: `${typeof controllerName}:disableNotificationServices`;
+  handler: NotificationServicesController['disableNotificationServices'];
 };
 
-export type NotificationServicesControllerSelectIsMetamaskNotificationsEnabled =
+export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
   {
-    type: `${typeof controllerName}:selectIsMetamaskNotificationsEnabled`;
-    handler: NotificationServicesController['selectIsMetamaskNotificationsEnabled'];
+    type: `${typeof controllerName}:selectIsNotificationServicesEnabled`;
+    handler: NotificationServicesController['selectIsNotificationServicesEnabled'];
   };
 
 // Messenger Actions
 export type Actions =
   | NotificationServicesControllerUpdateMetamaskNotificationsList
-  | NotificationServicesControllerDisableMetamaskNotifications
-  | NotificationServicesControllerSelectIsMetamaskNotificationsEnabled
+  | NotificationServicesControllerDisableNotificationServices
+  | NotificationServicesControllerSelectIsNotificationServicesEnabled
   | ControllerGetStateAction<'state', NotificationServicesControllerState>;
 
 // Allowed Actions
@@ -301,7 +301,7 @@ export class NotificationServicesController extends BaseController<
       );
     },
     initializePushNotifications: async () => {
-      if (!this.state.isMetamaskNotificationsEnabled) {
+      if (!this.state.isNotificationServicesEnabled) {
         return;
       }
 
@@ -310,7 +310,7 @@ export class NotificationServicesController extends BaseController<
         return;
       }
 
-      const uuids = MetamaskNotificationsUtils.getAllUUIDs(storage);
+      const uuids = Utils.getAllUUIDs(storage);
       await this.#pushNotifications.enablePushNotifications(uuids);
     },
   };
@@ -377,7 +377,7 @@ export class NotificationServicesController extends BaseController<
         'KeyringController:stateChange',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
-          if (!this.state.isMetamaskNotificationsEnabled) {
+          if (!this.state.isNotificationServicesEnabled) {
             return;
           }
 
@@ -444,13 +444,13 @@ export class NotificationServicesController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:disableMetamaskNotifications`,
-      this.disableMetamaskNotifications.bind(this),
+      `${controllerName}:disableNotificationServices`,
+      this.disableNotificationServices.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:selectIsMetamaskNotificationsEnabled`,
-      this.selectIsMetamaskNotificationsEnabled.bind(this),
+      `${controllerName}:selectIsNotificationServicesEnabled`,
+      this.selectIsNotificationServicesEnabled.bind(this),
     );
   }
 
@@ -466,7 +466,7 @@ export class NotificationServicesController extends BaseController<
   #assertAuthEnabled() {
     if (!this.#auth.isSignedIn()) {
       this.update((state) => {
-        state.isMetamaskNotificationsEnabled = false;
+        state.isNotificationServicesEnabled = false;
       });
       throw new Error('User is not signed in.');
     }
@@ -536,8 +536,8 @@ export class NotificationServicesController extends BaseController<
    *
    * @returns The enabled state of MetaMask notifications.
    */
-  public selectIsMetamaskNotificationsEnabled(): boolean {
-    return this.state.isMetamaskNotificationsEnabled;
+  public selectIsNotificationServicesEnabled(): boolean {
+    return this.state.isNotificationServicesEnabled;
   }
 
   /**
@@ -629,10 +629,7 @@ export class NotificationServicesController extends BaseController<
       const userStorage = await this.#getUserStorage();
       this.#assertUserStorage(userStorage);
 
-      const presence = MetamaskNotificationsUtils.checkAccountsPresence(
-        userStorage,
-        accounts,
-      );
+      const presence = Utils.checkAccountsPresence(userStorage, accounts);
       return presence;
     } catch (error) {
       log.error('Failed to check accounts presence', error);
@@ -688,7 +685,7 @@ export class NotificationServicesController extends BaseController<
       // If userStorage does not exist, create a new one
       // All the triggers created are set as: "disabled"
       if (userStorage?.[USER_STORAGE_VERSION_KEY] === undefined) {
-        userStorage = MetamaskNotificationsUtils.initializeUserStorage(
+        userStorage = Utils.initializeUserStorage(
           accounts.map((account) => ({ address: account })),
           false,
         );
@@ -698,8 +695,7 @@ export class NotificationServicesController extends BaseController<
       }
 
       // Create the triggers
-      const triggers =
-        MetamaskNotificationsUtils.traverseUserStorageTriggers(userStorage);
+      const triggers = Utils.traverseUserStorageTriggers(userStorage);
       await OnChainNotifications.createOnChainTriggers(
         userStorage,
         storageKey,
@@ -708,7 +704,7 @@ export class NotificationServicesController extends BaseController<
       );
 
       // Create push notifications triggers
-      const allUUIDS = MetamaskNotificationsUtils.getAllUUIDs(userStorage);
+      const allUUIDS = Utils.getAllUUIDs(userStorage);
       await this.#pushNotifications.enablePushNotifications(allUUIDS);
 
       // Write the new userStorage (triggers are now "enabled")
@@ -716,7 +712,7 @@ export class NotificationServicesController extends BaseController<
 
       // Update the state of the controller
       this.update((state) => {
-        state.isMetamaskNotificationsEnabled = true;
+        state.isNotificationServicesEnabled = true;
         state.isFeatureAnnouncementsEnabled = true;
         state.isMetamaskNotificationsFeatureSeen = true;
       });
@@ -760,19 +756,19 @@ export class NotificationServicesController extends BaseController<
    *
    * @throws {Error} If the user is not authenticated or if there is an error during the process.
    */
-  public async disableMetamaskNotifications() {
+  public async disableNotificationServices() {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
       // Disable Push Notifications
       const userStorage = await this.#getUserStorage();
       this.#assertUserStorage(userStorage);
-      const UUIDs = MetamaskNotificationsUtils.getAllUUIDs(userStorage);
+      const UUIDs = Utils.getAllUUIDs(userStorage);
       await this.#pushNotifications.disablePushNotifications(UUIDs);
 
       // Clear Notification States (toggles and list)
       this.update((state) => {
-        state.isMetamaskNotificationsEnabled = false;
+        state.isNotificationServicesEnabled = false;
         state.isFeatureAnnouncementsEnabled = false;
         state.metamaskNotificationsList = [];
       });
@@ -813,12 +809,7 @@ export class NotificationServicesController extends BaseController<
 
       // Get the UUIDs to delete
       const UUIDs = accounts
-        .map((a) =>
-          MetamaskNotificationsUtils.getUUIDsForAccount(
-            userStorage,
-            a.toLowerCase(),
-          ),
-        )
+        .map((a) => Utils.getUUIDsForAccount(userStorage, a.toLowerCase()))
         .flat();
 
       if (UUIDs.length === 0) {
@@ -876,19 +867,16 @@ export class NotificationServicesController extends BaseController<
       this.#assertUserStorage(userStorage);
 
       // Add any missing triggers
-      accounts.forEach((a) =>
-        MetamaskNotificationsUtils.upsertAddressTriggers(a, userStorage),
-      );
+      accounts.forEach((a) => Utils.upsertAddressTriggers(a, userStorage));
 
-      const newTriggers =
-        MetamaskNotificationsUtils.traverseUserStorageTriggers(userStorage, {
-          mapTrigger: (t) => {
-            if (!t.enabled) {
-              return t;
-            }
-            return undefined;
-          },
-        });
+      const newTriggers = Utils.traverseUserStorageTriggers(userStorage, {
+        mapTrigger: (t) => {
+          if (!t.enabled) {
+            return t;
+          }
+          return undefined;
+        },
+      });
 
       // Create any missing triggers.
       if (newTriggers.length > 0) {
@@ -896,21 +884,16 @@ export class NotificationServicesController extends BaseController<
         await this.#storage.setNotificationStorage(JSON.stringify(userStorage));
 
         // Create the triggers
-        const triggers = MetamaskNotificationsUtils.traverseUserStorageTriggers(
-          userStorage,
-          {
-            mapTrigger: (t) => {
-              if (
-                accounts.some(
-                  (a) => a.toLowerCase() === t.address.toLowerCase(),
-                )
-              ) {
-                return t;
-              }
-              return undefined;
-            },
+        const triggers = Utils.traverseUserStorageTriggers(userStorage, {
+          mapTrigger: (t) => {
+            if (
+              accounts.some((a) => a.toLowerCase() === t.address.toLowerCase())
+            ) {
+              return t;
+            }
+            return undefined;
           },
-        );
+        });
         await OnChainNotifications.createOnChainTriggers(
           userStorage,
           storageKey,
@@ -920,7 +903,7 @@ export class NotificationServicesController extends BaseController<
       }
 
       // Update Push Notifications Triggers
-      const UUIDs = MetamaskNotificationsUtils.getAllUUIDs(userStorage);
+      const UUIDs = Utils.getAllUUIDs(userStorage);
       await this.#pushNotifications.updatePushNotifications(UUIDs);
 
       // Update the userStorage (where triggers are enabled)
