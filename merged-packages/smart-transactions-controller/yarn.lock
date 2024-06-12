@@ -1263,13 +1263,23 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/base-controller@npm:^5.0.1, @metamask/base-controller@npm:^5.0.2":
+"@metamask/base-controller@npm:^5.0.2":
   version: 5.0.2
   resolution: "@metamask/base-controller@npm:5.0.2"
   dependencies:
     "@metamask/utils": ^8.3.0
     immer: ^9.0.6
   checksum: 22c43c3147c7da1c1b87de4d41948e275f8e0adcdb1210a55a62aa497db4fa82399750901729d9dc6285d89e68f18e5bd15095ee4d4c6cfc169035173e69a1d2
+  languageName: node
+  linkType: hard
+
+"@metamask/base-controller@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@metamask/base-controller@npm:6.0.0"
+  dependencies:
+    "@metamask/utils": ^8.3.0
+    immer: ^9.0.6
+  checksum: ff5c4acedc698e2477f1d719f64363d8763b21836dcea4675214c078457cd47dde068aa336b249663f3c7fb3c0f536ce420870811e00ca3a410646740a9f5934
   languageName: node
   linkType: hard
 
@@ -1689,7 +1699,7 @@ __metadata:
     "@ethersproject/bytes": ^5.7.0
     "@lavamoat/allow-scripts": ^2.3.1
     "@metamask/auto-changelog": ^3.1.0
-    "@metamask/base-controller": ^5.0.1
+    "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
     "@metamask/eslint-config": ^12.2.0
     "@metamask/eslint-config-jest": ^12.1.0

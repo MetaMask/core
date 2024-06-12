@@ -29,7 +29,7 @@
     "@ethereumjs/tx": "^5.2.1",
     "@ethereumjs/util": "^9.0.2",
     "@ethersproject/bytes": "^5.7.0",
-    "@metamask/base-controller": "^5.0.1",
+    "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/network-controller": "^18.1.2",
