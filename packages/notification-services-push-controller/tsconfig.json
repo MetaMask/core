@@ -8,7 +8,7 @@
       "path": "../base-controller/tsconfig.build.json"
     },
     {
-      "path": "../notifications-controller"
+      "path": "../notification-services-controller"
     },
     {
       "path": "../profile-sync-controller"

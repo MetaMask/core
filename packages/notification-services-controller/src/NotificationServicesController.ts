@@ -32,24 +32,23 @@ import * as MetamaskNotificationsUtils from './utils/utils';
 
 // TODO: Fix Circular Type Dependencies
 // This indicates that control flow of messages is everywhere, lets orchestrate these better
-export type PushPlatformNotificationsControllerEnablePushNotifications = {
-  type: `PushPlatformNotificationsController:enablePushNotifications`;
+export type NotificationServicesPushControllerEnablePushNotifications = {
+  type: `NotificationServicesPushController:enablePushNotifications`;
   handler: (UUIDs: string[]) => Promise<void>;
 };
 
-export type PushPlatformNotificationsControllerDisablePushNotifications = {
-  type: `PushPlatformNotificationsController:disablePushNotifications`;
+export type NotificationServicesPushControllerDisablePushNotifications = {
+  type: `NotificationServicesPushController:disablePushNotifications`;
   handler: (UUIDs: string[]) => Promise<void>;
 };
 
-export type PushPlatformNotificationsControllerUpdateTriggerPushNotifications =
-  {
-    type: `PushPlatformNotificationsController:updateTriggerPushNotifications`;
-    handler: (UUIDs: string[]) => Promise<void>;
-  };
+export type NotificationServicesPushControllerUpdateTriggerPushNotifications = {
+  type: `NotificationServicesPushController:updateTriggerPushNotifications`;
+  handler: (UUIDs: string[]) => Promise<void>;
+};
 
-export type PushPlatformNotificationsControllerOnNewNotification = {
-  type: `PushPlatformNotificationsController:onNewNotifications`;
+export type NotificationServicesPushControllerOnNewNotification = {
+  type: `NotificationServicesPushController:onNewNotifications`;
   payload: [INotification];
 };
 
@@ -202,9 +201,9 @@ export type AllowedActions =
   | UserStorageController.UserStorageControllerPerformGetStorage
   | UserStorageController.UserStorageControllerPerformSetStorage
   // Push Notifications Controller Requests
-  | PushPlatformNotificationsControllerEnablePushNotifications
-  | PushPlatformNotificationsControllerDisablePushNotifications
-  | PushPlatformNotificationsControllerUpdateTriggerPushNotifications;
+  | NotificationServicesPushControllerEnablePushNotifications
+  | NotificationServicesPushControllerDisablePushNotifications
+  | NotificationServicesPushControllerUpdateTriggerPushNotifications;
 
 // Events
 export type NotificationServicesControllerMessengerEvents =
@@ -216,7 +215,7 @@ export type NotificationServicesControllerMessengerEvents =
 // Allowed Events
 export type AllowedEvents =
   | KeyringControllerStateChangeEvent
-  | PushPlatformNotificationsControllerOnNewNotification;
+  | NotificationServicesPushControllerOnNewNotification;
 
 // Type for the messenger of NotificationServicesController
 export type NotificationServicesControllerMessenger =
@@ -276,25 +275,25 @@ export class NotificationServicesController extends BaseController<
   #pushNotifications = {
     enablePushNotifications: async (UUIDs: string[]) => {
       return await this.messagingSystem.call(
-        'PushPlatformNotificationsController:enablePushNotifications',
+        'NotificationServicesPushController:enablePushNotifications',
         UUIDs,
       );
     },
     disablePushNotifications: async (UUIDs: string[]) => {
       return await this.messagingSystem.call(
-        'PushPlatformNotificationsController:disablePushNotifications',
+        'NotificationServicesPushController:disablePushNotifications',
         UUIDs,
       );
     },
     updatePushNotifications: async (UUIDs: string[]) => {
       return await this.messagingSystem.call(
-        'PushPlatformNotificationsController:updateTriggerPushNotifications',
+        'NotificationServicesPushController:updateTriggerPushNotifications',
         UUIDs,
       );
     },
     subscribe: () => {
       this.messagingSystem.subscribe(
-        'PushPlatformNotificationsController:onNewNotifications',
+        'NotificationServicesPushController:onNewNotifications',
         (notification) => {
           // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.updateMetamaskNotificationsList(notification);

@@ -1,4 +1,4 @@
-# `@metamask/push-platform-notifications-controller`
+# `@metamask/notification-services-push-controller`
 
 Manages push notifications for MetaMask decentralized authentication systems.
 
@@ -6,11 +6,11 @@ This is mainly focused on wrapping and delivering a common interface over fireba
 
 ## Installation
 
-`yarn add @metamask/push-platform-notifications-controller`
+`yarn add @metamask/notification-services-push-controller`
 
 or
 
-`npm install @metamask/push-platform-notifications-controller`
+`npm install @metamask/notification-services-push-controller`
 
 ## Contributing
 

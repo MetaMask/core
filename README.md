@@ -35,7 +35,7 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
-- [`@metamask/push-platform-notifications-controller`](packages/push-platform-notifications-controller)
+- [`@metamask/notification-services-push-controller`](packages/notification-services-push-controller)
 - [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
@@ -80,7 +80,7 @@ linkStyle default opacity:0.5
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_sync_controller(["@metamask/profile-sync-controller"]);
-  push_platform_notifications_controller(["@metamask/push-platform-notifications-controller"]);
+  push_platform_notifications_controller(["@metamask/notification-services-push-controller"]);
   queued_request_controller(["@metamask/queued-request-controller"]);
   rate_limit_controller(["@metamask/rate-limit-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);

@@ -1,3 +1,14 @@
+export type PushNotificationEnv = {
+  apiKey: string;
+  authDomain: string;
+  storageBucket: string;
+  projectId: string;
+  messagingSenderId: string;
+  appId: string;
+  measurementId: string;
+  vapidKey: string;
+};
+
 export type Messaging = {
   app: FirebaseApp;
 };

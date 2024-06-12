@@ -3,14 +3,15 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist/types",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "skipLibCheck": true
   },
   "references": [
     {
       "path": "../base-controller/tsconfig.build.json"
     },
     {
-      "path": "../notifications-controller/tsconfig.build.json"
+      "path": "../notification-services-controller/tsconfig.build.json"
     },
     {
       "path": "../profile-sync-controller/tsconfig.build.json"

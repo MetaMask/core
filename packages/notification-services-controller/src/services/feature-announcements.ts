@@ -12,9 +12,6 @@ import type {
 } from '../types/feature-announcement/type-feature-announcement';
 import type { INotification } from '../types/notification/notification';
 
-// TODO - pass correct environemnt variables
-// const spaceId = process.env.CONTENTFUL_ACCESS_SPACE_ID || ':space_id';
-// const accessToken = process.env.CONTENTFUL_ACCESS_TOKEN || '';
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
 export const FEATURE_ANNOUNCEMENT_API = `https://cdn.contentful.com/spaces/${DEFAULT_SPACE_ID}/environments/master/entries`;

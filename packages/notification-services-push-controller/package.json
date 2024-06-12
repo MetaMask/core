@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/push-platform-notifications-controller",
+  "name": "@metamask/notification-services-push-controller",
   "version": "0.0.0",
   "description": "Manages push notifications for MetaMask decentralized authentication systems",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/push-platform-notifications-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/notification-services-push-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -32,8 +32,8 @@
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/push-platform-notifications-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/push-platform-notifications-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-services-push-controller",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-services-push-controller",
     "publish:preview": "yarn npm publish --tag preview",
     "test": "jest --reporters=jest-silent-reporter",
     "test:clean": "jest --clearCache",
@@ -41,13 +41,12 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@firebase/app": "^0.10.4",
-    "@firebase/messaging": "^0.12.9",
     "@metamask/base-controller": "^6.0.0",
-    "@metamask/notifications-controller": "^0.0.0",
+    "@metamask/notification-services-controller": "^0.0.0",
     "@metamask/profile-sync-controller": "^0.0.0",
     "bignumber.js": "^4.1.0",
     "deepmerge": "^4.2.2",
+    "firebase": "^10.11.0",
     "loglevel": "^1.8.1"
   },
   "devDependencies": {
@@ -56,13 +55,14 @@
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
+    "jest-environment-jsdom": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/notifications-controller": "^0.0.0",
+    "@metamask/notification-services-controller": "^0.0.0",
     "@metamask/profile-sync-controller": "^0.0.0"
   },
   "engines": {

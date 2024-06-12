@@ -1,3 +1,4 @@
+import type { PushNotificationEnv } from '../types/firebase';
 import * as services from './services';
 
 type MockResponse = {
@@ -17,7 +18,7 @@ const MOCK_RESPONSE: MockResponse = {
 };
 const MOCK_JWT = 'MOCK_JWT';
 
-describe('PushPlatformNotificationsServices', () => {
+describe('NotificationServicesPushController Services', () => {
   describe('getPushNotificationLinks', () => {
     beforeEach(() => {
       jest.clearAllMocks();
@@ -76,6 +77,14 @@ describe('PushPlatformNotificationsServices', () => {
   });
 
   describe('activatePushNotifications()', () => {
+    const activateParams = {
+      bearerToken: MOCK_JWT,
+      triggers: MOCK_TRIGGERS,
+      createRegToken: jest.fn(),
+      platform: 'extension' as const,
+      env: {} as PushNotificationEnv,
+    };
+
     beforeEach(() => {
       jest.clearAllMocks();
     });
@@ -88,10 +97,7 @@ describe('PushPlatformNotificationsServices', () => {
       jest
         .spyOn(services, 'activatePushNotifications')
         .mockResolvedValue(MOCK_NEW_REG_TOKEN);
-      const res = await services.activatePushNotifications(
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.activatePushNotifications(activateParams);
 
       expect(res).toBe(MOCK_NEW_REG_TOKEN);
     });
@@ -100,43 +106,38 @@ describe('PushPlatformNotificationsServices', () => {
       jest
         .spyOn(services, 'getPushNotificationLinks')
         .mockResolvedValueOnce(null);
-      const res = await services.activatePushNotifications(
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.activatePushNotifications(activateParams);
       expect(res).toBeNull();
     });
 
     it('should fail if unable to create new reg token', async () => {
-      jest.spyOn(services, 'createRegToken').mockResolvedValueOnce(null);
-      const res = await services.activatePushNotifications(
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      activateParams.createRegToken.mockResolvedValueOnce(null);
+      const res = await services.activatePushNotifications(activateParams);
       expect(res).toBeNull();
     });
 
     it('should fail if unable to update links', async () => {
       jest.spyOn(services, 'updateLinksAPI').mockResolvedValueOnce(false);
-      const res = await services.activatePushNotifications(
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.activatePushNotifications(activateParams);
       expect(res).toBeNull();
     });
   });
 
   describe('deactivatePushNotifications()', () => {
+    const deactivateParams = {
+      regToken: MOCK_REG_TOKEN,
+      bearerToken: MOCK_JWT,
+      triggers: MOCK_TRIGGERS,
+      deleteRegToken: jest.fn(),
+      env: {} as PushNotificationEnv,
+    };
+
     it('should fail if unable to get existing notification links', async () => {
       jest
         .spyOn(services, 'getPushNotificationLinks')
         .mockResolvedValueOnce(null);
 
-      const res = await services.deactivatePushNotifications(
-        MOCK_REG_TOKEN,
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.deactivatePushNotifications(deactivateParams);
 
       expect(res).toBe(false);
     });
@@ -147,11 +148,7 @@ describe('PushPlatformNotificationsServices', () => {
         .mockResolvedValue(MOCK_RESPONSE);
       jest.spyOn(services, 'updateLinksAPI').mockResolvedValue(false);
 
-      const res = await services.deactivatePushNotifications(
-        MOCK_REG_TOKEN,
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.deactivatePushNotifications(deactivateParams);
 
       expect(res).toBe(false);
     });
@@ -160,19 +157,25 @@ describe('PushPlatformNotificationsServices', () => {
       jest
         .spyOn(services, 'getPushNotificationLinks')
         .mockResolvedValueOnce(MOCK_RESPONSE);
-      jest.spyOn(services, 'deleteRegToken').mockResolvedValue(false);
+      deactivateParams.deleteRegToken.mockResolvedValue(false);
 
-      const res = await services.deactivatePushNotifications(
-        MOCK_REG_TOKEN,
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.deactivatePushNotifications(deactivateParams);
 
       expect(res).toBe(false);
     });
   });
 
   describe('updateTriggerPushNotifications()', () => {
+    const updateParams = {
+      regToken: MOCK_REG_TOKEN,
+      bearerToken: MOCK_JWT,
+      triggers: MOCK_TRIGGERS,
+      deleteRegToken: jest.fn(),
+      createRegToken: jest.fn(),
+      platform: 'extension' as const,
+      env: {} as PushNotificationEnv,
+    };
+
     beforeEach(() => {
       jest.clearAllMocks();
     });
@@ -187,11 +190,7 @@ describe('PushPlatformNotificationsServices', () => {
         fcmToken: 'fcm-token',
       });
 
-      const res = await services.updateTriggerPushNotifications(
-        MOCK_REG_TOKEN,
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.updateTriggerPushNotifications(updateParams);
 
       expect(res).toStrictEqual({
         isTriggersLinkedToPushNotifications: true,
@@ -205,11 +204,7 @@ describe('PushPlatformNotificationsServices', () => {
         fcmToken: undefined,
       });
 
-      const res = await services.updateTriggerPushNotifications(
-        MOCK_REG_TOKEN,
-        MOCK_JWT,
-        MOCK_TRIGGERS,
-      );
+      const res = await services.updateTriggerPushNotifications(updateParams);
 
       expect(res).toStrictEqual({
         isTriggersLinkedToPushNotifications: false,
