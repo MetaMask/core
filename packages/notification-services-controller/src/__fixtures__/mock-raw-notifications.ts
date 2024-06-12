@@ -5,7 +5,7 @@ import type { OnChainRawNotification } from '../types/on-chain-notification/on-c
  * Mocking Utility - create a mock Eth sent notification
  * @returns Mock raw Eth sent notification
  */
-export function createMockNotificationEthSent() {
+export function createMockNotificationEthSent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ETH_SENT,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
@@ -39,7 +39,7 @@ export function createMockNotificationEthSent() {
  * Mocking Utility - create a mock Eth Received notification
  * @returns Mock raw Eth Received notification
  */
-export function createMockNotificationEthReceived() {
+export function createMockNotificationEthReceived(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ETH_RECEIVED,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
@@ -73,7 +73,7 @@ export function createMockNotificationEthReceived() {
  * Mocking Utility - create a mock ERC20 sent notification
  * @returns Mock raw ERC20 sent notification
  */
-export function createMockNotificationERC20Sent() {
+export function createMockNotificationERC20Sent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC20_SENT,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
@@ -113,7 +113,7 @@ export function createMockNotificationERC20Sent() {
  * Mocking Utility - create a mock ERC20 received notification
  * @returns Mock raw ERC20 received notification
  */
-export function createMockNotificationERC20Received() {
+export function createMockNotificationERC20Received(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC20_RECEIVED,
     id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
@@ -153,7 +153,7 @@ export function createMockNotificationERC20Received() {
  * Mocking Utility - create a mock ERC721 sent notification
  * @returns Mock raw ERC721 sent notification
  */
-export function createMockNotificationERC721Sent() {
+export function createMockNotificationERC721Sent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC721_SENT,
     block_number: 18576643,
@@ -197,7 +197,7 @@ export function createMockNotificationERC721Sent() {
  * Mocking Utility - create a mock ERC721 received notification
  * @returns Mock raw ERC721 received notification
  */
-export function createMockNotificationERC721Received() {
+export function createMockNotificationERC721Received(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC721_RECEIVED,
     block_number: 18571446,
@@ -241,7 +241,7 @@ export function createMockNotificationERC721Received() {
  * Mocking Utility - create a mock ERC1155 sent notification
  * @returns Mock raw ERC1155 sent notification
  */
-export function createMockNotificationERC1155Sent() {
+export function createMockNotificationERC1155Sent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC1155_SENT,
     block_number: 18615206,
@@ -285,7 +285,7 @@ export function createMockNotificationERC1155Sent() {
  * Mocking Utility - create a mock ERC1155 received notification
  * @returns Mock raw ERC1155 received notification
  */
-export function createMockNotificationERC1155Received() {
+export function createMockNotificationERC1155Received(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC1155_RECEIVED,
     block_number: 18615206,
@@ -329,7 +329,7 @@ export function createMockNotificationERC1155Received() {
  * Mocking Utility - create a mock MetaMask Swaps notification
  * @returns Mock raw MetaMask Swaps notification
  */
-export function createMockNotificationMetaMaskSwapsCompleted() {
+export function createMockNotificationMetaMaskSwapsCompleted(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.METAMASK_SWAP_COMPLETED,
     block_number: 18377666,
@@ -379,7 +379,7 @@ export function createMockNotificationMetaMaskSwapsCompleted() {
  * Mocking Utility - create a mock RocketPool Stake Completed notification
  * @returns Mock raw RocketPool Stake Completed notification
  */
-export function createMockNotificationRocketPoolStakeCompleted() {
+export function createMockNotificationRocketPoolStakeCompleted(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_STAKE_COMPLETED,
     block_number: 18585057,
@@ -428,7 +428,7 @@ export function createMockNotificationRocketPoolStakeCompleted() {
  * Mocking Utility - create a mock RocketPool Un-staked notification
  * @returns Mock raw RocketPool Un-staked notification
  */
-export function createMockNotificationRocketPoolUnStakeCompleted() {
+export function createMockNotificationRocketPoolUnStakeCompleted(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_UNSTAKE_COMPLETED,
     block_number: 18384336,
@@ -477,7 +477,7 @@ export function createMockNotificationRocketPoolUnStakeCompleted() {
  * Mocking Utility - create a mock Lido Stake Completed notification
  * @returns Mock raw Lido Stake Completed notification
  */
-export function createMockNotificationLidoStakeCompleted() {
+export function createMockNotificationLidoStakeCompleted(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.LIDO_STAKE_COMPLETED,
     block_number: 18487118,
@@ -526,7 +526,7 @@ export function createMockNotificationLidoStakeCompleted() {
  * Mocking Utility - create a mock Lido Withdrawal Requested notification
  * @returns Mock raw Lido Withdrawal Requested notification
  */
-export function createMockNotificationLidoWithdrawalRequested() {
+export function createMockNotificationLidoWithdrawalRequested(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.LIDO_WITHDRAWAL_REQUESTED,
     block_number: 18377760,
@@ -575,7 +575,7 @@ export function createMockNotificationLidoWithdrawalRequested() {
  * Mocking Utility - create a mock Lido Withdrawal Completed notification
  * @returns Mock raw Lido Withdrawal Completed notification
  */
-export function createMockNotificationLidoWithdrawalCompleted() {
+export function createMockNotificationLidoWithdrawalCompleted(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.LIDO_WITHDRAWAL_COMPLETED,
     block_number: 18378208,
@@ -624,7 +624,7 @@ export function createMockNotificationLidoWithdrawalCompleted() {
  * Mocking Utility - create a mock Lido Withdrawal Ready notification
  * @returns Mock raw Lido Withdrawal Ready notification
  */
-export function createMockNotificationLidoReadyToBeWithdrawn() {
+export function createMockNotificationLidoReadyToBeWithdrawn(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.LIDO_STAKE_READY_TO_BE_WITHDRAWN,
     block_number: 18378208,

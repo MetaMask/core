@@ -18,15 +18,15 @@ import type { UserStorageEntryKeys } from './schema';
 import { getUserStorage, upsertUserStorage } from './services';
 
 // TODO: fix external dependencies
-export declare type MetamaskNotificationsControllerDisableMetamaskNotifications =
+export declare type NotificationServicesControllerDisableMetamaskNotifications =
   {
-    type: `MetamaskNotificationsController:disableMetamaskNotifications`;
+    type: `NotificationServicesController:disableMetamaskNotifications`;
     handler: () => Promise<void>;
   };
 
-export declare type MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled =
+export declare type NotificationServicesControllerSelectIsMetamaskNotificationsEnabled =
   {
-    type: `MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled`;
+    type: `NotificationServicesController:selectIsMetamaskNotificationsEnabled`;
     handler: () => boolean;
   };
 
@@ -96,8 +96,8 @@ export type AllowedActions =
   | AuthenticationControllerIsSignedIn
   | AuthenticationControllerPerformSignOut
   // Metamask Notifications
-  | MetamaskNotificationsControllerDisableMetamaskNotifications
-  | MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled;
+  | NotificationServicesControllerDisableMetamaskNotifications
+  | NotificationServicesControllerSelectIsMetamaskNotificationsEnabled;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -151,12 +151,12 @@ export default class UserStorageController extends BaseController<
   #metamaskNotifications = {
     disableMetamaskNotifications: async () => {
       return await this.messagingSystem.call(
-        'MetamaskNotificationsController:disableMetamaskNotifications',
+        'NotificationServicesController:disableMetamaskNotifications',
       );
     },
     selectIsMetamaskNotificationsEnabled: async () => {
       return this.messagingSystem.call(
-        'MetamaskNotificationsController:selectIsMetamaskNotificationsEnabled',
+        'NotificationServicesController:selectIsMetamaskNotificationsEnabled',
       );
     },
   };

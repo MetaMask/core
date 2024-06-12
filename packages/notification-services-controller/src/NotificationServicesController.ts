@@ -54,12 +54,12 @@ export type PushPlatformNotificationsControllerOnNewNotification = {
 };
 
 // Unique name for the controller
-const controllerName = 'MetamaskNotificationsController';
+const controllerName = 'NotificationServicesController';
 
 /**
- * State shape for MetamaskNotificationsController
+ * State shape for NotificationServicesController
  */
-export type MetamaskNotificationsControllerState = {
+export type NotificationServicesControllerState = {
   /**
    * We store and manage accounts that have been seen/visted through the
    * account subscription. This allows us to track and add notifications for new accounts and not previous accounts added.
@@ -110,7 +110,7 @@ export type MetamaskNotificationsControllerState = {
   isCheckingAccountsPresence: boolean;
 };
 
-const metadata: StateMetadata<MetamaskNotificationsControllerState> = {
+const metadata: StateMetadata<NotificationServicesControllerState> = {
   subscriptionAccountsSeen: {
     persist: true,
     anonymous: true,
@@ -153,7 +153,7 @@ const metadata: StateMetadata<MetamaskNotificationsControllerState> = {
     anonymous: false,
   },
 };
-export const defaultState: MetamaskNotificationsControllerState = {
+export const defaultState: NotificationServicesControllerState = {
   subscriptionAccountsSeen: [],
   isMetamaskNotificationsFeatureSeen: false,
   isMetamaskNotificationsEnabled: false,
@@ -166,28 +166,28 @@ export const defaultState: MetamaskNotificationsControllerState = {
   isCheckingAccountsPresence: false,
 };
 
-export type MetamaskNotificationsControllerUpdateMetamaskNotificationsList = {
+export type NotificationServicesControllerUpdateMetamaskNotificationsList = {
   type: `${typeof controllerName}:updateMetamaskNotificationsList`;
-  handler: MetamaskNotificationsController['updateMetamaskNotificationsList'];
+  handler: NotificationServicesController['updateMetamaskNotificationsList'];
 };
 
-export type MetamaskNotificationsControllerDisableMetamaskNotifications = {
+export type NotificationServicesControllerDisableMetamaskNotifications = {
   type: `${typeof controllerName}:disableMetamaskNotifications`;
-  handler: MetamaskNotificationsController['disableMetamaskNotifications'];
+  handler: NotificationServicesController['disableMetamaskNotifications'];
 };
 
-export type MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled =
+export type NotificationServicesControllerSelectIsMetamaskNotificationsEnabled =
   {
     type: `${typeof controllerName}:selectIsMetamaskNotificationsEnabled`;
-    handler: MetamaskNotificationsController['selectIsMetamaskNotificationsEnabled'];
+    handler: NotificationServicesController['selectIsMetamaskNotificationsEnabled'];
   };
 
 // Messenger Actions
 export type Actions =
-  | MetamaskNotificationsControllerUpdateMetamaskNotificationsList
-  | MetamaskNotificationsControllerDisableMetamaskNotifications
-  | MetamaskNotificationsControllerSelectIsMetamaskNotificationsEnabled
-  | ControllerGetStateAction<'state', MetamaskNotificationsControllerState>;
+  | NotificationServicesControllerUpdateMetamaskNotificationsList
+  | NotificationServicesControllerDisableMetamaskNotifications
+  | NotificationServicesControllerSelectIsMetamaskNotificationsEnabled
+  | ControllerGetStateAction<'state', NotificationServicesControllerState>;
 
 // Allowed Actions
 export type AllowedActions =
@@ -207,10 +207,10 @@ export type AllowedActions =
   | PushPlatformNotificationsControllerUpdateTriggerPushNotifications;
 
 // Events
-export type MetamaskNotificationsControllerMessengerEvents =
+export type NotificationServicesControllerMessengerEvents =
   ControllerStateChangeEvent<
     typeof controllerName,
-    MetamaskNotificationsControllerState
+    NotificationServicesControllerState
   >;
 
 // Allowed Events
@@ -218,8 +218,8 @@ export type AllowedEvents =
   | KeyringControllerStateChangeEvent
   | PushPlatformNotificationsControllerOnNewNotification;
 
-// Type for the messenger of MetamaskNotificationsController
-export type MetamaskNotificationsControllerMessenger =
+// Type for the messenger of NotificationServicesController
+export type NotificationServicesControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
     Actions | AllowedActions,
@@ -233,10 +233,10 @@ type FeatureAnnouncementEnv = { spaceId: string; accessToken: string };
 /**
  * Controller that enables wallet notifications and feature announcements
  */
-export class MetamaskNotificationsController extends BaseController<
+export class NotificationServicesController extends BaseController<
   typeof controllerName,
-  MetamaskNotificationsControllerState,
-  MetamaskNotificationsControllerMessenger
+  NotificationServicesControllerState,
+  NotificationServicesControllerMessenger
 > {
   #auth = {
     getBearerToken: async () => {
@@ -401,7 +401,7 @@ export class MetamaskNotificationsController extends BaseController<
   #featureAnnouncementEnv: FeatureAnnouncementEnv;
 
   /**
-   * Creates a MetamaskNotificationsController instance.
+   * Creates a NotificationServicesController instance.
    *
    * @param args - The arguments to this function.
    * @param args.messenger - Messenger used to communicate with BaseV2 controller.
@@ -414,8 +414,8 @@ export class MetamaskNotificationsController extends BaseController<
     state,
     env,
   }: {
-    messenger: MetamaskNotificationsControllerMessenger;
-    state?: Partial<MetamaskNotificationsControllerState>;
+    messenger: NotificationServicesControllerMessenger;
+    state?: Partial<NotificationServicesControllerState>;
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
     };
