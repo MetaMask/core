@@ -9,7 +9,9 @@ type MockResponse = {
 
 export const MOCK_REG_TOKEN = 'REG_TOKEN';
 export const MOCK_LINKS_RESPONSE: LinksResult = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   trigger_ids: ['1', '2', '3'],
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_tokens: [
     { token: 'reg_token_1', platform: 'portfolio' },
     { token: 'reg_token_2', platform: 'extension' },

@@ -14,8 +14,13 @@ export type RegToken = {
   platform: 'extension' | 'mobile' | 'portfolio';
 };
 
+/**
+ * Links API Response Shape
+ */
 export type LinksResult = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   trigger_ids: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_tokens: RegToken[];
 };
 
@@ -58,7 +63,9 @@ export async function updateLinksAPI(
 ): Promise<boolean> {
   try {
     const body: LinksResult = {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       trigger_ids: triggers,
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       registration_tokens: regTokens,
     };
     const response = await fetch(endpoints.REGISTRATION_TOKENS_ENDPOINT, {

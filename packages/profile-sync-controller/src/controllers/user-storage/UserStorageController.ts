@@ -61,8 +61,8 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 };
 
 // Messenger Actions
-type CreateActionsObj<T extends keyof UserStorageController> = {
-  [K in T]: {
+type CreateActionsObj<Controller extends keyof UserStorageController> = {
+  [K in Controller]: {
     type: `${typeof controllerName}:${K}`;
     handler: UserStorageController[K];
   };

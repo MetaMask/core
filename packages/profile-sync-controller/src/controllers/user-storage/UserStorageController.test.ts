@@ -23,8 +23,8 @@ import type {
 } from './UserStorageController';
 import UserStorageController from './UserStorageController';
 
-const typedMockFn = <Fn extends (...args: unknown[]) => unknown>() =>
-  jest.fn<ReturnType<Fn>, Parameters<Fn>>();
+const typedMockFn = <Func extends (...args: unknown[]) => unknown>() =>
+  jest.fn<ReturnType<Func>, Parameters<Func>>();
 
 describe('user-storage/user-storage-controller - constructor() tests', () => {
   const arrangeMocks = () => {
@@ -59,7 +59,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       getMetaMetricsState: () => true,
     });
 
-    const result = await controller.performGetStorage('notification_settings');
+    const result = await controller.performGetStorage('notificationSettings');
     mockAPI.done();
     expect(result).toBe(MOCK_STORAGE_DATA);
   });
@@ -76,7 +76,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     await expect(
-      controller.performGetStorage('notification_settings'),
+      controller.performGetStorage('notificationSettings'),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -111,7 +111,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       });
 
       await expect(
-        controller.performGetStorage('notification_settings'),
+        controller.performGetStorage('notificationSettings'),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -132,7 +132,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       getMetaMetricsState: () => true,
     });
 
-    await controller.performSetStorage('notification_settings', 'new data');
+    await controller.performSetStorage('notificationSettings', 'new data');
     expect(mockAPI.isDone()).toBe(true);
   });
 
@@ -148,7 +148,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
 
     await expect(
-      controller.performSetStorage('notification_settings', 'new data'),
+      controller.performSetStorage('notificationSettings', 'new data'),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -183,7 +183,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       });
 
       await expect(
-        controller.performSetStorage('notification_settings', 'new data'),
+        controller.performSetStorage('notificationSettings', 'new data'),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -197,7 +197,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       getMetaMetricsState: () => true,
     });
     await expect(
-      controller.performSetStorage('notification_settings', 'new data'),
+      controller.performSetStorage('notificationSettings', 'new data'),
     ).rejects.toThrow(expect.any(Error));
   });
 });

@@ -10,8 +10,13 @@ const ENV_URLS = getEnvUrls(Env.PRD);
 export const USER_STORAGE_API: string = ENV_URLS.userStorageApiUrl;
 export const USER_STORAGE_ENDPOINT = `${USER_STORAGE_API}/api/v1/userstorage`;
 
+/**
+ * This is the Server Response shape
+ */
 export type GetUserStorageResponse = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   HashedKey: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   Data: string;
 };
 

@@ -22,9 +22,14 @@ type Env = {
   accessToken: string;
 };
 
+/**
+ * Contentful API Response Shape
+ */
 export type ContentfulResult = {
   includes?: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Entry?: Entry[];
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     Asset?: Asset[];
   };
   items?: TypeFeatureAnnouncement[];

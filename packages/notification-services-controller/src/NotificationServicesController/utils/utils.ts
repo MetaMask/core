@@ -477,11 +477,11 @@ async function fetchWithRetry(
  * @param retryDelay - The delay between retries in milliseconds (default is 1000).
  * @returns A Promise that resolves to the response of the fetch request.
  */
-export async function makeApiCall<T>(
+export async function makeApiCall<Body>(
   bearerToken: string,
   endpoint: string,
   method: 'POST' | 'DELETE',
-  body: T,
+  body: Body,
   retries = 3,
   retryDelay = 1000,
 ): Promise<Response> {

@@ -32,9 +32,12 @@ export const MOCK_JWT =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
 export const MOCK_LOGIN_RESPONSE: LoginResponse = {
   token: MOCK_JWT,
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   expires_in: new Date().toString(),
   profile: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     identifier_id: 'MOCK_IDENTIFIER',
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     profile_id: 'MOCK_PROFILE_ID',
   },
 };
@@ -49,7 +52,9 @@ export const getMockAuthLoginResponse = () => {
 
 export const MOCK_ACCESS_TOKEN = `MOCK_ACCESS_TOKEN-${MOCK_JWT}`;
 export const MOCK_OATH_TOKEN_RESPONSE: OAuthTokenResponse = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   access_token: MOCK_ACCESS_TOKEN,
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   expires_in: new Date().getTime(),
 };
 

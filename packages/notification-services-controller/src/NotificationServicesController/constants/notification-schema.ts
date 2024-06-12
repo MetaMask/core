@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum TRIGGER_TYPES {
   FEATURES_ANNOUNCEMENT = 'features_announcement',
   METAMASK_SWAP_COMPLETED = 'metamask_swap_completed',

@@ -10,7 +10,7 @@ type MockResponse = {
 };
 
 export const MOCK_USER_STORAGE_NOTIFICATIONS_ENDPOINT = `${USER_STORAGE_ENDPOINT}${createEntryPath(
-  'notification_settings',
+  'notificationSettings',
   MOCK_STORAGE_KEY,
 )}`;
 

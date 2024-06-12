@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { Types } from '../../NotificationServicesController';
 import { Constants } from '../../NotificationServicesController';
 import { getAmount, formatAmount } from './get-notification-data';

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
 

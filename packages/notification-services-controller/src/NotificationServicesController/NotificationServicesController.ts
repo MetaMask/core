@@ -260,13 +260,13 @@ export class NotificationServicesController extends BaseController<
     getNotificationStorage: async () => {
       return await this.messagingSystem.call(
         'UserStorageController:performGetStorage',
-        'notification_settings',
+        'notificationSettings',
       );
     },
     setNotificationStorage: async (state: string) => {
       return await this.messagingSystem.call(
         'UserStorageController:performSetStorage',
-        'notification_settings',
+        'notificationSettings',
         state,
       );
     },
@@ -957,7 +957,7 @@ export class NotificationServicesController extends BaseController<
       const readIds = this.state.metamaskNotificationsReadList;
 
       // Combined Notifications
-      const isNotUndefined = <T>(t?: T): t is T => Boolean(t);
+      const isNotUndefined = <Item>(t?: Item): t is Item => Boolean(t);
       const processAndFilter = (ns: NotificationUnion[]) =>
         ns
           .map((n) => safeProcessNotification(n, readIds))

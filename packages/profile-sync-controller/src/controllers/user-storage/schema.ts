@@ -7,9 +7,9 @@ type UserStorageEntry = { path: string; entryName: string };
  * Developers can provide additional paths by extending this variable below
  */
 export const USER_STORAGE_ENTRIES = {
-  notification_settings: {
+  notificationSettings: {
     path: 'notifications',
-    entryName: 'notification_settings',
+    entryName: 'notificationSettings',
   },
 } satisfies Record<string, UserStorageEntry>;
 

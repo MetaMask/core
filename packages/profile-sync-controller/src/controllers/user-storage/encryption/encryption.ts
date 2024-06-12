@@ -19,6 +19,7 @@ export type EncryptedPayload = {
 
   // encryption options - scrypt
   o: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     N: number;
     r: number;
     p: number;
@@ -29,20 +30,20 @@ export type EncryptedPayload = {
   saltLen: number;
 };
 
+// Nonce/Key Sizes
+const ALGORITHM_NONCE_SIZE = 12; // 12 bytes
+const ALGORITHM_KEY_SIZE = 16; // 16 bytes
+
+// Scrypt settings
+// see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
+const SCRYPT_SALT_SIZE = 16; // 16 bytes
+const SCRYPT_N = 2 ** 17; // CPU/memory cost parameter (must be a power of 2, > 1)
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const SCRYPT_r = 8; // Block size parameter
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const SCRYPT_p = 1; // Parallelization parameter
+
 class EncryptorDecryptor {
-  #ALGORITHM_NONCE_SIZE = 12; // 12 bytes
-
-  #ALGORITHM_KEY_SIZE = 16; // 16 bytes
-
-  #SCRYPT_SALT_SIZE = 16; // 16 bytes
-
-  // see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt
-  #SCRYPT_N: number = 2 ** 17; // CPU/memory cost parameter (must be a power of 2, > 1)
-
-  #SCRYPT_r = 8; // Block size parameter
-
-  #SCRYPT_p = 1; // Parallelization parameter
-
   encryptString(plaintext: string, password: string): string {
     try {
       return this.#encryptStringV1(plaintext, password);
@@ -71,10 +72,10 @@ class EncryptorDecryptor {
 
   #encryptStringV1(plaintext: string, password: string): string {
     const { key, salt } = this.#getOrGenerateScryptKey(password, {
-      N: this.#SCRYPT_N,
-      r: this.#SCRYPT_r,
-      p: this.#SCRYPT_p,
-      dkLen: this.#ALGORITHM_KEY_SIZE,
+      N: SCRYPT_N,
+      r: SCRYPT_r,
+      p: SCRYPT_p,
+      dkLen: ALGORITHM_KEY_SIZE,
     });
 
     // Encrypt and prepend salt.
@@ -92,12 +93,12 @@ class EncryptorDecryptor {
       t: 'scrypt',
       d: encryptedData,
       o: {
-        N: this.#SCRYPT_N,
-        r: this.#SCRYPT_r,
-        p: this.#SCRYPT_p,
-        dkLen: this.#ALGORITHM_KEY_SIZE,
+        N: SCRYPT_N,
+        r: SCRYPT_r,
+        p: SCRYPT_p,
+        dkLen: ALGORITHM_KEY_SIZE,
       },
-      saltLen: this.#SCRYPT_SALT_SIZE,
+      saltLen: SCRYPT_SALT_SIZE,
     };
 
     return JSON.stringify(encryptedPayload);
@@ -135,7 +136,7 @@ class EncryptorDecryptor {
   }
 
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
-    const nonce = randomBytes(this.#ALGORITHM_NONCE_SIZE);
+    const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
 
     // Encrypt and prepend nonce.
     const ciphertext = gcm(key, nonce).encrypt(plaintext);
@@ -145,9 +146,9 @@ class EncryptorDecryptor {
 
   #decrypt(ciphertextAndNonce: Uint8Array, key: Uint8Array): Uint8Array {
     // Create buffers of nonce and ciphertext.
-    const nonce = ciphertextAndNonce.slice(0, this.#ALGORITHM_NONCE_SIZE);
+    const nonce = ciphertextAndNonce.slice(0, ALGORITHM_NONCE_SIZE);
     const ciphertext = ciphertextAndNonce.slice(
-      this.#ALGORITHM_NONCE_SIZE,
+      ALGORITHM_NONCE_SIZE,
       ciphertextAndNonce.length,
     );
 
@@ -172,7 +173,7 @@ class EncryptorDecryptor {
       };
     }
 
-    const newSalt = salt ?? randomBytes(this.#SCRYPT_SALT_SIZE);
+    const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
     const newKey = scrypt(password, newSalt, {
       N: o.N,
       r: o.r,

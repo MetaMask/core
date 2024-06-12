@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import type { TRIGGER_TYPES } from '../../constants/notification-schema';
 import type { Compute } from '../type-utils';
 import type { components } from './schema';

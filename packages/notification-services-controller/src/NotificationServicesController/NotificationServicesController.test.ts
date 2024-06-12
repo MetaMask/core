@@ -220,11 +220,11 @@ describe('metamask-notifications - checkAccountsPresence()', () => {
     });
     const result = await controller.checkAccountsPresence([
       MOCK_USER_STORAGE_ACCOUNT,
-      'fake_account',
+      '0xfake',
     ]);
     expect(result).toStrictEqual({
       [MOCK_USER_STORAGE_ACCOUNT]: true,
-      fake_account: false,
+      '0xfake': false,
     });
   });
 });

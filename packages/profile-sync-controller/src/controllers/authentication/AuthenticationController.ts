@@ -61,8 +61,8 @@ const metadata: StateMetadata<AuthenticationControllerState> = {
 };
 
 // Messenger Actions
-type CreateActionsObj<T extends keyof AuthenticationController> = {
-  [K in T]: {
+type CreateActionsObj<Controller extends keyof AuthenticationController> = {
+  [K in Controller]: {
     type: `${typeof controllerName}:${K}`;
     handler: AuthenticationController[K];
   };

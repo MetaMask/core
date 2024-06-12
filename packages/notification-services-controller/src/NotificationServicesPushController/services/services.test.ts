@@ -2,7 +2,9 @@ import type { PushNotificationEnv } from '../types/firebase';
 import * as services from './services';
 
 type MockResponse = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   trigger_ids: string[];
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_tokens: services.RegToken[];
 };
 
@@ -10,7 +12,9 @@ const MOCK_REG_TOKEN = 'REG_TOKEN';
 const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
 const MOCK_TRIGGERS = ['1', '2', '3'];
 const MOCK_RESPONSE: MockResponse = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   trigger_ids: ['1', '2', '3'],
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   registration_tokens: [
     { token: 'reg_token_1', platform: 'portfolio' },
     { token: 'reg_token_2', platform: 'extension' },

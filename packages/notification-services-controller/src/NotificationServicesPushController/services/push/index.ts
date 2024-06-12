@@ -4,5 +4,5 @@ export type CreateRegToken = typeof Web.createRegToken;
 export type DeleteRegToken = typeof Web.deleteRegToken;
 export type ListenToPushNotificationsReceived =
   typeof Web.listenToPushNotificationsReceived;
-export type listenToPushNotificationsClicked =
+export type ListenToPushNotificationsClicked =
   typeof Web.listenToPushNotificationsClicked;

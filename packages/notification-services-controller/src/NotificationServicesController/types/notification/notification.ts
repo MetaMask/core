@@ -22,6 +22,7 @@ export type INotification = Compute<
 
 // NFT
 export type NFT = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_id: string;
   image: string;
   collection?: {
