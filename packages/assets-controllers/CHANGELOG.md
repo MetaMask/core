@@ -30,14 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/keyring-controller` to `^17.1.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
 
+### Removed
+
+- Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
+
 ### Fixed
 
 - Catch the case when data are not available for given token ([#4361](https://github.com/MetaMask/core/pull/4361))
 - Mutex released on the finally block of refresh function ([#4270](https://github.com/MetaMask/core/pull/4270))
-
-### Removed
-
-- Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
 
 ## [32.0.0]
 
