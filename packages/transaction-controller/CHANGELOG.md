@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove `getSelectedAddress` option from `TransactionController` ([#4244](https://github.com/MetaMask/core/pull/4244))
+- **BREAKING:** Remove `getSelectedAddress` option from `TransactionController` ([#4244](https://github.com/MetaMask/core/pull/4244))
   - The AccountsController is used to get the currently selected address automatically.
 
 ### Fixed
