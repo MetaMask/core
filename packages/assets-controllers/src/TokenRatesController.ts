@@ -435,12 +435,16 @@ export class TokenRatesController extends StaticIntervalPollingController<
     chainId: Hex;
     ticker: string;
   } {
-    const { providerConfig } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
     return {
-      chainId: providerConfig.chainId,
-      ticker: providerConfig.ticker,
+      chainId: networkClient.configuration.chainId,
+      ticker: networkClient.configuration.ticker,
     };
   }
 
