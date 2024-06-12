@@ -641,11 +641,6 @@ describe('TokenRatesController', () => {
               .mockResolvedValue();
             triggerNetworkStateChange({
               ...defaultNetworkState,
-              providerConfig: {
-                ...defaultNetworkState.providerConfig,
-                chainId: ChainId.mainnet,
-                ticker: 'NEW',
-              },
               selectedNetworkClientId: defaultSelectedNetworkClientId,
             });
 
@@ -1419,13 +1414,6 @@ describe('TokenRatesController', () => {
                         },
                       ],
                     },
-                  },
-                },
-                mockNetworkState: {
-                  providerConfig: {
-                    ...defaultNetworkState.providerConfig,
-                    chainId: toHex(2),
-                    ticker: 'ticker',
                   },
                 },
               },
