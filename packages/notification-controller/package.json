@@ -35,10 +35,10 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
+    "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:clean-only": "jest --clearCache"
   },
   "dependencies": {
     "@metamask/base-controller": "^6.0.0",

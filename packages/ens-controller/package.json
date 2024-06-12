@@ -35,10 +35,10 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/ens-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ens-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
+    "test": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:clean-only": "jest --clearCache"
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",

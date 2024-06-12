@@ -312,11 +312,11 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:update', CorrectChangelogUpd
   \+ atom_concat(ExpectedPrefix, _, ChangelogUpdateCommand).
 
 % All non-root packages must have the same "test" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test', 'yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
 
-% All non-root packages must have the same "test:clean" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+% All non-root packages must have the same "test:clean-only" script.
+gen_enforced_field(WorkspaceCwd, 'scripts.test:clean-only', 'jest --clearCache') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:verbose" script.
