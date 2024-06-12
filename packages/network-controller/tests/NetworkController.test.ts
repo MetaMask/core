@@ -2808,7 +2808,198 @@ describe('NetworkController', () => {
           );
         });
       });
+      describe('if the controller was destroyed and the all listeners were removed', () => {
+        it('lookupNetwork does not thrown an error', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                }),
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller, messenger }) => {
+              const fakeProviders = [
+                buildFakeProvider([
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                    beforeCompleting: async () => {
+                      messenger.clearSubscriptions();
+                      await controller.destroy();
+                    },
+                  },
+                ]),
+              ];
+              const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
+              mockCreateNetworkClient()
+                .calledWith({
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                })
+                .mockReturnValue(fakeNetworkClients[0]);
 
+              expect(controller.initializeProvider()).toBeFulfilled();
+            },
+          );
+        });
+
+        it('lookupNetwork keeps the state intact', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                }),
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller, messenger }) => {
+              const fakeProviders = [
+                buildFakeProvider([
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                    beforeCompleting: async () => {
+                      messenger.clearSubscriptions();
+                      await controller.destroy();
+                    },
+                  },
+                ]),
+              ];
+              const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
+              mockCreateNetworkClient()
+                .calledWith({
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                })
+                .mockReturnValue(fakeNetworkClients[0]);
+
+              await controller.initializeProvider();
+
+              expect(
+                controller.state.networksMetadata['https://mock-rpc-url']
+                  .status,
+              ).toBe(NetworkStatus.Unknown);
+            },
+          );
+        });
+
+        it('does not update network metadata property', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                }),
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller, messenger }) => {
+              const fakeProviders = [
+                buildFakeProvider([
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: {
+                      result: POST_1559_BLOCK,
+                    },
+                    beforeCompleting: async () => {
+                      messenger.clearSubscriptions();
+                      await controller.destroy();
+                    },
+                  },
+                ]),
+              ];
+              const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
+              mockCreateNetworkClient()
+                .calledWith({
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                })
+                .mockReturnValue(fakeNetworkClients[0]);
+              await controller.initializeProvider();
+
+              expect(
+                Object.keys(
+                  controller.state.networksMetadata['https://mock-rpc-url']
+                    .EIPS,
+                ),
+              ).toHaveLength(0);
+            },
+          );
+        });
+
+        it('does not emit infuraIsUnblocked', async () => {
+          await withController(
+            {
+              state: {
+                providerConfig: buildProviderConfig({
+                  type: NetworkType.rpc,
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                }),
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller, messenger }) => {
+              const fakeProviders = [
+                buildFakeProvider([
+                  // Called during provider initialization
+                  {
+                    request: {
+                      method: 'eth_getBlockByNumber',
+                    },
+                    response: SUCCESSFUL_ETH_GET_BLOCK_BY_NUMBER_RESPONSE,
+                    beforeCompleting: async () => {
+                      messenger.clearSubscriptions();
+                      await controller.destroy();
+                    },
+                  },
+                ]),
+              ];
+              const fakeNetworkClients = [buildFakeClient(fakeProviders[0])];
+              mockCreateNetworkClient()
+                .calledWith({
+                  chainId: toHex(1337),
+                  rpcUrl: 'https://mock-rpc-url',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                })
+                .mockReturnValue(fakeNetworkClients[0]);
+
+              await controller.initializeProvider();
+
+              const promiseForNoInfuraIsUnblockedEvents =
+                waitForPublishedEvents({
+                  messenger,
+                  eventType: 'NetworkController:infuraIsBlocked',
+                  count: 0,
+                });
+
+              await expect(promiseForNoInfuraIsUnblockedEvents).toBeFulfilled();
+            },
+          );
+        });
+      });
       lookupNetworkTests({
         expectedProviderConfig: buildProviderConfig({ type: NetworkType.rpc }),
         initialState: {
