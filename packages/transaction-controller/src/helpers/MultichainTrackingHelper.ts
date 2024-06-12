@@ -187,6 +187,9 @@ export class MultichainTrackingHelper {
     networkClientId?: NetworkClientId;
     chainId?: Hex;
   } = {}): EthQuery {
+    if (!this.#isMultichainEnabled) {
+      return new EthQuery(this.getProvider());
+    }
     return new EthQuery(this.getProvider({ networkClientId, chainId }));
   }
 

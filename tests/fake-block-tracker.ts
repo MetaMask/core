@@ -1,6 +1,5 @@
 import { PollingBlockTracker } from '@metamask/eth-block-tracker';
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 
 /**
  * Acts like a PollingBlockTracker, but doesn't start the polling loop or
@@ -9,9 +8,9 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 export class FakeBlockTracker extends PollingBlockTracker {
   #latestBlockNumber = '0x0';
 
-  constructor() {
+  constructor({ provider }: { provider: SafeEventEmitterProvider }) {
     super({
-      provider: new SafeEventEmitterProvider({ engine: new JsonRpcEngine() }),
+      provider,
     });
     // Don't start the polling loop
     // TODO: Replace `any` with type

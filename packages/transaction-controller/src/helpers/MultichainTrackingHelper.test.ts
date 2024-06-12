@@ -220,6 +220,16 @@ function newMultichainTrackingHelper(
 describe('MultichainTrackingHelper', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+
+    for (const network of [
+      'mainnet',
+      'goerli',
+      'sepolia',
+      'customNetworkClientId-1',
+    ] as const) {
+      MOCK_BLOCK_TRACKERS[network] = buildMockBlockTracker(network);
+      MOCK_PROVIDERS[network] = buildMockProvider(network);
+    }
   });
 
   describe('onNetworkStateChange', () => {
