@@ -48,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Some of these properties have been merged into the options that `TokenRatesController` takes.
 - **BREAKING:** Remove `NftController` constructor options `selectedAddress`. ([#4221](https://github.com/MetaMask/core/pull/4221))
 - **BREAKING:** Remove `AccountTrackerController` constructor options `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange` ([#4225](https://github.com/MetaMask/core/pull/4225))
-- Remove `value` from price API responses ([#4364](https://github.com/MetaMask/core/pull/4364))
+- **BREAKING:** Remove `value` property from the data for each token in `state.marketData` ([#4364](https://github.com/MetaMask/core/pull/4364))
+  - The `price` property should be used instead.
 
 ### Fixed
 
