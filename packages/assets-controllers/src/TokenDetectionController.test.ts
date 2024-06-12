@@ -207,7 +207,10 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           isKeyringUnlocked: false,
-          options: { selectedAccountId: defaultSelectedAccount.id },
+          options: {},
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
         },
         async ({ controller }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -226,12 +229,12 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           isKeyringUnlocked: false,
-          options: {
-            selectedAccountId: defaultSelectedAccount.id,
+          options: {},
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockGetAccount, triggerKeyringUnlock }) => {
-          mockGetAccount(defaultSelectedAccount);
+        async ({ controller, triggerKeyringUnlock }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
 
           await controller.start();
@@ -266,12 +269,12 @@ describe('TokenDetectionController', () => {
     it('should poll and detect tokens on interval while on supported networks', async () => {
       await withController(
         {
-          options: {
-            selectedAccountId: defaultSelectedAccount.id,
+          options: {},
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockGetAccount }) => {
-          mockGetAccount(defaultSelectedAccount);
+        async ({ controller }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
           controller.setIntervalLength(10);
 
@@ -292,11 +295,12 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: defaultSelectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockGetAccount, mockNetworkState }) => {
-          mockGetAccount(defaultSelectedAccount);
+        async ({ controller, mockNetworkState }) => {
           mockNetworkState({
             ...defaultNetworkState,
             selectedNetworkClientId: NetworkType.goerli,
@@ -319,16 +323,13 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
-        async ({
-          controller,
-          mockGetAccount,
-          mockTokenListGetState,
-          callActionSpy,
-        }) => {
-          mockGetAccount(selectedAccount);
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -374,18 +375,19 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({
           controller,
-          mockGetAccount,
           mockTokenListGetState,
           mockNetworkState,
           mockGetNetworkClientById,
           callActionSpy,
         }) => {
-          mockGetAccount(selectedAccount);
           mockNetworkState({
             ...defaultNetworkState,
             selectedNetworkClientId: 'polygon',
@@ -445,16 +447,13 @@ describe('TokenDetectionController', () => {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             interval,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
-        async ({
-          controller,
-          mockGetAccount,
-          mockTokenListGetState,
-          callActionSpy,
-        }) => {
-          mockGetAccount(selectedAccount);
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           const tokenListState = {
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -512,17 +511,18 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({
           controller,
-          mockGetAccount,
           mockTokensGetState,
           mockTokenListGetState,
           callActionSpy,
         }) => {
-          mockGetAccount(selectedAccount);
           mockTokensGetState({
             ...getDefaultTokensState(),
             ignoredTokens: [sampleTokenA.address],
@@ -564,16 +564,12 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: defaultSelectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({
-          controller,
-          mockGetAccount,
-          mockTokenListGetState,
-          callActionSpy,
-        }) => {
-          mockGetAccount(defaultSelectedAccount);
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -630,7 +626,9 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: firstSelectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
@@ -639,7 +637,6 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange,
             callActionSpy,
           }) => {
-            mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -688,7 +685,9 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -744,7 +743,9 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAccountId: firstSelectedAccount.id,
+              },
+              mocks: {
+                getSelectedAccount: firstSelectedAccount,
               },
               isKeyringUnlocked: false,
             },
@@ -803,7 +804,9 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: firstSelectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
@@ -871,7 +874,9 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: firstSelectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
@@ -881,7 +886,6 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange,
             callActionSpy,
           }) => {
-            mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -934,7 +938,9 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -1003,7 +1009,9 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: firstSelectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
@@ -1056,16 +1064,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             triggerPreferencesStateChange,
             callActionSpy,
           }) => {
-            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1093,121 +1102,124 @@ describe('TokenDetectionController', () => {
           },
         );
       });
+    });
 
-      describe('when keyring is locked', () => {
-        it('should not detect new tokens after switching between accounts', async () => {
-          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-            [sampleTokenA.address]: new BN(1),
-          });
-          const firstSelectedAccount = createMockInternalAccount({
-            address: '0x0000000000000000000000000000000000000001',
-          });
-          const secondSelectedAccount = createMockInternalAccount({
-            address: '0x0000000000000000000000000000000000000002',
-          });
-          await withController(
-            {
-              options: {
-                disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAccountId: firstSelectedAccount.id,
-              },
-              isKeyringUnlocked: false,
-            },
-            async ({
-              mockGetAccount,
-              mockTokenListGetState,
-              triggerPreferencesStateChange,
-              triggerSelectedAccountChange,
-              callActionSpy,
-            }) => {
-              mockGetAccount(firstSelectedAccount);
-              mockTokenListGetState({
-                ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
-                  },
-                },
-              });
-
-              triggerPreferencesStateChange({
-                ...getDefaultPreferencesState(),
-                useTokenDetection: true,
-              });
-              mockGetAccount(secondSelectedAccount);
-              triggerSelectedAccountChange(secondSelectedAccount);
-              await advanceTime({ clock, duration: 1 });
-
-              expect(callActionSpy).not.toHaveBeenCalledWith(
-                'TokensController:addDetectedTokens',
-              );
-            },
-          );
+    describe('when keyring is locked', () => {
+      it('should not detect new tokens after switching between accounts', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
         });
-
-        it('should not detect new tokens after enabling token detection', async () => {
-          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-            [sampleTokenA.address]: new BN(1),
-          });
-          const selectedAccount = createMockInternalAccount({
-            address: '0x0000000000000000000000000000000000000001',
-          });
-          await withController(
-            {
-              options: {
-                disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAccountId: selectedAccount.id,
-              },
-              isKeyringUnlocked: false,
-            },
-            async ({
-              mockGetAccount,
-              mockTokenListGetState,
-              triggerPreferencesStateChange,
-              callActionSpy,
-            }) => {
-              mockGetAccount(selectedAccount);
-              mockTokenListGetState({
-                ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
-                  },
-                },
-              });
-
-              triggerPreferencesStateChange({
-                ...getDefaultPreferencesState(),
-                useTokenDetection: false,
-              });
-              await advanceTime({ clock, duration: 1 });
-
-              triggerPreferencesStateChange({
-                ...getDefaultPreferencesState(),
-                useTokenDetection: true,
-              });
-              await advanceTime({ clock, duration: 1 });
-
-              expect(callActionSpy).not.toHaveBeenCalledWith(
-                'TokensController:addDetectedTokens',
-              );
-            },
-          );
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
         });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
+              getAccount: firstSelectedAccount,
+            },
+            isKeyringUnlocked: false,
+          },
+          async ({
+            mockGetAccount,
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            triggerSelectedAccountChange,
+            callActionSpy,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: true,
+            });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
+            await advanceTime({ clock, duration: 1 });
+
+            expect(callActionSpy).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
+          },
+        );
+      });
+
+      it('should not detect new tokens after enabling token detection', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            isKeyringUnlocked: false,
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            callActionSpy,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(callActionSpy).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
+          },
+        );
       });
     });
 
@@ -1227,7 +1239,10 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: firstSelectedAccount.id,
+            },
+            mocks: {
+              getAccount: firstSelectedAccount,
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
@@ -1237,7 +1252,6 @@ describe('TokenDetectionController', () => {
             triggerSelectedAccountChange,
             callActionSpy,
           }) => {
-            mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1280,16 +1294,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             triggerPreferencesStateChange,
             callActionSpy,
           }) => {
-            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1349,16 +1364,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerNetworkDidChange,
           }) => {
-            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -1409,16 +1425,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerNetworkDidChange,
           }) => {
-            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -1464,16 +1481,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerNetworkDidChange,
           }) => {
-            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1515,17 +1533,18 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAccountId: selectedAccount.id,
               },
               isKeyringUnlocked: false,
+              mocks: {
+                getAccount: selectedAccount,
+                getSelectedAccount: selectedAccount,
+              },
             },
             async ({
-              mockGetAccount,
               mockTokenListGetState,
               callActionSpy,
               triggerNetworkDidChange,
             }) => {
-              mockGetAccount(selectedAccount);
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
                 tokenList: {
@@ -1569,16 +1588,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerNetworkDidChange,
           }) => {
-            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1632,16 +1652,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerTokenListStateChange,
           }) => {
-            mockGetAccount(selectedAccount);
             const tokenList = {
               [sampleTokenA.address]: {
                 name: sampleTokenA.name,
@@ -1692,16 +1713,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerTokenListStateChange,
           }) => {
-            mockGetAccount(selectedAccount);
             const tokenListState = {
               ...getDefaultTokenListState(),
               tokenList: {},
@@ -1731,17 +1753,18 @@ describe('TokenDetectionController', () => {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAccountId: selectedAccount.id,
               },
               isKeyringUnlocked: false,
+              mocks: {
+                getSelectedAccount: selectedAccount,
+                getAccount: selectedAccount,
+              },
             },
             async ({
-              mockGetAccount,
               mockTokenListGetState,
               callActionSpy,
               triggerTokenListStateChange,
             }) => {
-              mockGetAccount(selectedAccount);
               const tokenListState = {
                 ...getDefaultTokenListState(),
                 tokenList: {
@@ -1783,16 +1806,17 @@ describe('TokenDetectionController', () => {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAccountId: selectedAccount.id,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
-            mockGetAccount,
             mockTokenListGetState,
             callActionSpy,
             triggerTokenListStateChange,
           }) => {
-            mockGetAccount(selectedAccount);
             const tokenListState = {
               ...getDefaultTokenListState(),
               tokenList: {
@@ -1843,7 +1867,10 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState }) => {
@@ -1911,7 +1938,10 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({
@@ -1919,9 +1949,7 @@ describe('TokenDetectionController', () => {
           mockNetworkState,
           triggerPreferencesStateChange,
           callActionSpy,
-          mockGetAccount,
         }) => {
-          mockGetAccount(selectedAccount);
           mockNetworkState({
             ...defaultNetworkState,
             selectedNetworkClientId: NetworkType.goerli,
@@ -1959,16 +1987,17 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({
           controller,
-          mockGetAccount,
           triggerPreferencesStateChange,
           callActionSpy,
         }) => {
-          mockGetAccount(selectedAccount);
           triggerPreferencesStateChange({
             ...getDefaultPreferencesState(),
             useTokenDetection: false,
@@ -2008,16 +2037,13 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
-        async ({
-          controller,
-          mockGetAccount,
-          mockTokenListGetState,
-          callActionSpy,
-        }) => {
-          mockGetAccount(selectedAccount);
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2070,11 +2096,13 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
-            selectedAccountId: selectedAccount.id,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
-        async ({ controller, mockGetAccount, mockTokenListGetState }) => {
-          mockGetAccount(selectedAccount);
+        async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
@@ -2126,7 +2154,6 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
-            selectedAccountId: '',
           },
         },
         async ({
@@ -2255,6 +2282,10 @@ type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
   isKeyringUnlocked?: boolean;
   messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
+  mocks?: {
+    getAccount?: InternalAccount;
+    getSelectedAccount?: InternalAccount;
+  };
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2274,22 +2305,25 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, messenger } = rest;
+  const { options, isKeyringUnlocked, messenger, mocks } = rest;
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
 
   const mockGetAccount = jest.fn<InternalAccount, []>();
   controllerMessenger.registerActionHandler(
     'AccountsController:getAccount',
-    mockGetAccount,
+    mockGetAccount.mockReturnValue(
+      mocks?.getAccount ?? createMockInternalAccount({ address: '0x1' }),
+    ),
   );
 
   const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
   controllerMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    mockGetSelectedAccount.mockReturnValue({
-      address: '0x1',
-    } as InternalAccount),
+    mockGetSelectedAccount.mockReturnValue(
+      mocks?.getSelectedAccount ??
+        createMockInternalAccount({ address: '0x1' }),
+    ),
   );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
   controllerMessenger.registerActionHandler(

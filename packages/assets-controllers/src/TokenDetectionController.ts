@@ -188,19 +188,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.messenger - The controller messaging system.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.selectedAccountId - Vault selected address
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
-    selectedAccountId,
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
   }: {
-    selectedAccountId?: string;
     interval?: number;
     disabled?: boolean;
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
@@ -225,9 +222,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
-    this.#selectedAccountId =
-      selectedAccountId ??
-      this.messagingSystem.call('AccountsController:getSelectedAccount').id;
+    this.#selectedAccountId = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    ).id;
 
     const { chainId, networkClientId } =
       this.#getCorrectChainIdAndNetworkClientId();
@@ -289,7 +286,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
         if (isDetectionChangedFromPreferences) {
           await this.#restartTokenDetection({
-            selectedAccountId: selectedAccount.id,
+            selectedAddress: selectedAccount.address,
           });
         }
       },
@@ -303,7 +300,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         if (didSelectedAccountIdChanged) {
           this.#selectedAccountId = internalAccount.id;
           await this.#restartTokenDetection({
-            selectedAccountId: this.#selectedAccountId,
+            selectedAddress: internalAccount.address,
           });
         }
       },
@@ -437,23 +434,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * in case of address change or user session initialization.
    *
    * @param options - Options for restart token detection.
-   * @param options.selectedAccountId - the id of the InternalAccount against which to detect for token balances
+   * @param options.selectedAddress - the selectedAddress against which to detect for token balances
    * @param options.networkClientId - The ID of the network client to use.
    */
   async #restartTokenDetection({
-    selectedAccountId,
+    selectedAddress,
     networkClientId,
   }: {
-    selectedAccountId?: string;
+    selectedAddress?: string;
     networkClientId?: NetworkClientId;
   } = {}): Promise<void> {
-    const internalAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      selectedAccountId ?? this.#selectedAccountId,
-    );
-
-    const selectedAddress = internalAccount?.address || '';
-
     await this.detectTokens({
       networkClientId,
       selectedAddress,
