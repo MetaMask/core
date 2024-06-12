@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Upgrade `TokenRatesController` to `BaseControllerV2` ([#4314](https://github.com/MetaMask/core/pull/4314))
 - Update Nft controllers to use `selectedAccountId` instead of `selectedAddress` ([#4221](https://github.com/MetaMask/core/pull/4221))
 - `TokenRatesController` uses checksum instead of lowercase format for token addresses ([#4377](https://github.com/MetaMask/core/pull/4377))
-- Add `Mutex` lock in the `updateNftMetadata` function ([#4325](https://github.com/MetaMask/core/pull/4325))
+- Prevent unnecessary state updates when executing the `NftController`'s `updateNftMetadata` method by comparing the metadata of fetched NFTs and NFTs in state and synchronizing state updates using a mutex lock. ([#4325](https://github.com/MetaMask/core/pull/4325))
 - Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
 - Bump `@metamask/keyring-controller` to `^17.1.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
