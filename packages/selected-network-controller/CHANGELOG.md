@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add `SelectedNetworkController` setNetworkClientId useRequestQueuePreference guard ([#4388](https://github.com/MetaMask/core/pull/4388))
+
 ## [15.0.1]
 
 ### Fixed

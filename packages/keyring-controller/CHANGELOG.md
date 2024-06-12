@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- feat: Allow overwriting built-in keyring builders ([#4362](https://github.com/MetaMask/core/pull/4362))
+- deps: @metamask/keyring-api@^6.1.1->^6.4.0 ([#4355](https://github.com/MetaMask/core/pull/4355))
+
 ### Changed
 
 - Deprecate QR keyring methods ([#4365](https://github.com/MetaMask/core/pull/4365))

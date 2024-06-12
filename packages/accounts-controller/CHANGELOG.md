@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: remove setting new account as the last selected account ([#4363](https://github.com/MetaMask/core/pull/4363))
+- chore(deps): bump @metamask/{keyring-api,eth-snap-keyring} ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- fix: use listMultichainAccount in getAccountByAddress ([#4375](https://github.com/MetaMask/core/pull/4375))
+- fix: remove mock export ([#4369](https://github.com/MetaMask/core/pull/4369))
+- deps: @metamask/keyring-api@^6.1.1->^6.4.0 ([#4355](https://github.com/MetaMask/core/pull/4355))
+
 ## [16.0.0]
 
 ### Changed
