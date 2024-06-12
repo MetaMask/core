@@ -315,10 +315,6 @@ function setupAccountsController({
 }
 
 describe('AccountsController', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('onSnapStateChange', () => {
     it('be used enable an account if the Snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
@@ -449,9 +445,6 @@ describe('AccountsController', () => {
   });
 
   describe('onKeyringStateChange', () => {
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
     it('not update state when only keyring is unlocked without any keyrings', async () => {
       const messenger = buildMessenger();
       const { accountsController } = setupAccountsController({
@@ -1302,10 +1295,6 @@ describe('AccountsController', () => {
           },
         }),
       );
-    });
-
-    afterEach(() => {
-      jest.clearAllMocks();
     });
 
     it('update accounts with normal accounts', async () => {

@@ -203,9 +203,6 @@ const setup = ({
 };
 
 describe('SelectedNetworkController', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
   describe('constructor', () => {
     it('can be instantiated with default values', () => {
       const { controller } = setup();
@@ -299,10 +296,6 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('setNetworkClientIdForDomain', () => {
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
-
     describe('when the useRequestQueue is false', () => {
       it('skips setting the networkClientId for the passed in domain', () => {
         const { controller } = setup({
@@ -864,9 +857,6 @@ describe('SelectedNetworkController', () => {
       setTarget: jest.fn(),
     } as unknown as BlockTrackerProxy;
 
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
     describe('when toggled from off to on', () => {
       describe('when domains have permissions', () => {
         it('sets the target of the existing proxies to the non-proxied networkClient for the globally selected networkClientId', () => {

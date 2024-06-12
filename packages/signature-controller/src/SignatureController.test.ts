@@ -173,7 +173,6 @@ describe('SignatureController', () => {
   };
 
   beforeEach(() => {
-    jest.resetAllMocks();
     jest.spyOn(console, 'info').mockImplementation(() => undefined);
 
     addUnapprovedMessageMock.mockResolvedValue(messageIdMock);

@@ -68,7 +68,6 @@ describe('TokensController', () => {
 
   afterEach(() => {
     sinon.restore();
-    jest.resetAllMocks();
   });
 
   it('should set default state', async () => {

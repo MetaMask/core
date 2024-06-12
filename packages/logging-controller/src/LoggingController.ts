@@ -107,8 +107,13 @@ export class LoggingController extends BaseController<
    */
   #generateId(): string {
     let id = random();
+    let i = 0;
     while (id in this.state.logs) {
+      if (i > 1000) {
+        throw new Error('Endless loop');
+      }
       id = random();
+      i += 1;
     }
     return id;
   }

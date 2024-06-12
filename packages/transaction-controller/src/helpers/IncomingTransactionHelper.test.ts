@@ -129,10 +129,6 @@ async function emitBlockTrackerLatestEvent(
 }
 
 describe('IncomingTransactionHelper', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('on block tracker latest event', () => {
     // eslint-disable-next-line jest/expect-expect
     it('handles errors', async () => {

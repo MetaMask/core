@@ -29,10 +29,6 @@ jest.mock('./fs-utils', () => ({
 }));
 
 describe('create-package/utils', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('readMonorepoFiles', () => {
     const tsConfig = JSON.stringify({
       references: [{ path: '../packages/foo' }],

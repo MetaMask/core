@@ -90,10 +90,6 @@ function setupRatesController({
 describe('RatesController', () => {
   let clock: sinon.SinonFakeTimers;
 
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('construct', () => {
     it('constructs the RatesController with default values', () => {
       const ratesController = setupRatesController({
@@ -116,7 +112,6 @@ describe('RatesController', () => {
 
     afterEach(() => {
       clock.restore();
-      jest.restoreAllMocks();
     });
 
     it('starts the polling process with default values', async () => {
@@ -249,7 +244,6 @@ describe('RatesController', () => {
 
     afterEach(() => {
       clock.restore();
-      jest.restoreAllMocks();
     });
 
     it('stops the polling process', async () => {
