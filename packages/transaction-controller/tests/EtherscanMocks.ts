@@ -32,6 +32,8 @@ export const ETHERSCAN_TRANSACTION_SUCCESS_MOCK: EtherscanTransactionMeta = {
   input: '0x',
   isError: '0',
   methodId: 'testId',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   txreceipt_status: '1',
 };
 

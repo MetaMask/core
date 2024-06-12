@@ -175,12 +175,16 @@ describe('TokenDetectionController', () => {
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenAFromList.address
         }`,
       )
       .reply(200, tokenAFromList)
       .get(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenBFromList.address
         }`,
@@ -2133,7 +2137,11 @@ describe('TokenDetectionController', () => {
             category: 'Wallet',
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               token_standard: 'ERC20',
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               asset_type: 'TOKEN',
             },
           });
@@ -2229,6 +2237,8 @@ describe('TokenDetectionController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;

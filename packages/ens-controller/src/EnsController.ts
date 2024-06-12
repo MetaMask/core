@@ -258,6 +258,8 @@ export class EnsController extends BaseController<
       (address && !isValidHexAddress(address))
     ) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
       );
     }

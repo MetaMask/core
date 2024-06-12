@@ -196,6 +196,8 @@ function validateParamChainId(chainId: number | string | undefined) {
     typeof chainId !== 'string'
   ) {
     throw rpcErrors.invalidParams(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `Invalid transaction params: chainId is not a Number or hex string. got: (${chainId})`,
     );
   }
@@ -321,6 +323,8 @@ function ensureFieldIsString(
 ) {
   if (typeof txParams[field] !== 'string') {
     throw rpcErrors.invalidParams(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `Invalid transaction params: ${field} is not a string. got: (${txParams[field]})`,
     );
   }

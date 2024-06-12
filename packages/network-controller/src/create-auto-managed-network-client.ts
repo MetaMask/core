@@ -45,6 +45,8 @@ export type AutoManagedNetworkClient<
  * This is impossible when using the Proxy API, as the target object has to be
  * something, so this object represents that "something".
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
 
 /**

@@ -1241,6 +1241,8 @@ describe('TransactionController Integration', () => {
           ]);
 
           expectedLastFetchedBlockNumbers[
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
@@ -1647,9 +1649,13 @@ describe('TransactionController Integration', () => {
             )
             .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           transactionController.updateIncomingTransactions([networkClientId]);
 
           expectedLastFetchedBlockNumbers[
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
@@ -1709,6 +1715,8 @@ describe('TransactionController Integration', () => {
         )
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       transactionController.updateIncomingTransactions();
 
       // we have to wait for the mutex to be released after the 5 second API rate limit timer
@@ -1817,6 +1825,8 @@ describe('TransactionController Integration', () => {
             networkClientId,
           );
           const delay = () =>
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             new Promise<null>(async (resolve) => {
               await advanceTime({ clock, duration: 100 });
               resolve(null);
@@ -1828,6 +1838,8 @@ describe('TransactionController Integration', () => {
           ]);
           expect(secondNonceLockIfAcquired).toBeNull();
 
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/await-thenable
           await firstNonceLock.releaseLock();
           await advanceTime({ clock, duration: 1 });
 
@@ -1886,6 +1898,8 @@ describe('TransactionController Integration', () => {
         otherNetworkClientIdOnGoerli,
       );
       const delay = () =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);
@@ -1897,6 +1911,8 @@ describe('TransactionController Integration', () => {
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstNonceLock.releaseLock();
       await advanceTime({ clock, duration: 1 });
 
@@ -2053,6 +2069,8 @@ describe('TransactionController Integration', () => {
       const secondNonceLockPromise =
         transactionController.getNonceLock(ACCOUNT_MOCK);
       const delay = () =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);
@@ -2064,6 +2082,8 @@ describe('TransactionController Integration', () => {
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstNonceLock.releaseLock();
 
       secondNonceLockIfAcquired = await Promise.race([

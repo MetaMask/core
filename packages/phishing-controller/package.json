@@ -45,6 +45,7 @@
     "@metamask/controller-utils": "^11.0.0",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
+    "fastest-levenshtein": "^1.0.16",
     "punycode": "^2.1.1"
   },
   "devDependencies": {

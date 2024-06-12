@@ -1,6 +1,8 @@
 /** The name types supported by the NameController. */
 export enum NameType {
   /** The address of an Ethereum account. */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ETHEREUM_ADDRESS = 'ethereumAddress',
 }
 

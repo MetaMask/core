@@ -144,12 +144,16 @@ export class TokenBalancesController extends BaseController<
       'TokensController:stateChange',
       ({ tokens: newTokens, detectedTokens }) => {
         this.#tokens = [...newTokens, ...detectedTokens];
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.updateBalances();
       },
     );
 
     this.#getERC20BalanceOf = getERC20BalanceOf;
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.poll();
   }
 
@@ -184,6 +188,8 @@ export class TokenBalancesController extends BaseController<
     await safelyExecute(() => this.updateBalances());
 
     this.#handle = setTimeout(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.poll(this.#interval);
     }, this.#interval);
   }
