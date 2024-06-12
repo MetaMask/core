@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Add support for overwriting built-in keyring builders for the Simple and HD keyring ([#4362](https://github.com/MetaMask/core/pull/4362))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Deprecated
+
 - Deprecate QR keyring methods ([#4365](https://github.com/MetaMask/core/pull/4365))
   - `cancelQRSignRequest`
   - `cancelQRSynchronization`
@@ -26,8 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `submitQRCryptoAccount`
   - `submitQRSignature`
   - `unlockQRHardwareWalletAccount`
-- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
-- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
 
 ## [17.0.0]
 
