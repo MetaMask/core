@@ -1974,7 +1974,7 @@ __metadata:
     "@metamask/eslint-config-jest": ^12.1.0
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
-    "@metamask/eth-block-tracker": ^9.0.2
+    "@metamask/eth-block-tracker": ^9.0.3
     "@metamask/eth-json-rpc-provider": ^4.0.0
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/utils": ^8.3.0
@@ -2117,6 +2117,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-block-tracker@npm:^9.0.3":
+  version: 9.0.3
+  resolution: "@metamask/eth-block-tracker@npm:9.0.3"
+  dependencies:
+    "@metamask/eth-json-rpc-provider": ^3.0.2
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.1.0
+    json-rpc-random-id: ^1.0.1
+    pify: ^5.0.0
+  checksum: edd3d59a0416752d90c8e2d8c10c31635dbe3eb323fcb054c401528afe4cbbb6a5a85aedd6ffee4a504d9779656bfab027f2274fd95981c90bf56b6f565dbca2
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-hd-keyring@npm:^7.0.1":
   version: 7.0.1
   resolution: "@metamask/eth-hd-keyring@npm:7.0.1"
@@ -2186,6 +2199,17 @@ __metadata:
     "@metamask/safe-event-emitter": ^3.0.0
     "@metamask/utils": ^8.3.0
   checksum: e6731271aad3b972d85b9230c26d35a9b88722f3bd3024675ad2f568e634e9fdfef4717ef2892f3cc512d381cf17a4e20dbd5eb808ced765082bea3379ad6ddc
+  languageName: node
+  linkType: hard
+
+"@metamask/eth-json-rpc-provider@npm:^3.0.2":
+  version: 3.0.2
+  resolution: "@metamask/eth-json-rpc-provider@npm:3.0.2"
+  dependencies:
+    "@metamask/json-rpc-engine": ^8.0.2
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.3.0
+  checksum: 0321eaad6fa205a9d3ddcfaf28e63c05291614893cb2e116151185a4acbd6bb6a508d6e556b3cb8bc4d3caef4bf0a638202d9b6bdc127fbcb81715eb2660a809
   languageName: node
   linkType: hard
 
@@ -2589,7 +2613,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
-    "@metamask/eth-block-tracker": ^9.0.2
+    "@metamask/eth-block-tracker": ^9.0.3
     "@metamask/eth-json-rpc-infura": ^9.1.0
     "@metamask/eth-json-rpc-middleware": ^12.1.1
     "@metamask/eth-json-rpc-provider": ^4.0.0
