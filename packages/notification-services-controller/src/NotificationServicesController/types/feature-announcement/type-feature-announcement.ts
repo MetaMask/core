@@ -1,6 +1,10 @@
 import type { Entry, EntryFieldTypes } from 'contentful';
 
-import type { TypeExtensionLinkFields } from './type-extension-link';
+import type {
+  TypeExtensionLinkFields,
+  TypeLinkFields,
+  TypeActionFields,
+} from './type-links';
 
 export type ImageFields = {
   fields: {
@@ -30,6 +34,12 @@ export type TypeFeatureAnnouncementFields = {
     shortDescription: EntryFieldTypes.Text;
     image: EntryFieldTypes.EntryLink<ImageFields>;
     longDescription: EntryFieldTypes.RichText;
+
+    // Portfolio Links - TODO, cleanup portfolio links
+    link?: EntryFieldTypes.EntryLink<TypeLinkFields>;
+    action?: EntryFieldTypes.EntryLink<TypeActionFields>;
+
+    // Extension Link
     extensionLink?: EntryFieldTypes.EntryLink<TypeExtensionLinkFields>;
     clients?: EntryFieldTypes.Text<'extension' | 'mobile' | 'portfolio'>;
   };

@@ -5,21 +5,23 @@ import log from 'loglevel';
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
-import type { TypeExtensionLinkFields } from '../types/feature-announcement/type-extension-link';
 import type {
   ImageFields,
   TypeFeatureAnnouncement,
 } from '../types/feature-announcement/type-feature-announcement';
+import type { TypeExtensionLinkFields } from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
 
 const DEFAULT_SPACE_ID = ':space_id';
 const DEFAULT_ACCESS_TOKEN = ':access_token';
+const DEFAULT_CLIENT_ID = ':client_id';
 export const FEATURE_ANNOUNCEMENT_API = `https://cdn.contentful.com/spaces/${DEFAULT_SPACE_ID}/environments/master/entries`;
-export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients=extension`;
+export const FEATURE_ANNOUNCEMENT_URL = `${FEATURE_ANNOUNCEMENT_API}?access_token=${DEFAULT_ACCESS_TOKEN}&content_type=productAnnouncement&include=10&fields.clients=${DEFAULT_CLIENT_ID}`;
 
 type Env = {
   spaceId: string;
   accessToken: string;
+  platform: string;
 };
 
 /**
@@ -69,10 +71,9 @@ const fetchFromContentful = async (
 const fetchFeatureAnnouncementNotifications = async (
   env: Env,
 ): Promise<FeatureAnnouncementRawNotification[]> => {
-  const url = FEATURE_ANNOUNCEMENT_URL.replace(
-    DEFAULT_SPACE_ID,
-    env.spaceId,
-  ).replace(DEFAULT_ACCESS_TOKEN, env.accessToken);
+  const url = FEATURE_ANNOUNCEMENT_URL.replace(DEFAULT_SPACE_ID, env.spaceId)
+    .replace(DEFAULT_ACCESS_TOKEN, env.accessToken)
+    .replace(DEFAULT_CLIENT_ID, env.platform);
   const data = await fetchFromContentful(url);
 
   if (!data) {

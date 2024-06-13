@@ -227,7 +227,11 @@ export type NotificationServicesControllerMessenger =
     AllowedEvents['type']
   >;
 
-type FeatureAnnouncementEnv = { spaceId: string; accessToken: string };
+type FeatureAnnouncementEnv = {
+  spaceId: string;
+  accessToken: string;
+  platform: 'extension' | 'mobile';
+};
 
 /**
  * Controller that enables wallet notifications and feature announcements

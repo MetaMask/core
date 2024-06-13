@@ -44,6 +44,7 @@ import * as Utils from './utils/utils';
 const featureAnnouncementsEnv = {
   spaceId: ':space_id',
   accessToken: ':access_token',
+  platform: 'extension' as const,
 };
 
 describe('metamask-notifications - constructor()', () => {
