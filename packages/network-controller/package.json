@@ -43,7 +43,7 @@
   "dependencies": {
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
-    "@metamask/eth-block-tracker": "^9.0.2",
+    "@metamask/eth-block-tracker": "^9.0.3",
     "@metamask/eth-json-rpc-infura": "^9.1.0",
     "@metamask/eth-json-rpc-middleware": "^12.1.1",
     "@metamask/eth-json-rpc-provider": "^4.0.0",
