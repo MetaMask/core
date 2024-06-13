@@ -187,7 +187,8 @@ export type NetworkConfiguration = {
    */
   name: string;
   /**
-   * The name of the token that represents the native currency for the chain (i.e. the ticker symbol). 
+   * The name of the token that represents the native currency for the chain
+   * (i.e. the ticker symbol).
    */
   nativeTokenName: string;
   /**
