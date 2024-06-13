@@ -136,29 +136,29 @@ export class AccountTrackerController extends StaticIntervalPollingController<
    * Creates an AccountTracker instance.
    *
    * @param options - The controller options.
-   * @param options.state - Initial state to set on this controller.
+   * @param options.chainId - The chain ID of the current network.
    * @param options.interval - Polling interval used to fetch new account balances.
+   * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messaging system.
    */
   constructor({
-    state,
+    chainId: initialChainId,
     interval = 10000,
+    state,
     messenger,
   }: {
+    chainId: Hex;
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
     messenger: AccountTrackerControllerMessenger;
   }) {
-    const {
-      providerConfig: { chainId },
-    } = messenger.call('NetworkController:getState');
     super({
       name: controllerName,
       messenger,
       state: {
         accounts: {},
         accountsByChainId: {
-          [chainId]: {},
+          [initialChainId]: {},
         },
         ...state,
       },
