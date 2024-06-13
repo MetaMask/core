@@ -501,32 +501,31 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
   Hex,
   NetworkConfiguration
 > {
-  return Object.values(InfuraNetworkType).reduce(
-    (obj: Partial<Record<Hex, NetworkConfiguration>>, infuraNetworkType) => {
-      const chainId = ChainId[infuraNetworkType];
-      // False negative - this is a string.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      const rpcEndpointUrl = `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`;
+  return Object.values(InfuraNetworkType).reduce<
+    Record<Hex, NetworkConfiguration>
+  >((obj, infuraNetworkType) => {
+    const chainId = ChainId[infuraNetworkType];
+    // False negative - this is a string.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    const rpcEndpointUrl = `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`;
 
-      const networkConfiguration: NetworkConfiguration = {
-        chainId,
-        defaultRpcEndpointUrl: rpcEndpointUrl,
-        name: NetworkNickname[infuraNetworkType],
-        nativeTokenName: NetworksTicker[infuraNetworkType],
-        rpcEndpoints: [
-          {
-            name: `Infura ${NetworkNickname[infuraNetworkType] as string}`,
-            networkClientId: infuraNetworkType,
-            type: RpcEndpointType.Infura,
-            url: rpcEndpointUrl,
-          },
-        ],
-      };
+    const networkConfiguration: NetworkConfiguration = {
+      chainId,
+      defaultRpcEndpointUrl: rpcEndpointUrl,
+      name: NetworkNickname[infuraNetworkType],
+      nativeTokenName: NetworksTicker[infuraNetworkType],
+      rpcEndpoints: [
+        {
+          name: `Infura ${NetworkNickname[infuraNetworkType] as string}`,
+          networkClientId: infuraNetworkType,
+          type: RpcEndpointType.Infura,
+          url: rpcEndpointUrl,
+        },
+      ],
+    };
 
-      return { ...obj, [chainId]: networkConfiguration };
-    },
-    {},
-  ) as Record<Hex, NetworkConfiguration>;
+    return { ...obj, [chainId]: networkConfiguration };
+  }, {});
 }
 
 /**
