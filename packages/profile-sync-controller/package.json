@@ -41,12 +41,19 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@metamask/base-controller": "^6.0.0",
+    "@metamask/snaps-controllers": "^8.1.1",
+    "@metamask/snaps-sdk": "^4.2.0",
+    "@metamask/snaps-utils": "^7.4.0",
     "@noble/ciphers": "^0.5.2",
     "@noble/hashes": "^1.4.0",
     "ethers": "^6.12.0",
+    "immer": "^9.0.6",
+    "loglevel": "^1.8.1",
     "siwe": "^2.3.2"
   },
   "devDependencies": {
+    "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -58,11 +65,17 @@
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~4.9.5"
   },
+  "peerDependencies": {
+    "@metamask/snaps-controllers": "^8.1.1"
+  },
   "engines": {
     "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "lavamoat": {
+    "allowScripts": {}
   }
 }
