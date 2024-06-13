@@ -14,6 +14,7 @@ import {
   FALL_BACK_VS_CURRENCY,
   toHex,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -37,7 +38,6 @@ import type {
   TokensControllerStateChangeEvent,
   TokensControllerState,
 } from './TokensController';
-import { InternalAccount } from '@metamask/keyring-api';
 
 /**
  * @type Token
