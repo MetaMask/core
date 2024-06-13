@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-block-tracker",
-  "version": "9.0.3",
+  "version": "10.0.0",
   "description": "A block tracker for the Ethereum blockchain. Keeps track of the latest block.",
   "repository": {
     "type": "git",
