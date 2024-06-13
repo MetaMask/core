@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.6]
+### Changed
+- Update @metamask/transaction-controller from 29.1.0 to 32.0.0 ([#348](https://github.com/MetaMask/smart-transactions-controller/pull/348))
+
 ## [10.1.5]
 ### Changed
 - Update @metamask/polling-controller from 6.0.2 to 8.0.0 ([#352](https://github.com/MetaMask/smart-transactions-controller/pull/352))
@@ -305,7 +309,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.5...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.6...HEAD
+[10.1.6]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.5...v10.1.6
 [10.1.5]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.4...v10.1.5
 [10.1.4]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.3...v10.1.4
 [10.1.3]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.2...v10.1.3
