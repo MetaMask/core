@@ -70,10 +70,10 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
   }
 
   /**
-   * Sends a JSON-RPC request using the EIP-1193 request object.
+   * Send a provider request asynchronously.
    *
-   * @param eip1193Request - The EIP-1193 request object.
-   * @returns A promise that resolves to the JSON-RPC response.
+   * @param eip1193Request - The request to send.
+   * @returns The JSON-RPC response.
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     eip1193Request: Eip1193Request<Params>,
@@ -86,34 +86,38 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
   }
 
   /**
-   *
    * Send a provider request asynchronously.
    *
-   * @param req - The request to send.
+   * This method serves the same purpose as `request`. It only exists for
+   * legacy reasons.
+   *
+   * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
    * @deprecated Please use `request` instead.
    */
-  sendAsync = (
-    req: JsonRpcRequest,
+  sendAsync = <Params extends JsonRpcParams>(
+    eip1193Request: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
   ) => {
-    this.#engine.handle(req, callback);
+    const jsonRpcRequest =
+      convertEip1193RequestToJsonRpcRequest(eip1193Request);
+    this.#engine.handle(jsonRpcRequest, callback);
   };
 
   /**
    * Send a provider request asynchronously.
    *
-   * This method serves the same purpose as `sendAsync`. It only exists for
+   * This method serves the same purpose as `request`. It only exists for
    * legacy reasons.
    *
-   * @param req - The request to send.
+   * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
-   * @deprecated Pleae use `request` instead.
+   * @deprecated Please use `sendAsync` instead.
    */
-  send = (
-    req: JsonRpcRequest,
+  send = <Params extends JsonRpcParams>(
+    eip1193Request: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
@@ -121,6 +125,8 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
     if (typeof callback !== 'function') {
       throw new Error('Must provide callback to "send" method.');
     }
-    this.#engine.handle(req, callback);
+    const jsonRpcRequest =
+      convertEip1193RequestToJsonRpcRequest(eip1193Request);
+    this.#engine.handle(jsonRpcRequest, callback);
   };
 }
