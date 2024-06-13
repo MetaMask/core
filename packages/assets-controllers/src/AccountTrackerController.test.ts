@@ -8,7 +8,7 @@ import type { InternalAccount } from '@metamask/keyring-api';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
-  defaultState as defaultnetworkControllerState,
+  getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import {
   buildCustomNetworkClientConfiguration,
@@ -618,7 +618,7 @@ async function withController<ReturnValue>(
   );
 
   const mockNetworkState = jest.fn().mockReturnValue({
-    ...defaultnetworkControllerState,
+    ...getDefaultNetworkControllerState(),
     chainId: initialChainId,
   });
   messenger.registerActionHandler(
