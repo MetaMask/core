@@ -79,7 +79,9 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
-  methodsRequiringNetworkSwitch: string[];
+  shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
   clearPendingConfirmations: () => void;
 };
 
@@ -136,14 +138,18 @@ export class QueuedRequestController extends BaseController<
   #processingRequestCount = 0;
 
   /**
-   * This is a list of methods that require the globally selected network
-   * to match the dapp selected network before being processed. These can
+   * This is a function that returns true if a request requires the globally selected
+   * network to match the dapp selected network before being processed. These can
    * be for UI/UX reasons where the currently selected network is displayed
    * in the confirmation even though it will be submitted on the correct
    * network for the dapp. It could also be that a method expects the
    * globally selected network to match some value in the request params itself.
    */
-  readonly #methodsRequiringNetworkSwitch: string[];
+  // Core PR: https://github.com/MetaMask/core/pull/4423
+  // Patch Branch: jl/patch-queued-request-controller@0.10.0-replace-methods-array-with-callback
+  readonly #shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
 
   #clearPendingConfirmations: () => void;
 
@@ -152,12 +158,14 @@ export class QueuedRequestController extends BaseController<
    *
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
-   * @param options.methodsRequiringNetworkSwitch - A list of methods that require the globally selected network to match the dapp selected network.
+   * @param options.shouldRequestSwitchNetwork - A function that returns if a request requires the globally selected network to match the dapp selected network.
    * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
    */
   constructor({
     messenger,
-    methodsRequiringNetworkSwitch,
+    // Core PR: https://github.com/MetaMask/core/pull/4423
+    // Patch Branch: jl/patch-queued-request-controller@0.10.0-replace-methods-array-with-callback
+    shouldRequestSwitchNetwork,
     clearPendingConfirmations,
   }: QueuedRequestControllerOptions) {
     super({
@@ -171,7 +179,9 @@ export class QueuedRequestController extends BaseController<
       messenger,
       state: { queuedRequestCount: 0 },
     });
-    this.#methodsRequiringNetworkSwitch = methodsRequiringNetworkSwitch;
+    // Core PR: https://github.com/MetaMask/core/pull/4423
+    // Patch Branch: jl/patch-queued-request-controller@0.10.0-replace-methods-array-with-callback
+    this.#shouldRequestSwitchNetwork = shouldRequestSwitchNetwork;
     this.#clearPendingConfirmations = clearPendingConfirmations;
     this.#registerMessageHandlers();
   }
@@ -346,7 +356,9 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (this.#methodsRequiringNetworkSwitch.includes(request.method)) {
+      } else if (this.#shouldRequestSwitchNetwork(request)) {
+        // Core PR: https://github.com/MetaMask/core/pull/4423
+        // Patch Branch: jl/patch-queued-request-controller@0.10.0-replace-methods-array-with-callback
         // Process request immediately
         // Requires switching network now if necessary
         await this.#switchNetworkIfNecessary();
