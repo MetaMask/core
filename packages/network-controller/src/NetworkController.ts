@@ -216,7 +216,6 @@ export type AddNetworkCustomRpcEndpointFields = Omit<
  * Custom RPC endpoints do not need a `networkClientId` property because it is
  * assumed that they have not already been added and are not represented by
  * network clients yet.
- *
  */
 export type AddNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
   rpcEndpoints: (InfuraRpcEndpoint | AddNetworkCustomRpcEndpointFields)[];
