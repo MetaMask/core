@@ -2226,7 +2226,7 @@ describe('TokensController', () => {
 
   describe('when selectedAccountId is not set or account not found', () => {
     describe('detectTokens', () => {
-      it('should update the token states to empty arrays if the selectedAccountId account is undefined', async () => {
+      it('updates the token states to empty arrays if the selectedAccountId account is undefined', async () => {
         await withController(async ({ controller, changeNetwork }) => {
           ContractMock.mockReturnValue(
             buildMockEthersERC721Contract({ supportsInterface: false }),
@@ -2240,29 +2240,10 @@ describe('TokensController', () => {
           expect(controller.state.detectedTokens).toStrictEqual([]);
         });
       });
-
-      // it('should update the token states to empty arrays if the selectedAccountId is not set', async () => {
-      //   await withController(
-      //     { options: { selectedAccountId: '' } },
-      //     async ({ controller, changeNetwork }) => {
-      //       ContractMock.mockReturnValue(
-      //         buildMockEthersERC721Contract({ supportsInterface: false }),
-      //       );
-
-      //       changeNetwork({
-      //         selectedNetworkClientId: InfuraNetworkType.sepolia,
-      //       });
-
-      //       expect(controller.state.tokens).toStrictEqual([]);
-      //       expect(controller.state.ignoredTokens).toStrictEqual([]);
-      //       expect(controller.state.detectedTokens).toStrictEqual([]);
-      //     },
-      //   );
-      // });
     });
 
     describe('addToken', () => {
-      it('should handle undefined selected account', async () => {
+      it('handles undefined selected account', async () => {
         await withController(async ({ controller, getAccountHandler }) => {
           getAccountHandler.mockReturnValue(undefined);
           const contractAddresses = Object.keys(contractMaps);
@@ -2306,7 +2287,7 @@ describe('TokensController', () => {
     });
 
     describe('watchAsset', () => {
-      it('should handle undefined selected account', async () => {
+      it('handles undefined selected account', async () => {
         await withController(
           async ({ controller, approvalController, getAccountHandler }) => {
             const requestId = '12345';

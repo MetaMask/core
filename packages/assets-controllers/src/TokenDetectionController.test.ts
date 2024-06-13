@@ -2149,7 +2149,7 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it('should not trigger `TokensController:addDetectedTokens` action when selectedAccount is not found', async () => {
+    it('does not trigger `TokensController:addDetectedTokens` action when selectedAccount is not found', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
