@@ -49,7 +49,9 @@ export const createQueuedRequestMiddleware = ({
 }: {
   enqueueRequest: QueuedRequestController['enqueueRequest'];
   useRequestQueue: () => boolean;
-  shouldEnqueueRequest: (request: QueuedRequestMiddlewareJsonRpcRequest) => boolean;
+  shouldEnqueueRequest: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(async (req: JsonRpcRequest, res, next) => {
     hasRequiredMetadata(req);

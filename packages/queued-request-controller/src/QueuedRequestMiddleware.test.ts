@@ -106,7 +106,8 @@ describe('createQueuedRequestMiddleware', () => {
     const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: mockEnqueueRequest,
       useRequestQueue: () => true,
-      shouldEnqueueRequest: ({method}) => method === 'method_with_confirmation',
+      shouldEnqueueRequest: ({ method }) =>
+        method === 'method_with_confirmation',
     });
     const request = {
       ...getRequestDefaults(),

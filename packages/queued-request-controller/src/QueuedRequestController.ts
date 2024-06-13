@@ -79,7 +79,9 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
-  shouldRequestSwitchNetwork: (request: QueuedRequestMiddlewareJsonRpcRequest) => boolean
+  shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
   clearPendingConfirmations: () => void;
 };
 
@@ -143,7 +145,9 @@ export class QueuedRequestController extends BaseController<
    * network for the dapp. It could also be that a method expects the
    * globally selected network to match some value in the request params itself.
    */
-  readonly #shouldRequestSwitchNetwork: (request: QueuedRequestMiddlewareJsonRpcRequest) => boolean
+  readonly #shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
 
   #clearPendingConfirmations: () => void;
 

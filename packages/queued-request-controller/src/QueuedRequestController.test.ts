@@ -81,7 +81,8 @@ describe('QueuedRequestController', () => {
       );
       const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
-        shouldRequestSwitchNetwork: ({method}) => method === 'method_requiring_network_switch',
+        shouldRequestSwitchNetwork: ({ method }) =>
+          method === 'method_requiring_network_switch',
         clearPendingConfirmations: jest.fn(),
       });
 
@@ -117,7 +118,8 @@ describe('QueuedRequestController', () => {
       );
       const controller = buildQueuedRequestController({
         messenger: buildQueuedRequestControllerMessenger(messenger),
-        shouldRequestSwitchNetwork: ({method}) => method === 'method_requiring_network_switch',
+        shouldRequestSwitchNetwork: ({ method }) =>
+          method === 'method_requiring_network_switch',
       });
 
       await controller.enqueueRequest(
@@ -537,7 +539,8 @@ describe('QueuedRequestController', () => {
         });
         const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-          shouldRequestSwitchNetwork: ({method}) => method === 'method_requiring_network_switch',
+          shouldRequestSwitchNetwork: ({ method }) =>
+            method === 'method_requiring_network_switch',
         });
 
         await expect(() =>
@@ -572,7 +575,8 @@ describe('QueuedRequestController', () => {
         });
         const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-          shouldRequestSwitchNetwork: ({method}) => method === 'method_requiring_network_switch',
+          shouldRequestSwitchNetwork: ({ method }) =>
+            method === 'method_requiring_network_switch',
         });
         const firstRequest = controller.enqueueRequest(
           {
@@ -626,7 +630,8 @@ describe('QueuedRequestController', () => {
         });
         const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-          shouldRequestSwitchNetwork: ({method}) => method === 'method_requiring_network_switch',
+          shouldRequestSwitchNetwork: ({ method }) =>
+            method === 'method_requiring_network_switch',
         });
         const firstRequest = controller.enqueueRequest(
           {
@@ -679,7 +684,8 @@ describe('QueuedRequestController', () => {
         });
         const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
-          shouldRequestSwitchNetwork: ({method}) => method === 'method_requiring_network_switch',
+          shouldRequestSwitchNetwork: ({ method }) =>
+            method === 'method_requiring_network_switch',
         });
         const firstRequest = controller.enqueueRequest(
           {
@@ -810,7 +816,8 @@ describe('QueuedRequestController', () => {
 
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(messenger),
-        shouldRequestSwitchNetwork: ({method}) =>  method === 'eth_sendTransaction',
+        shouldRequestSwitchNetwork: ({ method }) =>
+          method === 'eth_sendTransaction',
         clearPendingConfirmations: jest.fn(),
       };
 
@@ -891,7 +898,8 @@ describe('QueuedRequestController', () => {
 
       const options: QueuedRequestControllerOptions = {
         messenger: buildQueuedRequestControllerMessenger(messenger),
-        shouldRequestSwitchNetwork: ({method}) =>  method === 'eth_sendTransaction',
+        shouldRequestSwitchNetwork: ({ method }) =>
+          method === 'eth_sendTransaction',
         clearPendingConfirmations: jest.fn(),
       };
 
