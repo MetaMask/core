@@ -103,7 +103,7 @@ export type AssetsContractControllerGetBalancesInSingleCallAction = {
   handler: AssetsContractController['getBalancesInSingleCall'];
 };
 
-export type AssetsContractControllerActions = 
+export type AssetsContractControllerActions =
   | AssetsContractControllerGetERC20StandardAction
   | AssetsContractControllerGetERC721StandardAction
   | AssetsContractControllerGetERC1155StandardAction
