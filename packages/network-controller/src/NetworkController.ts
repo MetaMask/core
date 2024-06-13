@@ -77,8 +77,8 @@ export type NetworkMetadata = {
 /**
  * The type of an RPC endpoint.
  *
- * @see CustomRpcEndpoint
- * @see InfuraRpcEndpoint
+ * @see {@link CustomRpcEndpoint}
+ * @see {@link InfuraRpcEndpoint}
  */
 export enum RpcEndpointType {
   Custom = 'custom',
@@ -146,8 +146,8 @@ export type CustomRpcEndpoint = {
  * An RPC endpoint is a reference to a server which fronts an EVM chain. There
  * are two varieties of RPC endpoints: Infura and custom.
  *
- * @see CustomRpcEndpoint
- * @see InfuraRpcEndpoint
+ * @see {@link CustomRpcEndpoint}
+ * @see {@link InfuraRpcEndpoint}
  */
 export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
 
@@ -316,7 +316,7 @@ export type NetworkState = {
    * The registry of networks and corresponding RPC endpoints that the
    * controller can use to make requests for various chains.
    *
-   * @see NetworkConfiguration
+   * @see {@link NetworkConfiguration}
    */
   networkConfigurationsByChainId: Record<Hex, NetworkConfiguration>;
   /**
@@ -1359,7 +1359,7 @@ export class NetworkController extends BaseController<
    * the RPC endpoints which front that chain.
    * @returns The newly added network configuration.
    * @throws if any part of `fields` would produce invalid state.
-   * @see NetworkConfiguration
+   * @see {@link NetworkConfiguration}
    */
   addNetwork(fields: AddNetworkFields): NetworkConfiguration {
     const {
@@ -1598,7 +1598,7 @@ export class NetworkController extends BaseController<
    * @returns The updated network configuration.
    * @throws if `chainId` does not refer to an existing network configuration,
    * or if any part of `fields` would produce invalid state.
-   * @see NetworkConfiguration
+   * @see {@link NetworkConfiguration}
    */
   updateNetwork(
     chainId: Hex,
@@ -1907,7 +1907,7 @@ export class NetworkController extends BaseController<
    * @param chainId - The chain ID associated with an existing network.
    * @throws if `chainId` does not refer to an existing network configuration,
    * or if the currently selected network is being removed.
-   * @see NetworkConfiguration
+   * @see {@link NetworkConfiguration}
    */
   removeNetwork(chainId: Hex) {
     const existingNetworkConfiguration =
