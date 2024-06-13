@@ -104,10 +104,10 @@ export type AssetsContractControllerGetBalancesInSingleCallAction = {
 };
 
 export type AssetsContractControllerActions = 
-  | AssetsContractControllerGetERC20StandardAction 
-  | AssetsContractControllerGetERC721StandardAction 
-  | AssetsContractControllerGetERC1155StandardAction 
-  | AssetsContractControllerGetTokenStandardAndDetailsAction 
+  | AssetsContractControllerGetERC20StandardAction
+  | AssetsContractControllerGetERC721StandardAction
+  | AssetsContractControllerGetERC1155StandardAction
+  | AssetsContractControllerGetTokenStandardAndDetailsAction
   | AssetsContractControllerGetBalancesInSingleCallAction;
 
 export type AssetsContractControllerEvents = never;
@@ -157,9 +157,26 @@ export class AssetsContractController {
     this.ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
     this.chainId = initialChainId;
 
-    this.messagingSystem.registerActionHandler('AssetsContractController:getERCStandard', this.getERCStandard.bind(this));
-    this.messagingSystem.registerActionHandler('AssetsContractController:getTokenStandardAndDetails', this.getTokenStandardAndDetails.bind(this));
-    this.messagingSystem.registerActionHandler('AssetsContractController:getBalancesInSingleCall', this.getBalancesInSingleCall.bind(this));
+    this.messagingSystem.registerActionHandler(
+      'AssetsContractController:getERC20Standard',
+      this.getERC20Standard.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'AssetsContractController:getERC721Standard',
+      this.getERC721Standard.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'AssetsContractController:getERC1155Standard',
+      this.getERC1155Standard.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'AssetsContractController:getTokenStandardAndDetails',
+      this.getTokenStandardAndDetails.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'AssetsContractController:getBalancesInSingleCall',
+      this.getBalancesInSingleCall.bind(this),
+    );
 
     this.messagingSystem.subscribe(
       `PreferencesController:stateChange`,
