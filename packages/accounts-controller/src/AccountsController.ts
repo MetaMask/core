@@ -922,14 +922,12 @@ export class AccountsController extends BaseController<
           ...newAccount.metadata,
           name: accountName,
           importTime: Date.now(),
-          lastSelected: Date.now(),
+          lastSelected: 0,
         },
       };
 
       return newState;
     });
-
-    this.setSelectedAccount(newAccount.id);
   }
 
   /**
