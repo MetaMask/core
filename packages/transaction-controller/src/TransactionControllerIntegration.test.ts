@@ -14,6 +14,7 @@ import {
   NetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import {
   NetworkController,
   NetworkClientType,
@@ -84,6 +85,41 @@ type UnrestrictedControllerMessenger = ControllerMessenger<
 >;
 
 const uuidV4Mock = jest.mocked(uuidV4);
+
+const createMockInternalAccount = ({
+  id = uuidV4(),
+  address = '0x2990079bcdee240329a520d2444386fc119da21a',
+  name = 'Account 1',
+  importTime = Date.now(),
+  lastSelected = Date.now(),
+}: {
+  id?: string;
+  address?: string;
+  name?: string;
+  importTime?: number;
+  lastSelected?: number;
+} = {}): InternalAccount => {
+  return {
+    id,
+    address,
+    options: {},
+    methods: [
+      EthMethod.PersonalSign,
+      EthMethod.Sign,
+      EthMethod.SignTransaction,
+      EthMethod.SignTypedDataV1,
+      EthMethod.SignTypedDataV3,
+      EthMethod.SignTypedDataV4,
+    ],
+    type: EthAccountType.Eoa,
+    metadata: {
+      name,
+      keyring: { type: 'HD Key Tree' },
+      importTime,
+      lastSelected,
+    },
+  } as InternalAccount;
+};
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
 const INTERNAL_ACCOUNT_MOCK = createMockInternalAccount({
