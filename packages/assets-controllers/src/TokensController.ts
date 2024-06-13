@@ -2,6 +2,7 @@ import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
   AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
@@ -138,7 +139,8 @@ export type TokensControllerAddDetectedTokensAction = {
 export type AllowedActions =
   | AddApprovalRequest
   | NetworkControllerGetNetworkClientByIdAction
-  | AccountsControllerGetAccountAction;
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction;
 
 export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -196,20 +198,17 @@ export class TokensController extends BaseController<
    * Tokens controller options
    * @param options - Constructor options.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.selectedAccountId - Vault selected account id
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messenger.
    */
   constructor({
     chainId: initialChainId,
-    selectedAccountId,
     provider,
     state,
     messenger,
   }: {
     chainId: Hex;
-    selectedAccountId: string;
     provider: Provider | undefined;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
@@ -228,7 +227,7 @@ export class TokensController extends BaseController<
 
     this.#provider = provider;
 
-    this.#selectedAccountId = selectedAccountId;
+    this.#selectedAccountId = this.#getSelectedAccount().id;
 
     this.#abortController = new AbortController();
 
@@ -372,15 +371,10 @@ export class TokensController extends BaseController<
       ).configuration.chainId;
     }
 
-    const internalAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-    const accountAddress = interactingAddress || internalAccount?.address || '';
+    const accountAddress =
+      this.#getAddressOrSelectedAddress(interactingAddress);
     const isInteractingWithWalletAccount =
-      accountAddress === internalAccount?.address;
+      this.#isInterctingWithWallet(accountAddress);
 
     try {
       address = toChecksumHexAddress(address);
@@ -830,11 +824,8 @@ export class TokensController extends BaseController<
       throw rpcErrors.invalidParams(`Invalid address "${asset.address}"`);
     }
 
-    // Validate if account is an evm account
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
+    const selectedAddress =
+      this.#getAddressOrSelectedAddress(interactingAddress);
 
     // Validate contract
 
@@ -936,8 +927,7 @@ export class TokensController extends BaseController<
       id: this.#generateRandomId(),
       time: Date.now(),
       type,
-      // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-      interactingAddress: interactingAddress || selectedAccount?.address || '',
+      interactingAddress: selectedAddress,
     };
 
     await this.#requestApproval(suggestedAssetMeta);
@@ -981,13 +971,11 @@ export class TokensController extends BaseController<
       interactingChainId,
     } = params;
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
-    const selectedInternalAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-    // Previously selectedAddress could be an empty string. This is to preserve the behaviour
+
     const userAddressToAddTokens =
-      interactingAddress ?? selectedInternalAccount?.address ?? '';
+      this.#getAddressOrSelectedAddress(interactingAddress);
+
+    console.log('userAddressToAddTokens', userAddressToAddTokens);
 
     const chainIdToAddTokens = interactingChainId ?? this.#chainId;
 
@@ -1050,6 +1038,29 @@ export class TokensController extends BaseController<
     return { newAllTokens, newAllIgnoredTokens, newAllDetectedTokens };
   }
 
+  #getAddressOrSelectedAddress(address: string | undefined): string {
+    if (address) {
+      return address;
+    }
+
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    return selectedAccount?.address || '';
+  }
+
+  #isInterctingWithWallet(address: string) {
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+
+    return selectedAccount?.address === address;
+  }
+
   /**
    * Removes all tokens from the ignored list.
    */
@@ -1080,6 +1091,14 @@ export class TokensController extends BaseController<
       },
       true,
     );
+  }
+
+  #getSelectedAccount() {
+    const account = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
+
+    return account;
   }
 }
 
