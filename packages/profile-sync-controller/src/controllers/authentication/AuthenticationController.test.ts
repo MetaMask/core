@@ -357,5 +357,5 @@ function mockAuthenticationFlowEndpoints(params?: {
 function createMockAuthMetaMetrics() {
   const getMetaMetricsId = jest.fn().mockReturnValue('MOCK_METAMETRICS_ID');
 
-  return { getMetaMetricsId };
+  return { getMetaMetricsId, agent: 'extension' as const };
 }

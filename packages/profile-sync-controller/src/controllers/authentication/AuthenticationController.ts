@@ -38,6 +38,7 @@ type SessionData = {
 
 type MetaMetricsAuth = {
   getMetaMetricsId: () => string;
+  agent: 'extension' | 'mobile';
 };
 
 export type AuthenticationControllerState = {
@@ -234,11 +235,10 @@ export default class AuthenticationController extends BaseController<
       // 2. Login
       const rawMessage = createLoginRawMessage(nonce, publicKey);
       const signature = await this.#snapSignMessage(rawMessage);
-      const loginResponse = await login(
-        rawMessage,
-        signature,
-        this.#metametrics.getMetaMetricsId(),
-      );
+      const loginResponse = await login(rawMessage, signature, {
+        metametricsId: this.#metametrics.getMetaMetricsId(),
+        agent: this.#metametrics.agent,
+      });
       if (!loginResponse?.token) {
         throw new Error(`Unable to login`);
       }

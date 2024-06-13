@@ -61,18 +61,23 @@ export type LoginResponse = {
   };
 };
 
+type ClientMetaMetrics = {
+  metametricsId: string;
+  agent: 'extension' | 'mobile';
+};
+
 /**
  * Auth Service - Login. Will perform login with a given signature and will return a single use JWT Token.
  *
  * @param rawMessage - the original message before signing
  * @param signature - the signed message
- * @param clientMetaMetricsId - optional client metametrics id (to associate on backend)
+ * @param clientMetaMetrics - optional client metametrics id (to associate on backend)
  * @returns The Login Response
  */
 export async function login(
   rawMessage: string,
   signature: string,
-  clientMetaMetricsId: string,
+  clientMetaMetrics: ClientMetaMetrics,
 ): Promise<LoginResponse | null> {
   try {
     const response = await fetch(AUTH_LOGIN_ENDPOINT, {
@@ -86,8 +91,8 @@ export async function login(
         raw_message: rawMessage,
         metametrics: {
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          metametrics_id: clientMetaMetricsId,
-          agent: 'extension',
+          metametrics_id: clientMetaMetrics.metametricsId,
+          agent: clientMetaMetrics.agent,
         },
       }),
     });

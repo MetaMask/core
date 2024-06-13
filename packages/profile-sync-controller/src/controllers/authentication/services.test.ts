@@ -16,6 +16,10 @@ import {
 } from './services';
 
 const MOCK_METAMETRICS_ID = '0x123';
+const clientMetaMetrics = {
+  metametricsId: MOCK_METAMETRICS_ID,
+  agent: 'extension' as const,
+};
 
 describe('authentication/services.ts - getNonce() tests', () => {
   it('returns nonce on valid request', async () => {
@@ -49,7 +53,7 @@ describe('authentication/services.ts - login() tests', () => {
     const response = await login(
       'mock raw message',
       'mock signature',
-      MOCK_METAMETRICS_ID,
+      clientMetaMetrics,
     );
 
     mockLoginEndpoint.done();
@@ -66,7 +70,7 @@ describe('authentication/services.ts - login() tests', () => {
       const response = await login(
         'mock raw message',
         'mock signature',
-        MOCK_METAMETRICS_ID,
+        clientMetaMetrics,
       );
 
       mockLoginEndpoint.done();

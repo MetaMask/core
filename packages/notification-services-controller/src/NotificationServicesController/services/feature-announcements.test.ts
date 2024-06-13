@@ -12,6 +12,7 @@ jest.mock('@contentful/rich-text-html-renderer', () => ({
 const featureAnnouncementsEnv = {
   spaceId: ':space_id',
   accessToken: ':access_token',
+  platform: 'extension',
 };
 
 describe('Feature Announcement Notifications', () => {
