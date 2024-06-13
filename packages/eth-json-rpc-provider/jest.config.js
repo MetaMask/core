@@ -14,6 +14,9 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // *.test-d.ts files are tsd test files which should not be included in jest coverage
+  collectCoverageFrom: ['!./src/**/*.test-d.ts'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

@@ -1,4 +1,9 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import {
+  type JsonRpcSuccess,
+  type Json,
+  assertIsJsonRpcFailure,
+} from '@metamask/utils';
 import { promisify } from 'util';
 
 import { SafeEventEmitterProvider } from './safe-event-emitter-provider';
@@ -27,6 +32,44 @@ describe('SafeEventEmitterProvider', () => {
       delete engine.on;
 
       expect(() => new SafeEventEmitterProvider({ engine })).not.toThrow();
+    });
+  });
+
+  describe('request', () => {
+    it('handles a successful request', async () => {
+      const engine = new JsonRpcEngine();
+      engine.push((_req, res, _next, end) => {
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+      };
+
+      const response = await provider.request(exampleRequest);
+
+      expect((response as JsonRpcSuccess<Json>).result).toBe(42);
+    });
+
+    it('handles a failed request', async () => {
+      const engine = new JsonRpcEngine();
+      engine.push((_req, _res, _next, _end) => {
+        throw new Error('Test error');
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+      };
+
+      const response = await provider.request(exampleRequest);
+
+      expect(response).toBeDefined();
+      assertIsJsonRpcFailure(response);
     });
   });
 

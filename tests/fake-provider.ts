@@ -1,6 +1,9 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import {
+  SafeEventEmitterProvider,
+  type Eip1193Request,
+} from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
+import type { JsonRpcParams, JsonRpcResponse } from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
 
 // Store this in case it gets stubbed later
@@ -107,8 +110,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
     this.calledStubs = [];
   }
 
-  sendAsync = (
-    payload: JsonRpcRequest,
+  sendAsync = <Params extends JsonRpcParams>(
+    payload: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
@@ -116,8 +119,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
     return this.#handleSend(payload, callback);
   };
 
-  send = (
-    req: JsonRpcRequest,
+  send = <Params extends JsonRpcParams>(
+    req: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
@@ -125,8 +128,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
     return this.#handleSend(req, callback);
   };
 
-  #handleSend(
-    req: JsonRpcRequest,
+  #handleSend<Params extends JsonRpcParams>(
+    req: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
