@@ -20,6 +20,7 @@
     { "path": "./packages/name-controller" },
     { "path": "./packages/network-controller" },
     { "path": "./packages/notification-controller" },
+    { "path": "./packages/notification-services-controller" },
     { "path": "./packages/permission-controller" },
     { "path": "./packages/permission-log-controller" },
     { "path": "./packages/phishing-controller" },
