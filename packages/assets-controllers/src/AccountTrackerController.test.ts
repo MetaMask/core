@@ -644,7 +644,6 @@ async function withController<ReturnValue>(
 
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
-    chainId: initialChainId,
     ...options,
   });
 
