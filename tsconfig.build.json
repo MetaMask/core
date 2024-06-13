@@ -21,6 +21,9 @@
     { "path": "./packages/name-controller/tsconfig.build.json" },
     { "path": "./packages/network-controller/tsconfig.build.json" },
     { "path": "./packages/notification-controller/tsconfig.build.json" },
+    {
+      "path": "./packages/notification-services-controller/tsconfig.build.json"
+    },
     { "path": "./packages/permission-controller/tsconfig.build.json" },
     { "path": "./packages/permission-log-controller/tsconfig.build.json" },
     { "path": "./packages/phishing-controller/tsconfig.build.json" },
