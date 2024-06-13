@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Update `networksMetadata` state property so that the keys in the object will only ever be network client IDs and not RPC URLs ([#4254](https://github.com/MetaMask/core/pull/4254))
+  - Some keys could have been RPC URLs if the initial network controller state had a `providerConfig` with an empty `id`, but since `providerConfig` is being removed, that won't happen anymore.
+
+### Removed
+
+- **BREAKING:** Remove `providerConfig` property from state along with `ProviderConfig` type and `NetworkController:getProviderConfig` messenger action ([#4254](https://github.com/MetaMask/core/pull/4254))
+  - The best way to obtain the equivalent configuration object, e.g. to access the chain ID of the currently selected network, is to get `selectedNetworkClientId` from state, pass this to the `NetworkController:getNetworkClientId` messenger action, and then use the `configuration` property on the network client.
+
 ## [19.0.0]
 
 ### Changed
