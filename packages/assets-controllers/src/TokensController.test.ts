@@ -1,5 +1,4 @@
 import { Contract } from '@ethersproject/contracts';
-import type { AccountsController } from '@metamask/accounts-controller';
 import type { ApprovalStateChange } from '@metamask/approval-controller';
 import {
   ApprovalController,
@@ -2336,10 +2335,8 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
-  getAccountHandler: jest.Mock<ReturnType<AccountsController['getAccount']>>;
-  getSelectedAccountHandler: jest.Mock<
-    ReturnType<AccountsController['getSelectedAccount']>
-  >;
+  getAccountHandler: jest.Mock;
+  getSelectedAccountHandler: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerMockArgs = {
