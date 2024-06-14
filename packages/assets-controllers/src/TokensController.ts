@@ -375,7 +375,6 @@ export class TokensController extends BaseController<
       this.#getAddressOrSelectedAddress(interactingAddress);
     const isInteractingWithWalletAccount =
       this.#isInterctingWithWallet(accountAddress);
-
     try {
       address = toChecksumHexAddress(address);
       const tokens = allTokens[currentChainId]?.[accountAddress] || [];
@@ -583,15 +582,10 @@ export class TokensController extends BaseController<
   ) {
     const releaseLock = await this.#mutex.acquire();
 
-    const internalAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
     const chainId = detectionDetails?.chainId ?? this.#chainId;
     // Previously selectedAddress could be an empty string. This is to preserve the behaviour
     const accountAddress =
-      detectionDetails?.selectedAddress ?? internalAccount?.address ?? '';
+      detectionDetails?.selectedAddress ?? this.#getSelectedAddress();
 
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     let newTokens = [...(allTokens?.[chainId]?.[accountAddress] ?? [])];
@@ -658,17 +652,11 @@ export class TokensController extends BaseController<
 
       // We may be detecting tokens on a different chain/account pair than are currently configured.
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
-      const currentInternalAccount = this.messagingSystem.call(
-        'AccountsController:getAccount',
-        this.#selectedAccountId,
-      );
+      const selectedAddress = this.#getSelectedAddress();
 
-      // Previously selectedAddress could be an empty string. This is to preserve the behaviour
-      const currentAddress = currentInternalAccount?.address || '';
-
-      newTokens = newAllTokens?.[this.#chainId]?.[currentAddress] || [];
+      newTokens = newAllTokens?.[this.#chainId]?.[selectedAddress] || [];
       newDetectedTokens =
-        newAllDetectedTokens?.[this.#chainId]?.[currentAddress] || [];
+        newAllDetectedTokens?.[this.#chainId]?.[selectedAddress] || [];
 
       this.update((state) => {
         state.tokens = newTokens;
@@ -975,8 +963,6 @@ export class TokensController extends BaseController<
     const userAddressToAddTokens =
       this.#getAddressOrSelectedAddress(interactingAddress);
 
-    console.log('userAddressToAddTokens', userAddressToAddTokens);
-
     const chainIdToAddTokens = interactingChainId ?? this.#chainId;
 
     let newAllTokens = allTokens;
@@ -1043,12 +1029,7 @@ export class TokensController extends BaseController<
       return address;
     }
 
-    // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-    return selectedAccount?.address || '';
+    return this.#getSelectedAddress();
   }
 
   #isInterctingWithWallet(address: string) {
@@ -1094,11 +1075,16 @@ export class TokensController extends BaseController<
   }
 
   #getSelectedAccount() {
-    const account = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    );
+    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
 
-    return account;
+  #getSelectedAddress() {
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const account = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    return account?.address || '';
   }
 }
 
