@@ -2451,7 +2451,7 @@ describe('AccountsController', () => {
 
         const result = messenger.call('AccountsController:listAccounts');
         expect(accountsController.listAccounts).toHaveBeenCalledWith();
-        expect(result).toStrictEqual([mockAccount, mockNonEvmAccount]);
+        expect(result).toStrictEqual([mockAccount]);
       });
     });
 
