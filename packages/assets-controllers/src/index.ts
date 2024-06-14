@@ -1,4 +1,13 @@
-export * from './AccountTrackerController';
+export type {
+  AccountInformation,
+  AccountTrackerControllerMessenger,
+  AccountTrackerControllerState,
+  AccountTrackerControllerActions,
+  AccountTrackerControllerGetStateAction,
+  AccountTrackerControllerStateChangeEvent,
+  AccountTrackerControllerEvents,
+} from './AccountTrackerController';
+export { AccountTrackerController } from './AccountTrackerController';
 export * from './AssetsContractController';
 export * from './CurrencyRateController';
 export type {
