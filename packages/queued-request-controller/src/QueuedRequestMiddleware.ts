@@ -39,24 +39,26 @@ function hasRequiredMetadata(
  * @param options - Configuration options.
  * @param options.enqueueRequest - A method for enqueueing a request.
  * @param options.useRequestQueue - A function that determines if the request queue feature is enabled.
- * @param options.methodsWithConfirmation - A list of methods that can cause a confirmation to be presented to the user.
+ * @param options.shouldEnqueueRequest - A function that returns if a request should be handled by the QueuedRequestController.
  * @returns The JSON-RPC middleware that manages queued requests.
  */
 export const createQueuedRequestMiddleware = ({
   enqueueRequest,
   useRequestQueue,
-  methodsWithConfirmation,
+  shouldEnqueueRequest,
 }: {
   enqueueRequest: QueuedRequestController['enqueueRequest'];
   useRequestQueue: () => boolean;
-  methodsWithConfirmation: string[];
+  shouldEnqueueRequest: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(async (req: JsonRpcRequest, res, next) => {
     hasRequiredMetadata(req);
 
     // if the request queue feature is turned off, or this method is not a confirmation method
     // bypass the queue completely
-    if (!useRequestQueue() || !methodsWithConfirmation.includes(req.method)) {
+    if (!useRequestQueue() || !shouldEnqueueRequest(req)) {
       return await next();
     }
 
