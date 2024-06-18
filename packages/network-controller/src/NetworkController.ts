@@ -190,7 +190,7 @@ export type NetworkConfiguration = {
    * The name of the token that represents the native currency for the chain
    * (i.e. the ticker symbol).
    */
-  nativeTokenName: string;
+  nativeCurrency: string;
   /**
    * The collection of possible RPC endpoints that the client can use to
    * interact with the chain.
@@ -514,7 +514,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       chainId,
       defaultRpcEndpointUrl: rpcEndpointUrl,
       name: NetworkNickname[infuraNetworkType],
-      nativeTokenName: NetworksTicker[infuraNetworkType],
+      nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
           name: `Infura ${NetworkNickname[infuraNetworkType] as string}`,
@@ -1367,7 +1367,7 @@ export class NetworkController extends BaseController<
       blockExplorerUrl,
       chainId,
       defaultRpcEndpointUrl,
-      nativeTokenName,
+      nativeCurrency,
       rpcEndpoints: setOfRpcEndpointFields,
     } = fields;
     const rpcEndpointUrls = setOfRpcEndpointFields.map(
@@ -1546,7 +1546,7 @@ export class NetworkController extends BaseController<
           chainId,
           infuraProjectId: this.#infuraProjectId,
           network: rpcEndpoint.networkClientId,
-          ticker: nativeTokenName,
+          ticker: nativeCurrency,
           type: NetworkClientType.Infura,
         });
       } else {
@@ -1555,7 +1555,7 @@ export class NetworkController extends BaseController<
         ] = createAutoManagedNetworkClient({
           chainId,
           rpcUrl: rpcEndpoint.url,
-          ticker: nativeTokenName,
+          ticker: nativeCurrency,
           type: NetworkClientType.Custom,
         });
       }
@@ -1619,7 +1619,7 @@ export class NetworkController extends BaseController<
       blockExplorerUrl: newBlockExplorerUrl,
       chainId: newChainId,
       defaultRpcEndpointUrl: newInfuraRpcEndpointUrl,
-      nativeTokenName: newNativeTokenName,
+      nativeCurrency: newNativeTokenName,
       rpcEndpoints: setOfNewRpcEndpointFields,
     } = fields;
     const newRpcEndpointUrls = setOfNewRpcEndpointFields.map(
@@ -2053,7 +2053,7 @@ export class NetworkController extends BaseController<
               network: infuraNetworkName,
               infuraProjectId: this.#infuraProjectId,
               chainId: networkConfiguration.chainId,
-              ticker: networkConfiguration.nativeTokenName,
+              ticker: networkConfiguration.nativeCurrency,
             }),
           ] as const;
         }
@@ -2063,7 +2063,7 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Custom,
             chainId: networkConfiguration.chainId,
             rpcUrl: rpcEndpoint.url,
-            ticker: networkConfiguration.nativeTokenName,
+            ticker: networkConfiguration.nativeCurrency,
           }),
         ] as const;
       });

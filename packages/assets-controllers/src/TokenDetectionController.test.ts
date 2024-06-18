@@ -124,7 +124,7 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
     chainId: '0x89',
     defaultRpcEndpointUrl: 'https://polygon-mainnet.infura.io/v3/fakekey',
     name: 'Polygon Mainnet',
-    nativeTokenName: 'MATIC',
+    nativeCurrency: 'MATIC',
     rpcEndpoints: [
       buildCustomRpcEndpoint({
         url: 'https://polygon-mainnet.infura.io/v3/fakekey',

@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Replace `NetworkConfiguration` type with a new definition ([#4268](https://github.com/MetaMask/core/pull/4286))
   - A network configuration no longer represents a single RPC endpoint but rather a collection of RPC endpoints that can all be used to interface with a single chain.
   - The only property that has been retained on this type is `chainId`.
-  - `ticker` has been renamed to `nativeTokenName`.
+  - `ticker` has been renamed to `nativeCurrency`.
   - `nickname` has been renamed to `name`.
   - `blockExplorerUrl` has been pulled out of `rpcPrefs`.
   - `rpcEndpoints` has been added as well. This is an an array of objects, where each object has properties `name`, `networkClientId` (optional), `type`, and `url`.

@@ -202,7 +202,7 @@ export function buildNetworkConfiguration(
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointUrl: () => undefined,
       name: () => 'Some Network',
-      nativeTokenName: () => 'TOKEN',
+      nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         defaultRpcEndpointType === RpcEndpointType.Infura
           ? buildInfuraRpcEndpoint(InfuraNetworkType['linea-goerli'])
@@ -243,7 +243,7 @@ export function buildCustomNetworkConfiguration(
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointUrl: () => undefined,
       name: () => 'Some Network',
-      nativeTokenName: () => 'TOKEN',
+      nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         buildCustomRpcEndpoint({
           url: 'https://test.endpoint',
@@ -288,7 +288,7 @@ export function buildInfuraNetworkConfiguration(
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointUrl: () => undefined,
       name: () => NetworkNickname[infuraNetworkType],
-      nativeTokenName: () => NetworksTicker[infuraNetworkType],
+      nativeCurrency: () => NetworksTicker[infuraNetworkType],
       rpcEndpoints: () => [defaultRpcEndpoint],
     },
     overrides,
@@ -364,7 +364,7 @@ export function buildAddNetworkFields(
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointUrl: () => undefined,
       name: () => 'Some Network',
-      nativeTokenName: () => 'TOKEN',
+      nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         buildAddNetworkCustomRpcEndpointFields({
           url: 'https://test.endpoint',

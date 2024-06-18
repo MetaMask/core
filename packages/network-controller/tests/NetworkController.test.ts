@@ -295,7 +295,7 @@ describe('NetworkController', () => {
                 "chainId": "0x1",
                 "defaultRpcEndpointUrl": "https://mainnet.infura.io/v3/{infuraProjectId}",
                 "name": "Mainnet",
-                "nativeTokenName": "ETH",
+                "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
                     "name": "Infura Mainnet",
@@ -309,7 +309,7 @@ describe('NetworkController', () => {
                 "chainId": "0x5",
                 "defaultRpcEndpointUrl": "https://goerli.infura.io/v3/{infuraProjectId}",
                 "name": "Goerli",
-                "nativeTokenName": "GoerliETH",
+                "nativeCurrency": "GoerliETH",
                 "rpcEndpoints": Array [
                   Object {
                     "name": "Infura Goerli",
@@ -323,7 +323,7 @@ describe('NetworkController', () => {
                 "chainId": "0xaa36a7",
                 "defaultRpcEndpointUrl": "https://sepolia.infura.io/v3/{infuraProjectId}",
                 "name": "Sepolia",
-                "nativeTokenName": "SepoliaETH",
+                "nativeCurrency": "SepoliaETH",
                 "rpcEndpoints": Array [
                   Object {
                     "name": "Infura Sepolia",
@@ -337,7 +337,7 @@ describe('NetworkController', () => {
                 "chainId": "0xe704",
                 "defaultRpcEndpointUrl": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
                 "name": "Linea Goerli",
-                "nativeTokenName": "LineaETH",
+                "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
                     "name": "Infura Linea Goerli",
@@ -351,7 +351,7 @@ describe('NetworkController', () => {
                 "chainId": "0xe705",
                 "defaultRpcEndpointUrl": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
                 "name": "Linea Sepolia",
-                "nativeTokenName": "LineaETH",
+                "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
                     "name": "Infura Linea Sepolia",
@@ -365,7 +365,7 @@ describe('NetworkController', () => {
                 "chainId": "0xe708",
                 "defaultRpcEndpointUrl": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
                 "name": "Linea Mainnet",
-                "nativeTokenName": "ETH",
+                "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
                     "name": "Infura Linea Mainnet",
@@ -394,7 +394,7 @@ describe('NetworkController', () => {
                 defaultRpcEndpointUrl:
                   'https://goerli.infura.io/v3/{infuraProjectId}',
                 name: 'Goerli',
-                nativeTokenName: 'GoerliETH',
+                nativeCurrency: 'GoerliETH',
                 rpcEndpoints: [
                   {
                     name: 'Goerli',
@@ -421,7 +421,7 @@ describe('NetworkController', () => {
                   "chainId": "0x5",
                   "defaultRpcEndpointUrl": "https://goerli.infura.io/v3/{infuraProjectId}",
                   "name": "Goerli",
-                  "nativeTokenName": "GoerliETH",
+                  "nativeCurrency": "GoerliETH",
                   "rpcEndpoints": Array [
                     Object {
                       "name": "Goerli",
@@ -559,7 +559,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -616,7 +616,7 @@ describe('NetworkController', () => {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
               chainId: '0x1337',
-              nativeTokenName: 'TEST',
+              nativeCurrency: 'TEST',
               rpcEndpoints: [
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -679,7 +679,7 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -780,7 +780,7 @@ describe('NetworkController', () => {
                 ),
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -973,7 +973,7 @@ describe('NetworkController', () => {
                   networkConfigurationsByChainId: {
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
-                      nativeTokenName: 'TEST',
+                      nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1125,7 +1125,7 @@ describe('NetworkController', () => {
                 networkConfigurationsByChainId: {
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TOKEN1',
+                    nativeCurrency: 'TOKEN1',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1135,7 +1135,7 @@ describe('NetworkController', () => {
                   }),
                   '0x2448': buildCustomNetworkConfiguration({
                     chainId: '0x2448',
-                    nativeTokenName: 'TOKEN2',
+                    nativeCurrency: 'TOKEN2',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'BBBB-BBBB-BBBB-BBBB',
@@ -1229,7 +1229,7 @@ describe('NetworkController', () => {
                       buildInfuraNetworkConfiguration(infuraNetworkType),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
-                      nativeTokenName: 'TEST',
+                      nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1321,7 +1321,7 @@ describe('NetworkController', () => {
                       buildInfuraNetworkConfiguration(infuraNetworkType),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
-                      nativeTokenName: 'TEST',
+                      nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1420,7 +1420,7 @@ describe('NetworkController', () => {
                       buildInfuraNetworkConfiguration(infuraNetworkType),
                     '0x1337': buildCustomNetworkConfiguration({
                       chainId: '0x1337',
-                      nativeTokenName: 'TEST',
+                      nativeCurrency: 'TEST',
                       rpcEndpoints: [
                         buildCustomRpcEndpoint({
                           networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1544,7 +1544,7 @@ describe('NetworkController', () => {
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1637,7 +1637,7 @@ describe('NetworkController', () => {
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1741,7 +1741,7 @@ describe('NetworkController', () => {
                   ),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -1834,7 +1834,7 @@ describe('NetworkController', () => {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
               chainId: '0x1337',
-              nativeTokenName: 'TEST',
+              nativeCurrency: 'TEST',
               rpcEndpoints: [
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -2061,7 +2061,7 @@ describe('NetworkController', () => {
             ),
             '0x1337': buildCustomNetworkConfiguration({
               chainId: '0x1337',
-              nativeTokenName: 'TEST',
+              nativeCurrency: 'TEST',
               rpcEndpoints: [
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -2088,7 +2088,7 @@ describe('NetworkController', () => {
                 ),
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -2123,7 +2123,7 @@ describe('NetworkController', () => {
               ),
               '0x1337': buildCustomNetworkConfiguration({
                 chainId: '0x1337',
-                nativeTokenName: 'TEST',
+                nativeCurrency: 'TEST',
                 rpcEndpoints: [
                   buildCustomRpcEndpoint({
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -2552,7 +2552,7 @@ describe('NetworkController', () => {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
               chainId: '0x1337',
-              nativeTokenName: 'TEST',
+              nativeCurrency: 'TEST',
               rpcEndpoints: [
                 buildCustomRpcEndpoint({
                   networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -3257,7 +3257,7 @@ describe('NetworkController', () => {
                 chainId: infuraChainId,
                 defaultRpcEndpointUrl: 'https://test.endpoint/2',
                 name: infuraNetworkType,
-                nativeTokenName: infuraNativeTokenName,
+                nativeCurrency: infuraNativeTokenName,
                 rpcEndpoints: [
                   defaultRpcEndpoint,
                   {
@@ -3354,7 +3354,7 @@ describe('NetworkController', () => {
                 chainId: infuraChainId,
                 defaultRpcEndpointUrl: 'https://test.endpoint/2',
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
                     name: 'Test Network',
@@ -3381,7 +3381,7 @@ describe('NetworkController', () => {
                 chainId: infuraChainId,
                 defaultRpcEndpointUrl: 'https://test.endpoint/2',
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
                     name: 'Test Network',
@@ -3434,7 +3434,7 @@ describe('NetworkController', () => {
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
                     name: infuraNetworkNickname,
@@ -3453,7 +3453,7 @@ describe('NetworkController', () => {
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
                     name: infuraNetworkNickname,
@@ -3494,7 +3494,7 @@ describe('NetworkController', () => {
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
                     name: infuraNetworkNickname,
@@ -3513,7 +3513,7 @@ describe('NetworkController', () => {
                 // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                 defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   {
                     name: infuraNetworkNickname,
@@ -3557,7 +3557,7 @@ describe('NetworkController', () => {
                 chainId: '0x1337',
                 defaultRpcEndpointUrl: 'https://test.endpoint/1',
                 name: 'Some Network',
-                nativeTokenName: 'TOKEN',
+                nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
                   defaultRpcEndpoint,
                   {
@@ -3586,7 +3586,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint/1',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network 1',
@@ -3634,7 +3634,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint/1',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network 1',
@@ -3655,7 +3655,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint/1',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network 1',
@@ -3688,7 +3688,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network',
@@ -3702,7 +3702,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network',
@@ -3729,7 +3729,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network',
@@ -3743,7 +3743,7 @@ describe('NetworkController', () => {
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint',
             name: 'Some Network',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [
               {
                 name: 'Test Network',
@@ -4980,7 +4980,7 @@ describe('NetworkController', () => {
           });
           const networkConfigurationToUpdate = buildNetworkConfiguration({
             chainId: '0x1337',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [rpcEndpoint1],
           });
 
@@ -5395,7 +5395,7 @@ describe('NetworkController', () => {
           const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
             chainId: '0x1337',
             defaultRpcEndpointUrl: 'https://test.endpoint/1',
-            nativeTokenName: 'TOKEN',
+            nativeCurrency: 'TOKEN',
             rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
           });
 
@@ -5821,7 +5821,7 @@ describe('NetworkController', () => {
 
             const networkConfigurationToUpdate = buildNetworkConfiguration({
               chainId: '0x1337',
-              nativeTokenName: 'TOKEN',
+              nativeCurrency: 'TOKEN',
               rpcEndpoints: [
                 buildCustomRpcEndpoint({
                   name: 'Test Network 1',
@@ -6182,7 +6182,7 @@ describe('NetworkController', () => {
               ];
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                nativeTokenName: 'ETH',
+                nativeCurrency: 'ETH',
                 rpcEndpoints: [
                   defaultRpcEndpoint,
                   customRpcEndpoint1,
@@ -6550,7 +6550,7 @@ describe('NetworkController', () => {
               ];
             const networkConfigurationToUpdate =
               buildInfuraNetworkConfiguration(infuraNetworkType, {
-                nativeTokenName: 'ETH',
+                nativeCurrency: 'ETH',
                 rpcEndpoints: [
                   defaultRpcEndpoint,
                   customRpcEndpoint1,
@@ -6874,7 +6874,7 @@ describe('NetworkController', () => {
 
         const networkConfigurationToUpdate = buildNetworkConfiguration({
           chainId: '0x1337',
-          nativeTokenName: 'TOKEN',
+          nativeCurrency: 'TOKEN',
           rpcEndpoints: [
             buildCustomRpcEndpoint({
               name: 'Test Network 1',
@@ -7433,7 +7433,7 @@ describe('NetworkController', () => {
             networkConfigurationsByChainId: {
               '0x1337': buildCustomNetworkConfiguration({
                 chainId: '0x1337',
-                nativeTokenName: 'TEST',
+                nativeCurrency: 'TEST',
                 rpcEndpoints: [
                   buildCustomRpcEndpoint({
                     networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7554,7 +7554,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7614,7 +7614,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7699,7 +7699,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7776,7 +7776,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7837,7 +7837,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7913,7 +7913,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -7995,7 +7995,7 @@ describe('NetworkController', () => {
                     buildInfuraNetworkConfiguration(infuraNetworkType),
                   '0x1337': buildCustomNetworkConfiguration({
                     chainId: '0x1337',
-                    nativeTokenName: 'TEST',
+                    nativeCurrency: 'TEST',
                     rpcEndpoints: [
                       buildCustomRpcEndpoint({
                         networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8082,7 +8082,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8127,7 +8127,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8174,7 +8174,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8234,7 +8234,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8325,7 +8325,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8403,7 +8403,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8465,7 +8465,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8527,7 +8527,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8605,7 +8605,7 @@ describe('NetworkController', () => {
               networkConfigurationsByChainId: {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
-                  nativeTokenName: 'TEST',
+                  nativeCurrency: 'TEST',
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
                       networkClientId: 'AAAA-AAAA-AAAA-AAAA',
@@ -8690,7 +8690,7 @@ describe('NetworkController', () => {
                 chainId: '0x1337' as const,
                 defaultRpcEndpointUrl: 'https://test.network/1',
                 name: 'Test Network 1',
-                nativeTokenName: 'TOKEN1',
+                nativeCurrency: 'TOKEN1',
                 rpcEndpoints: [
                   {
                     name: 'Test Endpoint',
@@ -8710,7 +8710,7 @@ describe('NetworkController', () => {
                 chainId: '0x2448' as const,
                 defaultRpcEndpointUrl: 'https://test.network/2',
                 name: 'Test Network 2',
-                nativeTokenName: 'TOKEN2',
+                nativeCurrency: 'TOKEN2',
                 rpcEndpoints: [
                   {
                     name: 'Test Endpoint',
@@ -8729,7 +8729,7 @@ describe('NetworkController', () => {
                 chainId: '0x1337' as const,
                 defaultRpcEndpointUrl: 'https://test.network/1',
                 name: 'Test Network 1',
-                nativeTokenName: 'TOKEN1',
+                nativeCurrency: 'TOKEN1',
                 rpcEndpoints: [
                   {
                     name: 'Test Endpoint',
@@ -8743,7 +8743,7 @@ describe('NetworkController', () => {
                 chainId: '0x2448' as const,
                 defaultRpcEndpointUrl: 'https://test.network/2',
                 name: 'Test Network 2',
-                nativeTokenName: 'TOKEN2',
+                nativeCurrency: 'TOKEN2',
                 rpcEndpoints: [
                   {
                     name: 'Test Endpoint',
@@ -8989,7 +8989,7 @@ function refreshNetworkTests({
               initializationNetworkClientConfiguration = {
                 chainId: matchingNetworkConfiguration.chainId,
                 rpcUrl: matchingRpcEndpoint.url,
-                ticker: matchingNetworkConfiguration.nativeTokenName,
+                ticker: matchingNetworkConfiguration.nativeCurrency,
                 type: NetworkClientType.Custom,
               };
             }
