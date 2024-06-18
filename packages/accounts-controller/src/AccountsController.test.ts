@@ -2391,6 +2391,7 @@ describe('AccountsController', () => {
     beforeEach(() => {
       jest.spyOn(AccountsController.prototype, 'setSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'listAccounts');
+      jest.spyOn(AccountsController.prototype, 'listMultichainAccounts');
       jest.spyOn(AccountsController.prototype, 'setAccountName');
       jest.spyOn(AccountsController.prototype, 'updateAccounts');
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
@@ -2420,19 +2421,63 @@ describe('AccountsController', () => {
 
     describe('listAccounts', () => {
       it('retrieve a list of accounts', async () => {
+        const mockNonEvmAccount = createExpectedInternalAccount({
+          id: 'mock-non-evm',
+          name: 'non-evm',
+          address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+          keyringType: KeyringTypes.snap,
+          type: BtcAccountType.P2wpkh,
+        });
         const messenger = buildMessenger();
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
-              accounts: { [mockAccount.id]: mockAccount },
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockNonEvmAccount.id]: mockNonEvmAccount,
+              },
               selectedAccount: mockAccount.id,
             },
           },
           messenger,
         });
 
-        messenger.call('AccountsController:listAccounts');
+        const result = messenger.call('AccountsController:listAccounts');
         expect(accountsController.listAccounts).toHaveBeenCalledWith();
+        expect(result).toStrictEqual([mockAccount]);
+      });
+    });
+
+    describe('listMultichainAccounts', () => {
+      it('retrieve a list of multichain accounts', async () => {
+        const mockNonEvmAccount = createExpectedInternalAccount({
+          id: 'mock-non-evm',
+          name: 'non-evm',
+          address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+          keyringType: KeyringTypes.snap,
+          type: BtcAccountType.P2wpkh,
+        });
+        const messenger = buildMessenger();
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockNonEvmAccount.id]: mockNonEvmAccount,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const result = messenger.call(
+          'AccountsController:listMultichainAccounts',
+        );
+        expect(
+          accountsController.listMultichainAccounts,
+        ).toHaveBeenCalledWith();
+        expect(result).toStrictEqual([mockAccount, mockNonEvmAccount]);
       });
     });
 

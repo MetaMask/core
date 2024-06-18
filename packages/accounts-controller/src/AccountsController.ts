@@ -70,6 +70,11 @@ export type AccountsControllerListAccountsAction = {
   handler: AccountsController['listAccounts'];
 };
 
+export type AccountsControllerListMultichainAccountsAction = {
+  type: `${typeof controllerName}:listMultichainAccounts`;
+  handler: AccountsController['listMultichainAccounts'];
+};
+
 export type AccountsControllerUpdateAccountsAction = {
   type: `${typeof controllerName}:updateAccounts`;
   handler: AccountsController['updateAccounts'];
@@ -109,6 +114,7 @@ export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
   | AccountsControllerListAccountsAction
+  | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
@@ -1005,6 +1011,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:listAccounts`,
       this.listAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:listMultichainAccounts`,
+      this.listMultichainAccounts.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
