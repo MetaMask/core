@@ -295,81 +295,73 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('networkController:stateChange', () => {
-    describe('when useRequestQueuePreference is false', () => {
-      describe('when a networkClient is deleted from the network controller state', () => {
-        it('does not update state', () => {
-          const { controller, messenger } = setup({
-            state: {
-              domains: {},
-            },
-          });
-
-          messenger.publish(
-            'NetworkController:stateChange',
-            {
-              selectedNetworkClientId: 'goerli',
-              networkConfigurations: {},
-              networksMetadata: {},
-            },
-            [
-              {
-                op: 'remove',
-                path: ['networkConfigurations', 'test-network-client-id'],
-              },
-            ],
-          );
-          expect(controller.state.domains).toStrictEqual({});
-        });
-      });
-    });
-
-    describe('when useRequestQueuePreference is true', () => {
-      describe('when a networkClient is deleted from the network controller state', () => {
-        it('updates the networkClientId for domains which were previously set to the deleted networkClientId', () => {
-          const { controller, messenger } = setup({
-            state: {
-              domains: {
-                metamask: 'goerli',
-                'example.com': 'test-network-client-id',
-                'test.com': 'test-network-client-id',
-              },
-            },
-            useRequestQueuePreference: true,
-          });
-
-          messenger.publish(
-            'NetworkController:stateChange',
-            {
-              selectedNetworkClientId: 'goerli',
-              networkConfigurations: {},
-              networksMetadata: {},
-            },
-            [
-              {
-                op: 'remove',
-                path: ['networkConfigurations', 'test-network-client-id'],
-              },
-            ],
-          );
-          expect(controller.state.domains['example.com']).toBe('goerli');
-          expect(controller.state.domains['test.com']).toBe('goerli');
-        });
-      });
-    });
-  });
-
-  describe('setNetworkClientIdForDomain', () => {
-    describe('when the useRequestQueuePreference is false', () => {
-      it('does not update state', () => {
-        const { controller } = setup({
+    describe('when a networkClient is deleted from the network controller state', () => {
+      it('does not update state when useRequestQueuePreference is false', () => {
+        const { controller, messenger } = setup({
           state: {
             domains: {},
           },
         });
 
-        controller.setNetworkClientIdForDomain('1.com', '1');
+        messenger.publish(
+          'NetworkController:stateChange',
+          {
+            selectedNetworkClientId: 'goerli',
+            networkConfigurations: {},
+            networksMetadata: {},
+          },
+          [
+            {
+              op: 'remove',
+              path: ['networkConfigurations', 'test-network-client-id'],
+            },
+          ],
+        );
         expect(controller.state.domains).toStrictEqual({});
       });
+
+      it('updates the networkClientId for domains which were previously set to the deleted networkClientId when useRequestQueuePreference is true', () => {
+        const { controller, messenger } = setup({
+          state: {
+            domains: {
+              metamask: 'goerli',
+              'example.com': 'test-network-client-id',
+              'test.com': 'test-network-client-id',
+            },
+          },
+          useRequestQueuePreference: true,
+        });
+
+        messenger.publish(
+          'NetworkController:stateChange',
+          {
+            selectedNetworkClientId: 'goerli',
+            networkConfigurations: {},
+            networksMetadata: {},
+          },
+          [
+            {
+              op: 'remove',
+              path: ['networkConfigurations', 'test-network-client-id'],
+            },
+          ],
+        );
+        expect(controller.state.domains['example.com']).toBe('goerli');
+        expect(controller.state.domains['test.com']).toBe('goerli');
+      });
+    });
+  });
+
+  describe('setNetworkClientIdForDomain', () => {
+    it('does not update state when the useRequestQueuePreference is false', () => {
+      const { controller } = setup({
+        state: {
+          domains: {},
+        },
+      });
+
+      controller.setNetworkClientIdForDomain('1.com', '1');
+      expect(controller.state.domains).toStrictEqual({});
     });
 
     describe('when useRequestQueuePreference is true', () => {
@@ -480,13 +472,11 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('getNetworkClientIdForDomain', () => {
-    describe('when useRequestQueuePreference is false', () => {
-      it('returns the selectedNetworkClientId from the NetworkController', () => {
-        const { controller } = setup();
-        expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
-          'mainnet',
-        );
-      });
+    it('returns the selectedNetworkClientId from the NetworkController when useRequestQueuePreference is false', () => {
+      const { controller } = setup();
+      expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
+        'mainnet',
+      );
     });
 
     describe('when useRequestQueuePreference is true', () => {
@@ -517,115 +507,78 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('getProviderAndBlockTracker', () => {
-    describe('when the domain already has a cached networkProxy in the domainProxyMap', () => {
-      it('returns the cached proxy provider and block tracker', () => {
-        const mockProxyProvider = {
-          setTarget: jest.fn(),
-        } as unknown as ProviderProxy;
-        const mockProxyBlockTracker = {
-          setTarget: jest.fn(),
-        } as unknown as BlockTrackerProxy;
+    it('returns the cached proxy provider and block tracker when the domain already has a cached networkProxy in the domainProxyMap', () => {
+      const mockProxyProvider = {
+        setTarget: jest.fn(),
+      } as unknown as ProviderProxy;
+      const mockProxyBlockTracker = {
+        setTarget: jest.fn(),
+      } as unknown as BlockTrackerProxy;
 
-        const domainProxyMap = new Map<Domain, NetworkProxy>([
-          [
-            'example.com',
-            {
-              provider: mockProxyProvider,
-              blockTracker: mockProxyBlockTracker,
-            },
-          ],
-          [
-            'test.com',
-            {
-              provider: mockProxyProvider,
-              blockTracker: mockProxyBlockTracker,
-            },
-          ],
-        ]);
-        const { controller } = setup({
-          state: {
-            domains: {},
+      const domainProxyMap = new Map<Domain, NetworkProxy>([
+        [
+          'example.com',
+          {
+            provider: mockProxyProvider,
+            blockTracker: mockProxyBlockTracker,
           },
-          useRequestQueuePreference: true,
-          domainProxyMap,
-        });
+        ],
+        [
+          'test.com',
+          {
+            provider: mockProxyProvider,
+            blockTracker: mockProxyBlockTracker,
+          },
+        ],
+      ]);
+      const { controller } = setup({
+        state: {
+          domains: {},
+        },
+        useRequestQueuePreference: true,
+        domainProxyMap,
+      });
 
-        const result = controller.getProviderAndBlockTracker('example.com');
-        expect(result).toStrictEqual({
-          provider: mockProxyProvider,
-          blockTracker: mockProxyBlockTracker,
-        });
+      const result = controller.getProviderAndBlockTracker('example.com');
+      expect(result).toStrictEqual({
+        provider: mockProxyProvider,
+        blockTracker: mockProxyBlockTracker,
       });
     });
 
-    describe('when the domain does not have a cached networkProxy in the domainProxyMap', () => {
-      describe('when useRequestQueuePreference is true', () => {
-        describe('when the domain has permissions', () => {
-          it('calls to NetworkController:getNetworkClientById and creates a new proxy provider and block tracker with the non-proxied globally selected network client', () => {
-            const { controller, messenger, mockHasPermissions } = setup({
-              state: {
-                domains: {},
-              },
-              useRequestQueuePreference: true,
-            });
-            jest.spyOn(messenger, 'call');
-            mockHasPermissions.mockReturnValue(true);
-
-            const result = controller.getProviderAndBlockTracker('example.com');
-            expect(result).toBeDefined();
-            // unfortunately checking which networkController method is called is the best
-            // proxy (no pun intended) for checking that the correct instance of the networkClient is used
-            expect(messenger.call).toHaveBeenCalledWith(
-              'NetworkController:getNetworkClientById',
-              'mainnet',
-            );
-          });
-        });
-
-        describe('when the domain does not have permissions', () => {
-          it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
-            const { controller, messenger, mockHasPermissions } = setup({
-              state: {
-                domains: {},
-              },
-              useRequestQueuePreference: true,
-            });
-            jest.spyOn(messenger, 'call');
-            mockHasPermissions.mockReturnValue(false);
-            const result = controller.getProviderAndBlockTracker('example.com');
-            expect(result).toBeDefined();
-            // unfortunately checking which networkController method is called is the best
-            // proxy (no pun intended) for checking that the correct instance of the networkClient is used
-            expect(messenger.call).toHaveBeenCalledWith(
-              'NetworkController:getSelectedNetworkClient',
-            );
-          });
-
-          it('throws an error if the globally selected network client is not initialized', () => {
-            const { controller, mockGetSelectedNetworkClient } = setup({
-              state: {
-                domains: {},
-              },
-              useRequestQueuePreference: false,
-            });
-            mockGetSelectedNetworkClient.mockReturnValue(undefined);
-            expect(() =>
-              controller.getProviderAndBlockTracker('example.com'),
-            ).toThrow('Selected network not initialized');
-          });
-        });
-      });
-
-      describe('when useRequestQueuePreference is false', () => {
-        it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
-          const { controller, messenger } = setup({
+    describe('when the domain does not have a cached networkProxy in the domainProxyMap and useRequestQueuePreference is true', () => {
+      describe('when the domain has permissions', () => {
+        it('calls to NetworkController:getNetworkClientById and creates a new proxy provider and block tracker with the non-proxied globally selected network client', () => {
+          const { controller, messenger, mockHasPermissions } = setup({
             state: {
               domains: {},
             },
-            useRequestQueuePreference: false,
+            useRequestQueuePreference: true,
           });
           jest.spyOn(messenger, 'call');
+          mockHasPermissions.mockReturnValue(true);
 
+          const result = controller.getProviderAndBlockTracker('example.com');
+          expect(result).toBeDefined();
+          // unfortunately checking which networkController method is called is the best
+          // proxy (no pun intended) for checking that the correct instance of the networkClient is used
+          expect(messenger.call).toHaveBeenCalledWith(
+            'NetworkController:getNetworkClientById',
+            'mainnet',
+          );
+        });
+      });
+
+      describe('when the domain does not have permissions', () => {
+        it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
+          const { controller, messenger, mockHasPermissions } = setup({
+            state: {
+              domains: {},
+            },
+            useRequestQueuePreference: true,
+          });
+          jest.spyOn(messenger, 'call');
+          mockHasPermissions.mockReturnValue(false);
           const result = controller.getProviderAndBlockTracker('example.com');
           expect(result).toBeDefined();
           // unfortunately checking which networkController method is called is the best
@@ -634,6 +587,39 @@ describe('SelectedNetworkController', () => {
             'NetworkController:getSelectedNetworkClient',
           );
         });
+
+        it('throws an error if the globally selected network client is not initialized', () => {
+          const { controller, mockGetSelectedNetworkClient } = setup({
+            state: {
+              domains: {},
+            },
+            useRequestQueuePreference: false,
+          });
+          mockGetSelectedNetworkClient.mockReturnValue(undefined);
+          expect(() =>
+            controller.getProviderAndBlockTracker('example.com'),
+          ).toThrow('Selected network not initialized');
+        });
+      });
+    });
+
+    describe('when the domain does not have a cached networkProxy in the domainProxyMap and useRequestQueuePreference is false', () => {
+      it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
+        const { controller, messenger } = setup({
+          state: {
+            domains: {},
+          },
+          useRequestQueuePreference: false,
+        });
+        jest.spyOn(messenger, 'call');
+
+        const result = controller.getProviderAndBlockTracker('example.com');
+        expect(result).toBeDefined();
+        // unfortunately checking which networkController method is called is the best
+        // proxy (no pun intended) for checking that the correct instance of the networkClient is used
+        expect(messenger.call).toHaveBeenCalledWith(
+          'NetworkController:getSelectedNetworkClient',
+        );
       });
     });
 
@@ -711,60 +697,56 @@ describe('SelectedNetworkController', () => {
 
   describe('PermissionController:stateChange', () => {
     describe('on permission add', () => {
-      describe('when useRequestQueuePreference is true', () => {
-        it('should add new domain to domains list', async () => {
-          const { controller, messenger } = setup({
-            useRequestQueuePreference: true,
-          });
-          const mockPermission = {
-            parentCapability: 'eth_accounts',
-            id: 'example.com',
-            date: Date.now(),
-            caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
-          };
-
-          messenger.publish(
-            'PermissionController:stateChange',
-            { subjects: {} },
-            [
-              {
-                op: 'add',
-                path: ['subjects', 'example.com', 'permissions'],
-                value: mockPermission,
-              },
-            ],
-          );
-
-          const { domains } = controller.state;
-          expect(domains['example.com']).toBeDefined();
+      it('should add new domain to domains list when useRequestQueuePreference is true', async () => {
+        const { controller, messenger } = setup({
+          useRequestQueuePreference: true,
         });
+        const mockPermission = {
+          parentCapability: 'eth_accounts',
+          id: 'example.com',
+          date: Date.now(),
+          caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
+        };
+
+        messenger.publish(
+          'PermissionController:stateChange',
+          { subjects: {} },
+          [
+            {
+              op: 'add',
+              path: ['subjects', 'example.com', 'permissions'],
+              value: mockPermission,
+            },
+          ],
+        );
+
+        const { domains } = controller.state;
+        expect(domains['example.com']).toBeDefined();
       });
 
-      describe('when useRequestQueuePreference is false', () => {
-        it('should not add new domain to domains list', async () => {
-          const { controller, messenger } = setup({});
-          const mockPermission = {
-            parentCapability: 'eth_accounts',
-            id: 'example.com',
-            date: Date.now(),
-            caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
-          };
+      it('should not add new domain to domains list when useRequestQueuePreference is false', async () => {
+        const { controller, messenger } = setup({});
+        const mockPermission = {
+          parentCapability: 'eth_accounts',
+          id: 'example.com',
+          date: Date.now(),
+          caveats: [{ type: 'restrictToAccounts', value: ['0x...'] }],
+        };
 
-          messenger.publish(
-            'PermissionController:stateChange',
-            { subjects: {} },
-            [
-              {
-                op: 'add',
-                path: ['subjects', 'example.com', 'permissions'],
-                value: mockPermission,
-              },
-            ],
-          );
+        messenger.publish(
+          'PermissionController:stateChange',
+          { subjects: {} },
+          [
+            {
+              op: 'add',
+              path: ['subjects', 'example.com', 'permissions'],
+              value: mockPermission,
+            },
+          ],
+        );
 
-          const { domains } = controller.state;
-          expect(domains['example.com']).toBeUndefined();
-        });
+        const { domains } = controller.state;
+        expect(domains['example.com']).toBeUndefined();
       });
     });
 
