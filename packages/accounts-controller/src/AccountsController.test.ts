@@ -1108,10 +1108,10 @@ describe('AccountsController', () => {
 
         expect(accounts).toStrictEqual([
           mockAccountWithoutLastSelected,
-          setLastSelectedAsAny(mockAccount2WithoutLastSelected),
+          mockAccount2WithoutLastSelected,
         ]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
-          setLastSelectedAsAny(mockAccount2WithoutLastSelected),
+          mockAccountWithoutLastSelected,
         );
       });
     });

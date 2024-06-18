@@ -24,7 +24,7 @@ import type {
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import type { Snap } from '@metamask/snaps-utils';
+import { deepClone, type Snap } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
 import {
   type Keyring,
@@ -717,41 +717,55 @@ export class AccountsController extends BaseController<
         }
       }
 
+      let accountsState = deepClone(this.state.internalAccounts.accounts);
+
       if (deletedAccounts.length > 0) {
         for (const account of deletedAccounts) {
-          this.#handleAccountRemoved(account.id);
+          accountsState = this.#handleAccountRemoved(accountsState, account.id);
         }
       }
 
       if (addedAccounts.length > 0) {
         for (const account of addedAccounts) {
-          this.#handleNewAccountAdded(account);
+          accountsState = this.#handleNewAccountAdded(accountsState, account);
         }
       }
 
-      // handle if the selected account was deleted
-      if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
-        // if the accountToSelect is undefined, then there are no accounts
-        // it mean the keyring was reinitialized.
-        if (this.listAccounts().length === 0) {
-          this.update((currentState: Draft<AccountsControllerState>) => {
-            currentState.internalAccounts.selectedAccount = '';
-          });
-          return;
-        }
-
-        const [accountToSelect] = this.listAccounts().sort(
-          (accountA, accountB) => {
-            // sort by lastSelected descending
-            return (
-              (accountB.metadata.lastSelected || 0) -
-              (accountA.metadata.lastSelected || 0)
-            );
+      this.update((currentState: Draft<AccountsControllerState>) => {
+        const newState: AccountsControllerState = {
+          internalAccounts: {
+            accounts: accountsState,
+            selectedAccount: currentState.internalAccounts.selectedAccount,
           },
-        );
+        };
 
-        this.setSelectedAccount(accountToSelect.id);
-      }
+        const existingAccounts = Object.values(accountsState);
+
+        // handle if the selected account was deleted
+        if (!accountsState[this.state.internalAccounts.selectedAccount]) {
+          newState.internalAccounts.accounts = accountsState;
+          // if the accountToSelect is undefined, then there are no accounts
+          // it mean the keyring was reinitialized.
+          if (existingAccounts.length === 0) {
+            newState.internalAccounts.selectedAccount = '';
+            return newState;
+          }
+
+          const [accountToSelect] = existingAccounts.sort(
+            (accountA, accountB) => {
+              // sort by lastSelected descending
+              return (
+                (accountB.metadata.lastSelected || 0) -
+                (accountA.metadata.lastSelected || 0)
+              );
+            },
+          );
+
+          newState.internalAccounts.selectedAccount = accountToSelect.id;
+        }
+
+        return newState;
+      });
     }
   }
 
@@ -786,10 +800,11 @@ export class AccountsController extends BaseController<
   /**
    * Returns the list of accounts for a given keyring type.
    * @param keyringType - The type of keyring.
+   * @param accounts - Accounts to filter by keyring type.
    * @returns The list of accounts associcated with this keyring type.
    */
-  #getAccountsByKeyringType(keyringType: string) {
-    return this.listAccounts().filter((internalAccount) => {
+  #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
+    return (accounts ?? this.listAccounts()).filter((internalAccount) => {
       // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
       // to group those accounts together!
       if (
@@ -833,11 +848,18 @@ export class AccountsController extends BaseController<
   /**
    * Returns the next account number for a given keyring type.
    * @param keyringType - The type of keyring.
+   * @param accounts - Existing accounts to check for the next available account number.
    * @returns An object containing the account prefix and index to use.
    */
-  getNextAvailableAccountName(keyringType: string = KeyringTypes.hd): string {
+  getNextAvailableAccountName(
+    keyringType: string = KeyringTypes.hd,
+    accounts?: InternalAccount[],
+  ): string {
     const keyringName = keyringTypeToName(keyringType);
-    const keyringAccounts = this.#getAccountsByKeyringType(keyringType);
+    const keyringAccounts = this.#getAccountsByKeyringType(
+      keyringType,
+      accounts,
+    );
     const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
       (maxInternalAccountIndex, internalAccount) => {
         // We **DO NOT USE** `\d+` here to only consider valid "human"
@@ -888,9 +910,14 @@ export class AccountsController extends BaseController<
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
+   * @param accountsState - Accounts Controller accounts state that is to be mutated.
    * @param account - The address and keyring type object of the new account.
+   * @returns The updated Accounts Controller accounts state.
    */
-  #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
+  #handleNewAccountAdded(
+    accountsState: AccountsControllerState['internalAccounts']['accounts'],
+    account: AddressAndKeyringTypeObject,
+  ): AccountsControllerState['internalAccounts']['accounts'] {
     let newAccount: InternalAccount;
     if (account.type !== KeyringTypes.snap) {
       newAccount = this.#generateInternalAccountForNonSnapAccount(
@@ -909,77 +936,41 @@ export class AccountsController extends BaseController<
 
       // The snap deleted the account before the keyring controller could add it
       if (!newAccount) {
-        return;
+        return accountsState;
       }
     }
 
     // Get next account name available for this given keyring
     const accountName = this.getNextAvailableAccountName(
       newAccount.metadata.keyring.type,
+      Object.values(accountsState),
     );
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-      const newState = deepCloneDraft(currentState);
+    accountsState[newAccount.id] = {
+      ...newAccount,
+      metadata: {
+        ...newAccount.metadata,
+        name: accountName,
+        importTime: Date.now(),
+        lastSelected: 0,
+      },
+    };
 
-      newState.internalAccounts.accounts[newAccount.id] = {
-        ...newAccount,
-        metadata: {
-          ...newAccount.metadata,
-          name: accountName,
-          importTime: Date.now(),
-          lastSelected: 0,
-        },
-      };
-
-      return newState;
-    });
+    return accountsState;
   }
 
   /**
    * Handles the removal of an account from the internal accounts list.
+   * @param accountsState - Accounts Controller accounts state that is to be mutated.
    * @param accountId - The ID of the account to be removed.
+   * @returns The updated Accounts Controller state.
    */
-  #handleAccountRemoved(accountId: string) {
-    const accountToBeRemovedIsSelected =
-      accountId === this.state.internalAccounts.selectedAccount;
-    let newAccountToBeSelected: InternalAccount | undefined;
-
-    // handle the case where the account to be removed is the selected account
-    if (accountToBeRemovedIsSelected) {
-      newAccountToBeSelected = this.listAccounts()
-        .filter((account) => account.id !== accountId)
-        .sort((accountA, accountB) => {
-          // sort by lastSelected descending
-          return (
-            (accountB.metadata.lastSelected || 0) -
-            (accountA.metadata.lastSelected || 0)
-          );
-        })
-        .pop();
-    }
-
-    // we perform the update in the same step instead of using setSelectedAccount
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      const updatedState = deepCloneDraft(currentState);
-
-      delete updatedState.internalAccounts.accounts[accountId];
-
-      if (accountToBeRemovedIsSelected) {
-        if (!newAccountToBeSelected) {
-          // if there are no accounts left, set the selected account to an empty string which is the default state
-          updatedState.internalAccounts.selectedAccount = '';
-        } else {
-          updatedState.internalAccounts.selectedAccount =
-            newAccountToBeSelected.id;
-          updatedState.internalAccounts.accounts[
-            newAccountToBeSelected.id
-          ].metadata.lastSelected = Date.now();
-        }
-      }
-
-      return updatedState;
-    });
+  #handleAccountRemoved(
+    accountsState: AccountsControllerState['internalAccounts']['accounts'],
+    accountId: string,
+  ): AccountsControllerState['internalAccounts']['accounts'] {
+    delete accountsState[accountId];
+    return accountsState;
   }
 
   /**
