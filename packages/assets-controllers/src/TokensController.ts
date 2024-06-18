@@ -1028,7 +1028,7 @@ export class TokensController extends BaseController<
     return this.#getSelectedAddress();
   }
 
-  #isInteractingWithWallet(address: string) {
+  #isInteractingWithWallet(address: string | undefined) {
     const selectedAddress = this.#getSelectedAddress();
 
     return selectedAddress === address;

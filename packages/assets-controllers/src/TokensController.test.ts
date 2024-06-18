@@ -2230,8 +2230,6 @@ describe('TokensController', () => {
           ContractMock.mockReturnValue(
             buildMockEthersERC721Contract({ supportsInterface: false }),
           );
-
-          // getAccountHandler.mockReturnValue(undefined);
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
 
           expect(controller.state.tokens).toStrictEqual([]);
@@ -2254,7 +2252,18 @@ describe('TokensController', () => {
 
           await controller.addToken({ address, symbol, decimals });
 
-          expect(controller.state.tokens).toStrictEqual([]);
+          expect(controller.state.tokens).toStrictEqual([
+            {
+              address: '0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03',
+              aggregators: [],
+              decimals: 0,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
+              isERC721: true,
+              name: undefined,
+              symbol: 'NOUN',
+            },
+          ]);
         });
       });
     });
@@ -2301,8 +2310,18 @@ describe('TokensController', () => {
             getAccountHandler.mockReturnValue(undefined);
             await controller.watchAsset({ asset, type: 'ERC20' });
 
-            expect(controller.state.tokens).toHaveLength(0);
-            expect(controller.state.tokens).toStrictEqual([]);
+            expect(controller.state.tokens).toHaveLength(1);
+            expect(controller.state.tokens).toStrictEqual([
+              {
+                address: '0x000000000000000000000000000000000000dEaD',
+                aggregators: [],
+                decimals: 12,
+                image: 'image',
+                isERC721: false,
+                name: undefined,
+                symbol: 'TOKEN',
+              },
+            ]);
             expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
             expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
               id: requestId,
