@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- upgrade address book controller to base controller v2 ([#4392](https://github.com/MetaMask/core/pull/4392))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-
 ## [5.0.0]
 
 ### Changed

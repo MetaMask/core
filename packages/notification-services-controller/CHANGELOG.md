@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Feat/integrate notifications controllers ([#4416](https://github.com/MetaMask/core/pull/4416))
-
 ### Added
 
 - Initial release
