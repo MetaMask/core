@@ -616,7 +616,7 @@ describe('SelectedNetworkController', () => {
         });
       });
 
-      describe('when the useRequestQueuePreference preference is false', () => {
+      describe('when useRequestQueuePreference is false', () => {
         it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
           const { controller, messenger } = setup({
             state: {
