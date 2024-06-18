@@ -374,7 +374,7 @@ export class TokensController extends BaseController<
     const accountAddress =
       this.#getAddressOrSelectedAddress(interactingAddress);
     const isInteractingWithWalletAccount =
-      this.#isInterctingWithWallet(accountAddress);
+      this.#isInteractingWithWallet(accountAddress);
     try {
       address = toChecksumHexAddress(address);
       const tokens = allTokens[currentChainId]?.[accountAddress] || [];
@@ -1032,7 +1032,7 @@ export class TokensController extends BaseController<
     return this.#getSelectedAddress();
   }
 
-  #isInterctingWithWallet(address: string) {
+  #isInteractingWithWallet(address: string) {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
     const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccount',

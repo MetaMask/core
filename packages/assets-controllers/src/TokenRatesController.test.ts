@@ -69,12 +69,10 @@ function buildTokenRatesControllerMessenger(
       'TokensController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
-      'PreferencesController:getState',
       'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
     ],
     allowedEvents: [
-      'PreferencesController:stateChange',
       'TokensController:stateChange',
       'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',

@@ -230,9 +230,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
-    this.#selectedAccountId = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
-    ).id;
+    this.#selectedAccountId = this.#getSelectedAccount().id;
 
     const { chainId, networkClientId } =
       this.#getCorrectChainIdAndNetworkClientId();
@@ -310,13 +308,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (internalAccount) => {
+      async (selectedAccount) => {
         const isSelectedAccountIdChanged =
-          this.#selectedAccountId !== internalAccount.id;
+          this.#selectedAccountId !== selectedAccount.id;
         if (isSelectedAccountIdChanged) {
-          this.#selectedAccountId = internalAccount.id;
+          this.#selectedAccountId = selectedAccount.id;
           await this.#restartTokenDetection({
-            selectedAddress: internalAccount.address,
+            selectedAddress: selectedAccount.address,
           });
         }
       },
@@ -490,13 +488,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       return;
     }
 
-    const selectedInternalAccount = this.messagingSystem.call(
+    const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
 
     const addressAgainstWhichToDetect =
-      selectedAddress ?? selectedInternalAccount?.address ?? '';
+      selectedAddress ?? selectedAccount?.address ?? '';
     const { chainId, networkClientId: selectedNetworkClientId } =
       this.#getCorrectChainIdAndNetworkClientId(networkClientId);
     const chainIdAgainstWhichToDetect = chainId;
@@ -639,6 +637,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         );
       }
     });
+  }
+
+  #getSelectedAccount() {
+    return this.messagingSystem.call('AccountsController:getSelectedAccount');
   }
 }
 

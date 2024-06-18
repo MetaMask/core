@@ -22,10 +22,6 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  PreferencesControllerGetStateAction,
-  PreferencesControllerStateChangeEvent,
-} from '@metamask/preferences-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
@@ -109,7 +105,6 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
-  | PreferencesControllerGetStateAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction;
 
@@ -117,7 +112,6 @@ export type AllowedActions =
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
-  | PreferencesControllerStateChangeEvent
   | TokensControllerStateChangeEvent
   | NetworkControllerStateChangeEvent
   | AccountsControllerSelectedEvmAccountChangeEvent;
@@ -367,9 +361,9 @@ export class TokenRatesController extends StaticIntervalPollingController<
       'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (newInternalAccount) => {
-        if (this.#selectedAccountId !== newInternalAccount.id) {
-          this.#selectedAccountId = newInternalAccount.id;
+      async (selectedAccount) => {
+        if (this.#selectedAccountId !== selectedAccount.id) {
+          this.#selectedAccountId = selectedAccount.id;
           if (this.#pollState === PollState.Active) {
             await this.updateExchangeRates();
           }
@@ -385,14 +379,14 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * @returns The list of tokens addresses for the current chain
    */
   #getTokenAddresses(chainId: Hex): Hex[] {
-    const internalAccount = this.messagingSystem.call(
+    const selectedAccount = this.messagingSystem.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
     const tokens =
-      this.#allTokens[chainId]?.[internalAccount?.address ?? ''] || [];
+      this.#allTokens[chainId]?.[selectedAccount?.address ?? ''] || [];
     const detectedTokens =
-      this.#allDetectedTokens[chainId]?.[internalAccount?.address ?? ''] || [];
+      this.#allDetectedTokens[chainId]?.[selectedAccount?.address ?? ''] || [];
 
     return [
       ...new Set(
