@@ -372,7 +372,7 @@ describe('SelectedNetworkController', () => {
       });
     });
 
-    describe('when the useRequestQueuePreference is true', () => {
+    describe('when useRequestQueuePreference is true', () => {
       it('should throw an error when passed "metamask" as domain arg', () => {
         const { controller } = setup({ useRequestQueuePreference: true });
         expect(() => {
