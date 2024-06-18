@@ -29,6 +29,7 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/notification-controller`](packages/notification-controller)
+- [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
@@ -73,6 +74,7 @@ linkStyle default opacity:0.5
   name_controller(["@metamask/name-controller"]);
   network_controller(["@metamask/network-controller"]);
   notification_controller(["@metamask/notification-controller"]);
+  notification_services_controller(["@metamask/notification-services-controller"]);
   permission_controller(["@metamask/permission-controller"]);
   permission_log_controller(["@metamask/permission-log-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
@@ -124,6 +126,10 @@ linkStyle default opacity:0.5
   network_controller --> eth_json_rpc_provider;
   network_controller --> json_rpc_engine;
   notification_controller --> base_controller;
+  notification_services_controller --> base_controller;
+  notification_services_controller --> controller_utils;
+  notification_services_controller --> keyring_controller;
+  notification_services_controller --> profile_sync_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
   permission_controller --> json_rpc_engine;
@@ -138,6 +144,7 @@ linkStyle default opacity:0.5
   preferences_controller --> base_controller;
   preferences_controller --> controller_utils;
   preferences_controller --> keyring_controller;
+  profile_sync_controller --> base_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
   queued_request_controller --> json_rpc_engine;
