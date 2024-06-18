@@ -26,9 +26,9 @@ export type Eip1193Request<Params extends JsonRpcParams> = {
  * @param eip1193Request - The EIP-1193 request to convert.
  * @returns The corresponding JSON-RPC request.
  */
-function convertEip1193RequestToJsonRpcRequest<Params extends JsonRpcParams>(
-  eip1193Request: Eip1193Request<Params>,
-) {
+export function convertEip1193RequestToJsonRpcRequest<
+  Params extends JsonRpcParams,
+>(eip1193Request: Eip1193Request<Params>) {
   const {
     id = uuidV4(),
     jsonrpc = '2.0',
@@ -43,6 +43,7 @@ function convertEip1193RequestToJsonRpcRequest<Params extends JsonRpcParams>(
   };
   return jsonRpcRequest;
 }
+
 /**
  * An Ethereum provider.
  *
