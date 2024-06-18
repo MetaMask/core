@@ -489,7 +489,7 @@ describe('SelectedNetworkController', () => {
       });
     });
 
-    describe('when the useRequestQueuePreference is true', () => {
+    describe('when useRequestQueuePreference is true', () => {
       it('returns the networkClientId from state when a networkClientId has been set for the requested domain', () => {
         const { controller } = setup({
           state: {
