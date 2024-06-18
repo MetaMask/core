@@ -274,16 +274,12 @@ export class TokensController extends BaseController<
     this.#abortController.abort();
     this.#abortController = new AbortController();
     this.#chainId = chainId;
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
+    const selectedAddress = this.#getSelectedAddress();
     this.update((state) => {
-      state.tokens = allTokens[chainId]?.[selectedAccount?.address || ''] || [];
-      state.ignoredTokens =
-        allIgnoredTokens[chainId]?.[selectedAccount?.address || ''] || [];
+      state.tokens = allTokens[chainId]?.[selectedAddress] || [];
+      state.ignoredTokens = allIgnoredTokens[chainId]?.[selectedAddress] || [];
       state.detectedTokens =
-        allDetectedTokens[chainId]?.[selectedAccount?.address || ''] || [];
+        allDetectedTokens[chainId]?.[selectedAddress] || [];
     });
   }
 
@@ -1033,13 +1029,9 @@ export class TokensController extends BaseController<
   }
 
   #isInteractingWithWallet(address: string) {
-    // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
+    const selectedAddress = this.#getSelectedAddress();
 
-    return selectedAccount?.address === address;
+    return selectedAddress === address;
   }
 
   /**
