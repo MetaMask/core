@@ -480,7 +480,7 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('getNetworkClientIdForDomain', () => {
-    describe('when the useRequestQueuePreference is false', () => {
+    describe('when useRequestQueuePreference is false', () => {
       it('returns the selectedNetworkClientId from the NetworkController', () => {
         const { controller } = setup();
         expect(controller.getNetworkClientIdForDomain('example.com')).toBe(
