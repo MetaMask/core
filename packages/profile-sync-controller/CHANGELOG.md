@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Feat/integrate notifications controllers ([#4416](https://github.com/MetaMask/core/pull/4416))
+- feat: added infura as platform to the profile-sync-sdk ([#4419](https://github.com/MetaMask/core/pull/4419))
+
 ### Added
 
 - Initial release
