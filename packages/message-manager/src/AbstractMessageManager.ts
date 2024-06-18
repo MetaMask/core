@@ -85,7 +85,8 @@ export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/naming-convention
 export interface MessageManagerState<M extends AbstractMessage>
   extends BaseState {
   unapprovedMessages: { [key: string]: M };
@@ -100,14 +101,22 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type getCurrentChainId = () => Hex;
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   M extends AbstractMessage,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   P extends AbstractMessageParams,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   PM extends AbstractMessageParamsMetamask,
 > extends BaseControllerV1<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
@@ -422,6 +431,8 @@ export abstract class AbstractMessageManager<
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
         switch (data.status) {
           case 'signed':
@@ -434,6 +445,8 @@ export abstract class AbstractMessageManager<
             );
           case 'errored':
             return reject(
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               new Error(`MetaMask ${messageName} Signature: ${data.error}`),
             );
           default:

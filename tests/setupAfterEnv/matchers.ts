@@ -51,6 +51,8 @@ expect.extend({
     if (rejectionValue !== UNRESOLVED) {
       return {
         message: () =>
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `Expected promise to be fulfilled, but it was rejected with ${rejectionValue}.`,
         pass: false,
       };
@@ -108,9 +110,12 @@ expect.extend({
       : {
           message: () => {
             return `Expected promise to never resolve after ${TIME_TO_WAIT_UNTIL_UNRESOLVED}ms, but it ${
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              /* eslint-disable @typescript-eslint/restrict-template-expressions */
               rejectionValue
                 ? `was rejected with ${rejectionValue}`
                 : `resolved with ${resolutionValue}`
+              /* eslint-enable @typescript-eslint/restrict-template-expressions */
             }`;
           },
           pass: false,

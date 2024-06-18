@@ -80,6 +80,8 @@ describe('PersonalMessageManager', () => {
     };
     const originalRequest = {
       origin: 'origin',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       securityAlertResponse: { result_type: 'result_type', reason: 'reason' },
     };
     const messageId = await controller.addUnapprovedMessage(

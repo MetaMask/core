@@ -1,4 +1,13 @@
-export * from './AccountTrackerController';
+export type {
+  AccountInformation,
+  AccountTrackerControllerMessenger,
+  AccountTrackerControllerState,
+  AccountTrackerControllerActions,
+  AccountTrackerControllerGetStateAction,
+  AccountTrackerControllerStateChangeEvent,
+  AccountTrackerControllerEvents,
+} from './AccountTrackerController';
+export { AccountTrackerController } from './AccountTrackerController';
 export * from './AssetsContractController';
 export * from './CurrencyRateController';
 export type {
@@ -65,12 +74,20 @@ export type {
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
 export type {
-  Token,
-  TokenRatesConfig,
   ContractExchangeRates,
-  TokenRatesState,
+  ContractMarketData,
+  Token,
+  TokenRatesControllerActions,
+  TokenRatesControllerEvents,
+  TokenRatesControllerGetStateAction,
+  TokenRatesControllerMessenger,
+  TokenRatesControllerState,
+  TokenRatesControllerStateChangeEvent,
 } from './TokenRatesController';
-export { TokenRatesController } from './TokenRatesController';
+export {
+  getDefaultTokenRatesControllerState,
+  TokenRatesController,
+} from './TokenRatesController';
 export type {
   TokensControllerState,
   TokensControllerActions,

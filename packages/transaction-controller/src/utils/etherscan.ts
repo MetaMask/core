@@ -33,6 +33,8 @@ export interface EtherscanTransactionMeta extends EtherscanTransactionMetaBase {
   input: string;
   isError: string;
   methodId: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   txreceipt_status: string;
 }
 
@@ -50,6 +52,8 @@ export interface EtherscanTokenTransactionMeta
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTransactionResponse<
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   T extends EtherscanTransactionMetaBase,
 > {
   status: '0' | '1';
@@ -130,6 +134,8 @@ export async function fetchEtherscanTokenTransactions({
  * @param options.limit - Number of transactions to retrieve.
  * @returns An object containing the request status and an array of transaction data.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   action: string,
   {
@@ -209,5 +215,7 @@ export function getEtherscanApiHost(chainId: Hex) {
     throw new Error(`Etherscan does not support chain with ID: ${chainId}`);
   }
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `https://${networkInfo.subdomain}.${networkInfo.domain}`;
 }
