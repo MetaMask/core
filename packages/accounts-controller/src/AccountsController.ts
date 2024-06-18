@@ -442,7 +442,7 @@ export class AccountsController extends BaseController<
       const keyringTypeName = keyringTypeToName(
         internalAccount.metadata.keyring.type,
       );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) || 0;
+      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
       if (keyringAccountIndex) {
         keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
       } else {
@@ -457,16 +457,16 @@ export class AccountsController extends BaseController<
         metadata: {
           ...internalAccount.metadata,
           name:
-            this.#populateExistingMetadata(existingAccount?.id, 'name') ||
+            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
             `${keyringTypeName} ${keyringAccountIndex + 1}`,
           importTime:
-            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ||
+            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
             Date.now(),
           lastSelected:
             this.#populateExistingMetadata(
               existingAccount?.id,
               'lastSelected',
-            ) || 0,
+            ) ?? 0,
         },
       };
 
@@ -594,10 +594,10 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: this.#populateExistingMetadata(id, 'name') || '',
+          name: this.#populateExistingMetadata(id, 'name') ?? '',
           importTime:
-            this.#populateExistingMetadata(id, 'importTime') || Date.now(),
-          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') || 0,
+            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -755,8 +755,8 @@ export class AccountsController extends BaseController<
             (accountA, accountB) => {
               // sort by lastSelected descending
               return (
-                (accountB.metadata.lastSelected || 0) -
-                (accountA.metadata.lastSelected || 0)
+                (accountB.metadata.lastSelected ?? 0) -
+                (accountA.metadata.lastSelected ?? 0)
               );
             },
           );
