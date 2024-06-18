@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `QueuedRequestController` constructor no longer accepts the `methodsRequiringNetworkSwitch` array param. It's now replaced with the `shouldRequestSwitchNetwork` function param which should return true when a request requires the globally selected network to match that of the dapp. ([#4423](https://github.com/MetaMask/core/pull/4423))
+- **BREAKING:** `QueuedRequestController` constructor no longer accepts the `methodsRequiringNetworkSwitch` array param. It's now replaced with the `shouldRequestSwitchNetwork` function param which should return true when a request requires the globally selected network to match that of the dapp from which the request originated. ([#4423](https://github.com/MetaMask/core/pull/4423))
 - **BREAKING:** `createQueuedRequestMiddleware` no longer accepts the `methodsWithConfirmation` array typed param. It's now replaced with the `shouldEnqueueRequest` function typed param which should return true when a request should be handled by the `QueuedRequestController`. ([#4423](https://github.com/MetaMask/core/pull/4423))
 
 ## [0.12.0]
