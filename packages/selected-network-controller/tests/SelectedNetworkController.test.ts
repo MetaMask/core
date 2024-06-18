@@ -559,7 +559,7 @@ describe('SelectedNetworkController', () => {
     });
 
     describe('when the domain does not have a cached networkProxy in the domainProxyMap', () => {
-      describe('when the useRequestQueuePreference preference is true', () => {
+      describe('when useRequestQueuePreference is true', () => {
         describe('when the domain has permissions', () => {
           it('calls to NetworkController:getNetworkClientById and creates a new proxy provider and block tracker with the non-proxied globally selected network client', () => {
             const { controller, messenger, mockHasPermissions } = setup({
