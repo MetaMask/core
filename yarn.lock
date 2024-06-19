@@ -3465,7 +3465,19 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@^0.0.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^0.0.0":
+  version: 0.0.0
+  resolution: "@metamask/profile-sync-controller@npm:0.0.0"
+  dependencies:
+    "@noble/ciphers": ^0.5.2
+    "@noble/hashes": ^1.4.0
+    ethers: ^6.12.0
+    siwe: ^2.3.2
+  checksum: 3d34b0fb53c7020b50224a0f6ca708f4fdd70b7d9ee000b2a768269621a96c3bc52856e8907c5902feeb73ffb0f8fa7c2da701a0c7d7b7fd7ac234bc8ce2fa91
+  languageName: node
+  linkType: hard
+
+"@metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
