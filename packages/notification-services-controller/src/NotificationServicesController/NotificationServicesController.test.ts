@@ -25,8 +25,7 @@ import {
   mockMarkNotificationsAsRead,
 } from './__fixtures__/mockServices';
 import { waitFor } from './__fixtures__/test-utils';
-import {
-  NotificationServicesController,
+import NotificationServicesController, {
   defaultState,
 } from './NotificationServicesController';
 import type {
