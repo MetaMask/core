@@ -24,7 +24,7 @@ import type {
   SnapStateChange,
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { deepClone, type Snap } from '@metamask/snaps-utils';
+import type { Snap } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
 import {
   type Keyring,
@@ -717,33 +717,38 @@ export class AccountsController extends BaseController<
         }
       }
 
-      let accountsState = deepClone(this.state.internalAccounts.accounts);
-
-      if (deletedAccounts.length > 0) {
-        for (const account of deletedAccounts) {
-          accountsState = this.#handleAccountRemoved(accountsState, account.id);
-        }
-      }
-
-      if (addedAccounts.length > 0) {
-        for (const account of addedAccounts) {
-          accountsState = this.#handleNewAccountAdded(accountsState, account);
-        }
-      }
-
       this.update((currentState: Draft<AccountsControllerState>) => {
-        const newState: AccountsControllerState = {
-          internalAccounts: {
-            accounts: accountsState,
-            selectedAccount: currentState.internalAccounts.selectedAccount,
-          },
-        };
+        const newState = deepCloneDraft(currentState);
 
-        const existingAccounts = Object.values(accountsState);
+        if (deletedAccounts.length > 0) {
+          for (const account of deletedAccounts) {
+            newState.internalAccounts.accounts = this.#handleAccountRemoved(
+              newState.internalAccounts.accounts,
+              account.id,
+            );
+          }
+        }
+
+        if (addedAccounts.length > 0) {
+          for (const account of addedAccounts) {
+            newState.internalAccounts.accounts = this.#handleNewAccountAdded(
+              newState.internalAccounts.accounts,
+              account,
+            );
+          }
+        }
+
+        // We don't use list accounts because it is not the updated state yet.
+        const existingAccounts = Object.values(
+          newState.internalAccounts.accounts,
+        );
 
         // handle if the selected account was deleted
-        if (!accountsState[this.state.internalAccounts.selectedAccount]) {
-          newState.internalAccounts.accounts = accountsState;
+        if (
+          !newState.internalAccounts.accounts[
+            this.state.internalAccounts.selectedAccount
+          ]
+        ) {
           // if the accountToSelect is undefined, then there are no accounts
           // it mean the keyring was reinitialized.
           if (existingAccounts.length === 0) {
