@@ -115,7 +115,7 @@ type ControllerConfig = {
  *
  * @augments {BaseController<typeof controllerName, NotificationServicesPushControllerState, NotificationServicesPushControllerMessenger>}
  */
-export class NotificationServicesPushController extends BaseController<
+export default class NotificationServicesPushController extends BaseController<
   typeof controllerName,
   NotificationServicesPushControllerState,
   NotificationServicesPushControllerMessenger
