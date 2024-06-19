@@ -701,6 +701,9 @@ export class NetworkController extends BaseController<
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
       logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
+
+      // TODO: mock ethQuery.sendAsync to throw error without error code
+      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -818,6 +821,8 @@ export class NetworkController extends BaseController<
       updatedNetworkStatus = NetworkStatus.Available;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
     } catch (error) {
+      // TODO: mock ethQuery.sendAsync to throw error without error code
+      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
