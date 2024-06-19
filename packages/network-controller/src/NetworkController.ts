@@ -22,6 +22,7 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
+import logLevel from 'loglevel';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -699,6 +700,7 @@ export class NetworkController extends BaseController<
       );
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
+      logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -710,6 +712,10 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch {
             // error.message must not be JSON
+            logLevel.warn(
+              'NetworkController: lookupNetworkByClientId: json parse error: ',
+              error,
+            );
           }
         }
 
@@ -720,8 +726,13 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
+          logLevel.warn(
+            'NetworkController: lookupNetworkByClientId: rpc internal error: ',
+            error,
+          );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
+          logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
         }
       } else if (
         typeof Error !== 'undefined' &&
@@ -735,6 +746,7 @@ export class NetworkController extends BaseController<
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
+        logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
       }
     }
     this.update((state) => {
@@ -815,8 +827,12 @@ export class NetworkController extends BaseController<
         ) {
           try {
             responseBody = JSON.parse(error.message);
-          } catch {
+          } catch (parseError) {
             // error.message must not be JSON
+            logLevel.warn(
+              'NetworkController: lookupNetwork: json parse error',
+              parseError,
+            );
           }
         }
 
@@ -827,12 +843,18 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
+          logLevel.warn(
+            'NetworkController: lookupNetwork: rpc internal error',
+            error,
+          );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
+          logLevel.warn('NetworkController: lookupNetwork: ', error);
         }
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
+        logLevel.warn('NetworkController: lookupNetwork: ', error);
       }
     }
 
