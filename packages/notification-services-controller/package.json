@@ -45,6 +45,7 @@
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/keyring-controller": "^17.1.0",
+    "@metamask/profile-sync-controller": "^0.1.0",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.3.6",
     "firebase": "^10.11.0",
@@ -66,7 +67,8 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^17.0.0"
+    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/profile-sync-controller": "^0.1.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
