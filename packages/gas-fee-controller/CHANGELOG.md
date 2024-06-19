@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- GasFeeController: providerConfig -> selectedNetworkClientId ([#4356](https://github.com/MetaMask/core/pull/4356))
+
 ## [17.0.0]
 
 ### Changed
