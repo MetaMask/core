@@ -1037,7 +1037,7 @@ describe('TokenRatesController', () => {
     });
 
     describe('when polling is inactive', () => {
-      it('should not update exchange rates when selected account hanges', async () => {
+      it('does not update exchange rates when selected account changes', async () => {
         const alternateSelectedAddress =
           '0x0000000000000000000000000000000000000002';
         const alternateSelectedAccount = createMockInternalAccount({
