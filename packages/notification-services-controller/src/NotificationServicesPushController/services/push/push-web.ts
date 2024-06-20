@@ -12,7 +12,7 @@ import type { Types } from '../../../NotificationServicesController';
 import { Processors } from '../../../NotificationServicesController';
 import type { PushNotificationEnv } from '../../types/firebase';
 
-const sw = self as unknown as ServiceWorkerGlobalScope;
+declare var self: ServiceWorkerGlobalScope;
 
 const createFirebaseApp = async (
   env: PushNotificationEnv,
@@ -52,7 +52,7 @@ export async function createRegToken(
   try {
     const messaging = await getFirebaseMessaging(env);
     const token = await getToken(messaging, {
-      serviceWorkerRegistration: sw.registration,
+      serviceWorkerRegistration: self.registration,
       vapidKey: env.vapidKey,
     });
     return token;
@@ -135,8 +135,8 @@ export function listenToPushNotificationsClicked(
     handler(event, data);
   };
 
-  sw.addEventListener('notificationclick', clickHandler);
+  self.addEventListener('notificationclick', clickHandler);
   const unsubscribe = () =>
-    sw.removeEventListener('notificationclick', clickHandler);
+    self.removeEventListener('notificationclick', clickHandler);
   return unsubscribe;
 }
