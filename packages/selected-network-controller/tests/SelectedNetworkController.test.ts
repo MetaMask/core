@@ -203,13 +203,6 @@ const setup = ({
 };
 
 describe('SelectedNetworkController', () => {
-<<<<<<< HEAD
-=======
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
->>>>>>> bcf496075 (test: cleanup/fix `SelectedNetworkController` specs (#4409))
   describe('constructor', () => {
     it('can be instantiated with default values', () => {
       const { controller } = setup();
