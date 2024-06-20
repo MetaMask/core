@@ -383,10 +383,10 @@ export class TokenRatesController extends StaticIntervalPollingController<
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    const tokens =
-      this.#allTokens[chainId]?.[selectedAccount?.address ?? ''] || [];
+    const selectedAddress = selectedAccount?.address ?? '';
+    const tokens = this.#allTokens[chainId]?.[selectedAddress] || [];
     const detectedTokens =
-      this.#allDetectedTokens[chainId]?.[selectedAccount?.address ?? ''] || [];
+      this.#allDetectedTokens[chainId]?.[selectedAddress] || [];
 
     return [
       ...new Set(
