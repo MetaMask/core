@@ -170,7 +170,7 @@ describe('SafeEventEmitterProvider', () => {
 });
 
 describe('convertEip1193RequestToJsonRpcRequest', () => {
-  it('converts an EIP-1193 request to a JSON-RPC request', () => {
+  it('generates a unique id if id is not provided', () => {
     const eip1193Request = {
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -187,19 +187,6 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
     });
   });
 
-  it('generates a unique id if id is not provided', () => {
-    const eip1193Request = {
-      method: 'test',
-      params: { param1: 'value1', param2: 'value2' },
-    };
-
-    const jsonRpcRequest =
-      convertEip1193RequestToJsonRpcRequest(eip1193Request);
-
-    expect(jsonRpcRequest.id).toBeDefined();
-    expect(typeof jsonRpcRequest.id).toBe('string');
-  });
-
   it('uses the provided id if id is provided', () => {
     const eip1193Request = {
       id: '123',
@@ -209,7 +196,12 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
-    expect(jsonRpcRequest.id).toBe('123');
+    expect(jsonRpcRequest).toStrictEqual({
+      id: '123',
+      jsonrpc: '2.0',
+      method: 'test',
+      params: { param1: 'value1', param2: 'value2' },
+    });
   });
 
   it('uses the default jsonrpc version if not provided', () => {
@@ -221,7 +213,12 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
-    expect(jsonRpcRequest.jsonrpc).toBe('2.0');
+    expect(jsonRpcRequest).toStrictEqual({
+      id: expect.any(String),
+      jsonrpc: '2.0',
+      method: 'test',
+      params: { param1: 'value1', param2: 'value2' },
+    });
   });
 
   it('uses the provided jsonrpc version if provided', () => {
@@ -234,7 +231,12 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
-    expect(jsonRpcRequest.jsonrpc).toBe('2.0');
+    expect(jsonRpcRequest).toStrictEqual({
+      id: expect.any(String),
+      jsonrpc: '2.0',
+      method: 'test',
+      params: { param1: 'value1', param2: 'value2' },
+    });
   });
 
   it('uses an empty object as params if not provided', () => {
@@ -245,6 +247,11 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
-    expect(jsonRpcRequest.params).toStrictEqual({});
+    expect(jsonRpcRequest).toStrictEqual({
+      id: expect.any(String),
+      jsonrpc: '2.0',
+      method: 'test',
+      params: {},
+    });
   });
 });
