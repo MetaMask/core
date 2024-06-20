@@ -1896,7 +1896,6 @@ describe('TokensController', () => {
             symbol: 'B',
             decimals: 5,
           });
-
           triggerSelectedAccountChange(selectedAccount2);
           expect(controller.state.tokens).toStrictEqual([]);
 
@@ -2231,14 +2230,14 @@ describe('TokensController', () => {
 
           expect(controller.state.tokens).toStrictEqual([
             {
-              address: '0x9C8fF314C9Bc7F6e59A9d9225Fb22946427eDC03',
+              address,
               aggregators: [],
-              decimals: 0,
+              decimals,
               image:
                 'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
               isERC721: true,
               name: undefined,
-              symbol: 'NOUN',
+              symbol,
             },
           ]);
         });
@@ -2249,21 +2248,16 @@ describe('TokensController', () => {
       it('handles an undefined selected account', async () => {
         await withController(async ({ controller, getAccountHandler }) => {
           getAccountHandler.mockReturnValue(undefined);
-          await controller.addDetectedTokens([
-            {
-              address: '0x01',
-              symbol: 'barA',
-              decimals: 2,
-              aggregators: [],
-            },
-          ]);
-          console.log(controller.state.allDetectedTokens[ChainId.mainnet]);
-          expect(controller.state.detectedTokens[0]).toStrictEqual({
+          const mockToken = {
             address: '0x01',
-            decimals: 2,
-            image: undefined,
             symbol: 'barA',
+            decimals: 2,
             aggregators: [],
+          };
+          await controller.addDetectedTokens([mockToken]);
+          expect(controller.state.detectedTokens[0]).toStrictEqual({
+            ...mockToken,
+            image: undefined,
             isERC721: undefined,
             name: undefined,
           });
