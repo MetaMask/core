@@ -242,7 +242,7 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerMessenger
 > {
   // Temporary boolean as push notifications are not yet enabled on mobile
-  #isPushIntegrated: boolean = true;
+  #isPushIntegrated = true;
 
   #auth = {
     getBearerToken: async () => {
@@ -284,7 +284,7 @@ export default class NotificationServicesController extends BaseController<
       if (!this.#isPushIntegrated) {
         return;
       }
-      return await this.messagingSystem.call(
+      await this.messagingSystem.call(
         'NotificationServicesPushController:enablePushNotifications',
         UUIDs,
       );
@@ -293,7 +293,7 @@ export default class NotificationServicesController extends BaseController<
       if (!this.#isPushIntegrated) {
         return;
       }
-      return await this.messagingSystem.call(
+      await this.messagingSystem.call(
         'NotificationServicesPushController:disablePushNotifications',
         UUIDs,
       );
@@ -302,7 +302,7 @@ export default class NotificationServicesController extends BaseController<
       if (!this.#isPushIntegrated) {
         return;
       }
-      return await this.messagingSystem.call(
+      await this.messagingSystem.call(
         'NotificationServicesPushController:updateTriggerPushNotifications',
         UUIDs,
       );
@@ -429,6 +429,7 @@ export default class NotificationServicesController extends BaseController<
    * @param args.state - Initial state to set on this controller.
    * @param args.env - environment variables for a given controller.
    * @param args.env.featureAnnouncements - env variables for feature announcements.
+   * @param args.env.isPushIntegrated - toggle push notifications on/off if client has integrated them.
    */
   constructor({
     messenger,

@@ -12,7 +12,7 @@ import type { Types } from '../../../NotificationServicesController';
 import { Processors } from '../../../NotificationServicesController';
 import type { PushNotificationEnv } from '../../types/firebase';
 
-declare var self: ServiceWorkerGlobalScope;
+declare const self: ServiceWorkerGlobalScope;
 
 const createFirebaseApp = async (
   env: PushNotificationEnv,
