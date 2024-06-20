@@ -288,9 +288,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ useTokenDetection }) => {
-        const selectedAccount = this.messagingSystem.call(
-          'AccountsController:getSelectedAccount',
-        );
+        const selectedAccount = this.#getSelectedAccount();
         const isDetectionChangedFromPreferences =
           this.#isDetectionEnabledFromPreferences !== useTokenDetection;
 
@@ -488,13 +486,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       return;
     }
 
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-
     const addressAgainstWhichToDetect =
-      selectedAddress ?? selectedAccount?.address ?? '';
+      selectedAddress ?? this.#getSelectedAddress();
     const { chainId, networkClientId: selectedNetworkClientId } =
       this.#getCorrectChainIdAndNetworkClientId(networkClientId);
     const chainIdAgainstWhichToDetect = chainId;
@@ -641,6 +634,15 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #getSelectedAddress() {
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const account = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    return account?.address || '';
   }
 }
 
