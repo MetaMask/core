@@ -289,11 +289,7 @@ describe('TokensController', () => {
           getSelectedAccount: firstAccount,
         },
       },
-      async ({
-        controller,
-        triggerSelectedAccountChange,
-        getAccountHandler,
-      }) => {
+      async ({ controller, triggerSelectedAccountChange }) => {
         ContractMock.mockReturnValue(
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
@@ -304,7 +300,6 @@ describe('TokensController', () => {
           symbol: 'bar',
           decimals: 2,
         });
-        getAccountHandler.mockReturnValue(secondAccount);
         triggerSelectedAccountChange(secondAccount);
         expect(controller.state.tokens).toHaveLength(0);
 
@@ -439,11 +434,7 @@ describe('TokensController', () => {
           getSelectedAccount: firstAccount,
         },
       },
-      async ({
-        controller,
-        triggerSelectedAccountChange,
-        getAccountHandler,
-      }) => {
+      async ({ controller, triggerSelectedAccountChange }) => {
         ContractMock.mockReturnValue(
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
@@ -454,7 +445,6 @@ describe('TokensController', () => {
           symbol: 'baz',
           decimals: 2,
         });
-        getAccountHandler.mockReturnValue(secondAccount);
         triggerSelectedAccountChange(secondAccount);
         await controller.addToken({
           address: '0x01',
@@ -465,7 +455,6 @@ describe('TokensController', () => {
         controller.ignoreTokens(['0x01']);
         expect(controller.state.tokens).toHaveLength(0);
 
-        getAccountHandler.mockReturnValue(firstAccount);
         triggerSelectedAccountChange(firstAccount);
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x02',
@@ -649,12 +638,7 @@ describe('TokensController', () => {
             getAccount: selectedAccount1,
           },
         },
-        async ({
-          controller,
-          triggerSelectedAccountChange,
-          changeNetwork,
-          getAccountHandler,
-        }) => {
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
           triggerSelectedAccountChange(selectedAccount1);
           changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
@@ -679,7 +663,6 @@ describe('TokensController', () => {
           controller.ignoreTokens(['0x02']);
           expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
 
-          getAccountHandler.mockReturnValue(selectedAccount2);
           triggerSelectedAccountChange(selectedAccount2);
           expect(controller.state.ignoredTokens).toHaveLength(0);
 
@@ -1897,11 +1880,7 @@ describe('TokensController', () => {
             getSelectedAccount: selectedAccount,
           },
         },
-        async ({
-          controller,
-          triggerSelectedAccountChange,
-          getAccountHandler,
-        }) => {
+        async ({ controller, triggerSelectedAccountChange }) => {
           ContractMock.mockReturnValue(
             buildMockEthersERC721Contract({ supportsInterface: false }),
           );
@@ -1918,7 +1897,6 @@ describe('TokensController', () => {
             decimals: 5,
           });
 
-          getAccountHandler.mockReturnValue(selectedAccount2);
           triggerSelectedAccountChange(selectedAccount2);
           expect(controller.state.tokens).toStrictEqual([]);
 
@@ -1927,7 +1905,6 @@ describe('TokensController', () => {
             symbol: 'C',
             decimals: 6,
           });
-          getAccountHandler.mockReturnValue(selectedAccount);
           triggerSelectedAccountChange(selectedAccount);
           expect(controller.state.tokens).toStrictEqual([
             {
@@ -2458,6 +2435,7 @@ async function withController<ReturnValue>(
   });
 
   const triggerSelectedAccountChange = (internalAccount: InternalAccount) => {
+    getAccountHandler.mockReturnValue(internalAccount);
     messenger.publish(
       'AccountsController:selectedEvmAccountChange',
       internalAccount,
