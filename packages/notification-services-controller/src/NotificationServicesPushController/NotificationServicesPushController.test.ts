@@ -1,7 +1,7 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
-import { NotificationServicesPushController } from './NotificationServicesPushController';
+import NotificationServicesPushController from './NotificationServicesPushController';
 import type {
   AllowedActions,
   AllowedEvents,
