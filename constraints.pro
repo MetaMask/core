@@ -313,8 +313,7 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:update', CorrectChangelogUpd
 
 % All non-root packages must have the same "test" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
-  WorkspaceCwd \= '.',
-  \+ workspace_field(WorkspaceCwd, 'name', '@metamask/eth-json-rpc-provider').
+  WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:clean" script.
 gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
