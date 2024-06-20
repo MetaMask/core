@@ -241,6 +241,9 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerState,
   NotificationServicesControllerMessenger
 > {
+  // Temporary boolean as push notifications are not yet enabled on mobile
+  #isPushIntegrated: boolean = true;
+
   #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -278,24 +281,36 @@ export default class NotificationServicesController extends BaseController<
 
   #pushNotifications = {
     enablePushNotifications: async (UUIDs: string[]) => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       return await this.messagingSystem.call(
         'NotificationServicesPushController:enablePushNotifications',
         UUIDs,
       );
     },
     disablePushNotifications: async (UUIDs: string[]) => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       return await this.messagingSystem.call(
         'NotificationServicesPushController:disablePushNotifications',
         UUIDs,
       );
     },
     updatePushNotifications: async (UUIDs: string[]) => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       return await this.messagingSystem.call(
         'NotificationServicesPushController:updateTriggerPushNotifications',
         UUIDs,
       );
     },
     subscribe: () => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       this.messagingSystem.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
@@ -305,6 +320,9 @@ export default class NotificationServicesController extends BaseController<
       );
     },
     initializePushNotifications: async () => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       if (!this.state.isNotificationServicesEnabled) {
         return;
       }
@@ -421,6 +439,7 @@ export default class NotificationServicesController extends BaseController<
     state?: Partial<NotificationServicesControllerState>;
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
+      isPushIntegrated?: boolean;
     };
   }) {
     super({
@@ -429,6 +448,8 @@ export default class NotificationServicesController extends BaseController<
       name: controllerName,
       state: { ...defaultState, ...state },
     });
+
+    this.#isPushIntegrated = env.isPushIntegrated ?? true;
 
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
