@@ -33,6 +33,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Draft } from 'immer';
+import { createSelector } from 'reselect';
 
 import {
   deepCloneDraft,
@@ -63,11 +64,6 @@ export type AccountsControllerSetSelectedAccountAction = {
 export type AccountsControllerSetAccountNameAction = {
   type: `${typeof controllerName}:setAccountName`;
   handler: AccountsController['setAccountName'];
-};
-
-export type AccountsControllerListAccountsAction = {
-  type: `${typeof controllerName}:listAccounts`;
-  handler: AccountsController['listAccounts'];
 };
 
 export type AccountsControllerListMultichainAccountsAction = {
@@ -113,7 +109,6 @@ export type AllowedActions =
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerListAccountsAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerUpdateAccountsAction
@@ -173,6 +168,96 @@ const defaultState: AccountsControllerState = {
 };
 
 /**
+ * Get the most recently selected account from the given list, if there is one.
+ *
+ * @param accounts - A list of accounts.
+ * @returns The most recently selected account, or undefined.
+ */
+function getLastSelectedAccount(accounts: InternalAccount[]) {
+  return accounts.reduce((prevAccount, currentAccount) => {
+    if (
+      // When the account is added, lastSelected will be set
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      currentAccount.metadata.lastSelected! >
+      // When the account is added, lastSelected will be set
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      prevAccount.metadata.lastSelected!
+    ) {
+      return currentAccount;
+    }
+    return prevAccount;
+  }, accounts[0]);
+}
+
+/**
+ * Checks if an account is compatible with a given chain namespace.
+ * @private
+ * @param account - The account to check compatibility for.
+ * @param chainId - The CAIP2 to check compatibility with.
+ * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
+ */
+function isAccountCompatibleWithChain(
+  account: InternalAccount,
+  chainId: CaipChainId,
+): boolean {
+  // TODO: Change this logic to not use account's type
+  // Because we currently only use type, we can only use namespace for now.
+  return account.type.startsWith(parseCaipChainId(chainId).namespace);
+}
+
+/**
+ * Get a list of all EVM accounts.
+ *
+ * @param state - AccountsController state.
+ * @returns A list of all EVM accounts.
+ */
+export function selectEvmAccountList(
+  state: AccountsControllerState,
+): InternalAccount[] {
+  const accounts = Object.values(state.internalAccounts.accounts);
+  return accounts.filter((account) => isEvmAccountType(account.type));
+}
+
+/**
+ * Get a list of all accounts for the given chain.
+ *
+ * @param state - AccountsController state.
+ * @param chainId - The chain ID for the chain you want accounts for.
+ * @returns A list of all accounts on that chain.
+ */
+export function selectChainAccountList(
+  state: AccountsControllerState,
+  chainId: CaipChainId,
+): InternalAccount[] {
+  return Object.values(state.internalAccounts.accounts).filter((account) =>
+    isAccountCompatibleWithChain(account, chainId),
+  );
+}
+
+/**
+ * Get the last selected account, if there is one.
+ *
+ * @param state - AccountsController state.
+ * @returns The most recently selected account, or undefined.
+ */
+export const selectLastSelectedEvmAccount = createSelector(
+  [selectEvmAccountList],
+  getLastSelectedAccount,
+);
+
+/**
+ * Get the last selected account for the given chain ID, if there is one.
+ *
+ * @param state - AccountsController state.
+ * @param chainId - The chain ID for the chain you want the most recent selected account for.
+ * @returns The most recently selected account, or undefined.
+ */
+export const selectLastSelectedChainAccount = createSelector(
+  [selectChainAccountList],
+  getLastSelectedAccount,
+);
+
+/**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
  * It also provides convenience methods for accessing and updating the internal accounts.
@@ -230,16 +315,6 @@ export class AccountsController extends BaseController<
    */
   getAccount(accountId: string): InternalAccount | undefined {
     return this.state.internalAccounts.accounts[accountId];
-  }
-
-  /**
-   * Returns an array of all evm internal accounts.
-   *
-   * @returns An array of InternalAccount objects.
-   */
-  listAccounts(): InternalAccount[] {
-    const accounts = Object.values(this.state.internalAccounts.accounts);
-    return accounts.filter((account) => isEvmAccountType(account.type));
   }
 
   /**
@@ -310,16 +385,7 @@ export class AccountsController extends BaseController<
       return selectedAccount;
     }
 
-    const accounts = this.listAccounts();
-
-    if (!accounts.length) {
-      // ! Should never reach this.
-      throw new Error('No EVM accounts');
-    }
-
-    // This will never be undefined because we have already checked if accounts.length is > 0
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.#getLastSelectedAccount(accounts)!;
+    return selectLastSelectedEvmAccount(this.state);
   }
 
   /**
@@ -341,11 +407,7 @@ export class AccountsController extends BaseController<
       throw new Error(`Invalid CAIP-2 chain ID: ${chainId as string}`);
     }
 
-    const accounts = Object.values(this.state.internalAccounts.accounts).filter(
-      (account) => this.#isAccountCompatibleWithChain(account, chainId),
-    );
-
-    return this.#getLastSelectedAccount(accounts);
+    return selectLastSelectedChainAccount(this.state, chainId);
   }
 
   /**
@@ -398,7 +460,7 @@ export class AccountsController extends BaseController<
     const account = this.getAccountExpect(accountId);
 
     if (
-      this.listAccounts().find(
+      selectEvmAccountList(this.state).find(
         (internalAccount) =>
           internalAccount.metadata.name === accountName &&
           internalAccount.id !== accountId,
@@ -647,7 +709,7 @@ export class AccountsController extends BaseController<
       }
 
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
-        this.listAccounts().reduce(
+        selectEvmAccountList(this.state).reduce(
           (accumulator, account) => {
             if (account.metadata.keyring.type === KeyringTypes.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
@@ -731,7 +793,7 @@ export class AccountsController extends BaseController<
 
       // handle if the selected account was deleted
       if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
-        const [accountToSelect] = this.listAccounts().sort(
+        const [accountToSelect] = selectEvmAccountList(this.state).sort(
           (accountA, accountB) => {
             // sort by lastSelected descending
             return (
@@ -763,7 +825,7 @@ export class AccountsController extends BaseController<
   #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
-    const accounts = this.listAccounts().filter(
+    const accounts = selectEvmAccountList(this.state).filter(
       (account) => account.metadata.snap,
     );
 
@@ -789,7 +851,7 @@ export class AccountsController extends BaseController<
    * @returns The list of accounts associcated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string) {
-    return this.listAccounts().filter((internalAccount) => {
+    return selectEvmAccountList(this.state).filter((internalAccount) => {
       // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
       // to group those accounts together!
       if (
@@ -804,30 +866,6 @@ export class AccountsController extends BaseController<
 
       return internalAccount.metadata.keyring.type === keyringType;
     });
-  }
-
-  /**
-   * Returns the last selected account from the given array of accounts.
-   *
-   * @param accounts - An array of InternalAccount objects.
-   * @returns The InternalAccount object that was last selected, or undefined if the array is empty.
-   */
-  #getLastSelectedAccount(
-    accounts: InternalAccount[],
-  ): InternalAccount | undefined {
-    return accounts.reduce((prevAccount, currentAccount) => {
-      if (
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        currentAccount.metadata.lastSelected! >
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        prevAccount.metadata.lastSelected!
-      ) {
-        return currentAccount;
-      }
-      return prevAccount;
-    }, accounts[0]);
   }
 
   /**
@@ -970,11 +1008,6 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:listAccounts`,
-      this.listAccounts.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(

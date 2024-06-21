@@ -2215,6 +2215,7 @@ __metadata:
     ethereum-cryptography: ^2.1.2
     immer: ^9.0.6
     jest: ^27.5.1
+    reselect: ^5.1.1
     ts-jest: ^27.1.4
     typedoc: ^0.24.8
     typedoc-plugin-missing-exports: ^2.0.0
@@ -11294,6 +11295,13 @@ __metadata:
   version: 1.0.0
   resolution: "requires-port@npm:1.0.0"
   checksum: eee0e303adffb69be55d1a214e415cf42b7441ae858c76dfc5353148644f6fd6e698926fc4643f510d5c126d12a705e7c8ed7e38061113bdf37547ab356797ff
+  languageName: node
+  linkType: hard
+
+"reselect@npm:^5.1.1":
+  version: 5.1.1
+  resolution: "reselect@npm:5.1.1"
+  checksum: 5d32d48be29071ddda21a775945c2210cf4ca3fccde1c4a0e1582ac3bf99c431c6c2330ef7ca34eae4c06feea617e7cb2c275c4b33ccf9a930836dfc98b49b13
   languageName: node
   linkType: hard
 
