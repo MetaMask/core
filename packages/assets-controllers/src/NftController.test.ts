@@ -1487,6 +1487,18 @@ describe('NftController', () => {
         defaultSelectedAccount: OWNER_ACCOUNT,
       });
 
+      nock(NFT_API_BASE_URL)
+        .get(`/collections?chainIds=1&contract=0x01`)
+        .reply(200, {
+          collections: [
+            {
+              contractDeployedAt: 'timestampTest',
+              ownerCount: '989',
+              openseaVerificationStatus: 'verified',
+            },
+          ],
+        });
+
       await nftController.addNft('0x01', '1');
       expect(
         nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
@@ -1501,11 +1513,17 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI: '',
         creator: 'Oxaddress',
-        collection: { creator: 'Oxaddress', tokenCount: 0 },
+        collection: {
+          creator: 'Oxaddress',
+          tokenCount: 0,
+          contractDeployedAt: 'timestampTest',
+          ownerCount: '989',
+          openseaVerificationStatus: 'verified',
+        },
       });
     });
 
-    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API', async () => {
+    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API even if call to Get Collections fails', async () => {
       const { nftController } = setupController({
         options: {
           getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
@@ -1535,6 +1553,10 @@ describe('NftController', () => {
           ],
         });
 
+      nock(NFT_API_BASE_URL)
+        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .replyWithError(new Error('Failed to fetch'));
+
       nock('https://ipfs.gitcoin.co:443')
         .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
         .reply(200, {
@@ -1558,6 +1580,92 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+      });
+
+      expect(
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][
+          ChainId.mainnet
+        ][0],
+      ).toStrictEqual({
+        address: ERC721_KUDOSADDRESS,
+        name: 'KudosToken',
+        symbol: 'KDO',
+        schemaName: ERC721,
+      });
+    });
+    it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API when  call to Get Collections succeeds', async () => {
+      const { nftController } = setupController({
+        options: {
+          getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
+          getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
+          getERC721TokenURI: jest
+            .fn()
+            .mockResolvedValue(
+              'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+            ),
+        },
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
+        )
+
+        .reply(200, {
+          tokens: [
+            {
+              token: {
+                kind: 'erc721',
+                name: 'Kudos Name',
+                description: 'Kudos Description',
+                image: 'url',
+              },
+            },
+          ],
+        });
+
+      nock(NFT_API_BASE_URL)
+        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .reply(200, {
+          collections: [
+            {
+              contractDeployedAt: 'timestampTest',
+              ownerCount: '989',
+              openseaVerificationStatus: 'verified',
+              creator: '0xcreator',
+            },
+          ],
+        });
+
+      nock('https://ipfs.gitcoin.co:443')
+        .get('/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov')
+        .reply(200, {
+          image: 'Kudos Image (directly from tokenURI)',
+          name: 'Kudos Name (directly from tokenURI)',
+          description: 'Kudos Description (directly from tokenURI)',
+        });
+
+      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: ERC721_KUDOSADDRESS,
+        image: 'url',
+        name: 'Kudos Name (directly from tokenURI)',
+        description: 'Kudos Description (directly from tokenURI)',
+        tokenId: ERC721_KUDOS_TOKEN_ID,
+        standard: ERC721,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI:
+          'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+        collection: {
+          creator: '0xcreator',
+          contractDeployedAt: 'timestampTest',
+          ownerCount: '989',
+          openseaVerificationStatus: 'verified',
+        },
       });
 
       expect(
@@ -1848,7 +1956,7 @@ describe('NftController', () => {
       });
     });
 
-    it('should add an nft and nftContract when there is valid contract information and source is "detected"', async () => {
+    it('should add an nft and nftContract when there is valid contract information and source is "detected" when call to getCollections fails', async () => {
       const mockOnNftAdded = jest.fn();
       const { nftController } = setupController({
         options: {
@@ -1880,6 +1988,128 @@ describe('NftController', () => {
                   image: 'Kudos logo (from proxy API)',
                 },
               },
+            },
+          ],
+        });
+
+      nock(NFT_API_BASE_URL)
+        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .replyWithError(new Error('Failed to fetch'));
+
+      await nftController.addNft(
+        '0x6EbeAf8e8E946F0716E6533A6f2cefc83f60e8Ab',
+        '123',
+        {
+          userAddress: OWNER_ACCOUNT.address,
+          source: Source.Detected,
+        },
+      );
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address]?.[ChainId.mainnet],
+      ).toBeUndefined();
+
+      expect(
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address]?.[
+          ChainId.mainnet
+        ],
+      ).toBeUndefined();
+
+      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID, {
+        userAddress: OWNER_ACCOUNT.address,
+        source: Source.Detected,
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet],
+      ).toStrictEqual([
+        {
+          address: ERC721_KUDOSADDRESS,
+          description: 'Kudos Description',
+          image: 'Kudos image (from proxy API)',
+          name: 'Kudos Name',
+          standard: ERC721,
+          tokenId: ERC721_KUDOS_TOKEN_ID,
+          favorite: false,
+          isCurrentlyOwned: true,
+          tokenURI: null,
+          collection: {
+            tokenCount: '10',
+            image: 'Kudos logo (from proxy API)',
+            name: 'Kudos',
+            creator: undefined,
+            openseaVerificationStatus: undefined,
+            ownerCount: undefined,
+            contractDeployedAt: undefined,
+          },
+        },
+      ]);
+
+      expect(
+        nftController.state.allNftContracts[OWNER_ACCOUNT.address][
+          ChainId.mainnet
+        ],
+      ).toStrictEqual([
+        {
+          address: ERC721_KUDOSADDRESS,
+          logo: 'Kudos logo (from proxy API)',
+          name: 'Kudos',
+          totalSupply: '10',
+          schemaName: ERC721,
+        },
+      ]);
+
+      expect(mockOnNftAdded).toHaveBeenCalledWith({
+        address: ERC721_KUDOSADDRESS,
+        tokenId: ERC721_KUDOS_TOKEN_ID,
+        standard: ERC721,
+        source: Source.Detected,
+      });
+    });
+
+    it('should add an nft and nftContract when there is valid contract information and source is "detected" when call to get collections succeeds', async () => {
+      const mockOnNftAdded = jest.fn();
+      const { nftController } = setupController({
+        options: {
+          onNftAdded: mockOnNftAdded,
+          getERC721AssetName: jest
+            .fn()
+            .mockRejectedValue(new Error('Failed to fetch')),
+          getERC721AssetSymbol: jest
+            .fn()
+            .mockRejectedValue(new Error('Failed to fetch')),
+        },
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
+        )
+        .reply(200, {
+          tokens: [
+            {
+              token: {
+                kind: 'erc721',
+                name: 'Kudos Name',
+                description: 'Kudos Description',
+                image: 'Kudos image (from proxy API)',
+                collection: {
+                  name: 'Kudos',
+                  tokenCount: '10',
+                  image: 'Kudos logo (from proxy API)',
+                },
+              },
+            },
+          ],
+        });
+
+      nock(NFT_API_BASE_URL)
+        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .reply(200, {
+          collections: [
+            {
+              creator: '0xcreator',
+              openseaVerificationStatus: 'verified',
             },
           ],
         });
@@ -1925,6 +2155,10 @@ describe('NftController', () => {
             tokenCount: '10',
             image: 'Kudos logo (from proxy API)',
             name: 'Kudos',
+            creator: '0xcreator',
+            openseaVerificationStatus: 'verified',
+            ownerCount: undefined,
+            contractDeployedAt: undefined,
           },
         },
       ]);

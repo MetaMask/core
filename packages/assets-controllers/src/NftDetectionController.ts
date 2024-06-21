@@ -9,6 +9,7 @@ import {
   NFT_API_VERSION,
   convertHexToDecimal,
   handleFetch,
+  fetchWithErrorHandling,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -24,6 +25,7 @@ import type {
 } from '@metamask/preferences-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
 
+import { reduceInBatchesSerially } from './assetsUtil';
 import { Source } from './constants';
 import {
   type NftController,
@@ -330,7 +332,20 @@ export type Attributes = {
   createdAt?: string;
 };
 
-export type Collection = {
+export type GetCollectionsResponse = {
+  collections: CollectionResponse[];
+};
+
+export type CollectionResponse = {
+  id?: string;
+  openseaVerificationStatus?: string;
+  contractDeployedAt?: string;
+  creator?: string;
+  tokenCount?: string;
+  ownerCount?: string;
+};
+
+export type TokenCollection = {
   id?: string;
   name?: string;
   slug?: string;
@@ -347,6 +362,8 @@ export type Collection = {
   royaltiesBps?: number;
   royalties?: Royalties[];
 };
+
+export type Collection = TokenCollection & CollectionResponse;
 
 export type Royalties = {
   bps?: number;
@@ -398,6 +415,8 @@ export type Metadata = {
   imageOriginal?: string;
   tokenURI?: string;
 };
+
+export const MAX_GET_COLLECTION_BATCH_SIZE = 20;
 
 /**
  * Controller that passively detects nfts for a user address
@@ -588,6 +607,71 @@ export class NftDetectionController extends BaseController<
               ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
               : true),
         );
+        // Retrieve collections from apiNfts
+        const collections = apiNfts.reduce<string[]>((acc, currValue) => {
+          if (!acc.includes(currValue.token.contract)) {
+            acc.push(currValue.token.contract);
+          }
+          return acc;
+        }, []);
+
+        // Call API to retrive collections infos
+        // The api accept a max of 20 contracts
+        const collectionResponse: GetCollectionsResponse =
+          await reduceInBatchesSerially({
+            values: collections,
+            batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
+            eachBatch: async (allResponses, batch) => {
+              const params = new URLSearchParams(
+                batch.map((s) => ['contract', s]),
+              );
+              params.append('chainId', '1'); // Adding chainId 1 because we are only detecting for mainnet
+              const collectionResponseForBatch = await fetchWithErrorHandling({
+                url: `${
+                  NFT_API_BASE_URL as string
+                }/collections?${params.toString()}`,
+                options: {
+                  headers: {
+                    Version: '1',
+                  },
+                },
+                timeout: 15000,
+              });
+
+              return {
+                ...allResponses,
+                ...collectionResponseForBatch,
+              };
+            },
+            initialResult: {},
+          });
+
+        // Add collections response fields to  newnfts
+        if (collectionResponse.collections?.length) {
+          apiNfts.forEach((singleNFT) => {
+            const found = collectionResponse.collections.find(
+              (elm) =>
+                elm.id?.toLowerCase() ===
+                singleNFT.token.contract.toLowerCase(),
+            );
+            if (found) {
+              singleNFT.token = {
+                ...singleNFT.token,
+                collection: {
+                  ...(singleNFT.token.collection
+                    ? singleNFT.token.collection
+                    : {}),
+                  creator: found?.creator,
+                  openseaVerificationStatus: found?.openseaVerificationStatus,
+                  contractDeployedAt: found.contractDeployedAt,
+                  ownerCount: found.ownerCount,
+                  tokenCount: found.tokenCount,
+                },
+              };
+            }
+          });
+        }
+        // Proceed to add NFTs
         const addNftPromises = apiNfts.map(async (nft) => {
           const {
             tokenId,
