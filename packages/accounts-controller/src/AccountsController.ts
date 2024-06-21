@@ -70,6 +70,11 @@ export type AccountsControllerListAccountsAction = {
   handler: AccountsController['listAccounts'];
 };
 
+export type AccountsControllerListMultichainAccountsAction = {
+  type: `${typeof controllerName}:listMultichainAccounts`;
+  handler: AccountsController['listMultichainAccounts'];
+};
+
 export type AccountsControllerUpdateAccountsAction = {
   type: `${typeof controllerName}:updateAccounts`;
   handler: AccountsController['updateAccounts'];
@@ -109,6 +114,7 @@ export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
   | AccountsControllerListAccountsAction
+  | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
@@ -922,14 +928,12 @@ export class AccountsController extends BaseController<
           ...newAccount.metadata,
           name: accountName,
           importTime: Date.now(),
-          lastSelected: Date.now(),
+          lastSelected: 0,
         },
       };
 
       return newState;
     });
-
-    this.setSelectedAccount(newAccount.id);
   }
 
   /**
@@ -948,6 +952,8 @@ export class AccountsController extends BaseController<
    * @param metadataKey - The key of the metadata to retrieve.
    * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
     accountId: string,
     metadataKey: T,
@@ -969,6 +975,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:listAccounts`,
       this.listAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:listMultichainAccounts`,
+      this.listMultichainAccounts.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(

@@ -133,6 +133,8 @@ export class PermissionLogController extends BaseController<
       return;
     }
     const newEntries = {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       eth_accounts: {
         accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
@@ -299,6 +301,8 @@ export class PermissionLogController extends BaseController<
       // a set of accounts if the RPC method is "eth_requestAccounts".
       const accounts = result as string[];
       newEntries = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         eth_accounts: {
           accounts: this.#getAccountToTimeMap(accounts, time),
           lastApproved: time,

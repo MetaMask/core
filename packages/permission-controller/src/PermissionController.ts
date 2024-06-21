@@ -429,9 +429,17 @@ export type GenericPermissionController = PermissionController<
  * Describes the possible results of a {@link CaveatMutator} function.
  */
 export enum CaveatMutatorOperation {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   noop,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   updateValue,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   deleteCaveat,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   revokePermission,
 }
 
@@ -461,6 +469,8 @@ type CaveatMutatorResult =
       >;
     }>;
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type MergeCaveatResult<T extends CaveatConstraint | undefined> =
   T extends undefined
     ? [CaveatConstraint, CaveatConstraint['value']]
@@ -2314,6 +2324,8 @@ export class PermissionController<
    * @returns The merged permission.
    */
   #mergePermission<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     T extends Partial<PermissionConstraint> | PermissionConstraint,
   >(
     leftPermission: T | undefined,
@@ -2370,6 +2382,8 @@ export class PermissionController<
    * @param rightCaveat - The right-hand caveat to merge.
    * @returns The merged caveat and the diff between the two caveats.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #mergeCaveat<T extends CaveatConstraint, U extends T | undefined>(
     leftCaveat: U,
     rightCaveat: T,
@@ -2658,6 +2672,8 @@ export class PermissionController<
     }
 
     try {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.messagingSystem.call(
         'ApprovalController:acceptRequest',
         id,

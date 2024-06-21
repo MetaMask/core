@@ -189,7 +189,11 @@ function createExpectedInternalAccount({
 }): InternalAccount {
   const accountTypeToMethods = {
     [`${EthAccountType.Eoa}`]: [...Object.values(ETH_EOA_METHODS)],
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     [`${EthAccountType.Erc4337}`]: [...Object.values(ETH_ERC_4337_METHODS)],
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     [`${BtcAccountType.P2wpkh}`]: [...Object.values(BtcMethod)],
   };
 
@@ -838,6 +842,50 @@ describe('AccountsController', () => {
         const { selectedAccount } = accountsController.state.internalAccounts;
 
         expect(selectedAccount).toBe('');
+      });
+
+      it('selectedAccount remains the same after adding a new account', async () => {
+        const messenger = buildMessenger();
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to add account
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        const accounts = accountsController.listAccounts();
+
+        expect(accounts).toStrictEqual([
+          mockAccount,
+          setLastSelectedAsAny(mockAccount2),
+        ]);
+        expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
     });
 
@@ -2350,6 +2398,7 @@ describe('AccountsController', () => {
     beforeEach(() => {
       jest.spyOn(AccountsController.prototype, 'setSelectedAccount');
       jest.spyOn(AccountsController.prototype, 'listAccounts');
+      jest.spyOn(AccountsController.prototype, 'listMultichainAccounts');
       jest.spyOn(AccountsController.prototype, 'setAccountName');
       jest.spyOn(AccountsController.prototype, 'updateAccounts');
       jest.spyOn(AccountsController.prototype, 'getAccountByAddress');
@@ -2379,19 +2428,63 @@ describe('AccountsController', () => {
 
     describe('listAccounts', () => {
       it('retrieve a list of accounts', async () => {
+        const mockNonEvmAccount = createExpectedInternalAccount({
+          id: 'mock-non-evm',
+          name: 'non-evm',
+          address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+          keyringType: KeyringTypes.snap,
+          type: BtcAccountType.P2wpkh,
+        });
         const messenger = buildMessenger();
         const { accountsController } = setupAccountsController({
           initialState: {
             internalAccounts: {
-              accounts: { [mockAccount.id]: mockAccount },
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockNonEvmAccount.id]: mockNonEvmAccount,
+              },
               selectedAccount: mockAccount.id,
             },
           },
           messenger,
         });
 
-        messenger.call('AccountsController:listAccounts');
+        const result = messenger.call('AccountsController:listAccounts');
         expect(accountsController.listAccounts).toHaveBeenCalledWith();
+        expect(result).toStrictEqual([mockAccount]);
+      });
+    });
+
+    describe('listMultichainAccounts', () => {
+      it('retrieve a list of multichain accounts', async () => {
+        const mockNonEvmAccount = createExpectedInternalAccount({
+          id: 'mock-non-evm',
+          name: 'non-evm',
+          address: 'bc1qzqc2aqlw8nwa0a05ehjkk7dgt8308ac7kzw9a6',
+          keyringType: KeyringTypes.snap,
+          type: BtcAccountType.P2wpkh,
+        });
+        const messenger = buildMessenger();
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockNonEvmAccount.id]: mockNonEvmAccount,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const result = messenger.call(
+          'AccountsController:listMultichainAccounts',
+        );
+        expect(
+          accountsController.listMultichainAccounts,
+        ).toHaveBeenCalledWith();
+        expect(result).toStrictEqual([mockAccount, mockNonEvmAccount]);
       });
     });
 

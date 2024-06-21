@@ -288,6 +288,8 @@ export class SignatureController extends BaseController<
       ApprovalType.PersonalSign,
       SigningMethod.PersonalSign,
       'Personal Message',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#signPersonalMessage.bind(this),
       messageParams,
       req,
@@ -316,6 +318,8 @@ export class SignatureController extends BaseController<
       ApprovalType.EthSignTypedData,
       signTypeForLogger,
       'Typed Message',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#signTypedMessage.bind(this),
       messageParams,
       req,
@@ -372,9 +376,17 @@ export class SignatureController extends BaseController<
   }
 
   async #newUnsignedAbstractMessage<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     SO,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
@@ -432,6 +444,8 @@ export class SignatureController extends BaseController<
         throw providerErrors.userRejectedRequest('User rejected the request.');
       }
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await signMessage(messageParamsWithId, signingOpts);
 
       const signatureResult = await signaturePromise;
@@ -577,8 +591,14 @@ export class SignatureController extends BaseController<
   }
 
   #rejectUnapproved<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(messageManager: AbstractMessageManager<M, P, PM>, reason?: string) {
     Object.keys(messageManager.getUnapprovedMessages()).forEach((messageId) => {
@@ -587,8 +607,14 @@ export class SignatureController extends BaseController<
   }
 
   #clearUnapproved<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(messageManager: AbstractMessageManager<M, P, PM>) {
     messageManager.update({
@@ -598,8 +624,14 @@ export class SignatureController extends BaseController<
   }
 
   async #signAbstractMessage<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
@@ -640,8 +672,14 @@ export class SignatureController extends BaseController<
   }
 
   #errorMessage<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
@@ -656,8 +694,14 @@ export class SignatureController extends BaseController<
   }
 
   #cancelAbstractMessage<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,
@@ -672,8 +716,14 @@ export class SignatureController extends BaseController<
   }
 
   #handleMessageManagerEvents<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(messageManager: AbstractMessageManager<M, P, PM>, eventName: string) {
     messageManager.hub.on('updateBadge', () => {
@@ -689,8 +739,14 @@ export class SignatureController extends BaseController<
   }
 
   #subscribeToMessageState<
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     M extends AbstractMessage,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     P extends AbstractMessageParams,
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     PM extends AbstractMessageParamsMetamask,
   >(
     messageManager: AbstractMessageManager<M, P, PM>,

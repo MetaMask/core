@@ -2807,6 +2807,8 @@ export class TransactionController extends BaseController<
       updatedTransactionMeta,
     );
     this.#internalEvents.emit(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${transactionMeta.id}:finished`,
       updatedTransactionMeta,
     );
@@ -2842,6 +2844,8 @@ export class TransactionController extends BaseController<
         const { chainId, status, txParams, time } = tx;
 
         if (txParams) {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           const key = `${String(txParams.nonce)}-${convertHexToDecimal(
             chainId,
           )}-${new Date(time).toDateString()}`;

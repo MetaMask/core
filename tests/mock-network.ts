@@ -108,7 +108,9 @@ class MockedNetwork {
     this.#requestMocks = mocks;
     const rpcUrl =
       networkClientConfiguration.type === 'infura'
-        ? `https://${networkClientConfiguration.network}.infura.io`
+        ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          `https://${networkClientConfiguration.network}.infura.io`
         : networkClientConfiguration.rpcUrl;
     this.#nockScope = nock(rpcUrl);
   }

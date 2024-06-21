@@ -44,7 +44,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
-    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/keyring-controller": "^17.1.0",
     "@metamask/logging-controller": "^5.0.0",
     "@metamask/message-manager": "^10.0.0",
     "@metamask/rpc-errors": "^6.2.1",

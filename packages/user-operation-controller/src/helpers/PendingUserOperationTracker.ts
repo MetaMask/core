@@ -21,16 +21,22 @@ type Events = {
 };
 
 export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): PendingUserOperationTrackerEventEmitter;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): PendingUserOperationTrackerEventEmitter;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
