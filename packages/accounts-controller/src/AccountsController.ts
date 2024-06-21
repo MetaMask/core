@@ -35,7 +35,6 @@ import {
 import type { Draft } from 'immer';
 
 import {
-  deepCloneDraft,
   getUUIDFromAddressOfNormalAccount,
   isNormalKeyringType,
   keyringTypeToName,
@@ -412,12 +411,8 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-      const newState = deepCloneDraft(currentState);
-
-      newState.internalAccounts.accounts[accountId] = internalAccount;
-
-      return newState;
+      // @ts-expect-error Type instantiation is excessively deep and possibly infinite. See: https://github.com/MetaMask/utils/issues/168
+      currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
 
@@ -474,12 +469,7 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-      const newState = deepCloneDraft(currentState);
-
-      newState.internalAccounts.accounts = accounts;
-
-      return newState;
+      currentState.internalAccounts.accounts = accounts;
     });
   }
 
@@ -491,12 +481,7 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
-        const newState = deepCloneDraft(currentState);
-
-        newState.internalAccounts = backup.internalAccounts;
-
-        return newState;
+        currentState.internalAccounts = backup.internalAccounts;
       });
     }
   }
@@ -718,12 +703,10 @@ export class AccountsController extends BaseController<
       }
 
       this.update((currentState: Draft<AccountsControllerState>) => {
-        const newState = deepCloneDraft(currentState);
-
         if (deletedAccounts.length > 0) {
           for (const account of deletedAccounts) {
-            newState.internalAccounts.accounts = this.#handleAccountRemoved(
-              newState.internalAccounts.accounts,
+            currentState.internalAccounts.accounts = this.#handleAccountRemoved(
+              currentState.internalAccounts.accounts,
               account.id,
             );
           }
@@ -731,29 +714,30 @@ export class AccountsController extends BaseController<
 
         if (addedAccounts.length > 0) {
           for (const account of addedAccounts) {
-            newState.internalAccounts.accounts = this.#handleNewAccountAdded(
-              newState.internalAccounts.accounts,
-              account,
-            );
+            currentState.internalAccounts.accounts =
+              this.#handleNewAccountAdded(
+                currentState.internalAccounts.accounts,
+                account,
+              );
           }
         }
 
         // We don't use list accounts because it is not the updated state yet.
         const existingAccounts = Object.values(
-          newState.internalAccounts.accounts,
+          currentState.internalAccounts.accounts,
         );
 
         // handle if the selected account was deleted
         if (
-          !newState.internalAccounts.accounts[
+          !currentState.internalAccounts.accounts[
             this.state.internalAccounts.selectedAccount
           ]
         ) {
           // if the accountToSelect is undefined, then there are no accounts
           // it mean the keyring was reinitialized.
           if (existingAccounts.length === 0) {
-            newState.internalAccounts.selectedAccount = '';
-            return newState;
+            currentState.internalAccounts.selectedAccount = '';
+            return;
           }
 
           const [accountToSelect] = existingAccounts.sort(
@@ -766,10 +750,8 @@ export class AccountsController extends BaseController<
             },
           );
 
-          newState.internalAccounts.selectedAccount = accountToSelect.id;
+          currentState.internalAccounts.selectedAccount = accountToSelect.id;
         }
-
-        return newState;
       });
     }
   }
