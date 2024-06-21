@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `ControllerMessenger` and `RestrictedControllerMessenger` so that when subscribing to an event using a selector function, the return value of the selector will be compared deeply with its previous value, rather than shallowly, to know whether to fire the event handler ([#4124](https://github.com/MetaMask/core/pull/4124))
+  - This allows an event listener to act on multiple values from the event payload, rather than just one.
+
 ## [6.0.0]
 
 ### Changed
