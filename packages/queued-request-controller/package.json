@@ -44,14 +44,14 @@
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/json-rpc-engine": "^9.0.0",
+    "@metamask/network-controller": "^19.0.0",
     "@metamask/rpc-errors": "^6.2.1",
+    "@metamask/selected-network-controller": "^15.0.2",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^8.3.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^19.0.0",
-    "@metamask/selected-network-controller": "^15.0.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",

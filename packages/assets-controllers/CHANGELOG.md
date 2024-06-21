@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Add `@metamask/keyring-api` as a dependency ([#4449](https://github.com/MetaMask/core/pull/4449))
+- Add `@types/lodash` as a dependency ([#4449](https://github.com/MetaMask/core/pull/4449))
+
 ## [33.0.0]
 
 ### Added

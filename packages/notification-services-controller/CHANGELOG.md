@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove `@types/readable-stream` as a dependency ([#4449](https://github.com/MetaMask/core/pull/4449))
+
 ## [0.1.0]
 
 ### Added
