@@ -72,7 +72,7 @@ describe('updateSwapsTransaction', () => {
     expect(messenger.call).not.toHaveBeenCalled();
   });
 
-  it('should not update if transaction type is not swap or swapApproval', async () => {
+  it('should not update if transaction type is not swap, swapAndSend, swapApproval', async () => {
     transactionType = TransactionType.deployContract;
     jest.spyOn(messenger, 'call');
     updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
@@ -243,6 +243,138 @@ describe('updateSwapsTransaction', () => {
       type,
     });
   });
+
+  it('should update swap and send transaction and publish TransactionController:transactionNewSwapAndSend', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const destinationTokenSymbol = 'DAI';
+    const type = TransactionType.swapAndSend;
+    transactionType = TransactionType.swapAndSend;
+    const destinationTokenDecimals = '18';
+    const destinationTokenAddress = '0x0';
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    // swap + send properties
+    const destinationTokenAmount = '0x123';
+    const sourceTokenAddress = '0x123';
+    const sourceTokenAmount = '0x123';
+    const sourceTokenDecimals = '12';
+
+    const swapAndSendRecipient = '0x123';
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+      destinationTokenAmount,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      swapAndSendRecipient,
+    };
+
+    const transactionNewSwapAndSendEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewSwapAndSend',
+      transactionNewSwapAndSendEventListener,
+    );
+
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
+
+    expect(transactionNewSwapAndSendEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        sourceTokenSymbol,
+        destinationTokenSymbol,
+        type,
+        destinationTokenDecimals,
+        destinationTokenAddress,
+        swapMetaData,
+        swapTokenValue,
+        estimatedBaseFee,
+        approvalTxId,
+        destinationTokenAmount,
+        sourceTokenAddress,
+        sourceTokenAmount,
+        sourceTokenDecimals,
+        swapAndSendRecipient,
+      },
+    });
+  });
+
+  it('should return the swap and send transaction updated with information', () => {
+    const sourceTokenSymbol = 'ETH';
+    const destinationTokenSymbol = 'DAI';
+    const type = TransactionType.swapAndSend;
+    transactionType = TransactionType.swapAndSend;
+    const destinationTokenDecimals = '18';
+    const destinationTokenAddress = '0x0';
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    // swap + send properties
+    const destinationTokenAmount = '0x123';
+    const sourceTokenAddress = '0x123';
+    const sourceTokenAmount = '0x123';
+    const sourceTokenDecimals = '12';
+
+    const swapAndSendRecipient = '0x123';
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+      destinationTokenAmount,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      swapAndSendRecipient,
+    };
+
+    const updatedSwapsTransaction = updateSwapsTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+      destinationTokenAmount,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      swapAndSendRecipient,
+    });
+  });
 });
 
 describe('updatePostTransactionBalance', () => {
@@ -352,7 +484,8 @@ describe('updatePostTransactionBalance', () => {
       .spyOn(request, 'getTransaction')
       .mockImplementation(() => transactionMeta);
 
-    // eslint-disable-next-line jest/valid-expect-in-promise
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line jest/valid-expect-in-promise, @typescript-eslint/no-floating-promises
     updatePostTransactionBalance(transactionMeta, request).then(
       ({ updatedTransactionMeta }) => {
         expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);

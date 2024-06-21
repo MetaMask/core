@@ -72,16 +72,22 @@ type Events = {
 };
 
 export type UserOperationControllerEventEmitter = EventEmitter & {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): UserOperationControllerEventEmitter;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): UserOperationControllerEventEmitter;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
@@ -137,10 +143,15 @@ export type AddUserOperationRequest = {
 export type AddUserOperationSwapOptions = {
   approvalTxId?: string;
   destinationTokenAddress?: string;
+  destinationTokenAmount?: string;
   destinationTokenDecimals?: number;
   destinationTokenSymbol?: string;
   estimatedBaseFee?: string;
+  sourceTokenAddress?: string;
+  sourceTokenAmount?: string;
+  sourceTokenDecimals?: number;
   sourceTokenSymbol?: string;
+  swapAndSendRecipient?: string;
   swapMetaData?: Record<string, unknown>;
   swapTokenValue?: string;
 };
@@ -437,10 +448,15 @@ export class UserOperationController extends BaseController<
         ? {
             approvalTxId: swaps.approvalTxId ?? null,
             destinationTokenAddress: swaps.destinationTokenAddress ?? null,
+            destinationTokenAmount: swaps.destinationTokenAmount ?? null,
             destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
             destinationTokenSymbol: swaps.destinationTokenSymbol ?? null,
             estimatedBaseFee: swaps.estimatedBaseFee ?? null,
+            sourceTokenAddress: swaps.sourceTokenAddress ?? null,
+            sourceTokenAmount: swaps.sourceTokenAmount ?? null,
+            sourceTokenDecimals: swaps.sourceTokenDecimals ?? null,
             sourceTokenSymbol: swaps.sourceTokenSymbol ?? null,
+            swapAndSendRecipient: swaps.swapAndSendRecipient ?? null,
             swapMetaData: (swaps.swapMetaData as Record<string, never>) ?? null,
             swapTokenValue: swaps.swapTokenValue ?? null,
           }
@@ -526,17 +542,27 @@ export class UserOperationController extends BaseController<
     metadata: UserOperationMetadata,
     smartContractAccount: SmartContractAccount,
   ) {
-    const { id, userOperation } = metadata;
+    const { id, userOperation, chainId } = metadata;
 
     log('Requesting paymaster data', { id });
 
     const response = await smartContractAccount.updateUserOperation({
       userOperation,
+      chainId,
     });
 
     validateUpdateUserOperationResponse(response);
 
     userOperation.paymasterAndData = response.paymasterAndData ?? EMPTY_BYTES;
+    if (response.callGasLimit) {
+      userOperation.callGasLimit = response.callGasLimit;
+    }
+    if (response.preVerificationGas) {
+      userOperation.preVerificationGas = response.preVerificationGas;
+    }
+    if (response.verificationGasLimit) {
+      userOperation.verificationGasLimit = response.verificationGasLimit;
+    }
 
     this.#updateMetadata(metadata);
   }
@@ -677,6 +703,8 @@ export class UserOperationController extends BaseController<
       (metadata) => {
         log('In listener...');
         this.hub.emit('user-operation-confirmed', metadata);
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         this.hub.emit(`${metadata.id}:confirmed`, metadata);
       },
     );
@@ -685,6 +713,8 @@ export class UserOperationController extends BaseController<
       'user-operation-failed',
       (metadata, error) => {
         this.hub.emit('user-operation-failed', metadata, error);
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         this.hub.emit(`${metadata.id}:failed`, metadata, error);
       },
     );

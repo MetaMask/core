@@ -1,4 +1,3 @@
-import { toBuffer } from '@ethereumjs/util';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -7,7 +6,11 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
 import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  EthMethod,
+  isEvmAccountType,
+} from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type {
   KeyringControllerState,
@@ -22,12 +25,21 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import type { Snap } from '@metamask/snaps-utils';
-import type { Keyring, Json } from '@metamask/utils';
-import { sha256 } from 'ethereum-cryptography/sha256';
+import type { CaipChainId } from '@metamask/utils';
+import {
+  type Keyring,
+  type Json,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
-import { v4 as uuid } from 'uuid';
 
-import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
+import {
+  deepCloneDraft,
+  getUUIDFromAddressOfNormalAccount,
+  isNormalKeyringType,
+  keyringTypeToName,
+} from './utils';
 
 const controllerName = 'AccountsController';
 
@@ -58,6 +70,11 @@ export type AccountsControllerListAccountsAction = {
   handler: AccountsController['listAccounts'];
 };
 
+export type AccountsControllerListMultichainAccountsAction = {
+  type: `${typeof controllerName}:listMultichainAccounts`;
+  handler: AccountsController['listMultichainAccounts'];
+};
+
 export type AccountsControllerUpdateAccountsAction = {
   type: `${typeof controllerName}:updateAccounts`;
   handler: AccountsController['updateAccounts'];
@@ -68,9 +85,19 @@ export type AccountsControllerGetSelectedAccountAction = {
   handler: AccountsController['getSelectedAccount'];
 };
 
+export type AccountsControllerGetSelectedMultichainAccountAction = {
+  type: `${typeof controllerName}:getSelectedMultichainAccount`;
+  handler: AccountsController['getSelectedMultichainAccount'];
+};
+
 export type AccountsControllerGetAccountByAddressAction = {
   type: `${typeof controllerName}:getAccountByAddress`;
   handler: AccountsController['getAccountByAddress'];
+};
+
+export type AccountsControllerGetNextAvailableAccountNameAction = {
+  type: `${typeof controllerName}:getNextAvailableAccountName`;
+  handler: AccountsController['getNextAvailableAccountName'];
 };
 
 export type AccountsControllerGetAccountAction = {
@@ -87,11 +114,14 @@ export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
   | AccountsControllerListAccountsAction
+  | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerUpdateAccountsAction
   | AccountsControllerGetAccountByAddressAction
   | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction;
+  | AccountsControllerGetNextAvailableAccountNameAction
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedMultichainAccountAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -103,11 +133,17 @@ export type AccountsControllerSelectedAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerSelectedEvmAccountChangeEvent = {
+  type: `${typeof controllerName}:selectedEvmAccountChange`;
+  payload: [InternalAccount];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -197,12 +233,34 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns an array of all internal accounts.
+   * Returns an array of all evm internal accounts.
    *
    * @returns An array of InternalAccount objects.
    */
   listAccounts(): InternalAccount[] {
-    return Object.values(this.state.internalAccounts.accounts);
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    return accounts.filter((account) => isEvmAccountType(account.type));
+  }
+
+  /**
+   * Returns an array of all internal accounts.
+   *
+   * @param chainId - The chain ID.
+   * @returns An array of InternalAccount objects.
+   */
+  listMultichainAccounts(chainId?: CaipChainId): InternalAccount[] {
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    if (!chainId) {
+      return accounts;
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
+    }
+
+    return accounts.filter((account) =>
+      this.#isAccountCompatibleWithChain(account, chainId),
+    );
   }
 
   /**
@@ -227,24 +285,67 @@ export class AccountsController extends BaseController<
           keyring: {
             type: '',
           },
+          importTime: 0,
         },
       };
     }
 
     const account = this.getAccount(accountId);
     if (account === undefined) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
     return account;
   }
 
   /**
-   * Returns the selected internal account.
+   * Returns the last selected evm account.
    *
    * @returns The selected internal account.
    */
   getSelectedAccount(): InternalAccount {
-    return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+    const selectedAccount = this.getAccountExpect(
+      this.state.internalAccounts.selectedAccount,
+    );
+    if (isEvmAccountType(selectedAccount.type)) {
+      return selectedAccount;
+    }
+
+    const accounts = this.listAccounts();
+
+    if (!accounts.length) {
+      // ! Should never reach this.
+      throw new Error('No EVM accounts');
+    }
+
+    // This will never be undefined because we have already checked if accounts.length is > 0
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this.#getLastSelectedAccount(accounts)!;
+  }
+
+  /**
+   * __WARNING The return value may be undefined if there isn't an account for that chain id.__
+   *
+   * Retrieves the last selected account by chain ID.
+   *
+   * @param chainId - The chain ID to filter the accounts.
+   * @returns The last selected account compatible with the specified chain ID or undefined.
+   */
+  getSelectedMultichainAccount(
+    chainId?: CaipChainId,
+  ): InternalAccount | undefined {
+    if (!chainId) {
+      return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${chainId as string}`);
+    }
+
+    const accounts = Object.values(this.state.internalAccounts.accounts).filter(
+      (account) => this.#isAccountCompatibleWithChain(account, chainId),
+    );
+
+    return this.#getLastSelectedAccount(accounts);
   }
 
   /**
@@ -254,7 +355,7 @@ export class AccountsController extends BaseController<
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    return this.listAccounts().find(
+    return this.listMultichainAccounts().find(
       (account) => account.address.toLowerCase() === address.toLowerCase(),
     );
   }
@@ -265,25 +366,25 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccount(accountId);
+    const account = this.getAccountExpect(accountId);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      if (account) {
-        currentState.internalAccounts.accounts[
-          account.id
-        ].metadata.lastSelected = Date.now();
-        currentState.internalAccounts.selectedAccount = account.id;
-      } else {
-        currentState.internalAccounts.selectedAccount = '';
-      }
+      currentState.internalAccounts.accounts[account.id].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (account) {
+    if (isEvmAccountType(account.type)) {
       this.messagingSystem.publish(
-        'AccountsController:selectedAccountChange',
+        'AccountsController:selectedEvmAccountChange',
         account,
       );
     }
+
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**
@@ -311,9 +412,12 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      currentState.internalAccounts.accounts[accountId] =
-        // @ts-expect-error Assigning a complex type `T` to `Draft<T>` causes an excessive type instantiation depth error.
-        internalAccount as Draft<InternalAccount>;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[accountId] = internalAccount;
+
+      return newState;
     });
   }
 
@@ -324,13 +428,8 @@ export class AccountsController extends BaseController<
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    const snapAccounts: InternalAccount[] = await this.#listSnapAccounts();
-    const normalAccounts = (await this.#listNormalAccounts()).filter(
-      (account) =>
-        !snapAccounts.find(
-          (snapAccount) => snapAccount.address === account.address,
-        ),
-    );
+    const snapAccounts = await this.#listSnapAccounts();
+    const normalAccounts = await this.#listNormalAccounts();
 
     // keyring type map.
     const keyringTypes = new Map<string, number>();
@@ -358,10 +457,16 @@ export class AccountsController extends BaseController<
         metadata: {
           ...internalAccount.metadata,
           name:
-            existingAccount && existingAccount.metadata.name !== ''
-              ? existingAccount.metadata.name
-              : `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          lastSelected: existingAccount?.metadata?.lastSelected,
+            this.#populateExistingMetadata(existingAccount?.id, 'name') ??
+            `${keyringTypeName} ${keyringAccountIndex + 1}`,
+          importTime:
+            this.#populateExistingMetadata(existingAccount?.id, 'importTime') ??
+            Date.now(),
+          lastSelected:
+            this.#populateExistingMetadata(
+              existingAccount?.id,
+              'lastSelected',
+            ) ?? 0,
         },
       };
 
@@ -369,8 +474,12 @@ export class AccountsController extends BaseController<
     }, {} as Record<string, InternalAccount>);
 
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts = accounts;
+
+      return newState;
     });
   }
 
@@ -382,8 +491,12 @@ export class AccountsController extends BaseController<
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
       this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
+        // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+        const newState = deepCloneDraft(currentState);
+
+        newState.internalAccounts = backup.internalAccounts;
+
+        return newState;
       });
     }
   }
@@ -413,6 +526,7 @@ export class AccountsController extends BaseController<
       type: EthAccountType.Eoa,
       metadata: {
         name: '',
+        importTime: Date.now(),
         keyring: {
           type,
         },
@@ -457,12 +571,17 @@ export class AccountsController extends BaseController<
         'KeyringController:getKeyringForAccount',
         address,
       );
-      const v4options = {
-        random: sha256(toBuffer(address)).slice(0, 16),
-      };
+
+      const keyringType = (keyring as Keyring<Json>).type;
+      if (!isNormalKeyringType(keyringType as KeyringTypes)) {
+        // We only consider "normal accounts" here, so keep looping
+        continue;
+      }
+
+      const id = getUUIDFromAddressOfNormalAccount(address);
 
       internalAccounts.push({
-        id: uuid(v4options),
+        id,
         address,
         options: {},
         methods: [
@@ -475,7 +594,10 @@ export class AccountsController extends BaseController<
         ],
         type: EthAccountType.Eoa,
         metadata: {
-          name: '',
+          name: this.#populateExistingMetadata(id, 'name') ?? '',
+          importTime:
+            this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
+          lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
           keyring: {
             type: (keyring as Keyring<Json>).type,
           },
@@ -483,9 +605,7 @@ export class AccountsController extends BaseController<
       });
     }
 
-    return internalAccounts.filter(
-      (account) => account.metadata.keyring.type !== KeyringTypes.snap,
-    );
+    return internalAccounts;
   }
 
   /**
@@ -564,7 +684,7 @@ export class AccountsController extends BaseController<
       for (const account of updatedSnapKeyringAddresses) {
         if (
           !previousSnapInternalAccounts.find(
-            (internalAccount) =>
+            (internalAccount: InternalAccount) =>
               internalAccount.address.toLowerCase() ===
               account.address.toLowerCase(),
           )
@@ -623,7 +743,14 @@ export class AccountsController extends BaseController<
 
         // if the accountToSelect is undefined, then there are no accounts
         // it mean the keyring was reinitialized.
-        this.setSelectedAccount(accountToSelect?.id);
+        if (!accountToSelect) {
+          this.update((currentState: Draft<AccountsControllerState>) => {
+            currentState.internalAccounts.selectedAccount = '';
+          });
+          return;
+        }
+
+        this.setSelectedAccount(accountToSelect.id);
       }
     }
   }
@@ -657,48 +784,104 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Returns the list of accounts for a given keyring type.
+   * @param keyringType - The type of keyring.
+   * @returns The list of accounts associcated with this keyring type.
+   */
+  #getAccountsByKeyringType(keyringType: string) {
+    return this.listAccounts().filter((internalAccount) => {
+      // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
+      // to group those accounts together!
+      if (
+        keyringType === KeyringTypes.hd ||
+        keyringType === KeyringTypes.simple
+      ) {
+        return (
+          internalAccount.metadata.keyring.type === KeyringTypes.hd ||
+          internalAccount.metadata.keyring.type === KeyringTypes.simple
+        );
+      }
+
+      return internalAccount.metadata.keyring.type === keyringType;
+    });
+  }
+
+  /**
+   * Returns the last selected account from the given array of accounts.
+   *
+   * @param accounts - An array of InternalAccount objects.
+   * @returns The InternalAccount object that was last selected, or undefined if the array is empty.
+   */
+  #getLastSelectedAccount(
+    accounts: InternalAccount[],
+  ): InternalAccount | undefined {
+    return accounts.reduce((prevAccount, currentAccount) => {
+      if (
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        currentAccount.metadata.lastSelected! >
+        // When the account is added, lastSelected will be set
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        prevAccount.metadata.lastSelected!
+      ) {
+        return currentAccount;
+      }
+      return prevAccount;
+    }, accounts[0]);
+  }
+
+  /**
    * Returns the next account number for a given keyring type.
    * @param keyringType - The type of keyring.
    * @returns An object containing the account prefix and index to use.
    */
-  #getNextAccountNumber(keyringType: string): {
-    accountPrefix: string;
-    indexToUse: number;
-  } {
+  getNextAvailableAccountName(keyringType: string = KeyringTypes.hd): string {
     const keyringName = keyringTypeToName(keyringType);
-    const previousKeyringAccounts = this.listAccounts().filter(
-      (internalAccount) => {
-        if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
-        ) {
-          return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
-          );
-        }
-        return internalAccount.metadata.keyring.type === keyringType;
-      },
-    );
-    const lastDefaultIndexUsedForKeyringType =
-      previousKeyringAccounts
-        .filter((internalAccount) =>
-          new RegExp(`${keyringName} \\d+$`, 'u').test(
-            internalAccount.metadata.name,
-          ),
-        )
-        .map((internalAccount) => {
-          const nameToWords = internalAccount.metadata.name.split(' '); // get the index of a default account name
-          return parseInt(nameToWords[nameToWords.length], 10);
-        })
-        .sort((a, b) => b - a)[0] || 0;
+    const keyringAccounts = this.#getAccountsByKeyringType(keyringType);
+    const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
+      (maxInternalAccountIndex, internalAccount) => {
+        // We **DO NOT USE** `\d+` here to only consider valid "human"
+        // number (rounded decimal number)
+        const match = new RegExp(`${keyringName} ([0-9]+)$`, 'u').exec(
+          internalAccount.metadata.name,
+        );
 
-    const indexToUse = Math.max(
-      previousKeyringAccounts.length + 1,
+        if (match) {
+          // Quoting `RegExp.exec` documentation:
+          // > The returned array has the matched text as the first item, and then one item for
+          // > each capturing group of the matched text.
+          // So use `match[1]` to get the captured value
+          const internalAccountIndex = parseInt(match[1], 10);
+          return Math.max(maxInternalAccountIndex, internalAccountIndex);
+        }
+
+        return maxInternalAccountIndex;
+      },
+      0,
+    );
+
+    const index = Math.max(
+      keyringAccounts.length + 1,
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
-    return { accountPrefix: keyringName, indexToUse };
+    return `${keyringName} ${index}`;
+  }
+
+  /**
+   * Checks if an account is compatible with a given chain namespace.
+   * @private
+   * @param account - The account to check compatibility for.
+   * @param chainId - The CAIP2 to check compatibility with.
+   * @returns Returns true if the account is compatible with the chain namespace, otherwise false.
+   */
+  #isAccountCompatibleWithChain(
+    account: InternalAccount,
+    chainId: CaipChainId,
+  ): boolean {
+    // TODO: Change this logic to not use account's type
+    // Because we currently only use type, we can only use namespace for now.
+    return account.type.startsWith(parseCaipChainId(chainId).namespace);
   }
 
   /**
@@ -730,27 +913,27 @@ export class AccountsController extends BaseController<
       }
     }
 
-    // get next index number for the keyring type
-    const { accountPrefix, indexToUse } = this.#getNextAccountNumber(
+    // Get next account name available for this given keyring
+    const accountName = this.getNextAvailableAccountName(
       newAccount.metadata.keyring.type,
     );
 
-    const accountName = `${accountPrefix} ${indexToUse}`;
-
     this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
+      // FIXME: deep clone of old state to get around Type instantiation is excessively deep and possibly infinite.
+      const newState = deepCloneDraft(currentState);
+
+      newState.internalAccounts.accounts[newAccount.id] = {
         ...newAccount,
         metadata: {
           ...newAccount.metadata,
           name: accountName,
-          lastSelected: Date.now(),
+          importTime: Date.now(),
+          lastSelected: 0,
         },
       };
-    });
 
-    this.setSelectedAccount(newAccount.id);
+      return newState;
+    });
   }
 
   /**
@@ -761,6 +944,22 @@ export class AccountsController extends BaseController<
     this.update((currentState: Draft<AccountsControllerState>) => {
       delete currentState.internalAccounts.accounts[accountId];
     });
+  }
+
+  /**
+   * Retrieves the value of a specific metadata key for an existing account.
+   * @param accountId - The ID of the account.
+   * @param metadataKey - The key of the metadata to retrieve.
+   * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
+    accountId: string,
+    metadataKey: T,
+  ): InternalAccount['metadata'][T] | undefined {
+    const internalAccount = this.getAccount(accountId);
+    return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
   /**
@@ -779,6 +978,11 @@ export class AccountsController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:listMultichainAccounts`,
+      this.listMultichainAccounts.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:setAccountName`,
       this.setAccountName.bind(this),
     );
@@ -794,8 +998,18 @@ export class AccountsController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      `${controllerName}:getSelectedMultichainAccount`,
+      this.getSelectedMultichainAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       `${controllerName}:getAccountByAddress`,
       this.getAccountByAddress.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getNextAvailableAccountName`,
+      this.getNextAvailableAccountName.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(

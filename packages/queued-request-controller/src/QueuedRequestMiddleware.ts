@@ -6,23 +6,6 @@ import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 import type { QueuedRequestController } from './QueuedRequestController';
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
 
-const isConfirmationMethod = (method: string) => {
-  const confirmationMethods = [
-    'eth_sendTransaction',
-    'wallet_watchAsset',
-    'wallet_switchEthereumChain',
-    'eth_signTypedData_v4',
-    'wallet_addEthereumChain',
-    'wallet_requestPermissions',
-    'wallet_requestSnaps',
-    'personal_sign',
-    'eth_sign',
-    'eth_requestAccounts',
-  ];
-
-  return confirmationMethods.includes(method);
-};
-
 /**
  * Ensure that the incoming request has the additional required request metadata. This metadata
  * should be attached to the request earlier in the middleware pipeline.
@@ -56,21 +39,26 @@ function hasRequiredMetadata(
  * @param options - Configuration options.
  * @param options.enqueueRequest - A method for enqueueing a request.
  * @param options.useRequestQueue - A function that determines if the request queue feature is enabled.
+ * @param options.shouldEnqueueRequest - A function that returns if a request should be handled by the QueuedRequestController.
  * @returns The JSON-RPC middleware that manages queued requests.
  */
 export const createQueuedRequestMiddleware = ({
   enqueueRequest,
   useRequestQueue,
+  shouldEnqueueRequest,
 }: {
   enqueueRequest: QueuedRequestController['enqueueRequest'];
   useRequestQueue: () => boolean;
+  shouldEnqueueRequest: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
 }): JsonRpcMiddleware<JsonRpcParams, Json> => {
   return createAsyncMiddleware(async (req: JsonRpcRequest, res, next) => {
     hasRequiredMetadata(req);
 
     // if the request queue feature is turned off, or this method is not a confirmation method
     // bypass the queue completely
-    if (!useRequestQueue() || !isConfirmationMethod(req.method)) {
+    if (!useRequestQueue() || !shouldEnqueueRequest(req)) {
       return await next();
     }
 

@@ -1,9 +1,6 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type EthQuery from '@metamask/eth-query';
-import type {
-  FetchGasFeeEstimateOptions,
-  GasFeeState,
-} from '@metamask/gas-fee-controller';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
@@ -11,6 +8,8 @@ import type { Operation } from 'fast-json-patch';
 /**
  * Given a record, ensures that each property matches the `Json` type.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type MakeJsonCompatible<T> = T extends Json
   ? T
   : {
@@ -125,6 +124,11 @@ type TransactionMetaBase = {
    * The address of the token being received of swap transaction.
    */
   destinationTokenAddress?: string;
+
+  /**
+   * The raw amount of the destination token
+   */
+  destinationTokenAmount?: string;
 
   /**
    * The decimals of the token being received of swap transaction.
@@ -334,9 +338,29 @@ type TransactionMetaBase = {
   submittedTime?: number;
 
   /**
+   * The address of the token being swapped
+   */
+  sourceTokenAddress?: string;
+
+  /**
+   * The raw amount of the source swap token
+   */
+  sourceTokenAmount?: string;
+
+  /**
+   * The decimals of the token being swapped.
+   */
+  sourceTokenDecimals?: number;
+
+  /**
    * The symbol of the token being swapped.
    */
   sourceTokenSymbol?: string;
+
+  /**
+   * The address of the swap recipient.
+   */
+  swapAndSendRecipient?: string;
 
   /**
    * The metadata of the swap transaction.
@@ -426,28 +450,94 @@ export type SendFlowHistoryEntry = {
 };
 
 /**
- * The status of the transaction. Each status represents the state of the transaction internally
- * in the wallet. Some of these correspond with the state of the transaction on the network, but
- * some are wallet-specific.
+ * Represents the status of a transaction within the wallet.
+ * Each status reflects the state of the transaction internally,
+ * with some statuses corresponding to the transaction's state on the network.
+ *
+ * The typical transaction lifecycle follows this state machine:
+ * unapproved -> approved -> signed -> submitted -> FINAL_STATE
+ * where FINAL_STATE is one of: confirmed, failed, dropped, or rejected.
  */
 export enum TransactionStatus {
-  approved = 'approved',
-  /** @deprecated Determined by the clients using the transaction type. No longer used. */
-  cancelled = 'cancelled',
-  confirmed = 'confirmed',
-  dropped = 'dropped',
-  failed = 'failed',
-  rejected = 'rejected',
-  signed = 'signed',
-  submitted = 'submitted',
+  /**
+   * The initial state of a transaction before user approval.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   unapproved = 'unapproved',
+
+  /**
+   * The transaction has been approved by the user but is not yet signed.
+   * This status is usually brief but may be longer for scenarios like hardware wallet usage.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  approved = 'approved',
+
+  /**
+   * The transaction is signed and in the process of being submitted to the network.
+   * This status is typically short-lived but can be longer for certain cases, such as smart transactions.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  signed = 'signed',
+
+  /**
+   * The transaction has been submitted to the network and is awaiting confirmation.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  submitted = 'submitted',
+
+  /**
+   * The transaction has been successfully executed and confirmed on the blockchain.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  confirmed = 'confirmed',
+
+  /**
+   * The transaction encountered an error during execution on the blockchain and failed.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  failed = 'failed',
+
+  /**
+   * The transaction was superseded by another transaction, resulting in its dismissal.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  dropped = 'dropped',
+
+  /**
+   * The transaction was rejected by the user and not processed further.
+   * This is a final state.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  rejected = 'rejected',
+
+  /**
+   * @deprecated This status is no longer used.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  cancelled = 'cancelled',
 }
 
 /**
  * Options for wallet device.
  */
 export enum WalletDevice {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   MM_MOBILE = 'metamask_mobile',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   MM_EXTENSION = 'metamask_extension',
   OTHER = 'other_device',
 }
@@ -459,6 +549,8 @@ export enum TransactionType {
   /**
    * A transaction sending a network's native asset to a recipient.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   cancel = 'cancel',
 
   /**
@@ -466,31 +558,43 @@ export enum TransactionType {
    * have not treated as a special case, such as approve, transfer, and
    * transferfrom.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   contractInteraction = 'contractInteraction',
 
   /**
    * A transaction that deployed a smart contract.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   deployContract = 'contractDeployment',
 
   /**
    * A transaction for Ethereum decryption.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ethDecrypt = 'eth_decrypt',
 
   /**
    * A transaction for getting an encryption public key.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
 
   /**
    * An incoming (deposit) transaction.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   incoming = 'incoming',
 
   /**
    * A transaction for personal sign.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   personalSign = 'personal_sign',
 
   /**
@@ -499,32 +603,44 @@ export enum TransactionType {
    * to speed up pending transactions. This is accomplished by creating a new tx with
    * the same nonce and higher gas fees.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   retry = 'retry',
 
   /**
    * A transaction sending a network's native asset to a recipient.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   simpleSend = 'simpleSend',
-
-  /**
-   * A transaction that is signing a message.
-   */
-  sign = 'eth_sign',
 
   /**
    * A transaction that is signing typed data.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   signTypedData = 'eth_signTypedData',
 
   /**
    * A transaction sending a network's native asset to a recipient.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   smart = 'smart',
 
   /**
    * A transaction swapping one token for another through MetaMask Swaps.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   swap = 'swap',
+
+  /**
+   * A transaction swapping one token for another through MetaMask Swaps, then sending the swapped token to a recipient.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  swapAndSend = 'swapAndSend',
 
   /**
    * Similar to the approve type, a swap approval is a special case of ERC20
@@ -532,12 +648,16 @@ export enum TransactionType {
    * of the user for the MetaMask Swaps contract. The first swap for any token
    * will have an accompanying swapApproval transaction.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   swapApproval = 'swapApproval',
 
   /**
    * A token transaction requesting an allowance of the token to spend on
    * behalf of the user.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodApprove = 'approve',
 
   /**
@@ -546,12 +666,16 @@ export enum TransactionType {
    * this method the contract checks to ensure that the receiver is an address
    * capable of handling the token being sent.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodSafeTransferFrom = 'safetransferfrom',
 
   /**
    * A token transaction where the user is sending tokens that they own to
    * another address.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodTransfer = 'transfer',
 
   /**
@@ -559,17 +683,23 @@ export enum TransactionType {
    * has an allowance of. For more information on allowances, see the approve
    * type.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodTransferFrom = 'transferfrom',
 
   /**
    * A token transaction requesting an allowance of all of a user's tokens to
    * spend on behalf of the user.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodSetApprovalForAll = 'setapprovalforall',
 
   /**
    * Increase the allowance by a given increment
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
 
@@ -864,6 +994,8 @@ export enum TransactionEnvelopeType {
   /**
    * A legacy transaction, the very first type.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   legacy = '0x0',
 
   /**
@@ -871,6 +1003,8 @@ export enum TransactionEnvelopeType {
    * specifying the state that a transaction would act upon in advance and
    * theoretically save on gas fees.
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   accessList = '0x1',
 
   /**
@@ -881,6 +1015,8 @@ export enum TransactionEnvelopeType {
    * the maxPriorityFeePerGas (maximum amount of gwei per gas from the
    * transaction fee to distribute to miner).
    */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   feeMarket = '0x2',
 }
 
@@ -889,6 +1025,8 @@ export enum TransactionEnvelopeType {
  */
 export enum UserFeeLevel {
   CUSTOM = 'custom',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   DAPP_SUGGESTED = 'dappSuggested',
   MEDIUM = 'medium',
 }
@@ -964,12 +1102,28 @@ export type TransactionError = {
 export type SecurityAlertResponse = {
   reason: string;
   features?: string[];
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: string;
   providerRequestsCount?: Record<string, number>;
 };
 
+/** Alternate priority levels for which values are provided in gas fee estimates. */
+export enum GasFeeEstimateLevel {
+  Low = 'low',
+  Medium = 'medium',
+  High = 'high',
+}
+
+/** Type of gas fee estimate generated by a GasFeeFlow. */
+export enum GasFeeEstimateType {
+  FeeMarket = 'fee-market',
+  Legacy = 'legacy',
+  GasPrice = 'eth_gasPrice',
+}
+
 /** Gas fee estimates for a specific priority level. */
-export type GasFeeEstimatesForLevel = {
+export type FeeMarketGasFeeEstimateForLevel = {
   /** Maximum amount to pay per gas. */
   maxFeePerGas: Hex;
 
@@ -977,34 +1131,41 @@ export type GasFeeEstimatesForLevel = {
   maxPriorityFeePerGas: Hex;
 };
 
-/** Alternate priority levels for which values are provided in gas fee estimates. */
-export enum GasFeeEstimateLevel {
-  low = 'low',
-  medium = 'medium',
-  high = 'high',
-}
+/** Gas fee estimates for a EIP-1559 transaction. */
+export type FeeMarketGasFeeEstimates = {
+  type: GasFeeEstimateType.FeeMarket;
+  [GasFeeEstimateLevel.Low]: FeeMarketGasFeeEstimateForLevel;
+  [GasFeeEstimateLevel.Medium]: FeeMarketGasFeeEstimateForLevel;
+  [GasFeeEstimateLevel.High]: FeeMarketGasFeeEstimateForLevel;
+};
+
+/** Gas fee estimates for a legacy transaction. */
+export type LegacyGasFeeEstimates = {
+  type: GasFeeEstimateType.Legacy;
+  [GasFeeEstimateLevel.Low]: Hex;
+  [GasFeeEstimateLevel.Medium]: Hex;
+  [GasFeeEstimateLevel.High]: Hex;
+};
+
+/** Gas fee estimates for a transaction retrieved with the eth_gasPrice method. */
+export type GasPriceGasFeeEstimates = {
+  type: GasFeeEstimateType.GasPrice;
+  gasPrice: Hex;
+};
 
 /** Gas fee estimates for a transaction. */
-export type GasFeeEstimates = {
-  /** The gas fee estimate for a low priority transaction. */
-  [GasFeeEstimateLevel.low]: GasFeeEstimatesForLevel;
-
-  /** The gas fee estimate for a medium priority transaction. */
-  [GasFeeEstimateLevel.medium]: GasFeeEstimatesForLevel;
-
-  /** The gas fee estimate for a high priority transaction. */
-  [GasFeeEstimateLevel.high]: GasFeeEstimatesForLevel;
-};
+export type GasFeeEstimates =
+  | FeeMarketGasFeeEstimates
+  | LegacyGasFeeEstimates
+  | GasPriceGasFeeEstimates;
 
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
   /** An EthQuery instance to enable queries to the associated RPC provider. */
   ethQuery: EthQuery;
 
-  /** Callback to get the GasFeeController estimates. */
-  getGasFeeControllerEstimates: (
-    options: FetchGasFeeEstimateOptions,
-  ) => Promise<GasFeeState>;
+  /** Gas fee controller data matching the chain ID of the transaction. */
+  gasFeeControllerData: GasFeeState;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
@@ -1084,8 +1245,14 @@ export type SimulationBalanceChange = {
 
 /** Token standards supported by simulation. */
 export enum SimulationTokenStandard {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc20 = 'erc20',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc721 = 'erc721',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   erc1155 = 'erc1155',
 }
 

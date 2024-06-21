@@ -30,7 +30,6 @@ export enum SubjectType {
 
 export type SubjectMetadata = PermissionSubjectMetadata & {
   [key: string]: Json;
-  // TODO:TS4.4 make optional
   name: string | null;
   subjectType: SubjectType | null;
   extensionId: string | null;
@@ -143,11 +142,15 @@ export class SubjectMetadataController extends BaseController<
     this.subjectsWithoutPermissionsEncounteredSinceStartup = new Set();
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSubjectMetadata`,
       this.getSubjectMetadata.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:addSubjectMetadata`,
       this.addSubjectMetadata.bind(this),
     );
@@ -210,10 +213,7 @@ export class SubjectMetadataController extends BaseController<
     this.subjectsWithoutPermissionsEncounteredSinceStartup.add(origin);
 
     this.update((draftState) => {
-      // Typecast: ts(2589)
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      draftState.subjectMetadata[origin] = newMetadata as any;
+      draftState.subjectMetadata[origin] = newMetadata;
       if (typeof originToForget === 'string') {
         delete draftState.subjectMetadata[originToForget];
       }
@@ -235,11 +235,9 @@ export class SubjectMetadataController extends BaseController<
    */
   trimMetadataState(): void {
     this.update((draftState) => {
+      // @ts-expect-error ts(2589)
       return SubjectMetadataController.getTrimmedState(
-        // Typecast: ts(2589)
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        draftState as any,
+        draftState,
         this.subjectHasPermissions,
       );
     });

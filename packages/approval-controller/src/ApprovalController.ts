@@ -90,12 +90,13 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
   /**
    * The type of the approval request.
+   * Unfortunately, not all values will match the `ApprovalType` enum, so we are using `string` here.
+   * TODO: Replace `string` with `ApprovalType` when all `type` values used by the clients can be encompassed by the `ApprovalType` enum.
    */
   type: string;
 
   /**
    * Additional data associated with the request.
-   * TODO:TS4.4 make optional
    */
   requestData: RequestData;
 
@@ -378,6 +379,8 @@ export class ApprovalController extends BaseController<
 
     this.#approvals = new Map();
     this.#origins = new Map();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#showApprovalRequest = showApprovalRequest;
     this.#typesExcludedFromRateLimiting = typesExcludedFromRateLimiting;
     this.registerMessageHandlers();
@@ -589,6 +592,8 @@ export class ApprovalController extends BaseController<
     if (origin) {
       return Array.from(
         (this.#origins.get(origin) || new Map()).values(),
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       ).reduce((total, value) => total + value, 0);
     }
 

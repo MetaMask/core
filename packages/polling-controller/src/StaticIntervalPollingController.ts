@@ -19,6 +19,8 @@ import type {
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
   Base: TBase,
 ) {
@@ -50,17 +52,22 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
       const existingInterval = this.#intervalIds[key];
       this._stopPollingByPollingTokenSetId(key);
 
-      this.#intervalIds[key] = setTimeout(
+      // eslint-disable-next-line no-multi-assign
+      const intervalId = (this.#intervalIds[key] = setTimeout(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
           try {
             await this._executePoll(networkClientId, options);
           } catch (error) {
             console.error(error);
           }
-          this._startPollingByNetworkClientId(networkClientId, options);
+          if (intervalId === this.#intervalIds[key]) {
+            this._startPollingByNetworkClientId(networkClientId, options);
+          }
         },
         existingInterval ? this.#intervalLength : 0,
-      );
+      ));
     }
 
     _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {

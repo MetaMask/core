@@ -1,8 +1,8 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { ChainId } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
-import type { NonceTracker } from 'nonce-tracker';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
@@ -93,6 +93,8 @@ function newMultichainTrackingHelper(
             provider: MOCK_PROVIDERS['customNetworkClientId-1'],
           };
         default:
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           throw new Error(`Invalid network client id ${networkClientId}`);
       }
     });
@@ -220,6 +222,16 @@ function newMultichainTrackingHelper(
 describe('MultichainTrackingHelper', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+
+    for (const network of [
+      'mainnet',
+      'goerli',
+      'sepolia',
+      'customNetworkClientId-1',
+    ] as const) {
+      MOCK_BLOCK_TRACKERS[network] = buildMockBlockTracker(network);
+      MOCK_PROVIDERS[network] = buildMockProvider(network);
+    }
   });
 
   describe('onNetworkStateChange', () => {
@@ -461,6 +473,8 @@ describe('MultichainTrackingHelper', () => {
 
       helper.initialize();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       helper.updateIncomingTransactions(['mainnet', 'goerli']);
       expect(mockIncomingTransactionHelpers['0x1'].update).toHaveBeenCalled();
       expect(
@@ -671,6 +685,8 @@ describe('MultichainTrackingHelper', () => {
   });
 
   describe('acquireNonceLockForChainIdKey', () => {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line jest/expect-expect
     it('returns a unqiue mutex for each chainId and key combination', async () => {
       const { helper } = newMultichainTrackingHelper();
 
@@ -699,6 +715,8 @@ describe('MultichainTrackingHelper', () => {
       });
 
       const delay = () =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);
@@ -710,6 +728,8 @@ describe('MultichainTrackingHelper', () => {
       ]);
       expect(secondReleaseLockIfAcquired).toBeNull();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstReleaseLock();
       await advanceTime({ clock, duration: 1 });
 

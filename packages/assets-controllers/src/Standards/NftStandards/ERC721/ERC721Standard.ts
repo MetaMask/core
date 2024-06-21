@@ -91,7 +91,10 @@ export class ERC721Standard {
       address,
     );
     if (!supportsMetadata) {
-      throw new Error('Contract does not support ERC721 metadata interface.');
+      // Do not throw error here, supporting Metadata interface is optional even though majority of ERC721 nfts do support it.
+      // This change is made because of instances of NFTs that are ERC404( mixed ERC20 / ERC721 implementation).
+      // As of today, ERC404 is unofficial but some people use it, the contract does not support Metadata interface, but it has the tokenURI() fct.
+      console.error('Contract does not support ERC721 metadata interface.');
     }
     return contract.tokenURI(tokenId);
   };

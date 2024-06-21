@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Changed token API endpoint from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Fixed
+
+- Fix `setName` and `updateProposedNames` methods to protect against prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041)
+
 ## [6.0.1]
 
 ### Fixed
@@ -100,7 +121,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.0...HEAD
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@7.0.0...@metamask/name-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@6.0.1...@metamask/name-controller@7.0.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@6.0.0...@metamask/name-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@5.0.0...@metamask/name-controller@6.0.0
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@4.2.0...@metamask/name-controller@5.0.0

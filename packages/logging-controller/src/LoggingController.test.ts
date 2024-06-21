@@ -54,6 +54,8 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
@@ -80,12 +82,14 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'hello',
         },
       }),
     ).toBeUndefined();
@@ -97,9 +101,9 @@ describe('LoggingController', () => {
       log: expect.objectContaining({
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'hello',
         },
       }),
     });
@@ -114,6 +118,8 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
@@ -127,6 +133,8 @@ describe('LoggingController', () => {
     }
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log 2`,
@@ -164,12 +172,14 @@ describe('LoggingController', () => {
     });
 
     expect(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await unrestricted.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'Heya',
         },
       }),
     ).toBeUndefined();

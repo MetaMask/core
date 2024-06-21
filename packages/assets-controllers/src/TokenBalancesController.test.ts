@@ -1,8 +1,10 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import BN from 'bn.js';
 
 import { flushPromises } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -10,7 +12,10 @@ import type {
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
 import type { Token } from './TokenRatesController';
-import { getDefaultTokensState, type TokensState } from './TokensController';
+import {
+  getDefaultTokensState,
+  type TokensControllerState,
+} from './TokensController';
 
 const controllerName = 'TokenBalancesController';
 
@@ -28,19 +33,63 @@ function getMessenger(
 ): TokenBalancesControllerMessenger {
   return controllerMessenger.getRestricted({
     name: controllerName,
-    allowedActions: ['PreferencesController:getState'],
+    allowedActions: ['AccountsController:getSelectedAccount'],
     allowedEvents: ['TokensController:stateChange'],
   });
 }
 
-describe('TokenBalancesController', () => {
-  let controllerMessenger: ControllerMessenger<AllowedActions, AllowedEvents>;
-  let messenger: TokenBalancesControllerMessenger;
+const setupController = ({
+  config,
+  mock,
+}: {
+  config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
+  mock: {
+    getBalanceOf?: BN;
+    selectedAccount: InternalAccount;
+  };
+}): {
+  controller: TokenBalancesController;
+  messenger: TokenBalancesControllerMessenger;
+  mockSelectedAccount: jest.Mock<InternalAccount>;
+  mockGetERC20BalanceOf: jest.Mock<BN>;
+  triggerTokensStateChange: (state: TokensControllerState) => Promise<void>;
+} => {
+  const controllerMessenger = new ControllerMessenger<
+    AllowedActions,
+    AllowedEvents
+  >();
+  const messenger = getMessenger(controllerMessenger);
 
+  const mockSelectedAccount = jest.fn().mockReturnValue(mock.selectedAccount);
+  const mockGetERC20BalanceOf = jest.fn().mockReturnValue(mock.getBalanceOf);
+
+  controllerMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockSelectedAccount,
+  );
+
+  const controller = new TokenBalancesController({
+    getERC20BalanceOf: mockGetERC20BalanceOf,
+    messenger,
+    ...config,
+  });
+
+  const triggerTokensStateChange = async (state: TokensControllerState) => {
+    controllerMessenger.publish('TokensController:stateChange', state, []);
+  };
+
+  return {
+    controller,
+    messenger,
+    mockSelectedAccount,
+    mockGetERC20BalanceOf,
+    triggerTokensStateChange,
+  };
+};
+
+describe('TokenBalancesController', () => {
   beforeEach(() => {
     jest.useFakeTimers();
-    controllerMessenger = new ControllerMessenger();
-    messenger = getMessenger(controllerMessenger);
   });
 
   afterEach(() => {
@@ -48,23 +97,16 @@ describe('TokenBalancesController', () => {
   });
 
   it('should set default state', () => {
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      getERC20BalanceOf: jest.fn(),
-      messenger,
+    const { controller } = setupController({
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+      },
     });
 
     expect(controller.state).toStrictEqual({ contractBalances: {} });
   });
 
   it('should poll and update balances in the right interval', async () => {
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
     const updateBalancesSpy = jest.spyOn(
       TokenBalancesController.prototype,
       'updateBalances',
@@ -73,7 +115,7 @@ describe('TokenBalancesController', () => {
     new TokenBalancesController({
       interval: 10,
       getERC20BalanceOf: jest.fn(),
-      messenger,
+      messenger: getMessenger(new ControllerMessenger()),
     });
     await flushPromises();
 
@@ -87,16 +129,16 @@ describe('TokenBalancesController', () => {
 
   it('should update balances if enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      disabled: false,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      interval: 10,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller } = setupController({
+      config: {
+        disabled: false,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+        interval: 10,
+      },
+      mock: {
+        getBalanceOf: new BN(1),
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+      },
     });
 
     await controller.updateBalances();
@@ -108,16 +150,16 @@ describe('TokenBalancesController', () => {
 
   it('should not update balances if disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      disabled: true,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      interval: 10,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller } = setupController({
+      config: {
+        disabled: true,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+        interval: 10,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        getBalanceOf: new BN(1),
+      },
     });
 
     await controller.updateBalances();
@@ -127,16 +169,16 @@ describe('TokenBalancesController', () => {
 
   it('should update balances if controller is manually enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      disabled: true,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      interval: 10,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller } = setupController({
+      config: {
+        disabled: true,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+        interval: 10,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        getBalanceOf: new BN(1),
+      },
     });
 
     await controller.updateBalances();
@@ -153,16 +195,16 @@ describe('TokenBalancesController', () => {
 
   it('should not update balances if controller is manually disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      disabled: false,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      interval: 10,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller } = setupController({
+      config: {
+        disabled: false,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+        interval: 10,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        getBalanceOf: new BN(1),
+      },
     });
 
     await controller.updateBalances();
@@ -181,20 +223,17 @@ describe('TokenBalancesController', () => {
 
   it('should update balances if tokens change and controller is manually enabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      disabled: true,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      interval: 10,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller, triggerTokensStateChange } = setupController({
+      config: {
+        disabled: true,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+        interval: 10,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        getBalanceOf: new BN(1),
+      },
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
-      controllerMessenger.publish('TokensController:stateChange', state, []);
-    };
 
     await controller.updateBalances();
 
@@ -219,20 +258,17 @@ describe('TokenBalancesController', () => {
 
   it('should not update balances if tokens change and controller is manually disabled', async () => {
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      disabled: false,
-      tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
-      interval: 10,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller, triggerTokensStateChange } = setupController({
+      config: {
+        disabled: false,
+        tokens: [{ address, decimals: 18, symbol: 'EOS', aggregators: [] }],
+        interval: 10,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        getBalanceOf: new BN(1),
+      },
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
-      controllerMessenger.publish('TokensController:stateChange', state, []);
-    };
 
     await controller.updateBalances();
 
@@ -258,14 +294,14 @@ describe('TokenBalancesController', () => {
   });
 
   it('should clear previous interval', async () => {
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      interval: 1337,
-      getERC20BalanceOf: jest.fn(),
-      messenger,
+    const { controller } = setupController({
+      config: {
+        interval: 1337,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        getBalanceOf: new BN(1),
+      },
     });
 
     const mockClearTimeout = jest.spyOn(global, 'clearTimeout');
@@ -288,22 +324,24 @@ describe('TokenBalancesController', () => {
         aggregators: [],
       },
     ];
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress }),
-    );
-    const controller = new TokenBalancesController({
-      interval: 1337,
-      tokens,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller } = setupController({
+      config: {
+        interval: 1337,
+        tokens,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({
+          address: selectedAddress,
+        }),
+        getBalanceOf: new BN(1),
+      },
     });
 
     expect(controller.state.contractBalances).toStrictEqual({});
 
     await controller.updateBalances();
 
-    expect(tokens[0].balanceError).toBeNull();
+    expect(tokens[0].hasBalanceError).toBe(false);
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
     expect(controller.state.contractBalances[address]).not.toBe(toHex(0));
   });
@@ -311,9 +349,6 @@ describe('TokenBalancesController', () => {
   it('should handle `getERC20BalanceOf` error case', async () => {
     const errorMsg = 'Failed to get balance';
     const address = '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0';
-    const getERC20BalanceOfStub = jest
-      .fn()
-      .mockReturnValue(Promise.reject(new Error(errorMsg)));
     const tokens: Token[] = [
       {
         address,
@@ -323,47 +358,49 @@ describe('TokenBalancesController', () => {
       },
     ];
 
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({}),
-    );
-    const controller = new TokenBalancesController({
-      interval: 1337,
-      tokens,
-      getERC20BalanceOf: getERC20BalanceOfStub,
-      messenger,
+    const { controller, mockGetERC20BalanceOf } = setupController({
+      config: {
+        interval: 1337,
+        tokens,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({
+          address,
+        }),
+      },
     });
+
+    // @ts-expect-error Testing error case
+    mockGetERC20BalanceOf.mockReturnValueOnce(new Error(errorMsg));
 
     expect(controller.state.contractBalances).toStrictEqual({});
 
     await controller.updateBalances();
 
-    expect(tokens[0].balanceError).toBeInstanceOf(Error);
-    expect(tokens[0].balanceError).toHaveProperty('message', errorMsg);
+    expect(tokens[0].hasBalanceError).toBe(true);
     expect(controller.state.contractBalances[address]).toBe(toHex(0));
 
-    getERC20BalanceOfStub.mockReturnValue(new BN(1));
-
+    mockGetERC20BalanceOf.mockReturnValueOnce(new BN(1));
     await controller.updateBalances();
 
-    expect(tokens[0].balanceError).toBeNull();
+    expect(tokens[0].hasBalanceError).toBe(false);
     expect(Object.keys(controller.state.contractBalances)).toContain(address);
     expect(controller.state.contractBalances[address]).not.toBe(0);
   });
 
   it('should update balances when tokens change', async () => {
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      getERC20BalanceOf: jest.fn(),
-      interval: 1337,
-      messenger,
+    const { controller, triggerTokensStateChange } = setupController({
+      config: {
+        interval: 1337,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({
+          address: '0x1234',
+        }),
+        getBalanceOf: new BN(1),
+      },
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
-      controllerMessenger.publish('TokensController:stateChange', state, []);
-    };
+
     const updateBalancesSpy = jest.spyOn(controller, 'updateBalances');
 
     await triggerTokensStateChange({
@@ -381,18 +418,18 @@ describe('TokenBalancesController', () => {
   });
 
   it('should update token balances when detected tokens are added', async () => {
-    controllerMessenger.registerActionHandler(
-      'PreferencesController:getState',
-      jest.fn().mockReturnValue({ selectedAddress: '0x1234' }),
-    );
-    const controller = new TokenBalancesController({
-      interval: 1337,
-      getERC20BalanceOf: jest.fn().mockReturnValue(new BN(1)),
-      messenger,
+    const { controller, triggerTokensStateChange } = setupController({
+      config: {
+        interval: 1337,
+      },
+      mock: {
+        selectedAccount: createMockInternalAccount({
+          address: '0x1234',
+        }),
+        getBalanceOf: new BN(1),
+      },
     });
-    const triggerTokensStateChange = async (state: TokensState) => {
-      controllerMessenger.publish('TokensController:stateChange', state, []);
-    };
+
     expect(controller.state.contractBalances).toStrictEqual({});
 
     await triggerTokensStateChange({

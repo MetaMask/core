@@ -8,7 +8,11 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
+import type {
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerStateChangeEvent,
+} from '@metamask/selected-network-controller';
+import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
@@ -63,16 +67,22 @@ export type AllowedActions =
   | NetworkControllerSetActiveNetworkAction
   | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
 
+export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
+
 export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   QueuedRequestControllerActions | AllowedActions,
-  QueuedRequestControllerEvents,
+  QueuedRequestControllerEvents | AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
+  shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
+  clearPendingConfirmations: () => void;
 };
 
 /**
@@ -128,12 +138,32 @@ export class QueuedRequestController extends BaseController<
   #processingRequestCount = 0;
 
   /**
+   * This is a function that returns true if a request requires the globally selected
+   * network to match the dapp selected network before being processed. These can
+   * be for UI/UX reasons where the currently selected network is displayed
+   * in the confirmation even though it will be submitted on the correct
+   * network for the dapp. It could also be that a method expects the
+   * globally selected network to match some value in the request params itself.
+   */
+  readonly #shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
+
+  #clearPendingConfirmations: () => void;
+
+  /**
    * Construct a QueuedRequestController.
    *
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
+   * @param options.shouldRequestSwitchNetwork - A function that returns if a request requires the globally selected network to match the dapp selected network.
+   * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
    */
-  constructor({ messenger }: QueuedRequestControllerOptions) {
+  constructor({
+    messenger,
+    shouldRequestSwitchNetwork,
+    clearPendingConfirmations,
+  }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
       metadata: {
@@ -145,6 +175,8 @@ export class QueuedRequestController extends BaseController<
       messenger,
       state: { queuedRequestCount: 0 },
     });
+    this.#shouldRequestSwitchNetwork = shouldRequestSwitchNetwork;
+    this.#clearPendingConfirmations = clearPendingConfirmations;
     this.#registerMessageHandlers();
   }
 
@@ -152,6 +184,42 @@ export class QueuedRequestController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:enqueueRequest`,
       this.enqueueRequest.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
+      SelectedNetworkControllerEventTypes.stateChange,
+      (_, patch) => {
+        patch.forEach(({ op, path }) => {
+          if (
+            path.length === 2 &&
+            path[0] === 'domains' &&
+            typeof path[1] === 'string'
+          ) {
+            const origin = path[1];
+            this.#flushQueueForOrigin(origin);
+            // When a domain is removed from SelectedNetworkController, its because of revoke permissions or the useRequestQueue flag was toggled off.
+            // Rather than subscribe to the permissions controller event in addition to the selectedNetworkController ones, we simplify it and just handle remove on this event alone.
+            if (op === 'remove' && origin === this.#originOfCurrentBatch) {
+              this.#clearPendingConfirmations();
+            }
+          }
+        });
+      },
+    );
+  }
+
+  #flushQueueForOrigin(flushOrigin: string) {
+    this.#requestQueue
+      .filter(({ origin }) => origin === flushOrigin)
+      .forEach(({ processRequest }) => {
+        processRequest(
+          new Error(
+            'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+          ),
+        );
+      });
+    this.#requestQueue = this.#requestQueue.filter(
+      ({ origin }) => origin !== flushOrigin,
     );
   }
 
@@ -282,10 +350,9 @@ export class QueuedRequestController extends BaseController<
         this.#updateQueuedRequestCount();
 
         await waitForDequeue;
-      } else if (request.method !== 'eth_requestAccounts') {
+      } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
-        // Note: we dont need to switch chain before processing eth_requestAccounts because accounts are not network-specific (at the time of writing)
         await this.#switchNetworkIfNecessary();
       }
       this.#processingRequestCount += 1;

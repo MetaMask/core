@@ -79,6 +79,8 @@ describe('PendingTransactionTracker', () => {
       );
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     await blockTracker.on.mock.calls[0][1](latestBlockNumber);
   }
 
@@ -976,17 +978,33 @@ describe('PendingTransactionTracker', () => {
 
         it('unless resubmit disabled', async () => {
           const transaction = { ...TRANSACTION_SUBMITTED_MOCK };
+          const getTransactions = jest
+            .fn()
+            .mockReturnValueOnce(freeze([transaction], true));
 
           pendingTransactionTracker = new PendingTransactionTracker({
             ...options,
-            getTransactions: () => freeze([transaction], true),
-            isResubmitEnabled: false,
+            getTransactions,
+            isResubmitEnabled: () => false,
           });
 
           queryMock.mockResolvedValueOnce(undefined);
           queryMock.mockResolvedValueOnce('0x1');
 
           await onLatestBlock(BLOCK_NUMBER_MOCK);
+
+          getTransactions.mockReturnValue(
+            freeze(
+              [
+                {
+                  ...transaction,
+                  firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
+                },
+              ],
+              true,
+            ),
+          );
+
           await onLatestBlock('0x124');
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(0);

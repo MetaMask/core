@@ -24,10 +24,15 @@ export async function updateTransactionLayer1GasFee(
 ) {
   const layer1GasFee = await getTransactionLayer1GasFee(request);
 
-  if (layer1GasFee) {
-    const { transactionMeta } = request;
-    transactionMeta.layer1GasFee = layer1GasFee;
+  if (!layer1GasFee) {
+    return;
   }
+
+  const { transactionMeta } = request;
+
+  transactionMeta.layer1GasFee = layer1GasFee;
+
+  log('Updated layer 1 gas fee', layer1GasFee, transactionMeta.id);
 }
 
 /**
@@ -61,10 +66,16 @@ export async function getTransactionLayer1GasFee({
     transactionMeta,
     layer1GasFeeFlows,
   );
+
   if (!layer1GasFeeFlow) {
-    log('Layer 1 gas fee flow not found', transactionMeta.id);
     return undefined;
   }
+
+  log(
+    'Found layer 1 gas fee flow',
+    layer1GasFeeFlow.constructor.name,
+    transactionMeta.id,
+  );
 
   try {
     const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({

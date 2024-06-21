@@ -1,8 +1,10 @@
 export type {
-  ComposableControllerState,
+  ComposableControllerStateConstraint,
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
   ComposableControllerMessenger,
+  LegacyControllerStateConstraint,
+  RestrictedControllerMessengerConstraint,
 } from './ComposableController';
 export {
   ComposableController,

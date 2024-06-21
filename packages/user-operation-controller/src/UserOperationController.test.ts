@@ -238,6 +238,8 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
@@ -424,10 +426,15 @@ describe('UserOperationController', () => {
           smartContractAccount,
           swaps: {
             approvalTxId: 'testTxId',
+            destinationTokenAmount: '0x1',
             destinationTokenAddress: '0x1',
             destinationTokenDecimals: 3,
             destinationTokenSymbol: 'TEST',
             estimatedBaseFee: '0x2',
+            sourceTokenAddress: '0x3',
+            sourceTokenAmount: '0x4',
+            sourceTokenDecimals: 5,
+            swapAndSendRecipient: '0x5',
             sourceTokenSymbol: 'ETH',
             swapMetaData: { test: 'value' },
             swapTokenValue: '0x3',
@@ -440,10 +447,15 @@ describe('UserOperationController', () => {
         expect.objectContaining({
           swapsMetadata: {
             approvalTxId: 'testTxId',
+            destinationTokenAmount: '0x1',
             destinationTokenAddress: '0x1',
             destinationTokenDecimals: 3,
             destinationTokenSymbol: 'TEST',
             estimatedBaseFee: '0x2',
+            sourceTokenAddress: '0x3',
+            sourceTokenAmount: '0x4',
+            sourceTokenDecimals: 5,
+            swapAndSendRecipient: '0x5',
             sourceTokenSymbol: 'ETH',
             swapMetaData: { test: 'value' },
             swapTokenValue: '0x3',
@@ -471,10 +483,15 @@ describe('UserOperationController', () => {
           swapsMetadata: {
             approvalTxId: null,
             destinationTokenAddress: null,
+            destinationTokenAmount: null,
             destinationTokenDecimals: null,
             destinationTokenSymbol: null,
             estimatedBaseFee: null,
+            sourceTokenAddress: null,
+            sourceTokenAmount: null,
+            sourceTokenDecimals: null,
             sourceTokenSymbol: null,
+            swapAndSendRecipient: null,
             swapMetaData: null,
             swapTokenValue: null,
           },
@@ -826,6 +843,42 @@ describe('UserOperationController', () => {
       expect(prepareMock).toHaveBeenCalledTimes(1);
     });
 
+    it('uses gas limits suggested by smart contract account during #addPaymasterData', async () => {
+      const controller = new UserOperationController(optionsMock);
+      const UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK: UpdateUserOperationResponse =
+        {
+          paymasterAndData: '0xA',
+          callGasLimit: '0x123',
+          preVerificationGas: '0x456',
+          verificationGasLimit: '0x789',
+        };
+      smartContractAccount.updateUserOperation.mockResolvedValue(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK,
+      );
+      const { id, hash } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      await hash();
+
+      expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
+      expect(
+        controller.state.userOperations[id].userOperation.callGasLimit,
+      ).toBe(UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.callGasLimit);
+      expect(
+        controller.state.userOperations[id].userOperation.verificationGasLimit,
+      ).toBe(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.verificationGasLimit,
+      );
+      expect(
+        controller.state.userOperations[id].userOperation.preVerificationGas,
+      ).toBe(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.preVerificationGas,
+      );
+    });
+
     describe('if approval request resolved with updated transaction', () => {
       it('updates gas fees without regeneration if paymaster data not set', async () => {
         const controller = new UserOperationController(optionsMock);
@@ -954,6 +1007,7 @@ describe('UserOperationController', () => {
             maxFeePerGas: '0x6',
             maxPriorityFeePerGas: '0x7',
           }),
+          chainId: CHAIN_ID_MOCK,
         });
       });
 

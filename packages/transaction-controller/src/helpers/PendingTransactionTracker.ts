@@ -48,11 +48,15 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): this;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 }
 
@@ -71,7 +75,7 @@ export class PendingTransactionTracker {
 
   #getTransactions: () => TransactionMeta[];
 
-  #isResubmitEnabled: boolean;
+  #isResubmitEnabled: () => boolean;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +107,7 @@ export class PendingTransactionTracker {
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getTransactions: () => TransactionMeta[];
-    isResubmitEnabled?: boolean;
+    isResubmitEnabled?: () => boolean;
     getGlobalLock: () => Promise<() => void>;
     publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
     hooks?: {
@@ -121,7 +125,7 @@ export class PendingTransactionTracker {
     this.#getChainId = getChainId;
     this.#getEthQuery = getEthQuery;
     this.#getTransactions = getTransactions;
-    this.#isResubmitEnabled = isResubmitEnabled ?? true;
+    this.#isResubmitEnabled = isResubmitEnabled ?? (() => true);
     this.#listener = this.#onLatestBlock.bind(this);
     this.#getGlobalLock = getGlobalLock;
     this.#publishTransaction = publishTransaction;
@@ -222,7 +226,7 @@ export class PendingTransactionTracker {
   }
 
   async #resubmitTransactions(latestBlockNumber: string) {
-    if (!this.#isResubmitEnabled || !this.#running) {
+    if (!this.#isResubmitEnabled() || !this.#running) {
       return;
     }
 

@@ -70,8 +70,6 @@ export function testsForProviderType(providerType: ProviderType) {
 
         { name: 'eth_sendRawTransaction', numberOfParameters: 1 },
         { name: 'eth_sendTransaction', numberOfParameters: 1 },
-        { name: 'eth_sign', numberOfParameters: 2 },
-
         { name: 'eth_createAccessList', numberOfParameters: 2 },
         { name: 'eth_getLogs', numberOfParameters: 1 },
         { name: 'eth_getProof', numberOfParameters: 3 },

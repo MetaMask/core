@@ -23,7 +23,6 @@ import type { Hex } from '@metamask/utils';
 import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
-import fetchGasEstimatesViaEthFeeHistory from './fetchGasEstimatesViaEthFeeHistory';
 import {
   calculateTimeEstimate,
   fetchGasEstimates,
@@ -33,6 +32,8 @@ import {
 
 export const GAS_API_BASE_URL = 'https://gas.api.infura.io';
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type unknownString = 'unknown';
 
 // Fee Market describes the way gas is set after the london hardfork, and was
@@ -167,6 +168,7 @@ const metadata = {
   gasFeeEstimates: { persist: true, anonymous: false },
   estimatedGasFeeTimeBounds: { persist: true, anonymous: false },
   gasEstimateType: { persist: true, anonymous: false },
+  nonRPCGasFeeApisDisabled: { persist: true, anonymous: false },
 };
 
 export type GasFeeStateEthGasPrice = {
@@ -215,7 +217,10 @@ export type GasFeeEstimatesByChainId = {
   gasFeeEstimatesByChainId?: Record<string, SingleChainGasFeeState>;
 };
 
-export type GasFeeState = GasFeeEstimatesByChainId & SingleChainGasFeeState;
+export type GasFeeState = GasFeeEstimatesByChainId &
+  SingleChainGasFeeState & {
+    nonRPCGasFeeApisDisabled?: boolean;
+  };
 
 const name = 'GasFeeController';
 
@@ -248,6 +253,7 @@ const defaultState: GasFeeState = {
   gasFeeEstimates: {},
   estimatedGasFeeTimeBounds: {},
   gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+  nonRPCGasFeeApisDisabled: false,
 };
 
 /**
@@ -266,6 +272,8 @@ export class GasFeeController extends StaticIntervalPollingController<
 
   private readonly legacyAPIEndpoint: string;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   private readonly EIP1559APIEndpoint: string;
 
   private readonly getCurrentNetworkEIP1559Compatibility;
@@ -355,15 +363,23 @@ export class GasFeeController extends StaticIntervalPollingController<
 
     if (onNetworkDidChange && getChainId) {
       this.currentChainId = getChainId();
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onNetworkDidChange(async (networkControllerState) => {
         await this.#onNetworkControllerDidChange(networkControllerState);
       });
     } else {
-      this.currentChainId = this.messagingSystem.call(
+      const { selectedNetworkClientId } = this.messagingSystem.call(
         'NetworkController:getState',
-      ).providerConfig.chainId;
+      );
+      this.currentChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        selectedNetworkClientId,
+      ).configuration.chainId;
       this.messagingSystem.subscribe(
         'NetworkController:networkDidChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
           await this.#onNetworkControllerDidChange(networkControllerState);
         },
@@ -462,7 +478,6 @@ export class GasFeeController extends StaticIntervalPollingController<
         '<chain_id>',
         `${decimalChainId}`,
       ),
-      fetchGasEstimatesViaEthFeeHistory,
       fetchLegacyGasPriceEstimates,
       fetchLegacyGasPriceEstimatesUrl: this.legacyAPIEndpoint.replace(
         '<chain_id>',
@@ -473,16 +488,20 @@ export class GasFeeController extends StaticIntervalPollingController<
       clientId: this.clientId,
       ethQuery,
       infuraAPIKey: this.infuraAPIKey,
+      nonRPCGasFeeApisDisabled: this.state.nonRPCGasFeeApisDisabled,
     });
 
     if (shouldUpdateState) {
+      const chainId = toHex(decimalChainId);
       this.update((state) => {
-        state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
-        state.estimatedGasFeeTimeBounds =
-          gasFeeCalculations.estimatedGasFeeTimeBounds;
-        state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        if (this.currentChainId === chainId) {
+          state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
+          state.estimatedGasFeeTimeBounds =
+            gasFeeCalculations.estimatedGasFeeTimeBounds;
+          state.gasEstimateType = gasFeeCalculations.gasEstimateType;
+        }
         state.gasFeeEstimatesByChainId ??= {};
-        state.gasFeeEstimatesByChainId[toHex(decimalChainId)] = {
+        state.gasFeeEstimatesByChainId[chainId] = {
           gasFeeEstimates: gasFeeCalculations.gasFeeEstimates,
           estimatedGasFeeTimeBounds:
             gasFeeCalculations.estimatedGasFeeTimeBounds,
@@ -529,6 +548,8 @@ export class GasFeeController extends StaticIntervalPollingController<
       clearInterval(this.intervalId);
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this._fetchGasFeeEstimateData());
     }, this.intervalDelay);
@@ -579,8 +600,13 @@ export class GasFeeController extends StaticIntervalPollingController<
     );
   }
 
-  async #onNetworkControllerDidChange(networkControllerState: NetworkState) {
-    const newChainId = networkControllerState.providerConfig.chainId;
+  async #onNetworkControllerDidChange({
+    selectedNetworkClientId,
+  }: NetworkState) {
+    const newChainId = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    ).configuration.chainId;
 
     if (newChainId !== this.currentChainId) {
       this.ethQuery = new EthQuery(this.#getProvider());
@@ -588,6 +614,18 @@ export class GasFeeController extends StaticIntervalPollingController<
 
       this.currentChainId = newChainId;
     }
+  }
+
+  enableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = false;
+    });
+  }
+
+  disableNonRPCGasFeeApis() {
+    this.update((state) => {
+      state.nonRPCGasFeeApisDisabled = true;
+    });
   }
 }
 

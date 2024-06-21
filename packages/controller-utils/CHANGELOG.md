@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
+### Added
+
+- Add `NFT_API_VERSION` and `NFT_API_TIMEOUT` constants ([#4312](https://github.com/MetaMask/core/pull/4312))
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+
+### Removed
+
+- **BREAKING:** Remove `EthSign` from `ApprovalType` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This represented an `eth_sign` approval, but support for that RPC method is being removed, so this is no longer needed.
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+
+## [9.1.0]
+
+### Added
+
+- Export new constant for the NFT API's url ([#4030](https://github.com/MetaMask/core/pull/4030))
+- Add support for wider range of SIWE messages ([#4141](https://github.com/MetaMask/core/pull/4141))
+
+### Changed
+
+- Bump TypeScript version to ~4.9.5 ([#4084](https://github.com/MetaMask/core/pull/4084))
+
+### Fixed
+
+- Add guards against prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
+
 ## [9.0.2]
 
 ### Fixed
@@ -312,7 +348,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.4...@metamask/controller-utils@9.0.0

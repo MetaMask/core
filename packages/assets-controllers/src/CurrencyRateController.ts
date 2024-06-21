@@ -14,7 +14,7 @@ import type {
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
-import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare';
+import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare-service';
 
 /**
  * @type CurrencyRateState
@@ -145,6 +145,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<
     } finally {
       releaseLock();
     }
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     nativeCurrencies.forEach(this.updateExchangeRate.bind(this));
   }
 

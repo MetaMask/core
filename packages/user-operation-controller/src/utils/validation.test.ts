@@ -69,6 +69,8 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: SignUserOperationResponse = {
  * @param value - The value to set.
  * @returns The copied object with the property path set to the given value.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
   const copy = cloneDeep(object);
   const path = pathString.split('.');
@@ -94,6 +96,8 @@ function setPropertyPath<T>(object: T, pathString: string, value: unknown): T {
  * @param expectedInternalError - The specific validation error.
  * @param rootPropertyName - The name of the root input.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 function expectValidationError<T>(
   validateFunction: (request: T) => void,
   input: T,
@@ -268,6 +272,12 @@ describe('validation', () => {
         'Expected a string, but received: 123',
       ],
       [
+        'swaps.destinationTokenAmount',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
         'swaps.destinationTokenDecimals',
         'wrong type',
         '123',
@@ -286,7 +296,31 @@ describe('validation', () => {
         'Expected a string, but received: 123',
       ],
       [
+        'swaps.sourceTokenAddress',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.sourceTokenAmount',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.sourceTokenDecimals',
+        'wrong type',
+        '123',
+        'Expected a number, but received: "123"',
+      ],
+      [
         'swaps.sourceTokenSymbol',
+        'wrong type',
+        123,
+        'Expected a string, but received: 123',
+      ],
+      [
+        'swaps.swapAndSendRecipient',
         'wrong type',
         123,
         'Expected a string, but received: 123',
@@ -307,7 +341,7 @@ describe('validation', () => {
         'type',
         'wrong type',
         123,
-        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_sign","eth_signTypedData","smart","swap","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall","increaseAllowance"`, but received: 123',
+        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_signTypedData","smart","swap","swapAndSend","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall","increaseAllowance"`, but received: 123',
       ],
     ])(
       'throws if %s is %s',
@@ -432,7 +466,25 @@ describe('validation', () => {
         'paymasterAndData',
         'wrong type',
         123,
-        'Expected a value of type `Hexadecimal String`, but received: `123`',
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'callGasLimit',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'preVerificationGas',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
+      ],
+      [
+        'verificationGasLimit',
+        'wrong type',
+        123,
+        'Expected a value of type `Hexadecimal String or 0x`, but received: `123`',
       ],
     ])(
       'throws if %s is %s',

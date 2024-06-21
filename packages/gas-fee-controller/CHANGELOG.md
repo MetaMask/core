@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/polling-controller` to `^8.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+## [15.1.2]
+
+### Fixed
+
+- Add a metadata property for nonRPCGasFeeApisDisabled ([#4245](https://github.com/MetaMask/core/pull/4245))
+
+## [15.1.1]
+
+### Changed
+
+- Bump `@metamask/polling-controller` to `^6.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
+### Removed
+
+- Remove fee history fallback in favour of `eth_gasPrice` call ([#4210](https://github.com/MetaMask/core/pull/4210))
+
+## [15.1.0]
+
+### Added
+
+- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core.git/pull/4094))
+
+### Fixed
+
+- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core.git/pull/4214))
+
 ## [15.0.0]
 
 ### Changed
@@ -249,7 +293,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@16.0.0...@metamask/gas-fee-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.2...@metamask/gas-fee-controller@16.0.0
+[15.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.1...@metamask/gas-fee-controller@15.1.2
+[15.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.0...@metamask/gas-fee-controller@15.1.1
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.0.0...@metamask/gas-fee-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.1...@metamask/gas-fee-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.0...@metamask/gas-fee-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.2...@metamask/gas-fee-controller@14.0.0

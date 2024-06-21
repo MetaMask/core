@@ -1,6 +1,9 @@
 export enum KeyringControllerError {
   NoKeyring = 'KeyringController - No keyring found',
+  KeyringNotFound = 'KeyringController - Keyring not found.',
+  UnsafeDirectKeyringAccess = 'KeyringController - Returning keyring instances is unsafe',
   WrongPasswordType = 'KeyringController - Password must be of type string.',
+  InvalidEmptyPassword = 'KeyringController - Password cannot be empty.',
   NoFirstAccount = 'KeyringController - First Account not found.',
   DuplicatedAccount = 'KeyringController - The account you are trying to import is a duplicate',
   VaultError = 'KeyringController - Cannot unlock without a previous vault.',
@@ -26,4 +29,6 @@ export enum KeyringControllerError {
   ExpiredCredentials = 'KeyringController - Encryption key and salt provided are expired',
   NoKeyringBuilder = 'KeyringController - No keyringBuilder found for keyring',
   DataType = 'KeyringController - Incorrect data type provided',
+  NoHdKeyring = 'KeyringController - No HD Keyring found',
+  ControllerLockRequired = 'KeyringController - attempt to update vault during a non mutually exclusive operation',
 }

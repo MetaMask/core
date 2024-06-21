@@ -1,20 +1,20 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import PhishingDetector from 'eth-phishing-detect/src/detector';
 import { toASCII } from 'punycode/';
 
+import { PhishingDetector } from './PhishingDetector';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
-  'https://phishing-detection.metafi.codefi.network';
+  'https://phishing-detection.api.cx.metamask.io';
 
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 
 export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 
-export const HOTLIST_REFRESH_INTERVAL = 30 * 60; // 30 mins in seconds
-export const STALELIST_REFRESH_INTERVAL = 4 * 24 * 60 * 60; // 4 days in seconds
+export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
+export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
@@ -56,7 +56,11 @@ export type EthPhishingResponse = {
  * @property version - Stalelist data structure iteration.
  */
 export type PhishingStalelist = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_phishing_detect_config: Record<ListTypes, string[]>;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   phishfort_hotlist: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
@@ -119,6 +123,8 @@ export type HotlistDiff = {
   isRemoval?: boolean;
 };
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type DataResultWrapper<T> = {
   data: T;
 };
@@ -489,6 +495,8 @@ export class PhishingController extends BaseController<
       return;
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const { phishfort_hotlist, eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 

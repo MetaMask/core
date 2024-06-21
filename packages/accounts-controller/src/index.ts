@@ -11,6 +11,7 @@ export type {
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerEvents,
   AccountsControllerMessenger,
 } from './AccountsController';

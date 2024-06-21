@@ -27,6 +27,7 @@ import nock from 'nock';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import { formatAggregatorNames } from './assetsUtil';
 import { TOKEN_END_POINT_API } from './token-service';
 import type {
@@ -44,7 +45,10 @@ import {
   type TokenListState,
   type TokenListToken,
 } from './TokenListController';
-import type { TokensController, TokensState } from './TokensController';
+import type {
+  TokensController,
+  TokensControllerState,
+} from './TokensController';
 import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -89,7 +93,7 @@ const sampleTokenA = {
   symbol: tokenAFromList.symbol,
   decimals: tokenAFromList.decimals,
   image:
-    'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+    'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
   name: 'Chainlink',
@@ -99,7 +103,7 @@ const sampleTokenB = {
   symbol: tokenBFromList.symbol,
   decimals: tokenBFromList.decimals,
   image:
-    'https://static.metafi.codefi.network/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
+    'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c.png',
   isERC721: false,
   aggregators: formattedSampleAggregators,
   name: 'Bancor',
@@ -141,6 +145,7 @@ function buildTokenDetectionControllerMessenger(
   return controllerMessenger.getRestricted({
     name: controllerName,
     allowedActions: [
+      'AccountsController:getAccount',
       'AccountsController:getSelectedAccount',
       'KeyringController:getState',
       'NetworkController:getNetworkClientById',
@@ -152,7 +157,7 @@ function buildTokenDetectionControllerMessenger(
       'PreferencesController:getState',
     ],
     allowedEvents: [
-      'AccountsController:selectedAccountChange',
+      'AccountsController:selectedEvmAccountChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'NetworkController:networkDidChange',
@@ -163,17 +168,23 @@ function buildTokenDetectionControllerMessenger(
 }
 
 describe('TokenDetectionController', () => {
+  const defaultSelectedAccount = createMockInternalAccount();
+
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenAFromList.address
         }`,
       )
       .reply(200, tokenAFromList)
       .get(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `/token/${convertHexToDecimal(ChainId.mainnet)}?address=${
           tokenBFromList.address
         }`,
@@ -200,6 +211,10 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           isKeyringUnlocked: false,
+          options: {},
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
         },
         async ({ controller }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -218,6 +233,10 @@ describe('TokenDetectionController', () => {
       await withController(
         {
           isKeyringUnlocked: false,
+          options: {},
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
         },
         async ({ controller, triggerKeyringUnlock }) => {
           const mockTokens = sinon.stub(controller, 'detectTokens');
@@ -252,16 +271,24 @@ describe('TokenDetectionController', () => {
     });
 
     it('should poll and detect tokens on interval while on supported networks', async () => {
-      await withController(async ({ controller }) => {
-        const mockTokens = sinon.stub(controller, 'detectTokens');
-        controller.setIntervalLength(10);
+      await withController(
+        {
+          options: {},
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          const mockTokens = sinon.stub(controller, 'detectTokens');
+          controller.setIntervalLength(10);
 
-        await controller.start();
+          await controller.start();
 
-        expect(mockTokens.calledOnce).toBe(true);
-        await advanceTime({ clock, duration: 15 });
-        expect(mockTokens.calledTwice).toBe(true);
-      });
+          expect(mockTokens.calledOnce).toBe(true);
+          await advanceTime({ clock, duration: 15 });
+          expect(mockTokens.calledTwice).toBe(true);
+        },
+      );
     });
 
     it('should not autodetect while not on supported networks', async () => {
@@ -272,6 +299,9 @@ describe('TokenDetectionController', () => {
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
           },
         },
         async ({ controller, mockNetworkState }) => {
@@ -290,12 +320,17 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
@@ -326,7 +361,7 @@ describe('TokenDetectionController', () => {
             [sampleTokenA],
             {
               chainId: ChainId.mainnet,
-              selectedAddress,
+              selectedAddress: selectedAccount.address,
             },
           );
         },
@@ -337,12 +372,17 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({
@@ -390,7 +430,7 @@ describe('TokenDetectionController', () => {
             [sampleTokenA],
             {
               chainId: '0x89',
-              selectedAddress,
+              selectedAddress: selectedAccount.address,
             },
           );
         },
@@ -402,14 +442,19 @@ describe('TokenDetectionController', () => {
         [sampleTokenA.address]: new BN(1),
         [sampleTokenB.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       const interval = 100;
       await withController(
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             interval,
-            selectedAddress,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
@@ -452,7 +497,7 @@ describe('TokenDetectionController', () => {
             [sampleTokenA, sampleTokenB],
             {
               chainId: ChainId.mainnet,
-              selectedAddress,
+              selectedAddress: selectedAccount.address,
             },
           );
         },
@@ -463,12 +508,17 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({
@@ -519,6 +569,9 @@ describe('TokenDetectionController', () => {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
           },
+          mocks: {
+            getSelectedAccount: defaultSelectedAccount,
+          },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockTokenListGetState({
@@ -566,19 +619,24 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const firstSelectedAddress =
-          '0x0000000000000000000000000000000000000001';
-        const secondSelectedAddress =
-          '0x0000000000000000000000000000000000000002';
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress: firstSelectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
+            mockGetAccount,
             mockTokenListGetState,
             triggerSelectedAccountChange,
             callActionSpy,
@@ -603,9 +661,8 @@ describe('TokenDetectionController', () => {
               },
             });
 
-            triggerSelectedAccountChange({
-              address: secondSelectedAddress,
-            } as InternalAccount);
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).toHaveBeenCalledWith(
@@ -613,7 +670,7 @@ describe('TokenDetectionController', () => {
               [sampleTokenA],
               {
                 chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAddress,
+                selectedAddress: secondSelectedAccount.address,
               },
             );
           },
@@ -624,13 +681,17 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -659,7 +720,7 @@ describe('TokenDetectionController', () => {
             });
 
             triggerSelectedAccountChange({
-              address: selectedAddress,
+              address: selectedAccount.address,
             } as InternalAccount);
             await advanceTime({ clock, duration: 1 });
 
@@ -675,16 +736,20 @@ describe('TokenDetectionController', () => {
           const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
             [sampleTokenA.address]: new BN(1),
           });
-          const firstSelectedAddress =
-            '0x0000000000000000000000000000000000000001';
-          const secondSelectedAddress =
-            '0x0000000000000000000000000000000000000002';
+          const firstSelectedAccount = createMockInternalAccount({
+            address: '0x0000000000000000000000000000000000000001',
+          });
+          const secondSelectedAccount = createMockInternalAccount({
+            address: '0x0000000000000000000000000000000000000002',
+          });
           await withController(
             {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAddress: firstSelectedAddress,
+              },
+              mocks: {
+                getSelectedAccount: firstSelectedAccount,
               },
               isKeyringUnlocked: false,
             },
@@ -714,7 +779,7 @@ describe('TokenDetectionController', () => {
               });
 
               triggerSelectedAccountChange({
-                address: secondSelectedAddress,
+                address: secondSelectedAccount.address,
               } as InternalAccount);
               await advanceTime({ clock, duration: 1 });
 
@@ -732,16 +797,20 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const firstSelectedAddress =
-          '0x0000000000000000000000000000000000000001';
-        const secondSelectedAddress =
-          '0x0000000000000000000000000000000000000002';
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
         await withController(
           {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress: firstSelectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
@@ -770,7 +839,7 @@ describe('TokenDetectionController', () => {
             });
 
             triggerSelectedAccountChange({
-              address: secondSelectedAddress,
+              address: secondSelectedAccount.address,
             } as InternalAccount);
             await advanceTime({ clock, duration: 1 });
 
@@ -798,21 +867,27 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const firstSelectedAddress =
-          '0x0000000000000000000000000000000000000001';
-        const secondSelectedAddress =
-          '0x0000000000000000000000000000000000000002';
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress: firstSelectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
+            mockGetAccount,
             mockTokenListGetState,
             triggerPreferencesStateChange,
+            triggerSelectedAccountChange,
             callActionSpy,
           }) => {
             mockTokenListGetState({
@@ -837,17 +912,18 @@ describe('TokenDetectionController', () => {
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress: secondSelectedAddress,
               useTokenDetection: true,
             });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
             await advanceTime({ clock, duration: 1 });
 
-            expect(callActionSpy).toHaveBeenCalledWith(
+            expect(callActionSpy).toHaveBeenLastCalledWith(
               'TokensController:addDetectedTokens',
               [sampleTokenA],
               {
                 chainId: ChainId.mainnet,
-                selectedAddress: secondSelectedAddress,
+                selectedAddress: secondSelectedAccount.address,
               },
             );
           },
@@ -858,20 +934,26 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
+            mockGetAccount,
             mockTokenListGetState,
             triggerPreferencesStateChange,
             callActionSpy,
           }) => {
+            mockGetAccount(selectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokensChainsCache: {
@@ -894,14 +976,12 @@ describe('TokenDetectionController', () => {
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress,
               useTokenDetection: false,
             });
             await advanceTime({ clock, duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress,
               useTokenDetection: true,
             });
             await advanceTime({ clock, duration: 1 });
@@ -911,7 +991,7 @@ describe('TokenDetectionController', () => {
               [sampleTokenA],
               {
                 chainId: ChainId.mainnet,
-                selectedAddress,
+                selectedAddress: selectedAccount.address,
               },
             );
           },
@@ -922,23 +1002,30 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const firstSelectedAddress =
-          '0x0000000000000000000000000000000000000001';
-        const secondSelectedAddress =
-          '0x0000000000000000000000000000000000000002';
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress: firstSelectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
             },
           },
           async ({
+            mockGetAccount,
             mockTokenListGetState,
+            triggerSelectedAccountChange,
             triggerPreferencesStateChange,
             callActionSpy,
           }) => {
+            mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
               tokenList: {
@@ -956,9 +1043,10 @@ describe('TokenDetectionController', () => {
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress: secondSelectedAddress,
               useTokenDetection: false,
             });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -972,13 +1060,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -1003,7 +1096,6 @@ describe('TokenDetectionController', () => {
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress,
               useTokenDetection: true,
             });
             await advanceTime({ clock, duration: 1 });
@@ -1014,136 +1106,36 @@ describe('TokenDetectionController', () => {
           },
         );
       });
-
-      describe('when keyring is locked', () => {
-        it('should not detect new tokens after switching between accounts', async () => {
-          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-            [sampleTokenA.address]: new BN(1),
-          });
-          const firstSelectedAddress =
-            '0x0000000000000000000000000000000000000001';
-          const secondSelectedAddress =
-            '0x0000000000000000000000000000000000000002';
-          await withController(
-            {
-              options: {
-                disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAddress: firstSelectedAddress,
-              },
-              isKeyringUnlocked: false,
-            },
-            async ({
-              mockTokenListGetState,
-              triggerPreferencesStateChange,
-              callActionSpy,
-            }) => {
-              mockTokenListGetState({
-                ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
-                  },
-                },
-              });
-
-              triggerPreferencesStateChange({
-                ...getDefaultPreferencesState(),
-                selectedAddress: secondSelectedAddress,
-                useTokenDetection: true,
-              });
-              await advanceTime({ clock, duration: 1 });
-
-              expect(callActionSpy).not.toHaveBeenCalledWith(
-                'TokensController:addDetectedTokens',
-              );
-            },
-          );
-        });
-
-        it('should not detect new tokens after enabling token detection', async () => {
-          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-            [sampleTokenA.address]: new BN(1),
-          });
-          const selectedAddress = '0x0000000000000000000000000000000000000001';
-          await withController(
-            {
-              options: {
-                disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAddress,
-              },
-              isKeyringUnlocked: false,
-            },
-            async ({
-              mockTokenListGetState,
-              triggerPreferencesStateChange,
-              callActionSpy,
-            }) => {
-              mockTokenListGetState({
-                ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
-                  },
-                },
-              });
-
-              triggerPreferencesStateChange({
-                ...getDefaultPreferencesState(),
-                selectedAddress,
-                useTokenDetection: false,
-              });
-              await advanceTime({ clock, duration: 1 });
-
-              triggerPreferencesStateChange({
-                ...getDefaultPreferencesState(),
-                selectedAddress,
-                useTokenDetection: true,
-              });
-              await advanceTime({ clock, duration: 1 });
-
-              expect(callActionSpy).not.toHaveBeenCalledWith(
-                'TokensController:addDetectedTokens',
-              );
-            },
-          );
-        });
-      });
     });
 
-    describe('when "disabled" is true', () => {
+    describe('when keyring is locked', () => {
       it('should not detect new tokens after switching between accounts', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const firstSelectedAddress =
-          '0x0000000000000000000000000000000000000001';
-        const secondSelectedAddress =
-          '0x0000000000000000000000000000000000000002';
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
         await withController(
           {
             options: {
-              disabled: true,
+              disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress: firstSelectedAddress,
             },
+            mocks: {
+              getSelectedAccount: firstSelectedAccount,
+              getAccount: firstSelectedAccount,
+            },
+            isKeyringUnlocked: false,
           },
           async ({
+            mockGetAccount,
             mockTokenListGetState,
             triggerPreferencesStateChange,
+            triggerSelectedAccountChange,
             callActionSpy,
           }) => {
             mockTokenListGetState({
@@ -1163,9 +1155,10 @@ describe('TokenDetectionController', () => {
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress: secondSelectedAddress,
               useTokenDetection: true,
             });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
             await advanceTime({ clock, duration: 1 });
 
             expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -1179,13 +1172,19 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
-              disabled: true,
+              disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            isKeyringUnlocked: false,
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
@@ -1210,14 +1209,129 @@ describe('TokenDetectionController', () => {
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress,
               useTokenDetection: false,
             });
             await advanceTime({ clock, duration: 1 });
 
             triggerPreferencesStateChange({
               ...getDefaultPreferencesState(),
-              selectedAddress,
+              useTokenDetection: true,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            expect(callActionSpy).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
+          },
+        );
+      });
+    });
+
+    describe('when "disabled" is true', () => {
+      it('should not detect new tokens after switching between accounts', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const firstSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        const secondSelectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000002',
+        });
+        await withController(
+          {
+            options: {
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getAccount: firstSelectedAccount,
+              getSelectedAccount: firstSelectedAccount,
+            },
+          },
+          async ({
+            mockGetAccount,
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            triggerSelectedAccountChange,
+            callActionSpy,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: true,
+            });
+            mockGetAccount(secondSelectedAccount);
+            triggerSelectedAccountChange(secondSelectedAccount);
+            await advanceTime({ clock, duration: 1 });
+
+            expect(callActionSpy).not.toHaveBeenCalledWith(
+              'TokensController:addDetectedTokens',
+            );
+          },
+        );
+      });
+
+      it('should not detect new tokens after enabling token detection', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: true,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerPreferencesStateChange,
+            callActionSpy,
+          }) => {
+            mockTokenListGetState({
+              ...getDefaultTokenListState(),
+              tokenList: {
+                [sampleTokenA.address]: {
+                  name: sampleTokenA.name,
+                  symbol: sampleTokenA.symbol,
+                  decimals: sampleTokenA.decimals,
+                  address: sampleTokenA.address,
+                  occurrences: 1,
+                  aggregators: sampleTokenA.aggregators,
+                  iconUrl: sampleTokenA.image,
+                },
+              },
+            });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
+              useTokenDetection: false,
+            });
+            await advanceTime({ clock, duration: 1 });
+
+            triggerPreferencesStateChange({
+              ...getDefaultPreferencesState(),
               useTokenDetection: true,
             });
             await advanceTime({ clock, duration: 1 });
@@ -1246,13 +1360,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -1291,7 +1410,7 @@ describe('TokenDetectionController', () => {
               [sampleTokenA],
               {
                 chainId: '0x89',
-                selectedAddress,
+                selectedAddress: selectedAccount.address,
               },
             );
           },
@@ -1302,13 +1421,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -1353,13 +1477,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -1400,15 +1529,20 @@ describe('TokenDetectionController', () => {
           const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
             [sampleTokenA.address]: new BN(1),
           });
-          const selectedAddress = '0x0000000000000000000000000000000000000001';
+          const selectedAccount = createMockInternalAccount({
+            address: '0x0000000000000000000000000000000000000001',
+          });
           await withController(
             {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAddress,
               },
               isKeyringUnlocked: false,
+              mocks: {
+                getAccount: selectedAccount,
+                getSelectedAccount: selectedAccount,
+              },
             },
             async ({
               mockTokenListGetState,
@@ -1450,13 +1584,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getAccount: selectedAccount,
+              getSelectedAccount: selectedAccount,
             },
           },
           async ({
@@ -1509,13 +1648,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
@@ -1554,7 +1698,7 @@ describe('TokenDetectionController', () => {
               [sampleTokenA],
               {
                 chainId: ChainId.mainnet,
-                selectedAddress,
+                selectedAddress: selectedAccount.address,
               },
             );
           },
@@ -1565,13 +1709,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: false,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
@@ -1600,15 +1749,20 @@ describe('TokenDetectionController', () => {
           const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
             [sampleTokenA.address]: new BN(1),
           });
-          const selectedAddress = '0x0000000000000000000000000000000000000001';
+          const selectedAccount = createMockInternalAccount({
+            address: '0x0000000000000000000000000000000000000001',
+          });
           await withController(
             {
               options: {
                 disabled: false,
                 getBalancesInSingleCall: mockGetBalancesInSingleCall,
-                selectedAddress,
               },
               isKeyringUnlocked: false,
+              mocks: {
+                getSelectedAccount: selectedAccount,
+                getAccount: selectedAccount,
+              },
             },
             async ({
               mockTokenListGetState,
@@ -1648,13 +1802,18 @@ describe('TokenDetectionController', () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
         });
-        const selectedAddress = '0x0000000000000000000000000000000000000001';
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
         await withController(
           {
             options: {
               disabled: true,
               getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              selectedAddress,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
             },
           },
           async ({
@@ -1704,13 +1863,18 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState }) => {
@@ -1770,13 +1934,18 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({
@@ -1795,7 +1964,7 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.goerli,
-            selectedAddress,
+            selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
@@ -1814,13 +1983,18 @@ describe('TokenDetectionController', () => {
           {},
         ),
       );
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({
@@ -1834,7 +2008,7 @@ describe('TokenDetectionController', () => {
           });
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            selectedAddress,
+            selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
             'TokensController:addDetectedTokens',
@@ -1847,7 +2021,7 @@ describe('TokenDetectionController', () => {
               };
             }),
             {
-              selectedAddress,
+              selectedAddress: selectedAccount.address,
               chainId: ChainId.mainnet,
             },
           );
@@ -1859,13 +2033,18 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       await withController(
         {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            selectedAddress,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
@@ -1891,7 +2070,7 @@ describe('TokenDetectionController', () => {
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            selectedAddress,
+            selectedAddress: selectedAccount.address,
           });
 
           expect(callActionSpy).toHaveBeenCalledWith(
@@ -1899,7 +2078,7 @@ describe('TokenDetectionController', () => {
             [sampleTokenA],
             {
               chainId: ChainId.mainnet,
-              selectedAddress,
+              selectedAddress: selectedAccount.address,
             },
           );
         },
@@ -1910,7 +2089,9 @@ describe('TokenDetectionController', () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
       });
-      const selectedAddress = '0x0000000000000000000000000000000000000001';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
       const mockTrackMetaMetricsEvent = jest.fn();
 
       await withController(
@@ -1919,7 +2100,10 @@ describe('TokenDetectionController', () => {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
-            selectedAddress,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
         async ({ controller, mockTokenListGetState }) => {
@@ -1945,7 +2129,7 @@ describe('TokenDetectionController', () => {
 
           await controller.detectTokens({
             networkClientId: NetworkType.mainnet,
-            selectedAddress,
+            selectedAddress: selectedAccount.address,
           });
 
           expect(mockTrackMetaMetricsEvent).toHaveBeenCalledWith({
@@ -1953,10 +2137,93 @@ describe('TokenDetectionController', () => {
             category: 'Wallet',
             properties: {
               tokens: [`${sampleTokenA.symbol} - ${sampleTokenA.address}`],
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               token_standard: 'ERC20',
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               asset_type: 'TOKEN',
             },
           });
+        },
+      );
+    });
+
+    it('does not trigger `TokensController:addDetectedTokens` action when selectedAccount is not found', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      const mockTrackMetaMetricsEvent = jest.fn();
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            trackMetaMetricsEvent: mockTrackMetaMetricsEvent,
+          },
+        },
+        async ({
+          controller,
+          mockGetAccount,
+          mockTokenListGetState,
+          callActionSpy,
+        }) => {
+          // @ts-expect-error forcing an undefined value
+          mockGetAccount(undefined);
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          await controller.detectTokens({
+            networkClientId: NetworkType.mainnet,
+          });
+
+          expect(callActionSpy).toHaveBeenLastCalledWith(
+            'TokensController:addDetectedTokens',
+            [
+              {
+                address: '0x514910771AF9Ca656af840dff83E8264EcF986CA',
+                aggregators: [
+                  'Paraswap',
+                  'PMM',
+                  'AirswapLight',
+                  '0x',
+                  'Bancor',
+                  'CoinGecko',
+                  'Zapper',
+                  'Kleros',
+                  'Zerion',
+                  'CMC',
+                  '1inch',
+                ],
+                decimals: 18,
+                image:
+                  'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x514910771af9ca656af840dff83e8264ecf986ca.png',
+                isERC721: false,
+                name: 'Chainlink',
+                symbol: 'LINK',
+              },
+            ],
+            { chainId: '0x1', selectedAddress: '' },
+          );
         },
       );
     });
@@ -1970,6 +2237,8 @@ describe('TokenDetectionController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false`;
@@ -1977,6 +2246,7 @@ function getTokensPath(chainId: Hex) {
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  mockGetAccount,
   mockGetSelectedAccount,
   mockKeyringGetState,
   mockTokensGetState,
@@ -1994,9 +2264,10 @@ type WithControllerCallback<ReturnValue> = ({
   triggerNetworkDidChange,
 }: {
   controller: TokenDetectionController;
+  mockGetAccount: (internalAccount: InternalAccount) => void;
   mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
-  mockTokensGetState: (state: TokensState) => void;
+  mockTokensGetState: (state: TokensControllerState) => void;
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
   mockGetNetworkClientById: (
@@ -2021,6 +2292,10 @@ type WithControllerOptions = {
   options?: Partial<ConstructorParameters<typeof TokenDetectionController>[0]>;
   isKeyringUnlocked?: boolean;
   messenger?: ControllerMessenger<AllowedActions, AllowedEvents>;
+  mocks?: {
+    getAccount?: InternalAccount;
+    getSelectedAccount?: InternalAccount;
+  };
 };
 
 type WithControllerArgs<ReturnValue> =
@@ -2040,16 +2315,25 @@ async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
-  const { options, isKeyringUnlocked, messenger } = rest;
+  const { options, isKeyringUnlocked, messenger, mocks } = rest;
   const controllerMessenger =
     messenger ?? new ControllerMessenger<AllowedActions, AllowedEvents>();
+
+  const mockGetAccount = jest.fn<InternalAccount, []>();
+  controllerMessenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount.mockReturnValue(
+      mocks?.getAccount ?? createMockInternalAccount({ address: '0x1' }),
+    ),
+  );
 
   const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
   controllerMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
-    mockGetSelectedAccount.mockReturnValue({
-      address: '0x1',
-    } as InternalAccount),
+    mockGetSelectedAccount.mockReturnValue(
+      mocks?.getSelectedAccount ??
+        createMockInternalAccount({ address: '0x1' }),
+    ),
   );
   const mockKeyringState = jest.fn<KeyringControllerState, []>();
   controllerMessenger.registerActionHandler(
@@ -2090,7 +2374,7 @@ async function withController<ReturnValue>(
     'NetworkController:getState',
     mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
   );
-  const mockTokensState = jest.fn<TokensState, []>();
+  const mockTokensState = jest.fn<TokensControllerState, []>();
   controllerMessenger.registerActionHandler(
     'TokensController:getState',
     mockTokensState.mockReturnValue({ ...getDefaultTokensState() }),
@@ -2127,13 +2411,16 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
+      mockGetAccount: (internalAccount: InternalAccount) => {
+        mockGetAccount.mockReturnValue(internalAccount);
+      },
       mockGetSelectedAccount: (address: string) => {
         mockGetSelectedAccount.mockReturnValue({ address } as InternalAccount);
       },
       mockKeyringGetState: (state: KeyringControllerState) => {
         mockKeyringState.mockReturnValue(state);
       },
-      mockTokensGetState: (state: TokensState) => {
+      mockTokensGetState: (state: TokensControllerState) => {
         mockTokensState.mockReturnValue(state);
       },
       mockPreferencesGetState: (state: PreferencesState) => {
@@ -2182,7 +2469,7 @@ async function withController<ReturnValue>(
       },
       triggerSelectedAccountChange: (account: InternalAccount) => {
         controllerMessenger.publish(
-          'AccountsController:selectedAccountChange',
+          'AccountsController:selectedEvmAccountChange',
           account,
         );
       },

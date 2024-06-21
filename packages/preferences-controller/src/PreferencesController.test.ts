@@ -24,18 +24,17 @@ describe('PreferencesController', () => {
       useNftDetection: false,
       openSeaEnabled: false,
       securityAlertsEnabled: false,
-      disabledRpcMethodPreferences: {
-        eth_sign: false,
-      },
       isMultiAccountBalancesEnabled: true,
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
+      useTransactionSimulations: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce((acc, curr) => {
         acc[curr] = true;
         return acc;
       }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
+      smartTransactionsOptInStatus: false,
     });
   });
 
@@ -385,12 +384,6 @@ describe('PreferencesController', () => {
     expect(controller.state.securityAlertsEnabled).toBe(true);
   });
 
-  it('should set disabledRpcMethodPreferences', () => {
-    const controller = setupPreferencesController();
-    controller.setDisabledRpcMethodPreference('eth_sign', true);
-    expect(controller.state.disabledRpcMethodPreferences.eth_sign).toBe(true);
-  });
-
   it('should set isMultiAccountBalancesEnabled', () => {
     const controller = setupPreferencesController();
     controller.setIsMultiAccountBalancesEnabled(true);
@@ -414,6 +407,18 @@ describe('PreferencesController', () => {
 
     controller.setEnableNetworkIncomingTransactions('0x1', false);
     expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
+  });
+
+  it('should set smartTransactionsOptInStatus', () => {
+    const controller = setupPreferencesController();
+    controller.setSmartTransactionsOptInStatus(true);
+    expect(controller.state.smartTransactionsOptInStatus).toBe(true);
+  });
+
+  it('should set useTransactionSimulations', () => {
+    const controller = setupPreferencesController();
+    controller.setUseTransactionSimulations(false);
+    expect(controller.state.useTransactionSimulations).toBe(false);
   });
 });
 

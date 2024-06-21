@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.2]
+
+### Fixed
+
+- `setNetworkClientId()` no longer modifies state nor creates/updates proxies when the `useRequestQueuePreference` flag is false ([#4388](https://github.com/MetaMask/core/pull/4388))
+
+## [15.0.1]
+
+### Fixed
+
+- No longer add domains that have been granted permissions to `domains` state (nor create a selected network proxy for it) unless the `useRequestQueuePreference` flag is true ([#4368](https://github.com/MetaMask/core/pull/4368))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/permission-controller` to `^10.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/permission-controller` to `^9.1.1` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+## [13.0.0]
+
+### Changed
+
+- `getProviderAndBlockTracker` now returns the `NetworkController`'s globally selected network client proxy if the `domain` arg is either `metamask` or a snap (identified as starting with `npm:` or `local:`) ([#4259](https://github.com/MetaMask/core/pull/4259))
+- **BREAKING:** Now when `setNetworkClientIdForDomain` is called with a snap's domain (identified as starting with `npm:` or `local:`), the `domain` will not be added to state and no proxy will be created for this domain in the `domainProxyMap` ([#4258](https://github.com/MetaMask/core/pull/4258))
+  - In order to remove snaps that made it into `domains` state prior to this change, consumers will need to run a migration.
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [12.0.1]
+
+### Fixed
+
+- When `getProviderAndBlockTracker` is called with a `domain` for which there is no cached `networkProxy` in the `domainProxyMap`, if the `useRequestQueue` preference is off and the `domain` does not have permissions the newly created `networkProxy` for this `domain` will be pointed at the `NetworkController`'s own proxy of the globally selected `networkClient`. ([#4187](https://github.com/MetaMask/core/pull/4187))
+
+## [12.0.0]
+
+### Added
+
+- These changes keep the per domain proxies (stored in domainProxyMap) pointing to the correct network client instance when the "Select networks for each site" toggle is turned on and off.
+  - **BREAKING:** A parameter `useRequestQueuePreference` which should point to the current preferences state for `useRequestQueue` is now required by the constructor ([#4130](https://github.com/MetaMask/core/pull/4130))
+  - - **BREAKING:** An `onPreferencesStateChange` argument that should subscribe to `PreferencesController` state changes and call a callback with the updated state is now a required parameter in the constructor options object. ([#4130](https://github.com/MetaMask/core/pull/4130))
+
+### Removed
+
+- The `getUseRequestQueue` parameter is no longer expected by the constructor. ([#4130](https://github.com/MetaMask/core/pull/4130))
+
 ## [11.0.0]
 
 ### Added
@@ -178,7 +235,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.2...HEAD
+[15.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.1...@metamask/selected-network-controller@15.0.2
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.0...@metamask/selected-network-controller@15.0.1
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@14.0.0...@metamask/selected-network-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@13.0.0...@metamask/selected-network-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@12.0.1...@metamask/selected-network-controller@13.0.0
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@12.0.0...@metamask/selected-network-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@11.0.0...@metamask/selected-network-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.1...@metamask/selected-network-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@10.0.0...@metamask/selected-network-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@9.0.0...@metamask/selected-network-controller@10.0.0
