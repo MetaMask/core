@@ -65,11 +65,6 @@ export type AccountsControllerSetAccountNameAction = {
   handler: AccountsController['setAccountName'];
 };
 
-export type AccountsControllerListAccountsAction = {
-  type: `${typeof controllerName}:listAccounts`;
-  handler: AccountsController['listAccounts'];
-};
-
 export type AccountsControllerListMultichainAccountsAction = {
   type: `${typeof controllerName}:listMultichainAccounts`;
   handler: AccountsController['listMultichainAccounts'];
@@ -113,7 +108,6 @@ export type AllowedActions =
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerListAccountsAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerUpdateAccountsAction
@@ -173,6 +167,19 @@ const defaultState: AccountsControllerState = {
 };
 
 /**
+ * Get a list of all EVM accounts.
+ *
+ * @param state - AccountsController state.
+ * @returns A list fo all EVM accounts.
+ */
+function selectEvmAccountList(
+  state: AccountsControllerState,
+): InternalAccount[] {
+  const accounts = Object.values(state.internalAccounts.accounts);
+  return accounts.filter((account) => isEvmAccountType(account.type));
+}
+
+/**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
  * It also provides convenience methods for accessing and updating the internal accounts.
@@ -230,16 +237,6 @@ export class AccountsController extends BaseController<
    */
   getAccount(accountId: string): InternalAccount | undefined {
     return this.state.internalAccounts.accounts[accountId];
-  }
-
-  /**
-   * Returns an array of all evm internal accounts.
-   *
-   * @returns An array of InternalAccount objects.
-   */
-  listAccounts(): InternalAccount[] {
-    const accounts = Object.values(this.state.internalAccounts.accounts);
-    return accounts.filter((account) => isEvmAccountType(account.type));
   }
 
   /**
@@ -310,7 +307,7 @@ export class AccountsController extends BaseController<
       return selectedAccount;
     }
 
-    const accounts = this.listAccounts();
+    const accounts = selectEvmAccountList(this.state);
 
     if (!accounts.length) {
       // ! Should never reach this.
@@ -398,7 +395,7 @@ export class AccountsController extends BaseController<
     const account = this.getAccountExpect(accountId);
 
     if (
-      this.listAccounts().find(
+      selectEvmAccountList(this.state).find(
         (internalAccount) =>
           internalAccount.metadata.name === accountName &&
           internalAccount.id !== accountId,
@@ -647,7 +644,7 @@ export class AccountsController extends BaseController<
       }
 
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
-        this.listAccounts().reduce(
+        selectEvmAccountList(this.state).reduce(
           (accumulator, account) => {
             if (account.metadata.keyring.type === KeyringTypes.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
@@ -731,7 +728,7 @@ export class AccountsController extends BaseController<
 
       // handle if the selected account was deleted
       if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
-        const [accountToSelect] = this.listAccounts().sort(
+        const [accountToSelect] = selectEvmAccountList(this.state).sort(
           (accountA, accountB) => {
             // sort by lastSelected descending
             return (
@@ -763,7 +760,7 @@ export class AccountsController extends BaseController<
   #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
-    const accounts = this.listAccounts().filter(
+    const accounts = selectEvmAccountList(this.state).filter(
       (account) => account.metadata.snap,
     );
 
@@ -789,7 +786,7 @@ export class AccountsController extends BaseController<
    * @returns The list of accounts associcated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string) {
-    return this.listAccounts().filter((internalAccount) => {
+    return selectEvmAccountList(this.state).filter((internalAccount) => {
       // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
       // to group those accounts together!
       if (
@@ -970,11 +967,6 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:listAccounts`,
-      this.listAccounts.bind(this),
     );
 
     this.messagingSystem.registerActionHandler(
