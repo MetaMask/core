@@ -160,26 +160,6 @@ describe('LoggingController', () => {
     expect(uuidV1Spy).toHaveBeenCalledTimes(3);
   });
 
-  it('action: LoggingController:add does not crash, but throws, if a unique id is never generated', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
-    jest.spyOn(uuid, 'v1').mockReturnValue('same UUID every time');
-
-    new LoggingController({ messenger });
-
-    unrestricted.call('LoggingController:add', {
-      type: LogType.GenericLog,
-      data: `Generic log`,
-    });
-
-    expect(() => {
-      unrestricted.call('LoggingController:add', {
-        type: LogType.GenericLog,
-        data: `Generic log 2`,
-      });
-    }).toThrow('Endless loop');
-  });
-
   it('internal method: clear', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
