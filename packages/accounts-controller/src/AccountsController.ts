@@ -84,11 +84,6 @@ export type AccountsControllerSetAccountNameAndSelectAccountAction = {
   handler: AccountsController['setAccountNameAndSelectAccount'];
 };
 
-export type AccountsControllerListAccountsAction = {
-  type: `${typeof controllerName}:listAccounts`;
-  handler: AccountsController['listAccounts'];
-};
-
 export type AccountsControllerListMultichainAccountsAction = {
   type: `${typeof controllerName}:listMultichainAccounts`;
   handler: AccountsController['listMultichainAccounts'];
@@ -141,7 +136,6 @@ export type AllowedActions =
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
   | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerListAccountsAction
   | AccountsControllerListMultichainAccountsAction
   | AccountsControllerSetAccountNameAction
   | AccountsControllerSetAccountNameAndSelectAccountAction
@@ -257,6 +251,19 @@ export const EMPTY_ACCOUNT = {
 };
 
 /**
+ * Get a list of all EVM accounts.
+ *
+ * @param state - AccountsController state.
+ * @returns A list fo all EVM accounts.
+ */
+function selectEvmAccountList(
+  state: AccountsControllerState,
+): InternalAccount[] {
+  const accounts = Object.values(state.internalAccounts.accounts);
+  return accounts.filter((account) => isEvmAccountType(account.type));
+}
+
+/**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
  * It also provides convenience methods for accessing and updating the internal accounts.
@@ -318,16 +325,6 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns an array of all evm internal accounts.
-   *
-   * @returns An array of InternalAccount objects.
-   */
-  listAccounts(): InternalAccount[] {
-    const accounts = Object.values(this.state.internalAccounts.accounts);
-    return accounts.filter((account) => isEvmAccountType(account.type));
-  }
-
-  /**
    * Returns an array of all internal accounts.
    *
    * @param chainId - The chain ID.
@@ -384,7 +381,8 @@ export class AccountsController extends BaseController<
       return account;
     }
 
-    const accounts = this.listAccounts();
+    const accounts = selectEvmAccountList(this.state);
+
     if (!accounts.length) {
       // ! Should never reach this.
       throw new Error('No EVM accounts');
@@ -508,7 +506,7 @@ export class AccountsController extends BaseController<
 
   #assertAccountCanBeRenamed(account: InternalAccount, accountName: string) {
     if (
-      this.listMultichainAccounts().find(
+      selectEvmAccountList(this.state).find(
         (internalAccount) =>
           internalAccount.metadata.name === accountName &&
           internalAccount.id !== account.id,
@@ -1260,11 +1258,6 @@ export class AccountsController extends BaseController<
     this.messenger.registerActionHandler(
       `${controllerName}:setSelectedAccount`,
       this.setSelectedAccount.bind(this),
-    );
-
-    this.messenger.registerActionHandler(
-      `${controllerName}:listAccounts`,
-      this.listAccounts.bind(this),
     );
 
     this.messenger.registerActionHandler(
