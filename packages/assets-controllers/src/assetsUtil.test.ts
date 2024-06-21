@@ -161,6 +161,163 @@ describe('assetsUtil', () => {
     });
   });
 
+  describe('hasNewCollectionFields', () => {
+    it('should return false if both objects do not have collection', () => {
+      const nftMetadata: NftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
+      const nft: Nft = {
+        address: 'address',
+        tokenId: '123',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
+    });
+
+    it('should return false if existing object has collection and new nft metadata object does not', () => {
+      const nftMetadata: NftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
+      const nft: Nft = {
+        address: 'address',
+        tokenId: '123',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
+    });
+
+    it('should return false if both objects has the same keys', () => {
+      const nftMetadata: NftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const nft: Nft = {
+        address: 'address',
+        tokenId: '123',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
+    });
+
+    it('should return true if new nft metadata object has keys that do not exist in the existing NFT', () => {
+      const nftMetadata: NftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          tokenCount: '5555',
+          ownerCount: '555',
+          contractDeployedAt: 'timestamp',
+        },
+      };
+      const nft: Nft = {
+        address: 'address',
+        tokenId: '123',
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(true);
+    });
+  });
+
   describe('isTokenDetectionSupportedForNetwork', () => {
     it('returns true for Mainnet', () => {
       expect(

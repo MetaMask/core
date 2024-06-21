@@ -48,6 +48,32 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
   return differentValues > 0;
 }
 
+/**
+ * Checks whether the existing nft object has all the keys of the new incoming nft metadata object
+ * @param newNftMetadata - New nft metadata object
+ * @param nft - Existing nft object to compare with
+ * @returns Whether the existing nft object has all the new keys from the new Nft metadata object
+ */
+export function hasNewCollectionFields(
+  newNftMetadata: NftMetadata,
+  nft: Nft,
+): boolean {
+  const keysNewNftMetadata = new Set(
+    Object.keys(newNftMetadata.collection || {}),
+  );
+  const keysExistingNFt = new Set(Object.keys(nft.collection || {}));
+
+  const newFields: string[] = [];
+
+  for (const key of keysNewNftMetadata) {
+    if (!keysExistingNFt.has(key)) {
+      newFields.push(key);
+    }
+  }
+
+  return newFields.length > 0;
+}
+
 const aggregatorNameByKey: Record<string, string> = {
   aave: 'Aave',
   bancor: 'Bancor',

@@ -1436,6 +1436,149 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
       });
     });
+    it('should update NFT collection field if new nft metadata has new keys', async () => {
+      const { nftController } = setupController({
+        options: {},
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+        },
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'image',
+        name: 'name',
+        standard: 'standard',
+        tokenId: '1',
+        favorite: false,
+        isCurrentlyOwned: true,
+      });
+
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+          collection: {
+            id: 'address',
+            openseaVerificationStatus: 'verified',
+            contractDeployedAt: 'timestamp',
+          },
+        },
+      });
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'image',
+        name: 'name',
+        tokenId: '1',
+        standard: 'standard',
+        favorite: false,
+        isCurrentlyOwned: true,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          contractDeployedAt: 'timestamp',
+        },
+      });
+    });
+
+    it('should not update NFT collection field if new nft metadata does not have new keys', async () => {
+      const mockOnNftAdded = jest.fn();
+      const { nftController } = setupController({
+        options: {
+          onNftAdded: mockOnNftAdded,
+        },
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+          collection: {
+            id: 'address',
+            openseaVerificationStatus: 'verified',
+            contractDeployedAt: 'timestamp',
+          },
+        },
+      });
+      expect(mockOnNftAdded).toHaveBeenCalled();
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'image',
+        name: 'name',
+        standard: 'standard',
+        tokenId: '1',
+        favorite: false,
+        isCurrentlyOwned: true,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          contractDeployedAt: 'timestamp',
+        },
+      });
+
+      mockOnNftAdded.mockReset();
+
+      await nftController.addNft('0x01', '1', {
+        nftMetadata: {
+          name: 'name',
+          image: 'image',
+          description: 'description',
+          standard: 'standard',
+          favorite: false,
+          collection: {
+            id: 'address',
+            openseaVerificationStatus: 'verified',
+            contractDeployedAt: 'timestamp',
+          },
+        },
+      });
+
+      expect(mockOnNftAdded).not.toHaveBeenCalled();
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: '0x01',
+        description: 'description',
+        image: 'image',
+        name: 'name',
+        tokenId: '1',
+        standard: 'standard',
+        favorite: false,
+        isCurrentlyOwned: true,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          contractDeployedAt: 'timestamp',
+        },
+      });
+    });
 
     it('should not duplicate NFT nor NFT contract if already added', async () => {
       const { nftController } = setupController({

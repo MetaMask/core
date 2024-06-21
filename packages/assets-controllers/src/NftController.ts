@@ -44,7 +44,11 @@ import BN from 'bn.js';
 import { v4 as random } from 'uuid';
 
 import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import {
+  compareNftMetadata,
+  getFormattedIpfsUrl,
+  hasNewCollectionFields,
+} from './assetsUtil';
 import { Source } from './constants';
 import type {
   ApiNftContract,
@@ -947,7 +951,13 @@ export class NftController extends BaseController<
           existingEntry,
         );
 
-        if (!differentMetadata && existingEntry.isCurrentlyOwned) {
+        const hasNewFields = hasNewCollectionFields(nftMetadata, existingEntry);
+
+        if (
+          !differentMetadata &&
+          existingEntry.isCurrentlyOwned &&
+          !hasNewFields
+        ) {
           return;
         }
 
