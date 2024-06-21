@@ -4,11 +4,12 @@ import type {
   JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import type {
-  JsonRpcNotification,
-  JsonRpcParams,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
+import {
+  hasProperty,
+  type JsonRpcNotification,
+  type JsonRpcParams,
+  type JsonRpcRequest,
+  type PendingJsonRpcResponse,
 } from '@metamask/utils';
 import { Duplex } from 'readable-stream';
 
@@ -85,7 +86,7 @@ export default function createStreamMiddleware(options: Options = {}) {
   ) {
     let errorObj: Error | null = null;
     try {
-      const isNotification = !res.id;
+      const isNotification = !hasProperty(res, 'id');
       if (isNotification) {
         processNotification(res as unknown as JsonRpcNotification);
       } else {
