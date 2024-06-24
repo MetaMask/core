@@ -56,10 +56,7 @@ async function retrieveWorkspaces(): Promise<Workspace[]> {
     '--verbose',
   ]);
 
-  return stdout
-    .split('\n')
-    .map((line) => JSON.parse(line))
-    .slice(1);
+  return stdout.split('\n').map((line) => JSON.parse(line));
 }
 
 /**

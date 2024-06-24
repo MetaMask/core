@@ -16,12 +16,12 @@ declare const CaveatTypes: {
   readonly restrictReturnedAccounts: 'restrictReturnedAccounts';
 };
 
-export declare const RestrictedMethods: {
+export const RestrictedMethods = {
   // These properties match RPC method names, which follow a different naming convention
   /* eslint-disable @typescript-eslint/naming-convention */
-  readonly eth_accounts: 'eth_accounts';
+  eth_accounts: 'eth_accounts',
   /* eslint-enable @typescript-eslint/naming-convention */
-};
+} as const;
 
 type DefaultCaveats = {
   restrictReturnedAccounts: {

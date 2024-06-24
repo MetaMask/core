@@ -8,6 +8,7 @@ This repository contains the following packages [^fn1]:
 
 <!-- start package list -->
 
+- [`@metamask/accounts-controller`](packages/accounts-controller)
 - [`@metamask/address-book-controller`](packages/address-book-controller)
 - [`@metamask/announcement-controller`](packages/announcement-controller)
 - [`@metamask/approval-controller`](packages/approval-controller)
@@ -53,6 +54,7 @@ Or, in graph form [^fn1]:
 %%{ init: { 'flowchart': { 'curve': 'bumpX' } } }%%
 graph LR;
 linkStyle default opacity:0.5
+  accounts_controller(["@metamask/accounts-controller"]);
   address_book_controller(["@metamask/address-book-controller"]);
   announcement_controller(["@metamask/announcement-controller"]);
   approval_controller(["@metamask/approval-controller"]);
@@ -87,6 +89,8 @@ linkStyle default opacity:0.5
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
   wallet_framework(["@metamask/wallet-framework"]);
+  accounts_controller --> base_controller;
+  accounts_controller --> keyring_controller;
   address_book_controller --> base_controller;
   address_book_controller --> controller_utils;
   announcement_controller --> base_controller;
