@@ -278,7 +278,7 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns the last selected evm account.
+   * Returns the last selected EVM account.
    *
    * @returns The selected internal account.
    */
@@ -732,13 +732,15 @@ export class AccountsController extends BaseController<
             this.state.internalAccounts.selectedAccount
           ]
         ) {
-          // if the accountToSelect is undefined, then there are no accounts
+          // if currently selected account is undefined and there are no accounts
           // it mean the keyring was reinitialized.
           if (existingAccounts.length === 0) {
             currentState.internalAccounts.selectedAccount = '';
             return;
           }
 
+          // at this point, we know that `existingAccounts.length` is > 0, so
+          // `accountToSelect` won't be `undefined`!
           const [accountToSelect] = existingAccounts.sort(
             (accountA, accountB) => {
               // sort by lastSelected descending
@@ -748,7 +750,6 @@ export class AccountsController extends BaseController<
               );
             },
           );
-
           currentState.internalAccounts.selectedAccount = accountToSelect.id;
         }
       });
@@ -896,9 +897,9 @@ export class AccountsController extends BaseController<
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
-   * @param accountsState - Accounts Controller accounts state that is to be mutated.
+   * @param accountsState - AccountsController accounts state that is to be mutated.
    * @param account - The address and keyring type object of the new account.
-   * @returns The updated Accounts Controller accounts state.
+   * @returns The updated AccountsController accounts state.
    */
   #handleNewAccountAdded(
     accountsState: AccountsControllerState['internalAccounts']['accounts'],
@@ -947,9 +948,9 @@ export class AccountsController extends BaseController<
 
   /**
    * Handles the removal of an account from the internal accounts list.
-   * @param accountsState - Accounts Controller accounts state that is to be mutated.
+   * @param accountsState - AccountsController accounts state that is to be mutated.
    * @param accountId - The ID of the account to be removed.
-   * @returns The updated Accounts Controller state.
+   * @returns The updated AccountsController state.
    */
   #handleAccountRemoved(
     accountsState: AccountsControllerState['internalAccounts']['accounts'],
