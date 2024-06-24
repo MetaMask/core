@@ -83,7 +83,7 @@ export type QueuedRequestControllerOptions = {
     request: QueuedRequestMiddlewareJsonRpcRequest,
   ) => boolean;
   clearPendingConfirmations: () => void;
-  showApprovalRequest: () => Promise<void>;
+  showApprovalRequest: () => void;
 };
 
 /**
@@ -150,9 +150,17 @@ export class QueuedRequestController extends BaseController<
     request: QueuedRequestMiddlewareJsonRpcRequest,
   ) => boolean;
 
+  /**
+   * This is a function that clears all pending confirmations across
+   * several controllers that may handle them.
+   */
   #clearPendingConfirmations: () => void;
 
-  #showApprovalRequest: () => Promise<void>;
+  /**
+   * This is a function that makes the confirmation notification view
+   * become visible and focused to the user
+   */
+  #showApprovalRequest: () => void;
 
   /**
    * Construct a QueuedRequestController.
@@ -161,6 +169,8 @@ export class QueuedRequestController extends BaseController<
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
    * @param options.shouldRequestSwitchNetwork - A function that returns if a request requires the globally selected network to match the dapp selected network.
    * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
+   * @param options.showApprovalRequest - A function for opening the UI such that
+   * the existing request can be displayed to the user.
    */
   constructor({
     messenger,
@@ -307,18 +317,12 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
-  async #waitForDequeue(
-    origin: string
-  ): Promise<void> {
-    const {
-      promise,
-      reject,
-      resolve,
-    } = createDeferredPromise({
+  async #waitForDequeue(origin: string): Promise<void> {
+    const { promise, reject, resolve } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
     this.#requestQueue.push({
-      origin: origin,
+      origin,
       processRequest: (error: unknown) => {
         if (error) {
           reject(error);
@@ -361,8 +365,8 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin
       ) {
-        this.#showApprovalRequest()
-        await this.#waitForDequeue(request.origin)
+        this.#showApprovalRequest();
+        await this.#waitForDequeue(request.origin);
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
