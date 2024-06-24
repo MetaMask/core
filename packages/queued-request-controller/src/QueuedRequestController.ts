@@ -83,6 +83,7 @@ export type QueuedRequestControllerOptions = {
     request: QueuedRequestMiddlewareJsonRpcRequest,
   ) => boolean;
   clearPendingConfirmations: () => void;
+  showApprovalRequest: () => Promise<void>;
 };
 
 /**
@@ -151,6 +152,8 @@ export class QueuedRequestController extends BaseController<
 
   #clearPendingConfirmations: () => void;
 
+  #showApprovalRequest: () => Promise<void>;
+
   /**
    * Construct a QueuedRequestController.
    *
@@ -163,6 +166,7 @@ export class QueuedRequestController extends BaseController<
     messenger,
     shouldRequestSwitchNetwork,
     clearPendingConfirmations,
+    showApprovalRequest,
   }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
@@ -175,8 +179,10 @@ export class QueuedRequestController extends BaseController<
       messenger,
       state: { queuedRequestCount: 0 },
     });
+
     this.#shouldRequestSwitchNetwork = shouldRequestSwitchNetwork;
     this.#clearPendingConfirmations = clearPendingConfirmations;
+    this.#showApprovalRequest = showApprovalRequest;
     this.#registerMessageHandlers();
   }
 
@@ -301,6 +307,32 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
+  async #waitForDequeue(
+    origin: string
+  ): Promise<void> {
+    this.#showApprovalRequest()
+    const {
+      promise,
+      reject,
+      resolve,
+    } = createDeferredPromise({
+      suppressUnhandledRejection: true,
+    });
+    this.#requestQueue.push({
+      origin: origin,
+      processRequest: (error: unknown) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      },
+    });
+    this.#updateQueuedRequestCount();
+
+    return promise;
+  }
+
   /**
    * Enqueue a request to be processed in a batch with other requests from the same origin.
    *
@@ -330,26 +362,7 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin
       ) {
-        const {
-          promise: waitForDequeue,
-          reject,
-          resolve,
-        } = createDeferredPromise({
-          suppressUnhandledRejection: true,
-        });
-        this.#requestQueue.push({
-          origin: request.origin,
-          processRequest: (error: unknown) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          },
-        });
-        this.#updateQueuedRequestCount();
-
-        await waitForDequeue;
+        await this.#waitForDequeue(request.origin)
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
