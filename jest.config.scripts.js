@@ -59,6 +59,8 @@ module.exports = {
   // modules.
   restoreMocks: true,
 
+  setupFilesAfterEnv: ['./tests/scripts-setup.ts'],
+
   // The test environment that will be used for testing
   testEnvironment: 'node',
 

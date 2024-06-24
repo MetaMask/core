@@ -4,6 +4,18 @@ import { commands } from './commands';
 jest.mock('./cli');
 
 describe('create-package/index', () => {
+  let originalProcess: typeof globalThis.process;
+  beforeEach(() => {
+    originalProcess = globalThis.process;
+    // @ts-expect-error This is a simple mock that does not match the type.
+    // TODO: Replace with `jest.replaceProperty` after Jest v29 update.
+    globalThis.process = {};
+  });
+
+  afterEach(() => {
+    globalThis.process = originalProcess;
+  });
+
   it('executes the CLI application', async () => {
     const mock = cli as jest.MockedFunction<typeof cli>;
     mock.mockRejectedValue('foo');
