@@ -41,6 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ethereumjs/tx": "^4.2.0",
     "@ethereumjs/util": "^8.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
     "@metamask/base-controller": "^6.0.0",
@@ -57,7 +58,6 @@
   },
   "devDependencies": {
     "@ethereumjs/common": "^3.2.0",
-    "@ethereumjs/tx": "^4.2.0",
     "@keystonehq/bc-ur-registry-eth": "^0.19.0",
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
