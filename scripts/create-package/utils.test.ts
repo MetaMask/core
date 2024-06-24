@@ -131,7 +131,10 @@ describe('create-package/utils', () => {
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.build\.json$/u),
         JSON.stringify({
-          references: [{ path: './packages/bar' }, { path: './packages/foo' }],
+          references: [
+            { path: './packages/bar' },
+            { path: './packages/foo/tsconfig.build.json' },
+          ],
         }),
       );
 
