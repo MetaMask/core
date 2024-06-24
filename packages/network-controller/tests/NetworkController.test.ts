@@ -153,10 +153,6 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
 );
 
 describe('NetworkController', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   afterEach(() => {
     resetAllWhenMocks();
   });

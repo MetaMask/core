@@ -60,8 +60,6 @@ describe('LineaGasFeeFlow', () => {
   let request: GasFeeFlowRequest;
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     request = {
       ethQuery: {} as EthQuery,
       transactionMeta: TRANSACTION_META_MOCK,

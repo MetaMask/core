@@ -161,11 +161,13 @@ linkStyle default opacity:0.5
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
   signature_controller --> message_manager;
+  transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> gas_fee_controller;
   transaction_controller --> network_controller;
+  transaction_controller --> eth_json_rpc_provider;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;

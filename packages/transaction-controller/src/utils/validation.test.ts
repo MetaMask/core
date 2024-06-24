@@ -4,10 +4,6 @@ import { TransactionEnvelopeType } from '../types';
 import { validateTxParams } from './validation';
 
 describe('validation', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('validateTxParams', () => {
     it('should throw if no from address', () => {
       // TODO: Replace `any` with type

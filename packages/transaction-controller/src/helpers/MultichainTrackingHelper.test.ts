@@ -221,8 +221,6 @@ function newMultichainTrackingHelper(
 
 describe('MultichainTrackingHelper', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
-
     for (const network of [
       'mainnet',
       'goerli',

@@ -1,3 +1,4 @@
+import { type AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import {
   type RestrictedControllerMessenger,
   type ControllerGetStateAction,
@@ -5,7 +6,6 @@ import {
   BaseController,
 } from '@metamask/base-controller';
 import { safelyExecute, toHex } from '@metamask/controller-utils';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 
 import type { AssetsContractController } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
@@ -56,7 +56,7 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
 export type TokenBalancesControllerActions =
   TokenBalancesControllerGetStateAction;
 
-export type AllowedActions = PreferencesControllerGetStateAction;
+export type AllowedActions = AccountsControllerGetSelectedAccountAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -201,16 +201,18 @@ export class TokenBalancesController extends BaseController<
     if (this.#disabled) {
       return;
     }
-
-    const { selectedAddress } = this.messagingSystem.call(
-      'PreferencesController:getState',
+    const selectedInternalAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
     );
 
     const newContractBalances: ContractBalances = {};
     for (const token of this.#tokens) {
       const { address } = token;
       try {
-        const balance = await this.#getERC20BalanceOf(address, selectedAddress);
+        const balance = await this.#getERC20BalanceOf(
+          address,
+          selectedInternalAccount.address,
+        );
         newContractBalances[address] = toHex(balance);
         token.hasBalanceError = false;
       } catch (error) {

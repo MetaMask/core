@@ -2,6 +2,7 @@
 
 import { ControllerMessenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
+import { nanoid } from 'nanoid';
 
 import type {
   AddApprovalOptions,
@@ -24,9 +25,9 @@ import {
   NoApprovalFlowsError,
 } from './errors';
 
-jest.mock('nanoid', () => ({
-  nanoid: jest.fn(() => 'TestId'),
-}));
+jest.mock('nanoid');
+
+const nanoidMock = jest.mocked(nanoid);
 
 const PENDING_APPROVALS_STORE_KEY = 'pendingApprovals';
 const APPROVAL_FLOWS_STORE_KEY = 'approvalFlows';
@@ -243,6 +244,7 @@ describe('approval controller', () => {
   let showApprovalRequest: jest.Mock;
 
   beforeEach(() => {
+    nanoidMock.mockReturnValue('TestId');
     jest.spyOn(global.console, 'info').mockImplementation(() => undefined);
 
     showApprovalRequest = jest.fn();
