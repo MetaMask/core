@@ -411,7 +411,6 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // @ts-expect-error Type instantiation is excessively deep and possibly infinite. See: https://github.com/MetaMask/utils/issues/168
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
