@@ -65,8 +65,6 @@ describe('Simulation API Utils', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
       typeof fetch
     >;

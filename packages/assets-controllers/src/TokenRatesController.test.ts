@@ -81,10 +81,6 @@ function buildTokenRatesControllerMessenger(
 }
 
 describe('TokenRatesController', () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   describe('constructor', () => {
     let clock: sinon.SinonFakeTimers;
 

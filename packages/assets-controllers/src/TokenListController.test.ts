@@ -517,7 +517,6 @@ const getRestrictedMessenger = (
 
 describe('TokenListController', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
     jest.clearAllTimers();
     sinon.restore();
   });

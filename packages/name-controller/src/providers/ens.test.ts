@@ -16,10 +16,6 @@ const CONSTRUCTOR_ARGS_MOCK = {
 } as any;
 
 describe('ENSNameProvider', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new ENSNameProvider(CONSTRUCTOR_ARGS_MOCK).getMetadata();

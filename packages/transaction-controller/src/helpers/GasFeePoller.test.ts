@@ -73,7 +73,6 @@ describe('GasFeePoller', () => {
   const findNetworkClientIdByChainIdMock = jest.fn();
 
   beforeEach(() => {
-    jest.resetAllMocks();
     jest.clearAllTimers();
 
     gasFeeFlowMock = createGasFeeFlowMock();
