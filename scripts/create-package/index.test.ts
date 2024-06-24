@@ -7,9 +7,8 @@ describe('create-package/index', () => {
   let originalProcess: typeof globalThis.process;
   beforeEach(() => {
     originalProcess = globalThis.process;
-    // @ts-expect-error This is a simple mock that does not match the type.
     // TODO: Replace with `jest.replaceProperty` after Jest v29 update.
-    globalThis.process = {};
+    globalThis.process = { ...globalThis.process };
   });
 
   afterEach(() => {
