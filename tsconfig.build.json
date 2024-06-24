@@ -35,7 +35,7 @@
     { "path": "./packages/signature-controller/tsconfig.build.json" },
     { "path": "./packages/transaction-controller/tsconfig.build.json" },
     { "path": "./packages/user-operation-controller/tsconfig.build.json" },
-    { "path": "./packages/wallet-framework" }
+    { "path": "./packages/wallet-framework/tsconfig.build.json" }
   ],
   "files": [],
   "include": []
