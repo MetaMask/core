@@ -1,11 +1,8 @@
 import { toBuffer } from '@ethereumjs/util';
 import { isCustodyKeyring, KeyringTypes } from '@metamask/keyring-controller';
 import { sha256 } from 'ethereum-cryptography/sha256';
-import type { Draft } from 'immer';
 import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
-
-import type { AccountsControllerState } from './AccountsController';
 
 /**
  * Returns the name of the keyring type.
