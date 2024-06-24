@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
+- test: cleanup/fix `SelectedNetworkController` specs ([#4409](https://github.com/MetaMask/core/pull/4409))
+
 ## [15.0.2]
 
 ### Fixed

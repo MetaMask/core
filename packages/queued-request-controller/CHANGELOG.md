@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Focus approval request UI when a request is queued ([#4456](https://github.com/MetaMask/core/pull/4456))
+- test: cleanup/fix `SelectedNetworkController` specs ([#4409](https://github.com/MetaMask/core/pull/4409))
+
 ## [1.0.0]
 
 ### Changed
