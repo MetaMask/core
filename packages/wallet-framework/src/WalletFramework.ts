@@ -177,7 +177,7 @@ export type AllWalletEvents<
  * @template ControllerCaveatSpecification - A union of the types of all
  * caveat specifications available to the controller.
  */
-export class MetamaskWallet<
+export class WalletFramework<
   ControllerPermissionSpecification extends PermissionSpecificationConstraint &
     DefaultPermissionSpecification = DefaultPermissionSpecification,
   ControllerCaveatSpecification extends CaveatSpecificationConstraint &
