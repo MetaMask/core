@@ -310,7 +310,6 @@ export class QueuedRequestController extends BaseController<
   async #waitForDequeue(
     origin: string
   ): Promise<void> {
-    this.#showApprovalRequest()
     const {
       promise,
       reject,
@@ -362,6 +361,7 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin
       ) {
+        this.#showApprovalRequest()
         await this.#waitForDequeue(request.origin)
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
