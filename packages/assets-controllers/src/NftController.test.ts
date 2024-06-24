@@ -1630,6 +1630,34 @@ describe('NftController', () => {
         defaultSelectedAccount: OWNER_ACCOUNT,
       });
 
+      const testTopBid = {
+        id: 'id',
+        sourceDomain: 'opensea.io',
+        price: {
+          currency: {
+            contract: '0x01',
+            name: 'Wrapped Ether',
+            symbol: 'WETH',
+            decimals: 18,
+          },
+          amount: {
+            raw: '201300000000000000',
+            decimal: 0.2013,
+            usd: 716.46131,
+            native: 0.2013,
+          },
+          netAmount: {
+            raw: '196267500000000000',
+            decimal: 0.19627,
+            usd: 698.54978,
+            native: 0.19627,
+          },
+        },
+        maker: 'testMaker',
+        validFrom: 1719228327,
+        validUntil: 1719228927,
+      };
+
       nock(NFT_API_BASE_URL)
         .get(`/collections?chainIds=1&contract=0x01`)
         .reply(200, {
@@ -1638,6 +1666,7 @@ describe('NftController', () => {
               contractDeployedAt: 'timestampTest',
               ownerCount: '989',
               openseaVerificationStatus: 'verified',
+              topBid: testTopBid,
             },
           ],
         });
@@ -1662,6 +1691,7 @@ describe('NftController', () => {
           contractDeployedAt: 'timestampTest',
           ownerCount: '989',
           openseaVerificationStatus: 'verified',
+          topBid: testTopBid,
         },
       });
     });
@@ -1753,7 +1783,6 @@ describe('NftController', () => {
         .get(
           `/tokens?chainIds=1&tokens=${ERC721_KUDOSADDRESS}%3A${ERC721_KUDOS_TOKEN_ID}&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
         )
-
         .reply(200, {
           tokens: [
             {
@@ -1808,6 +1837,7 @@ describe('NftController', () => {
           contractDeployedAt: 'timestampTest',
           ownerCount: '989',
           openseaVerificationStatus: 'verified',
+          topBid: undefined,
         },
       });
 
@@ -2184,6 +2214,7 @@ describe('NftController', () => {
             openseaVerificationStatus: undefined,
             ownerCount: undefined,
             contractDeployedAt: undefined,
+            topBid: undefined,
           },
         },
       ]);
@@ -2302,6 +2333,7 @@ describe('NftController', () => {
             openseaVerificationStatus: 'verified',
             ownerCount: undefined,
             contractDeployedAt: undefined,
+            topBid: undefined,
           },
         },
       ]);

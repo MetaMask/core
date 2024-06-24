@@ -572,6 +572,34 @@ describe('NftDetectionController', () => {
           });
           mockAddNft.mockReset();
 
+          const testTopBid = {
+            id: 'id',
+            sourceDomain: 'opensea.io',
+            price: {
+              currency: {
+                contract: '0x01',
+                name: 'Wrapped Ether',
+                symbol: 'WETH',
+                decimals: 18,
+              },
+              amount: {
+                raw: '201300000000000000',
+                decimal: 0.2013,
+                usd: 716.46131,
+                native: 0.2013,
+              },
+              netAmount: {
+                raw: '196267500000000000',
+                decimal: 0.19627,
+                usd: 698.54978,
+                native: 0.19627,
+              },
+            },
+            maker: 'testMaker',
+            validFrom: 1719228327,
+            validUntil: 1719228927,
+          };
+
           nock(NFT_API_BASE_URL)
             .get(`/collections?contract=0xtest1&contract=0xtest2&chainId=1`)
             .reply(200, {
@@ -580,6 +608,7 @@ describe('NftDetectionController', () => {
                   id: '0xtest1',
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
+                  topBid: testTopBid,
                 },
                 {
                   id: '0xtest2',
@@ -605,6 +634,7 @@ describe('NftDetectionController', () => {
                 openseaVerificationStatus: 'verified',
                 ownerCount: undefined,
                 tokenCount: undefined,
+                topBid: testTopBid,
               },
             },
             userAddress: selectedAccount.address,

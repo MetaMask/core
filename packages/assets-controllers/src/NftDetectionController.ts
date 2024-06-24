@@ -10,6 +10,7 @@ import {
   convertHexToDecimal,
   handleFetch,
   fetchWithErrorHandling,
+  NFT_API_TIMEOUT,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -343,6 +344,9 @@ export type CollectionResponse = {
   creator?: string;
   tokenCount?: string;
   ownerCount?: string;
+  topBid?: TopBid & {
+    sourceDomain?: string;
+  };
 };
 
 export type TokenCollection = {
@@ -632,10 +636,10 @@ export class NftDetectionController extends BaseController<
                 }/collections?${params.toString()}`,
                 options: {
                   headers: {
-                    Version: '1',
+                    Version: NFT_API_VERSION,
                   },
                 },
-                timeout: 15000,
+                timeout: NFT_API_TIMEOUT,
               });
 
               return {
@@ -666,6 +670,7 @@ export class NftDetectionController extends BaseController<
                   contractDeployedAt: found.contractDeployedAt,
                   ownerCount: found.ownerCount,
                   tokenCount: found.tokenCount,
+                  topBid: found.topBid,
                 },
               };
             }

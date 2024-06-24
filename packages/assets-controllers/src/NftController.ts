@@ -625,6 +625,7 @@ export class NftController extends BaseController<
           contractDeployedAt:
             collectionInformation?.collections[0].contractDeployedAt,
           ownerCount: collectionInformation?.collections[0].ownerCount,
+          topBid: collectionInformation?.collections[0].topBid,
         },
       },
     );
