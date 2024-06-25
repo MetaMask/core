@@ -34,10 +34,6 @@ const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
 describe('Etherscan', () => {
   const handleFetchMock = jest.mocked(handleFetch);
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getEtherscanApiHost', () => {
     it('returns Etherscan API host for supported network', () => {
       expect(getEtherscanApiHost(CHAIN_IDS.GOERLI)).toBe(

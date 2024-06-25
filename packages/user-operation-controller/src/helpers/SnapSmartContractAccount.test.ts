@@ -89,8 +89,6 @@ describe('SnapSmartContractAccount', () => {
   let signMock: jest.MockedFn<KeyringController['signUserOperation']>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     messengerMock = createMessengerMock();
     prepareMock = jest.fn();
     patchMock = jest.fn();

@@ -78,10 +78,6 @@ const INFURA_AUTH_TOKEN_MOCK = 'dGVzdDo=';
 const INFURA_GAS_API_URL_MOCK = 'https://gas.api.infura.io';
 
 describe('gas utils', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('fetchGasEstimates', () => {
     it('should fetch external gasFeeEstimates when data is valid', async () => {
       handleFetchMock.mockResolvedValue(mockEIP1559ApiResponses[0]);
