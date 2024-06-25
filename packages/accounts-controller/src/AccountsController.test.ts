@@ -1078,16 +1078,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: {
-                'missing-account': {
-                  id: 'missing-account',
+                'missing-account': createMockInternalAccount({
                   address: '0x999',
-                  metadata: {
-                    keyring: {
-                      type: KeyringTypes.hd,
-                    },
-                  },
-                  [mockAccount2.id]: mockAccount2WithoutLastSelected,
-                } as unknown as InternalAccount,
+                  id: 'missing-account',
+                }),
                 [mockAccount.id]: mockAccountWithoutLastSelected,
                 [mockAccount2.id]: mockAccount2WithoutLastSelected,
               },
@@ -1850,6 +1844,32 @@ describe('AccountsController', () => {
         'No EVM accounts',
       );
     });
+
+    it('handle the edge case of undefined accountId during onboarding', async () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+      });
+
+      expect(accountsController.getSelectedAccount()).toStrictEqual({
+        id: '',
+        address: '',
+        options: {},
+        methods: [],
+        type: EthAccountType.Eoa,
+        metadata: {
+          name: '',
+          keyring: {
+            type: '',
+          },
+          importTime: 0,
+        },
+      });
+    });
   });
 
   describe('getSelectedMultichainAccount', () => {
@@ -2059,33 +2079,6 @@ describe('AccountsController', () => {
       expect(() => accountsController.getAccountExpect(accountId)).toThrow(
         `Account Id "${accountId}" not found`,
       );
-    });
-
-    it('handle the edge case of undefined accountId during onboarding', async () => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      // @ts-expect-error forcing undefined accountId
-      expect(accountsController.getAccountExpect(undefined)).toStrictEqual({
-        id: '',
-        address: '',
-        options: {},
-        methods: [],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: '',
-          keyring: {
-            type: '',
-          },
-          importTime: 0,
-        },
-      });
     });
   });
 
