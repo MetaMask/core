@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
+- Bump `@metamask/transaction-controller` to `^33.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
 
 ## [12.0.0]
 

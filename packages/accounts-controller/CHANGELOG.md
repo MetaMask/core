@@ -11,13 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `listMultichainAccounts` action ([#4426](https://github.com/MetaMask/core/pull/4426))
+- Add `AccountsController:listMultichainAccounts` action ([#4426](https://github.com/MetaMask/core/pull/4426))
 
 ### Fixed
 
 - Update `handleAccountRemoved` to one update ([#4322](https://github.com/MetaMask/core/pull/4322))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- Move `@metamask/keyring-controller` to dependency in `@metamask/accounts-controller` ([#4425](https://github.com/MetaMask/core/pull/4425))
+- Move `@metamask/keyring-controller` to dependency ([#4425](https://github.com/MetaMask/core/pull/4425))
 
 ## [17.0.0]
 
