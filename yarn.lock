@@ -2351,7 +2351,7 @@ __metadata:
     typescript: ~4.9.5
     uuid: ^8.3.2
   peerDependencies:
-    "@metamask/accounts-controller": ^17.0.0
+    "@metamask/accounts-controller": ^17.1.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
@@ -3816,7 +3816,7 @@ __metadata:
     uuid: ^8.3.2
   peerDependencies:
     "@babel/runtime": ^7.23.9
-    "@metamask/accounts-controller": ^17.0.0
+    "@metamask/accounts-controller": ^17.1.0
     "@metamask/approval-controller": ^7.0.0
     "@metamask/gas-fee-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
@@ -3856,7 +3856,7 @@ __metadata:
     "@metamask/gas-fee-controller": ^17.0.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/network-controller": ^19.0.0
-    "@metamask/transaction-controller": ^33.0.0
+    "@metamask/transaction-controller": ^34.0.0
   languageName: unknown
   linkType: soft
 

@@ -9,11 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.0]
 
-### Uncategorized
+### Changed
 
 - Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- fix: update tokens controllers to use selectedAccountId instead of selectedAddress ([#4219](https://github.com/MetaMask/core/pull/4219))
-- feat: upgrade AccountTrackerController to BaseControllerV2 ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING** Update Assets Controllers ([#4219](https://github.com/MetaMask/core/pull/4219))
+  - `TokenBalancesController` messenger must allow the action `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`.
+  - `TokenDetectionController` messenger must allow the action `AccountsController:getAccount`.
+  - `TokenDetectionController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `AccountsController:selectedAccountChange`.
+  - `TokenDetectionController` removes `selectedAddress` constructor argument.
+  - `TokenRatesController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`.
+  - `TokenRatesController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `PreferencesController:stateChange`.
+  - `TokensController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount`.
+  - `TokensController` messenger must allow the event `AccountsController:selectedEvmAccountChange`.
+  - `TokensController` removes `selectedAddress` constructor argument.
+- Upgrade AccountTrackerController to BaseControllerV2 ([#4407](https://github.com/MetaMask/core/pull/4407))
 
 ## [33.0.0]
 
