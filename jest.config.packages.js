@@ -108,8 +108,7 @@ module.exports = {
 
   // "resetMocks" resets all mocks, including mocked modules, to jest.fn(),
   // between each test case.
-  // TODO: Enable
-  // resetMocks: true,
+  resetMocks: true,
 
   // Reset the module registry before running each individual test
   // resetModules: false,
