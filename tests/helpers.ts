@@ -75,14 +75,14 @@ export function buildTestObject<Type extends Record<PropertyKey, unknown>>(
       ...getKnownPropertyNames<keyof Type>(overrides),
     ]),
   ];
-  const object = keys.reduce((workingObject: Partial<Type>, key) => {
+  const object = keys.reduce<Type>((workingObject, key) => {
     if (key in overrides) {
       return { ...workingObject, [key]: overrides[key] };
     } else if (key in defaults) {
       return { ...workingObject, [key]: defaults[key]() };
     }
     return workingObject;
-  }, {}) as unknown as Type;
+  }, {} as never);
 
   return finalizeObject ? finalizeObject(object) : object;
 }
