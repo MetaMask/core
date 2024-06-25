@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.1.0]
+
 ### Uncategorized
 
 - Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
@@ -902,7 +904,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.1.0...HEAD
+[33.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...@metamask/transaction-controller@33.1.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...@metamask/transaction-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0
