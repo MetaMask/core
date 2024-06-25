@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [33.1.0]
 
-### Fixed
-
-- Disable some transaction controller integration tests ([#4429](https://github.com/MetaMask/core/pull/4429))
-
 ### Changed
 
 - Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
 - Document TransactionStatus enum ([#4380](https://github.com/MetaMask/core/pull/4380))
+
+### Fixed
+
+- Disable some transaction controller integration tests ([#4429](https://github.com/MetaMask/core/pull/4429))
 
 ## [33.0.0]
 
