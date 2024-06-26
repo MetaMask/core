@@ -101,12 +101,13 @@ describe('createQueuedRequestMiddleware', () => {
     expect(mockEnqueueRequest).not.toHaveBeenCalled();
   });
 
-  it('enqueues the request if the method is in the methodsWithConfirmation param', async () => {
+  it('enqueues the request if shouldEnqueueRest returns true', async () => {
     const mockEnqueueRequest = getMockEnqueueRequest();
     const middleware = buildQueuedRequestMiddleware({
       enqueueRequest: mockEnqueueRequest,
       useRequestQueue: () => true,
-      methodsWithConfirmation: ['method_with_confirmation'],
+      shouldEnqueueRequest: ({ method }) =>
+        method === 'method_with_confirmation',
     });
     const request = {
       ...getRequestDefaults(),
@@ -167,7 +168,7 @@ describe('createQueuedRequestMiddleware', () => {
           .fn()
           .mockRejectedValue(new Error('enqueuing error')),
         useRequestQueue: () => true,
-        methodsWithConfirmation: ['method_should_be_enqueued'],
+        shouldEnqueueRequest: () => true,
       });
       const request = {
         ...getRequestDefaults(),
@@ -191,7 +192,7 @@ describe('createQueuedRequestMiddleware', () => {
           .fn()
           .mockRejectedValue(new Error('enqueuing error')),
         useRequestQueue: () => true,
-        methodsWithConfirmation: ['method_should_be_enqueued'],
+        shouldEnqueueRequest: () => true,
       });
       const request = {
         ...getRequestDefaults(),
@@ -271,7 +272,7 @@ function buildQueuedRequestMiddleware(
   const options = {
     enqueueRequest: getMockEnqueueRequest(),
     useRequestQueue: () => false,
-    methodsWithConfirmation: [],
+    shouldEnqueueRequest: () => false,
     ...overrideOptions,
   };
 

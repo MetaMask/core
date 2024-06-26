@@ -192,8 +192,6 @@ describe('UserOperationController', () => {
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
     jest
       .spyOn(PendingUserOperationTrackerHelper, 'PendingUserOperationTracker')
@@ -238,6 +236,8 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );

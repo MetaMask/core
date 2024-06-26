@@ -50,10 +50,16 @@ module.exports = {
   // // A preset that is used as a base for Jest's configuration
   // preset: 'ts-jest',
 
+  // "resetMocks" resets all mocks, including mocked modules, to jest.fn(),
+  // between each test case.
+  resetMocks: true,
+
   // "restoreMocks" restores all mocks created using jest.spyOn to their
   // original implementations, between each test. It does not affect mocked
   // modules.
   restoreMocks: true,
+
+  setupFilesAfterEnv: ['./tests/scripts-setup.ts'],
 
   // The test environment that will be used for testing
   testEnvironment: 'node',

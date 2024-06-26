@@ -113,6 +113,8 @@ async function emitBlockTrackerLatestEvent(
     helper.start();
   }
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/await-thenable
   await BLOCK_TRACKER_MOCK.addListener.mock.calls[0]?.[1]?.(
     FROM_BLOCK_HEX_MOCK,
   );
@@ -127,10 +129,6 @@ async function emitBlockTrackerLatestEvent(
 }
 
 describe('IncomingTransactionHelper', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('on block tracker latest event', () => {
     // eslint-disable-next-line jest/expect-expect
     it('handles errors', async () => {

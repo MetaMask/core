@@ -1,6 +1,8 @@
 /**
  * State change callbacks
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type Listener<T> = (state: T) => void;
 
 /**
@@ -38,6 +40,8 @@ export interface BaseState {
  * called "state". Each controller is responsible for its own state, and all global wallet state
  * is tracked in a controller as state.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
   /**
    * Default options used to configure this controller

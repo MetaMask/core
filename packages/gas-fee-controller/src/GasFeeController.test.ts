@@ -86,6 +86,8 @@ const setupNetworkController = async ({
   if (initializeProvider) {
     // Call this without awaiting to simulate what the extension or mobile app
     // might do
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     networkController.initializeProvider();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through
@@ -292,9 +294,10 @@ describe('GasFeeController', () => {
   afterEach(() => {
     gasFeeController.destroy();
     const { blockTracker } = networkController.getProviderAndBlockTracker();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker?.destroy();
     sinon.restore();
-    jest.clearAllMocks();
   });
 
   describe('constructor', () => {
@@ -541,6 +544,8 @@ describe('GasFeeController', () => {
         },
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await gasFeeController.enableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(false);
@@ -556,6 +561,8 @@ describe('GasFeeController', () => {
         },
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await gasFeeController.disableNonRPCGasFeeApis();
 
       expect(gasFeeController.state.nonRPCGasFeeApisDisabled).toBe(true);
@@ -727,12 +734,12 @@ describe('GasFeeController', () => {
 
   describe('fetchGasFeeEstimates', () => {
     describe('when on any network supporting legacy gas estimation api', () => {
-      const defaultConstructorOptions = {
+      const getDefaultOptions = () => ({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
         getCurrentNetworkLegacyGasAPICompatibility: jest
           .fn()
           .mockReturnValue(true),
-      };
+      });
       const mockDetermineGasFeeCalculations = buildMockGasFeeStateLegacy();
 
       beforeEach(() => {
@@ -743,7 +750,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           networkControllerState: {
             networkConfigurations: {
               'AAAA-BBBB-CCCC-DDDD': {
@@ -784,7 +791,7 @@ describe('GasFeeController', () => {
       });
 
       it('should update the state with a fetched set of estimates', async () => {
-        await setupGasFeeController(defaultConstructorOptions);
+        await setupGasFeeController(getDefaultOptions());
 
         await gasFeeController.fetchGasFeeEstimates();
 
@@ -794,7 +801,7 @@ describe('GasFeeController', () => {
       });
 
       it('should return the same data that it puts into state', async () => {
-        await setupGasFeeController(defaultConstructorOptions);
+        await setupGasFeeController(getDefaultOptions());
 
         const estimateData = await gasFeeController.fetchGasFeeEstimates();
 
@@ -803,7 +810,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when getChainId returns a number input', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue(1),
         });
 
@@ -818,7 +825,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when getChainId returns a hexstring input', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue('0x1'),
         });
 
@@ -833,7 +840,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when nonRPCGasFeeApisDisabled is true', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           state: {
             ...buildMockGasFeeStateEthGasPrice(),
             nonRPCGasFeeApisDisabled: true,
@@ -851,7 +858,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when nonRPCGasFeeApisDisabled is false', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           state: {
             ...buildMockGasFeeStateEthGasPrice(),
             nonRPCGasFeeApisDisabled: false,
@@ -869,7 +876,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when getChainId returns a numeric string input', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue('1'),
         });
 
@@ -884,9 +891,9 @@ describe('GasFeeController', () => {
     });
 
     describe('when on any network supporting EIP-1559', () => {
-      const defaultConstructorOptions = {
+      const getDefaultOptions = () => ({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-      };
+      });
       const mockDetermineGasFeeCalculations = buildMockGasFeeStateFeeMarket();
 
       beforeEach(() => {
@@ -897,7 +904,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           networkControllerState: {
             networkConfigurations: {
               'AAAA-BBBB-CCCC-DDDD': {
@@ -938,7 +945,7 @@ describe('GasFeeController', () => {
       });
 
       it('should update the state with a fetched set of estimates', async () => {
-        await setupGasFeeController(defaultConstructorOptions);
+        await setupGasFeeController(getDefaultOptions());
 
         await gasFeeController.fetchGasFeeEstimates();
 
@@ -948,7 +955,7 @@ describe('GasFeeController', () => {
       });
 
       it('should return the same data that it puts into state', async () => {
-        await setupGasFeeController(defaultConstructorOptions);
+        await setupGasFeeController(getDefaultOptions());
 
         const estimateData = await gasFeeController.fetchGasFeeEstimates();
 
@@ -957,7 +964,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue('0x1'),
         });
 
@@ -971,7 +978,7 @@ describe('GasFeeController', () => {
       });
     });
     describe('when passed a networkClientId in options object', () => {
-      const defaultConstructorOptions = {
+      const getDefaultOptions = () => ({
         getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
         networkControllerState: {
           networksMetadata: {
@@ -995,7 +1002,7 @@ describe('GasFeeController', () => {
             },
           },
         },
-      };
+      });
       const mockDetermineGasFeeCalculations = buildMockGasFeeStateFeeMarket();
 
       beforeEach(() => {
@@ -1006,7 +1013,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
           clientId: '99999',
         });
 
@@ -1018,10 +1025,14 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
           fetchLegacyGasPriceEstimates,
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchLegacyGasPriceEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/gasPrices`,
@@ -1037,7 +1048,7 @@ describe('GasFeeController', () => {
       describe("the chainId of the networkClientId matches the globally selected network's chainId", () => {
         it('should update the globally selected network state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            ...defaultConstructorOptions,
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.goerli),
             onNetworkDidChange: jest.fn(),
           });
@@ -1053,7 +1064,7 @@ describe('GasFeeController', () => {
 
         it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            ...defaultConstructorOptions,
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.goerli),
             onNetworkDidChange: jest.fn(),
           });
@@ -1071,7 +1082,7 @@ describe('GasFeeController', () => {
       describe("the chainId of the networkClientId does not match the globally selected network's chainId", () => {
         it('should not update the globally selected network state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            ...defaultConstructorOptions,
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
             onNetworkDidChange: jest.fn(),
           });
@@ -1089,7 +1100,7 @@ describe('GasFeeController', () => {
 
         it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            ...defaultConstructorOptions,
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
             onNetworkDidChange: jest.fn(),
           });
@@ -1105,7 +1116,7 @@ describe('GasFeeController', () => {
       });
 
       it('should return the same data that it puts into state', async () => {
-        await setupGasFeeController(defaultConstructorOptions);
+        await setupGasFeeController(getDefaultOptions());
 
         const estimateData = await gasFeeController.fetchGasFeeEstimates({
           networkClientId: 'sepolia',
@@ -1116,7 +1127,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
-          ...defaultConstructorOptions,
+          ...getDefaultOptions(),
         });
 
         await gasFeeController.fetchGasFeeEstimates({
@@ -1125,6 +1136,8 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
               ChainId.sepolia,
             )}/suggestedGasFees`,
@@ -1167,6 +1180,8 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
@@ -1178,6 +1193,8 @@ describe('GasFeeController', () => {
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.goerli,
           )}/suggestedGasFees`,
@@ -1191,6 +1208,8 @@ describe('GasFeeController', () => {
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `${GAS_API_BASE_URL}/networks/${convertHexToDecimal(
             ChainId.sepolia,
           )}/suggestedGasFees`,

@@ -67,6 +67,8 @@ type FilterObjectCaveat = Caveat<
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
 // A caveat value merger for any caveat whose value is an array of JSON primitives.
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 const primitiveArrayMerger = <T extends string | null | number>(
   a: T[],
   b: T[],
@@ -203,19 +205,43 @@ type DefaultCaveatSpecifications = ExtractSpecifications<
  * Permission key constants.
  */
 const PermissionKeys = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_doubleNumber: 'wallet_doubleNumber',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_getSecretArray: 'wallet_getSecretArray',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_getSecretObject: 'wallet_getSecretObject',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noop: 'wallet_noop',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithPermittedAndFailureSideEffects:
     'wallet_noopWithPermittedAndFailureSideEffects',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithPermittedAndFailureSideEffects2:
     'wallet_noopWithPermittedAndFailureSideEffects2',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithPermittedSideEffects: 'wallet_noopWithPermittedSideEffects',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithValidator: 'wallet_noopWithValidator',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithRequiredCaveat: 'wallet_noopWithRequiredCaveat',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithFactory: 'wallet_noopWithFactory',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithManyCaveats: 'wallet_noopWithManyCaveats',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   snap_foo: 'snap_foo',
   endowmentAnySubject: 'endowmentAnySubject',
   endowmentSnapsOnly: 'endowmentSnapsOnly',
@@ -235,20 +261,44 @@ type NoopWithFactoryPermission = ValidPermission<
  * Permission name (as opposed to keys) constants and getters.
  */
 const PermissionNames = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_doubleNumber: PermissionKeys.wallet_doubleNumber,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_getSecretArray: PermissionKeys.wallet_getSecretArray,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_getSecretObject: PermissionKeys.wallet_getSecretObject,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noop: PermissionKeys.wallet_noop,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithValidator: PermissionKeys.wallet_noopWithValidator,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithPermittedAndFailureSideEffects:
     PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithPermittedAndFailureSideEffects2:
     PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithPermittedSideEffects:
     PermissionKeys.wallet_noopWithPermittedSideEffects,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithRequiredCaveat: PermissionKeys.wallet_noopWithRequiredCaveat,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   wallet_noopWithManyCaveats: PermissionKeys.wallet_noopWithManyCaveats,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   snap_foo: PermissionKeys.snap_foo,
   endowmentAnySubject: PermissionKeys.endowmentAnySubject,
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
@@ -624,6 +674,8 @@ function getExistingPermissionState() {
       'metamask.io': {
         origin: 'metamask.io',
         permissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {
             id: 'escwEx9JrOxGZKZk3RkL4',
             parentCapability: 'wallet_getSecretArray',
@@ -722,10 +774,6 @@ function getPermissionMatcher({
 }
 
 describe('PermissionController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
@@ -758,6 +806,8 @@ describe('PermissionController', () => {
                 },
               }),
             ),
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         ).toThrow(`Invalid permission type: "${invalidPermissionType}"`);
       });
     });
@@ -924,6 +974,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -933,6 +985,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'bar' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -1490,6 +1544,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
                 caveats: [
@@ -1523,6 +1579,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
                 caveats: [
@@ -1547,6 +1605,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
                 caveats: [
@@ -1664,6 +1724,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
                 caveats: [
@@ -1688,6 +1750,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
                 caveats: [
@@ -1792,6 +1856,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
                 caveats: [
@@ -1815,6 +1881,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
                 caveats: null,
@@ -1847,6 +1915,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
                 caveats: [
@@ -1871,6 +1941,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
                 caveats: [
@@ -1974,8 +2046,14 @@ describe('PermissionController', () => {
 
   describe('updatePermissionsByCaveat', () => {
     enum MultiCaveatOrigins {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       a = 'a.com',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       b = 'b.io',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       c = 'c.biz',
     }
 
@@ -2352,6 +2430,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -2361,6 +2441,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
@@ -2377,7 +2459,11 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretObject: {
             parentCapability: 'wallet_getSecretObject',
           },
@@ -2389,9 +2475,13 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
               }),
@@ -2409,6 +2499,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: origin1 },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretObject: {},
         },
       });
@@ -2416,6 +2508,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: origin2 },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -2425,6 +2519,8 @@ describe('PermissionController', () => {
           [origin1]: {
             origin: origin1,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
                 caveats: null,
@@ -2435,6 +2531,8 @@ describe('PermissionController', () => {
           [origin2]: {
             origin: origin2,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
                 caveats: null,
@@ -2521,6 +2619,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: expect.objectContaining({
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
@@ -2532,6 +2632,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretObject: {},
         },
         // preserveExistingPermissions is true by default
@@ -2542,9 +2644,13 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: expect.objectContaining({
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
               }),
@@ -2563,6 +2669,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
@@ -2574,6 +2682,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretObject: {},
         },
         preserveExistingPermissions: false,
@@ -2584,6 +2694,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: expect.objectContaining({
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
               }),
@@ -2600,6 +2712,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin: '' },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {},
           },
         }),
@@ -2610,6 +2724,8 @@ describe('PermissionController', () => {
           // @ts-expect-error Intentional destructive testing
           subject: { origin: 2 },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {},
           },
         }),
@@ -2623,6 +2739,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin: 'metamask.io' },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretFalafel: {},
           },
         }),
@@ -2637,6 +2755,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               // This must match the key
               parentCapability: 'wallet_getSecretObject',
@@ -2655,9 +2775,13 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               parentCapability: 'wallet_getSecretArray',
             },
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretObject: {
               // This must match the key
               parentCapability: 'wallet_getSecretArray',
@@ -2681,6 +2805,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               parentCapability: 'wallet_getSecretArray',
               caveats: [
@@ -2707,6 +2833,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               // @ts-expect-error Intentional destructive testing
               caveats: [[]],
@@ -2725,6 +2853,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               // @ts-expect-error Intentional destructive testing
               caveats: ['foo'],
@@ -2748,6 +2878,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               caveats: [
                 {
@@ -2779,6 +2911,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               caveats: [
                 {
@@ -2810,6 +2944,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               caveats: [{ type: 'fooType', value: 'bar' }],
             },
@@ -2832,6 +2968,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretArray: {
               caveats: [
                 {
@@ -2869,6 +3007,8 @@ describe('PermissionController', () => {
             controller.grantPermissions({
               subject: { origin },
               approvedPermissions: {
+                // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                // eslint-disable-next-line @typescript-eslint/naming-convention
                 wallet_getSecretArray: {
                   caveats: [
                     {
@@ -2923,6 +3063,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_getSecretObject: {
               caveats: [
                 {
@@ -2950,6 +3092,8 @@ describe('PermissionController', () => {
         controller.grantPermissions({
           subject: { origin },
           approvedPermissions: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             wallet_doubleNumber: {
               caveats: [
                 {
@@ -2999,6 +3143,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
@@ -3010,6 +3156,8 @@ describe('PermissionController', () => {
       controller.grantPermissionsIncremental({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretObject: {},
         },
       });
@@ -3019,9 +3167,13 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: expect.objectContaining({
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretArray',
               }),
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretObject: getPermissionMatcher({
                 parentCapability: 'wallet_getSecretObject',
               }),
@@ -3043,6 +3195,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_noopWithManyCaveats: {
             caveats: [{ ...caveat1 }],
           },
@@ -3052,6 +3206,8 @@ describe('PermissionController', () => {
       controller.grantPermissionsIncremental({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_noopWithManyCaveats: {
             caveats: [{ ...caveat2 }],
           },
@@ -3063,6 +3219,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: expect.objectContaining({
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_noopWithManyCaveats: getPermissionMatcher({
                 parentCapability: 'wallet_noopWithManyCaveats',
                 caveats: [{ ...caveat1 }, { ...caveat2 }],
@@ -3084,6 +3242,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_noopWithManyCaveats: {
             caveats: [getCaveat('foo')],
           },
@@ -3093,6 +3253,8 @@ describe('PermissionController', () => {
       controller.grantPermissionsIncremental({
         subject: { origin },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_noopWithManyCaveats: {
             caveats: [getCaveat('foo', 'bar')],
           },
@@ -3104,6 +3266,8 @@ describe('PermissionController', () => {
           [origin]: {
             origin,
             permissions: expect.objectContaining({
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_noopWithManyCaveats: getPermissionMatcher({
                 parentCapability: 'wallet_noopWithManyCaveats',
                 caveats: [getCaveat('foo', 'bar')],
@@ -4179,6 +4343,8 @@ describe('PermissionController', () => {
               { origin },
               {
                 [PermissionNames.wallet_getSecretArray]: {},
+                // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                // eslint-disable-next-line @typescript-eslint/naming-convention
                 wallet_getSecretKabob: {},
               },
             ),
@@ -4188,6 +4354,8 @@ describe('PermissionController', () => {
             requestedPermissions: {
               [PermissionNames.wallet_getSecretArray]: {
                 [PermissionNames.wallet_getSecretArray]: {},
+                // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                // eslint-disable-next-line @typescript-eslint/naming-convention
                 wallet_getSecretKabob: {},
               },
             },
@@ -5587,6 +5755,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -5689,6 +5859,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -5779,6 +5951,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -5809,6 +5983,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -5838,6 +6014,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -5872,6 +6050,8 @@ describe('PermissionController', () => {
       controller.grantPermissions({
         subject: { origin: 'foo' },
         approvedPermissions: {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       });
@@ -5911,6 +6091,8 @@ describe('PermissionController', () => {
 
       const result = messenger.call('PermissionController:grantPermissions', {
         subject: { origin: 'foo' },
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         approvedPermissions: { wallet_getSecretArray: {} },
       });
 
@@ -5934,6 +6116,8 @@ describe('PermissionController', () => {
         'PermissionController:grantPermissionsIncremental',
         {
           subject: { origin: 'foo' },
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           approvedPermissions: { wallet_getSecretArray: {} },
         },
       );
@@ -5964,6 +6148,8 @@ describe('PermissionController', () => {
         'PermissionController:requestPermissions',
         { origin: 'foo' },
         {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       );
@@ -5991,6 +6177,8 @@ describe('PermissionController', () => {
         'PermissionController:requestPermissionsIncremental',
         { origin: 'foo' },
         {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
           wallet_getSecretArray: {},
         },
       );
@@ -6005,6 +6193,8 @@ describe('PermissionController', () => {
           'metamask.io': {
             origin: 'metamask.io',
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: {
                 id: 'escwEx9JrOxGZKZk3RkL4',
                 parentCapability: 'wallet_getSecretArray',
@@ -6030,6 +6220,8 @@ describe('PermissionController', () => {
 
       const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
@@ -6044,6 +6236,8 @@ describe('PermissionController', () => {
           'metamask.io': {
             origin: 'metamask.io',
             permissions: {
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/naming-convention
               wallet_getSecretArray: {
                 id: 'escwEx9JrOxGZKZk3RkL4',
                 parentCapability: 'wallet_getSecretArray',
@@ -6199,6 +6393,8 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       expect(response.error).toMatchObject(
@@ -6221,6 +6417,8 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
@@ -6270,6 +6468,8 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;

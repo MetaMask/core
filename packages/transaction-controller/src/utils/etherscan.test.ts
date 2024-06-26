@@ -34,10 +34,6 @@ const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
 describe('Etherscan', () => {
   const handleFetchMock = jest.mocked(handleFetch);
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getEtherscanApiHost', () => {
     it('returns Etherscan API host for supported network', () => {
       expect(getEtherscanApiHost(CHAIN_IDS.GOERLI)).toBe(
@@ -81,7 +77,11 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&offset=${REQUEST_MOCK.limit}` +
           `&sort=desc` +
           `&action=${action}` +
@@ -107,7 +107,11 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&offset=${REQUEST_MOCK.limit}` +
           `&sort=desc` +
           `&action=${action}` +

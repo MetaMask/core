@@ -41,12 +41,20 @@ function bytesToUtf8(byteArray: Uint8Array): string {
 }
 
 class EncryptorDecryptor {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #ALGORITHM_NONCE_SIZE = 12; // 12 bytes
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #ALGORITHM_KEY_SIZE = 16; // 16 bytes
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #PBKDF2_SALT_SIZE = 16; // 16 bytes
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #PBKDF2_ITERATIONS = 900_000;
 
   encryptString(plaintext: string, password: string): string {
@@ -154,8 +162,8 @@ class EncryptorDecryptor {
   }
 }
 
-const encryption = new EncryptorDecryptor();
-export default encryption;
+export const Encryption = new EncryptorDecryptor();
+export default Encryption;
 
 /**
  * Create a SHA-256 hash from a given string.

@@ -1,4 +1,9 @@
 import type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
+} from '@metamask/accounts-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
@@ -9,6 +14,7 @@ import {
   FALL_BACK_VS_CURRENCY,
   toHex,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -16,10 +22,6 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type {
-  PreferencesControllerGetStateAction,
-  PreferencesControllerStateChangeEvent,
-} from '@metamask/preferences-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
@@ -103,15 +105,16 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
-  | PreferencesControllerGetStateAction;
+  | AccountsControllerGetAccountAction
+  | AccountsControllerGetSelectedAccountAction;
 
 /**
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
-  | PreferencesControllerStateChangeEvent
   | TokensControllerStateChangeEvent
-  | NetworkControllerStateChangeEvent;
+  | NetworkControllerStateChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent;
 
 /**
  * The name of the {@link TokenRatesController}.
@@ -235,7 +238,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
 
   #inProcessExchangeRateUpdates: Record<`${Hex}:${string}`, Promise<void>> = {};
 
-  #selectedAddress: string;
+  #selectedAccountId: string;
 
   #disabled: boolean;
 
@@ -289,39 +292,24 @@ export class TokenRatesController extends StaticIntervalPollingController<
     this.#chainId = currentChainId;
     this.#ticker = currentTicker;
 
-    this.#selectedAddress = this.#getSelectedAddress();
+    this.#selectedAccountId = this.#getSelectedAccount().id;
 
     const { allTokens, allDetectedTokens } = this.#getTokensControllerState();
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
 
-    this.#subscribeToPreferencesStateChange();
-
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
-  }
 
-  #subscribeToPreferencesStateChange() {
-    this.messagingSystem.subscribe(
-      'PreferencesController:stateChange',
-      async (selectedAddress: string) => {
-        if (this.#selectedAddress !== selectedAddress) {
-          this.#selectedAddress = selectedAddress;
-          if (this.#pollState === PollState.Active) {
-            await this.updateExchangeRates();
-          }
-        }
-      },
-      ({ selectedAddress }) => {
-        return selectedAddress;
-      },
-    );
+    this.#subscribeToAccountChange();
   }
 
   #subscribeToTokensStateChange() {
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
         const previousTokenAddresses = this.#getTokenAddresses(this.#chainId);
         this.#allTokens = allTokens;
@@ -344,6 +332,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
   #subscribeToNetworkStateChange() {
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ selectedNetworkClientId }) => {
         const {
           configuration: { chainId, ticker },
@@ -366,6 +356,22 @@ export class TokenRatesController extends StaticIntervalPollingController<
     );
   }
 
+  #subscribeToAccountChange() {
+    this.messagingSystem.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async (selectedAccount) => {
+        if (this.#selectedAccountId !== selectedAccount.id) {
+          this.#selectedAccountId = selectedAccount.id;
+          if (this.#pollState === PollState.Active) {
+            await this.updateExchangeRates();
+          }
+        }
+      },
+    );
+  }
+
   /**
    * Get the user's tokens for the given chain.
    *
@@ -373,9 +379,14 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * @returns The list of tokens addresses for the current chain
    */
   #getTokenAddresses(chainId: Hex): Hex[] {
-    const tokens = this.#allTokens[chainId]?.[this.#selectedAddress] || [];
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    const selectedAddress = selectedAccount?.address ?? '';
+    const tokens = this.#allTokens[chainId]?.[selectedAddress] || [];
     const detectedTokens =
-      this.#allDetectedTokens[chainId]?.[this.#selectedAddress] || [];
+      this.#allDetectedTokens[chainId]?.[selectedAddress] || [];
 
     return [
       ...new Set(
@@ -417,24 +428,28 @@ export class TokenRatesController extends StaticIntervalPollingController<
     this.#pollState = PollState.Inactive;
   }
 
-  #getSelectedAddress(): string {
-    const { selectedAddress } = this.messagingSystem.call(
-      'PreferencesController:getState',
+  #getSelectedAccount(): InternalAccount {
+    const selectedAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
     );
 
-    return selectedAddress;
+    return selectedAccount;
   }
 
   #getChainIdAndTicker(): {
     chainId: Hex;
     ticker: string;
   } {
-    const { providerConfig } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
     return {
-      chainId: providerConfig.chainId,
-      ticker: providerConfig.ticker,
+      chainId: networkClient.configuration.chainId,
+      ticker: networkClient.configuration.ticker,
     };
   }
 
@@ -470,6 +485,8 @@ export class TokenRatesController extends StaticIntervalPollingController<
     // Poll using recursive `setTimeout` instead of `setInterval` so that
     // requests don't stack if they take longer than the polling interval
     this.#handle = setTimeout(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.#poll();
     }, this.#interval);
   }

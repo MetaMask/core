@@ -1,5 +1,9 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   normalizeEnsName,
   isValidHexAddress,
@@ -17,18 +21,24 @@ import type { Hex } from '@metamask/utils';
  * @property name - Nickname associated with this address
  * @property importTime - Data time when an account as created/imported
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ContactEntry {
+export type ContactEntry = {
   address: string;
   name: string;
   importTime?: number;
-}
+};
 
+/**
+ * The type of address.
+ */
 export enum AddressType {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   contractAccounts = 'CONTRACT_ACCOUNTS',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   nonAccounts = 'NON_ACCOUNTS',
 }
 
@@ -43,17 +53,14 @@ export enum AddressType {
  * @property isEns - is the entry an ENS name
  * @property addressType - is the type of this address
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AddressBookEntry {
+export type AddressBookEntry = {
   address: string;
   name: string;
   chainId: Hex;
   memo: string;
   isEns: boolean;
   addressType?: AddressType;
-}
+};
 
 /**
  * @type AddressBookState
@@ -61,44 +68,106 @@ export interface AddressBookEntry {
  * Address book controller state
  * @property addressBook - Array of contact entry objects
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AddressBookState extends BaseState {
+export type AddressBookControllerState = {
   addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
-}
+};
+
+/**
+ * The name of the {@link AddressBookController}.
+ */
+export const controllerName = 'AddressBookController';
+
+/**
+ * The action that can be performed to get the state of the {@link AddressBookController}.
+ */
+export type AddressBookControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AddressBookControllerState
+>;
+
+/**
+ * The actions that can be performed using the {@link AddressBookController}.
+ */
+export type AddressBookControllerActions = AddressBookControllerGetStateAction;
+
+/**
+ * The event that {@link AddressBookController} can emit.
+ */
+export type AddressBookControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AddressBookControllerState
+>;
+
+/**
+ * The events that {@link AddressBookController} can emit.
+ */
+export type AddressBookControllerEvents = AddressBookControllerStateChangeEvent;
+
+const addressBookControllerMetadata = {
+  addressBook: { persist: true, anonymous: false },
+};
+
+/**
+ * Get the default {@link AddressBookController} state.
+ *
+ * @returns The default {@link AddressBookController} state.
+ */
+export const getDefaultAddressBookControllerState =
+  (): AddressBookControllerState => {
+    return {
+      addressBook: {},
+    };
+  };
+
+/**
+ * The messenger of the {@link AddressBookController} for communication.
+ */
+export type AddressBookControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AddressBookControllerActions,
+  AddressBookControllerEvents,
+  never,
+  never
+>;
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames.
  */
-export class AddressBookController extends BaseControllerV1<
-  BaseConfig,
-  AddressBookState
+export class AddressBookController extends BaseController<
+  typeof controllerName,
+  AddressBookControllerState,
+  AddressBookControllerMessenger
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AddressBookController' as const;
-
   /**
    * Creates an AddressBookController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param args - The {@link AddressBookController} arguments.
+   * @param args.messenger - The controller messenger instance for communication.
+   * @param args.state - Initial state to set on this controller.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
-    super(config, state);
-
-    this.defaultState = { addressBook: {} };
-
-    this.initialize();
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: AddressBookControllerMessenger;
+    state?: Partial<AddressBookControllerState>;
+  }) {
+    const mergedState = { ...getDefaultAddressBookControllerState(), ...state };
+    super({
+      messenger,
+      metadata: addressBookControllerMetadata,
+      name: controllerName,
+      state: mergedState,
+    });
   }
 
   /**
    * Remove all contract entries.
    */
   clear() {
-    this.update({ addressBook: {} });
+    this.update((state) => {
+      state.addressBook = {};
+    });
   }
 
   /**
@@ -119,14 +188,13 @@ export class AddressBookController extends BaseControllerV1<
       return false;
     }
 
-    const addressBook = Object.assign({}, this.state.addressBook);
-    delete addressBook[chainId][address];
+    this.update((state) => {
+      delete state.addressBook[chainId][address];
+      if (Object.keys(state.addressBook[chainId]).length === 0) {
+        delete state.addressBook[chainId];
+      }
+    });
 
-    if (Object.keys(addressBook[chainId]).length === 0) {
-      delete addressBook[chainId];
-    }
-
-    this.update({ addressBook });
     return true;
   }
 
@@ -167,14 +235,14 @@ export class AddressBookController extends BaseControllerV1<
       entry.isEns = true;
     }
 
-    this.update({
-      addressBook: {
+    this.update((state) => {
+      state.addressBook = {
         ...this.state.addressBook,
         [chainId]: {
           ...this.state.addressBook[chainId],
           [address]: entry,
         },
-      },
+      };
     });
 
     return true;

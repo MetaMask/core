@@ -379,6 +379,8 @@ export class ApprovalController extends BaseController<
 
     this.#approvals = new Map();
     this.#origins = new Map();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#showApprovalRequest = showApprovalRequest;
     this.#typesExcludedFromRateLimiting = typesExcludedFromRateLimiting;
     this.registerMessageHandlers();
@@ -590,6 +592,8 @@ export class ApprovalController extends BaseController<
     if (origin) {
       return Array.from(
         (this.#origins.get(origin) || new Map()).values(),
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       ).reduce((total, value) => total + value, 0);
     }
 

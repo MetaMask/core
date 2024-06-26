@@ -160,6 +160,8 @@ export class EndowmentPermissionDoesNotExistError extends Error {
   public data?: { origin: string };
 
   constructor(target: string, origin?: string) {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     super(`Subject "${origin}" has no permission for "${target}".`);
     if (origin) {
       this.data = { origin };

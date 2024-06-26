@@ -79,8 +79,11 @@ export type QueuedRequestControllerMessenger = RestrictedControllerMessenger<
 
 export type QueuedRequestControllerOptions = {
   messenger: QueuedRequestControllerMessenger;
-  methodsRequiringNetworkSwitch: string[];
+  shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
   clearPendingConfirmations: () => void;
+  showApprovalRequest: () => void;
 };
 
 /**
@@ -136,29 +139,44 @@ export class QueuedRequestController extends BaseController<
   #processingRequestCount = 0;
 
   /**
-   * This is a list of methods that require the globally selected network
-   * to match the dapp selected network before being processed. These can
+   * This is a function that returns true if a request requires the globally selected
+   * network to match the dapp selected network before being processed. These can
    * be for UI/UX reasons where the currently selected network is displayed
    * in the confirmation even though it will be submitted on the correct
    * network for the dapp. It could also be that a method expects the
    * globally selected network to match some value in the request params itself.
    */
-  readonly #methodsRequiringNetworkSwitch: string[];
+  readonly #shouldRequestSwitchNetwork: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
 
+  /**
+   * This is a function that clears all pending confirmations across
+   * several controllers that may handle them.
+   */
   #clearPendingConfirmations: () => void;
+
+  /**
+   * This is a function that makes the confirmation notification view
+   * become visible and focused to the user
+   */
+  #showApprovalRequest: () => void;
 
   /**
    * Construct a QueuedRequestController.
    *
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
-   * @param options.methodsRequiringNetworkSwitch - A list of methods that require the globally selected network to match the dapp selected network.
+   * @param options.shouldRequestSwitchNetwork - A function that returns if a request requires the globally selected network to match the dapp selected network.
    * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
+   * @param options.showApprovalRequest - A function for opening the UI such that
+   * the existing request can be displayed to the user.
    */
   constructor({
     messenger,
-    methodsRequiringNetworkSwitch,
+    shouldRequestSwitchNetwork,
     clearPendingConfirmations,
+    showApprovalRequest,
   }: QueuedRequestControllerOptions) {
     super({
       name: controllerName,
@@ -171,8 +189,10 @@ export class QueuedRequestController extends BaseController<
       messenger,
       state: { queuedRequestCount: 0 },
     });
-    this.#methodsRequiringNetworkSwitch = methodsRequiringNetworkSwitch;
+
+    this.#shouldRequestSwitchNetwork = shouldRequestSwitchNetwork;
     this.#clearPendingConfirmations = clearPendingConfirmations;
+    this.#showApprovalRequest = showApprovalRequest;
     this.#registerMessageHandlers();
   }
 
@@ -193,7 +213,7 @@ export class QueuedRequestController extends BaseController<
           ) {
             const origin = path[1];
             this.#flushQueueForOrigin(origin);
-            // When a domain is removed from SelectedNetworkController, its because of revoke permissions.
+            // When a domain is removed from SelectedNetworkController, its because of revoke permissions or the useRequestQueue flag was toggled off.
             // Rather than subscribe to the permissions controller event in addition to the selectedNetworkController ones, we simplify it and just handle remove on this event alone.
             if (op === 'remove' && origin === this.#originOfCurrentBatch) {
               this.#clearPendingConfirmations();
@@ -297,6 +317,25 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
+  async #waitForDequeue(origin: string): Promise<void> {
+    const { promise, reject, resolve } = createDeferredPromise({
+      suppressUnhandledRejection: true,
+    });
+    this.#requestQueue.push({
+      origin,
+      processRequest: (error: unknown) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      },
+    });
+    this.#updateQueuedRequestCount();
+
+    return promise;
+  }
+
   /**
    * Enqueue a request to be processed in a batch with other requests from the same origin.
    *
@@ -326,27 +365,9 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin
       ) {
-        const {
-          promise: waitForDequeue,
-          reject,
-          resolve,
-        } = createDeferredPromise({
-          suppressUnhandledRejection: true,
-        });
-        this.#requestQueue.push({
-          origin: request.origin,
-          processRequest: (error: unknown) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
-            }
-          },
-        });
-        this.#updateQueuedRequestCount();
-
-        await waitForDequeue;
-      } else if (this.#methodsRequiringNetworkSwitch.includes(request.method)) {
+        this.#showApprovalRequest();
+        await this.#waitForDequeue(request.origin);
+      } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
         await this.#switchNetworkIfNecessary();

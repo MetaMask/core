@@ -155,12 +155,16 @@ export class TokenListController extends StaticIntervalPollingController<
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
     if (onNetworkStateChange) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onNetworkStateChange(async (networkControllerState) => {
         await this.#onNetworkControllerStateChange(networkControllerState);
       });
     } else {
       this.messagingSystem.subscribe(
         'NetworkController:stateChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
           await this.#onNetworkControllerStateChange(networkControllerState);
         },
@@ -246,6 +250,8 @@ export class TokenListController extends StaticIntervalPollingController<
    */
   private async startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
       await safelyExecute(() => this.fetchTokenList());
     }, this.intervalDelay);

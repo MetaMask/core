@@ -517,7 +517,6 @@ const getRestrictedMessenger = (
 
 describe('TokenListController', () => {
   afterEach(() => {
-    jest.restoreAllMocks();
     jest.clearAllTimers();
     sinon.restore();
   });
@@ -650,6 +649,8 @@ describe('TokenListController', () => {
       interval: 100,
       messenger,
     });
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     controller.start();
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(controller.state.tokenList).toStrictEqual(
@@ -1358,6 +1359,8 @@ describe('TokenListController', () => {
  * @returns The constructed path.
  */
 function getTokensPath(chainId: Hex) {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
   )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
