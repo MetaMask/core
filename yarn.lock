@@ -3770,7 +3770,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@^33.1.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@^33.0.1, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3837,7 +3837,7 @@ __metadata:
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/transaction-controller": ^33.1.0
+    "@metamask/transaction-controller": ^33.0.1
     "@metamask/utils": ^8.3.0
     "@types/jest": ^27.4.1
     bn.js: ^5.2.1
