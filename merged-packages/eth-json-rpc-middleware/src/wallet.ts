@@ -12,6 +12,7 @@ import type {
 } from '@metamask/utils';
 
 import type { Block } from './types';
+import { normalizeTypedMessage } from './utils/normalize';
 
 /*
 export type TransactionParams = {
@@ -276,7 +277,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     const params = req.params as [string, string];
 
     const address = await validateAndNormalizeKeyholder(params[0], req);
-    const message = params[1];
+    const message = normalizeTypedMessage(params[1]);
     const version = 'V3';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -306,7 +307,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     const params = req.params as [string, string];
 
     const address = await validateAndNormalizeKeyholder(params[0], req);
-    const message = params[1];
+    const message = normalizeTypedMessage(params[1]);
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,

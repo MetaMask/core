@@ -34,6 +34,8 @@
     "@metamask/json-rpc-engine": "^8.0.2",
     "@metamask/rpc-errors": "^6.0.0",
     "@metamask/utils": "^8.1.0",
+    "@types/bn.js": "^5.1.5",
+    "bn.js": "^5.2.1",
     "klona": "^2.0.6",
     "pify": "^5.0.0",
     "safe-stable-stringify": "^2.4.3"

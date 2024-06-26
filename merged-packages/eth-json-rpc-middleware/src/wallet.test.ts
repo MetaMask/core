@@ -2,7 +2,12 @@ import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import pify from 'pify';
 
-import type { TransactionParams, MessageParams, TypedMessageV1Params } from '.';
+import type {
+  MessageParams,
+  TransactionParams,
+  TypedMessageParams,
+  TypedMessageV1Params,
+} from '.';
 import { createWalletMiddleware } from '.';
 
 const testAddresses = [
@@ -323,6 +328,68 @@ describe('wallet', () => {
       await expect(promise).rejects.toThrow(
         'The requested account and/or method has not been authorized by the user.',
       );
+    });
+  });
+
+  describe('signTypedDataV3', () => {
+    it('should sign data and normalizes verifyingContract', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+      );
+
+      const message = {
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+        },
+        primaryType: 'EIP712Domain',
+        domain: {
+          verifyingContract: '996101235222674412020337938588541139382869425796',
+        },
+        message: {},
+      };
+
+      const stringifiedMessage = JSON.stringify(message);
+      const expectedStringifiedMessage = JSON.stringify({
+        ...message,
+        domain: {
+          verifyingContract: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
+        },
+      });
+
+      const payload = {
+        method: 'eth_signTypedData_v3',
+        params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
+      };
+
+      const signTypedDataV3Response = await pify(engine.handle).call(
+        engine,
+        payload,
+      );
+      const signTypedDataV3Result = signTypedDataV3Response.result;
+
+      expect(signTypedDataV3Result).toBeDefined();
+      expect(signTypedDataV3Result).toStrictEqual(testMsgSig);
+      expect(witnessedMsgParams).toHaveLength(1);
+      expect(witnessedMsgParams[0]).toMatchObject({
+        from: testAddresses[0],
+        data: expectedStringifiedMessage,
+        version: 'V3',
+        signatureMethod: 'eth_signTypedData_v3',
+      });
     });
   });
 

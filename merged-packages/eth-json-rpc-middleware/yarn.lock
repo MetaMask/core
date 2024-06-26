@@ -958,12 +958,14 @@ __metadata:
     "@metamask/json-rpc-engine": ^8.0.2
     "@metamask/rpc-errors": ^6.0.0
     "@metamask/utils": ^8.1.0
+    "@types/bn.js": ^5.1.5
     "@types/btoa": ^1.2.3
     "@types/jest": ^27.4.1
     "@types/node": ^17.0.23
     "@types/pify": ^5.0.2
     "@typescript-eslint/eslint-plugin": ^5.42.1
     "@typescript-eslint/parser": ^5.42.1
+    bn.js: ^5.2.1
     eslint: ^8.44.0
     eslint-config-prettier: ^8.1.0
     eslint-plugin-import: ^2.27.5
@@ -1340,6 +1342,15 @@ __metadata:
   dependencies:
     "@babel/types": ^7.3.0
   checksum: a7158b13e5e4b844565217d04a0a09c1cf04e67de90972318960028effbd5e7400f2567b72c5f790acffdab9b4adce8d68f435a2f0c2b16e2c9c45994ace98f2
+  languageName: node
+  linkType: hard
+
+"@types/bn.js@npm:^5.1.5":
+  version: 5.1.5
+  resolution: "@types/bn.js@npm:5.1.5"
+  dependencies:
+    "@types/node": "*"
+  checksum: c87b28c4af74545624f8a3dae5294b16aa190c222626e8d4b2e327b33b1a3f1eeb43e7a24d914a9774bca43d8cd6e1cb0325c1f4b3a244af6693a024e1d918e6
   languageName: node
   linkType: hard
 
@@ -2039,6 +2050,13 @@ __metadata:
     read-cmd-shim: ^4.0.0
     write-file-atomic: ^5.0.0
   checksum: 3b3ee22efc38d608479d51675c8958a841b8b55b8975342ce86f28ac4e0bb3aef46e9dbdde976c6dc1fe1bd2aa00d42e00869ad35b57ee6d868f39f662858911
+  languageName: node
+  linkType: hard
+
+"bn.js@npm:^5.2.1":
+  version: 5.2.1
+  resolution: "bn.js@npm:5.2.1"
+  checksum: 3dd8c8d38055fedfa95c1d5fc3c99f8dd547b36287b37768db0abab3c239711f88ff58d18d155dd8ad902b0b0cee973747b7ae20ea12a09473272b0201c9edd3
   languageName: node
   linkType: hard
 
