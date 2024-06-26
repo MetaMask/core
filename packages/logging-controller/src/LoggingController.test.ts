@@ -7,10 +7,11 @@ import { LogType } from './logTypes';
 import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 
 jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
   return {
-    ...actual,
-    v1: jest.fn(() => actual.v1()),
+    // We need to use this name as this is what Jest recognizes.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    __esModule: true,
+    ...jest.requireActual('uuid'),
   };
 });
 
@@ -42,9 +43,6 @@ function getRestrictedMessenger(
 }
 
 describe('LoggingController', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
   it('action: LoggingController:add with generic log', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
@@ -112,6 +110,7 @@ describe('LoggingController', () => {
   it('action: LoggingController:add prevents possible collision of ids', async () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
+    const uuidV1Spy = jest.spyOn(uuid, 'v1');
 
     const controller = new LoggingController({
       messenger,
@@ -128,9 +127,7 @@ describe('LoggingController', () => {
 
     const { id } = Object.values(controller.state.logs)[0];
 
-    if (jest.isMockFunction(uuid.v1)) {
-      uuid.v1.mockImplementationOnce(() => id);
-    }
+    uuidV1Spy.mockReturnValueOnce(id);
 
     expect(
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -160,7 +157,7 @@ describe('LoggingController', () => {
       }),
     });
 
-    expect(uuid.v1).toHaveBeenCalledTimes(3);
+    expect(uuidV1Spy).toHaveBeenCalledTimes(3);
   });
 
   it('internal method: clear', async () => {

@@ -192,8 +192,6 @@ describe('UserOperationController', () => {
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
     jest
       .spyOn(PendingUserOperationTrackerHelper, 'PendingUserOperationTracker')

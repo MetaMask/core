@@ -25,10 +25,6 @@ const TRANSACTION_PARAMS_MOCK: TransactionParams = {
 };
 
 describe('utils', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('normalizeTransactionParams', () => {
     it('normalizes properties', () => {
       const normalized = util.normalizeTransactionParams(
