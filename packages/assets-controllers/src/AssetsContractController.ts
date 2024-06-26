@@ -192,27 +192,36 @@ export class AssetsContractController {
     this.ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
     this.chainId = initialChainId;
 
-    this.messagingSystem.registerActionHandler(
-      'AssetsContractController:getERC20Standard',
-      this.getERC20Standard.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'AssetsContractController:getERC721Standard',
-      this.getERC721Standard.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'AssetsContractController:getERC1155Standard',
-      this.getERC1155Standard.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'AssetsContractController:getTokenStandardAndDetails',
-      this.getTokenStandardAndDetails.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'AssetsContractController:getBalancesInSingleCall',
-      this.getBalancesInSingleCall.bind(this),
-    );
+    this.#registerActionHandlers();
+    this.#registerEventSubscriptions();
+  }
 
+  // TODO: Expand into base-controller utility function that batch registers action handlers.
+  #registerActionHandlers() {
+    for (const method of Object.getOwnPropertyNames(
+      Object.getPrototypeOf(this),
+    ) as (keyof this)[]) {
+      if (
+        ((key: keyof this): key is AssetsContractControllerMethodName =>
+          ![
+            'constructor',
+            'messagingSystem',
+            'provider',
+            'ipfsGateway',
+            'chainId',
+          ].find((e) => e === key) && typeof this[key] === 'function')(method)
+      ) {
+        this.messagingSystem.registerActionHandler(
+          `${name}:${method}`,
+          // TODO: Write a for-loop function that iterates over an input union type in tandem with the input array.
+          // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method`
+          this[method].bind(this),
+        );
+      }
+    }
+  }
+
+  #registerEventSubscriptions() {
     this.messagingSystem.subscribe(
       `PreferencesController:stateChange`,
       ({ ipfsGateway }) => {
@@ -232,7 +241,6 @@ export class AssetsContractController {
 
         if (this.chainId !== chainId) {
           this.chainId = chainId;
-
           // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
           this.#provider = this.#getCorrectProvider();
         }
