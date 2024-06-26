@@ -45,9 +45,12 @@ import BN from 'bn.js';
 import { v4 as random } from 'uuid';
 
 import type {
-  AssetsContractControllerGetERC1155StandardAction,
-  AssetsContractControllerGetERC20StandardAction,
-  AssetsContractControllerGetERC721StandardAction,
+  AssetsContractControllerGetERC1155BalanceOfAction,
+  AssetsContractControllerGetERC1155TokenURIAction,
+  AssetsContractControllerGetERC721AssetNameAction,
+  AssetsContractControllerGetERC721AssetSymbolAction,
+  AssetsContractControllerGetERC721OwnerOfAction,
+  AssetsContractControllerGetERC721TokenURIAction,
 } from './AssetsContractController';
 import {
   compareNftMetadata,
@@ -235,9 +238,12 @@ export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
   | NetworkControllerGetNetworkClientByIdAction
-  | AssetsContractControllerGetERC20StandardAction
-  | AssetsContractControllerGetERC721StandardAction
-  | AssetsContractControllerGetERC1155StandardAction;
+  | AssetsContractControllerGetERC721AssetNameAction
+  | AssetsContractControllerGetERC721AssetSymbolAction
+  | AssetsContractControllerGetERC721TokenURIAction
+  | AssetsContractControllerGetERC721OwnerOfAction
+  | AssetsContractControllerGetERC1155BalanceOfAction
+  | AssetsContractControllerGetERC1155TokenURIAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -705,9 +711,12 @@ export class NftController extends BaseController<
   ): Promise<[string, string]> {
     // try ERC721 uri
     try {
-      const uri = await this.messagingSystem
-        .call('AssetsContractController:getERC721Standard', networkClientId)
-        .getTokenURI(contractAddress, tokenId);
+      const uri = await this.messagingSystem.call(
+        'AssetsContractController:getERC721TokenURI',
+        contractAddress,
+        tokenId,
+        networkClientId,
+      );
       return [uri, ERC721];
     } catch {
       // Ignore error
@@ -715,9 +724,12 @@ export class NftController extends BaseController<
 
     // try ERC1155 uri
     try {
-      const tokenURI = await this.messagingSystem
-        .call('AssetsContractController:getERC1155Standard', networkClientId)
-        .getTokenURI(contractAddress, tokenId);
+      const tokenURI = await this.messagingSystem.call(
+        'AssetsContractController:getERC1155TokenURI',
+        contractAddress,
+        tokenId,
+        networkClientId,
+      );
 
       /**
        * According to EIP1155 the URI value allows for ID substitution
@@ -798,12 +810,16 @@ export class NftController extends BaseController<
       Pick<ApiNftContract, 'collection'>
   > {
     const [name, symbol] = await Promise.all([
-      this.messagingSystem
-        .call('AssetsContractController:getERC721Standard', networkClientId)
-        .getAssetName(contractAddress),
-      this.messagingSystem
-        .call('AssetsContractController:getERC721Standard', networkClientId)
-        .getAssetSymbol(contractAddress),
+      this.messagingSystem.call(
+        'AssetsContractController:getERC721AssetName',
+        contractAddress,
+        networkClientId,
+      ),
+      this.messagingSystem.call(
+        'AssetsContractController:getERC721AssetSymbol',
+        contractAddress,
+        networkClientId,
+      ),
     ]);
 
     return {
@@ -1383,9 +1399,12 @@ export class NftController extends BaseController<
   ): Promise<boolean> {
     // Checks the ownership for ERC-721.
     try {
-      const owner = await this.messagingSystem
-        .call('AssetsContractController:getERC721Standard', networkClientId)
-        .getOwnerOf(nftAddress, tokenId);
+      const owner = await this.messagingSystem.call(
+        'AssetsContractController:getERC721OwnerOf',
+        nftAddress,
+        tokenId,
+        networkClientId,
+      );
       return ownerAddress.toLowerCase() === owner.toLowerCase();
       // eslint-disable-next-line no-empty
     } catch {
@@ -1394,9 +1413,13 @@ export class NftController extends BaseController<
 
     // Checks the ownership for ERC-1155.
     try {
-      const balance = await this.messagingSystem
-        .call('AssetsContractController:getERC1155Standard', networkClientId)
-        .getBalanceOf(ownerAddress, nftAddress, tokenId);
+      const balance = await this.messagingSystem.call(
+        'AssetsContractController:getERC1155BalanceOf',
+        ownerAddress,
+        nftAddress,
+        tokenId,
+        networkClientId,
+      );
       return !balance.isZero();
       // eslint-disable-next-line no-empty
     } catch {
