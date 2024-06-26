@@ -734,6 +734,12 @@ describe('GasFeeController', () => {
 
   describe('fetchGasFeeEstimates', () => {
     describe('when on any network supporting legacy gas estimation api', () => {
+      const getDefaultOptions = () => ({
+        getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
+        getCurrentNetworkLegacyGasAPICompatibility: jest
+          .fn()
+          .mockReturnValue(true),
+      });
       const mockDetermineGasFeeCalculations = buildMockGasFeeStateLegacy();
 
       beforeEach(() => {
@@ -744,10 +750,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
+          ...getDefaultOptions(),
           networkControllerState: {
             networkConfigurations: {
               'AAAA-BBBB-CCCC-DDDD': {
@@ -788,12 +791,7 @@ describe('GasFeeController', () => {
       });
 
       it('should update the state with a fetched set of estimates', async () => {
-        await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
-        });
+        await setupGasFeeController(getDefaultOptions());
 
         await gasFeeController.fetchGasFeeEstimates();
 
@@ -803,12 +801,7 @@ describe('GasFeeController', () => {
       });
 
       it('should return the same data that it puts into state', async () => {
-        await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
-        });
+        await setupGasFeeController(getDefaultOptions());
 
         const estimateData = await gasFeeController.fetchGasFeeEstimates();
 
@@ -817,10 +810,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when getChainId returns a number input', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue(1),
         });
 
@@ -835,10 +825,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when getChainId returns a hexstring input', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue('0x1'),
         });
 
@@ -853,10 +840,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when nonRPCGasFeeApisDisabled is true', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
+          ...getDefaultOptions(),
           state: {
             ...buildMockGasFeeStateEthGasPrice(),
             nonRPCGasFeeApisDisabled: true,
@@ -874,10 +858,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when nonRPCGasFeeApisDisabled is false', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
+          ...getDefaultOptions(),
           state: {
             ...buildMockGasFeeStateEthGasPrice(),
             nonRPCGasFeeApisDisabled: false,
@@ -895,10 +876,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly when getChainId returns a numeric string input', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(false),
-          getCurrentNetworkLegacyGasAPICompatibility: jest
-            .fn()
-            .mockReturnValue(true),
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue('1'),
         });
 
@@ -913,6 +891,9 @@ describe('GasFeeController', () => {
     });
 
     describe('when on any network supporting EIP-1559', () => {
+      const getDefaultOptions = () => ({
+        getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
+      });
       const mockDetermineGasFeeCalculations = buildMockGasFeeStateFeeMarket();
 
       beforeEach(() => {
@@ -923,7 +904,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
+          ...getDefaultOptions(),
           networkControllerState: {
             networkConfigurations: {
               'AAAA-BBBB-CCCC-DDDD': {
@@ -964,9 +945,7 @@ describe('GasFeeController', () => {
       });
 
       it('should update the state with a fetched set of estimates', async () => {
-        await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-        });
+        await setupGasFeeController(getDefaultOptions());
 
         await gasFeeController.fetchGasFeeEstimates();
 
@@ -976,9 +955,7 @@ describe('GasFeeController', () => {
       });
 
       it('should return the same data that it puts into state', async () => {
-        await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-        });
+        await setupGasFeeController(getDefaultOptions());
 
         const estimateData = await gasFeeController.fetchGasFeeEstimates();
 
@@ -987,7 +964,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
+          ...getDefaultOptions(),
           getChainId: jest.fn().mockReturnValue('0x1'),
         });
 
@@ -1001,6 +978,31 @@ describe('GasFeeController', () => {
       });
     });
     describe('when passed a networkClientId in options object', () => {
+      const getDefaultOptions = () => ({
+        getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
+        networkControllerState: {
+          networksMetadata: {
+            goerli: {
+              EIPS: {
+                1559: true,
+              },
+              status: NetworkStatus.Available,
+            },
+            sepolia: {
+              EIPS: {
+                1559: true,
+              },
+              status: NetworkStatus.Available,
+            },
+            'test-network-client-id': {
+              EIPS: {
+                1559: true,
+              },
+              status: NetworkStatus.Available,
+            },
+          },
+        },
+      });
       const mockDetermineGasFeeCalculations = buildMockGasFeeStateFeeMarket();
 
       beforeEach(() => {
@@ -1011,29 +1013,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations correctly', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-          networkControllerState: {
-            networksMetadata: {
-              goerli: {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-              sepolia: {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-              'test-network-client-id': {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-            },
-          },
+          ...getDefaultOptions(),
           clientId: '99999',
         });
 
@@ -1068,29 +1048,7 @@ describe('GasFeeController', () => {
       describe("the chainId of the networkClientId matches the globally selected network's chainId", () => {
         it('should update the globally selected network state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-            networkControllerState: {
-              networksMetadata: {
-                goerli: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                sepolia: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                'test-network-client-id': {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-              },
-            },
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.goerli),
             onNetworkDidChange: jest.fn(),
           });
@@ -1106,29 +1064,7 @@ describe('GasFeeController', () => {
 
         it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-            networkControllerState: {
-              networksMetadata: {
-                goerli: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                sepolia: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                'test-network-client-id': {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-              },
-            },
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.goerli),
             onNetworkDidChange: jest.fn(),
           });
@@ -1146,29 +1082,7 @@ describe('GasFeeController', () => {
       describe("the chainId of the networkClientId does not match the globally selected network's chainId", () => {
         it('should not update the globally selected network state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-            networkControllerState: {
-              networksMetadata: {
-                goerli: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                sepolia: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                'test-network-client-id': {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-              },
-            },
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
             onNetworkDidChange: jest.fn(),
           });
@@ -1186,29 +1100,7 @@ describe('GasFeeController', () => {
 
         it('should update the gasFeeEstimatesByChainId state with a fetched set of estimates', async () => {
           await setupGasFeeController({
-            getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-            networkControllerState: {
-              networksMetadata: {
-                goerli: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                sepolia: {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-                'test-network-client-id': {
-                  EIPS: {
-                    1559: true,
-                  },
-                  status: NetworkStatus.Available,
-                },
-              },
-            },
+            ...getDefaultOptions(),
             getChainId: jest.fn().mockReturnValue(ChainId.mainnet),
             onNetworkDidChange: jest.fn(),
           });
@@ -1224,31 +1116,7 @@ describe('GasFeeController', () => {
       });
 
       it('should return the same data that it puts into state', async () => {
-        await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-          networkControllerState: {
-            networksMetadata: {
-              goerli: {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-              sepolia: {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-              'test-network-client-id': {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-            },
-          },
-        });
+        await setupGasFeeController(getDefaultOptions());
 
         const estimateData = await gasFeeController.fetchGasFeeEstimates({
           networkClientId: 'sepolia',
@@ -1259,29 +1127,7 @@ describe('GasFeeController', () => {
 
       it('should call determineGasFeeCalculations with a URL that contains the chain ID', async () => {
         await setupGasFeeController({
-          getIsEIP1559Compatible: jest.fn().mockResolvedValue(true),
-          networkControllerState: {
-            networksMetadata: {
-              goerli: {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-              sepolia: {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-              'test-network-client-id': {
-                EIPS: {
-                  1559: true,
-                },
-                status: NetworkStatus.Available,
-              },
-            },
-          },
+          ...getDefaultOptions(),
         });
 
         await gasFeeController.fetchGasFeeEstimates({
