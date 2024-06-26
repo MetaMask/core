@@ -88,7 +88,7 @@
     "typescript": "~4.9.5"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^17.1.0",
+    "@metamask/accounts-controller": "^17.0.0",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^17.0.0",
     "@metamask/network-controller": "^19.0.0",
