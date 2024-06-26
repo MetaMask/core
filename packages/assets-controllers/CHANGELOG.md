@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `AccountTrackerController` messenger must now allow the actions `PreferencesController:getState`, `NetworkController:getState`, and `NetworkController:getNetworkClientById` ([#4407](https://github.com/MetaMask/core/pull/4407))
 - **BREAKING:** The `refresh` method is no longer pre-bound to the controller ([#4407](https://github.com/MetaMask/core/pull/4407))
   - You may now need to pre-bind it e.g. `accountTrackerController.refresh.bind(accountTrackerController)`.
+- Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
 
 ## [33.0.0]
 

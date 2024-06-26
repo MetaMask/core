@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Update `handleAccountRemoved` to one update ([#4322](https://github.com/MetaMask/core/pull/4322))
+- Refactored `getSelectedAccount` to handle cases when there are no accounts. ([#4322](https://github.com/MetaMask/core/pull/4322))
+- Updated `handleAccountRemoved` to automatically select the most recent account if the removed account was the currently selected account. ([#4322](https://github.com/MetaMask/core/pull/4322))
 - Move `@metamask/keyring-controller` to dependency ([#4425](https://github.com/MetaMask/core/pull/4425))
 
 ## [17.0.0]
