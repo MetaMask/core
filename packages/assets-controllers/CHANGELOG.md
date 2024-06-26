@@ -17,13 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** `TokenBalancesController` messenger must allow the action `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`.
-- **BREAKING** `TokenDetectionController` messenger must allow the action `AccountsController:getAccount`.
-- **BREAKING** `TokenDetectionController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `AccountsController:selectedAccountChange`.
-- **BREAKING** `TokenRatesController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`.
-- **BREAKING** `TokenRatesController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `PreferencesController:stateChange`.
+- **BREAKING** `TokenBalancesController` messenger must allow the action `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` messenger must allow the action `AccountsController:getAccount`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `AccountsController:selectedAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenRatesController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenRatesController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `PreferencesController:stateChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - **BREAKING** `TokensController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount`.
-- **BREAKING** `TokensController` messenger must allow the event `AccountsController:selectedEvmAccountChange`.
+- **BREAKING** `TokensController` messenger must allow the event `AccountsController:selectedEvmAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - Upgrade AccountTrackerController to BaseControllerV2 ([#4407](https://github.com/MetaMask/core/pull/4407))
 - **BREAKING:** Convert `AccountInformation` from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
 - **BREAKING:** Rename `AccountTrackerState` to `AccountTrackerControllerState` and convert from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
@@ -36,8 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING** `TokensController` removes `selectedAddress` constructor argument.
-- **BREAKING** `TokenDetectionController` removes `selectedAddress` constructor argument.
+- **BREAKING** `TokensController` removes `selectedAddress` constructor argument. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` removes `selectedAddress` constructor argument. ([#4219](https://github.com/MetaMask/core/pull/4219))
 - **BREAKING:** Remove `AccountTrackerConfig` type ([#4407](https://github.com/MetaMask/core/pull/4407))
   - Some of these properties have been merged into the options that the `AccountTrackerController` constructor takes.
 - **BREAKING:** Remove `config` property and `configure` method from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
