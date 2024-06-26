@@ -1,6 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ActionConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
@@ -76,39 +79,71 @@ export type BalanceMap = {
   [tokenAddress: string]: BN;
 };
 
-export const name = 'AssetsContractController';
+const name = 'AssetsContractController';
 
-export type AssetsContractControllerGetERC20StandardAction = {
-  type: `${typeof name}:getERC20Standard`;
-  handler: AssetsContractController['getERC20Standard'];
+// TODO: Convert into generic type that takes controller type as input and move to base-controller
+type AssetsContractControllerActionsMap = {
+  [ClassMethod in keyof AssetsContractController as AssetsContractController[ClassMethod] extends ActionConstraint['handler']
+    ? ClassMethod
+    : never]: {
+    type: `${typeof name}:${ClassMethod}`;
+    handler: AssetsContractController[ClassMethod];
+  };
 };
 
-export type AssetsContractControllerGetERC721StandardAction = {
-  type: `${typeof name}:getERC721Standard`;
-  handler: AssetsContractController['getERC721Standard'];
-};
-
-export type AssetsContractControllerGetERC1155StandardAction = {
-  type: `${typeof name}:getERC1155Standard`;
-  handler: AssetsContractController['getERC1155Standard'];
-};
-
-export type AssetsContractControllerGetTokenStandardAndDetailsAction = {
-  type: `${typeof name}:getTokenStandardAndDetails`;
-  handler: AssetsContractController['getTokenStandardAndDetails'];
-};
-
-export type AssetsContractControllerGetBalancesInSingleCallAction = {
-  type: `${typeof name}:getBalancesInSingleCall`;
-  handler: AssetsContractController['getBalancesInSingleCall'];
-};
+type AssetsContractControllerMethodName =
+  keyof AssetsContractControllerActionsMap;
 
 export type AssetsContractControllerActions =
-  | AssetsContractControllerGetERC20StandardAction
-  | AssetsContractControllerGetERC721StandardAction
-  | AssetsContractControllerGetERC1155StandardAction
-  | AssetsContractControllerGetTokenStandardAndDetailsAction
-  | AssetsContractControllerGetBalancesInSingleCallAction;
+  AssetsContractControllerActionsMap[AssetsContractControllerMethodName];
+
+export type AssetsContractControllerGetERC20StandardAction =
+  AssetsContractControllerActionsMap['getERC20Standard'];
+
+export type AssetsContractControllerGetERC721StandardAction =
+  AssetsContractControllerActionsMap['getERC721Standard'];
+
+export type AssetsContractControllerGetERC1155StandardAction =
+  AssetsContractControllerActionsMap['getERC1155Standard'];
+
+export type AssetsContractControllerGetERC20BalanceOfAction =
+  AssetsContractControllerActionsMap['getERC20BalanceOf'];
+
+export type AssetsContractControllerGetERC20TokenDecimalsAction =
+  AssetsContractControllerActionsMap['getERC20TokenDecimals'];
+
+export type AssetsContractControllerGetERC20TokenNameAction =
+  AssetsContractControllerActionsMap['getERC20TokenName'];
+
+export type AssetsContractControllerGetERC721NftTokenIdAction =
+  AssetsContractControllerActionsMap['getERC721NftTokenId'];
+
+export type AssetsContractControllerGetERC721TokenURIAction =
+  AssetsContractControllerActionsMap['getERC721TokenURI'];
+
+export type AssetsContractControllerGetERC721AssetNameAction =
+  AssetsContractControllerActionsMap['getERC721AssetName'];
+
+export type AssetsContractControllerGetERC721AssetSymbolAction =
+  AssetsContractControllerActionsMap['getERC721AssetSymbol'];
+
+export type AssetsContractControllerGetERC721OwnerOfAction =
+  AssetsContractControllerActionsMap['getERC721OwnerOf'];
+
+export type AssetsContractControllerGetERC1155TokenURIAction =
+  AssetsContractControllerActionsMap['getERC1155TokenURI'];
+
+export type AssetsContractControllerGetERC1155BalanceOfAction =
+  AssetsContractControllerActionsMap['getERC1155BalanceOf'];
+
+export type AssetsContractControllerTransferSingleERC1155Action =
+  AssetsContractControllerActionsMap['transferSingleERC1155'];
+
+export type AssetsContractControllerGetTokenStandardAndDetailsAction =
+  AssetsContractControllerActionsMap['getTokenStandardAndDetails'];
+
+export type AssetsContractControllerGetBalancesInSingleCallAction =
+  AssetsContractControllerActionsMap['getBalancesInSingleCall'];
 
 export type AssetsContractControllerEvents = never;
 
