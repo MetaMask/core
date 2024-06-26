@@ -7,7 +7,7 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute, toHex } from '@metamask/controller-utils';
 
-import type { AssetsContractControllerGetERC20StandardAction } from './AssetsContractController';
+import type { AssetsContractControllerGetERC20BalanceOfAction } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerStateChangeEvent } from './TokensController';
 
@@ -56,8 +56,8 @@ export type TokenBalancesControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
-  | AssetsContractControllerGetERC20StandardAction;
-  
+  | AssetsContractControllerGetERC20BalanceOfAction;
+
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
@@ -203,9 +203,11 @@ export class TokenBalancesController extends BaseController<
     for (const token of this.#tokens) {
       const { address } = token;
       try {
-        const balance = await this.messagingSystem
-          .call('AssetsContractController:getERC20Standard')
-          .getBalanceOf(address, selectedInternalAccount.address);
+        const balance = await this.messagingSystem.call(
+          'AssetsContractController:getERC20BalanceOf',
+          address,
+          selectedInternalAccount.address,
+        );
         newContractBalances[address] = toHex(balance);
         token.hasBalanceError = false;
       } catch (error) {
