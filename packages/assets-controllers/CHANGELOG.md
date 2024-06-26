@@ -9,25 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.0]
 
-## Added
+### Added
 
 - Add `AccountTrackerControllerGetStateAction`, `AccountTrackerControllerActions`, `AccountTrackerControllerStateChangeEvent`, and `AccountTrackerControllerEvents` types ([#4407](https://github.com/MetaMask/core/pull/4407))
 - Add `setIntervalLength` and `getIntervalLength` methods to `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
   - `setIntervalLength` replaces updating the polling interval via `configure`.
-
-## Removed
-
-- **BREAKING** `TokensController` removes `selectedAddress` constructor argument.
-- **BREAKING** `TokenDetectionController` removes `selectedAddress` constructor argument.
-- **BREAKING:** Remove `AccountTrackerConfig` type ([#4407](https://github.com/MetaMask/core/pull/4407))
-  - Some of these properties have been merged into the options that the `AccountTrackerController` constructor takes.
-- **BREAKING:** Remove `config` property and `configure` method from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
-  - The controller now takes a single options object which can be used for configuration, and configuration is now kept internally.
-- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
-  - Use the controller messenger for subscribing to and publishing events instead.
-- **BREAKING:** Remove `provider`, `getMultiAccountBalancesEnabled`, `getCurrentChainId`, and `getNetworkClientById` from configuration options for `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
-  - The provider is now obtained directly from the network controller on demand.
-  - The messenger is now used in place of the callbacks.
 
 ### Changed
 
@@ -47,6 +33,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** The `refresh` method is no longer pre-bound to the controller ([#4407](https://github.com/MetaMask/core/pull/4407))
   - You may now need to pre-bind it e.g. `accountTrackerController.refresh.bind(accountTrackerController)`.
 - Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
+
+### Removed
+
+- **BREAKING** `TokensController` removes `selectedAddress` constructor argument.
+- **BREAKING** `TokenDetectionController` removes `selectedAddress` constructor argument.
+- **BREAKING:** Remove `AccountTrackerConfig` type ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - Some of these properties have been merged into the options that the `AccountTrackerController` constructor takes.
+- **BREAKING:** Remove `config` property and `configure` method from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The controller now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `provider`, `getMultiAccountBalancesEnabled`, `getCurrentChainId`, and `getNetworkClientById` from configuration options for `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The provider is now obtained directly from the network controller on demand.
+  - The messenger is now used in place of the callbacks.
 
 ## [33.0.0]
 
