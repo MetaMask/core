@@ -44,7 +44,7 @@
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
     "@types/punycode": "^2.1.0",
-    "eth-phishing-detect": "^1.2.0",
+    "eth-phishing-detect": "^2.0.0",
     "fastest-levenshtein": "^1.0.16",
     "punycode": "^2.1.1"
   },
