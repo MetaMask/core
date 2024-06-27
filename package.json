@@ -43,8 +43,8 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/keyring-api@^6.3.1": "patch:@metamask/keyring-api@npm%3A6.4.0#./.yarn/patches/@metamask-keyring-api-npm-6.4.0-3a5b2ed69f.patch",
     "@metamask/keyring-api@^6.1.1": "patch:@metamask/keyring-api@npm%3A6.4.0#./.yarn/patches/@metamask-keyring-api-npm-6.4.0-3a5b2ed69f.patch",
+    "@metamask/keyring-api@^6.3.1": "patch:@metamask/keyring-api@npm%3A6.4.0#./.yarn/patches/@metamask-keyring-api-npm-6.4.0-3a5b2ed69f.patch",
     "@metamask/snaps-sdk@^4.0.0": "patch:@metamask/snaps-sdk@npm%3A4.2.0#./.yarn/patches/@metamask-snaps-sdk-npm-4.2.0-68c745cc62.patch",
     "@metamask/snaps-sdk@^4.0.1": "patch:@metamask/snaps-sdk@npm%3A4.2.0#./.yarn/patches/@metamask-snaps-sdk-npm-4.2.0-68c745cc62.patch",
     "@metamask/snaps-sdk@^4.1.0": "patch:@metamask/snaps-sdk@npm%3A4.2.0#./.yarn/patches/@metamask-snaps-sdk-npm-4.2.0-68c745cc62.patch",
@@ -53,8 +53,7 @@
     "@metamask/snaps-utils@^7.1.0": "patch:@metamask/snaps-utils@npm%3A7.4.0#./.yarn/patches/@metamask-snaps-utils-npm-7.4.0-61301b942a.patch",
     "@metamask/snaps-utils@^7.3.0": "patch:@metamask/snaps-utils@npm%3A7.4.0#./.yarn/patches/@metamask-snaps-utils-npm-7.4.0-61301b942a.patch",
     "@metamask/utils": "8.5.0",
-    "superstruct": "github:MetaMask/superstruct#v3.1.0",
-    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
+    "superstruct": "github:MetaMask/superstruct#v3.1.0"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
