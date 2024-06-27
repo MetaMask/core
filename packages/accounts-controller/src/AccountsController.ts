@@ -171,6 +171,21 @@ const defaultState: AccountsControllerState = {
   },
 };
 
+export const EMPTY_ACCOUNT = {
+  id: '',
+  address: '',
+  options: {},
+  methods: [],
+  type: EthAccountType.Eoa,
+  metadata: {
+    name: '',
+    keyring: {
+      type: '',
+    },
+    importTime: 0,
+  },
+};
+
 /**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
@@ -430,6 +445,7 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
+      // @ts-expect-error - ignoring Type instantiation is excessively deep and possibly infinite.
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
