@@ -2195,7 +2195,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@npm:^17.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@npm:^17.1.1, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -2313,7 +2313,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.2"
-    "@metamask/accounts-controller": "npm:^17.1.0"
+    "@metamask/accounts-controller": "npm:^17.1.1"
     "@metamask/approval-controller": "npm:^7.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.0"
@@ -2960,6 +2960,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
     jest-when: "npm:^3.4.2"
+    nock: "npm:^13.3.1"
     sinon: "npm:^9.2.4"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
@@ -3254,7 +3255,7 @@ __metadata:
     "@metamask/base-controller": "npm:^6.0.0"
     "@metamask/controller-utils": "npm:^11.0.0"
     "@metamask/keyring-controller": "npm:^17.1.0"
-    "@metamask/profile-sync-controller": "npm:^0.1.0"
+    "@metamask/profile-sync-controller": "npm:^0.1.1"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
     bignumber.js: "npm:^4.1.0"
@@ -3272,7 +3273,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/keyring-controller": ^17.0.0
-    "@metamask/profile-sync-controller": ^0.1.0
+    "@metamask/profile-sync-controller": ^0.1.1
   languageName: unknown
   linkType: soft
 
@@ -3465,7 +3466,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^0.1.0, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^0.1.1, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
@@ -3781,7 +3782,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/accounts-controller": "npm:^17.1.0"
+    "@metamask/accounts-controller": "npm:^17.1.1"
     "@metamask/approval-controller": "npm:^7.0.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.0"

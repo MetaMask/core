@@ -171,6 +171,21 @@ const defaultState: AccountsControllerState = {
   },
 };
 
+export const EMPTY_ACCOUNT = {
+  id: '',
+  address: '',
+  options: {},
+  methods: [],
+  type: EthAccountType.Eoa,
+  metadata: {
+    name: '',
+    keyring: {
+      type: '',
+    },
+    importTime: 0,
+  },
+};
+
 /**
  * Controller that manages internal accounts.
  * The accounts controller is responsible for creating and managing internal accounts.
@@ -286,20 +301,7 @@ export class AccountsController extends BaseController<
     // Edge case where the extension is setup but the srp is not yet created
     // certain ui elements will query the selected address before any accounts are created.
     if (this.state.internalAccounts.selectedAccount === '') {
-      return {
-        id: '',
-        address: '',
-        options: {},
-        methods: [],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: '',
-          keyring: {
-            type: '',
-          },
-          importTime: 0,
-        },
-      };
+      return EMPTY_ACCOUNT;
     }
 
     const selectedAccount = this.getAccountExpect(
@@ -332,6 +334,12 @@ export class AccountsController extends BaseController<
   getSelectedMultichainAccount(
     chainId?: CaipChainId,
   ): InternalAccount | undefined {
+    // Edge case where the extension is setup but the srp is not yet created
+    // certain ui elements will query the selected address before any accounts are created.
+    if (this.state.internalAccounts.selectedAccount === '') {
+      return EMPTY_ACCOUNT;
+    }
+
     if (!chainId) {
       return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
     }
