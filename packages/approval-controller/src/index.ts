@@ -1,2 +1,52 @@
-export * from './ApprovalController';
-export * from './errors';
+export {
+  ORIGIN_METAMASK,
+  APPROVAL_TYPE_RESULT_ERROR,
+  APPROVAL_TYPE_RESULT_SUCCESS,
+  ApprovalController,
+} from './ApprovalController';
+
+export type {
+  ApprovalRequest,
+  ApprovalFlowState,
+  ApprovalControllerState,
+  ApprovalControllerMessenger,
+  ShowApprovalRequest,
+  ResultComponent,
+  ApprovalControllerOptions,
+  AddApprovalOptions,
+  UpdateRequestStateOptions,
+  AcceptOptions,
+  StartFlowOptions,
+  EndFlowOptions,
+  SetFlowLoadingTextOptions,
+  SuccessOptions,
+  ErrorOptions,
+  AcceptResultCallbacks,
+  AddResult,
+  AcceptResult,
+  ApprovalFlowStartResult,
+  SuccessResult,
+  ErrorResult,
+  ApprovalStateChange,
+  ApprovalControllerEvents,
+  GetApprovalsState,
+  ClearApprovalRequests,
+  AddApprovalRequest,
+  HasApprovalRequest,
+  AcceptRequest,
+  RejectRequest,
+  UpdateRequestState,
+  StartFlow,
+  EndFlow,
+  SetFlowLoadingText,
+  ShowSuccess,
+  ShowError,
+} from './ApprovalController';
+
+export {
+  ApprovalRequestNotFoundError,
+  ApprovalRequestNoResultSupportError,
+  NoApprovalFlowsError,
+  EndInvalidFlowError,
+  MissingApprovalFlowError,
+} from './errors';
