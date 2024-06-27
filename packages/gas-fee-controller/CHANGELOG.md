@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: reduce diffs to GasFeeController.test.ts introduced by 2b1841c ([#4463](https://github.com/MetaMask/core/pull/4463))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- GasFeeController: providerConfig -> selectedNetworkClientId ([#4356](https://github.com/MetaMask/core/pull/4356))
-
 ## [17.0.0]
 
 ### Changed
