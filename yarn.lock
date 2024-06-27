@@ -2195,7 +2195,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@^17.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@^17.1.1, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -2313,7 +2313,7 @@ __metadata:
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
     "@metamask/abi-utils": ^2.0.2
-    "@metamask/accounts-controller": ^17.1.0
+    "@metamask/accounts-controller": ^17.1.1
     "@metamask/approval-controller": ^7.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
@@ -3782,7 +3782,7 @@ __metadata:
     "@ethersproject/abi": ^5.7.0
     "@ethersproject/contracts": ^5.7.0
     "@ethersproject/providers": ^5.7.0
-    "@metamask/accounts-controller": ^17.1.0
+    "@metamask/accounts-controller": ^17.1.1
     "@metamask/approval-controller": ^7.0.0
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
