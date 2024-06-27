@@ -49,7 +49,9 @@ export type AuthenticationControllerState = {
   isSignedIn: boolean;
   sessionData?: SessionData;
 };
-const defaultState: AuthenticationControllerState = { isSignedIn: false };
+export const defaultState: AuthenticationControllerState = {
+  isSignedIn: false,
+};
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     persist: true,
