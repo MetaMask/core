@@ -312,19 +312,19 @@ gen_enforced_field(WorkspaceCwd, 'scripts.changelog:update', CorrectChangelogUpd
   \+ atom_concat(ExpectedPrefix, _, ChangelogUpdateCommand).
 
 % All non-root packages must have the same "test" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test', 'jest --reporters=jest-silent-reporter') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test', 'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:clean" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'jest --clearCache') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test:clean', 'NODE_OPTIONS=--experimental-vm-modules jest --clearCache') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:verbose" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test:verbose', 'jest --verbose') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test:verbose', 'NODE_OPTIONS=--experimental-vm-modules jest --verbose') :-
   WorkspaceCwd \= '.'.
 
 % All non-root packages must have the same "test:watch" script.
-gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'jest --watch') :-
+gen_enforced_field(WorkspaceCwd, 'scripts.test:watch', 'NODE_OPTIONS=--experimental-vm-modules jest --watch') :-
   WorkspaceCwd \= '.'.
 
 % All dependency ranges must be recognizable (this makes it possible to apply
