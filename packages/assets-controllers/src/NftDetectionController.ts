@@ -342,7 +342,6 @@ export type CollectionResponse = {
   openseaVerificationStatus?: string;
   contractDeployedAt?: string;
   creator?: string;
-  tokenCount?: string;
   ownerCount?: string;
   topBid?: TopBid & {
     sourceDomain?: string;
@@ -669,7 +668,6 @@ export class NftDetectionController extends BaseController<
                   openseaVerificationStatus: found?.openseaVerificationStatus,
                   contractDeployedAt: found.contractDeployedAt,
                   ownerCount: found.ownerCount,
-                  tokenCount: found.tokenCount,
                   topBid: found.topBid,
                 },
               };
