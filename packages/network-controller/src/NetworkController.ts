@@ -22,7 +22,7 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import logLevel from 'loglevel';
+import type { RootLogger } from 'loglevel';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -432,12 +432,17 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
-  constructor({
-    messenger,
-    state,
-    infuraProjectId,
-    trackMetaMetricsEvent,
-  }: NetworkControllerOptions) {
+  #logLevel: RootLogger | undefined;
+
+  constructor(
+    {
+      messenger,
+      state,
+      infuraProjectId,
+      trackMetaMetricsEvent,
+    }: NetworkControllerOptions,
+    logLevel?: RootLogger,
+  ) {
     super({
       name,
       metadata: {
@@ -523,6 +528,8 @@ export class NetworkController extends BaseController<
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
+
+    this.#logLevel = logLevel;
   }
 
   /**
@@ -700,7 +707,10 @@ export class NetworkController extends BaseController<
       );
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
-      logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
+      this.#logLevel?.warn(
+        'NetworkController: lookupNetworkByClientId: ',
+        error,
+      );
 
       // TODO: mock ethQuery.sendAsync to throw error without error code
       /* istanbul ignore else */
@@ -715,7 +725,7 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch {
             // error.message must not be JSON
-            logLevel.warn(
+            this.#logLevel?.warn(
               'NetworkController: lookupNetworkByClientId: json parse error: ',
               error,
             );
@@ -729,13 +739,16 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
-          logLevel.warn(
+          this.#logLevel?.warn(
             'NetworkController: lookupNetworkByClientId: rpc internal error: ',
             error,
           );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
-          logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
+          this.#logLevel?.warn(
+            'NetworkController: lookupNetworkByClientId: ',
+            error,
+          );
         }
       } else if (
         typeof Error !== 'undefined' &&
@@ -749,7 +762,10 @@ export class NetworkController extends BaseController<
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
-        logLevel.warn('NetworkController: lookupNetworkByClientId: ', error);
+        this.#logLevel?.warn(
+          'NetworkController: lookupNetworkByClientId: ',
+          error,
+        );
       }
     }
     this.update((state) => {
@@ -834,7 +850,7 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch (parseError) {
             // error.message must not be JSON
-            logLevel.warn(
+            this.#logLevel?.warn(
               'NetworkController: lookupNetwork: json parse error',
               parseError,
             );
@@ -848,18 +864,18 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
-          logLevel.warn(
+          this.#logLevel?.warn(
             'NetworkController: lookupNetwork: rpc internal error',
             error,
           );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
-          logLevel.warn('NetworkController: lookupNetwork: ', error);
+          this.#logLevel?.warn('NetworkController: lookupNetwork: ', error);
         }
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
-        logLevel.warn('NetworkController: lookupNetwork: ', error);
+        this.#logLevel?.warn('NetworkController: lookupNetwork: ', error);
       }
     }
 
