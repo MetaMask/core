@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.1.1]
 
-### Uncategorized
+### Fixed
 
-- fix: handle edge case of undefined accountId during onboarding for getSelectedMultichainAccount ([#4466](https://github.com/MetaMask/core/pull/4466))
+- Handle edge case of undefined accountId during onboarding for getSelectedMultichainAccount ([#4466](https://github.com/MetaMask/core/pull/4466))
 
 ## [17.1.0]
 
