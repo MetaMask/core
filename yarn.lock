@@ -2183,13 +2183,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/abi-utils@github:MetaMask/abi-utils#release/2.0.3":
+"@metamask/abi-utils@npm:2.0.3":
   version: 2.0.3
-  resolution: "@metamask/abi-utils@https://github.com/MetaMask/abi-utils.git#commit=f77d095b0f47c6dfc8956e951215225edc110bb0"
+  resolution: "@metamask/abi-utils@npm:2.0.3"
   dependencies:
     "@metamask/superstruct": ^3.0.0
     "@metamask/utils": ^8.5.0
-  checksum: c6f0c9ca55a481751efbe6b1588fbf3df76c48cc78a046fe11b33239abb12fa85c91566894158aa2d9d9eee2f2f3fc516463227b2603254feb17e591a38d4500
+  checksum: c0d43cd52a6615b32b09ed6786d01e3de764af30b107941a5df134f8a48da344793035dd247f5b38a56f36c436c7131b94b0c71ef004e88e6e00f878ffa4ebbf
   languageName: node
   linkType: hard
 
@@ -3671,15 +3671,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-registry@github:MetaMask/snaps-registry#release/3.2.0":
+"@metamask/snaps-registry@npm:3.2.0":
   version: 3.2.0
-  resolution: "@metamask/snaps-registry@https://github.com/MetaMask/snaps-registry.git#commit=3edbb5a1e747e8bccca185447691485f471f7a6c"
+  resolution: "@metamask/snaps-registry@npm:3.2.0"
   dependencies:
     "@metamask/superstruct": ^3.0.0
     "@metamask/utils": ^8.5.0
     "@noble/curves": ^1.2.0
     "@noble/hashes": ^1.3.2
-  checksum: 6e2c9778a4bf7f82c0e47b593f2d9930fcd0d1388358b7428acf8bf2d18c25109b2db035e2083a0fd9df9b13eb643b324cb3ec65698a43d3b3b13fd68c5fbf55
+  checksum: ac3537cda6454f461e6d00623aefa29ee3e7f7c68003c7629fc550c1f27694115c475d626c89172bd7ecb52de2a0b75db64aa9fe9e8625492e335337d3f579f7
   languageName: node
   linkType: hard
 
@@ -3737,7 +3737,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/superstruct@npm:^3.0.0, @metamask/superstruct@npm:^3.1.0":
+"@metamask/superstruct@npm:3.1.0":
   version: 3.1.0
   resolution: "@metamask/superstruct@npm:3.1.0"
   checksum: 00e4d0c0aae8b25ccc1885c1db0bb4ed1590010570140c255e4deee3bf8a10c859c8fce5e475b4ae09c8a56316207af87585b91f7f5a5c028d668ccd111f19e3
@@ -12139,10 +12139,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"superstruct@github:MetaMask/superstruct#v3.0.0":
-  version: 3.0.0
-  resolution: "superstruct@https://github.com/MetaMask/superstruct.git#commit=4a2a7b0a77fdb364be6fbdda4c1c8596d24d2dd0"
-  checksum: b91ffedbddb4794bf7f1616323b22c922dc5c021f2594bbe936255ded359ce0df7d8c80a4f94b97fac37080356f900b80b097932a9d3060b0577101345cedb81
+"superstruct@github:MetaMask/superstruct#v3.1.0":
+  version: 3.1.0
+  resolution: "superstruct@https://github.com/MetaMask/superstruct.git#commit=3cd308f6607bc52e2fa0582f4a778f9ed597e25c"
+  checksum: 85e7fd4c9046a5cf6fa990d6497f26a7e20493d25143f80269e7c950636679f0604e2ea5f0bcbea78c7351072905ba8998ff2f2ba8e6c4750852fbc58ed82247
   languageName: node
   linkType: hard
 

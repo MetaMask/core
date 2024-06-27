@@ -43,13 +43,14 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/abi-utils": "github:MetaMask/abi-utils#release/2.0.3",
+    "@metamask/abi-utils": "2.0.3",
     "@metamask/eth-snap-keyring": "github:MetaMask/eth-snap-keyring#replace-superstruct-with-fork",
     "@metamask/keyring-api": "github:MetaMask/keyring-api#replace-superstruct-with-fork",
-    "@metamask/provider": "github:MetaMask/provider#release/17.1.0",
-    "@metamask/snaps-registry": "github:MetaMask/snaps-registry#release/3.2.0",
+    "@metamask/provider": "17.1.0",
+    "@metamask/snaps-registry": "3.2.0",
     "@metamask/snaps-sdk": "github:MetaMask/snaps#branch=replace-superstruct-with-fork#workspace=@metamask/snaps-sdk",
-    "superstruct": "github:MetaMask/superstruct#v3.0.0",
+    "@metamask/superstruct": "3.1.0",
+    "superstruct": "github:MetaMask/superstruct#v3.1.0",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
