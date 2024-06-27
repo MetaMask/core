@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.1]
 
+### Added
+
+- export `defaultState` for `AuthenticationController` and `UserStorageController`. ([#4441](https://github.com/MetaMask/core/pull/4441))
+
 ### Changed
 
-- `ProfileSyncController` mobile fixes ([#4441](https://github.com/MetaMask/core/pull/4441))
+- `AuthType`, `Env`, `Platform` are changed from const enums to enums ([#4441](https://github.com/MetaMask/core/pull/4441))
 
 ## [0.1.0]
 
