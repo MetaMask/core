@@ -332,6 +332,25 @@ export class AccountsController extends BaseController<
   getSelectedMultichainAccount(
     chainId?: CaipChainId,
   ): InternalAccount | undefined {
+    // Edge case where the extension is setup but the srp is not yet created
+    // certain ui elements will query the selected address before any accounts are created.
+    if (this.state.internalAccounts.selectedAccount === '') {
+      return {
+        id: '',
+        address: '',
+        options: {},
+        methods: [],
+        type: EthAccountType.Eoa,
+        metadata: {
+          name: '',
+          keyring: {
+            type: '',
+          },
+          importTime: 0,
+        },
+      };
+    }
+
     if (!chainId) {
       return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
     }

@@ -1965,6 +1965,32 @@ describe('AccountsController', () => {
         ).toThrow(`Invalid CAIP-2 chain ID: ${chainId}`);
       },
     );
+
+    it('handle the edge case of undefined accountId during onboarding', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+      });
+
+      expect(accountsController.getSelectedMultichainAccount()).toStrictEqual({
+        id: '',
+        address: '',
+        options: {},
+        methods: [],
+        type: EthAccountType.Eoa,
+        metadata: {
+          name: '',
+          keyring: {
+            type: '',
+          },
+          importTime: 0,
+        },
+      });
+    });
   });
 
   describe('listAccounts', () => {
