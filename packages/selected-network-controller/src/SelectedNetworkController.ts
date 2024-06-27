@@ -307,6 +307,11 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
+    // Core PR: https://github.com/MetaMask/core/pull/4388
+    // Patch Branch: patch-selected-network-controller-13.0.0-setNetworkClient-guard
+    if (!this.#useRequestQueuePreference) {
+      return;
+    }
     if (domain === METAMASK_DOMAIN) {
       throw new Error(
         `NetworkClientId for domain "${METAMASK_DOMAIN}" cannot be set on the SelectedNetworkController`,
