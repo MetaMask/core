@@ -408,6 +408,13 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRang
       atom_concat('^', CurrentDependencyVersion, CorrectPeerDependencyRange)
   ).
 
+% The root workspace (and only the root workspace) needs to specify the Yarn
+% version required for development.
+gen_enforced_field(WorkspaceCwd, 'packageManager', 'yarn@4.2.2') :-
+  WorkspaceCwd == '.'.
+gen_enforced_field(WorkspaceCwd, 'packageManager', null) :-
+  WorkspaceCwd \= '.'.
+
 % All packages must specify a minimum Node version of 18.
 gen_enforced_field(WorkspaceCwd, 'engines.node', '^18.18 || >=20').
 
