@@ -8,24 +8,8 @@ export type {
   AccountTrackerControllerEvents,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
-
-export {
-  SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
-  MISSING_PROVIDER_ERROR,
-  AssetsContractConfig,
-  BalanceMap,
-  AssetsContractController,
-} from './AssetsContractController';
-
-export type {
-  CurrencyRateState,
-  CurrencyRateStateChange,
-  CurrencyRateControllerEvents,
-  GetCurrencyRateState,
-  CurrencyRateControllerActions,
-} from './CurrencyRateController';
-export { CurrencyRateController } from './CurrencyRateController';
-
+export * from './AssetsContractController';
+export * from './CurrencyRateController';
 export type {
   NftControllerState,
   NftControllerMessenger,
@@ -38,7 +22,6 @@ export type {
   NftMetadata,
 } from './NftController';
 export { getDefaultNftControllerState, NftController } from './NftController';
-
 export type {
   NftDetectionControllerMessenger,
   ApiNft,
@@ -63,7 +46,6 @@ export type {
   Metadata,
 } from './NftDetectionController';
 export { NftDetectionController } from './NftDetectionController';
-
 export type {
   TokenBalancesControllerMessenger,
   TokenBalancesControllerActions,
@@ -72,7 +54,6 @@ export type {
   TokenBalancesControllerStateChangeEvent,
 } from './TokenBalancesController';
 export { TokenBalancesController } from './TokenBalancesController';
-
 export type {
   TokenDetectionControllerMessenger,
   TokenDetectionControllerActions,
@@ -81,7 +62,6 @@ export type {
   TokenDetectionControllerStateChangeEvent,
 } from './TokenDetectionController';
 export { TokenDetectionController } from './TokenDetectionController';
-
 export type {
   TokenListState,
   TokenListToken,
@@ -93,7 +73,6 @@ export type {
   TokenListControllerMessenger,
 } from './TokenListController';
 export { TokenListController } from './TokenListController';
-
 export type {
   ContractExchangeRates,
   ContractMarketData,
@@ -109,7 +88,6 @@ export {
   getDefaultTokenRatesControllerState,
   TokenRatesController,
 } from './TokenRatesController';
-
 export type {
   TokensControllerState,
   TokensControllerActions,
@@ -120,19 +98,16 @@ export type {
   TokensControllerMessenger,
 } from './TokensController';
 export { TokensController } from './TokensController';
-
 export {
   isTokenDetectionSupportedForNetwork,
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
   fetchTokenContractExchangeRates,
 } from './assetsUtil';
-
 export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
 } from './token-prices-service';
-
 export { RatesController, Cryptocurrency } from './RatesController';
 export type {
   RatesControllerState,
