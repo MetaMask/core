@@ -1,3 +1,5 @@
+import type { Compute } from '../types/type-utils';
+
 /* eslint-disable @typescript-eslint/naming-convention */
 export enum TRIGGER_TYPES {
   FEATURES_ANNOUNCEMENT = 'features_announcement',
@@ -42,7 +44,7 @@ export enum TRIGGER_TYPES_GROUPS {
   DEFI = 'defi',
 }
 
-export const NOTIFICATION_CHAINS = {
+export const NOTIFICATION_CHAINS_ID = {
   ETHEREUM: '1',
   OPTIMISM: '10',
   BSC: '56',
@@ -50,7 +52,14 @@ export const NOTIFICATION_CHAINS = {
   ARBITRUM: '42161',
   AVALANCHE: '43114',
   LINEA: '59144',
-};
+} as const;
+
+type ToPrimitiveKeys<TObj> = Compute<{
+  [K in keyof TObj]: TObj[K] extends string ? string : TObj[K];
+}>;
+export const NOTIFICATION_CHAINS: ToPrimitiveKeys<
+  typeof NOTIFICATION_CHAINS_ID
+> = NOTIFICATION_CHAINS_ID;
 
 export const CHAIN_SYMBOLS = {
   [NOTIFICATION_CHAINS.ETHEREUM]: 'ETH',
