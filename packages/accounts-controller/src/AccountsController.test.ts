@@ -23,7 +23,7 @@ import type {
   AllowedActions,
   AllowedEvents,
 } from './AccountsController';
-import { AccountsController } from './AccountsController';
+import { AccountsController, EMPTY_ACCOUNT } from './AccountsController';
 import { createMockInternalAccount } from './tests/mocks';
 import {
   getUUIDOptionsFromAddressOfNormalAccount,
@@ -315,10 +315,6 @@ function setupAccountsController({
 }
 
 describe('AccountsController', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('onSnapStateChange', () => {
     it('be used enable an account if the Snap is enabled and not blocked', async () => {
       const messenger = buildMessenger();
@@ -449,9 +445,6 @@ describe('AccountsController', () => {
   });
 
   describe('onKeyringStateChange', () => {
-    afterEach(() => {
-      jest.clearAllMocks();
-    });
     it('not update state when only keyring is unlocked without any keyrings', async () => {
       const messenger = buildMessenger();
       const { accountsController } = setupAccountsController({
@@ -1085,16 +1078,10 @@ describe('AccountsController', () => {
           initialState: {
             internalAccounts: {
               accounts: {
-                'missing-account': {
-                  id: 'missing-account',
+                'missing-account': createMockInternalAccount({
                   address: '0x999',
-                  metadata: {
-                    keyring: {
-                      type: KeyringTypes.hd,
-                    },
-                  },
-                  [mockAccount2.id]: mockAccount2WithoutLastSelected,
-                } as unknown as InternalAccount,
+                  id: 'missing-account',
+                }),
                 [mockAccount.id]: mockAccountWithoutLastSelected,
                 [mockAccount2.id]: mockAccount2WithoutLastSelected,
               },
@@ -1302,10 +1289,6 @@ describe('AccountsController', () => {
           },
         }),
       );
-    });
-
-    afterEach(() => {
-      jest.clearAllMocks();
     });
 
     it('update accounts with normal accounts', async () => {
@@ -1861,6 +1844,21 @@ describe('AccountsController', () => {
         'No EVM accounts',
       );
     });
+
+    it('handle the edge case of undefined accountId during onboarding', async () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+      });
+
+      expect(accountsController.getSelectedAccount()).toStrictEqual(
+        EMPTY_ACCOUNT,
+      );
+    });
   });
 
   describe('getSelectedMultichainAccount', () => {
@@ -1956,6 +1954,21 @@ describe('AccountsController', () => {
         ).toThrow(`Invalid CAIP-2 chain ID: ${chainId}`);
       },
     );
+
+    it('handle the edge case of undefined accountId during onboarding', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+      });
+
+      expect(accountsController.getSelectedMultichainAccount()).toStrictEqual(
+        EMPTY_ACCOUNT,
+      );
+    });
   });
 
   describe('listAccounts', () => {
@@ -2070,33 +2083,6 @@ describe('AccountsController', () => {
       expect(() => accountsController.getAccountExpect(accountId)).toThrow(
         `Account Id "${accountId}" not found`,
       );
-    });
-
-    it('handle the edge case of undefined accountId during onboarding', async () => {
-      const { accountsController } = setupAccountsController({
-        initialState: {
-          internalAccounts: {
-            accounts: { [mockAccount.id]: mockAccount },
-            selectedAccount: mockAccount.id,
-          },
-        },
-      });
-
-      // @ts-expect-error forcing undefined accountId
-      expect(accountsController.getAccountExpect(undefined)).toStrictEqual({
-        id: '',
-        address: '',
-        options: {},
-        methods: [],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: '',
-          keyring: {
-            type: '',
-          },
-          importTime: 0,
-        },
-      });
     });
   });
 

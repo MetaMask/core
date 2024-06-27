@@ -266,7 +266,6 @@ describe('Simulation Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
 
   beforeEach(() => {
-    jest.resetAllMocks();
     jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
   });
 

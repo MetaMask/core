@@ -12,10 +12,6 @@ const TOKEN_NAME_MOCK = 'TestTokenName';
 describe('TokenNameProvider', () => {
   const handleFetchMock = jest.mocked(handleFetch);
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new TokenNameProvider().getMetadata();

@@ -44,8 +44,6 @@ describe('EtherscanRemoteTransactionSource', () => {
   const randomMock = random as jest.MockedFn<typeof random>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     clock = sinon.useFakeTimers();
 
     fetchEtherscanTransactionsMock.mockResolvedValue(
