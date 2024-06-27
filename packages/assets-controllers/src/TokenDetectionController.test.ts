@@ -15,8 +15,7 @@ import type {
   NetworkClientId,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
-import type { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
+import type { AutoManagedNetworkClient, CustomNetworkClientConfiguration } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,
