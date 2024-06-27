@@ -40,7 +40,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^8.3.0",
+    "@metamask/utils": "^8.5.0",
     "immer": "^9.0.6"
   },
   "devDependencies": {

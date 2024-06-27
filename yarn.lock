@@ -2206,7 +2206,7 @@ __metadata:
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.4.1
     "@metamask/snaps-utils": ^7.4.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     deepmerge: ^4.2.2
@@ -2242,7 +2242,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2276,7 +2276,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2326,7 +2326,7 @@ __metadata:
     "@metamask/polling-controller": ^8.0.0
     "@metamask/preferences-controller": ^13.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/lodash": ^4.14.191
@@ -2393,7 +2393,7 @@ __metadata:
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/sinon": ^9.0.10
     deepmerge: ^4.2.2
@@ -2431,7 +2431,7 @@ __metadata:
   resolution: "@metamask/build-utils@workspace:packages/build-utils"
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/eslint": ^8.44.7
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
@@ -2465,7 +2465,7 @@ __metadata:
     "@metamask/snaps-controllers": ^8.1.1
     "@metamask/snaps-sdk": ^4.4.1
     "@metamask/snaps-utils": ^7.4.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     deepmerge: ^4.2.2
@@ -2512,7 +2512,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/eth-query": ^4.0.0
     "@metamask/ethjs-unit": ^0.3.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@spruceid/siwe-parser": 2.1.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
@@ -2562,7 +2562,7 @@ __metadata:
     "@metamask/eth-block-tracker": ^9.0.3
     "@metamask/eth-json-rpc-provider": ^4.0.0
     "@metamask/json-rpc-engine": ^9.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.54
     "@typescript-eslint/eslint-plugin": ^5.62.0
@@ -2626,7 +2626,7 @@ __metadata:
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
     "@metamask/network-controller": ^19.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2753,7 +2753,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -2951,7 +2951,7 @@ __metadata:
     "@metamask/ethjs-unit": ^0.3.0
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
@@ -2980,7 +2980,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -3032,7 +3032,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/readable-stream": ^2.3.0
     deepmerge: ^4.2.2
@@ -3096,7 +3096,7 @@ __metadata:
     "@metamask/keyring-api": ^8.0.0
     "@metamask/message-manager": ^10.0.0
     "@metamask/scure-bip39": ^2.1.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     async-mutex: ^0.5.0
     deepmerge: ^4.2.2
@@ -3139,7 +3139,7 @@ __metadata:
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
     "@metamask/eth-sig-util": ^7.0.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
@@ -3167,7 +3167,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     async-mutex: ^0.5.0
     deepmerge: ^4.2.2
@@ -3195,7 +3195,7 @@ __metadata:
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/swappable-obj-proxy": ^2.2.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/jest-when": ^2.7.3
     "@types/lodash": ^4.14.191
@@ -3233,7 +3233,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -3317,7 +3317,7 @@ __metadata:
     "@metamask/controller-utils": ^11.0.0
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^27.4.1
     deep-freeze-strict: ^1.1.1
@@ -3360,7 +3360,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/json-rpc-engine": ^9.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/deep-freeze-strict": ^1.1.0
     "@types/jest": ^27.4.1
     deep-freeze-strict: ^1.1.1
@@ -3418,7 +3418,7 @@ __metadata:
     "@metamask/base-controller": ^6.0.0
     "@metamask/controller-utils": ^11.0.0
     "@metamask/network-controller": ^19.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     "@types/uuid": ^8.3.0
     deepmerge: ^4.2.2
@@ -3508,7 +3508,7 @@ __metadata:
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/selected-network-controller": ^15.0.2
     "@metamask/swappable-obj-proxy": ^2.2.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -3533,7 +3533,7 @@ __metadata:
     "@metamask/auto-changelog": ^3.4.4
     "@metamask/base-controller": ^6.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -3581,7 +3581,7 @@ __metadata:
     "@metamask/network-controller": ^19.0.0
     "@metamask/permission-controller": ^10.0.0
     "@metamask/swappable-obj-proxy": ^2.2.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     immer: ^9.0.6
@@ -3611,7 +3611,7 @@ __metadata:
     "@metamask/logging-controller": ^5.0.0
     "@metamask/message-manager": ^10.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     deepmerge: ^4.2.2
     jest: ^27.5.1
@@ -3776,7 +3776,7 @@ __metadata:
     "@metamask/network-controller": ^19.0.0
     "@metamask/nonce-tracker": ^5.0.0
     "@metamask/rpc-errors": ^6.2.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/bn.js": ^5.1.5
     "@types/jest": ^27.4.1
     "@types/node": ^16.18.54
@@ -3820,7 +3820,7 @@ __metadata:
     "@metamask/rpc-errors": ^6.2.1
     "@metamask/superstruct": ^3.1.0
     "@metamask/transaction-controller": ^33.0.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^8.5.0
     "@types/jest": ^27.4.1
     bn.js: ^5.2.1
     deepmerge: ^4.2.2
