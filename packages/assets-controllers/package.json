@@ -46,7 +46,7 @@
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/abi-utils": "^2.0.2",
+    "@metamask/abi-utils": "^2.0.3",
     "@metamask/accounts-controller": "^17.1.1",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/base-controller": "^6.0.0",
