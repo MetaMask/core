@@ -8,14 +8,15 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
+import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type {
   NetworkState,
   NetworkConfiguration,
   NetworkController,
   NetworkClientId,
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient, CustomNetworkClientConfiguration } from '@metamask/network-controller';
 import {
   getDefaultPreferencesState,
   type PreferencesState,

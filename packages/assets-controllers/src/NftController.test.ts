@@ -311,11 +311,12 @@ describe('NftController', () => {
           },
         ],
       });
-    const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = await getFormattedIpfsUrl(
-      IPFS_DEFAULT_GATEWAY_URL,
-      `ipfs://${DEPRESSIONIST_CID_V1}`,
-      true,
-    );
+    const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH =
+      await getFormattedIpfsUrl(
+        IPFS_DEFAULT_GATEWAY_URL,
+        `ipfs://${DEPRESSIONIST_CID_V1}`,
+        true,
+      );
     nock(DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH).get('/').reply(200, {
       name: 'name',
       image: 'image',
