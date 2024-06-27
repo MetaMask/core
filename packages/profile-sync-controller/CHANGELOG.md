@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0]
+## [0.1.1]
 
 ### Changed
 
-- fix: notification services controller mobile fixes ([#4441](https://github.com/MetaMask/core/pull/4441))
+- `ProfileSyncController` mobile fixes ([#4441](https://github.com/MetaMask/core/pull/4441))
 
 ## [0.1.0]
 
@@ -19,6 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...HEAD
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.0...@metamask/profile-sync-controller@0.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.1...HEAD
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.0...@metamask/profile-sync-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/profile-sync-controller@0.1.0
