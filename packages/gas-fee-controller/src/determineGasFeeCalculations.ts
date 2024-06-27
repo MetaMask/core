@@ -12,13 +12,11 @@ type DetermineGasFeeCalculationsRequest = {
   isLegacyGasAPICompatible: boolean;
   fetchGasEstimates: (
     url: string,
-    infuraAPIKey: string,
     clientId?: string,
   ) => Promise<GasFeeEstimates>;
   fetchGasEstimatesUrl: string;
   fetchLegacyGasPriceEstimates: (
     url: string,
-    infuraAPIKey: string,
     clientId?: string,
   ) => Promise<LegacyGasPriceEstimate>;
   fetchLegacyGasPriceEstimatesUrl: string;
@@ -34,7 +32,6 @@ type DetermineGasFeeCalculationsRequest = {
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ethQuery: any;
-  infuraAPIKey: string;
   nonRPCGasFeeApisDisabled?: boolean;
 };
 
@@ -60,7 +57,6 @@ type DetermineGasFeeCalculationsRequest = {
  * @param args.calculateTimeEstimate - A function that determine time estimate bounds.
  * @param args.clientId - An identifier that an API can use to know who is asking for estimates.
  * @param args.ethQuery - An EthQuery instance we can use to talk to Ethereum directly.
- * @param args.infuraAPIKey - Infura API key to use for requests to Infura.
  * @param args.nonRPCGasFeeApisDisabled - Whether to disable requests to the legacyAPIEndpoint and the EIP1559APIEndpoint
  * @returns The gas fee calculations.
  */
@@ -120,16 +116,11 @@ async function getEstimatesUsingFeeMarketEndpoint(
   const {
     fetchGasEstimates,
     fetchGasEstimatesUrl,
-    infuraAPIKey,
     clientId,
     calculateTimeEstimate,
   } = request;
 
-  const estimates = await fetchGasEstimates(
-    fetchGasEstimatesUrl,
-    infuraAPIKey,
-    clientId,
-  );
+  const estimates = await fetchGasEstimates(fetchGasEstimatesUrl, clientId);
 
   const { suggestedMaxPriorityFeePerGas, suggestedMaxFeePerGas } =
     estimates.medium;
@@ -158,13 +149,11 @@ async function getEstimatesUsingLegacyEndpoint(
   const {
     fetchLegacyGasPriceEstimates,
     fetchLegacyGasPriceEstimatesUrl,
-    infuraAPIKey,
     clientId,
   } = request;
 
   const estimates = await fetchLegacyGasPriceEstimates(
     fetchLegacyGasPriceEstimatesUrl,
-    infuraAPIKey,
     clientId,
   );
 
