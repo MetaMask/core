@@ -87,7 +87,7 @@ export function isValidHexAddress(possibleAddress: Hex) {
  * @returns The address encoded according to ERC-55.
  * @see https://eips.ethereum.org/EIPS/eip-55
  */
-export function getChecksumAddress(address: Hex) {
+export function getChecksumAddress(address: Hex): Hex {
   assert(is(address, HexChecksumAddressStruct), 'Invalid hex address.');
   const unPrefixed = remove0x(address.toLowerCase());
   const unPrefixedHash = remove0x(bytesToHex(keccak256(unPrefixed)));

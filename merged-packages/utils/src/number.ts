@@ -1,4 +1,5 @@
 import { assert } from './assert';
+import type { Hex } from './hex';
 import { add0x, assertIsHexString } from './hex';
 
 /**
@@ -18,7 +19,7 @@ import { add0x, assertIsHexString } from './hex';
  * @returns The hexadecimal string, with the "0x"-prefix.
  * @throws If the number is not a non-negative safe integer.
  */
-export const numberToHex = (value: number): string => {
+export const numberToHex = (value: number): Hex => {
   assert(typeof value === 'number', 'Value must be a number.');
   assert(value >= 0, 'Value must be a non-negative number.');
   assert(
@@ -45,7 +46,7 @@ export const numberToHex = (value: number): string => {
  * @returns The hexadecimal string, with the "0x"-prefix.
  * @throws If the `bigint` is not a non-negative integer.
  */
-export const bigIntToHex = (value: bigint): string => {
+export const bigIntToHex = (value: bigint): Hex => {
   assert(typeof value === 'bigint', 'Value must be a bigint.');
   assert(value >= 0, 'Value must be a non-negative bigint.');
 
