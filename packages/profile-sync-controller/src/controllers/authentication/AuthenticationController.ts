@@ -37,7 +37,7 @@ type SessionData = {
 };
 
 type MetaMetricsAuth = {
-  getMetaMetricsId: () => string;
+  getMetaMetricsId: () => string | Promise<string>;
   agent: 'extension' | 'mobile';
 };
 
@@ -238,7 +238,7 @@ export default class AuthenticationController extends BaseController<
       const rawMessage = createLoginRawMessage(nonce, publicKey);
       const signature = await this.#snapSignMessage(rawMessage);
       const loginResponse = await login(rawMessage, signature, {
-        metametricsId: this.#metametrics.getMetaMetricsId(),
+        metametricsId: await this.#metametrics.getMetaMetricsId(),
         agent: this.#metametrics.agent,
       });
       if (!loginResponse?.token) {
