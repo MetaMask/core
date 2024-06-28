@@ -58,20 +58,10 @@ export function hasNewCollectionFields(
   newNftMetadata: NftMetadata,
   nft: Nft,
 ): boolean {
-  const keysNewNftMetadata = new Set(
-    Object.keys(newNftMetadata.collection || {}),
-  );
-  const keysExistingNFt = new Set(Object.keys(nft.collection || {}));
+  const keysNewNftMetadata = Object.keys(newNftMetadata.collection || {});
+  const keysExistingNft = new Set(Object.keys(nft.collection || {}));
 
-  const newFields: string[] = [];
-
-  for (const key of keysNewNftMetadata) {
-    if (!keysExistingNFt.has(key)) {
-      newFields.push(key);
-    }
-  }
-
-  return newFields.length > 0;
+  return keysNewNftMetadata.some((key) => !keysExistingNft.has(key));
 }
 
 const aggregatorNameByKey: Record<string, string> = {
