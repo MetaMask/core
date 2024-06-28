@@ -432,7 +432,7 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
-  #logLevel: RootLogger | undefined;
+  #loglevelLogger: RootLogger | undefined;
 
   constructor(
     {
@@ -441,7 +441,7 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       trackMetaMetricsEvent,
     }: NetworkControllerOptions,
-    logLevel?: RootLogger,
+    loglevelLogger?: RootLogger,
   ) {
     super({
       name,
@@ -529,7 +529,7 @@ export class NetworkController extends BaseController<
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
 
-    this.#logLevel = logLevel;
+    this.#loglevelLogger = loglevelLogger;
   }
 
   /**
@@ -707,7 +707,7 @@ export class NetworkController extends BaseController<
       );
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
-      this.#logLevel?.warn(
+      this.#loglevelLogger?.warn(
         'NetworkController: lookupNetworkByClientId: ',
         error,
       );
@@ -725,7 +725,7 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch {
             // error.message must not be JSON
-            this.#logLevel?.warn(
+            this.#loglevelLogger?.warn(
               'NetworkController: lookupNetworkByClientId: json parse error: ',
               error,
             );
@@ -739,13 +739,13 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
-          this.#logLevel?.warn(
+          this.#loglevelLogger?.warn(
             'NetworkController: lookupNetworkByClientId: rpc internal error: ',
             error,
           );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
-          this.#logLevel?.warn(
+          this.#loglevelLogger?.warn(
             'NetworkController: lookupNetworkByClientId: ',
             error,
           );
@@ -762,7 +762,7 @@ export class NetworkController extends BaseController<
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
-        this.#logLevel?.warn(
+        this.#loglevelLogger?.warn(
           'NetworkController: lookupNetworkByClientId: ',
           error,
         );
@@ -850,7 +850,7 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch (parseError) {
             // error.message must not be JSON
-            this.#logLevel?.warn(
+            this.#loglevelLogger?.warn(
               'NetworkController: lookupNetwork: json parse error',
               parseError,
             );
@@ -864,18 +864,21 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
-          this.#logLevel?.warn(
+          this.#loglevelLogger?.warn(
             'NetworkController: lookupNetwork: rpc internal error',
             error,
           );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
-          this.#logLevel?.warn('NetworkController: lookupNetwork: ', error);
+          this.#loglevelLogger?.warn(
+            'NetworkController: lookupNetwork: ',
+            error,
+          );
         }
       } else {
         log('NetworkController - could not determine network status', error);
         updatedNetworkStatus = NetworkStatus.Unknown;
-        this.#logLevel?.warn('NetworkController: lookupNetwork: ', error);
+        this.#loglevelLogger?.warn('NetworkController: lookupNetwork: ', error);
       }
     }
 
