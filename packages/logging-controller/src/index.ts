@@ -13,4 +13,4 @@ export type {
 } from './logTypes/EthSignLog';
 export { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 export type { GenericLog } from './logTypes/GenericLog';
-export type { LogType } from './logTypes/LogType';
+export { LogType } from './logTypes/LogType';
