@@ -69,8 +69,4 @@ export {
 
 export type { WrappedSIWERequest, SIWEMessage } from './siwe';
 
-export {
-  parseDomainParts,
-  isValidSIWEOrigin,
-  detectSIWE,
-} from './siwe';
+export { parseDomainParts, isValidSIWEOrigin, detectSIWE } from './siwe';
