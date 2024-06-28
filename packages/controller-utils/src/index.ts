@@ -67,12 +67,10 @@ export {
   NetworksTicker,
 } from './types';
 
+export type { WrappedSIWERequest, SIWEMessage } from './siwe';
+
 export {
-  safeStripHexPrefix,
-  msgHexToText,
-  WrappedSIWERequest,
   parseDomainParts,
   isValidSIWEOrigin,
-  SIWEMessage,
   detectSIWE,
 } from './siwe';
