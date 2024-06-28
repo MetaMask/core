@@ -42,6 +42,7 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
 - [`@metamask/user-operation-controller`](packages/user-operation-controller)
+- [`@metamask/wallet-framework`](packages/wallet-framework)
 
 <!-- end package list -->
 
@@ -87,6 +88,7 @@ linkStyle default opacity:0.5
   signature_controller(["@metamask/signature-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
   user_operation_controller(["@metamask/user-operation-controller"]);
+  wallet_framework(["@metamask/wallet-framework"]);
   accounts_controller --> base_controller;
   accounts_controller --> keyring_controller;
   address_book_controller --> base_controller;
@@ -176,6 +178,12 @@ linkStyle default opacity:0.5
   user_operation_controller --> network_controller;
   user_operation_controller --> polling_controller;
   user_operation_controller --> transaction_controller;
+  wallet_framework --> approval_controller;
+  wallet_framework --> base_controller;
+  wallet_framework --> controller_utils;
+  wallet_framework --> json_rpc_engine;
+  wallet_framework --> keyring_controller;
+  wallet_framework --> permission_controller;
 ```
 
 <!-- end dependency graph -->

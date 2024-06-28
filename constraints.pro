@@ -374,6 +374,7 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, null, 'devDependencies') 
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, DependencyRange, 'dependencies'),
   \+ workspace_has_dependency(WorkspaceCwd, DependencyIdent, _, 'peerDependencies'),
+  WorkspaceCwd \= 'packages/wallet-framework',
   is_controller(DependencyIdent),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
@@ -385,6 +386,7 @@ gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRang
   atom_concat('^', CorrectPeerDependencyVersion, CorrectPeerDependencyRange).
 gen_enforced_dependency(WorkspaceCwd, DependencyIdent, CorrectPeerDependencyRange, 'peerDependencies') :-
   workspace_has_dependency(WorkspaceCwd, DependencyIdent, SpecifiedPeerDependencyRange, 'peerDependencies'),
+  WorkspaceCwd \= 'packages/wallet-framework',
   is_controller(DependencyIdent),
   DependencyIdent \= '@metamask/base-controller',
   DependencyIdent \= '@metamask/eth-keyring-controller',
