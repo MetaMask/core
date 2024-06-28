@@ -29,7 +29,6 @@ describe('@metamask/controller-utils', () => {
         "ORIGIN_METAMASK",
         "ApprovalType",
         "CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP",
-        "NonEmptyArray",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",
@@ -63,12 +62,8 @@ describe('@metamask/controller-utils', () => {
         "BuiltInNetworkName",
         "ChainId",
         "NetworksTicker",
-        "safeStripHexPrefix",
-        "msgHexToText",
-        "WrappedSIWERequest",
         "parseDomainParts",
         "isValidSIWEOrigin",
-        "SIWEMessage",
         "detectSIWE",
       ]
     `);
