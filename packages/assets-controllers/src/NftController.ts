@@ -644,6 +644,16 @@ export class NftController extends BaseController<
         this.#useIpfsSubdomains,
       );
     }
+    if (tokenURI.startsWith('data:image/svg+xml;base64')) {
+      return {
+        image: tokenURI,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
+    }
 
     try {
       const object = await handleFetch(tokenURI);
