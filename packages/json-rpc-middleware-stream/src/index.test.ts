@@ -278,3 +278,12 @@ describe('retry logic in middleware connected to a port', () => {
     expect(messages).toHaveLength(1);
   });
 });
+
+import * as allExports from '.';
+
+describe('@metamask/json-rpc-middleware-stream', () => {
+  it('has expected JavaScript exports', () => {
+    expect(Object.keys(allExports)).toMatchInlineSnapshot(`
+    Array ["createEngineStream", "createStreamMiddleware"]`);
+  });
+});
