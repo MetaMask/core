@@ -15,6 +15,7 @@ describe('@metamask/assets-controllers', () => {
         "TokenBalancesController",
         "TokenDetectionController",
         "TokenListController",
+        "getDefaultTokenRatesControllerState",
         "TokenRatesController",
         "TokensController",
         "isTokenDetectionSupportedForNetwork",
