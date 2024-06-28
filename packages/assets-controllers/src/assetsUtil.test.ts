@@ -162,8 +162,11 @@ describe('assetsUtil', () => {
   });
 
   describe('hasNewCollectionFields', () => {
-    it('should return false if both objects do not have collection', () => {
-      const nftMetadata: NftMetadata = {
+    let baseNftMetadata: NftMetadata;
+    let baseNft: Nft;
+
+    beforeEach(() => {
+      baseNftMetadata = {
         name: 'name',
         image: 'image',
         description: 'description',
@@ -176,94 +179,42 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
-      const nft: Nft = {
+
+      baseNft = {
+        ...baseNftMetadata,
         address: 'address',
         tokenId: '123',
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
       };
-      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+    });
+    it('should return false if both objects do not have collection', () => {
+      const different = assetsUtil.hasNewCollectionFields(
+        baseNftMetadata,
+        baseNft,
+      );
       expect(different).toBe(false);
     });
 
     it('should return false if existing object has collection and new nft metadata object does not', () => {
-      const nftMetadata: NftMetadata = {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
-      };
-      const nft: Nft = {
-        address: 'address',
-        tokenId: '123',
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
+      const different = assetsUtil.hasNewCollectionFields(baseNftMetadata, {
+        ...baseNft,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
         },
-      };
-      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      });
       expect(different).toBe(false);
     });
 
     it('should return false if both objects has the same keys', () => {
       const nftMetadata: NftMetadata = {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
+        ...baseNftMetadata,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
         },
       };
       const nft: Nft = {
-        address: 'address',
-        tokenId: '123',
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
+        ...baseNft,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -275,17 +226,7 @@ describe('assetsUtil', () => {
 
     it('should return true if new nft metadata object has keys that do not exist in the existing NFT', () => {
       const nftMetadata: NftMetadata = {
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
+        ...baseNftMetadata,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
@@ -295,19 +236,7 @@ describe('assetsUtil', () => {
         },
       };
       const nft: Nft = {
-        address: 'address',
-        tokenId: '123',
-        name: 'name',
-        image: 'image',
-        description: 'description',
-        standard: 'standard',
-        backgroundColor: 'backgroundColor',
-        imagePreview: 'imagePreview',
-        imageThumbnail: 'imageThumbnail',
-        imageOriginal: 'imageOriginal',
-        animation: 'animation',
-        animationOriginal: 'animationOriginal',
-        externalLink: 'externalLink',
+        ...baseNft,
         collection: {
           id: 'address',
           openseaVerificationStatus: 'verified',
