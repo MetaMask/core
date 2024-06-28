@@ -22,7 +22,7 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
-import type { RootLogger } from 'loglevel';
+import type { Logger } from 'loglevel';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -432,7 +432,7 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
-  #loglevelLogger: RootLogger | undefined;
+  #loglevelLogger: Logger | undefined;
 
   constructor(
     {
@@ -441,7 +441,7 @@ export class NetworkController extends BaseController<
       infuraProjectId,
       trackMetaMetricsEvent,
     }: NetworkControllerOptions,
-    loglevelLogger?: RootLogger,
+    loglevelLogger?: Logger,
   ) {
     super({
       name,
