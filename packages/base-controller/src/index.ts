@@ -14,5 +14,24 @@ export {
   getAnonymizedState,
   getPersistentState,
 } from './BaseControllerV2';
-export * from './ControllerMessenger';
-export * from './RestrictedControllerMessenger';
+
+// Named exports from ControllerMessenger
+export type {
+  ActionHandler,
+  ExtractActionParameters,
+  ExtractActionResponse,
+  ExtractEventHandler,
+  ExtractEventPayload,
+  GenericEventHandler,
+  SelectorFunction,
+  SelectorEventHandler,
+  ActionConstraint,
+  EventConstraint,
+  NamespacedBy,
+  NotNamespacedBy,
+  NamespacedName,
+} from './ControllerMessenger';
+export { ControllerMessenger } from './ControllerMessenger';
+
+// Named exports from RestrictedControllerMessenger
+export { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
