@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0]
+### Changed
+- **BREAKING:** The return types of functions `getChecksumAddress`, `numberToHex`, `bigIntToHex` are narrowed from `string` to `Hex` ([#193](https://github.com/MetaMask/utils/pull/193))
+
+### Fixed
+- Bump `@metamask/superstruct` from `^3.0.0` to `^3.1.0` ([#194](https://github.com/MetaMask/utils/pull/194))
+  - If `@metamask/utils` `<=8.5.0` is used with `@metamask/superstruct` `>=3.1.0` the following error may be encountered:
+  ```ts
+  error TS2742: The inferred type of 'ExampleType' cannot be named without a reference to '@metamask/utils/node_modules/@metamask/superstruct'. This is likely not portable. A type annotation is necessary.
+  ```
+  This can be resolved by updating `@metamask/utils` to `>=9.0.0`.
+
 ## [8.5.0]
 ### Changed
 - Bump dependency `semver` from `^5.7.1` to `^7.6.0` ([#181](https://github.com/MetaMask/utils/pull/181)).
@@ -235,7 +247,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v8.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/utils/compare/v8.5.0...v9.0.0
 [8.5.0]: https://github.com/MetaMask/utils/compare/v8.4.0...v8.5.0
 [8.4.0]: https://github.com/MetaMask/utils/compare/v8.3.0...v8.4.0
 [8.3.0]: https://github.com/MetaMask/utils/compare/v8.2.1...v8.3.0
