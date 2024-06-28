@@ -644,7 +644,7 @@ export class NftController extends BaseController<
         this.#useIpfsSubdomains,
       );
     }
-    if (tokenURI.startsWith('data:image/svg+xml;base64')) {
+    if (tokenURI.startsWith('data:image/')) {
       return {
         image: tokenURI,
         name: null,
