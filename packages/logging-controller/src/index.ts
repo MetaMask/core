@@ -7,9 +7,10 @@ export type {
 } from './LoggingController';
 export { LoggingController } from './LoggingController';
 export type {
-  SigningMethod,
-  SigningStage,
+  SigningMethod as SigningMethodType,
+  SigningStage as SigningStageType,
   EthSignLog,
 } from './logTypes/EthSignLog';
+export { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 export type { GenericLog } from './logTypes/GenericLog';
 export type { LogType } from './logTypes/LogType';
