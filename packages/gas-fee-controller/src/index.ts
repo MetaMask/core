@@ -1,7 +1,7 @@
 export {
   LEGACY_GAS_PRICES_API_URL,
   GAS_ESTIMATE_TYPES,
-  GasFeeController
+  GasFeeController,
 } from './GasFeeController';
 
 export type {
@@ -25,5 +25,5 @@ export type {
   GasFeeEstimatesByChainId,
   GasFeeState,
   GasFeeStateChange,
-  GetGasFeeState
+  GetGasFeeState,
 } from './GasFeeController';
