@@ -855,10 +855,6 @@ describe('TransactionController', () => {
     );
   });
 
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('constructor', () => {
     it('sets default state', () => {
       const { controller } = setupController();

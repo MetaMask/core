@@ -24,13 +24,13 @@ import { v1 as random } from 'uuid';
 
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
-  calculateTimeEstimate,
   fetchGasEstimates,
   fetchLegacyGasPriceEstimates,
   fetchEthGasPriceEstimate,
+  calculateTimeEstimate,
 } from './gas-util';
 
-export const GAS_API_BASE_URL = 'https://gas.api.infura.io';
+export const LEGACY_GAS_PRICES_API_URL = `https://api.metaswap.codefi.network/gasPrices`;
 
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -282,8 +282,6 @@ export class GasFeeController extends StaticIntervalPollingController<
 
   private readonly getCurrentAccountEIP1559Compatibility;
 
-  private readonly infuraAPIKey: string;
-
   private currentChainId;
 
   private ethQuery?: EthQuery;
@@ -309,9 +307,11 @@ export class GasFeeController extends StaticIntervalPollingController<
    * @param options.getProvider - Returns a network provider for the current network.
    * @param options.onNetworkDidChange - A function for registering an event handler for the
    * network state change event.
+   * @param options.legacyAPIEndpoint - The legacy gas price API URL. This option is primarily for
+   * testing purposes.
+   * @param options.EIP1559APIEndpoint - The EIP-1559 gas price API URL.
    * @param options.clientId - The client ID used to identify to the gas estimation API who is
    * asking for estimates.
-   * @param options.infuraAPIKey - The Infura API key used for infura API requests.
    */
   constructor({
     interval = 15000,
@@ -323,8 +323,9 @@ export class GasFeeController extends StaticIntervalPollingController<
     getCurrentNetworkLegacyGasAPICompatibility,
     getProvider,
     onNetworkDidChange,
+    legacyAPIEndpoint = LEGACY_GAS_PRICES_API_URL,
+    EIP1559APIEndpoint,
     clientId,
-    infuraAPIKey,
   }: {
     interval?: number;
     messenger: GasFeeMessenger;
@@ -335,8 +336,10 @@ export class GasFeeController extends StaticIntervalPollingController<
     getChainId?: () => Hex;
     getProvider: () => ProviderProxy;
     onNetworkDidChange?: (listener: (state: NetworkState) => void) => void;
+    legacyAPIEndpoint?: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    EIP1559APIEndpoint: string;
     clientId?: string;
-    infuraAPIKey: string;
   }) {
     super({
       name,
@@ -354,10 +357,9 @@ export class GasFeeController extends StaticIntervalPollingController<
     this.getCurrentAccountEIP1559Compatibility =
       getCurrentAccountEIP1559Compatibility;
     this.#getProvider = getProvider;
-    this.EIP1559APIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/suggestedGasFees`;
-    this.legacyAPIEndpoint = `${GAS_API_BASE_URL}/networks/<chain_id>/gasPrices`;
+    this.EIP1559APIEndpoint = EIP1559APIEndpoint;
+    this.legacyAPIEndpoint = legacyAPIEndpoint;
     this.clientId = clientId;
-    this.infuraAPIKey = infuraAPIKey;
 
     this.ethQuery = new EthQuery(this.#getProvider());
 
@@ -487,7 +489,6 @@ export class GasFeeController extends StaticIntervalPollingController<
       calculateTimeEstimate,
       clientId: this.clientId,
       ethQuery,
-      infuraAPIKey: this.infuraAPIKey,
       nonRPCGasFeeApisDisabled: this.state.nonRPCGasFeeApisDisabled,
     });
 

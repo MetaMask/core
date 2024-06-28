@@ -203,10 +203,6 @@ const setup = ({
 };
 
 describe('SelectedNetworkController', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('can be instantiated with default values', () => {
       const { controller } = setup();

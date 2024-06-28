@@ -150,15 +150,19 @@ function updateTsConfigs(
   packageData: PackageData,
   monorepoFileData: MonorepoFileData,
 ): void {
-  [monorepoFileData.tsConfig, monorepoFileData.tsConfigBuild].forEach(
-    (config) => {
-      config.references.push({
-        path: `./${path.basename(PACKAGES_PATH)}/${packageData.directoryName}`,
-      });
+  const { tsConfig, tsConfigBuild } = monorepoFileData;
 
-      config.references.sort((a, b) => a.path.localeCompare(b.path));
-    },
-  );
+  tsConfig.references.push({
+    path: `./${path.basename(PACKAGES_PATH)}/${packageData.directoryName}`,
+  });
+  tsConfig.references.sort((a, b) => a.path.localeCompare(b.path));
+
+  tsConfigBuild.references.push({
+    path: `./${path.basename(PACKAGES_PATH)}/${
+      packageData.directoryName
+    }/tsconfig.build.json`,
+  });
+  tsConfigBuild.references.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 /**

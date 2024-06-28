@@ -1,10 +1,10 @@
-export const enum Env {
+export enum Env {
   DEV = 'dev',
   UAT = 'uat',
   PRD = 'prd',
 }
 
-export const enum Platform {
+export enum Platform {
   MOBILE = 'mobile',
   EXTENSION = 'extension',
   PORTFOLIO = 'portfolio',
