@@ -85,7 +85,7 @@ describe('authentication/services.ts - login() tests', () => {
 describe('authentication/services.ts - getAccessToken() tests', () => {
   it('returns access token jwt if successful OIDC token request', async () => {
     const mockLoginEndpoint = mockEndpointAccessToken();
-    const response = await getAccessToken('mock single-use jwt');
+    const response = await getAccessToken('mock single-use jwt', 'extension');
 
     mockLoginEndpoint.done();
     expect(response).toBe(MOCK_ACCESS_TOKEN);
@@ -97,7 +97,7 @@ describe('authentication/services.ts - getAccessToken() tests', () => {
       body: Record<string, unknown>,
     ) => {
       const mockLoginEndpoint = mockEndpointAccessToken({ status, body });
-      const response = await getAccessToken('mock single-use jwt');
+      const response = await getAccessToken('mock single-use jwt', 'extension');
 
       mockLoginEndpoint.done();
       expect(response).toBeNull();

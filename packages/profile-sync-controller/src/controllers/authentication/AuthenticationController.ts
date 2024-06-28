@@ -132,6 +132,10 @@ export default class AuthenticationController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
+    if (!metametrics) {
+      throw new Error('`metametrics` field is required');
+    }
+
     this.#metametrics = metametrics;
 
     this.#registerMessageHandlers();
@@ -251,7 +255,10 @@ export default class AuthenticationController extends BaseController<
       };
 
       // 3. Trade for Access Token
-      const accessToken = await getAccessToken(loginResponse.token);
+      const accessToken = await getAccessToken(
+        loginResponse.token,
+        this.#metametrics.agent,
+      );
       if (!accessToken) {
         throw new Error(`Unable to get Access Token`);
       }

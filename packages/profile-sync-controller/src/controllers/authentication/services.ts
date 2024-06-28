@@ -8,7 +8,16 @@ export const AUTH_LOGIN_ENDPOINT = `${AUTH_ENDPOINT}/api/v2/srp/login`;
 
 const OIDC_ENDPOINT: string = ENV_URLS.oidcApiUrl || '';
 export const OIDC_TOKENS_ENDPOINT = `${OIDC_ENDPOINT}/oauth2/token`;
-const OIDC_CLIENT_ID = getOidcClientId(Env.PRD, Platform.EXTENSION);
+const OIDC_CLIENT_ID = (platform: 'mobile' | 'extension') => {
+  if (platform === 'extension') {
+    return getOidcClientId(Env.PRD, Platform.EXTENSION);
+  }
+  if (platform === 'mobile') {
+    return getOidcClientId(Env.PRD, Platform.MOBILE);
+  }
+
+  throw new Error(`Unsupported platform - ${platform as string}`);
+};
 const OIDC_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
 
 export type NonceResponse = {
@@ -124,16 +133,20 @@ export type OAuthTokenResponse = {
  * NOTE - the access token is short lived, which means it is best practice to validate session before calling authenticated endpoints
  *
  * @param jwtToken - the JWT Auth Token, received from `/login`
+ * @param platform - the OIDC platform to retrieve access token
  * @returns JWT Access token to store and use on authorized endpoints.
  */
-export async function getAccessToken(jwtToken: string): Promise<string | null> {
+export async function getAccessToken(
+  jwtToken: string,
+  platform: ClientMetaMetrics['agent'],
+): Promise<string | null> {
   const headers = new Headers({
     'Content-Type': 'application/x-www-form-urlencoded',
   });
 
   const urlEncodedBody = new URLSearchParams();
   urlEncodedBody.append('grant_type', OIDC_GRANT_TYPE);
-  urlEncodedBody.append('client_id', OIDC_CLIENT_ID);
+  urlEncodedBody.append('client_id', OIDC_CLIENT_ID(platform));
   urlEncodedBody.append('assertion', jwtToken);
 
   try {
