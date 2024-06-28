@@ -7,12 +7,6 @@ describe('@metamask/composable-controller', () => {
         "ComposableController",
         "isBaseController",
         "isBaseControllerV1",
-        "ComposableControllerStateConstraint",
-        "ComposableControllerStateChangeEvent",
-        "ComposableControllerEvents",
-        "ComposableControllerMessenger",
-        "LegacyControllerStateConstraint",
-        "RestrictedControllerMessengerConstraint",
       ]
     `);
   });
