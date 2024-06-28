@@ -12,7 +12,6 @@ export type ExtractAvailableAction<Messenger> =
   >
     ? Action
     : never;
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // We don't care about the types marked with `any` for this type.
@@ -26,4 +25,29 @@ export type ExtractAvailableEvent<Messenger> =
   >
     ? Event
     : never;
-/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// We don't care about the types marked with `any` for this type.
+export type ExtractAllowedActions<Messenger> =
+Messenger extends RestrictedControllerMessenger<
+  any,
+  any,
+  any,
+  infer AllowedActions,
+  any
+>
+  ? AllowedActions
+  : never;
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// We don't care about the types marked with `any` for this type.
+export type ExtractAllowedEvents<Messenger> =
+Messenger extends RestrictedControllerMessenger<
+  any,
+  any,
+  any,
+  any,
+  infer AllowedEvents
+>
+  ? AllowedEvents
+  : never;

@@ -1,6 +1,10 @@
 import type { Json } from '@metamask/utils';
-import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
+import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
+import type {
+  ExtractAllowedActions,
+  ExtractAllowedEvents,
+} from 'tests/helpers';
 
 import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
 import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
@@ -98,6 +102,12 @@ export type ControllerEvents<
   ControllerState extends StateConstraint,
 > = ControllerStateChangeEvent<ControllerName, ControllerState>;
 
+export type IsIdenticalUnion<A, B> = A extends B
+  ? B extends A
+    ? true
+    : false
+  : false;
+
 /**
  * Controller class that provides state management, subscriptions, and state metadata
  */
@@ -106,17 +116,26 @@ export class BaseController<
   ControllerState extends StateConstraint,
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  messenger extends RestrictedControllerMessenger<
+  RestrictedMessenger extends RestrictedControllerMessenger<
     ControllerName,
     ActionConstraint | ControllerActions<ControllerName, ControllerState>,
     EventConstraint | ControllerEvents<ControllerName, ControllerState>,
     string,
     string
   >,
+  InputMessenger extends RestrictedMessenger,
+  IsFullAllowedActions extends boolean = IsIdenticalUnion<
+    ExtractAllowedActions<RestrictedMessenger>,
+    ExtractAllowedActions<InputMessenger>
+  >,
+  IsFullAllowedEvents extends boolean = IsIdenticalUnion<
+    ExtractAllowedEvents<RestrictedMessenger>,
+    ExtractAllowedEvents<InputMessenger>
+  >,
 > {
   #internalState: ControllerState;
 
-  protected messagingSystem: messenger;
+  protected messagingSystem: RestrictedMessenger;
 
   /**
    * The name of the controller.
@@ -143,7 +162,7 @@ export class BaseController<
     name,
     state,
   }: {
-    messenger: messenger;
+    messenger: InputMessenger;
     metadata: StateMetadata<ControllerState>;
     name: ControllerName;
     state: ControllerState;
