@@ -35,4 +35,6 @@ export {
   SignTypedDataVersion,
   keyringBuilderFactory,
   KeyringController,
+  isCustodyKeyring,
+  getDefaultKeyringState,
 } from './KeyringController';
