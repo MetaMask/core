@@ -47,7 +47,7 @@
     "@metamask/snaps-controllers": "^8.1.1",
     "@metamask/snaps-sdk": "^6.0.0",
     "@metamask/snaps-utils": "^7.7.0",
-    "@metamask/utils": "^8.5.0",
+    "@metamask/utils": "^9.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

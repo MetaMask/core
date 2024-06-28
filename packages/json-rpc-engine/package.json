@@ -52,7 +52,7 @@
   "dependencies": {
     "@metamask/rpc-errors": "^6.2.1",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^8.5.0"
+    "@metamask/utils": "^9.0.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
