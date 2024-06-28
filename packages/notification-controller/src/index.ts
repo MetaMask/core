@@ -1,6 +1,4 @@
-export {
-  NotificationController
-} from './NotificationController';
+export { NotificationController } from './NotificationController';
 
 export type {
   NotificationControllerState,
@@ -12,5 +10,5 @@ export type {
   MarkNotificationRead,
   ClearNotifications,
   NotificationControllerActions,
-  NotificationControllerMessenger
+  NotificationControllerMessenger,
 } from './NotificationController';
