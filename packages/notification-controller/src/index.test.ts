@@ -5,6 +5,16 @@ describe('@metamask/notification-controller', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
       Array [
         "NotificationController",
+        "NotificationControllerState",
+        "Notification",
+        "NotificationControllerStateChange",
+        "GetNotificationControllerState",
+        "ShowNotification",
+        "DismissNotification",
+        "MarkNotificationRead",
+        "ClearNotifications",
+        "NotificationControllerActions",
+        "NotificationControllerMessenger",
       ]
     `);
   });
