@@ -284,6 +284,10 @@ import * as allExports from '.';
 describe('@metamask/json-rpc-middleware-stream', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-    Array ["createEngineStream", "createStreamMiddleware"]`);
+      Array [
+        "createEngineStream",
+        "createStreamMiddleware",
+      ]
+    `);
   });
 });
