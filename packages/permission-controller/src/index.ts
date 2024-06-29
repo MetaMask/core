@@ -111,7 +111,10 @@ export type {
   GenericPermissionController,
   CaveatMutator,
   PermissionControllerOptions,
-  CaveatMutatorOperation, // Added export for CaveatMutatorOperation
+} from './PermissionController';
+
+export {
+  CaveatMutatorOperation, // Changed export for CaveatMutatorOperation to value
 } from './PermissionController';
 
 export { PermissionController } from './PermissionController';
