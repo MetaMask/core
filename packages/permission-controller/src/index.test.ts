@@ -4,4 +4,10 @@
 
 // Placeholder comment to ensure the file is not empty and to clarify its purpose.
 
-export {};
+import { PermissionController } from '.';
+
+describe('PermissionController', () => {
+  it('should be defined', () => {
+    expect(PermissionController).toBeDefined();
+  });
+});
