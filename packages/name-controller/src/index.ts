@@ -4,6 +4,7 @@ export {
   NameOrigin,
   NameController,
 } from './NameController';
+
 export type {
   ProposedNamesEntry,
   NameEntry,
