@@ -7,16 +7,6 @@ describe('@metamask/preferences-controller', () => {
         "PreferencesController",
         "getDefaultPreferencesState",
         "ETHERSCAN_SUPPORTED_CHAIN_IDS",
-        "Identity",
-        "EtherscanSupportedChains",
-        "EtherscanSupportedHexChainId",
-        "PreferencesState",
-        "PreferencesControllerGetStateAction",
-        "PreferencesControllerStateChangeEvent",
-        "PreferencesControllerActions",
-        "PreferencesControllerEvents",
-        "AllowedEvents",
-        "PreferencesControllerMessenger"
       ]
     `);
   });

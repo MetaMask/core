@@ -112,9 +112,7 @@ export type {
   PermissionControllerOptions,
 } from './PermissionController';
 
-export {
-  PermissionController,
-} from './PermissionController';
+export { PermissionController } from './PermissionController';
 
 export type {
   ExtractSpecifications,
