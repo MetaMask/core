@@ -51,7 +51,7 @@
     "@metamask/snaps-utils@npm:^7.4.0": "patch:@metamask/snaps-utils@npm%3A7.7.0#~/.yarn/patches/@metamask-snaps-utils-npm-7.7.0-2cc1f044af.patch",
     "@metamask/snaps-utils@npm:^7.5.0": "patch:@metamask/snaps-utils@npm%3A7.7.0#~/.yarn/patches/@metamask-snaps-utils-npm-7.7.0-2cc1f044af.patch",
     "@metamask/snaps-utils@npm:^7.7.0": "patch:@metamask/snaps-utils@npm%3A7.7.0#~/.yarn/patches/@metamask-snaps-utils-npm-7.7.0-2cc1f044af.patch",
-    "@metamask/superstruct": "3.1.0",
+    "@metamask/utils": "9.0.0",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
