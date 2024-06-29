@@ -1,6 +1,6 @@
 export {
   PreferencesController,
-  getDefaultPreferencesState
+  getDefaultPreferencesState,
 } from './PreferencesController';
 
 export type {
@@ -13,7 +13,7 @@ export type {
   PreferencesControllerActions,
   PreferencesControllerEvents,
   AllowedEvents,
-  PreferencesControllerMessenger
+  PreferencesControllerMessenger,
 } from './PreferencesController';
 
 export { ETHERSCAN_SUPPORTED_CHAIN_IDS } from './constants';

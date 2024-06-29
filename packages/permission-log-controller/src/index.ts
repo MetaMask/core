@@ -10,6 +10,4 @@ export type {
   PermissionLogControllerOptions,
   PermissionLogControllerMessenger,
 } from './PermissionLogController';
-export {
-  PermissionLogController,
-} from './PermissionLogController';
+export { PermissionLogController } from './PermissionLogController';
