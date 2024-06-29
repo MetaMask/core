@@ -68,6 +68,7 @@ export type {
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
   ExtractPermissionSpecification,
+  RestrictedMethodOptions, // Added export for RestrictedMethodOptions
 } from './Permission';
 
 export {
@@ -110,6 +111,7 @@ export type {
   GenericPermissionController,
   CaveatMutator,
   PermissionControllerOptions,
+  CaveatMutatorOperation, // Added export for CaveatMutatorOperation
 } from './PermissionController';
 
 export { PermissionController } from './PermissionController';
