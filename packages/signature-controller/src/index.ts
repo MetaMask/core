@@ -1,9 +1,10 @@
-export {
+export type {
   GetSignatureState,
   SignatureStateChange,
   SignatureControllerActions,
   SignatureControllerEvents,
   SignatureControllerMessenger,
   SignatureControllerOptions,
-  SignatureController
 } from './SignatureController';
+
+export { SignatureController } from './SignatureController';
