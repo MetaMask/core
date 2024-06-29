@@ -35,7 +35,7 @@ The following changes have been made:
 - The `gh` CLI tool was used for authenticated GitHub actions.
 - Corepack was enabled in the `core` repository.
 - Dependencies were installed using Yarn, with warnings about incompatible peer dependencies and missing peer dependencies.
-- The `yarn test --updateSnapshot` command was run, and one snapshot was updated in the `packages/signature-controller/src/index.test.ts` file.
+- The `yarn test --updateSnapshot` command was run, and one snapshot was updated in the `packages-signature-controller/src/index.test.ts` file.
 - The `yarn lint --fix` command was run, and the output indicates that all matched files use the Prettier code style, with no linting issues remaining.
 
 Please review the changes and provide feedback. Thank you!
