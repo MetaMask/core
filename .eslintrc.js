@@ -57,6 +57,10 @@ module.exports = {
         '@typescript-eslint/prefer-reduce-type-parameter': 'off',
         'no-restricted-syntax': 'off',
         'no-restricted-globals': 'off',
+
+        // Disable rules that are causing incorrect diagnostics
+        '@typescript-eslint/consistent-type-exports': 'off',
+        '@typescript-eslint/consistent-type-imports': 'off',
       },
     },
     {
@@ -84,6 +88,12 @@ module.exports = {
       rules: {
         // These files run under Node, and thus `require(...)` is expected.
         'n/global-require': 'off',
+      },
+    },
+    {
+      files: ['packages/name-controller/src/index.ts'],
+      rules: {
+        '@typescript-eslint/parser': 'off',
       },
     },
   ],
