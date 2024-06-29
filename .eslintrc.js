@@ -92,9 +92,7 @@ module.exports = {
     },
     {
       files: ['packages/name-controller/src/index.ts'],
-      rules: {
-        '@typescript-eslint/parser': 'off',
-      },
+      parser: null,
     },
   ],
   rules: {
