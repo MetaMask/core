@@ -90,10 +90,6 @@ module.exports = {
         'n/global-require': 'off',
       },
     },
-    {
-      files: ['packages/name-controller/src/index.ts'],
-      parser: null,
-    },
   ],
   rules: {
     // Left disabled because various properties throughough this repo are snake_case because the

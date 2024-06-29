@@ -1,5 +1,10 @@
 {
-  "compilerOptions": { "esModuleInterop": true, "noEmit": true },
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "noEmit": true,
+    "useDefineForClassFields": true,
+    "target": "ESNext"
+  },
   "references": [
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
