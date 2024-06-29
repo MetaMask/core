@@ -8,5 +8,4 @@ export type {
   AnnouncementControllerStateChangeEvent,
   AnnouncementControllerMessenger,
 } from './AnnouncementController';
-
 export { AnnouncementController } from './AnnouncementController';
