@@ -10,7 +10,6 @@ describe('@metamask/polling-controller', () => {
         "StaticIntervalPollingControllerOnly",
         "StaticIntervalPollingController",
         "StaticIntervalPollingControllerV1",
-        "IPollingController",
       ]
     `);
   });
