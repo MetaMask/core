@@ -1,6 +1,4 @@
-export {
-  UserOperationController,
-} from './UserOperationController';
+export { UserOperationController } from './UserOperationController';
 
 export type {
   UserOperationControllerEventEmitter,
