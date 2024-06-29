@@ -1,4 +1,4 @@
-export {
+export type {
   JsonRpcRequestWithOrigin,
   Caveat,
   Permission,
@@ -9,5 +9,7 @@ export {
   PermissionLogControllerState,
   PermissionLogControllerOptions,
   PermissionLogControllerMessenger,
-  PermissionLogController
+} from './PermissionLogController';
+export {
+  PermissionLogController,
 } from './PermissionLogController';
