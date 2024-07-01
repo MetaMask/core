@@ -153,8 +153,8 @@ To use a preview build for a package within a project, you need to override the 
 > If you're migrating an existing package to the monorepo, please see [the package migration documentation](./package-migration-process-guide.md).
 > You may be able to make use of `create-package` when migrating your package, but there's a lot more to it.
 
-Manually a new monorepo package can be a tedious, even frustrating process. To spare us from that
-suffering, we have created a CLI that automates most of the job for us, creatively titled
+Manually creating a new monorepo package can be a tedious, even frustrating process. To alleviate that
+problem, we have created a CLI that automates most of the job for us, creatively titled
 [`create-package`](../scripts/create-package/). To create a new monorepo package, follow these steps:
 
 1. Create a new package using `yarn create-package`.
