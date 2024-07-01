@@ -210,11 +210,13 @@ export class PhishingDetector {
       // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
       const cID = url.match(ipfsCidRegex(false))![0] ?? '';
       for (const { blocklist, name, version } of this.#configs) {
-        const blocklistMatch = matchStringAgainstList(cID, blocklist)
+        const blocklistMatch = blocklist.filter((entries) => entries.length === 1).find((entries) => {
+          return entries[0] === cID;
+        });
         if (blocklistMatch) {
           return { 
             name, 
-            match: blocklistMatch,
+            match: cID,
             result: true, 
             type: 'blocklist', 
             version: version === undefined ? version : String(version), 
@@ -228,12 +230,11 @@ export class PhishingDetector {
   }
 }
 
-function matchStringAgainstList(needle: string, list: string[][]) {
-  const listSet = new Set(list);
-  // @ts-ignore
-  return listSet.has(needle) ? needle : null;
-}
-
+/**
+ * 
+ * @param startEndMatch (bool) if true then matches the entire string ^$.
+ * @returns 
+ */
 function ipfsCidRegex(startEndMatch = true) {
   // regex from https://stackoverflow.com/a/67176726
   let reg = "Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,}";
