@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `updateNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to recreate the network clients for an existing chain based on an updated configuration ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `removeNetwork`, which replaces `removeNetworkConfiguration` and can be used to remove existing network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `getDefaultNetworkControllerState` function, which replaces `defaultState` and matches patterns in other controllers ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `RpcEndpointType` type ([#4268](https://github.com/MetaMask/core/pull/4286))
 
 ### Changed
 
