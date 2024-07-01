@@ -3,6 +3,10 @@ import {
   type PhishingDetectorOptions,
 } from './PhishingDetector';
 
+import { 
+  formatHostnameToUrl 
+} from "./utils"
+
 describe('PhishingDetector', () => {
   describe('constructor', () => {
     describe('with a recommended config', () => {
@@ -215,7 +219,7 @@ describe('PhishingDetector', () => {
     describe('with recommended config', () => {
       it('allows a domain when no config is provided', async () => {
         await withPhishingDetector([], async ({ detector }) => {
-          const { result, type } = detector.check('default.com');
+          const { result, type } = detector.check(formatHostnameToUrl('default.com'));
 
           expect(result).toBe(false);
           expect(type).toBe('all');
@@ -243,7 +247,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type } = detector.check('default.com');
+            const { result, type } = detector.check(formatHostnameToUrl('default.com'));
 
             expect(result).toBe(false);
             expect(type).toBe('all');
@@ -273,7 +277,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'blocked-by-first.com',
+              formatHostnameToUrl('blocked-by-first.com'),
             );
 
             expect(result).toBe(true);
@@ -305,7 +309,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'blocked-by-second.com',
+              formatHostnameToUrl('blocked-by-second.com'),
             );
 
             expect(result).toBe(true);
@@ -337,7 +341,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'blocked-by-both.com',
+              formatHostnameToUrl('blocked-by-both.com'),
             );
 
             expect(result).toBe(true);
@@ -368,7 +372,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name } = detector.check('fuzzy-first.com');
+            const { result, type, name } = detector.check(formatHostnameToUrl('fuzzy-first.com'));
 
             expect(result).toBe(true);
             expect(type).toBe('fuzzy');
@@ -398,7 +402,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name } = detector.check('fuzzy-firstab.com');
+            const { result, type, name } = detector.check(formatHostnameToUrl('fuzzy-firstab.com'));
 
             expect(result).toBe(true);
             expect(type).toBe('fuzzy');
@@ -428,7 +432,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type } = detector.check('fuzzy-firstabc.com');
+            const { result, type } = detector.check(formatHostnameToUrl('fuzzy-firstabc.com'));
 
             expect(result).toBe(false);
             expect(type).toBe('all');
@@ -457,7 +461,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name } = detector.check('fuzzy-second.com');
+            const { result, type, name } = detector.check(formatHostnameToUrl('fuzzy-second.com'));
 
             expect(result).toBe(true);
             expect(type).toBe('fuzzy');
@@ -487,7 +491,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name } = detector.check('fuzzy-secondab.com');
+            const { result, type, name } = detector.check(formatHostnameToUrl('fuzzy-secondab.com'));
 
             expect(result).toBe(true);
             expect(type).toBe('fuzzy');
@@ -517,7 +521,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type } = detector.check('fuzzy-secondabc.com');
+            const { result, type } = detector.check(formatHostnameToUrl('fuzzy-secondabc.com'));
 
             expect(result).toBe(false);
             expect(type).toBe('all');
@@ -546,7 +550,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name } = detector.check('fuzzy-both.com');
+            const { result, type, name } = detector.check(formatHostnameToUrl('fuzzy-both.com'));
 
             expect(result).toBe(true);
             expect(type).toBe('fuzzy');
@@ -577,7 +581,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'blocked-by-first.com',
+              formatHostnameToUrl('blocked-by-first.com'),
             );
 
             expect(result).toBe(true);
@@ -608,7 +612,7 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type, name } = detector.check('fuzzy-first.com');
+            const { result, type, name } = detector.check(formatHostnameToUrl('fuzzy-first.com'));
 
             expect(result).toBe(true);
             expect(type).toBe('fuzzy');
@@ -639,7 +643,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-by-first.com',
+              formatHostnameToUrl('allowed-by-first.com'),
             );
 
             expect(result).toBe(false);
@@ -671,7 +675,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-by-second.com',
+              formatHostnameToUrl('allowed-by-second.com'),
             );
 
             expect(result).toBe(false);
@@ -703,7 +707,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-and-blocked-first.com',
+              formatHostnameToUrl('allowed-and-blocked-first.com'),
             );
 
             expect(result).toBe(false);
@@ -735,7 +739,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-and-fuzzy-first.com',
+              formatHostnameToUrl('allowed-and-fuzzy-first.com'),
             );
 
             expect(result).toBe(false);
@@ -767,7 +771,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-and-blocked-second.com',
+              formatHostnameToUrl('allowed-and-blocked-second.com'),
             );
 
             expect(result).toBe(false);
@@ -799,7 +803,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-and-fuzzy-second.com',
+              formatHostnameToUrl('allowed-and-fuzzy-second.com'),
             );
 
             expect(result).toBe(false);
@@ -831,7 +835,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-by-both.com',
+              formatHostnameToUrl('allowed-by-both.com'),
             );
 
             expect(result).toBe(false);
@@ -863,7 +867,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'fuzzy-first-allowed-second.com',
+              formatHostnameToUrl('fuzzy-first-allowed-second.com'),
             );
 
             expect(result).toBe(false);
@@ -895,7 +899,7 @@ describe('PhishingDetector', () => {
           ],
           async ({ detector }) => {
             const { result, type, name } = detector.check(
-              'allowed-first-fuzzy-second.com',
+              formatHostnameToUrl('allowed-first-fuzzy-second.com'),
             );
 
             expect(result).toBe(false);
@@ -918,14 +922,79 @@ describe('PhishingDetector', () => {
             },
           ],
           async ({ detector }) => {
-            const { result, type } = detector.check('blocked.com.');
+            const { result, type } = detector.check(formatHostnameToUrl('blocked.com.'));
 
             expect(result).toBe(true);
             expect(type).toBe('blocklist');
           },
         );
       });
+
+      it('blocks ipfs cid across various formats (cids located in subdomains and paths)', async () => {
+
+        // Gateways differ on where the CID is... sometimes in the path, sometimes in a magic subdomain
+        const expectedToBeBlocked = [
+          "ipfs.io/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "gateway.pinata.cloud/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "cloudflare-ipfs.com/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "ipfs.eth.aragon.network/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.dweb.link/#x-ipfs-companion-no-redirect",
+          "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.cf-ipfs.com/#x-ipfs-companion-no-redirect",
+          "example.com",
+          "example.com/foo/bar",
+        ]
+  
+        // CID should not blocked
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [
+                "QmUDBVyGwqKdSayk7kDKUaj9J41Ft1DWizcKUx5UmgMgGy",
+                "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m",
+                "example.com"
+              ],
+              fuzzylist: [],
+              name: 'first',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector }) => {
+            const { result, type } = detector.check(formatHostnameToUrl('cf-ipfs.com/ipfs/bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze'));
+
+            expect(result).toBe(false);
+            expect(type).toBe('all');
+          },
+        );
+  
+        // CID should be blocked
+        expectedToBeBlocked.forEach(async (entry) => {
+          await withPhishingDetector(
+            [
+              {
+                allowlist: [],
+                blocklist: [
+                  "QmUDBVyGwqKdSayk7kDKUaj9J41Ft1DWizcKUx5UmgMgGy",
+                  "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m",
+                  "example.com"
+                ],
+                fuzzylist: [],
+                name: 'first',
+                tolerance: 2,
+                version: 1,
+              },
+            ],
+            async ({ detector }) => {
+              const { result, type } = detector.check(formatHostnameToUrl(entry));
+              
+              expect(result).toBe(true);
+              expect(type).toBe('blocklist');
+            },
+          );
+        });
     });
+  });
 
     describe('with legacy config', () => {
       it('changes the type to whitelist when the result is allowlist', async () => {
@@ -937,7 +1006,7 @@ describe('PhishingDetector', () => {
             whitelist: ['allowed.com'],
           },
           async ({ detector }) => {
-            const { type, result } = detector.check('allowed.com');
+            const { type, result } = detector.check(formatHostnameToUrl('allowed.com'));
 
             expect(type).toBe('whitelist');
             expect(result).toBe(false);
@@ -954,7 +1023,7 @@ describe('PhishingDetector', () => {
             whitelist: [],
           },
           async ({ detector }) => {
-            const { type, result } = detector.check('blocked.com');
+            const { type, result } = detector.check(formatHostnameToUrl('blocked.com'));
 
             expect(type).toBe('blacklist');
             expect(result).toBe(true);
@@ -971,7 +1040,7 @@ describe('PhishingDetector', () => {
             whitelist: [],
           },
           async ({ detector }) => {
-            const { type, result } = detector.check('fupzy.com');
+            const { type, result } = detector.check(formatHostnameToUrl('fupzy.com'));
 
             expect(type).toBe('fuzzy');
             expect(result).toBe(true);

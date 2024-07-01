@@ -117,14 +117,15 @@ export class PhishingDetector {
   }
 
   /**
-   * Check if a domain is known to be malicious or similar to a common phishing
-   * target.
+   * Check if a url is known to be malicious or similar to a common phishing
+   * target. This will check the hostname and IPFS CID that is sometimes
+   * located in the path.
    *
-   * @param domain - The domain to check.
+   * @param url - The url to check.
    * @returns The result of the check.
    */
-  check(domain: string): PhishingDetectorResult {
-    const result = this.#check(domain);
+  check(url: string): PhishingDetectorResult {
+    const result = this.#check(url);
 
     if (this.#legacyConfig) {
       let legacyType = result.type;
@@ -142,7 +143,9 @@ export class PhishingDetector {
     return result;
   }
 
-  #check(domain: string): PhishingDetectorResult {
+  #check(url: string): PhishingDetectorResult {
+    let domain = new URL(url).hostname;
+
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
     const source = domainToParts(fqdn);
@@ -201,7 +204,42 @@ export class PhishingDetector {
       }
     }
 
+    // Check for IPFS CID related blocklist entries
+    if(url.match(ipfsCidRegex(false))) { // there is a cID string somewhere
+      // Determine if any of the entries are ipfs cids
+      // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
+      const cID = url.match(ipfsCidRegex(false))![0] ?? '';
+      for (const { blocklist, name, version } of this.#configs) {
+        const blocklistMatch = blocklist.filter((entries) => entries.length === 1).find((entries) => {
+          return entries[0] === cID;
+        });
+        if (blocklistMatch) {
+          return { 
+            name, 
+            match: cID,
+            result: true, 
+            type: 'blocklist', 
+            version: version === undefined ? version : String(version), 
+          }
+        }
+      }
+    }
+
     // matched nothing, PASS
     return { result: false, type: 'all' };
   }
+}
+
+/**
+ * 
+ * @param startEndMatch (bool) if true then matches the entire string ^$.
+ * @returns 
+ */
+function ipfsCidRegex(startEndMatch = true) {
+  // regex from https://stackoverflow.com/a/67176726
+  let reg = "Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,}";
+  if(startEndMatch) {
+    reg = ["^", reg, "$"].join("");
+  }
+  return new RegExp(reg, "");
 }
