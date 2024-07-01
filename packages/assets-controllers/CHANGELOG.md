@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [34.0.0]
+
+### Added
+
+- Add `AccountTrackerControllerGetStateAction`, `AccountTrackerControllerActions`, `AccountTrackerControllerStateChangeEvent`, and `AccountTrackerControllerEvents` types ([#4407](https://github.com/MetaMask/core/pull/4407))
+- Add `setIntervalLength` and `getIntervalLength` methods to `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - `setIntervalLength` replaces updating the polling interval via `configure`.
+
+### Changed
+
+- **BREAKING** `TokenBalancesController` messenger must allow the action `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` messenger must allow the action `AccountsController:getAccount`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `AccountsController:selectedAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenRatesController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenRatesController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `PreferencesController:stateChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokensController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount`.
+- **BREAKING** `TokensController` messenger must allow the event `AccountsController:selectedEvmAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- Upgrade AccountTrackerController to BaseControllerV2 ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** Convert `AccountInformation` from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** Rename `AccountTrackerState` to `AccountTrackerControllerState` and convert from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** `AccountTrackerController` now inherits from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The constructor now takes a single options object rather than three arguments. Some options have been removed; see later entries.
+- **BREAKING:** The `AccountTrackerController` messenger must now allow the actions `PreferencesController:getState`, `NetworkController:getState`, and `NetworkController:getNetworkClientById` ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** The `refresh` method is no longer pre-bound to the controller ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - You may now need to pre-bind it e.g. `accountTrackerController.refresh.bind(accountTrackerController)`.
+- Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
+
+### Removed
+
+- **BREAKING** `TokensController` removes `selectedAddress` constructor argument. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` removes `selectedAddress` constructor argument. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING:** Remove `AccountTrackerConfig` type ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - Some of these properties have been merged into the options that the `AccountTrackerController` constructor takes.
+- **BREAKING:** Remove `config` property and `configure` method from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The controller now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `provider`, `getMultiAccountBalancesEnabled`, `getCurrentChainId`, and `getNetworkClientById` from configuration options for `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The provider is now obtained directly from the network controller on demand.
+  - The messenger is now used in place of the callbacks.
+
 ## [33.0.0]
 
 ### Added
@@ -940,7 +981,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@33.0.0...@metamask/assets-controllers@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@32.0.0...@metamask/assets-controllers@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@31.0.0...@metamask/assets-controllers@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@30.0.0...@metamask/assets-controllers@31.0.0

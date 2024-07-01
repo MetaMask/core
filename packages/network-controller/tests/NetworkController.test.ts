@@ -58,7 +58,7 @@ jest.mock('uuid', () => {
 
   return {
     ...actual,
-    v4: jest.fn().mockReturnValue('UUID'),
+    v4: jest.fn(),
   };
 });
 
@@ -126,8 +126,6 @@ describe('NetworkController', () => {
   let uuidCounter = 0;
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     uuidV4Mock.mockImplementation(() => {
       const uuid = `UUID-${uuidCounter}`;
       uuidCounter += 1;

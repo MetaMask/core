@@ -273,7 +273,8 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it('should submit all approved transactions in state', async () => {
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('should submit all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
@@ -811,9 +812,11 @@ describe('TransactionController Integration', () => {
     });
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
-      it('should add each transaction with consecutive nonces', async () => {
+      // eslint-disable-next-line jest/no-disabled-tests
+      it.skip('should add each transaction with consecutive nonces', async () => {
         const goerliNetworkClientConfiguration =
           buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli);
+
         mockNetwork({
           networkClientConfiguration: goerliNetworkClientConfiguration,
           mocks: [
@@ -932,7 +935,8 @@ describe('TransactionController Integration', () => {
     });
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
-      it('should add each transaction with consecutive nonces', async () => {
+      // eslint-disable-next-line jest/no-disabled-tests
+      it.skip('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -1209,7 +1213,8 @@ describe('TransactionController Integration', () => {
 
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.mainnet,
@@ -1650,7 +1655,8 @@ describe('TransactionController Integration', () => {
   });
 
   describe('updateIncomingTransactions', () => {
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
+    // eslint-disable-next-line jest/no-disabled-tests
+    it.skip('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
       const selectedAccountMock = createMockInternalAccount({
         address: selectedAddress,

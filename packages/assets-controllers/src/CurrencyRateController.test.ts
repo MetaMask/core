@@ -75,7 +75,6 @@ describe('CurrencyRateController', () => {
 
   afterEach(() => {
     clock.restore();
-    jest.restoreAllMocks();
   });
 
   it('should set default state', () => {

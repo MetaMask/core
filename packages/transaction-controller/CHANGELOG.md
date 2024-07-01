@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.1]
+
+### Changed
+
+- Document TransactionStatus enum ([#4380](https://github.com/MetaMask/core/pull/4380))
+- Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
+
 ## [33.0.0]
 
 ### Changed
@@ -896,7 +903,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.1...HEAD
+[33.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...@metamask/transaction-controller@33.0.1
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...@metamask/transaction-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0

@@ -14,10 +14,6 @@ const CONTRACT_NAME_2_MOCK = 'TestContractName2';
 describe('EtherscanNameProvider', () => {
   const handleFetchMock = jest.mocked(handleFetch);
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new EtherscanNameProvider().getMetadata();

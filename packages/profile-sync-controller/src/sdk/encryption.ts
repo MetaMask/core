@@ -162,8 +162,8 @@ class EncryptorDecryptor {
   }
 }
 
-const encryption = new EncryptorDecryptor();
-export default encryption;
+export const Encryption = new EncryptorDecryptor();
+export default Encryption;
 
 /**
  * Create a SHA-256 hash from a given string.

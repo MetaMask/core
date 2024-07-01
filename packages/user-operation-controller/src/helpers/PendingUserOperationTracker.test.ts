@@ -121,7 +121,6 @@ describe('PendingUserOperationTracker', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
     jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
 
     messengerMock.call.mockReturnValue({

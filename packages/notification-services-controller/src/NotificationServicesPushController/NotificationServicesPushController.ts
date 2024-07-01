@@ -69,6 +69,9 @@ export type NotificationServicesPushControllerMessenger =
     AllowedEvents['type']
   >;
 
+export const defaultState: NotificationServicesPushControllerState = {
+  fcmToken: '',
+};
 const metadata = {
   fcmToken: {
     persist: true,
@@ -115,7 +118,7 @@ type ControllerConfig = {
  *
  * @augments {BaseController<typeof controllerName, NotificationServicesPushControllerState, NotificationServicesPushControllerMessenger>}
  */
-export class NotificationServicesPushController extends BaseController<
+export default class NotificationServicesPushController extends BaseController<
   typeof controllerName,
   NotificationServicesPushControllerState,
   NotificationServicesPushControllerMessenger
@@ -141,9 +144,7 @@ export class NotificationServicesPushController extends BaseController<
       messenger,
       metadata,
       name: controllerName,
-      state: {
-        fcmToken: state?.fcmToken || '',
-      },
+      state: { ...defaultState, ...state },
     });
 
     this.#env = env;
