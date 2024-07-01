@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: Authentication Controller - add mobile OIDC support ([#4480](https://github.com/MetaMask/core/pull/4480))
+- refactor: AuthenticationController - Add Async MetaMetrics Id support ([#4477](https://github.com/MetaMask/core/pull/4477))
+
 ## [0.1.1]
 
 ### Added
