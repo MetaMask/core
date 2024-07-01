@@ -929,7 +929,72 @@ describe('PhishingDetector', () => {
           },
         );
       });
+
+      it('blocks ipfs cid across various formats (cids located in subdomains and paths)', async () => {
+
+        // Gateways differ on where the CID is... sometimes in the path, sometimes in a magic subdomain
+        const expectedToBeBlocked = [
+          "ipfs.io/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "gateway.pinata.cloud/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "cloudflare-ipfs.com/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "ipfs.eth.aragon.network/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect",
+          "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.dweb.link/#x-ipfs-companion-no-redirect",
+          "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.cf-ipfs.com/#x-ipfs-companion-no-redirect",
+          "example.com",
+          "example.com/foo/bar",
+        ]
+  
+        // CID should not blocked
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [
+                "QmUDBVyGwqKdSayk7kDKUaj9J41Ft1DWizcKUx5UmgMgGy",
+                "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m",
+                "example.com"
+              ],
+              fuzzylist: [],
+              name: 'first',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector }) => {
+            const { result, type } = detector.check(formatHostnameToUrl('cf-ipfs.com/ipfs/bafybeiaysi4s6lnjev27ln5icwm6tueaw2vdykrtjkwiphwekaywqhcjze'));
+
+            expect(result).toBe(false);
+            expect(type).toBe('all');
+          },
+        );
+  
+        // CID should be blocked
+        expectedToBeBlocked.forEach(async (entry) => {
+          await withPhishingDetector(
+            [
+              {
+                allowlist: [],
+                blocklist: [
+                  "QmUDBVyGwqKdSayk7kDKUaj9J41Ft1DWizcKUx5UmgMgGy",
+                  "bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m",
+                  "example.com"
+                ],
+                fuzzylist: [],
+                name: 'first',
+                tolerance: 2,
+                version: 1,
+              },
+            ],
+            async ({ detector }) => {
+              const { result, type } = detector.check(formatHostnameToUrl(entry));
+              
+              expect(result).toBe(true);
+              expect(type).toBe('blocklist');
+            },
+          );
+        });
     });
+  });
 
     describe('with legacy config', () => {
       it('changes the type to whitelist when the result is allowlist', async () => {
