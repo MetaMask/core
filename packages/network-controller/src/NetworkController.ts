@@ -358,6 +358,7 @@ export type NetworkControllerOptions = {
   trackMetaMetricsEvent: () => void;
   infuraProjectId: string;
   state?: Partial<NetworkState>;
+  log?: Logger;
 };
 
 export const defaultState: NetworkState = {
@@ -434,15 +435,13 @@ export class NetworkController extends BaseController<
 
   #log: Logger | undefined;
 
-  constructor(
-    {
-      messenger,
-      state,
-      infuraProjectId,
-      trackMetaMetricsEvent,
-    }: NetworkControllerOptions,
-    log?: Logger,
-  ) {
+  constructor({
+    messenger,
+    state,
+    infuraProjectId,
+    trackMetaMetricsEvent,
+    log,
+  }: NetworkControllerOptions) {
     super({
       name,
       metadata: {
