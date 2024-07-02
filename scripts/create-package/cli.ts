@@ -20,11 +20,9 @@ export default async function cli(
     // Disable --version. This is an internal tool and it doesn't have a version.
     .version(false)
     .usage('$0 [args]')
-    // Typecast: the CommandModule<T, U>[] signature does in fact exist, but it is
-    // missing from our yargs types.
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .command(commands as any)
+    // @ts-expect-error: The CommandModule<T, U>[] signature does in fact exist,
+    // but it is missing from our yargs types.
+    .command(commands)
     .strict()
     .check((args) => {
       // Trim all strings and ensure they are not empty.
