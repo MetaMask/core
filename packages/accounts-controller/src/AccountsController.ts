@@ -395,7 +395,7 @@ export class AccountsController extends BaseController<
     const account = this.getAccountExpect(accountId);
 
     if (
-      this.listAccounts().find(
+      this.listMultichainAccounts().find(
         (internalAccount) =>
           internalAccount.metadata.name === accountName &&
           internalAccount.id !== accountId,
@@ -409,6 +409,7 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
+      // @ts-ignore
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
@@ -629,7 +630,7 @@ export class AccountsController extends BaseController<
       }
 
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
-        this.listAccounts().reduce(
+        this.listMultichainAccounts().reduce(
           (accumulator, account) => {
             if (account.metadata.keyring.type === KeyringTypes.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
@@ -767,7 +768,7 @@ export class AccountsController extends BaseController<
   #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
-    const accounts = this.listAccounts().filter(
+    const accounts = this.listMultichainAccounts().filter(
       (account) => account.metadata.snap,
     );
 
@@ -794,21 +795,23 @@ export class AccountsController extends BaseController<
    * @returns The list of accounts associcated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
-    return (accounts ?? this.listAccounts()).filter((internalAccount) => {
-      // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
-      // to group those accounts together!
-      if (
-        keyringType === KeyringTypes.hd ||
-        keyringType === KeyringTypes.simple
-      ) {
-        return (
-          internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-          internalAccount.metadata.keyring.type === KeyringTypes.simple
-        );
-      }
+    return (accounts ?? this.listMultichainAccounts()).filter(
+      (internalAccount) => {
+        // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
+        // to group those accounts together!
+        if (
+          keyringType === KeyringTypes.hd ||
+          keyringType === KeyringTypes.simple
+        ) {
+          return (
+            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
+            internalAccount.metadata.keyring.type === KeyringTypes.simple
+          );
+        }
 
-      return internalAccount.metadata.keyring.type === keyringType;
-    });
+        return internalAccount.metadata.keyring.type === keyringType;
+      },
+    );
   }
 
   /**
@@ -850,6 +853,9 @@ export class AccountsController extends BaseController<
       keyringType,
       accounts,
     );
+    console.log('accounts', accounts);
+    console.log('keyringType', keyringType);
+    console.log('keyringAccounts', keyringAccounts);
     const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
       (maxInternalAccountIndex, internalAccount) => {
         // We **DO NOT USE** `\d+` here to only consider valid "human"
@@ -944,7 +950,7 @@ export class AccountsController extends BaseController<
         ...newAccount.metadata,
         name: accountName,
         importTime: Date.now(),
-        lastSelected: 0,
+        lastSelected: isFirstAccount ? Date.now() : 0,
       },
     };
 
@@ -952,6 +958,9 @@ export class AccountsController extends BaseController<
   }
 
   #publishAccountChangeEvent(account: InternalAccount) {
+    console.log('publishing new account');
+    console.log('previosu', this.state.internalAccounts.selectedAccount);
+    console.log('new', account);
     if (isEvmAccountType(account.type)) {
       this.messagingSystem.publish(
         'AccountsController:selectedEvmAccountChange',
@@ -982,6 +991,7 @@ export class AccountsController extends BaseController<
    * Retrieves the value of a specific metadata key for an existing account.
    * @param accountId - The ID of the account.
    * @param metadataKey - The key of the metadata to retrieve.
+   * @param account - The account object to retrieve the metadata key from.
    * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -989,8 +999,9 @@ export class AccountsController extends BaseController<
   #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
     accountId: string,
     metadataKey: T,
+    account?: InternalAccount,
   ): InternalAccount['metadata'][T] | undefined {
-    const internalAccount = this.getAccount(accountId);
+    const internalAccount = account ?? this.getAccount(accountId);
     return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
