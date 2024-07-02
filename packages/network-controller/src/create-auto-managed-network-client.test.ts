@@ -1,5 +1,5 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
-import { promisify } from 'util';
+import type { JsonRpcSuccess, Json } from '@metamask/utils';
 
 import { mockNetwork } from '../../../tests/mock-network';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
@@ -69,6 +69,7 @@ describe('createAutoManagedNetworkClient', () => {
         expect('eventNames' in provider).toBe(true);
         expect('send' in provider).toBe(true);
         expect('sendAsync' in provider).toBe(true);
+        expect('request' in provider).toBe(true);
       });
 
       it('returns a provider proxy that acts like a provider, forwarding requests to the network', async () => {
@@ -91,13 +92,13 @@ describe('createAutoManagedNetworkClient', () => {
           networkClientConfiguration,
         );
 
-        const { result } = await promisify(provider.sendAsync).call(provider, {
+        const response = await provider.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'test_method',
           params: [],
         });
-        expect(result).toBe('test response');
+        expect((response as JsonRpcSuccess<Json>).result).toBe('test response');
       });
 
       it('creates the network client only once, even when the provider proxy is used to make requests multiple times', async () => {
@@ -125,13 +126,13 @@ describe('createAutoManagedNetworkClient', () => {
           networkClientConfiguration,
         );
 
-        await promisify(provider.sendAsync).call(provider, {
+        await provider.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'test_method',
           params: [],
         });
-        await promisify(provider.sendAsync).call(provider, {
+        await provider.request({
           id: 2,
           jsonrpc: '2.0',
           method: 'test_method',
