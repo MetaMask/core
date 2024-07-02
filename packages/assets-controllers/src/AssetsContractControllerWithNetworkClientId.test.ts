@@ -21,25 +21,31 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should throw when getting ERC-20 token balance when networkClientId is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:getERC20BalanceOf`,
-        ERC20_UNI_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        'invalidNetworkClientId',
-      ),
-    ).rejects.toThrow('No custom network client was found');
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getERC20BalanceOf`,
+          ERC20_UNI_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          'invalidNetworkClientId',
+        ),
+    ).rejects.toThrow(
+      `No custom network client was found with the ID "invalidNetworkClientId".`,
+    );
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
   it('should throw when getting ERC-20 token decimal when networkClientId is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:getERC20TokenDecimals`,
-        ERC20_UNI_ADDRESS,
-        'invalidNetworkClientId',
-      ),
-    ).rejects.toThrow('No custom network client was found');
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getERC20TokenDecimals`,
+          ERC20_UNI_ADDRESS,
+          'invalidNetworkClientId',
+        ),
+    ).rejects.toThrow(
+      `No custom network client was found with the ID "invalidNetworkClientId".`,
+    );
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
 
@@ -138,13 +144,14 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should throw error when getting ERC-721 token standard and details when networkClientId is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:getTokenStandardAndDetails`,
-        ERC20_UNI_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        undefined,
-        'invalidNetworkClientId',
-      ),
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getTokenStandardAndDetails`,
+          ERC20_UNI_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          undefined,
+          'invalidNetworkClientId',
+        ),
     ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
@@ -153,13 +160,14 @@ describe('AssetsContractController with NetworkClientId', () => {
     const { messenger } = await setupAssetContractControllers();
     const error = 'Unable to determine contract standard';
     await expect(
-      messenger.call(
-        `AssetsContractController:getTokenStandardAndDetails`,
-        'BaDeRc20AdDrEsS',
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        undefined,
-        'mainnet',
-      ),
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getTokenStandardAndDetails`,
+          'BaDeRc20AdDrEsS',
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          undefined,
+          'mainnet',
+        ),
     ).rejects.toThrow(error);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
@@ -558,11 +566,12 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should throw error when getting ERC-721 NFT symbol when networkClientId is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:getERC721AssetSymbol`,
-        ERC721_GODS_ADDRESS,
-        'invalidNetworkClientId',
-      ),
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getERC721AssetSymbol`,
+          ERC721_GODS_ADDRESS,
+          'invalidNetworkClientId',
+        ),
     ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
@@ -672,12 +681,13 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should throw error when getting ERC-721 NFT ownership using networkClientId that is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:getERC721OwnerOf`,
-        ERC721_GODS_ADDRESS,
-        '148332',
-        'invalidNetworkClientId',
-      ),
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getERC721OwnerOf`,
+          ERC721_GODS_ADDRESS,
+          '148332',
+          'invalidNetworkClientId',
+        ),
     ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
@@ -792,15 +802,16 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should throw error when transferring single ERC-1155 when networkClientId is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:transferSingleERC1155`,
-        ERC1155_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        ERC1155_ID,
-        '1',
-        'invalidNetworkClientId',
-      ),
+      async () =>
+        await messenger.call(
+          `AssetsContractController:transferSingleERC1155`,
+          ERC1155_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          ERC1155_ID,
+          '1',
+          'invalidNetworkClientId',
+        ),
     ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
@@ -843,13 +854,14 @@ describe('AssetsContractController with NetworkClientId', () => {
   it('should throw error when getting the balance of a ERC-1155 NFT when networkClientId is invalid', async () => {
     const { messenger } = await setupAssetContractControllers();
     await expect(
-      messenger.call(
-        `AssetsContractController:getERC1155BalanceOf`,
-        TEST_ACCOUNT_PUBLIC_ADDRESS,
-        ERC1155_ADDRESS,
-        ERC1155_ID,
-        'invalidNetworkClientId',
-      ),
+      async () =>
+        await messenger.call(
+          `AssetsContractController:getERC1155BalanceOf`,
+          TEST_ACCOUNT_PUBLIC_ADDRESS,
+          ERC1155_ADDRESS,
+          ERC1155_ID,
+          'invalidNetworkClientId',
+        ),
     ).rejects.toThrow('No custom network client was found');
     messenger.clearEventSubscriptions('NetworkController:stateChange');
   });
