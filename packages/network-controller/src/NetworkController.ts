@@ -166,16 +166,22 @@ export type RpcEndpoint = InfuraRpcEndpoint | CustomRpcEndpoint;
  */
 export type NetworkConfiguration = {
   /**
-   * An optional URL that allows the user to view blocks and transactions that
-   * have occurred on the chain.
+   * A set of URLs that allows the user to view activity that has occurred on
+   * the chain.
    */
-  blockExplorerUrl?: string;
+  blockExplorerUrls: string[];
   /**
    * The ID of the chain. Represented in hexadecimal format with a leading "0x"
    * instead of decimal format so that when viewed out of context it can be
    * unambiguously interpreted.
    */
   chainId: Hex;
+  /**
+   * A reference to a URL that the client will use by default to allow the user
+   * to view activity that has occurred on the chain. This index must refer to
+   * an item in `blockExplorerUrls`.
+   */
+  defaultBlockExplorerUrlIndex?: number;
   /**
    * A reference to an RPC endpoint that all requests will use by default in order to
    * interact with the chain. This index must refer to an item in
@@ -511,6 +517,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
     const rpcEndpointUrl = `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`;
 
     const networkConfiguration: NetworkConfiguration = {
+      blockExplorerUrls: [],
       chainId,
       defaultRpcEndpointIndex: 0,
       name: NetworkNickname[infuraNetworkType],
@@ -646,6 +653,18 @@ function validateNetworkControllerState(state: NetworkState) {
     if (chainId !== networkConfiguration.chainId) {
       throw new Error(
         `NetworkController state has invalid \`networkConfigurationsByChainId\`: Network configuration '${networkConfiguration.name}' is filed under '${chainId}' which does not match its \`chainId\` of '${networkConfiguration.chainId}'`,
+      );
+    }
+
+    if (
+      networkConfiguration.blockExplorerUrls.length > 0 &&
+      (networkConfiguration.defaultBlockExplorerUrlIndex === undefined ||
+        networkConfiguration.blockExplorerUrls[
+          networkConfiguration.defaultBlockExplorerUrlIndex
+        ] === undefined)
+    ) {
+      throw new Error(
+        `NetworkController state has invalid \`networkConfigurationsByChainId\`: Network configuration '${networkConfiguration.name}' has a \`defaultBlockExplorerUrlIndex\` that does not refer to an entry in \`blockExplorerUrls\``,
       );
     }
 
@@ -1363,8 +1382,9 @@ export class NetworkController extends BaseController<
    */
   addNetwork(fields: AddNetworkFields): NetworkConfiguration {
     const {
-      blockExplorerUrl,
+      blockExplorerUrls,
       chainId,
+      defaultBlockExplorerUrlIndex,
       defaultRpcEndpointIndex,
       nativeCurrency,
       rpcEndpoints: setOfRpcEndpointFields,
@@ -1397,11 +1417,13 @@ export class NetworkController extends BaseController<
       );
     }
 
-    if (blockExplorerUrl !== undefined && !isValidUrl(blockExplorerUrl)) {
+    if (
+      blockExplorerUrls.length > 0 &&
+      (defaultBlockExplorerUrlIndex === undefined ||
+        blockExplorerUrls[defaultBlockExplorerUrlIndex] === undefined)
+    ) {
       throw new Error(
-        `Cannot add network: \`blockExplorerUrl\` ${inspect(
-          blockExplorerUrl,
-        )} is an invalid URL`,
+        `Cannot add network: \`defaultBlockExplorerUrlIndex\` must refer to an entry in \`blockExplorerUrls\``,
       );
     }
 
@@ -1613,8 +1635,9 @@ export class NetworkController extends BaseController<
 
     const existingChainId = chainId;
     const {
-      blockExplorerUrl: newBlockExplorerUrl,
+      blockExplorerUrls: newBlockExplorerUrls,
       chainId: newChainId,
+      defaultBlockExplorerUrlIndex: newDefaultBlockExplorerUrlIndex,
       defaultRpcEndpointIndex: newDefaultRpcEndpointIndex,
       nativeCurrency: newNativeTokenName,
       rpcEndpoints: setOfNewRpcEndpointFields,
@@ -1655,11 +1678,13 @@ export class NetworkController extends BaseController<
       }
     }
 
-    if (newBlockExplorerUrl !== undefined && !isValidUrl(newBlockExplorerUrl)) {
+    if (
+      newBlockExplorerUrls.length > 0 &&
+      (newDefaultBlockExplorerUrlIndex === undefined ||
+        newBlockExplorerUrls[newDefaultBlockExplorerUrlIndex] === undefined)
+    ) {
       throw new Error(
-        `Cannot update network: \`blockExplorerUrl\` ${inspect(
-          newBlockExplorerUrl,
-        )} is an invalid URL`,
+        `Cannot update network: \`defaultBlockExplorerUrlIndex\` must refer to an entry in \`blockExplorerUrls\``,
       );
     }
 

@@ -198,6 +198,7 @@ export function buildNetworkConfiguration(
 ): NetworkConfiguration {
   return buildTestObject(
     {
+      blockExplorerUrls: () => [],
       chainId: () => '0x1337',
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointIndex: () => undefined,
@@ -239,6 +240,7 @@ export function buildCustomNetworkConfiguration(
 ): NetworkConfiguration {
   return buildTestObject(
     {
+      blockExplorerUrls: () => [],
       chainId: () => '0x1337' as const,
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointIndex: () => undefined,
@@ -284,6 +286,7 @@ export function buildInfuraNetworkConfiguration(
   const defaultRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
   return buildTestObject(
     {
+      blockExplorerUrls: () => [],
       chainId: () => ChainId[infuraNetworkType],
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointIndex: () => undefined,
@@ -360,6 +363,7 @@ export function buildAddNetworkFields(
 ): AddNetworkFields {
   return buildTestObject(
     {
+      blockExplorerUrls: () => [],
       chainId: () => '0x1337' as const,
       // @ts-expect-error We will make sure that this property is set below.
       defaultRpcEndpointIndex: () => undefined,

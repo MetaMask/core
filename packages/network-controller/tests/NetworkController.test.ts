@@ -177,6 +177,63 @@ describe('NetworkController', () => {
       );
     });
 
+    it('throws if a network configuration has an invalid defaultBlockExplorerUrlIndex', () => {
+      const messenger = buildMessenger();
+      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      expect(
+        () =>
+          new NetworkController({
+            messenger: restrictedMessenger,
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration({
+                  blockExplorerUrls: ['https://block.explorer'],
+                  defaultBlockExplorerUrlIndex: 99999,
+                  chainId: '0x1337',
+                  name: 'Test Network',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      url: 'https://some.endpoint',
+                    }),
+                  ],
+                }),
+              },
+            },
+            infuraProjectId: 'infura-project-id',
+          }),
+      ).toThrow(
+        "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultBlockExplorerUrlIndex` that does not refer to an entry in `blockExplorerUrls`",
+      );
+    });
+
+    it('throws if a network configuration has a non-empty blockExplorerUrls but not a defaultBlockExplorerUrlIndex', () => {
+      const messenger = buildMessenger();
+      const restrictedMessenger = buildNetworkControllerMessenger(messenger);
+      expect(
+        () =>
+          new NetworkController({
+            messenger: restrictedMessenger,
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration({
+                  blockExplorerUrls: ['https://block.explorer'],
+                  chainId: '0x1337',
+                  name: 'Test Network',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      url: 'https://some.endpoint',
+                    }),
+                  ],
+                }),
+              },
+            },
+            infuraProjectId: 'infura-project-id',
+          }),
+      ).toThrow(
+        "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultBlockExplorerUrlIndex` that does not refer to an entry in `blockExplorerUrls`",
+      );
+    });
+
     it('throws if a network configuration has an invalid defaultRpcEndpointIndex', () => {
       const messenger = buildMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
@@ -290,6 +347,7 @@ describe('NetworkController', () => {
           Object {
             "networkConfigurationsByChainId": Object {
               "0x1": Object {
+                "blockExplorerUrls": Array [],
                 "chainId": "0x1",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Mainnet",
@@ -304,6 +362,7 @@ describe('NetworkController', () => {
                 ],
               },
               "0x5": Object {
+                "blockExplorerUrls": Array [],
                 "chainId": "0x5",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Goerli",
@@ -318,6 +377,7 @@ describe('NetworkController', () => {
                 ],
               },
               "0xaa36a7": Object {
+                "blockExplorerUrls": Array [],
                 "chainId": "0xaa36a7",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Sepolia",
@@ -332,6 +392,7 @@ describe('NetworkController', () => {
                 ],
               },
               "0xe704": Object {
+                "blockExplorerUrls": Array [],
                 "chainId": "0xe704",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Linea Goerli",
@@ -346,6 +407,7 @@ describe('NetworkController', () => {
                 ],
               },
               "0xe705": Object {
+                "blockExplorerUrls": Array [],
                 "chainId": "0xe705",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Linea Sepolia",
@@ -360,6 +422,7 @@ describe('NetworkController', () => {
                 ],
               },
               "0xe708": Object {
+                "blockExplorerUrls": Array [],
                 "chainId": "0xe708",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Linea Mainnet",
@@ -388,7 +451,9 @@ describe('NetworkController', () => {
             selectedNetworkClientId: InfuraNetworkType.goerli,
             networkConfigurationsByChainId: {
               [ChainId.goerli]: {
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: ChainId.goerli,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Goerli',
                 nativeCurrency: 'GoerliETH',
@@ -415,7 +480,11 @@ describe('NetworkController', () => {
             Object {
               "networkConfigurationsByChainId": Object {
                 "0x5": Object {
+                  "blockExplorerUrls": Array [
+                    "https://block.explorer",
+                  ],
                   "chainId": "0x5",
+                  "defaultBlockExplorerUrlIndex": 0,
                   "defaultRpcEndpointIndex": 0,
                   "name": "Goerli",
                   "nativeCurrency": "GoerliETH",
@@ -2882,22 +2951,6 @@ describe('NetworkController', () => {
       });
     });
 
-    it('throws if the given blockExplorerUrl field is an invalid URL', async () => {
-      await withController(({ controller }) => {
-        expect(() =>
-          controller.addNetwork(
-            buildAddNetworkFields({
-              blockExplorerUrl: 'clearly-not-a-url',
-            }),
-          ),
-        ).toThrow(
-          new Error(
-            "Cannot add network: `blockExplorerUrl` 'clearly-not-a-url' is an invalid URL",
-          ),
-        );
-      });
-    });
-
     it('throws if the rpcEndpoints field is an empty array', async () => {
       await withController(({ controller }) => {
         expect(() =>
@@ -3251,6 +3304,7 @@ describe('NetworkController', () => {
                 buildInfuraRpcEndpoint(infuraNetworkType);
 
               controller.addNetwork({
+                blockExplorerUrls: [],
                 chainId: infuraChainId,
                 defaultRpcEndpointIndex: 1,
                 name: infuraNetworkType,
@@ -3348,7 +3402,9 @@ describe('NetworkController', () => {
             },
             ({ controller }) => {
               controller.addNetwork({
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: infuraChainId,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
@@ -3375,7 +3431,9 @@ describe('NetworkController', () => {
               expect(
                 controller.state.networkConfigurationsByChainId[infuraChainId],
               ).toStrictEqual({
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: infuraChainId,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
@@ -3426,7 +3484,9 @@ describe('NetworkController', () => {
               );
 
               controller.addNetwork({
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: infuraChainId,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
@@ -3443,7 +3503,9 @@ describe('NetworkController', () => {
               });
 
               expect(networkAddedEventListener).toHaveBeenCalledWith({
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: infuraChainId,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
@@ -3482,7 +3544,9 @@ describe('NetworkController', () => {
             },
             ({ controller }) => {
               const newNetworkConfiguration = controller.addNetwork({
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: infuraChainId,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
@@ -3499,7 +3563,9 @@ describe('NetworkController', () => {
               });
 
               expect(newNetworkConfiguration).toStrictEqual({
+                blockExplorerUrls: ['https://block.explorer'],
                 chainId: infuraChainId,
+                defaultBlockExplorerUrlIndex: 0,
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
@@ -3543,6 +3609,7 @@ describe('NetworkController', () => {
           ({ controller }) => {
             expect(() =>
               controller.addNetwork({
+                blockExplorerUrls: [],
                 chainId: '0x1337',
                 defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
@@ -3572,6 +3639,7 @@ describe('NetworkController', () => {
 
         await withController(({ controller }) => {
           controller.addNetwork({
+            blockExplorerUrls: [],
             chainId: '0x1337',
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
@@ -3591,7 +3659,6 @@ describe('NetworkController', () => {
           });
 
           const networkClient1 = controller.getNetworkClientById(
-            // 'mm:ncli:custom:https:443:test.endpoint/1',
             'AAAA-AAAA-AAAA-AAAA',
           );
           expect(networkClient1.configuration).toStrictEqual({
@@ -3601,7 +3668,6 @@ describe('NetworkController', () => {
             type: NetworkClientType.Custom,
           });
           const networkClient2 = controller.getNetworkClientById(
-            // 'mm:ncli:custom:https:443:test.endpoint/2',
             'BBBB-BBBB-BBBB-BBBB',
           );
           expect(networkClient2.configuration).toStrictEqual({
@@ -3620,7 +3686,9 @@ describe('NetworkController', () => {
 
         await withController(({ controller }) => {
           controller.addNetwork({
+            blockExplorerUrls: ['https://block.explorer'],
             chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
@@ -3641,7 +3709,9 @@ describe('NetworkController', () => {
           expect(
             controller.state.networkConfigurationsByChainId['0x1337'],
           ).toStrictEqual({
+            blockExplorerUrls: ['https://block.explorer'],
             chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
@@ -3674,7 +3744,9 @@ describe('NetworkController', () => {
           );
 
           controller.addNetwork({
+            blockExplorerUrls: ['https://block.explorer'],
             chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
@@ -3688,7 +3760,9 @@ describe('NetworkController', () => {
           });
 
           expect(networkAddedEventListener).toHaveBeenCalledWith({
+            blockExplorerUrls: ['https://block.explorer'],
             chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
@@ -3715,7 +3789,9 @@ describe('NetworkController', () => {
           );
 
           const newNetworkConfiguration = controller.addNetwork({
+            blockExplorerUrls: ['https://block.explorer'],
             chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
@@ -3729,7 +3805,9 @@ describe('NetworkController', () => {
           });
 
           expect(newNetworkConfiguration).toStrictEqual({
+            blockExplorerUrls: ['https://block.explorer'],
             chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
             defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
@@ -3820,34 +3898,6 @@ describe('NetworkController', () => {
           ).toThrow(
             new Error(
               `Cannot update network: New \`chainId\` '0xfffffffffffed' is invalid (must start with "0x" and not exceed the maximum)`,
-            ),
-          );
-        },
-      );
-    });
-
-    it('throws if the new blockExplorerUrl field is an invalid URL', async () => {
-      const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
-        chainId: '0x1337',
-      });
-
-      await withController(
-        {
-          state: buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-            networkConfigurationsByChainId: {
-              '0x1337': networkConfigurationToUpdate,
-            },
-          }),
-        },
-        ({ controller }) => {
-          expect(() =>
-            controller.updateNetwork('0x1337', {
-              ...networkConfigurationToUpdate,
-              blockExplorerUrl: 'clearly-not-a-url',
-            }),
-          ).toThrow(
-            new Error(
-              "Cannot update network: `blockExplorerUrl` 'clearly-not-a-url' is an invalid URL",
             ),
           );
         },
@@ -8676,6 +8726,7 @@ describe('NetworkController', () => {
           state: buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
             networkConfigurationsByChainId: {
               '0x1337': {
+                blockExplorerUrls: [],
                 chainId: '0x1337' as const,
                 defaultRpcEndpointIndex: 0,
                 name: 'Test Network 1',
@@ -8696,6 +8747,7 @@ describe('NetworkController', () => {
           controller.loadBackup({
             networkConfigurationsByChainId: {
               '0x2448': {
+                blockExplorerUrls: [],
                 chainId: '0x2448' as const,
                 defaultRpcEndpointIndex: 0,
                 name: 'Test Network 2',
@@ -8715,6 +8767,7 @@ describe('NetworkController', () => {
           expect(controller.state.networkConfigurationsByChainId).toStrictEqual(
             {
               '0x1337': {
+                blockExplorerUrls: [],
                 chainId: '0x1337' as const,
                 defaultRpcEndpointIndex: 0,
                 name: 'Test Network 1',
@@ -8729,6 +8782,7 @@ describe('NetworkController', () => {
                 ],
               },
               '0x2448': {
+                blockExplorerUrls: [],
                 chainId: '0x2448' as const,
                 defaultRpcEndpointIndex: 0,
                 name: 'Test Network 2',
