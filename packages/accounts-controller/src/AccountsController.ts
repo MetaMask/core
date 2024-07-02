@@ -381,17 +381,7 @@ export class AccountsController extends BaseController<
       currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (isEvmAccountType(account.type)) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedEvmAccountChange',
-        account,
-      );
-    }
-
-    this.messagingSystem.publish(
-      'AccountsController:selectedAccountChange',
-      account,
-    );
+    this.#publishAccountChangeEvent(account);
   }
 
   /**
@@ -759,6 +749,8 @@ export class AccountsController extends BaseController<
             },
           );
           currentState.internalAccounts.selectedAccount = accountToSelect.id;
+
+          this.#publishAccountChangeEvent(accountToSelect);
         }
       });
     }
@@ -952,6 +944,19 @@ export class AccountsController extends BaseController<
     };
 
     return accountsState;
+  }
+
+  #publishAccountChangeEvent(account: InternalAccount) {
+    if (isEvmAccountType(account.type)) {
+      this.messagingSystem.publish(
+        'AccountsController:selectedEvmAccountChange',
+        account,
+      );
+    }
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**
