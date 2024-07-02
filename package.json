@@ -33,7 +33,7 @@
     "setup": "yarn install",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
-    "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
+    "test:packages": "yarn jest --config ./jest.config.packages.js --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
     "update-readme-content": "ts-node scripts/update-readme-content.ts",
