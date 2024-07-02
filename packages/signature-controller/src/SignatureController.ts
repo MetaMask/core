@@ -42,6 +42,8 @@ import {
 } from '@metamask/message-manager';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import/no-nodejs-modules
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 
