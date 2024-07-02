@@ -177,7 +177,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('throws if a network configuration has an invalid defaultRpcEndpointUrl', () => {
+    it('throws if a network configuration has an invalid defaultRpcEndpointIndex', () => {
       const messenger = buildMessenger();
       const restrictedMessenger = buildNetworkControllerMessenger(messenger);
       expect(
@@ -189,10 +189,10 @@ describe('NetworkController', () => {
                 '0x1337': buildCustomNetworkConfiguration({
                   chainId: '0x1337',
                   name: 'Test Network',
-                  defaultRpcEndpointUrl: 'https://some.endpoint',
+                  defaultRpcEndpointIndex: 99999,
                   rpcEndpoints: [
                     buildCustomRpcEndpoint({
-                      url: 'https://different.endpoint',
+                      url: 'https://some.endpoint',
                     }),
                   ],
                 }),
@@ -201,7 +201,7 @@ describe('NetworkController', () => {
             infuraProjectId: 'infura-project-id',
           }),
       ).toThrow(
-        "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultRpcEndpointUrl` that does not match an entry in `rpcEndpoints`",
+        "NetworkController state has invalid `networkConfigurationsByChainId`: Network configuration 'Test Network' has a `defaultRpcEndpointIndex` that does not refer to an entry in `rpcEndpoints`",
       );
     });
 
@@ -291,7 +291,7 @@ describe('NetworkController', () => {
             "networkConfigurationsByChainId": Object {
               "0x1": Object {
                 "chainId": "0x1",
-                "defaultRpcEndpointUrl": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                "defaultRpcEndpointIndex": 0,
                 "name": "Mainnet",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
@@ -305,7 +305,7 @@ describe('NetworkController', () => {
               },
               "0x5": Object {
                 "chainId": "0x5",
-                "defaultRpcEndpointUrl": "https://goerli.infura.io/v3/{infuraProjectId}",
+                "defaultRpcEndpointIndex": 0,
                 "name": "Goerli",
                 "nativeCurrency": "GoerliETH",
                 "rpcEndpoints": Array [
@@ -319,7 +319,7 @@ describe('NetworkController', () => {
               },
               "0xaa36a7": Object {
                 "chainId": "0xaa36a7",
-                "defaultRpcEndpointUrl": "https://sepolia.infura.io/v3/{infuraProjectId}",
+                "defaultRpcEndpointIndex": 0,
                 "name": "Sepolia",
                 "nativeCurrency": "SepoliaETH",
                 "rpcEndpoints": Array [
@@ -333,7 +333,7 @@ describe('NetworkController', () => {
               },
               "0xe704": Object {
                 "chainId": "0xe704",
-                "defaultRpcEndpointUrl": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
+                "defaultRpcEndpointIndex": 0,
                 "name": "Linea Goerli",
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
@@ -347,7 +347,7 @@ describe('NetworkController', () => {
               },
               "0xe705": Object {
                 "chainId": "0xe705",
-                "defaultRpcEndpointUrl": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                "defaultRpcEndpointIndex": 0,
                 "name": "Linea Sepolia",
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
@@ -361,7 +361,7 @@ describe('NetworkController', () => {
               },
               "0xe708": Object {
                 "chainId": "0xe708",
-                "defaultRpcEndpointUrl": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                "defaultRpcEndpointIndex": 0,
                 "name": "Linea Mainnet",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
@@ -389,8 +389,7 @@ describe('NetworkController', () => {
             networkConfigurationsByChainId: {
               [ChainId.goerli]: {
                 chainId: ChainId.goerli,
-                defaultRpcEndpointUrl:
-                  'https://goerli.infura.io/v3/{infuraProjectId}',
+                defaultRpcEndpointIndex: 0,
                 name: 'Goerli',
                 nativeCurrency: 'GoerliETH',
                 rpcEndpoints: [
@@ -417,7 +416,7 @@ describe('NetworkController', () => {
               "networkConfigurationsByChainId": Object {
                 "0x5": Object {
                   "chainId": "0x5",
-                  "defaultRpcEndpointUrl": "https://goerli.infura.io/v3/{infuraProjectId}",
+                  "defaultRpcEndpointIndex": 0,
                   "name": "Goerli",
                   "nativeCurrency": "GoerliETH",
                   "rpcEndpoints": Array [
@@ -3127,12 +3126,12 @@ describe('NetworkController', () => {
       );
     });
 
-    it('throws if defaultRpcEndpointUrl does not refer to an entry in rpcEndpoints', async () => {
+    it('throws if defaultRpcEndpointIndex does not refer to an entry in rpcEndpoints', async () => {
       await withController(({ controller }) => {
         expect(() =>
           controller.addNetwork(
             buildAddNetworkFields({
-              defaultRpcEndpointUrl: 'https://non-existent.com',
+              defaultRpcEndpointIndex: 99999,
               rpcEndpoints: [
                 buildUpdateNetworkCustomRpcEndpointFields({
                   url: 'https://foo.com',
@@ -3145,7 +3144,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            "Cannot add network: `defaultRpcEndpointUrl` 'https://non-existent.com' must match an entry in `rpcEndpoints` ([ 'https://foo.com', 'https://bar.com' ])",
+            'Cannot add network: `defaultRpcEndpointIndex` must refer to an entry in `rpcEndpoints`',
           ),
         );
       });
@@ -3253,7 +3252,7 @@ describe('NetworkController', () => {
 
               controller.addNetwork({
                 chainId: infuraChainId,
-                defaultRpcEndpointUrl: 'https://test.endpoint/2',
+                defaultRpcEndpointIndex: 1,
                 name: infuraNetworkType,
                 nativeCurrency: infuraNativeTokenName,
                 rpcEndpoints: [
@@ -3350,7 +3349,7 @@ describe('NetworkController', () => {
             ({ controller }) => {
               controller.addNetwork({
                 chainId: infuraChainId,
-                defaultRpcEndpointUrl: 'https://test.endpoint/2',
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3377,7 +3376,7 @@ describe('NetworkController', () => {
                 controller.state.networkConfigurationsByChainId[infuraChainId],
               ).toStrictEqual({
                 chainId: infuraChainId,
-                defaultRpcEndpointUrl: 'https://test.endpoint/2',
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3428,9 +3427,7 @@ describe('NetworkController', () => {
 
               controller.addNetwork({
                 chainId: infuraChainId,
-                // False negative - this is a string.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3447,9 +3444,7 @@ describe('NetworkController', () => {
 
               expect(networkAddedEventListener).toHaveBeenCalledWith({
                 chainId: infuraChainId,
-                // False negative - this is a string.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3488,9 +3483,7 @@ describe('NetworkController', () => {
             ({ controller }) => {
               const newNetworkConfiguration = controller.addNetwork({
                 chainId: infuraChainId,
-                // False negative - this is a string.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3507,9 +3500,7 @@ describe('NetworkController', () => {
 
               expect(newNetworkConfiguration).toStrictEqual({
                 chainId: infuraChainId,
-                // False negative - this is a string.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                defaultRpcEndpointUrl: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3553,7 +3544,7 @@ describe('NetworkController', () => {
             expect(() =>
               controller.addNetwork({
                 chainId: '0x1337',
-                defaultRpcEndpointUrl: 'https://test.endpoint/1',
+                defaultRpcEndpointIndex: 0,
                 name: 'Some Network',
                 nativeCurrency: 'TOKEN',
                 rpcEndpoints: [
@@ -3582,7 +3573,7 @@ describe('NetworkController', () => {
         await withController(({ controller }) => {
           controller.addNetwork({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint/1',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -3630,7 +3621,7 @@ describe('NetworkController', () => {
         await withController(({ controller }) => {
           controller.addNetwork({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint/1',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -3651,7 +3642,7 @@ describe('NetworkController', () => {
             controller.state.networkConfigurationsByChainId['0x1337'],
           ).toStrictEqual({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint/1',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -3684,7 +3675,7 @@ describe('NetworkController', () => {
 
           controller.addNetwork({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -3698,7 +3689,7 @@ describe('NetworkController', () => {
 
           expect(networkAddedEventListener).toHaveBeenCalledWith({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -3725,7 +3716,7 @@ describe('NetworkController', () => {
 
           const newNetworkConfiguration = controller.addNetwork({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -3739,7 +3730,7 @@ describe('NetworkController', () => {
 
           expect(newNetworkConfiguration).toStrictEqual({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint',
+            defaultRpcEndpointIndex: 0,
             name: 'Some Network',
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [
@@ -4039,7 +4030,7 @@ describe('NetworkController', () => {
           expect(() =>
             controller.updateNetwork('0x1337', {
               ...networkConfigurationToUpdate,
-              defaultRpcEndpointUrl: 'https://foo.com/bar',
+              defaultRpcEndpointIndex: 0,
               rpcEndpoints: [
                 buildUpdateNetworkCustomRpcEndpointFields({
                   url: 'https://foo.com/bar',
@@ -4161,7 +4152,7 @@ describe('NetworkController', () => {
           expect(() =>
             controller.updateNetwork('0x1337', {
               ...networkConfigurationToUpdate,
-              defaultRpcEndpointUrl: rpcEndpoint.url,
+              defaultRpcEndpointIndex: 0,
               rpcEndpoints: [rpcEndpoint, rpcEndpoint],
             }),
           ).toThrow(
@@ -4250,7 +4241,7 @@ describe('NetworkController', () => {
       );
     });
 
-    it('throws if the new defaultRpcEndpointUrl does not refer to an entry in rpcEndpoints', async () => {
+    it('throws if the new defaultRpcEndpointIndex does not refer to an entry in rpcEndpoints', async () => {
       const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
         chainId: '0x1337',
         rpcEndpoints: [
@@ -4275,11 +4266,11 @@ describe('NetworkController', () => {
           expect(() =>
             controller.updateNetwork('0x1337', {
               ...networkConfigurationToUpdate,
-              defaultRpcEndpointUrl: 'https://non-existent.com',
+              defaultRpcEndpointIndex: 99999,
             }),
           ).toThrow(
             new Error(
-              "Cannot update network: `defaultRpcEndpointUrl` 'https://non-existent.com' must match an entry in `rpcEndpoints` ([ 'https://foo.com', 'https://bar.com' ])",
+              'Cannot update network: `defaultRpcEndpointIndex` must refer to an entry in `rpcEndpoints`',
             ),
           );
         },
@@ -4331,7 +4322,7 @@ describe('NetworkController', () => {
                 ];
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
-                  defaultRpcEndpointUrl: rpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
                 });
 
@@ -4403,7 +4394,7 @@ describe('NetworkController', () => {
               ({ controller }) => {
                 controller.updateNetwork('0x1337', {
                   ...networkConfigurationToUpdate,
-                  defaultRpcEndpointUrl: rpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
                     rpcEndpoint1,
                     buildUpdateNetworkCustomRpcEndpointFields({
@@ -4471,7 +4462,7 @@ describe('NetworkController', () => {
                   '0x1337',
                   {
                     ...networkConfigurationToUpdate,
-                    defaultRpcEndpointUrl: rpcEndpoint1.url,
+                    defaultRpcEndpointIndex: 0,
                     rpcEndpoints: [
                       rpcEndpoint1,
                       buildUpdateNetworkCustomRpcEndpointFields({
@@ -4548,7 +4539,7 @@ describe('NetworkController', () => {
 
               controller.updateNetwork(infuraChainId, {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
 
@@ -4594,7 +4585,7 @@ describe('NetworkController', () => {
             ({ controller }) => {
               controller.updateNetwork(infuraChainId, {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
 
@@ -4602,7 +4593,7 @@ describe('NetworkController', () => {
                 controller.state.networkConfigurationsByChainId[infuraChainId],
               ).toStrictEqual({
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
             },
@@ -4643,14 +4634,14 @@ describe('NetworkController', () => {
                 infuraChainId,
                 {
                   ...networkConfigurationToUpdate,
-                  defaultRpcEndpointUrl: rpcEndpoint2.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
                 },
               );
 
               expect(updatedNetworkConfiguration).toStrictEqual({
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
             },
@@ -4994,7 +4985,7 @@ describe('NetworkController', () => {
             ({ controller }) => {
               controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint1.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [
                   rpcEndpoint1,
                   buildUpdateNetworkCustomRpcEndpointFields({
@@ -5075,7 +5066,7 @@ describe('NetworkController', () => {
             ({ controller }) => {
               controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint1.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [
                   rpcEndpoint1,
                   buildUpdateNetworkCustomRpcEndpointFields({
@@ -5141,7 +5132,7 @@ describe('NetworkController', () => {
                 '0x1337',
                 {
                   ...networkConfigurationToUpdate,
-                  defaultRpcEndpointUrl: rpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
                     rpcEndpoint1,
                     buildUpdateNetworkCustomRpcEndpointFields({
@@ -5215,7 +5206,7 @@ describe('NetworkController', () => {
 
               controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
 
@@ -5259,7 +5250,7 @@ describe('NetworkController', () => {
             ({ controller }) => {
               controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
 
@@ -5267,7 +5258,7 @@ describe('NetworkController', () => {
                 controller.state.networkConfigurationsByChainId['0x1337'],
               ).toStrictEqual({
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
             },
@@ -5306,14 +5297,14 @@ describe('NetworkController', () => {
                 '0x1337',
                 {
                   ...networkConfigurationToUpdate,
-                  defaultRpcEndpointUrl: rpcEndpoint2.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [rpcEndpoint2],
                 },
               );
 
               expect(updatedNetworkConfiguration).toStrictEqual({
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 0,
                 rpcEndpoints: [rpcEndpoint2],
               });
             },
@@ -5357,7 +5348,7 @@ describe('NetworkController', () => {
 
               controller.updateNetwork('0x1337', {
                 ...networkConfigurationToUpdate,
-                defaultRpcEndpointUrl: rpcEndpoint2.url,
+                defaultRpcEndpointIndex: 1,
                 rpcEndpoints: [
                   rpcEndpoint1,
                   { ...rpcEndpoint2, networkClientId: undefined },
@@ -5392,7 +5383,7 @@ describe('NetworkController', () => {
           ];
           const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint/1',
+            defaultRpcEndpointIndex: 0,
             nativeCurrency: 'TOKEN',
             rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
           });
@@ -5458,7 +5449,7 @@ describe('NetworkController', () => {
           ];
           const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint/1',
+            defaultRpcEndpointIndex: 0,
             rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
           });
 
@@ -5510,7 +5501,7 @@ describe('NetworkController', () => {
           ];
           const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
             chainId: '0x1337',
-            defaultRpcEndpointUrl: 'https://test.endpoint/1',
+            defaultRpcEndpointIndex: 0,
             rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
           });
 
@@ -6055,7 +6046,7 @@ describe('NetworkController', () => {
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   chainId: '0x1337',
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                 });
 
@@ -6070,7 +6061,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   chainId: '0x1337',
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
                     {
                       ...customRpcEndpoint1,
@@ -6138,7 +6129,7 @@ describe('NetworkController', () => {
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   chainId: '0x1337',
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                 });
 
@@ -6203,7 +6194,7 @@ describe('NetworkController', () => {
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   chainId: '0x1337',
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                 });
 
@@ -6285,7 +6276,7 @@ describe('NetworkController', () => {
                   {
                     ...networkConfigurationToUpdate,
                     chainId: '0x1337',
-                    defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                    defaultRpcEndpointIndex: 0,
                     rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                   },
                 );
@@ -6293,7 +6284,7 @@ describe('NetworkController', () => {
                 expect(updatedNetworkConfiguration).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   chainId: '0x1337',
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
                     {
                       ...customRpcEndpoint1,
@@ -6421,7 +6412,7 @@ describe('NetworkController', () => {
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   chainId: anotherInfuraChainId,
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                 });
 
@@ -6438,7 +6429,7 @@ describe('NetworkController', () => {
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   chainId: anotherInfuraChainId,
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
                     {
                       ...customRpcEndpoint1,
@@ -6506,7 +6497,7 @@ describe('NetworkController', () => {
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   chainId: anotherInfuraChainId,
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                 });
 
@@ -6571,7 +6562,7 @@ describe('NetworkController', () => {
                 controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   chainId: anotherInfuraChainId,
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                 });
 
@@ -6653,7 +6644,7 @@ describe('NetworkController', () => {
                   {
                     ...networkConfigurationToUpdate,
                     chainId: anotherInfuraChainId,
-                    defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                    defaultRpcEndpointIndex: 0,
                     rpcEndpoints: [customRpcEndpoint1, customRpcEndpoint2],
                   },
                 );
@@ -6661,7 +6652,7 @@ describe('NetworkController', () => {
                 expect(updatedNetworkConfiguration).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   chainId: anotherInfuraChainId,
-                  defaultRpcEndpointUrl: customRpcEndpoint1.url,
+                  defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
                     {
                       ...customRpcEndpoint1,
@@ -8686,7 +8677,7 @@ describe('NetworkController', () => {
             networkConfigurationsByChainId: {
               '0x1337': {
                 chainId: '0x1337' as const,
-                defaultRpcEndpointUrl: 'https://test.network/1',
+                defaultRpcEndpointIndex: 0,
                 name: 'Test Network 1',
                 nativeCurrency: 'TOKEN1',
                 rpcEndpoints: [
@@ -8706,7 +8697,7 @@ describe('NetworkController', () => {
             networkConfigurationsByChainId: {
               '0x2448': {
                 chainId: '0x2448' as const,
-                defaultRpcEndpointUrl: 'https://test.network/2',
+                defaultRpcEndpointIndex: 0,
                 name: 'Test Network 2',
                 nativeCurrency: 'TOKEN2',
                 rpcEndpoints: [
@@ -8725,7 +8716,7 @@ describe('NetworkController', () => {
             {
               '0x1337': {
                 chainId: '0x1337' as const,
-                defaultRpcEndpointUrl: 'https://test.network/1',
+                defaultRpcEndpointIndex: 0,
                 name: 'Test Network 1',
                 nativeCurrency: 'TOKEN1',
                 rpcEndpoints: [
@@ -8739,7 +8730,7 @@ describe('NetworkController', () => {
               },
               '0x2448': {
                 chainId: '0x2448' as const,
-                defaultRpcEndpointUrl: 'https://test.network/2',
+                defaultRpcEndpointIndex: 0,
                 name: 'Test Network 2',
                 nativeCurrency: 'TOKEN2',
                 rpcEndpoints: [

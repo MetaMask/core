@@ -30,14 +30,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `nickname` has been renamed to `name`.
   - `blockExplorerUrl` has been pulled out of `rpcPrefs`.
   - `rpcEndpoints` has been added as well. This is an an array of objects, where each object has properties `name`, `networkClientId` (optional), `type`, and `url`.
-  - `defaultRpcEndpointUrl` has been added. This must point to an entry in `rpcEndpoints`.
+  - `defaultRpcEndpointIndex` has been added. This must point to an entry in `rpcEndpoints`.
   - `id` has been removed. Previously, this represented the ID of the network client associated with the network configuration. Since network clients are now created from RPC endpoints, the equivalent to this is the `networkClientId` property on an `RpcEndpoint`.
 - **BREAKING:** The network controller messenger must now allow the action `NetworkController:getNetworkConfigurationByChainId` ([#4268](https://github.com/MetaMask/core/pull/4286))
 - **BREAKING:** The network controller messenger must now allow the event `NetworkController:networkAdded` ([#4268](https://github.com/MetaMask/core/pull/4286))
 - **BREAKING:** The `NetworkController` constructor will now throw if the initial state provided is invalid ([#4268](https://github.com/MetaMask/core/pull/4286))
   - `networkConfigurationsByChainId` cannot be empty.
   - The `chainId` of a network configuration in `networkConfigurationsByChainId` must match the chain ID it is filed under.
-  - The `defaultRpcEndpointUrl` of a network configuration in `networkConfigurationsByChainId` must match an entry in its `rpcEndpoints`.
+  - The `defaultRpcEndpointIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `rpcEndpoints`.
   - `selectedNetworkClientId` must match the `networkClientId` of an RPC endpoint in `networkConfigurationsByChainId`.
 - **BREAKING:** Update `getNetworkConfigurationByNetworkClientId` so that when given an Infura network name (that is, a value from `InfuraNetworkType`), it will return a masked version of the RPC endpoint URL for the associated Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
   - If you want the unmasked version, you'll need the `url` property from the network _client_ configuration, which you can get by calling `getNetworkClientById` and then accessing the `configuration` property off of the network client.

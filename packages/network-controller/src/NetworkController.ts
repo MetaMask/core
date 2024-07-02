@@ -177,11 +177,11 @@ export type NetworkConfiguration = {
    */
   chainId: Hex;
   /**
-   * The RPC endpoint URL that all requests will use by default in order to
-   * interact with the chain. The value of this property must match the `url`
-   * property of an entry in `rpcEndpoints`.
+   * A reference to an RPC endpoint that all requests will use by default in order to
+   * interact with the chain. This index must refer to an item in
+   * `rpcEndpoints`.
    */
-  defaultRpcEndpointUrl: string;
+  defaultRpcEndpointIndex: number;
   /**
    * The user-facing nickname assigned to the chain.
    */
@@ -512,7 +512,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
 
     const networkConfiguration: NetworkConfiguration = {
       chainId,
-      defaultRpcEndpointUrl: rpcEndpointUrl,
+      defaultRpcEndpointIndex: 0,
       name: NetworkNickname[infuraNetworkType],
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
@@ -617,7 +617,7 @@ function deriveInfuraNetworkNameFromRpcEndpointUrl(
  * errors.
  *
  * In the case of NetworkController, there are several parts of state that need
- * to match. For instance, `defaultRpcEndpointUrl` needs to match an entry
+ * to match. For instance, `defaultRpcEndpointIndex` needs to match an entry
  * within `rpcEndpoints`, and `selectedNetworkClientId` needs to point to an RPC
  * endpoint within a network configuration.
  *
@@ -650,13 +650,12 @@ function validateNetworkControllerState(state: NetworkState) {
     }
 
     if (
-      !networkConfiguration.rpcEndpoints.some(
-        (rpcEndpoint) =>
-          rpcEndpoint.url === networkConfiguration.defaultRpcEndpointUrl,
-      )
+      networkConfiguration.rpcEndpoints[
+        networkConfiguration.defaultRpcEndpointIndex
+      ] === undefined
     ) {
       throw new Error(
-        `NetworkController state has invalid \`networkConfigurationsByChainId\`: Network configuration '${networkConfiguration.name}' has a \`defaultRpcEndpointUrl\` that does not match an entry in \`rpcEndpoints\``,
+        `NetworkController state has invalid \`networkConfigurationsByChainId\`: Network configuration '${networkConfiguration.name}' has a \`defaultRpcEndpointIndex\` that does not refer to an entry in \`rpcEndpoints\``,
       );
     }
   }
@@ -1366,7 +1365,7 @@ export class NetworkController extends BaseController<
     const {
       blockExplorerUrl,
       chainId,
-      defaultRpcEndpointUrl,
+      defaultRpcEndpointIndex,
       nativeCurrency,
       rpcEndpoints: setOfRpcEndpointFields,
     } = fields;
@@ -1490,11 +1489,9 @@ export class NetworkController extends BaseController<
       }
     }
 
-    if (!rpcEndpointUrls.includes(defaultRpcEndpointUrl)) {
+    if (setOfRpcEndpointFields[defaultRpcEndpointIndex] === undefined) {
       throw new Error(
-        `Cannot add network: \`defaultRpcEndpointUrl\` '${defaultRpcEndpointUrl}' must match an entry in \`rpcEndpoints\` (${inspect(
-          rpcEndpointUrls,
-        )})`,
+        `Cannot add network: \`defaultRpcEndpointIndex\` must refer to an entry in \`rpcEndpoints\``,
       );
     }
 
@@ -1618,13 +1615,10 @@ export class NetworkController extends BaseController<
     const {
       blockExplorerUrl: newBlockExplorerUrl,
       chainId: newChainId,
-      defaultRpcEndpointUrl: newInfuraRpcEndpointUrl,
+      defaultRpcEndpointIndex: newDefaultRpcEndpointIndex,
       nativeCurrency: newNativeTokenName,
       rpcEndpoints: setOfNewRpcEndpointFields,
     } = fields;
-    const newRpcEndpointUrls = setOfNewRpcEndpointFields.map(
-      (newRpcEndpointFields) => newRpcEndpointFields.url,
-    );
     const infuraRpcEndpoints = setOfNewRpcEndpointFields.filter(
       (newRpcEndpointFields): newRpcEndpointFields is InfuraRpcEndpoint =>
         newRpcEndpointFields.type === RpcEndpointType.Infura,
@@ -1769,11 +1763,9 @@ export class NetworkController extends BaseController<
       }
     }
 
-    if (!newRpcEndpointUrls.includes(newInfuraRpcEndpointUrl)) {
+    if (setOfNewRpcEndpointFields[newDefaultRpcEndpointIndex] === undefined) {
       throw new Error(
-        `Cannot update network: \`defaultRpcEndpointUrl\` '${newInfuraRpcEndpointUrl}' must match an entry in \`rpcEndpoints\` (${inspect(
-          newRpcEndpointUrls,
-        )})`,
+        `Cannot update network: \`defaultRpcEndpointIndex\` must refer to an entry in \`rpcEndpoints\``,
       );
     }
 

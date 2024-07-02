@@ -200,7 +200,7 @@ export function buildNetworkConfiguration(
     {
       chainId: () => '0x1337',
       // @ts-expect-error We will make sure that this property is set below.
-      defaultRpcEndpointUrl: () => undefined,
+      defaultRpcEndpointIndex: () => undefined,
       name: () => 'Some Network',
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
@@ -212,12 +212,12 @@ export function buildNetworkConfiguration(
     overrides,
     (object) => {
       if (
-        object.defaultRpcEndpointUrl === undefined &&
+        object.defaultRpcEndpointIndex === undefined &&
         object.rpcEndpoints.length > 0
       ) {
         return {
           ...object,
-          defaultRpcEndpointUrl: object.rpcEndpoints[0].url,
+          defaultRpcEndpointIndex: 0,
         };
       }
       return object;
@@ -241,7 +241,7 @@ export function buildCustomNetworkConfiguration(
     {
       chainId: () => '0x1337' as const,
       // @ts-expect-error We will make sure that this property is set below.
-      defaultRpcEndpointUrl: () => undefined,
+      defaultRpcEndpointIndex: () => undefined,
       name: () => 'Some Network',
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
@@ -253,12 +253,12 @@ export function buildCustomNetworkConfiguration(
     overrides,
     (object) => {
       if (
-        object.defaultRpcEndpointUrl === undefined &&
+        object.defaultRpcEndpointIndex === undefined &&
         object.rpcEndpoints.length > 0
       ) {
         return {
           ...object,
-          defaultRpcEndpointUrl: object.rpcEndpoints[0].url,
+          defaultRpcEndpointIndex: 0,
         };
       }
       return object;
@@ -286,7 +286,7 @@ export function buildInfuraNetworkConfiguration(
     {
       chainId: () => ChainId[infuraNetworkType],
       // @ts-expect-error We will make sure that this property is set below.
-      defaultRpcEndpointUrl: () => undefined,
+      defaultRpcEndpointIndex: () => undefined,
       name: () => NetworkNickname[infuraNetworkType],
       nativeCurrency: () => NetworksTicker[infuraNetworkType],
       rpcEndpoints: () => [defaultRpcEndpoint],
@@ -294,12 +294,12 @@ export function buildInfuraNetworkConfiguration(
     overrides,
     (object) => {
       if (
-        object.defaultRpcEndpointUrl === undefined &&
+        object.defaultRpcEndpointIndex === undefined &&
         object.rpcEndpoints.length > 0
       ) {
         return {
           ...object,
-          defaultRpcEndpointUrl: object.rpcEndpoints[0].url,
+          defaultRpcEndpointIndex: 0,
         };
       }
       return object;
@@ -362,7 +362,7 @@ export function buildAddNetworkFields(
     {
       chainId: () => '0x1337' as const,
       // @ts-expect-error We will make sure that this property is set below.
-      defaultRpcEndpointUrl: () => undefined,
+      defaultRpcEndpointIndex: () => undefined,
       name: () => 'Some Network',
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
@@ -374,12 +374,12 @@ export function buildAddNetworkFields(
     overrides,
     (object) => {
       if (
-        object.defaultRpcEndpointUrl === undefined &&
+        object.defaultRpcEndpointIndex === undefined &&
         object.rpcEndpoints.length > 0
       ) {
         return {
           ...object,
-          defaultRpcEndpointUrl: object.rpcEndpoints[0].url,
+          defaultRpcEndpointIndex: 0,
         };
       }
       return object;
