@@ -611,69 +611,78 @@ export class NftDetectionController extends BaseController<
               : true),
         );
         // Retrieve collections from apiNfts
+        // contract and collection.id are equal for simple contract addresses; this is to exclude cases for shared contracts
         const collections = apiNfts.reduce<string[]>((acc, currValue) => {
-          if (!acc.includes(currValue.token.contract)) {
+          if (
+            !acc.includes(currValue.token.contract) &&
+            currValue.token.contract === currValue?.token?.collection?.id
+          ) {
             acc.push(currValue.token.contract);
           }
           return acc;
         }, []);
 
-        // Call API to retrive collections infos
-        // The api accept a max of 20 contracts
-        const collectionResponse: GetCollectionsResponse =
-          await reduceInBatchesSerially({
-            values: collections,
-            batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
-            eachBatch: async (allResponses, batch) => {
-              const params = new URLSearchParams(
-                batch.map((s) => ['contract', s]),
-              );
-              params.append('chainId', '1'); // Adding chainId 1 because we are only detecting for mainnet
-              const collectionResponseForBatch = await fetchWithErrorHandling({
-                url: `${
-                  NFT_API_BASE_URL as string
-                }/collections?${params.toString()}`,
-                options: {
-                  headers: {
-                    Version: NFT_API_VERSION,
+        if (collections.length !== 0) {
+          // Call API to retrive collections infos
+          // The api accept a max of 20 contracts
+          const collectionResponse: GetCollectionsResponse =
+            await reduceInBatchesSerially({
+              values: collections,
+              batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
+              eachBatch: async (allResponses, batch) => {
+                const params = new URLSearchParams(
+                  batch.map((s) => ['contract', s]),
+                );
+                params.append('chainId', '1'); // Adding chainId 1 because we are only detecting for mainnet
+                const collectionResponseForBatch = await fetchWithErrorHandling(
+                  {
+                    url: `${
+                      NFT_API_BASE_URL as string
+                    }/collections?${params.toString()}`,
+                    options: {
+                      headers: {
+                        Version: NFT_API_VERSION,
+                      },
+                    },
+                    timeout: NFT_API_TIMEOUT,
                   },
-                },
-                timeout: NFT_API_TIMEOUT,
-              });
+                );
 
-              return {
-                ...allResponses,
-                ...collectionResponseForBatch,
-              };
-            },
-            initialResult: {},
-          });
+                return {
+                  ...allResponses,
+                  ...collectionResponseForBatch,
+                };
+              },
+              initialResult: {},
+            });
 
-        // Add collections response fields to  newnfts
-        if (collectionResponse.collections?.length) {
-          apiNfts.forEach((singleNFT) => {
-            const found = collectionResponse.collections.find(
-              (elm) =>
-                elm.id?.toLowerCase() ===
-                singleNFT.token.contract.toLowerCase(),
-            );
-            if (found) {
-              singleNFT.token = {
-                ...singleNFT.token,
-                collection: {
-                  ...(singleNFT.token.collection
-                    ? singleNFT.token.collection
-                    : {}),
-                  creator: found?.creator,
-                  openseaVerificationStatus: found?.openseaVerificationStatus,
-                  contractDeployedAt: found.contractDeployedAt,
-                  ownerCount: found.ownerCount,
-                  topBid: found.topBid,
-                },
-              };
-            }
-          });
+          // Add collections response fields to  newnfts
+          if (collectionResponse.collections?.length) {
+            apiNfts.forEach((singleNFT) => {
+              const found = collectionResponse.collections.find(
+                (elm) =>
+                  elm.id?.toLowerCase() ===
+                  singleNFT.token.contract.toLowerCase(),
+              );
+              if (found) {
+                singleNFT.token = {
+                  ...singleNFT.token,
+                  collection: {
+                    ...(singleNFT.token.collection
+                      ? singleNFT.token.collection
+                      : {}),
+                    creator: found?.creator,
+                    openseaVerificationStatus: found?.openseaVerificationStatus,
+                    contractDeployedAt: found.contractDeployedAt,
+                    ownerCount: found.ownerCount,
+                    topBid: found.topBid,
+                  },
+                };
+              }
+            });
+          }
         }
+
         // Proceed to add NFTs
         const addNftPromises = apiNfts.map(async (nft) => {
           const {
@@ -724,7 +733,6 @@ export class NftDetectionController extends BaseController<
               rarityScore && { rarityScore },
               collection && { collection },
             );
-
             await this.#addNft(contract, tokenId, {
               nftMetadata,
               userAddress,

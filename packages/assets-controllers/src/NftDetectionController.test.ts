@@ -156,6 +156,9 @@ describe('NftDetectionController', () => {
                 tokenURI: 'tokenURITest',
               },
               isSpam: false,
+              collection: {
+                id: '0xtest1',
+              },
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -177,6 +180,9 @@ describe('NftDetectionController', () => {
                 tokenURI: 'tokenURITest',
               },
               isSpam: false,
+              collection: {
+                id: '0xtest2',
+              },
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -205,6 +211,9 @@ describe('NftDetectionController', () => {
                 tokenURI: 'tokenURITest',
               },
               isSpam: false,
+              collection: {
+                id: '0xtestCollection1',
+              },
             },
             blockaidResult: {
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -226,6 +235,9 @@ describe('NftDetectionController', () => {
                 tokenURI: 'tokenURITest',
               },
               isSpam: false,
+              collection: {
+                id: '0xtestCollection2',
+              },
             },
           },
           {
@@ -488,6 +500,130 @@ describe('NftDetectionController', () => {
   });
 
   describe('getCollections', () => {
+    it('should not call getCollections api when collection ids do not match contract address', async () => {
+      const mockAddNft = jest.fn();
+      const selectedAddress = 'Oxuser';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+      const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+      await withController(
+        {
+          options: { addNft: mockAddNft },
+          mockPreferencesState: {},
+          mockGetSelectedAccount,
+        },
+        async ({ controller, controllerEvents }) => {
+          controllerEvents.triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useNftDetection: true,
+          });
+          // Wait for detect call triggered by preferences state change to settle
+          await advanceTime({
+            clock,
+            duration: 1,
+          });
+          mockAddNft.mockReset();
+          nock(NFT_API_BASE_URL)
+            .get(
+              `/users/${selectedAddress}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=`,
+            )
+            .reply(200, {
+              tokens: [
+                {
+                  token: {
+                    contract: '0xtestCollection1',
+                    kind: 'erc721',
+                    name: 'ID 1',
+                    description: 'Description 1',
+                    image: 'image/1.png',
+                    tokenId: '1',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/1.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      id: '0xtestCollection1:1223',
+                    },
+                  },
+                  blockaidResult: {
+                    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+                    // eslint-disable-next-line @typescript-eslint/naming-convention
+                    result_type: BlockaidResultType.Benign,
+                  },
+                },
+                {
+                  token: {
+                    contract: '0xtestCollection1',
+                    kind: 'erc721',
+                    name: 'ID 2',
+                    description: 'Description 2',
+                    image: 'image/2.png',
+                    tokenId: '2',
+                    metadata: {
+                      imageOriginal: 'imageOriginal/2.png',
+                      imageMimeType: 'image/png',
+                      tokenURI: 'tokenURITest',
+                    },
+                    isSpam: false,
+                    collection: {
+                      id: '0xtestCollection1:34567',
+                    },
+                  },
+                },
+              ],
+            });
+
+          await controller.detectNfts();
+
+          expect(mockAddNft).toHaveBeenCalledTimes(2);
+          // In this test we mocked that reservoir returned 5 NFTs
+          // the only NFTs we want to add are when isSpam=== false and (either no blockaid result returned or blockaid says "Benign")
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            1,
+            '0xtestCollection1',
+            '1',
+            {
+              nftMetadata: {
+                description: 'Description 1',
+                image: 'image/1.png',
+                name: 'ID 1',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/1.png',
+                collection: {
+                  id: '0xtestCollection1:1223',
+                },
+              },
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
+              networkClientId: undefined,
+            },
+          );
+          expect(mockAddNft).toHaveBeenNthCalledWith(
+            2,
+            '0xtestCollection1',
+            '2',
+            {
+              nftMetadata: {
+                description: 'Description 2',
+                image: 'image/2.png',
+                name: 'ID 2',
+                standard: 'ERC721',
+                imageOriginal: 'imageOriginal/2.png',
+                collection: {
+                  id: '0xtestCollection1:34567',
+                },
+              },
+              userAddress: selectedAccount.address,
+              source: Source.Detected,
+              networkClientId: undefined,
+            },
+          );
+        },
+      );
+    });
     it('should detect and add NFTs correctly when blockaid result is in response with unsuccessful getCollections', async () => {
       const mockAddNft = jest.fn();
       const selectedAddress = '0x123';
@@ -527,6 +663,9 @@ describe('NftDetectionController', () => {
               name: 'ID 2574',
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2574.png',
+              collection: {
+                id: '0xtest1',
+              },
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
@@ -539,6 +678,9 @@ describe('NftDetectionController', () => {
               name: 'ID 2575',
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2575.png',
+              collection: {
+                id: '0xtest2',
+              },
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,
@@ -629,6 +771,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2574.png',
               collection: {
+                id: '0xtest1',
                 contractDeployedAt: undefined,
                 creator: '0xcreator1',
                 openseaVerificationStatus: 'verified',
@@ -649,6 +792,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2575.png',
               collection: {
+                id: '0xtest2',
                 contractDeployedAt: undefined,
                 creator: '0xcreator2',
                 openseaVerificationStatus: 'verified',
@@ -724,6 +868,7 @@ describe('NftDetectionController', () => {
                 standard: 'ERC721',
                 imageOriginal: 'imageOriginal/1.png',
                 collection: {
+                  id: '0xtestCollection1',
                   contractDeployedAt: undefined,
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
@@ -748,6 +893,7 @@ describe('NftDetectionController', () => {
                 standard: 'ERC721',
                 imageOriginal: 'imageOriginal/2.png',
                 collection: {
+                  id: '0xtestCollection2',
                   contractDeployedAt: undefined,
                   creator: '0xcreator2',
                   openseaVerificationStatus: 'verified',
@@ -808,6 +954,9 @@ describe('NftDetectionController', () => {
                       tokenURI: 'tokenURITest',
                     },
                     isSpam: false,
+                    collection: {
+                      id: '0xtestCollection1',
+                    },
                   },
                   blockaidResult: {
                     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -829,6 +978,9 @@ describe('NftDetectionController', () => {
                       tokenURI: 'tokenURITest',
                     },
                     isSpam: false,
+                    collection: {
+                      id: '0xtestCollection1',
+                    },
                   },
                 },
               ],
@@ -864,6 +1016,7 @@ describe('NftDetectionController', () => {
                 standard: 'ERC721',
                 imageOriginal: 'imageOriginal/1.png',
                 collection: {
+                  id: '0xtestCollection1',
                   contractDeployedAt: undefined,
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
@@ -888,6 +1041,7 @@ describe('NftDetectionController', () => {
                 standard: 'ERC721',
                 imageOriginal: 'imageOriginal/2.png',
                 collection: {
+                  id: '0xtestCollection1',
                   contractDeployedAt: undefined,
                   creator: '0xcreator1',
                   openseaVerificationStatus: 'verified',
@@ -961,6 +1115,7 @@ describe('NftDetectionController', () => {
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2574.png',
               collection: {
+                id: '0xtest1',
                 contractDeployedAt: undefined,
                 creator: '0xcreator1',
                 openseaVerificationStatus: 'verified',
@@ -979,6 +1134,9 @@ describe('NftDetectionController', () => {
               name: 'ID 2575',
               standard: 'ERC721',
               imageOriginal: 'imageOriginal/2575.png',
+              collection: {
+                id: '0xtest2',
+              },
             },
             userAddress: selectedAccount.address,
             source: Source.Detected,

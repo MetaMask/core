@@ -305,11 +305,13 @@ describe('NftController', () => {
         tokens: [
           {
             token: {
+              contract: '0x1',
               kind: 'erc1155',
               name: 'Name',
               description: 'Description',
               image: 'url',
               collection: {
+                id: '0x1',
                 creator: 'Oxaddress',
                 tokenCount: 0,
               },
@@ -1659,7 +1661,7 @@ describe('NftController', () => {
       };
 
       nock(NFT_API_BASE_URL)
-        .get(`/collections?chainIds=1&contract=0x01`)
+        .get(`/collections?chainId=1&id=0x1`)
         .reply(200, {
           collections: [
             {
@@ -1686,6 +1688,7 @@ describe('NftController', () => {
         tokenURI: '',
         creator: 'Oxaddress',
         collection: {
+          id: '0x1',
           creator: 'Oxaddress',
           tokenCount: 0,
           contractDeployedAt: 'timestampTest',
@@ -1717,17 +1720,21 @@ describe('NftController', () => {
           tokens: [
             {
               token: {
+                contract: `${ERC721_KUDOSADDRESS}`,
                 kind: 'erc721',
                 name: 'Kudos Name',
                 description: 'Kudos Description',
                 image: 'url',
+                collection: {
+                  id: `${ERC721_KUDOSADDRESS}`,
+                },
               },
             },
           ],
         });
 
       nock(NFT_API_BASE_URL)
-        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .get(`/collections?chainId=1&id=${ERC721_KUDOSADDRESS}`)
         .replyWithError(new Error('Failed to fetch'));
 
       nock('https://ipfs.gitcoin.co:443')
@@ -1753,6 +1760,14 @@ describe('NftController', () => {
         isCurrentlyOwned: true,
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+        collection: {
+          contractDeployedAt: undefined,
+          creator: undefined,
+          id: ERC721_KUDOSADDRESS,
+          openseaVerificationStatus: undefined,
+          ownerCount: undefined,
+          topBid: undefined,
+        },
       });
 
       expect(
@@ -1787,17 +1802,21 @@ describe('NftController', () => {
           tokens: [
             {
               token: {
+                contract: ERC721_KUDOSADDRESS,
                 kind: 'erc721',
                 name: 'Kudos Name',
                 description: 'Kudos Description',
                 image: 'url',
+                collection: {
+                  id: ERC721_KUDOSADDRESS,
+                },
               },
             },
           ],
         });
 
       nock(NFT_API_BASE_URL)
-        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .get(`/collections?chainId=1&id=${ERC721_KUDOSADDRESS}`)
         .reply(200, {
           collections: [
             {
@@ -1833,6 +1852,7 @@ describe('NftController', () => {
         tokenURI:
           'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
         collection: {
+          id: ERC721_KUDOSADDRESS,
           creator: '0xcreator',
           contractDeployedAt: 'timestampTest',
           ownerCount: '989',
@@ -2151,11 +2171,13 @@ describe('NftController', () => {
           tokens: [
             {
               token: {
+                contract: ERC721_KUDOSADDRESS,
                 kind: 'erc721',
                 name: 'Kudos Name',
                 description: 'Kudos Description',
                 image: 'Kudos image (from proxy API)',
                 collection: {
+                  id: ERC721_KUDOSADDRESS,
                   name: 'Kudos',
                   tokenCount: '10',
                   image: 'Kudos logo (from proxy API)',
@@ -2166,7 +2188,7 @@ describe('NftController', () => {
         });
 
       nock(NFT_API_BASE_URL)
-        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .get(`/collections?chainId=1&id=${ERC721_KUDOSADDRESS}`)
         .replyWithError(new Error('Failed to fetch'));
 
       await nftController.addNft(
@@ -2207,6 +2229,7 @@ describe('NftController', () => {
           isCurrentlyOwned: true,
           tokenURI: null,
           collection: {
+            id: ERC721_KUDOSADDRESS,
             tokenCount: '10',
             image: 'Kudos logo (from proxy API)',
             name: 'Kudos',
@@ -2263,11 +2286,13 @@ describe('NftController', () => {
           tokens: [
             {
               token: {
+                contract: ERC721_KUDOSADDRESS,
                 kind: 'erc721',
                 name: 'Kudos Name',
                 description: 'Kudos Description',
                 image: 'Kudos image (from proxy API)',
                 collection: {
+                  id: ERC721_KUDOSADDRESS,
                   name: 'Kudos',
                   tokenCount: '10',
                   image: 'Kudos logo (from proxy API)',
@@ -2278,7 +2303,7 @@ describe('NftController', () => {
         });
 
       nock(NFT_API_BASE_URL)
-        .get(`/collections?chainIds=1&contract=${ERC721_KUDOSADDRESS}`)
+        .get(`/collections?chainId=1&id=${ERC721_KUDOSADDRESS}`)
         .reply(200, {
           collections: [
             {
@@ -2326,6 +2351,7 @@ describe('NftController', () => {
           isCurrentlyOwned: true,
           tokenURI: null,
           collection: {
+            id: ERC721_KUDOSADDRESS,
             tokenCount: '10',
             image: 'Kudos logo (from proxy API)',
             name: 'Kudos',

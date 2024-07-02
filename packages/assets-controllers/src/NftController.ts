@@ -24,6 +24,7 @@ import {
   ERC1155,
   ApprovalType,
   NFT_API_BASE_URL,
+  NFT_API_VERSION,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-api';
 import type {
@@ -537,39 +538,32 @@ export class NftController extends BaseController<
       includeAttributes: 'true',
       includeLastSale: 'true',
     }).toString();
+
+    // First fetch token information
+    const nftInformation: ReservoirResponse | undefined =
+      await fetchWithErrorHandling({
+        url: `${this.getNftApi()}?${urlParams}`,
+        options: {
+          headers: {
+            Version: NFT_API_VERSION,
+          },
+        },
+      });
     // Params for getCollections API call
     const getCollectionParams = new URLSearchParams({
-      chainIds: '1',
-      contract: `${contractAddress}`,
+      chainId: '1',
+      id: `${nftInformation?.tokens[0]?.token?.collection?.id as string}`,
     }).toString();
-
-    const [nftInformation, collectionInformation]: [
-      ReservoirResponse | undefined,
-      GetCollectionsResponse,
-    ] = await Promise.all([
-      safelyExecute(() =>
-        fetchWithErrorHandling({
-          url: `${this.getNftApi()}?${urlParams}`,
-          options: {
-            headers: {
-              Version: '1',
-            },
+    // Fetch collection information using collectionId
+    const collectionInformation: GetCollectionsResponse | undefined =
+      await fetchWithErrorHandling({
+        url: `${NFT_API_BASE_URL as string}/collections?${getCollectionParams}`,
+        options: {
+          headers: {
+            Version: NFT_API_VERSION,
           },
-        }),
-      ),
-      safelyExecute(() =>
-        fetchWithErrorHandling({
-          url: `${
-            NFT_API_BASE_URL as string
-          }/collections?${getCollectionParams}`,
-          options: {
-            headers: {
-              Version: '1',
-            },
-          },
-        }),
-      ),
-    ]);
+        },
+      });
     // if we were still unable to fetch the data we return out the default/null of `NftMetadata`
     if (!nftInformation?.tokens?.[0]?.token) {
       return {
