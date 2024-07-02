@@ -853,9 +853,6 @@ export class AccountsController extends BaseController<
       keyringType,
       accounts,
     );
-    console.log('accounts', accounts);
-    console.log('keyringType', keyringType);
-    console.log('keyringAccounts', keyringAccounts);
     const lastDefaultIndexUsedForKeyringType = keyringAccounts.reduce(
       (maxInternalAccountIndex, internalAccount) => {
         // We **DO NOT USE** `\d+` here to only consider valid "human"
@@ -958,9 +955,6 @@ export class AccountsController extends BaseController<
   }
 
   #publishAccountChangeEvent(account: InternalAccount) {
-    console.log('publishing new account');
-    console.log('previosu', this.state.internalAccounts.selectedAccount);
-    console.log('new', account);
     if (isEvmAccountType(account.type)) {
       this.messagingSystem.publish(
         'AccountsController:selectedEvmAccountChange',
