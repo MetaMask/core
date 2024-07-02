@@ -1679,6 +1679,34 @@ describe('NftController', () => {
       });
     });
 
+    it('should return image when tokenURI fetched is an encoded data URL', async () => {
+      const testTokenUriEncoded =
+        'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHByZXNlcnZlQXNwZWN0UmF0aW89InhNaW5ZTWluIG1l';
+      const { nftController } = setupController({
+        options: {
+          getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
+          getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
+          getERC721TokenURI: jest.fn().mockResolvedValue(testTokenUriEncoded),
+        },
+        defaultSelectedAccount: OWNER_ACCOUNT,
+      });
+      await nftController.addNft(ERC721_KUDOSADDRESS, ERC721_KUDOS_TOKEN_ID);
+
+      expect(
+        nftController.state.allNfts[OWNER_ACCOUNT.address][ChainId.mainnet][0],
+      ).toStrictEqual({
+        address: ERC721_KUDOSADDRESS,
+        image: testTokenUriEncoded,
+        name: null,
+        description: null,
+        tokenId: ERC721_KUDOS_TOKEN_ID,
+        standard: ERC721,
+        favorite: false,
+        isCurrentlyOwned: true,
+        tokenURI: testTokenUriEncoded,
+      });
+    });
+
     it('should add NFT by provider type', async () => {
       const tokenURI = 'https://url/';
       const mockGetERC721TokenURI = jest.fn().mockResolvedValue(tokenURI);
