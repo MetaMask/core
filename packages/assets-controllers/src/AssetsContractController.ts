@@ -62,6 +62,8 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.skale_europa_mainnet]:
+    '0xb44d3D2865841F4051332AF90EbE028e01f92f7C',
 };
 
 export const MISSING_PROVIDER_ERROR =
