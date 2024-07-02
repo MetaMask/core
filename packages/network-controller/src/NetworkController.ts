@@ -99,9 +99,9 @@ export enum RpcEndpointType {
  */
 export type InfuraRpcEndpoint = {
   /**
-   * The user-facing name of the endpoint.
+   * The optional user-facing nickname of the endpoint.
    */
-  name: string;
+  name?: string;
   /**
    * The identifier for the network client that has been created for this RPC
    * endpoint.
@@ -124,9 +124,9 @@ export type InfuraRpcEndpoint = {
  */
 export type CustomRpcEndpoint = {
   /**
-   * The user-facing name of the endpoint.
+   * The optional user-facing nickname of the endpoint.
    */
-  name: string;
+  name?: string;
   /**
    * The identifier for the network client that has been created for this RPC
    * endpoint.
@@ -524,7 +524,6 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
       nativeCurrency: NetworksTicker[infuraNetworkType],
       rpcEndpoints: [
         {
-          name: `Infura ${NetworkNickname[infuraNetworkType] as string}`,
           networkClientId: infuraNetworkType,
           type: RpcEndpointType.Infura,
           url: rpcEndpointUrl,

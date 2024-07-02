@@ -354,7 +354,6 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "name": "Infura Mainnet",
                     "networkClientId": "mainnet",
                     "type": "infura",
                     "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
@@ -369,7 +368,6 @@ describe('NetworkController', () => {
                 "nativeCurrency": "GoerliETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "name": "Infura Goerli",
                     "networkClientId": "goerli",
                     "type": "infura",
                     "url": "https://goerli.infura.io/v3/{infuraProjectId}",
@@ -384,7 +382,6 @@ describe('NetworkController', () => {
                 "nativeCurrency": "SepoliaETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "name": "Infura Sepolia",
                     "networkClientId": "sepolia",
                     "type": "infura",
                     "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
@@ -399,7 +396,6 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "name": "Infura Linea Goerli",
                     "networkClientId": "linea-goerli",
                     "type": "infura",
                     "url": "https://linea-goerli.infura.io/v3/{infuraProjectId}",
@@ -414,7 +410,6 @@ describe('NetworkController', () => {
                 "nativeCurrency": "LineaETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "name": "Infura Linea Sepolia",
                     "networkClientId": "linea-sepolia",
                     "type": "infura",
                     "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
@@ -429,7 +424,6 @@ describe('NetworkController', () => {
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
-                    "name": "Infura Linea Mainnet",
                     "networkClientId": "linea-mainnet",
                     "type": "infura",
                     "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",

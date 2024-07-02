@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The only property that has been retained on this type is `chainId`.
   - `ticker` has been renamed to `nativeCurrency`.
   - `nickname` has been renamed to `name`.
-  - `rpcEndpoints` has been added as well. This is an an array of objects, where each object has properties `name`, `networkClientId` (optional), `type`, and `url`.
+  - `rpcEndpoints` has been added as well. This is an an array of objects, where each object has properties `name` (optional), `networkClientId` (optional), `type`, and `url`.
   - `defaultRpcEndpointIndex` has been added. This must point to an entry in `rpcEndpoints`.
   - The block explorer URL is no longer located in `rpcPrefs` and is no longer restricted to one: `blockExplorerUrls` has been added along with a corresponding property `defaultRpcEndpointIndex`, which must point to an entry in `blockExplorerUrls`.
   - `id` has been removed. Previously, this represented the ID of the network client associated with the network configuration. Since network clients are now created from RPC endpoints, the equivalent to this is the `networkClientId` property on an `RpcEndpoint`.

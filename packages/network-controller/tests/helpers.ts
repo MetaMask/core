@@ -321,7 +321,6 @@ export function buildInfuraRpcEndpoint(
   infuraNetworkType: InfuraNetworkType,
 ): InfuraRpcEndpoint {
   return {
-    name: NetworkNickname[infuraNetworkType],
     networkClientId: infuraNetworkType,
     type: RpcEndpointType.Infura as const,
     // False negative - this is a string.
@@ -342,7 +341,6 @@ export function buildCustomRpcEndpoint(
 ): CustomRpcEndpoint {
   return buildTestObject(
     {
-      name: () => 'Test Endpoint',
       networkClientId: () => uuidV4(),
       type: () => RpcEndpointType.Custom as const,
       url: () => 'https://test.endpoint',
@@ -404,7 +402,6 @@ export function buildAddNetworkCustomRpcEndpointFields(
 ): AddNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
-      name: () => 'Test Endpoint',
       type: () => RpcEndpointType.Custom as const,
       url: () => 'https://test.endpoint',
     },
@@ -425,7 +422,6 @@ export function buildUpdateNetworkCustomRpcEndpointFields(
 ): UpdateNetworkCustomRpcEndpointFields {
   return buildTestObject(
     {
-      name: () => 'Test Endpoint',
       type: () => RpcEndpointType.Custom as const,
       url: () => 'https://test.endpoint',
     },
