@@ -749,6 +749,9 @@ export class AccountsController extends BaseController<
             },
           );
           currentState.internalAccounts.selectedAccount = accountToSelect.id;
+          currentState.internalAccounts.accounts[
+            accountToSelect.id
+          ].metadata.lastSelected = Date.now();
 
           this.#publishAccountChangeEvent(accountToSelect);
         }
@@ -926,6 +929,8 @@ export class AccountsController extends BaseController<
         return accountsState;
       }
     }
+
+    const isFirstAccount = Object.keys(accountsState).length === 0;
 
     // Get next account name available for this given keyring
     const accountName = this.getNextAvailableAccountName(
