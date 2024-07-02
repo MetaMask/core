@@ -1,4 +1,3 @@
-import { createMockInternalAccount } from '@metamask/accounts-controller/src/tests/mocks';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
@@ -10,11 +9,11 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type {
+  NetworkClientConfiguration,
   NetworkClientId,
   NetworkState,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import type { NetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import assert from 'assert';
@@ -22,6 +21,7 @@ import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,

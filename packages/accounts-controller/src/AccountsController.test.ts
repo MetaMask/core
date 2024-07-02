@@ -198,7 +198,7 @@ function createExpectedInternalAccount({
   };
 
   const methods =
-    accountTypeToMethods[type as unknown as keyof typeof accountTypeToMethods];
+    accountTypeToMethods[type as keyof typeof accountTypeToMethods];
 
   const account = {
     id,

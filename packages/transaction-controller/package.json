@@ -35,10 +35,10 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@ethereumjs/common": "^3.2.0",
@@ -57,7 +57,7 @@
     "@metamask/network-controller": "^19.0.0",
     "@metamask/nonce-tracker": "^5.0.0",
     "@metamask/rpc-errors": "^6.2.1",
-    "@metamask/utils": "^8.3.0",
+    "@metamask/utils": "^9.0.0",
     "async-mutex": "^0.5.0",
     "bn.js": "^5.2.1",
     "eth-method-registry": "^4.0.0",
@@ -82,7 +82,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5"
+    "typescript": "~5.0.4"
   },
   "peerDependencies": {
     "@babel/runtime": "^7.23.9",

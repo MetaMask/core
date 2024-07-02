@@ -1,6 +1,4 @@
-import { TransactionType } from '@metamask/transaction-controller';
-import { isStrictHexString } from '@metamask/utils';
-import type { Struct, StructError } from 'superstruct';
+import type { Struct, StructError } from '@metamask/superstruct';
 import {
   assert,
   boolean,
@@ -12,7 +10,9 @@ import {
   optional,
   refine,
   string,
-} from 'superstruct';
+} from '@metamask/superstruct';
+import { TransactionType } from '@metamask/transaction-controller';
+import { isStrictHexString } from '@metamask/utils';
 
 import { EMPTY_BYTES } from '../constants';
 import type {

@@ -1,8 +1,4 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '@metamask/base-controller/tests/helpers';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import {
@@ -10,15 +6,19 @@ import {
   type NetworkClientConfiguration,
   defaultState as defaultnetworkControllerState,
 } from '@metamask/network-controller';
-import {
-  buildCustomNetworkClientConfiguration,
-  buildMockGetNetworkClientById,
-} from '@metamask/network-controller/tests/helpers';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import type {
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
+import {
+  buildCustomNetworkClientConfiguration,
+  buildMockGetNetworkClientById,
+} from '../../network-controller/tests/helpers';
 import type {
   AccountTrackerControllerMessenger,
   AllowedActions,

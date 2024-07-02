@@ -42,7 +42,7 @@ module.exports = {
   // This ensures that Babel can resolve ESM exports correctly.
   moduleNameMapper: {
     '^@metamask/utils/(.+)$': [
-      '<rootDir>/node_modules/@metamask/utils/dist/$1.js',
+      '<rootDir>/node_modules/@metamask/utils/dist/$1.cjs',
     ],
   },
 
