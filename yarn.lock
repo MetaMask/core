@@ -3205,6 +3205,7 @@ __metadata:
     jest: "npm:^27.5.1"
     jest-when: "npm:^3.4.2"
     lodash: "npm:^4.17.21"
+    loglevel: "npm:^1.8.1"
     nock: "npm:^13.3.1"
     sinon: "npm:^9.2.4"
     ts-jest: "npm:^27.1.4"
