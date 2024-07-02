@@ -29,7 +29,7 @@ import type {
 import {
   NetworkClientType,
   NetworkStatus,
-  defaultState as defaultNetworkState,
+  getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import * as NonceTrackerPackage from '@metamask/nonce-tracker';
 import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
@@ -337,7 +337,7 @@ const MOCK_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
@@ -354,7 +354,7 @@ const MOCK_MAINNET_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
@@ -371,7 +371,7 @@ const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
@@ -388,7 +388,7 @@ const MOCK_LINEA_GOERLI_NETWORK: MockNetwork = {
         status: NetworkStatus.Available,
       },
     },
-    networkConfigurations: {},
+    networkConfigurationsByChainId: {},
   },
   subscribe: () => undefined,
 };
@@ -560,7 +560,7 @@ describe('TransactionController', () => {
     >;
   } = {}) {
     let networkState = {
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       selectedNetworkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
       ...network.state,
     };

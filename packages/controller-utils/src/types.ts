@@ -95,3 +95,34 @@ export enum NetworksTicker {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   rpc = '',
 }
+
+export const BlockExplorerUrl = {
+  [BuiltInNetworkName.Mainnet]: 'https://etherscan.io',
+  [BuiltInNetworkName.Goerli]: 'https://goerli.etherscan.io',
+  [BuiltInNetworkName.Sepolia]: 'https://sepolia.etherscan.io',
+  [BuiltInNetworkName.LineaGoerli]: 'https://goerli.lineascan.build',
+  [BuiltInNetworkName.LineaSepolia]: 'https://sepolia.lineascan.build',
+  [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
+} as const satisfies Record<InfuraNetworkType, string>;
+export type BlockExplorerUrl =
+  (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
+
+export const NetworkNickname = {
+  [BuiltInNetworkName.Mainnet]: 'Mainnet',
+  [BuiltInNetworkName.Goerli]: 'Goerli',
+  [BuiltInNetworkName.Sepolia]: 'Sepolia',
+  [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
+  [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
+  [BuiltInNetworkName.LineaMainnet]: 'Linea Mainnet',
+} as const satisfies Record<InfuraNetworkType, string>;
+export type NetworkNickname =
+  (typeof NetworkNickname)[keyof typeof NetworkNickname];
+
+/**
+ * Makes a selection of keys in a Record optional.
+ *
+ * @template Type - The Record that you want to operate on.
+ * @template Key - The union of keys you want to make optional.
+ */
+export type Partialize<Type, Key extends keyof Type> = Omit<Type, Key> &
+  Partial<Pick<Type, Key>>;

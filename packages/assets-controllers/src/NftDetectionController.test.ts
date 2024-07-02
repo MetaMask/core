@@ -2,8 +2,8 @@ import type { AccountsController } from '@metamask/accounts-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
 import {
+  getDefaultNetworkControllerState,
   NetworkClientType,
-  defaultState as defaultNetworkState,
 } from '@metamask/network-controller';
 import type {
   NetworkClient,
@@ -1033,7 +1033,7 @@ async function withController<ReturnValue>(
   messenger.registerActionHandler(
     'NetworkController:getState',
     jest.fn<NetworkState, []>().mockReturnValue({
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       ...mockNetworkState,
     }),
   );

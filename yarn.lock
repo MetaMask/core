@@ -3211,6 +3211,7 @@ __metadata:
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~4.9.5"
+    uri-js: "npm:^4.4.1"
     uuid: "npm:^8.3.2"
   languageName: unknown
   linkType: soft

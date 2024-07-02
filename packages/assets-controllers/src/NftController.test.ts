@@ -32,7 +32,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import {
   getDefaultPreferencesState,
@@ -262,7 +262,7 @@ function setupController({
     selectedNetworkClientId: NetworkClientId;
   }) => {
     messenger.publish('NetworkController:networkDidChange', {
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       selectedNetworkClientId,
     });
   };
