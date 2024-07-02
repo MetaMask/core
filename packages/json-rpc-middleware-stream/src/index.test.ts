@@ -3,6 +3,7 @@ import PortStream from 'extension-port-stream';
 import type { Duplex } from 'stream';
 import type { Runtime } from 'webextension-polyfill-ts';
 
+import * as allExports from '.';
 import { createStreamMiddleware, createEngineStream } from '.';
 
 const artificialDelay = async (time = 0) =>
@@ -276,5 +277,16 @@ describe('retry logic in middleware connected to a port', () => {
     });
     await artificialDelay();
     expect(messages).toHaveLength(1);
+  });
+});
+
+describe('@metamask/json-rpc-middleware-stream', () => {
+  it('has expected JavaScript exports', () => {
+    expect(Object.keys(allExports)).toMatchInlineSnapshot(`
+      Array [
+        "createEngineStream",
+        "createStreamMiddleware",
+      ]
+    `);
   });
 });
