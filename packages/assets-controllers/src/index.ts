@@ -8,8 +8,23 @@ export type {
   AccountTrackerControllerEvents,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
-export * from './AssetsContractController';
-export * from './CurrencyRateController';
+export type {
+  AssetsContractConfig,
+  BalanceMap,
+} from './AssetsContractController';
+export {
+  SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
+  MISSING_PROVIDER_ERROR,
+  AssetsContractController,
+} from './AssetsContractController';
+export type {
+  CurrencyRateState,
+  CurrencyRateStateChange,
+  CurrencyRateControllerEvents,
+  GetCurrencyRateState,
+  CurrencyRateControllerActions,
+} from './CurrencyRateController';
+export { CurrencyRateController } from './CurrencyRateController';
 export type {
   NftControllerState,
   NftControllerMessenger,
