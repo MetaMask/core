@@ -144,6 +144,21 @@ class BazController extends BaseControllerV1<never, BazControllerState> {
   }
 }
 
+type ControllersMap = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  FooController: FooController;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  QuzController: QuzController;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  BarController: BarController;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  BazController: BazController;
+};
+
 describe('ComposableController', () => {
   afterEach(() => {
     sinon.restore();
@@ -159,6 +174,7 @@ describe('ComposableController', () => {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         BazController: BazControllerState;
       };
+
       const composableMessenger = new ControllerMessenger<
         never,
         ComposableControllerEvents<ComposableControllerState>
@@ -167,7 +183,10 @@ describe('ComposableController', () => {
         allowedActions: [],
         allowedEvents: [],
       });
-      const controller = new ComposableController({
+      const controller = new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [new BarController(), new BazController()],
         messenger: composableMessenger,
       });
@@ -194,7 +213,10 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const barController = new BarController();
-      new ComposableController({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController],
         messenger: composableMessenger,
       });
@@ -255,11 +277,13 @@ describe('ComposableController', () => {
           'QuzController:stateChange',
         ],
       });
-      const composableController =
-        new ComposableController<ComposableControllerState>({
-          controllers: [fooController, quzController],
-          messenger: composableControllerMessenger,
-        });
+      const composableController = new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
+        controllers: [fooController, quzController],
+        messenger: composableControllerMessenger,
+      });
       expect(composableController.state).toStrictEqual({
         FooController: { foo: 'foo' },
         QuzController: { quz: 'quz' },
@@ -288,7 +312,10 @@ describe('ComposableController', () => {
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      new ComposableController<ComposableControllerState>({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [fooController],
         messenger: composableControllerMessenger,
       });
@@ -336,11 +363,13 @@ describe('ComposableController', () => {
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController =
-        new ComposableController<ComposableControllerState>({
-          controllers: [barController, fooController],
-          messenger: composableControllerMessenger,
-        });
+      const composableController = new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
+        controllers: [barController, fooController],
+        messenger: composableControllerMessenger,
+      });
       expect(composableController.state).toStrictEqual({
         BarController: { bar: 'bar' },
         FooController: { foo: 'foo' },
@@ -373,7 +402,10 @@ describe('ComposableController', () => {
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      new ComposableController<ComposableControllerState>({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController, fooController],
         messenger: composableControllerMessenger,
       });
@@ -421,7 +453,10 @@ describe('ComposableController', () => {
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      new ComposableController<ComposableControllerState>({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController, fooController],
         messenger: composableControllerMessenger,
       });
@@ -490,13 +525,16 @@ describe('ComposableController', () => {
       });
       expect(
         () =>
-          new ComposableController({
+          new ComposableController<
+            ComposableControllerState,
+            ControllersMap[keyof ComposableControllerState]
+          >({
             // @ts-expect-error - Suppressing type error to test for runtime error handling
             controllers: [notController, fooController],
             messenger: composableControllerMessenger,
           }),
       ).toThrow(
-        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
+        'Invalid component: component must be a MessengerConsumer or a controller inheriting from BaseControllerV1.',
       );
     });
   });

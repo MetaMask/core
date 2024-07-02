@@ -1,4 +1,3 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
   ActionConstraint,
   BaseConfig,
@@ -8,10 +7,17 @@ import type {
   StateConstraint,
   StateMetadata,
   ControllerStateChangeEvent,
+  Listener,
 } from '@metamask/base-controller';
+import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
+
+type MessengerConsumerInstance = {
+  name: string;
+  messagingSystem: RestrictedControllerMessengerConstraint;
+};
 
 /**
  * A universal subtype of all controller instances that extend from `BaseControllerV1`.
@@ -20,10 +26,15 @@ export const controllerName = 'ComposableController';
  * Note that this type is not the widest subtype or narrowest supertype of all `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
-export type BaseControllerV1Instance =
-  // `any` is used so that all `BaseControllerV1` instances are assignable to this type.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BaseControllerV1<any, any>;
+export type BaseControllerV1Instance = {
+  name: string;
+  config: BaseConfig & object;
+  defaultConfig: BaseConfig & object;
+  state: BaseState & object;
+  defaultState: BaseState & object;
+  subscribe: (listener: Listener<BaseState & object>) => void;
+  disabled: boolean;
+} & Partial<Pick<MessengerConsumerInstance, 'messagingSystem'>>;
 
 /**
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
@@ -34,9 +45,12 @@ export type BaseControllerV1Instance =
  *
  * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
  */
-export type BaseControllerInstance = {
+export type BaseControllerInstance<
+  State extends StateConstraint = StateConstraint,
+> = {
   name: string;
-  state: StateConstraint;
+  state: State;
+  metadata: Record<string, unknown>;
 };
 
 /**
@@ -46,21 +60,39 @@ export type BaseControllerInstance = {
  * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
-export type ControllerInstance =
+export type WalletComponentInstance =
   | BaseControllerV1Instance
-  | BaseControllerInstance;
+  | BaseControllerInstance
+  | MessengerConsumerInstance;
+
+export type ControllerInstance = Exclude<
+  WalletComponentInstance,
+  MessengerConsumerInstance
+>;
 
 /**
  * The narrowest supertype of all `RestrictedControllerMessenger` instances.
  */
-export type RestrictedControllerMessengerConstraint =
-  RestrictedControllerMessenger<
-    string,
-    ActionConstraint,
-    EventConstraint,
-    string,
-    string
-  >;
+export type RestrictedControllerMessengerConstraint<
+  ControllerName extends string = string,
+> = RestrictedControllerMessenger<
+  ControllerName,
+  ActionConstraint,
+  EventConstraint,
+  string,
+  string
+>;
+
+/**
+ * Determines if the given class has a messaging system.
+ * @param component - Component instance to check
+ * @returns True if the component is an instance of `MessengerConsumerInstance`
+ */
+export function isMessengerConsumer(
+  component: WalletComponentInstance,
+): component is MessengerConsumerInstance {
+  return 'name' in component && 'messagingSystem' in component;
+}
 
 /**
  * Determines if the given controller is an instance of `BaseControllerV1`
@@ -68,20 +100,23 @@ export type RestrictedControllerMessengerConstraint =
  * @returns True if the controller is an instance of `BaseControllerV1`
  */
 export function isBaseControllerV1(
-  controller: ControllerInstance,
-): controller is BaseControllerV1<
-  BaseConfig & Record<string, unknown>,
-  BaseState & Record<string, unknown>
-> {
+  controller: WalletComponentInstance,
+): controller is BaseControllerV1Instance {
   return (
     'name' in controller &&
     typeof controller.name === 'string' &&
+    'config' in controller &&
+    typeof controller.config === 'object' &&
     'defaultConfig' in controller &&
     typeof controller.defaultConfig === 'object' &&
+    'state' in controller &&
+    typeof controller.state === 'object' &&
     'defaultState' in controller &&
     typeof controller.defaultState === 'object' &&
     'disabled' in controller &&
     typeof controller.disabled === 'boolean' &&
+    'subscribe' in controller &&
+    typeof controller.subscribe === 'function' &&
     controller instanceof BaseControllerV1
   );
 }
@@ -92,17 +127,15 @@ export function isBaseControllerV1(
  * @returns True if the controller is an instance of `BaseController`
  */
 export function isBaseController(
-  controller: ControllerInstance,
-): controller is BaseController<
-  string,
-  StateConstraint,
-  RestrictedControllerMessengerConstraint
-> {
+  controller: WalletComponentInstance,
+): controller is BaseControllerInstance {
   return (
     'name' in controller &&
     typeof controller.name === 'string' &&
     'state' in controller &&
     typeof controller.state === 'object' &&
+    'metadata' in controller &&
+    typeof controller.metadata === 'object' &&
     controller instanceof BaseController
   );
 }
@@ -186,25 +219,13 @@ export type ComposableControllerMessenger<
   AllowedEvents<ComposableControllerState>['type']
 >;
 
-type GetChildControllers<
-  ComposableControllerState,
-  ControllerName extends keyof ComposableControllerState = keyof ComposableControllerState,
-> = ControllerName extends string
-  ? ComposableControllerState[ControllerName] extends StateConstraint
-    ? { name: ControllerName; state: ComposableControllerState[ControllerName] }
-    : BaseControllerV1<
-        BaseConfig & Record<string, unknown>,
-        BaseState & ComposableControllerState[ControllerName]
-      >
-  : never;
-
 /**
  * Controller that can be used to compose multiple controllers together.
  * @template ChildControllerState - The composed state of the child controllers that are being used to instantiate the composable controller.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends ControllerInstance = GetChildControllers<ComposableControllerState>,
+  ChildControllers extends WalletComponentInstance,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
@@ -242,7 +263,9 @@ export class ComposableController<
       ),
       state: controllers.reduce<ComposableControllerState>(
         (state, controller) => {
-          return { ...state, [controller.name]: controller.state };
+          return 'state' in controller
+            ? { ...state, [controller.name]: controller.state }
+            : state;
         },
         {} as never,
       ),
@@ -256,36 +279,32 @@ export class ComposableController<
 
   /**
    * Constructor helper that subscribes to child controller state changes.
-   * @param controller - Controller instance to update
+   * @param component - Wallet component instance to update
    */
-  #updateChildController(controller: ControllerInstance): void {
-    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
-      throw new Error(
-        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
-      );
-    }
-
-    const { name } = controller;
+  #updateChildController(component: WalletComponentInstance): void {
+    const { name } = component;
     if (
-      (isBaseControllerV1(controller) && 'messagingSystem' in controller) ||
-      isBaseController(controller)
+      isBaseController(component) ||
+      (isBaseControllerV1(component) && isMessengerConsumer(component))
     ) {
       this.messagingSystem.subscribe(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${name}:stateChange`,
-        (childState: Record<string, unknown>) => {
+        (childState: StateConstraint | (BaseState & object)) => {
           this.update((state) => {
             Object.assign(state, { [name]: childState });
           });
         },
       );
-    } else if (isBaseControllerV1(controller)) {
-      controller.subscribe((childState) => {
+    } else if (isBaseControllerV1(component)) {
+      component.subscribe((childState: BaseState & object) => {
         this.update((state) => {
           Object.assign(state, { [name]: childState });
         });
       });
+    } else if (!isMessengerConsumer(component)) {
+      throw new Error(
+        'Invalid component: component must be a MessengerConsumer or a controller inheriting from BaseControllerV1.',
+      );
     }
   }
 }
