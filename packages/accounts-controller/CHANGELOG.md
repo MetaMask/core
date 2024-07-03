@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Use `listMultichainAccounts` and set `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
+- Use `listMultichainAccounts` for non-EVM specific methods. ([#4494](https://github.com/MetaMask/core/pull/4494))
+- Set `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
 
 ## [17.1.1]
 
