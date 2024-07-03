@@ -885,9 +885,9 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         const messengerSpy = jest.spyOn(messenger, 'publish');
         mockUUID
-          .mockReturnValueOnce('mock-id') // call to check if its a new account
-          .mockReturnValueOnce('mock-id2') // call to check if its a new account
-          .mockReturnValueOnce('mock-id2'); // call to add account
+          .mockReturnValueOnce(mockAccount.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id); // call to add account
 
         const mockNewKeyringState = {
           isUnlocked: true,
@@ -1155,9 +1155,9 @@ describe('AccountsController', () => {
         const messenger = buildMessenger();
         const messengerSpy = jest.spyOn(messenger, 'publish');
         mockUUID
-          .mockReturnValueOnce('mock-id') // call to check if its a new account
-          .mockReturnValueOnce('mock-id2') // call to check if its a new account
-          .mockReturnValueOnce('mock-id2'); // call to add account
+          .mockReturnValueOnce(mockAccount.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id); // call to add account
 
         const mockNewKeyringState = {
           isUnlocked: true,
