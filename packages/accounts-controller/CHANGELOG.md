@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [18.0.0]
+## [17.2.0]
 
 ### Added
 
-- **BREAKING:** `AccountsControllerMessenger` must allow the new internal events `AccountsController:accountAdded` and `AccountsController:accountRemoved`. ([#4496](https://github.com/MetaMask/core/pull/4496))
-  - Add and export corresponding event types `AccountsControllerAccountAddedEvent`, `AccountsControllerAccountRemovedEvent`.
+- `AccountsController:accountAdded` and `AccountsController:accountRemoved` events added. ([#4496](https://github.com/MetaMask/core/pull/4496))
+- Add and export corresponding event types `AccountsControllerAccountAddedEvent`, `AccountsControllerAccountRemovedEvent`.
 - Export action types `AccountsControllerListMultichainAccounts`,`AccountsControllerGetSelectedMultichainAccount`,`AccountsControllerGetNextAvailableAccountName}Action`. ([#4497](https://github.com/MetaMask/core/pull/4497))
 
 ### Fixed
