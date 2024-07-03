@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add support for tokenURI encoded images ([#4482](https://github.com/MetaMask/core/pull/4482))
+- Release/167.0.0 ([#4468](https://github.com/MetaMask/core/pull/4468))
+
 ## [34.0.0]
 
 ### Added

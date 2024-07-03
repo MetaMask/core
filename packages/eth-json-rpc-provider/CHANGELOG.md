@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Bump Yarn to v4 ([#3612](https://github.com/MetaMask/core/pull/3612))
+
 ## [4.0.0]
 
 ### Changed

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
+- fix(deps): @metamask/eth-block-tracker@^9.0.2->^9.0.3 ([#4418](https://github.com/MetaMask/core/pull/4418))
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- chore(test): Refactor FakeBlockTracker provider injection ([#4345](https://github.com/MetaMask/core/pull/4345))
+- AssetsContractController: providerConfig -> selectedNetworkClientId ([#4315](https://github.com/MetaMask/core/pull/4315))
+
 ### Changed
 
 - **BREAKING:** Update `networksMetadata` state property so that the keys in the object will only ever be network client IDs and not RPC URLs ([#4254](https://github.com/MetaMask/core/pull/4254))
