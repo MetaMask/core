@@ -2287,7 +2287,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2325,7 +2325,7 @@ __metadata:
     "@metamask/network-controller": "npm:^19.0.0"
     "@metamask/polling-controller": "npm:^8.0.0"
     "@metamask/preferences-controller": "npm:^13.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -3000,7 +3000,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^9.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -3063,18 +3063,18 @@ __metadata:
 
 "@metamask/keyring-api@github:MetaMask/keyring-api#replace-superstruct-with-fork":
   version: 8.0.0
-  resolution: "@metamask/keyring-api@https://github.com/MetaMask/keyring-api.git#commit=155384dad1f4d394276c4c639ea495d5840f2b2b"
+  resolution: "@metamask/keyring-api@https://github.com/MetaMask/keyring-api.git#commit=6ec0879a3d7bf467c850e7dd17728aa9119aa68c"
   dependencies:
     "@metamask/providers": "npm:^17.1.0"
     "@metamask/snaps-sdk": "npm:^6.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^8.5.0"
+    "@metamask/utils": "npm:^9.0.0"
     "@types/uuid": "npm:^9.0.8"
     bech32: "npm:^2.0.0"
     uuid: "npm:^9.0.1"
   peerDependencies:
     "@metamask/providers": ">=15 <18"
-  checksum: 10/76c38ced7a693e823ba38cc5acd163a7377b3dc39eb98af4aed19e97a26bc00b1118b48d6494eef8168b920f2239925452ff4c3857ff99f58bc960854a0ca5fd
+  checksum: 10/2170cddf5c518699e8e5f3f2f6a6ef532ca06887c8e3cbe393e1a4b0162a92a4f954fc25ea71aaa1bb06df64ff933fba02690a00282c0ec6bebf7352d5e57e08
   languageName: node
   linkType: hard
 
@@ -3194,7 +3194,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^4.0.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^9.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/swappable-obj-proxy": "npm:^2.2.0"
     "@metamask/utils": "npm:^9.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -3317,7 +3317,7 @@ __metadata:
     "@metamask/base-controller": "npm:^6.0.0"
     "@metamask/controller-utils": "npm:^11.0.0"
     "@metamask/json-rpc-engine": "npm:^9.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -3527,7 +3527,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.0.0"
     "@metamask/json-rpc-engine": "npm:^9.0.0"
     "@metamask/network-controller": "npm:^19.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/selected-network-controller": "npm:^15.0.2"
     "@metamask/swappable-obj-proxy": "npm:^2.2.0"
     "@metamask/utils": "npm:^9.0.0"
@@ -3554,7 +3554,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -3573,6 +3573,16 @@ __metadata:
     "@metamask/utils": "npm:^8.3.0"
     fast-safe-stringify: "npm:^2.0.6"
   checksum: 10/1abec9ba38057277290cb72bdd3bd8a3c02272c03153421e02139a071c5ea44493065bb55ad725237d186466667916190e60209f86507f24e1c01369f7a8feeb
+  languageName: node
+  linkType: hard
+
+"@metamask/rpc-errors@npm:^6.3.1":
+  version: 6.3.1
+  resolution: "@metamask/rpc-errors@npm:6.3.1"
+  dependencies:
+    "@metamask/utils": "npm:^9.0.0"
+    fast-safe-stringify: "npm:^2.0.6"
+  checksum: 10/f968fb490b13b632c2ad4770a144d67cecdff8d539cb8b489c732b08dab7a62fae65d7a2908ce8c5b77260317aa618948a52463f093fa8d9f84aee1c5f6f5daf
   languageName: node
   linkType: hard
 
@@ -3632,7 +3642,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^17.1.0"
     "@metamask/logging-controller": "npm:^5.0.0"
     "@metamask/message-manager": "npm:^10.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -3847,7 +3857,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^19.0.0"
     "@metamask/nonce-tracker": "npm:^5.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -3889,7 +3899,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^17.1.0"
     "@metamask/network-controller": "npm:^19.0.0"
     "@metamask/polling-controller": "npm:^8.0.0"
-    "@metamask/rpc-errors": "npm:^6.2.1"
+    "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^33.0.1"
     "@metamask/utils": "npm:^9.0.0"
