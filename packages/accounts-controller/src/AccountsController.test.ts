@@ -919,6 +919,50 @@ describe('AccountsController', () => {
         ]);
         expect(accountsController.getSelectedAccount().id).toBe(mockAccount.id);
       });
+
+      it('publishes accountAdded event', async () => {
+        const messenger = buildMessenger();
+        const messengerSpy = jest.spyOn(messenger, 'publish');
+        mockUUID
+          .mockReturnValueOnce(mockAccount.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id); // call to add account
+
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        // First call is 'KeyringController:stateChange'
+        expect(messengerSpy).toHaveBeenNthCalledWith(
+          2,
+          'AccountsController:accountAdded',
+          setLastSelectedAsAny(mockAccount2),
+        );
+      });
     });
 
     describe('deleting account', () => {
@@ -1153,6 +1197,50 @@ describe('AccountsController', () => {
         const selectedAccount = accountsController.getSelectedAccount();
         expect(selectedAccount.metadata.lastSelected).toBeGreaterThanOrEqual(
           currentTime,
+        );
+      });
+
+      it('publishes accountRemoved event', async () => {
+        const messenger = buildMessenger();
+        const messengerSpy = jest.spyOn(messenger, 'publish');
+        mockUUID
+          .mockReturnValueOnce(mockAccount.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id) // call to check if its a new account
+          .mockReturnValueOnce(mockAccount2.id); // call to add account
+
+        setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockAccount.id]: mockAccount,
+                [mockAccount3.id]: mockAccount3,
+              },
+              selectedAccount: mockAccount.id,
+            },
+          },
+          messenger,
+        });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
+        messenger.publish(
+          'KeyringController:stateChange',
+          mockNewKeyringState,
+          [],
+        );
+
+        // First call is 'KeyringController:stateChange'
+        expect(messengerSpy).toHaveBeenNthCalledWith(
+          2,
+          'AccountsController:accountRemoved',
+          mockAccount3.id,
         );
       });
     });
