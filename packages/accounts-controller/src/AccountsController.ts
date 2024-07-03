@@ -42,9 +42,11 @@ import {
 
 const controllerName = 'AccountsController';
 
+export type AccountId = string;
+
 export type AccountsControllerState = {
   internalAccounts: {
-    accounts: Record<string, InternalAccount>;
+    accounts: Record<AccountId, InternalAccount>;
     selectedAccount: string; // id of the selected account
   };
 };
@@ -137,12 +139,24 @@ export type AccountsControllerSelectedEvmAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerAccountAddedEvent = {
+  type: `${typeof controllerName}:accountAdded`;
+  payload: [InternalAccount];
+};
+
+export type AccountsControllerAccountRemovedEvent = {
+  type: `${typeof controllerName}:accountRemoved`;
+  payload: [AccountId];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
   | AccountsControllerSelectedAccountChangeEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRemovedEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -419,6 +433,7 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
+      // @ts-ignore
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
@@ -941,7 +956,7 @@ export class AccountsController extends BaseController<
       Object.values(accountsState),
     );
 
-    accountsState[newAccount.id] = {
+    const newAccountWithUpdatedMetadata = {
       ...newAccount,
       metadata: {
         ...newAccount.metadata,
@@ -950,6 +965,13 @@ export class AccountsController extends BaseController<
         lastSelected: 0,
       },
     };
+
+    accountsState[newAccount.id] = newAccountWithUpdatedMetadata;
+
+    this.messagingSystem.publish(
+      'AccountsController:accountAdded',
+      newAccountWithUpdatedMetadata,
+    );
 
     return accountsState;
   }
@@ -965,6 +987,11 @@ export class AccountsController extends BaseController<
     accountId: string,
   ): AccountsControllerState['internalAccounts']['accounts'] {
     delete accountsState[accountId];
+
+    this.messagingSystem.publish(
+      'AccountsController:accountRemoved',
+      accountId,
+    );
     return accountsState;
   }
 
