@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add internal actions and events to `AccountsController` ([#4496](https://github.com/MetaMask/core/pull/4496), [#4497](https://github.com/MetaMask/core/pull/4497))
   - Add events `AccountsController:accountAdded`, `AccountsController:accountRemoved`, and export corresponding event types `AccountsControllerAccountAddedEvent`, `AccountsControllerAccountRemovedEvent`.
-  - Export action types `AccountsControllerListMultichainAccounts`, `AccountsControllerGetSelectedMultichainAccount`, `AccountsControllerGetNextAvailableAccountNameAction`.
+  - Export action types `AccountsControllerListMultichainAccountsAction`, `AccountsControllerGetSelectedMultichainAccountAction`, `AccountsControllerGetNextAvailableAccountNameAction`.
 
 ### Fixed
 
