@@ -433,7 +433,6 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // @ts-ignore
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
