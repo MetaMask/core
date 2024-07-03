@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Add constructor options to `GasFeeController`: `EIP1559APIEndpoint` (required), and `legacyAPIEndpoint` (optional) which defaults to `LEGACY_GAS_PRICES_API_URL`. ([#4446](https://github.com/MetaMask/core/pull/4446))
-  - These URLs are no longer hardcoded within the controller. 
+  - These URLs are no longer hardcoded within the controller.
 
 ### Removed
 
