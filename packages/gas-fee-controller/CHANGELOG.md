@@ -11,15 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Added back the constructor options legacyAPIEndpoint and EIP1559APIEndpoint. These URLs are no longer hardcoded within the controller.
-
-### Changed
-
-- Changing `providerConfig` to `selectedNetworkClientId` ([#4356](https://github.com/MetaMask/core/pull/4356))
+- **BREAKING:** Add constructor options to `GasFeeController`: `EIP1559APIEndpoint` (required), and `legacyAPIEndpoint` (optional) which defaults to `LEGACY_GAS_PRICES_API_URL`. ([#4446](https://github.com/MetaMask/core/pull/4446))
+  - These URLs are no longer hardcoded within the controller. 
 
 ### Removed
 
-- **BREAKING:** Removed the infuraAPIKey. This was used to construct and send the Authorization header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
+- **BREAKING:** Remove `infuraAPIKey` as a constructor option for `GasFeeController`. This class field was previously used to construct and send the `Authorization` header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
+- **BREAKING:** Remove all usage of the `providerConfig` state property of `NetworkController`. ([#4356](https://github.com/MetaMask/core/pull/4356))
+  - The `selectedNetworkClientId` state property of `NetworkController` can be used instead of `providerConfig` to derive the currently selected `chainId`.
 
 ## [17.0.0]
 

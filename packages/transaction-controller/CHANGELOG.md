@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^18.0.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+- Bump dependency `@metamask/accounts-controller` to `^17.2.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
 
 ## [33.0.1]
 
