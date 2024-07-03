@@ -445,6 +445,45 @@ describe('AccountsController', () => {
   });
 
   describe('onKeyringStateChange', () => {
+    it('uses listMultichainAccounts', async () => {
+      const messenger = buildMessenger();
+      mockUUID
+        .mockReturnValueOnce('mock-id') // call to check if its a new account
+        .mockReturnValueOnce('mock-id2'); // call to add account
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: {},
+            selectedAccount: '',
+          },
+        },
+        messenger,
+      });
+
+      const listMultichainAccountsSpy = jest.spyOn(
+        accountsController,
+        'listMultichainAccounts',
+      );
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [mockAccount.address],
+          },
+        ],
+      };
+
+      messenger.publish(
+        'KeyringController:stateChange',
+        mockNewKeyringState,
+        [],
+      );
+
+      expect(listMultichainAccountsSpy).toHaveBeenCalled();
+    });
     it('not update state when only keyring is unlocked without any keyrings', async () => {
       const messenger = buildMessenger();
       const { accountsController } = setupAccountsController({
@@ -463,7 +502,7 @@ describe('AccountsController', () => {
         [],
       );
 
-      const accounts = accountsController.listAccounts();
+      const accounts = accountsController.listMultichainAccounts();
 
       expect(accounts).toStrictEqual([]);
     });
@@ -496,7 +535,7 @@ describe('AccountsController', () => {
         [],
       );
 
-      const accounts = accountsController.listAccounts();
+      const accounts = accountsController.listMultichainAccounts();
 
       expect(accounts).toStrictEqual([]);
     });
@@ -537,7 +576,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           mockAccount,
@@ -595,7 +634,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           mockAccount,
@@ -661,7 +700,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           mockAccount,
@@ -709,7 +748,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           mockAccount,
@@ -774,7 +813,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts.map(setLastSelectedAsAny)).toStrictEqual([
           mockAccount,
@@ -872,7 +911,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           mockAccount,
@@ -959,7 +998,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([setLastSelectedAsAny(mockAccount2)]);
         expect(accountsController.getSelectedAccount()).toStrictEqual(
@@ -1012,7 +1051,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           setLastSelectedAsAny(mockAccount),
@@ -1075,7 +1114,7 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
           setLastSelectedAsAny(mockAccount),
@@ -1087,6 +1126,7 @@ describe('AccountsController', () => {
       });
 
       it('delete the account and select the account with the most recent lastSelected', async () => {
+        const currentTime = Date.now();
         const messenger = buildMessenger();
         mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
 
@@ -1141,14 +1181,22 @@ describe('AccountsController', () => {
           [],
         );
 
-        const accounts = accountsController.listAccounts();
+        const accounts = accountsController.listMultichainAccounts();
 
         expect(accounts).toStrictEqual([
-          mockAccountWithoutLastSelected,
+          {
+            ...mockAccountWithoutLastSelected,
+            metadata: {
+              ...mockAccountWithoutLastSelected.metadata,
+              lastSelected: expect.any(Number),
+            },
+          },
           mockAccount2WithoutLastSelected,
         ]);
-        expect(accountsController.getSelectedAccount()).toStrictEqual(
-          mockAccountWithoutLastSelected,
+
+        const selectedAccount = accountsController.getSelectedAccount();
+        expect(selectedAccount.metadata.lastSelected).toBeGreaterThanOrEqual(
+          currentTime,
         );
       });
 
@@ -1243,7 +1291,7 @@ describe('AccountsController', () => {
       );
 
       const selectedAccount = accountsController.getSelectedAccount();
-      const accounts = accountsController.listAccounts();
+      const accounts = accountsController.listMultichainAccounts();
       const expectedAccount = setLastSelectedAsAny(mockReinitialisedAccount);
 
       expect(selectedAccount).toStrictEqual(expectedAccount);
@@ -1428,7 +1476,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(accountsController.listMultichainAccounts()).toStrictEqual(
+        expectedAccounts,
+      );
     });
 
     it('update accounts with Snap accounts when snap keyring is defined and has accounts', async () => {
@@ -1483,7 +1533,7 @@ describe('AccountsController', () => {
       await accountsController.updateAccounts();
 
       expect(
-        accountsController.listAccounts().map(setLastSelectedAsAny),
+        accountsController.listMultichainAccounts().map(setLastSelectedAsAny),
       ).toStrictEqual(expectedAccounts);
     });
 
@@ -1513,7 +1563,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(accountsController.listMultichainAccounts()).toStrictEqual(
+        expectedAccounts,
+      );
     });
 
     it('set the account with the correct index', async () => {
@@ -1562,7 +1614,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(accountsController.listMultichainAccounts()).toStrictEqual(
+        expectedAccounts,
+      );
     });
 
     it('filter Snap accounts from normalAccounts', async () => {
@@ -1617,7 +1671,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(accountsController.listMultichainAccounts()).toStrictEqual(
+        expectedAccounts,
+      );
     });
 
     it('filter Snap accounts from normalAccounts even if the snap account is listed before normal accounts', async () => {
@@ -1673,7 +1729,9 @@ describe('AccountsController', () => {
 
       await accountsController.updateAccounts();
 
-      expect(accountsController.listAccounts()).toStrictEqual(expectedAccounts);
+      expect(accountsController.listMultichainAccounts()).toStrictEqual(
+        expectedAccounts,
+      );
     });
 
     it.each([
@@ -1729,7 +1787,7 @@ describe('AccountsController', () => {
       await accountsController.updateAccounts();
 
       expect(
-        accountsController.listAccounts().map(setLastSelectedAsAny),
+        accountsController.listMultichainAccounts().map(setLastSelectedAsAny),
       ).toStrictEqual(expectedAccounts);
     });
 
@@ -2341,7 +2399,7 @@ describe('AccountsController', () => {
         [],
       );
 
-      const accounts = accountsController.listAccounts();
+      const accounts = accountsController.listMultichainAccounts();
       expect(accounts).toStrictEqual([
         mockAccount,
         setLastSelectedAsAny(mockSimpleKeyring1),
@@ -2398,7 +2456,7 @@ describe('AccountsController', () => {
         [],
       );
 
-      const accounts = accountsController.listAccounts();
+      const accounts = accountsController.listMultichainAccounts();
       expect(accounts).toStrictEqual([
         mockAccount,
         setLastSelectedAsAny(mockSimpleKeyring2),
