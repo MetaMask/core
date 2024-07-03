@@ -964,7 +964,6 @@ export class AccountsController extends BaseController<
         lastSelected: 0,
       },
     };
-
     accountsState[newAccount.id] = newAccountWithUpdatedMetadata;
 
     this.messagingSystem.publish(

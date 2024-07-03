@@ -889,15 +889,6 @@ describe('AccountsController', () => {
           .mockReturnValueOnce(mockAccount2.id) // call to check if its a new account
           .mockReturnValueOnce(mockAccount2.id); // call to add account
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-        };
         setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -909,6 +900,16 @@ describe('AccountsController', () => {
           },
           messenger,
         });
+
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
 
         messenger.publish(
           'KeyringController:stateChange',
@@ -1159,15 +1160,6 @@ describe('AccountsController', () => {
           .mockReturnValueOnce(mockAccount2.id) // call to check if its a new account
           .mockReturnValueOnce(mockAccount2.id); // call to add account
 
-        const mockNewKeyringState = {
-          isUnlocked: true,
-          keyrings: [
-            {
-              type: KeyringTypes.hd,
-              accounts: [mockAccount.address, mockAccount2.address],
-            },
-          ],
-        };
         setupAccountsController({
           initialState: {
             internalAccounts: {
@@ -1181,6 +1173,15 @@ describe('AccountsController', () => {
           messenger,
         });
 
+        const mockNewKeyringState = {
+          isUnlocked: true,
+          keyrings: [
+            {
+              type: KeyringTypes.hd,
+              accounts: [mockAccount.address, mockAccount2.address],
+            },
+          ],
+        };
         messenger.publish(
           'KeyringController:stateChange',
           mockNewKeyringState,
@@ -1191,7 +1192,7 @@ describe('AccountsController', () => {
         expect(messengerSpy).toHaveBeenNthCalledWith(
           2,
           'AccountsController:accountRemoved',
-          'mock-id3',
+          mockAccount3.id,
         );
       });
     });
