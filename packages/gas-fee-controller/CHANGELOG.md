@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.0.0]
 
-### Uncategorized
+### Added
 
-- chore(gas-fee-controller): revert recent gas API endpoint ([#4446](https://github.com/MetaMask/core/pull/4446))
-- chore: reduce diffs to GasFeeController.test.ts introduced by 2b1841c ([#4463](https://github.com/MetaMask/core/pull/4463))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- GasFeeController: providerConfig -> selectedNetworkClientId ([#4356](https://github.com/MetaMask/core/pull/4356))
+- **BREAKING** Added back the constructor options legacyAPIEndpoint and EIP1559APIEndpoint. These URLs are no longer hardcoded within the controller.
+
+### Changed
+
+- Changing `providerConfig` to `selectedNetworkClientId` ([#4356](https://github.com/MetaMask/core/pull/4356))
+
+### Removed
+
+- **BREAKING** Removed the infuraAPIKey. This was used to construct and send the Authorization header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
 
 ## [17.0.0]
 
