@@ -8,8 +8,6 @@ export type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetAccountAction,
-  AccountsControllerGetNextAvailableAccountNameAction,
-  AccountsControllerGetSelectedMultichainAccountAction,
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
