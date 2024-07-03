@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING** Added back the constructor options legacyAPIEndpoint and EIP1559APIEndpoint. These URLs are no longer hardcoded within the controller.
+- **BREAKING:** Added back the constructor options legacyAPIEndpoint and EIP1559APIEndpoint. These URLs are no longer hardcoded within the controller.
 
 ### Changed
 
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING** Removed the infuraAPIKey. This was used to construct and send the Authorization header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
+- **BREAKING:** Removed the infuraAPIKey. This was used to construct and send the Authorization header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
 
 ## [17.0.0]
 
