@@ -9,11 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.2.0]
 
-### Uncategorized
+### Added
 
-- fix(accounts-controller): export missing actions ([#4497](https://github.com/MetaMask/core/pull/4497))
-- feat: add `accountAdded` and `accountRemoved` events ([#4496](https://github.com/MetaMask/core/pull/4496))
-- fix: use `listMultichainAccounts` and set `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
+- Add `accountAdded` and `accountRemoved` events ([#4496](https://github.com/MetaMask/core/pull/4496))
+- Export `AccountsControllerListMultichainAccounts`,`AccountsControllerGetSelectedMultichainAccount`,`AccountsControllerGetNextAvailableAccountName}Action` actions ([#4497](https://github.com/MetaMask/core/pull/4497))
+
+### Fixed
+
+- Use `listMultichainAccounts` and set `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
 
 ## [17.1.1]
 
