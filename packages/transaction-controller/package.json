@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "33.0.0",
+  "version": "33.0.1",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/accounts-controller": "^17.0.0",
+    "@metamask/accounts-controller": "^17.1.1",
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",

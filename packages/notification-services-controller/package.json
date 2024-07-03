@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -45,7 +45,7 @@
     "@metamask/base-controller": "^6.0.0",
     "@metamask/controller-utils": "^11.0.0",
     "@metamask/keyring-controller": "^17.1.0",
-    "@metamask/profile-sync-controller": "^0.1.0",
+    "@metamask/profile-sync-controller": "^0.1.2",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.3.6",
     "firebase": "^10.11.0",
@@ -68,7 +68,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^0.1.0"
+    "@metamask/profile-sync-controller": "^0.1.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
