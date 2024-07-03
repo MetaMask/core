@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.0]
 
-### Uncategorized
+### Changed
 
-- Release/167.0.0 ([#4468](https://github.com/MetaMask/core/pull/4468))
+- **BREAKING** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^18.0.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
 
 ## [33.0.1]
 
