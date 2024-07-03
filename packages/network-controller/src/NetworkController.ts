@@ -21,7 +21,6 @@ import {
   hasProperty,
   isPlainObject,
 } from '@metamask/utils';
-import { strict as assert } from 'assert';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -115,26 +114,6 @@ export function knownKeysOf<K extends PropertyKey>(
 }
 
 /**
- * Asserts that the given value is of the given type if the given validation
- * function returns a truthy result.
- *
- * @param value - The value to validate.
- * @param validate - A function used to validate that the value is of the given
- * type. Takes the `value` as an argument and is expected to return true or
- * false.
- * @param message - The message to throw if the function does not return a
- * truthy result.
- * @throws if the function does not return a truthy result.
- */
-function assertOfType<Type>(
-  value: unknown,
-  validate: (value: unknown) => boolean,
-  message: string,
-): asserts value is Type {
-  assert.ok(validate(value), message);
-}
-
-/**
  * Returns a portion of the given object with only the given keys.
  *
  * @param object - An object.
@@ -153,12 +132,7 @@ function pick<Obj extends Record<any, any>, Keys extends keyof Obj>(
     },
     {},
   );
-  assertOfType<Pick<Obj, Keys>>(
-    pickedObject,
-    () => keys.every((key) => key in pickedObject),
-    'The reduce did not produce an object with all of the desired keys.',
-  );
-  return pickedObject;
+  return pickedObject as Pick<Obj, Keys>;
 }
 
 /**
@@ -878,19 +852,20 @@ export class NetworkController extends BaseController<
    * removed in a future release
    */
   async setProviderType(type: InfuraNetworkType) {
-    assert.notStrictEqual(
-      type,
-      NetworkType.rpc,
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
-    );
-    assert.ok(
-      isInfuraNetworkType(type),
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Unknown Infura provider type "${type}".`,
-    );
+    if ((type as unknown) === NetworkType.rpc) {
+      throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
+      );
+    }
+    if (!isInfuraNetworkType(type)) {
+      throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        `Unknown Infura provider type "${type}".`,
+      );
+    }
 
     await this.setActiveNetwork(type);
   }

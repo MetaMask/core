@@ -47,6 +47,8 @@ import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import/no-nodejs-modules
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
 import { v1 as random } from 'uuid';

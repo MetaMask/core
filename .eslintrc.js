@@ -1,9 +1,9 @@
 module.exports = {
   root: true,
-  extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
+  extends: ['@metamask/eslint-config'],
   ignorePatterns: [
     '!.eslintrc.js',
-    '!jest.config.js',
+    '!.prettierrc.js',
     'node_modules',
     '**/dist',
     '**/docs',
@@ -12,6 +12,19 @@ module.exports = {
     'scripts/create-package/package-template',
   ],
   overrides: [
+    {
+      files: [
+        '**/jest.config.js',
+        '**/jest.environment.js',
+        '**/tests/**/*.{ts,js}',
+        '*.js',
+        '*.test.{ts,js}',
+        'scripts/*.ts',
+        'scripts/create-package/*.ts',
+        'tsup.config.ts',
+      ],
+      extends: ['@metamask/eslint-config-nodejs'],
+    },
     {
       files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
       extends: ['@metamask/eslint-config-jest'],
@@ -120,6 +133,9 @@ module.exports = {
   settings: {
     'import/resolver': {
       typescript: {},
+    },
+    jsdoc: {
+      mode: 'typescript',
     },
   },
 };
