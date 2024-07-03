@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add events `AccountsController:accountAdded`, `AccountsController:accountRemoved`, and export corresponding event types `AccountsControllerAccountAddedEvent`, `AccountsControllerAccountRemovedEvent`.
   - Export action types `AccountsControllerListMultichainAccountsAction`, `AccountsControllerGetSelectedMultichainAccountAction`, `AccountsControllerGetNextAvailableAccountNameAction`.
 
-### Fixed
+### Changed
 
-- Use `listMultichainAccounts` instead of `listAccounts` for non-EVM specific multichain methods. ([#4494](https://github.com/MetaMask/core/pull/4494))
-- For initial account, emit `selectedAccountChange ` and update `lastSelected`. ([#4494](https://github.com/MetaMask/core/pull/4494))
+- Improve support of non-EVM accounts ([#4494](https://github.com/MetaMask/core/pull/4494))
+  - We now use `listMultichainAccounts` instead of `listAccounts` for non-EVM specific multichain methods
+- Emit `selectedAccountChange` and update `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
 
 ## [17.1.1]
 
