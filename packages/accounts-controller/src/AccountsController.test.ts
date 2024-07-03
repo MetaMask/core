@@ -451,16 +451,6 @@ describe('AccountsController', () => {
         .mockReturnValueOnce('mock-id') // call to check if its a new account
         .mockReturnValueOnce('mock-id2'); // call to add account
 
-      const mockNewKeyringState = {
-        isUnlocked: true,
-        keyrings: [
-          {
-            type: KeyringTypes.hd,
-            accounts: [mockAccount.address],
-          },
-        ],
-      };
-
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -475,6 +465,16 @@ describe('AccountsController', () => {
         accountsController,
         'listMultichainAccounts',
       );
+
+      const mockNewKeyringState = {
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: KeyringTypes.hd,
+            accounts: [mockAccount.address],
+          },
+        ],
+      };
 
       messenger.publish(
         'KeyringController:stateChange',
