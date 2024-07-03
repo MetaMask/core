@@ -751,7 +751,7 @@ export class AccountsController extends BaseController<
           currentState.internalAccounts.selectedAccount = accountToSelect.id;
           currentState.internalAccounts.accounts[
             accountToSelect.id
-          ].metadata.lastSelected = Date.now();
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
 
           this.#publishAccountChangeEvent(accountToSelect);
         }
@@ -899,6 +899,17 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Retrieves the index value for `metadata.lastSelected`.
+   *
+   * @returns The index value.
+   */
+  #getLastSelectedIndex() {
+    // NOTE: For now we use the current date, since we know this value
+    // will always be higher than any already selected account index.
+    return Date.now();
+  }
+
+  /**
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
@@ -946,7 +957,7 @@ export class AccountsController extends BaseController<
         ...newAccount.metadata,
         name: accountName,
         importTime: Date.now(),
-        lastSelected: isFirstAccount ? Date.now() : 0,
+        lastSelected: isFirstAccount ? this.#getLastSelectedIndex() : 0,
       },
     };
 
