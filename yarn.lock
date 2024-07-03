@@ -2444,13 +2444,13 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/chain-api@npm:^0.0.1":
-  version: 0.0.1
-  resolution: "@metamask/chain-api@npm:0.0.1"
+"@metamask/chain-api@npm:^0.1.0":
+  version: 0.1.0
+  resolution: "@metamask/chain-api@npm:0.1.0"
   dependencies:
-    "@metamask/utils": "npm:^8.4.0"
-    superstruct: "npm:1.0.3"
-  checksum: 10/263c02d591435ade8faf5a6efdaa5efe1d35056d248a15b975794dc05e04402b7c251940d0f376781ff7b3fce133e115fec3ec50f363d9d77614067cb55cae34
+    "@metamask/superstruct": "npm:^3.1.0"
+    "@metamask/utils": "npm:^9.0.0"
+  checksum: 10/45855703cc31f19b35ed6973096377192c8ca595afa9cd12ff90a90a5236bb8cbbbb1f0b6dc9ebe1c2fb6ab887cce266b192c94538a432c786d9b4b4e2536b88
   languageName: node
   linkType: hard
 
@@ -2460,7 +2460,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.0"
-    "@metamask/chain-api": "npm:^0.0.1"
+    "@metamask/chain-api": "npm:^0.1.0"
     "@metamask/keyring-api": "npm:^8.0.0"
     "@metamask/snaps-controllers": "npm:^8.1.1"
     "@metamask/snaps-sdk": "npm:^6.0.0"
@@ -3923,7 +3923,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/utils@npm:^8.1.0, @metamask/utils@npm:^8.2.0, @metamask/utils@npm:^8.2.1, @metamask/utils@npm:^8.3.0, @metamask/utils@npm:^8.4.0, @metamask/utils@npm:^8.5.0":
+"@metamask/utils@npm:^8.1.0, @metamask/utils@npm:^8.2.0, @metamask/utils@npm:^8.2.1, @metamask/utils@npm:^8.3.0, @metamask/utils@npm:^8.5.0":
   version: 8.5.0
   resolution: "@metamask/utils@npm:8.5.0"
   dependencies:
@@ -12254,13 +12254,6 @@ __metadata:
     sucrase: bin/sucrase
     sucrase-node: bin/sucrase-node
   checksum: 10/bc601558a62826f1c32287d4fdfa4f2c09fe0fec4c4d39d0e257fd9116d7d6227a18309721d4185ec84c9dc1af0d5ec0e05a42a337fbb74fc293e068549aacbe
-  languageName: node
-  linkType: hard
-
-"superstruct@npm:1.0.3":
-  version: 1.0.3
-  resolution: "superstruct@npm:1.0.3"
-  checksum: 10/632b6171ac136b6750e62a55f806cc949b3dbf2b4a7dc70cc85f54adcdf19d21eab9711f04e8a643b7dd622bbd8658366ead924f467adaccb2c8005c133b7976
   languageName: node
   linkType: hard
 
