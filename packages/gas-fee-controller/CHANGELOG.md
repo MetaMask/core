@@ -17,8 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove `infuraAPIKey` as a constructor option for `GasFeeController`. This class field was previously used to construct and send the `Authorization` header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
-- **BREAKING:** Remove all usage of the `providerConfig` state property of `NetworkController`. ([#4356](https://github.com/MetaMask/core/pull/4356))
-  - The `selectedNetworkClientId` state property of `NetworkController` can be used instead of `providerConfig` to derive the currently selected `chainId`.
 
 ## [17.0.0]
 
