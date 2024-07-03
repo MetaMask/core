@@ -445,7 +445,7 @@ describe('AccountsController', () => {
   });
 
   describe('onKeyringStateChange', () => {
-    it('uses listMultichainAccount', async () => {
+    it('uses listMultichainAccounts', async () => {
       const messenger = buildMessenger();
       mockUUID
         .mockReturnValueOnce('mock-id') // call to check if its a new account
