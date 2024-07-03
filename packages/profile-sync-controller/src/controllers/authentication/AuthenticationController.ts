@@ -37,7 +37,7 @@ type SessionData = {
 };
 
 type MetaMetricsAuth = {
-  getMetaMetricsId: () => string;
+  getMetaMetricsId: () => string | Promise<string>;
   agent: 'extension' | 'mobile';
 };
 
@@ -131,6 +131,10 @@ export default class AuthenticationController extends BaseController<
       name: controllerName,
       state: { ...defaultState, ...state },
     });
+
+    if (!metametrics) {
+      throw new Error('`metametrics` field is required');
+    }
 
     this.#metametrics = metametrics;
 
@@ -238,7 +242,7 @@ export default class AuthenticationController extends BaseController<
       const rawMessage = createLoginRawMessage(nonce, publicKey);
       const signature = await this.#snapSignMessage(rawMessage);
       const loginResponse = await login(rawMessage, signature, {
-        metametricsId: this.#metametrics.getMetaMetricsId(),
+        metametricsId: await this.#metametrics.getMetaMetricsId(),
         agent: this.#metametrics.agent,
       });
       if (!loginResponse?.token) {
@@ -251,7 +255,10 @@ export default class AuthenticationController extends BaseController<
       };
 
       // 3. Trade for Access Token
-      const accessToken = await getAccessToken(loginResponse.token);
+      const accessToken = await getAccessToken(
+        loginResponse.token,
+        this.#metametrics.agent,
+      );
       if (!accessToken) {
         throw new Error(`Unable to get Access Token`);
       }
