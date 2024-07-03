@@ -990,7 +990,7 @@ export class AccountsController extends BaseController<
       'AccountsController:accountRemoved',
       accountId,
     );
-    
+
     return accountsState;
   }
 
