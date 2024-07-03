@@ -48,8 +48,8 @@
   "dependencies": {
     "@metamask/json-rpc-engine": "^9.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "uuid": "^8.3.2",
-    "@metamask/utils": "^8.3.0"
+    "@metamask/utils": "^8.3.0",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@ethersproject/providers": "^5.7.0",
