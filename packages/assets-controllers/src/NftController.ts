@@ -521,44 +521,42 @@ export class NftController extends BaseController<
    * @returns The NFT metadata.
    */
   async fetchNftCollectionMetadata(
-    contractAddress: string,
+    contractAddresses: string[],
     chainId: Hex,
   ): Promise<{
-    collection: Collection | null;
+    collections: Collection[];
   }> {
     return await this.#getNftCollectionInformationFromApi(
-      contractAddress,
+      contractAddresses,
       chainId,
     );
   }
 
   async #getNftCollectionInformationFromApi(
-    contractAddress: string,
+    contractAddress: string[],
     chainId: Hex,
   ) {
     const urlParams = new URLSearchParams({
       chainId: chainId,
-      contract: `${contractAddress}`,
-    }).toString();
+    });
+
+    for (const address of contractAddress) {
+      urlParams.append('contract', address);
+    }
 
     const nftCollectionInformation: {
       collections: Collection[];
       continuation?: string;
-    } = await handleFetch(`${this.#getNftCollectionApi()}?${urlParams}`, {
-      headers: {
-        Version: '1',
+    } = await handleFetch(
+      `${this.#getNftCollectionApi()}?${urlParams.toString()}`,
+      {
+        headers: {
+          Version: '1',
+        },
       },
-    });
+    );
 
-    if (nftCollectionInformation?.collections.length === 0) {
-      return {
-        collection: null,
-      };
-    }
-
-    return {
-      collection: nftCollectionInformation.collections[0],
-    };
+    return nftCollectionInformation;
   }
 
   #getNftCollectionApi() {
