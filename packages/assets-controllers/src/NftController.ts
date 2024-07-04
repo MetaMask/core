@@ -1,5 +1,4 @@
 import { isAddress } from '@ethersproject/address';
-import { pickBy } from 'lodash';
 import type {
   AccountsControllerSelectedEvmAccountChangeEvent,
   AccountsControllerGetAccountAction,
@@ -514,6 +513,59 @@ export class NftController extends BaseController<
   }
 
   /**
+   * Fetches NFT Collection Metadata from the NFT API.
+   *
+   * @param contractAddress - The contract address of the NFT.
+   * @param chainId - The chain ID of the network where the NFT is located.
+   *
+   * @returns The NFT metadata.
+   */
+  async fetchNftCollectionMetadata(
+    contractAddress: string,
+    chainId: Hex,
+  ): Promise<{
+    collection: Collection | null;
+  }> {
+    return await this.#getNftCollectionInformationFromApi(
+      contractAddress,
+      chainId,
+    );
+  }
+
+  async #getNftCollectionInformationFromApi(
+    contractAddress: string,
+    chainId: Hex,
+  ) {
+    const urlParams = new URLSearchParams({
+      chainId: chainId,
+      contract: `${contractAddress}`,
+    }).toString();
+
+    const nftCollectionInformation: {
+      collections: Collection[];
+      continuation?: string;
+    } = await handleFetch(`${this.#getNftCollectionApi()}?${urlParams}`, {
+      headers: {
+        Version: '1',
+      },
+    });
+
+    if (nftCollectionInformation?.collections.length === 0) {
+      return {
+        collection: null,
+      };
+    }
+
+    return {
+      collection: nftCollectionInformation.collections[0],
+    };
+  }
+
+  #getNftCollectionApi() {
+    return `${NFT_API_BASE_URL}/collections`;
+  }
+
+  /**
    * Request individual NFT information from NFT API.
    *
    * @param contractAddress - Hex address of the NFT contract.
@@ -523,35 +575,16 @@ export class NftController extends BaseController<
   async #getNftInformationFromApi(
     contractAddress: string,
     tokenId: string,
-    {
-      chainId = '0x1',
-      includeAttributes = false,
-      includeLastSale = false,
-      includeTopBid = false,
-    }: {
-      chainId?: Hex;
-      includeAttributes?: boolean;
-      includeLastSale?: boolean;
-      includeTopBid?: boolean;
-    },
   ): Promise<NftMetadata> {
+    // TODO Parameterize this by chainId for non-mainnet token detection
+    // Attempt to fetch the data with the nft-api
     const urlParams = new URLSearchParams({
-      chainIds: chainId,
+      chainIds: '1',
       tokens: `${contractAddress}:${tokenId}`,
-    });
-
-    const optionalBooleanUrlParams = {
-      includeAttributes,
-      includeLastSale,
-      includeTopBid,
-    };
-
-    Object.entries(optionalBooleanUrlParams).forEach(([key, value]) => {
-      if (value) {
-        urlParams.append(key, 'true');
-      }
-    });
-
+      includeTopBid: 'true',
+      includeAttributes: 'true',
+      includeLastSale: 'true',
+    }).toString();
     const nftInformation: ReservoirResponse | undefined =
       await fetchWithErrorHandling({
         url: `${this.getNftApi()}?${urlParams}`,
@@ -782,23 +815,10 @@ export class NftController extends BaseController<
       ),
       this.#openSeaEnabled && chainId === '0x1'
         ? safelyExecute(() =>
-            this.#getNftInformationFromApi(contractAddress, tokenId, {
-              includeAttributes: true,
-              includeLastSale: true,
-              includeTopBid: true,
-            }),
+            this.#getNftInformationFromApi(contractAddress, tokenId),
           )
         : undefined,
     ]);
-    return this.#parseNftInfoResults(blockchainMetadata, nftApiMetadata);
-  }
-
-  // This function is a good candidate for a utility function since it doesn't do anything with context
-  // But since types are defined here, I will leave it here to prevent circular dependencies
-  #parseNftInfoResults(
-    blockchainMetadata: NftMetadata | undefined,
-    nftApiMetadata: NftMetadata | undefined,
-  ) {
     return {
       ...nftApiMetadata,
       name: blockchainMetadata?.name ?? nftApiMetadata?.name ?? null,
@@ -1996,28 +2016,6 @@ export class NftController extends BaseController<
       },
       true,
     );
-  }
-
-  /**
-   * Fetches NFT metadata from the NFT API.
-   *
-   * @param contractAddress - The contract address of the NFT.
-   * @param tokenId - The token ID of the NFT.
-   * @param chainId - The chain ID of the network where the NFT is located.
-   *
-   * @returns The NFT metadata.
-   */
-  async fetchNftMetadata(
-    contractAddress: string,
-    tokenId: string,
-    chainId: Hex,
-  ) {
-    const nftApiMetadata = await safelyExecute(() =>
-      this.#getNftInformationFromApi(contractAddress, tokenId, {
-        chainId,
-      }),
-    );
-    return this.#parseNftInfoResults(undefined, nftApiMetadata);
   }
 
   #getAddressOrSelectedAddress(address: string | undefined): string {
