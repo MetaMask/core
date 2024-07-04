@@ -520,7 +520,7 @@ export class NftController extends BaseController<
    *
    * @returns The NFT metadata.
    */
-  async fetchNftCollectionMetadata(
+  async fetchNftCollectionsMetadata(
     contractAddresses: string[],
     chainId: Hex,
   ): Promise<{
