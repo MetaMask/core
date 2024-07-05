@@ -89,7 +89,7 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
       return response.result;
     }
 
-    throw new Error(response.error?.message);
+    throw new Error(response.error.message);
   }
 
   /**
