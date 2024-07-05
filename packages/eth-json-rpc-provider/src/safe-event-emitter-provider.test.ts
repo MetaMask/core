@@ -2,6 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { providerErrors } from '@metamask/rpc-errors';
 import { type Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
@@ -122,8 +123,13 @@ describe('SafeEventEmitterProvider', () => {
 
     it('handles a failed request', async () => {
       const engine = new JsonRpcEngine();
-      engine.push((_req, _res, _next, _end) => {
-        throw new Error('Test error');
+      engine.push((_req, _res, _next, end) => {
+        end(
+          providerErrors.custom({
+            code: 1001,
+            message: 'Test error',
+          }),
+        );
       });
       const provider = new SafeEventEmitterProvider({ engine });
       const exampleRequest = {
@@ -134,7 +140,7 @@ describe('SafeEventEmitterProvider', () => {
 
       await expect(async () =>
         provider.request(exampleRequest),
-      ).rejects.toThrow('Internal JSON-RPC error.');
+      ).rejects.toThrow('Test error');
     });
   });
 

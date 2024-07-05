@@ -1,4 +1,5 @@
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { providerErrors } from '@metamask/rpc-errors';
 
 import { providerFromEngine } from './provider-from-engine';
 
@@ -23,8 +24,13 @@ describe('providerFromEngine', () => {
 
   it('handle a failed request', async () => {
     const engine = new JsonRpcEngine();
-    engine.push((_req, _res, _next, _end) => {
-      throw new Error('Test error');
+    engine.push((_req, _res, _next, end) => {
+      end(
+        providerErrors.custom({
+          code: 1001,
+          message: 'Test error',
+        }),
+      );
     });
     const provider = providerFromEngine(engine);
     const exampleRequest = {
@@ -34,7 +40,7 @@ describe('providerFromEngine', () => {
     };
 
     await expect(async () => provider.request(exampleRequest)).rejects.toThrow(
-      'Internal JSON-RPC error.',
+      'Test error',
     );
   });
 });

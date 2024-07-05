@@ -1,4 +1,5 @@
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { providerErrors } from '@metamask/rpc-errors';
 
 import { providerFromMiddleware } from './provider-from-middleware';
 
@@ -23,10 +24,14 @@ describe('providerFromMiddleware', () => {
   });
 
   it('handle a failed request', async () => {
-    const middleware = () => {
-      throw new Error('Test error');
-    };
-    const provider = providerFromMiddleware(middleware);
+    const provider = providerFromMiddleware((_req, _res, _next, end) => {
+      end(
+        providerErrors.custom({
+          code: 1001,
+          message: 'Test error',
+        }),
+      );
+    });
     const exampleRequest = {
       id: 1,
       jsonrpc: '2.0' as const,
@@ -34,7 +39,7 @@ describe('providerFromMiddleware', () => {
     };
 
     await expect(async () => provider.request(exampleRequest)).rejects.toThrow(
-      'Internal JSON-RPC error.',
+      'Test error',
     );
   });
 });
