@@ -5,7 +5,6 @@ import type {
   JsonRpcId,
   JsonRpcParams,
   JsonRpcRequest,
-  JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
@@ -78,12 +77,19 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    */
   async request<Params extends JsonRpcParams, Result extends Json>(
     eip1193Request: Eip1193Request<Params>,
-  ): Promise<JsonRpcResponse<Result>> {
+  ): Promise<Result> {
     const jsonRpcRequest =
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
-    return this.#engine.handle<Params | Record<never, never>, Result>(
-      jsonRpcRequest,
-    );
+    const response = await this.#engine.handle<
+      Params | Record<never, never>,
+      Result
+    >(jsonRpcRequest);
+
+    if ('result' in response) {
+      return response.result;
+    }
+
+    throw new Error(response.error?.message);
   }
 
   /**

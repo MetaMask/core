@@ -2,11 +2,7 @@ import { Web3Provider } from '@ethersproject/providers';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import {
-  type JsonRpcSuccess,
-  type Json,
-  assertIsJsonRpcFailure,
-} from '@metamask/utils';
+import { type Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
 
@@ -91,7 +87,7 @@ describe('SafeEventEmitterProvider', () => {
 
     const response = await web3Provider.send('eth_blockNumber', []);
 
-    expect(response.result).toBe(42);
+    expect(response).toBe(42);
   });
 
   it('returns the correct block number with BrowserProvider', async () => {
@@ -102,7 +98,7 @@ describe('SafeEventEmitterProvider', () => {
 
     const response = await browserProvider.send('eth_blockNumber', []);
 
-    expect(response.result).toBe(42);
+    expect(response).toBe(42);
   });
 
   describe('request', () => {
@@ -121,7 +117,7 @@ describe('SafeEventEmitterProvider', () => {
 
       const response = await provider.request(exampleRequest);
 
-      expect((response as JsonRpcSuccess<Json>).result).toBe(42);
+      expect(response).toBe(42);
     });
 
     it('handles a failed request', async () => {
@@ -136,10 +132,9 @@ describe('SafeEventEmitterProvider', () => {
         method: 'test',
       };
 
-      const response = await provider.request(exampleRequest);
-
-      expect(response).toBeDefined();
-      assertIsJsonRpcFailure(response);
+      await expect(async () =>
+        provider.request(exampleRequest),
+      ).rejects.toThrow('Internal JSON-RPC error.');
     });
   });
 
