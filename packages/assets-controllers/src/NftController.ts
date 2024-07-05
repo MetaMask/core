@@ -553,7 +553,7 @@ export class NftController extends BaseController<
     );
   }
 
-  #getNftCollectionApi() {
+  #getNftCollectionApi(): string {
     return `${NFT_API_BASE_URL}/collections`;
   }
 
