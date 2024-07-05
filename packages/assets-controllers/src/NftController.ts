@@ -515,10 +515,9 @@ export class NftController extends BaseController<
   /**
    * Fetches NFT Collection Metadata from the NFT API.
    *
-   * @param contractAddress - The contract address of the NFT.
+   * @param contractAddresses - The contract addresses of the NFTs.
    * @param chainId - The chain ID of the network where the NFT is located.
-   *
-   * @returns The NFT metadata.
+   * @returns NFT collections metadata.
    */
   async fetchNftCollectionsMetadata(
     contractAddresses: string[],
@@ -537,17 +536,14 @@ export class NftController extends BaseController<
     chainId: Hex,
   ) {
     const urlParams = new URLSearchParams({
-      chainId: chainId,
+      chainId,
     });
 
     for (const address of contractAddress) {
       urlParams.append('contract', address);
     }
 
-    const nftCollectionInformation: {
-      collections: Collection[];
-      continuation?: string;
-    } = await handleFetch(
+    return await handleFetch(
       `${this.#getNftCollectionApi()}?${urlParams.toString()}`,
       {
         headers: {
@@ -555,8 +551,6 @@ export class NftController extends BaseController<
         },
       },
     );
-
-    return nftCollectionInformation;
   }
 
   #getNftCollectionApi() {

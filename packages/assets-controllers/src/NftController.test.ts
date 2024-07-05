@@ -104,6 +104,22 @@ const GOERLI = {
   ticker: NetworksTicker.goerli,
 };
 
+const CRYPTOPUNK_COLLECTION_MOCK = {
+  id: CRYPTOPUNK_ADDRESS,
+  name: 'CryptoPunks',
+  slug: 'cryptopunks',
+  symbol: 'PUNK',
+  imageUrl: 'url',
+};
+
+const ERC721_KUDOS_COLLECTION_MOCK = {
+  id: ERC721_KUDOSADDRESS,
+  name: 'Kudos',
+  slug: 'kudos',
+  symbol: 'KUDOS',
+  imageUrl: 'url',
+};
+
 type ApprovalActions =
   | AddApprovalRequest
   | AccountsControllerGetAccountAction
@@ -4377,5 +4393,26 @@ describe('NftController', () => {
     );
 
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetchNftCollectionsMetadata fetches NFT collections metadata successfully', async () => {
+    nock(NFT_API_BASE_URL)
+      .get(
+        `/collections?chainId=1&contract=${CRYPTOPUNK_ADDRESS}&contract=${ERC721_KUDOSADDRESS}`,
+      )
+      .reply(200, {
+        collections: [CRYPTOPUNK_COLLECTION_MOCK, ERC721_KUDOS_COLLECTION_MOCK],
+      });
+
+    const { nftController } = setupController();
+
+    const response = await nftController.fetchNftCollectionsMetadata(
+      [CRYPTOPUNK_ADDRESS, ERC721_KUDOSADDRESS],
+      ChainId.mainnet,
+    );
+
+    expect(response).toStrictEqual({
+      collections: [CRYPTOPUNK_COLLECTION_MOCK, ERC721_KUDOS_COLLECTION_MOCK],
+    });
   });
 });
