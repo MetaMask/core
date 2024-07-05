@@ -12,7 +12,7 @@ import { v4 as uuidV4 } from 'uuid';
 /**
  * A JSON-RPC request conforming to the EIP-1193 specification.
  */
-export type Eip1193Request<Params extends JsonRpcParams> = {
+type Eip1193Request<Params extends JsonRpcParams> = {
   id?: JsonRpcId;
   jsonrpc?: JsonRpcVersion2;
   method: string;
