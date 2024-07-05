@@ -1,13 +1,26 @@
-import {
-  SafeEventEmitterProvider,
-  type Eip1193Request,
-} from '@metamask/eth-json-rpc-provider';
+import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { Json, JsonRpcParams, JsonRpcResponse } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcId,
+  JsonRpcParams,
+  JsonRpcResponse,
+  JsonRpcVersion2,
+} from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
+
+/**
+ * A JSON-RPC request conforming to the EIP-1193 specification.
+ */
+type Eip1193Request<Params extends JsonRpcParams> = {
+  id?: JsonRpcId;
+  jsonrpc?: JsonRpcVersion2;
+  method: string;
+  params?: Params;
+};
 
 /**
  * Represents the type of the `response` property in a fake provider stub.
@@ -112,13 +125,13 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   request = <Params extends JsonRpcParams, Result extends Json>(
     payload: Eip1193Request<Params>,
-  ): Promise<JsonRpcResponse<Result>> => {
+  ): Promise<Result> => {
     return new Promise((resolve, reject) => {
       this.#handleSend(payload, (error, providerRes) => {
         if (error) {
           reject(error);
         } else {
-          resolve(providerRes);
+          resolve(providerRes.result);
         }
       });
     });
