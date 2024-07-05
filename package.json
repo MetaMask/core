@@ -43,7 +43,6 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/eth-snap-keyring": "github:MetaMask/eth-snap-keyring#replace-superstruct-with-fork",
     "@metamask/keyring-api": "github:MetaMask/keyring-api#replace-superstruct-with-fork",
     "@metamask/snaps-sdk": "github:MetaMask/snaps#workspace=@metamask/snaps-sdk&commit=befb79405932d86ff6c40f61cb4b767a8224e732",
     "@metamask/snaps-utils": "github:MetaMask/snaps#workspace=@metamask/snaps-utils&commit=befb79405932d86ff6c40f61cb4b767a8224e732",
