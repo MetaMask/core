@@ -139,7 +139,7 @@ describe('SafeEventEmitterProvider', () => {
       expect(result).toBe(42);
     });
 
-    it('handles a successful EIP-1193  object request', async () => {
+    it('handles a successful EIP-1193 object request', async () => {
       const engine = new JsonRpcEngine();
       let req: JsonRpcRequest | undefined;
       engine.push((_req, res, _next, end) => {
@@ -195,9 +195,11 @@ describe('SafeEventEmitterProvider', () => {
   });
 
   describe('sendAsync', () => {
-    it('handles a successful request', async () => {
+    it('handles a successful JSON-RPC object request', async () => {
       const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
       engine.push((_req, res, _next, end) => {
+        req = _req;
         res.result = 42;
         end();
       });
@@ -207,10 +209,56 @@ describe('SafeEventEmitterProvider', () => {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
       };
 
       const response = await promisifiedSendAsync(exampleRequest);
 
+      expect(req).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      });
+      expect(response.result).toBe(42);
+    });
+
+    it('handles a successful EIP-1193 object request', async () => {
+      const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
+      engine.push((_req, res, _next, end) => {
+        req = _req;
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const promisifiedSendAsync = promisify(provider.sendAsync);
+      const exampleRequest = {
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      };
+      jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
+
+      const response = await promisifiedSendAsync(exampleRequest);
+
+      expect(req).toStrictEqual({
+        id: 'mock-id',
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      });
       expect(response.result).toBe(42);
     });
 
@@ -248,9 +296,11 @@ describe('SafeEventEmitterProvider', () => {
       expect(() => (provider.send as any)(exampleRequest)).toThrow('');
     });
 
-    it('handles a successful request', async () => {
+    it('handles a successful JSON-RPC object request', async () => {
       const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
       engine.push((_req, res, _next, end) => {
+        req = _req;
         res.result = 42;
         end();
       });
@@ -260,10 +310,56 @@ describe('SafeEventEmitterProvider', () => {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
       };
 
       const response = await promisifiedSend(exampleRequest);
 
+      expect(req).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      });
+      expect(response.result).toBe(42);
+    });
+
+    it('handles a successful EIP-1193 object request', async () => {
+      const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
+      engine.push((_req, res, _next, end) => {
+        req = _req;
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const promisifiedSend = promisify(provider.send);
+      const exampleRequest = {
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      };
+      jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
+
+      const response = await promisifiedSend(exampleRequest);
+
+      expect(req).toStrictEqual({
+        id: 'mock-id',
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      });
       expect(response.result).toBe(42);
     });
 
