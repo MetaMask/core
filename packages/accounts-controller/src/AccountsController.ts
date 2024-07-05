@@ -42,9 +42,11 @@ import {
 
 const controllerName = 'AccountsController';
 
+export type AccountId = string;
+
 export type AccountsControllerState = {
   internalAccounts: {
-    accounts: Record<string, InternalAccount>;
+    accounts: Record<AccountId, InternalAccount>;
     selectedAccount: string; // id of the selected account
   };
 };
@@ -137,12 +139,24 @@ export type AccountsControllerSelectedEvmAccountChangeEvent = {
   payload: [InternalAccount];
 };
 
+export type AccountsControllerAccountAddedEvent = {
+  type: `${typeof controllerName}:accountAdded`;
+  payload: [InternalAccount];
+};
+
+export type AccountsControllerAccountRemovedEvent = {
+  type: `${typeof controllerName}:accountRemoved`;
+  payload: [AccountId];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
   | AccountsControllerSelectedAccountChangeEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent;
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRemovedEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -381,17 +395,7 @@ export class AccountsController extends BaseController<
       currentState.internalAccounts.selectedAccount = account.id;
     });
 
-    if (isEvmAccountType(account.type)) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedEvmAccountChange',
-        account,
-      );
-    }
-
-    this.messagingSystem.publish(
-      'AccountsController:selectedAccountChange',
-      account,
-    );
+    this.#publishAccountChangeEvent(account);
   }
 
   /**
@@ -405,7 +409,7 @@ export class AccountsController extends BaseController<
     const account = this.getAccountExpect(accountId);
 
     if (
-      this.listAccounts().find(
+      this.listMultichainAccounts().find(
         (internalAccount) =>
           internalAccount.metadata.name === accountName &&
           internalAccount.id !== accountId,
@@ -639,7 +643,7 @@ export class AccountsController extends BaseController<
       }
 
       const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
-        this.listAccounts().reduce(
+        this.listMultichainAccounts().reduce(
           (accumulator, account) => {
             if (account.metadata.keyring.type === KeyringTypes.snap) {
               accumulator.previousSnapInternalAccounts.push(account);
@@ -759,6 +763,11 @@ export class AccountsController extends BaseController<
             },
           );
           currentState.internalAccounts.selectedAccount = accountToSelect.id;
+          currentState.internalAccounts.accounts[
+            accountToSelect.id
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
+
+          this.#publishAccountChangeEvent(accountToSelect);
         }
       });
     }
@@ -772,7 +781,7 @@ export class AccountsController extends BaseController<
   #handleOnSnapStateChange(snapState: SnapControllerState) {
     // only check if snaps changed in status
     const { snaps } = snapState;
-    const accounts = this.listAccounts().filter(
+    const accounts = this.listMultichainAccounts().filter(
       (account) => account.metadata.snap,
     );
 
@@ -799,21 +808,23 @@ export class AccountsController extends BaseController<
    * @returns The list of accounts associcated with this keyring type.
    */
   #getAccountsByKeyringType(keyringType: string, accounts?: InternalAccount[]) {
-    return (accounts ?? this.listAccounts()).filter((internalAccount) => {
-      // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
-      // to group those accounts together!
-      if (
-        keyringType === KeyringTypes.hd ||
-        keyringType === KeyringTypes.simple
-      ) {
-        return (
-          internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-          internalAccount.metadata.keyring.type === KeyringTypes.simple
-        );
-      }
+    return (accounts ?? this.listMultichainAccounts()).filter(
+      (internalAccount) => {
+        // We do consider `hd` and `simple` keyrings to be of same type. So we check those 2 types
+        // to group those accounts together!
+        if (
+          keyringType === KeyringTypes.hd ||
+          keyringType === KeyringTypes.simple
+        ) {
+          return (
+            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
+            internalAccount.metadata.keyring.type === KeyringTypes.simple
+          );
+        }
 
-      return internalAccount.metadata.keyring.type === keyringType;
-    });
+        return internalAccount.metadata.keyring.type === keyringType;
+      },
+    );
   }
 
   /**
@@ -902,6 +913,17 @@ export class AccountsController extends BaseController<
   }
 
   /**
+   * Retrieves the index value for `metadata.lastSelected`.
+   *
+   * @returns The index value.
+   */
+  #getLastSelectedIndex() {
+    // NOTE: For now we use the current date, since we know this value
+    // will always be higher than any already selected account index.
+    return Date.now();
+  }
+
+  /**
    * Handles the addition of a new account to the controller.
    * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
    * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
@@ -935,23 +957,44 @@ export class AccountsController extends BaseController<
       }
     }
 
+    const isFirstAccount = Object.keys(accountsState).length === 0;
+
     // Get next account name available for this given keyring
     const accountName = this.getNextAvailableAccountName(
       newAccount.metadata.keyring.type,
       Object.values(accountsState),
     );
 
-    accountsState[newAccount.id] = {
+    const newAccountWithUpdatedMetadata = {
       ...newAccount,
       metadata: {
         ...newAccount.metadata,
         name: accountName,
         importTime: Date.now(),
-        lastSelected: 0,
+        lastSelected: isFirstAccount ? this.#getLastSelectedIndex() : 0,
       },
     };
+    accountsState[newAccount.id] = newAccountWithUpdatedMetadata;
+
+    this.messagingSystem.publish(
+      'AccountsController:accountAdded',
+      newAccountWithUpdatedMetadata,
+    );
 
     return accountsState;
+  }
+
+  #publishAccountChangeEvent(account: InternalAccount) {
+    if (isEvmAccountType(account.type)) {
+      this.messagingSystem.publish(
+        'AccountsController:selectedEvmAccountChange',
+        account,
+      );
+    }
+    this.messagingSystem.publish(
+      'AccountsController:selectedAccountChange',
+      account,
+    );
   }
 
   /**
@@ -965,6 +1008,12 @@ export class AccountsController extends BaseController<
     accountId: string,
   ): AccountsControllerState['internalAccounts']['accounts'] {
     delete accountsState[accountId];
+
+    this.messagingSystem.publish(
+      'AccountsController:accountRemoved',
+      accountId,
+    );
+
     return accountsState;
   }
 
@@ -972,6 +1021,7 @@ export class AccountsController extends BaseController<
    * Retrieves the value of a specific metadata key for an existing account.
    * @param accountId - The ID of the account.
    * @param metadataKey - The key of the metadata to retrieve.
+   * @param account - The account object to retrieve the metadata key from.
    * @returns The value of the specified metadata key, or undefined if the account or metadata key does not exist.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -979,8 +1029,9 @@ export class AccountsController extends BaseController<
   #populateExistingMetadata<T extends keyof InternalAccount['metadata']>(
     accountId: string,
     metadataKey: T,
+    account?: InternalAccount,
   ): InternalAccount['metadata'][T] | undefined {
-    const internalAccount = this.getAccount(accountId);
+    const internalAccount = account ?? this.getAccount(accountId);
     return internalAccount ? internalAccount.metadata[metadataKey] : undefined;
   }
 
