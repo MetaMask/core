@@ -1,4 +1,5 @@
 import type { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { JsonRpcError } from '@metamask/rpc-errors';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type {
   Json,
@@ -27,20 +28,21 @@ type Eip1193Request<Params extends JsonRpcParams> = {
  */
 export function convertEip1193RequestToJsonRpcRequest<
   Params extends JsonRpcParams,
->(eip1193Request: Eip1193Request<Params>) {
+>(
+  eip1193Request: Eip1193Request<Params>,
+): JsonRpcRequest<Params | Record<never, never>> {
   const {
     id = uuidV4(),
     jsonrpc = '2.0',
     method,
     params = {},
   } = eip1193Request;
-  const jsonRpcRequest: JsonRpcRequest<Params | Record<never, never>> = {
+  return {
     id,
     jsonrpc,
     method,
     params,
   };
-  return jsonRpcRequest;
 }
 
 /**
@@ -89,7 +91,15 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
       return response.result;
     }
 
-    throw new Error(response.error.message);
+    const error = new JsonRpcError(
+      response.error.code,
+      response.error.message,
+      response.error.data,
+    );
+    if ('stack' in response.error) {
+      error.stack = response.error.stack;
+    }
+    throw error;
   }
 
   /**
@@ -121,7 +131,7 @@ export class SafeEventEmitterProvider extends SafeEventEmitter {
    *
    * @param eip1193Request - The request to send.
    * @param callback - A function that is called upon the success or failure of the request.
-   * @deprecated Please use `sendAsync` instead.
+   * @deprecated Please use `request` instead.
    */
   send = <Params extends JsonRpcParams>(
     eip1193Request: Eip1193Request<Params>,

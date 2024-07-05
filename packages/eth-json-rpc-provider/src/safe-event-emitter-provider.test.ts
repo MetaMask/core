@@ -116,9 +116,9 @@ describe('SafeEventEmitterProvider', () => {
         method: 'test',
       };
 
-      const response = await provider.request(exampleRequest);
+      const result = await provider.request(exampleRequest);
 
-      expect(response).toBe(42);
+      expect(result).toBe(42);
     });
 
     it('handles a failed request', async () => {
