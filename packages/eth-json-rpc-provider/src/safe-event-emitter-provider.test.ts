@@ -171,7 +171,7 @@ describe('SafeEventEmitterProvider', () => {
       expect(result).toBe(42);
     });
 
-    it('handles a failed request', async () => {
+    it('handles a failure with a JSON-RPC error', async () => {
       const engine = new JsonRpcEngine();
       engine.push((_req, _res, _next, end) => {
         end(
@@ -191,6 +191,23 @@ describe('SafeEventEmitterProvider', () => {
       await expect(async () =>
         provider.request(exampleRequest),
       ).rejects.toThrow('Test error');
+    });
+
+    it('handles a failure with a non-JSON-RPC error', async () => {
+      const engine = new JsonRpcEngine();
+      engine.push(() => {
+        throw new Error();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+      };
+
+      await expect(async () =>
+        provider.request(exampleRequest),
+      ).rejects.toThrow('Internal JSON-RPC error.');
     });
   });
 
