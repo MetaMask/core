@@ -4398,7 +4398,7 @@ describe('NftController', () => {
   it('fetchNftCollectionsMetadata fetches NFT collections metadata successfully', async () => {
     nock(NFT_API_BASE_URL)
       .get(
-        `/collections?chainId=1&contract=${CRYPTOPUNK_ADDRESS}&contract=${ERC721_KUDOSADDRESS}`,
+        `/collections?chainId=0x1&contract=${CRYPTOPUNK_ADDRESS}&contract=${ERC721_KUDOSADDRESS}`,
       )
       .reply(200, {
         collections: [CRYPTOPUNK_COLLECTION_MOCK, ERC721_KUDOS_COLLECTION_MOCK],
