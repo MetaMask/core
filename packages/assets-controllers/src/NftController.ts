@@ -554,6 +554,8 @@ export class NftController extends BaseController<
   }
 
   #getNftCollectionApi(): string {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     return `${NFT_API_BASE_URL}/collections`;
   }
 
