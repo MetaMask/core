@@ -45,12 +45,8 @@
   "resolutions": {
     "@metamask/eth-snap-keyring": "github:MetaMask/eth-snap-keyring#replace-superstruct-with-fork",
     "@metamask/keyring-api": "github:MetaMask/keyring-api#replace-superstruct-with-fork",
-    "@metamask/snaps-sdk@npm:^4.2.0": "patch:@metamask/snaps-sdk@npm%3A6.0.0#~/.yarn/patches/@metamask-snaps-sdk-npm-6.0.0-c9e758dd8d.patch",
-    "@metamask/snaps-sdk@npm:^4.4.2": "patch:@metamask/snaps-sdk@npm%3A6.0.0#~/.yarn/patches/@metamask-snaps-sdk-npm-6.0.0-c9e758dd8d.patch",
-    "@metamask/snaps-sdk@npm:^6.0.0": "patch:@metamask/snaps-sdk@npm%3A6.0.0#~/.yarn/patches/@metamask-snaps-sdk-npm-6.0.0-c9e758dd8d.patch",
-    "@metamask/snaps-utils@npm:^7.4.0": "patch:@metamask/snaps-utils@npm%3A7.7.0#~/.yarn/patches/@metamask-snaps-utils-npm-7.7.0-2cc1f044af.patch",
-    "@metamask/snaps-utils@npm:^7.5.0": "patch:@metamask/snaps-utils@npm%3A7.7.0#~/.yarn/patches/@metamask-snaps-utils-npm-7.7.0-2cc1f044af.patch",
-    "@metamask/snaps-utils@npm:^7.7.0": "patch:@metamask/snaps-utils@npm%3A7.7.0#~/.yarn/patches/@metamask-snaps-utils-npm-7.7.0-2cc1f044af.patch",
+    "@metamask/snaps-sdk": "github:MetaMask/snaps#workspace=@metamask/snaps-sdk&commit=befb79405932d86ff6c40f61cb4b767a8224e732",
+    "@metamask/snaps-utils": "github:MetaMask/snaps#workspace=@metamask/snaps-utils&commit=befb79405932d86ff6c40f61cb4b767a8224e732",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
