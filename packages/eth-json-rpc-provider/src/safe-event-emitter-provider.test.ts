@@ -3,14 +3,17 @@ import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { providerErrors } from '@metamask/rpc-errors';
-import { type Json } from '@metamask/utils';
+import { type JsonRpcRequest, type Json } from '@metamask/utils';
 import { BrowserProvider } from 'ethers';
 import { promisify } from 'util';
+import * as uuid from 'uuid';
 
 import {
   SafeEventEmitterProvider,
   convertEip1193RequestToJsonRpcRequest,
 } from './safe-event-emitter-provider';
+
+jest.mock('uuid');
 
 /**
  * Creates a mock JSON-RPC engine that returns a predefined response for a specific method.
@@ -103,9 +106,11 @@ describe('SafeEventEmitterProvider', () => {
   });
 
   describe('request', () => {
-    it('handles a successful request', async () => {
+    it('handles a successful JSON-RPC object request', async () => {
       const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
       engine.push((_req, res, _next, end) => {
+        req = _req;
         res.result = 42;
         end();
       });
@@ -114,10 +119,55 @@ describe('SafeEventEmitterProvider', () => {
         id: 1,
         jsonrpc: '2.0' as const,
         method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
       };
 
       const result = await provider.request(exampleRequest);
 
+      expect(req).toStrictEqual({
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      });
+      expect(result).toBe(42);
+    });
+
+    it('handles a successful EIP-1193  object request', async () => {
+      const engine = new JsonRpcEngine();
+      let req: JsonRpcRequest | undefined;
+      engine.push((_req, res, _next, end) => {
+        req = _req;
+        res.result = 42;
+        end();
+      });
+      const provider = new SafeEventEmitterProvider({ engine });
+      const exampleRequest = {
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      };
+      jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
+
+      const result = await provider.request(exampleRequest);
+
+      expect(req).toStrictEqual({
+        id: 'mock-id',
+        jsonrpc: '2.0' as const,
+        method: 'test',
+        params: {
+          param1: 'value1',
+          param2: 'value2',
+        },
+      });
       expect(result).toBe(42);
     });
 
@@ -239,6 +289,7 @@ describe('SafeEventEmitterProvider', () => {
 
 describe('convertEip1193RequestToJsonRpcRequest', () => {
   it('generates a unique id if id is not provided', () => {
+    jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
     const eip1193Request = {
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -248,7 +299,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(String),
+      id: 'mock-id',
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -273,6 +324,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
   });
 
   it('uses the default jsonrpc version if not provided', () => {
+    jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
     const eip1193Request = {
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -282,7 +334,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(String),
+      id: 'mock-id',
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -290,6 +342,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
   });
 
   it('uses the provided jsonrpc version if provided', () => {
+    jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
     const eip1193Request = {
       jsonrpc: '2.0' as const,
       method: 'test',
@@ -300,7 +353,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(String),
+      id: 'mock-id',
       jsonrpc: '2.0',
       method: 'test',
       params: { param1: 'value1', param2: 'value2' },
@@ -308,6 +361,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
   });
 
   it('uses an empty object as params if not provided', () => {
+    jest.spyOn(uuid, 'v4').mockReturnValueOnce('mock-id');
     const eip1193Request = {
       method: 'test',
     };
@@ -316,7 +370,7 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       convertEip1193RequestToJsonRpcRequest(eip1193Request);
 
     expect(jsonRpcRequest).toStrictEqual({
-      id: expect.any(String),
+      id: 'mock-id',
       jsonrpc: '2.0',
       method: 'test',
       params: {},
