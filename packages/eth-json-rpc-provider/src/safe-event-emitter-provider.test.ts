@@ -171,13 +171,16 @@ describe('SafeEventEmitterProvider', () => {
       expect(result).toBe(42);
     });
 
-    it('handles a failure with a JSON-RPC error', async () => {
+    it('handles a failure with a non-JSON-RPC error', async () => {
       const engine = new JsonRpcEngine();
       engine.push((_req, _res, _next, end) => {
         end(
           providerErrors.custom({
             code: 1001,
             message: 'Test error',
+            data: {
+              cause: 'Test cause',
+            },
           }),
         );
       });
@@ -190,13 +193,22 @@ describe('SafeEventEmitterProvider', () => {
 
       await expect(async () =>
         provider.request(exampleRequest),
-      ).rejects.toThrow('Test error');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: 1001,
+          message: 'Test error',
+          data: { cause: 'Test cause' },
+          stack: expect.stringContaining(
+            'safe-event-emitter-provider.test.ts:178',
+          ),
+        }),
+      );
     });
 
-    it('handles a failure with a non-JSON-RPC error', async () => {
+    it('handles a failure with a JSON-RPC error', async () => {
       const engine = new JsonRpcEngine();
       engine.push(() => {
-        throw new Error();
+        throw new Error('Test error');
       });
       const provider = new SafeEventEmitterProvider({ engine });
       const exampleRequest = {
@@ -207,7 +219,20 @@ describe('SafeEventEmitterProvider', () => {
 
       await expect(async () =>
         provider.request(exampleRequest),
-      ).rejects.toThrow('Internal JSON-RPC error.');
+      ).rejects.toThrow(
+        expect.objectContaining({
+          code: -32603,
+          message: 'Internal JSON-RPC error.',
+          data: {
+            cause: expect.objectContaining({
+              stack: expect.stringContaining(
+                'safe-event-emitter-provider.test.ts:211',
+              ),
+              message: 'Test error',
+            }),
+          },
+        }),
+      );
     });
   });
 
