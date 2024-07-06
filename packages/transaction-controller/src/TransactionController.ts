@@ -313,6 +313,7 @@ export type TransactionControllerOptions = {
   ) => Promise<TypedTransaction>;
   state?: Partial<TransactionControllerState>;
   testGasFeeFlows?: boolean;
+  trace?: TraceCallback;
   transactionHistoryLimit: number;
   hooks: {
     afterSign?: (
@@ -517,6 +518,12 @@ export type TransactionControllerUnapprovedTransactionAddedEvent = {
   payload: [transactionMeta: TransactionMeta];
 };
 
+export type TraceCallback = <T>(
+  name: string,
+  fn: (parentContext: unknown) => T,
+  parentContext?: unknown,
+) => T;
+
 /**
  * The internal events available to the {@link TransactionController}.
  */
@@ -635,6 +642,8 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
+  #trace: TraceCallback;
+
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
@@ -747,6 +756,7 @@ export class TransactionController extends BaseController<
    * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
    * @param options.transactionHistoryLimit - Transaction history limit.
    * @param options.hooks - The controller hooks.
+   * @param options.trace -
    */
   constructor({
     blockTracker,
@@ -773,6 +783,7 @@ export class TransactionController extends BaseController<
     sign,
     state,
     testGasFeeFlows,
+    trace,
     transactionHistoryLimit = 40,
     hooks,
   }: TransactionControllerOptions) {
@@ -811,6 +822,14 @@ export class TransactionController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
+
+    this.#trace =
+      trace ??
+      (<T>(
+        _name: string,
+        fn: (parentContext?: unknown) => T,
+        _parentContext?: unknown,
+      ): T => fn());
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -980,6 +999,7 @@ export class TransactionController extends BaseController<
    * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
    * @param opts.swaps.meta - Metadata for swap transaction.
    * @param opts.networkClientId - The id of the network client for this transaction.
+   * @param opts.traceContext -
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -993,6 +1013,7 @@ export class TransactionController extends BaseController<
       securityAlertResponse,
       sendFlowHistory,
       swaps = {},
+      traceContext,
       type,
       networkClientId: requestNetworkClientId,
     }: {
@@ -1007,6 +1028,7 @@ export class TransactionController extends BaseController<
         hasApproveTx?: boolean;
         meta?: Partial<TransactionMeta>;
       };
+      traceContext?: unknown;
       type?: TransactionType;
       networkClientId?: NetworkClientId;
     } = {},
@@ -1078,7 +1100,11 @@ export class TransactionController extends BaseController<
           networkClientId,
         };
 
-    await this.updateGasProperties(addedTransactionMeta);
+    await this.#trace(
+      'Estimate Gas Properties',
+      () => this.updateGasProperties(addedTransactionMeta),
+      traceContext,
+    );
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -1131,6 +1157,7 @@ export class TransactionController extends BaseController<
         isExisting: Boolean(existingTransactionMeta),
         requireApproval,
         actionId,
+        traceContext,
       }),
       transactionMeta: addedTransactionMeta,
     };
@@ -2513,11 +2540,13 @@ export class TransactionController extends BaseController<
       requireApproval,
       shouldShowRequest = true,
       actionId,
+      traceContext,
     }: {
       isExisting?: boolean;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
       actionId?: string;
+      traceContext?: unknown;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
@@ -2530,9 +2559,15 @@ export class TransactionController extends BaseController<
     if (meta && !isExisting && !isCompleted) {
       try {
         if (requireApproval !== false) {
-          const acceptResult = await this.requestApproval(transactionMeta, {
-            shouldShowRequest,
-          });
+          const acceptResult = await this.#trace(
+            'Await Approval',
+            () =>
+              this.requestApproval(transactionMeta, {
+                shouldShowRequest,
+              }),
+            traceContext,
+          );
+
           resultCallbacks = acceptResult.resultCallbacks;
 
           const approvalValue = acceptResult.value as
@@ -2560,7 +2595,10 @@ export class TransactionController extends BaseController<
           this.isTransactionCompleted(transactionId);
 
         if (!isTxCompleted) {
-          const approvalResult = await this.approveTransaction(transactionId);
+          const approvalResult = await this.approveTransaction(
+            transactionId,
+            traceContext,
+          );
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
             resultCallbacks
@@ -2627,8 +2665,12 @@ export class TransactionController extends BaseController<
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
    * @param transactionId - The ID of the transaction to approve.
+   * @param traceContext -
    */
-  private async approveTransaction(transactionId: string) {
+  private async approveTransaction(
+    transactionId: string,
+    traceContext?: unknown,
+  ) {
     const cleanupTasks = new Array<() => void>();
     cleanupTasks.push(await this.mutex.acquire());
 
@@ -2690,9 +2732,10 @@ export class TransactionController extends BaseController<
 
       this.onTransactionStatusChange(transactionMeta);
 
-      const rawTx = await this.signTransaction(
-        transactionMeta,
-        transactionMeta.txParams,
+      const rawTx = await this.#trace(
+        'Sign Transaction',
+        () => this.signTransaction(transactionMeta, transactionMeta.txParams),
+        traceContext,
       );
 
       if (!this.beforePublish(transactionMeta)) {
@@ -2727,14 +2770,22 @@ export class TransactionController extends BaseController<
 
       log('Publishing transaction', transactionMeta.txParams);
 
-      let { transactionHash: hash } = await this.publish(
-        transactionMeta,
-        rawTx,
-      );
+      let hash: string | undefined;
 
-      if (hash === undefined) {
-        hash = await this.publishTransaction(ethQuery, rawTx);
-      }
+      await this.#trace(
+        'Publish Transaction',
+        async () => {
+          ({ transactionHash: hash } = await this.publish(
+            transactionMeta,
+            rawTx,
+          ));
+
+          if (hash === undefined) {
+            hash = await this.publishTransaction(ethQuery, rawTx);
+          }
+        },
+        traceContext,
+      );
 
       log('Publish successful', hash);
 
