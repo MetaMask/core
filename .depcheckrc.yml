@@ -16,7 +16,6 @@ ignores:
   - 'simple-git-hooks'
   - 'ts-node'
   - 'typedoc'
-  - 'which'
   # Ignore plugins implicitly imported by tools
   - 'jest-silent-reporter'
   - 'prettier-plugin-packagejson'
