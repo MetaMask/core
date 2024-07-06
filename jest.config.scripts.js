@@ -39,7 +39,7 @@ module.exports = {
   },
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
-  // This ensures that Babel can resolve ESM exports correctly.
+  // This ensures that Babel can resolve subpath exports correctly.
   moduleNameMapper: {
     '^@metamask/utils/(.+)$': [
       '<rootDir>/node_modules/@metamask/utils/dist/$1.cjs',
