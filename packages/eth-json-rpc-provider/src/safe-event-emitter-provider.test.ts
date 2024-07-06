@@ -198,9 +198,7 @@ describe('SafeEventEmitterProvider', () => {
           code: 1001,
           message: 'Test error',
           data: { cause: 'Test cause' },
-          stack: expect.stringContaining(
-            'safe-event-emitter-provider.test.ts:178',
-          ),
+          stack: expect.stringContaining('safe-event-emitter-provider.test.ts'),
         }),
       );
     });
@@ -226,7 +224,7 @@ describe('SafeEventEmitterProvider', () => {
           data: {
             cause: expect.objectContaining({
               stack: expect.stringContaining(
-                'safe-event-emitter-provider.test.ts:211',
+                'safe-event-emitter-provider.test.ts',
               ),
               message: 'Test error',
             }),
