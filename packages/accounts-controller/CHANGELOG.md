@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.2.0]
+
+### Added
+
+- Add internal actions and events to `AccountsController` ([#4496](https://github.com/MetaMask/core/pull/4496), [#4497](https://github.com/MetaMask/core/pull/4497))
+  - Add events `AccountsController:accountAdded`, `AccountsController:accountRemoved`, and export corresponding event types `AccountsControllerAccountAddedEvent`, `AccountsControllerAccountRemovedEvent`.
+  - Export action types `AccountsControllerListMultichainAccountsAction`, `AccountsControllerGetSelectedMultichainAccountAction`, `AccountsControllerGetNextAvailableAccountNameAction`.
+
+### Changed
+
+- Improve support of non-EVM accounts ([#4494](https://github.com/MetaMask/core/pull/4494))
+  - We now use `listMultichainAccounts` instead of `listAccounts` for non-EVM specific multichain methods
+- Emit `selectedAccountChange` and update `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
+
+## [17.1.1]
+
+### Fixed
+
+- Handle edge case of undefined `selectedAccount` during onboarding for `getSelectedMultichainAccount` ([#4466](https://github.com/MetaMask/core/pull/4466))
+
 ## [17.1.0]
 
 ### Added
@@ -227,7 +247,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.2.0...HEAD
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.1...@metamask/accounts-controller@17.2.0
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.0...@metamask/accounts-controller@17.1.1
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.0.0...@metamask/accounts-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@16.0.0...@metamask/accounts-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@15.0.0...@metamask/accounts-controller@16.0.0
