@@ -30,7 +30,7 @@ The name of the controller should reflect its responsibility. If, when creating 
 
 Each public method and each state property of a controller should have a purpose, and the name of the method or state property should be readable and should reflect the purpose clearly. If something does not need to be public, it should be made private; if it is unnecessary, it should be removed.
 
-## Accept a optional, partial representation of state
+## Accept an optional, partial representation of state
 
 Although `BaseController` requires a full representation of controller state, in practice, controllers should accept a partial version and then supply missing properties with defaults. In fact, the `state` argument should be optional:
 
