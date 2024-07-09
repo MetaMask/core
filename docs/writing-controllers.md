@@ -459,7 +459,7 @@ export type FooControllerMessageReceivedEvent = {
 };
 ```
 
-## Define and export internal action types as one
+## Define and export a type union for internal action types
 
 A controller should define and export a type union that holds all of its actions. This type union makes it easy to define the type for the controller's messenger.
 
