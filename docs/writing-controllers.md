@@ -430,7 +430,7 @@ export type FooControllerShowAction = {
 };
 ```
 
-## Use standard naming for event identifiers
+## Use standard naming scheme for event identifiers
 
 An event is not an action, so the identifier for an event should not describe something that the controller needs to do, but rather something that has has happened to the controller.
 
@@ -469,7 +469,7 @@ export type FooControllerMessageReceivedEvent = {
 };
 ```
 
-## Use standard naming for event types
+## Use standard naming scheme for event types
 
 Types for messenger events should follow this naming:
 
@@ -539,7 +539,7 @@ export type FooControllerMessenger = RestrictedControllerMessenger<
 >;
 ```
 
-## Define and export internal event types as one
+## Define and export a type union for internal event types
 
 A controller should define and export a type union that holds all of its events. This type union makes it easy to define the type for the controller's messenger.
 
@@ -579,7 +579,7 @@ export type FooControllerMessenger = RestrictedControllerMessenger<
 >;
 ```
 
-## Define external action types as one, but do not export them
+## Define, but do not export, a type union for external action types
 
 A controller may wish to call actions defined by other controllers, and therefore will need to define them in the messenger's allowlist.
 
