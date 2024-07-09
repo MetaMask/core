@@ -132,7 +132,7 @@ const keyringControllerMetadata = {
   },
 };
 
-class KeyringController extends BaseController /*<...>*/ {
+class KeyringController extends BaseController</*...*/> {
   constructor(/* ... */) {
     super({
       // name: ...,
