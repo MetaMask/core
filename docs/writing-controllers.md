@@ -655,7 +655,7 @@ const messenger = new ControllerMessenger<
 >();
 ```
 
-## Define external event types as one, but do not export them
+## Define, but do not export, a type union for external event types
 
 A controller may wish to subscribe to events defined by other controllers, and therefore will need to define them in the messenger's allowlist.
 
