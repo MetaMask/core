@@ -349,9 +349,9 @@ export type FooControllerShowNotificationAction = {
 };
 ```
 
-## Use standard naming for action types
+## Use standard naming scheme for action types
 
-Types for messenger actions should follow this naming:
+Types for messenger actions should follow this naming scheme:
 
 ```
 Controller name + Action identifier without controller name prefix + "Action"
