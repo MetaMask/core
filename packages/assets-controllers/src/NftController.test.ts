@@ -4395,7 +4395,7 @@ describe('NftController', () => {
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
   });
 
-  describe('fetchNftCollectionsMetadata', () => {
+  describe('getNFTContractInfo', () => {
     it('fetches NFT collections metadata successfully', async () => {
       nock(NFT_API_BASE_URL)
         .get(
@@ -4410,7 +4410,7 @@ describe('NftController', () => {
 
       const { nftController } = setupController();
 
-      const response = await nftController.fetchNftCollectionsMetadata(
+      const response = await nftController.getNFTContractInfo(
         [CRYPTOPUNK_ADDRESS, ERC721_KUDOSADDRESS],
         ChainId.mainnet,
       );
