@@ -104,9 +104,9 @@ class FooController extends BaseController</* ... */> {
 export { FooController, getDefaultFooControllerState } from './FooController';
 ```
 
-## Treat all arguments as "options"
+## Use single "options bag" for constructor arguments
 
-Each controller receives all of its arguments via a single "options bag". These arguments must include those that are required by `BaseController` (`messenger`, `metadata`, `name`, and `state`). However, they may also include any that are required by the controller itself; there is no need for additional positional arguments after the options bag:
+A controller should receive all of its arguments as named argument via a single "options bag". These arguments must include those that are required by `BaseController` (`messenger`, `metadata`, `name`, and `state`). However, they may also include any that are required by the controller itself; there is no need for additional positional arguments after the options bag:
 
 🚫 **`isEnabled` is a separate argument**
 
