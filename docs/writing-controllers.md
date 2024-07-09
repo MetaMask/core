@@ -16,7 +16,7 @@ All controllers should inherit from `BaseController` from the `@metamask/base-co
 - It defines a standard interface for all controllers.
 - It introduces the messenger system, which is useful for interacting with other controllers without requiring direct access to them.
 - It enforces that `update` is the only way to modify the state of the controller and provides a way to listen for state updates via the messenger.
-- It simplifies initialization by consolidating constructor arguments into one.
+- It simplifies initialization by consolidating constructor arguments into one options object.
 
 ## Don't use `BaseController` for non-controllers
 
