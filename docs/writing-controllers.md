@@ -336,9 +336,9 @@ type FooControllerStateChangeEvent = ControllerStateChangeEvent<
 >;
 ```
 
-## Use standard naming for action identifiers
+## Use standard naming scheme for action identifiers
 
-An action is equivalent to a function, and its identifier should be named in a similar fashion.
+An action is equivalent to a function, and its identifier should be named in "camelCase".
 
 ```typescript
 const name = 'FooController';
