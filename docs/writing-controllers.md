@@ -1129,9 +1129,9 @@ class AccountsController extends BaseController<
 
 /* === packages/preferences-controller/src/PreferencesController.ts === */
 
-import { AccountsControllerState } from '@metamask/accounts-controller';
+import { AccountsControllerGetStateAction } from '@metamask/accounts-controller';
 
-type AllowedActions = AccountsControllerGetState;
+type AllowedActions = AccountsControllerGetStateAction;
 
 type PreferencesControllerMessenger = RestrictedControllerMessenger<
   'PreferencesController',
