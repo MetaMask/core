@@ -104,6 +104,46 @@ class FooController extends BaseController</* ... */> {
 export { FooController, getDefaultFooControllerState } from './FooController';
 ```
 
+## Define metadata for state properties
+
+Each property in state has two pieces of metadata that must be specified. This instructs the client how to treat that property:
+
+- `persist` — Informs the client whether the property should be placed in persistent storage (`true`) or not (`false`). Opting out is useful if you want to have a property in state for convenience reasons but you know that property is ephemeral and can be easily reconstructed.
+- `anonymous` — Informs the client whether the property is free of personally identifiable information (`true`) or not (`false`) and can therefore safely be included and sent to error reporting services such as Sentry. When in doubt, use `false`.
+
+A variable named `${controllerName}Metadata` should be defined (there is no need to export it) and passed as the `metadata` argument in the constructor to `BaseController`.
+
+```typescript
+const keyringControllerMetadata = {
+  vault: {
+    // We want to persist this property so it's restored automatically, as we
+    // cannot reconstruct it otherwise.
+    persist: true,
+    // This property can be used to identify a user, so we want to make sure we
+    // do not include it in Sentry.
+    anonymous: false,
+  },
+  isUnlocked: {
+    // We do not need to persist this property in state, as we want to
+    // initialize state with the wallet unlocked.
+    persist: false,
+    // This property has no PII, so it is safe to send to Sentry.
+    anonymous: true,
+  },
+};
+
+class KeyringController extends BaseController /*<...>*/ {
+  constructor(/* ... */) {
+    super({
+      // name: ...,
+      metadata: keyringControllerMetadata,
+      // messenger: ...,
+      // state: ...,
+    });
+  }
+}
+```
+
 ## Use single "options bag" for constructor arguments
 
 A controller should receive all of its arguments as named argument via a single "options bag". These arguments must include those that are required by `BaseController` (`messenger`, `metadata`, `name`, and `state`). However, they may also include any that are required by the controller itself; there is no need for additional positional arguments after the options bag:
