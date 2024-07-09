@@ -1994,7 +1994,7 @@ export class NftController extends BaseController<
    * @param chainId - The chain ID of the network where the NFT is located.
    * @returns NFT collections metadata.
    */
-  async fetchNftCollectionsMetadata(
+  async getNFTContractInfo(
     contractAddresses: string[],
     chainId: Hex,
   ): Promise<{
