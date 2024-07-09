@@ -120,6 +120,8 @@ const ERC721_KUDOS_COLLECTION_MOCK = {
   imageUrl: 'url',
 };
 
+const TOKEN_ID_MOCK = '1';
+
 type ApprovalActions =
   | AddApprovalRequest
   | AccountsControllerGetAccountAction
@@ -4395,29 +4397,52 @@ describe('NftController', () => {
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
   });
 
-  describe('getNFTContractInfo', () => {
-    it('fetches NFT collections metadata successfully', async () => {
+  describe('getNFTTokenInfo', () => {
+    it('fetches NFT collections successfully', async () => {
+      const expectedResult = [
+        {
+          token: {
+            isSpam: false,
+            contract: CRYPTOPUNK_ADDRESS,
+            tokenId: TOKEN_ID_MOCK,
+            collection: CRYPTOPUNK_COLLECTION_MOCK,
+          },
+        },
+        {
+          token: {
+            isSpam: true,
+            contract: ERC721_KUDOSADDRESS,
+            tokenId: TOKEN_ID_MOCK,
+            collection: ERC721_KUDOS_COLLECTION_MOCK,
+          },
+        },
+      ];
+
       nock(NFT_API_BASE_URL)
         .get(
-          `/collections?chainId=0x1&contract=${CRYPTOPUNK_ADDRESS}&contract=${ERC721_KUDOSADDRESS}`,
+          `/tokens?chainIds=0x1&tokens=${CRYPTOPUNK_ADDRESS}:${TOKEN_ID_MOCK}&tokens=${ERC721_KUDOSADDRESS}:${TOKEN_ID_MOCK}`,
         )
         .reply(200, {
-          collections: [
-            CRYPTOPUNK_COLLECTION_MOCK,
-            ERC721_KUDOS_COLLECTION_MOCK,
-          ],
+          tokens: expectedResult,
         });
 
       const { nftController } = setupController();
 
-      const response = await nftController.getNFTContractInfo(
-        [CRYPTOPUNK_ADDRESS, ERC721_KUDOSADDRESS],
-        ChainId.mainnet,
+      const response = await nftController.getNFTTokenInfo(
+        [ChainId.mainnet],
+        [
+          {
+            contractAddress: CRYPTOPUNK_ADDRESS,
+            tokenId: TOKEN_ID_MOCK,
+          },
+          {
+            contractAddress: ERC721_KUDOSADDRESS,
+            tokenId: TOKEN_ID_MOCK,
+          },
+        ],
       );
 
-      expect(response).toStrictEqual({
-        collections: [CRYPTOPUNK_COLLECTION_MOCK, ERC721_KUDOS_COLLECTION_MOCK],
-      });
+      expect(response).toStrictEqual(expectedResult);
     });
   });
 });

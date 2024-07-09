@@ -53,6 +53,7 @@ import type {
   Collection,
   Attributes,
   LastSale,
+  TokensResponse,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -513,25 +514,27 @@ export class NftController extends BaseController<
     });
   }
 
-  async #getNftCollectionInformationFromApi(
-    contractAddress: string[],
-    chainId: Hex,
-  ) {
-    const url = new URL(this.#getNftCollectionApi());
+  async #getNftTokensFromApi(
+    chainIds: Hex[],
+    tokens: {
+      contractAddress: string;
+      tokenId: string;
+    }[],
+  ): Promise<ReservoirResponse> {
+    const url = new URL(this.getNftApi());
 
-    url.searchParams.append('chainId', chainId);
-
-    for (const address of contractAddress) {
-      url.searchParams.append('contract', address);
+    for (const chainId of chainIds) {
+      url.searchParams.append('chainIds', chainId);
     }
 
-    return await handleFetch(url);
-  }
+    for (const token of tokens) {
+      url.searchParams.append(
+        'tokens',
+        `${token.contractAddress}:${token.tokenId}`,
+      );
+    }
 
-  #getNftCollectionApi(): string {
-    // False negative.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    return `${NFT_API_BASE_URL}/collections`;
+    return (await handleFetch(url)) as ReservoirResponse;
   }
 
   /**
@@ -1990,20 +1993,22 @@ export class NftController extends BaseController<
   /**
    * Fetches NFT Collection Metadata from the NFT API.
    *
-   * @param contractAddresses - The contract addresses of the NFTs.
-   * @param chainId - The chain ID of the network where the NFT is located.
-   * @returns NFT collections metadata.
+   * @param chainIds - An array of chain IDs to query
+   * @param tokens - The array of objects containing contract addresses and tokenIds.
+   * @returns NFT tokens including collection info.
    */
-  async getNFTContractInfo(
-    contractAddresses: string[],
-    chainId: Hex,
-  ): Promise<{
-    collections: Collection[];
-  }> {
-    return await this.#getNftCollectionInformationFromApi(
-      contractAddresses,
-      chainId,
+  async getNFTTokenInfo(
+    chainIds: Hex[],
+    tokens: {
+      contractAddress: string;
+      tokenId: string;
+    }[],
+  ): Promise<TokensResponse[]> {
+    const { tokens: tokensResult } = await this.#getNftTokensFromApi(
+      chainIds,
+      tokens,
     );
+    return tokensResult;
   }
 
   #getAddressOrSelectedAddress(address: string | undefined): string {
