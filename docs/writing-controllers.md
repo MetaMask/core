@@ -66,7 +66,9 @@ class FooController extends BaseController</* ... */> {
 
 Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-a-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChange` event.
 
-It is customary to export a function which returns this default representation:
+A function which returns this default representation should be defined and exported. 
+
+Note that the default representation object is not exported directly to ensure that we are always providing a newly initialized instance with a new object reference.
 
 ```typescript
 /* === packages/foo-controller/src/FooController.ts === */
