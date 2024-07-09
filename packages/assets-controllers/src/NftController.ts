@@ -24,6 +24,7 @@ import {
   ERC1155,
   ApprovalType,
   NFT_API_BASE_URL,
+  NFT_API_VERSION,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-api';
 import type {
@@ -547,7 +548,7 @@ export class NftController extends BaseController<
       `${this.#getNftCollectionApi()}?${urlParams.toString()}`,
       {
         headers: {
-          Version: '1',
+          Version: NFT_API_VERSION,
         },
       },
     );
@@ -584,7 +585,7 @@ export class NftController extends BaseController<
         url: `${this.getNftApi()}?${urlParams}`,
         options: {
           headers: {
-            Version: '1',
+            Version: NFT_API_VERSION,
           },
         },
       });
