@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [34.0.1]
 
-### Uncategorized
+### Changed
 
-- Release/170.0.0 ([#4498](https://github.com/MetaMask/core/pull/4498))
-- fix: add support for tokenURI encoded images ([#4482](https://github.com/MetaMask/core/pull/4482))
-- Release/167.0.0 ([#4468](https://github.com/MetaMask/core/pull/4468))
+- Bump `@metamask/accounts-controller` to `^17.2.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+
+### Fixed
+
+- Add support for tokenURI encoded images to `NftController` methods `addNft`, `watchNft` and `updateNftMetadata` ([#4482](https://github.com/MetaMask/core/pull/4482))
 
 ## [34.0.0]
 

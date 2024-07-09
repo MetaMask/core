@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.0.0]
 
-### Uncategorized
+### Added
 
-- Log when we fail to connect to a network ([#4440](https://github.com/MetaMask/core/pull/4440))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- fix(deps): @metamask/eth-block-tracker@^9.0.2->^9.0.3 ([#4418](https://github.com/MetaMask/core/pull/4418))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-- chore(test): Refactor FakeBlockTracker provider injection ([#4345](https://github.com/MetaMask/core/pull/4345))
-- AssetsContractController: providerConfig -> selectedNetworkClientId ([#4315](https://github.com/MetaMask/core/pull/4315))
+- Add a new `log` argument to the constructor ([#4440](https://github.com/MetaMask/core/pull/4440))
+  - The new `log` argument must be a `Logger` object from the `loglevel` package and will be used to log a message when we fail to connect to a network or the network responds with an unknown error
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` to `^9.0.3` ([#4418](https://github.com/MetaMask/core/pull/4418))
 
 ### Changed
 

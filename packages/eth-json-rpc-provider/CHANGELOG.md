@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.1.0]
 
-### Uncategorized
+### Added
 
-- feat: make SafeEventEmitterProvider compatible with eth req libraries ([#4422](https://github.com/MetaMask/core/pull/4422))
-- Bump Yarn to v4 ([#3612](https://github.com/MetaMask/core/pull/3612))
+- Make `SafeEventEmitterProvider` EIP-1193 compatible by adding a `request` method ([#4422](https://github.com/MetaMask/core/pull/4422))
+  - Now `SafeEventEmitterProvider` is compatible with `@metamask/eth-query`, `@metamask/ethjs-query`, `BrowserProvider` from Ethers v6 and `Web3Provider` from Ethers v5
+
+### Changed
+
+- Mark `sendAsync` method as deprecated in favor of `request` method ([#4422](https://github.com/MetaMask/core/pull/4422))
 
 ## [4.0.0]
 
