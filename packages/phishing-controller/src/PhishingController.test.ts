@@ -868,7 +868,7 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
@@ -907,8 +907,8 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    controller.bypass(unsafeDomain);
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
@@ -947,7 +947,7 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
@@ -986,7 +986,7 @@ describe('PhishingController', () => {
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
