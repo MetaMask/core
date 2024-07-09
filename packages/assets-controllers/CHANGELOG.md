@@ -11,7 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- feat: make SafeEventEmitterProvider compatible with eth req libraries ([#4422](https://github.com/MetaMask/core/pull/4422))
 - Release/170.0.0 ([#4498](https://github.com/MetaMask/core/pull/4498))
 - fix: add support for tokenURI encoded images ([#4482](https://github.com/MetaMask/core/pull/4482))
 - Release/167.0.0 ([#4468](https://github.com/MetaMask/core/pull/4468))
