@@ -536,22 +536,15 @@ export class NftController extends BaseController<
     contractAddress: string[],
     chainId: Hex,
   ) {
-    const urlParams = new URLSearchParams({
-      chainId,
-    });
+    const url = new URL(this.#getNftCollectionApi());
+
+    url.searchParams.append('chainId', chainId);
 
     for (const address of contractAddress) {
-      urlParams.append('contract', address);
+      url.searchParams.append('contract', address);
     }
 
-    return await handleFetch(
-      `${this.#getNftCollectionApi()}?${urlParams.toString()}`,
-      {
-        headers: {
-          Version: NFT_API_VERSION,
-        },
-      },
-    );
+    return await handleFetch(url);
   }
 
   #getNftCollectionApi(): string {
