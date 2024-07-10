@@ -9,8 +9,15 @@ export type {
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
 export type {
-  BalanceMap,
+  AssetsContractControllerActions,
+  AssetsContractControllerEvents,
+  AssetsContractControllerGetERC20StandardAction,
+  AssetsContractControllerGetERC721StandardAction,
+  AssetsContractControllerGetERC1155StandardAction,
+  AssetsContractControllerGetTokenStandardAndDetailsAction,
+  AssetsContractControllerGetBalancesInSingleCallAction,
   AssetsContractControllerMessenger,
+  BalanceMap,
 } from './AssetsContractController';
 export {
   SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,

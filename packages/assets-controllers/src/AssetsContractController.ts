@@ -78,6 +78,40 @@ export type BalanceMap = {
 
 export const name = 'AssetsContractController';
 
+export type AssetsContractControllerGetERC20StandardAction = {
+  type: `${typeof name}:getERC20Standard`;
+  handler: AssetsContractController['getERC20Standard'];
+};
+
+export type AssetsContractControllerGetERC721StandardAction = {
+  type: `${typeof name}:getERC721Standard`;
+  handler: AssetsContractController['getERC721Standard'];
+};
+
+export type AssetsContractControllerGetERC1155StandardAction = {
+  type: `${typeof name}:getERC1155Standard`;
+  handler: AssetsContractController['getERC1155Standard'];
+};
+
+export type AssetsContractControllerGetTokenStandardAndDetailsAction = {
+  type: `${typeof name}:getTokenStandardAndDetails`;
+  handler: AssetsContractController['getTokenStandardAndDetails'];
+};
+
+export type AssetsContractControllerGetBalancesInSingleCallAction = {
+  type: `${typeof name}:getBalancesInSingleCall`;
+  handler: AssetsContractController['getBalancesInSingleCall'];
+};
+
+export type AssetsContractControllerActions = 
+  | AssetsContractControllerGetERC20StandardAction 
+  | AssetsContractControllerGetERC721StandardAction 
+  | AssetsContractControllerGetERC1155StandardAction 
+  | AssetsContractControllerGetTokenStandardAndDetailsAction 
+  | AssetsContractControllerGetBalancesInSingleCallAction;
+
+export type AssetsContractControllerEvents = never;
+
 export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
 export type AllowedEvents =
@@ -86,8 +120,8 @@ export type AllowedEvents =
 
 export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
   typeof name,
-  AllowedActions,
-  AllowedEvents,
+  AssetsContractControllerActions | AllowedActions,
+  AssetsContractControllerEvents | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
