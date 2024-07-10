@@ -1018,6 +1018,32 @@ describe('PhishingDetector', () => {
           );
         }
       });
+
+      it('returns a result without a version when a config lacks a version and the blocklist contains an ipfs cid', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: [
+                'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m',
+              ],
+              fuzzylist: [],
+              name: 'first',
+              tolerance: 2,
+            },
+          ],
+          async ({ detector }) => {
+            const { result, version } = detector.check(
+              formatHostnameToUrl(
+                'ipfs.io/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
+              ),
+            );
+
+            expect(result).toBe(true);
+            expect(version).toBeUndefined();
+          },
+        );
+      });
     });
 
     describe('with legacy config', () => {
