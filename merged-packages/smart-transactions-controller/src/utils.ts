@@ -227,3 +227,26 @@ export const getTxHash = (signedTxHex: any) => {
   ).hash();
   return bytesToHex(txHashBytes);
 };
+
+export const getSmartTransactionMetricsProperties = (
+  smartTransaction: SmartTransaction,
+) => {
+  if (!smartTransaction) {
+    return {};
+  }
+  const smartTransactionStatusMetadata = smartTransaction.statusMetadata;
+  return {
+    stx_status: smartTransaction.status,
+    token_from_symbol: smartTransaction.sourceTokenSymbol,
+    token_to_symbol: smartTransaction.destinationTokenSymbol,
+    type: smartTransaction.type,
+    processing_time: getStxProcessingTime(smartTransaction.time),
+    is_smart_transaction: true,
+    stx_enabled: true,
+    current_stx_enabled: true,
+    stx_user_opt_in: true,
+    stx_duplicated: smartTransactionStatusMetadata?.duplicated,
+    stx_timed_out: smartTransactionStatusMetadata?.timedOut,
+    stx_proxied: smartTransactionStatusMetadata?.proxied,
+  };
+};

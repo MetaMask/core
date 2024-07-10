@@ -605,12 +605,15 @@ describe('SmartTransactionsController', () => {
   });
 
   describe('trackStxStatusChange', () => {
-    it('does not track if no prevSmartTransactions', () => {
-      const smartTransaction = createStateAfterPending()[0];
+    it('tracks status change if prevSmartTransactions is undefined', () => {
+      const smartTransaction = {
+        ...createStateAfterPending()[0],
+        swapMetaData: {},
+      };
       smartTransactionsController.trackStxStatusChange(
         smartTransaction as SmartTransaction,
       );
-      expect(trackMetaMetricsEventSpy).not.toHaveBeenCalled();
+      expect(trackMetaMetricsEventSpy).toHaveBeenCalled();
     });
 
     it('does not track if smartTransaction and prevSmartTransaction have the same status', () => {

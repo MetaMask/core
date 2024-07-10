@@ -34,7 +34,6 @@ import {
   calculateStatus,
   generateHistoryEntry,
   getAPIRequestURL,
-  getStxProcessingTime,
   handleFetch,
   incrementNonceInHex,
   isSmartTransactionCancellable,
@@ -42,6 +41,7 @@ import {
   replayHistory,
   snapshotFromTxMeta,
   getTxHash,
+  getSmartTransactionMetricsProperties,
 } from './utils';
 
 const SECOND = 1000;
@@ -303,38 +303,20 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     smartTransaction: SmartTransaction,
     prevSmartTransaction?: SmartTransaction,
   ) {
-    if (!prevSmartTransaction) {
-      return; // Don't track the first STX, because it doesn't have all necessary params.
-    }
-
     let updatedSmartTransaction = cloneDeep(smartTransaction);
     updatedSmartTransaction = {
       ...cloneDeep(prevSmartTransaction),
       ...updatedSmartTransaction,
     };
 
-    if (
-      !updatedSmartTransaction.swapMetaData ||
-      (updatedSmartTransaction.status === prevSmartTransaction.status &&
-        prevSmartTransaction.swapMetaData)
-    ) {
+    if (updatedSmartTransaction.status === prevSmartTransaction?.status) {
       return; // If status hasn't changed, don't track it again.
     }
-
-    const sensitiveProperties = {
-      stx_status: updatedSmartTransaction.status,
-      token_from_symbol: updatedSmartTransaction.sourceTokenSymbol,
-      token_to_symbol: updatedSmartTransaction.destinationTokenSymbol,
-      processing_time: getStxProcessingTime(updatedSmartTransaction.time),
-      stx_enabled: true,
-      current_stx_enabled: true,
-      stx_user_opt_in: true,
-    };
 
     this.trackMetaMetricsEvent({
       event: MetaMetricsEventName.StxStatusUpdated,
       category: MetaMetricsEventCategory.Transactions,
-      sensitiveProperties,
+      properties: getSmartTransactionMetricsProperties(updatedSmartTransaction),
     });
   }
 
@@ -363,13 +345,47 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       ethQuery = new EthQuery(networkClient.provider);
     }
 
-    this.#updateSmartTransaction(smartTransaction, {
+    this.#createOrUpdateSmartTransaction(smartTransaction, {
       chainId,
       ethQuery,
     });
   }
 
-  async #updateSmartTransaction(
+  #updateSmartTransaction(
+    smartTransaction: SmartTransaction,
+    {
+      chainId = this.config.chainId,
+    }: {
+      chainId: Hex;
+    },
+  ) {
+    const { smartTransactionsState } = this.state;
+    const { smartTransactions } = smartTransactionsState;
+    const currentSmartTransactions = smartTransactions[chainId] ?? [];
+    const currentIndex = currentSmartTransactions?.findIndex(
+      (stx) => stx.uuid === smartTransaction.uuid,
+    );
+    if (currentIndex === -1) {
+      return; // Smart transaction not found, don't update anything.
+    }
+    this.update({
+      smartTransactionsState: {
+        ...smartTransactionsState,
+        smartTransactions: {
+          ...smartTransactionsState.smartTransactions,
+          [chainId]: smartTransactionsState.smartTransactions[chainId].map(
+            (existingSmartTransaction, index) => {
+              return index === currentIndex
+                ? { ...existingSmartTransaction, ...smartTransaction }
+                : existingSmartTransaction;
+            },
+          ),
+        },
+      },
+    });
+  }
+
+  async #createOrUpdateSmartTransaction(
     smartTransaction: SmartTransaction,
     {
       chainId = this.config.chainId,
@@ -451,20 +467,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         ethQuery,
       });
     } else {
-      this.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            ...smartTransactionsState.smartTransactions,
-            [chainId]: smartTransactionsState.smartTransactions[chainId].map(
-              (item, index) => {
-                return index === currentIndex
-                  ? { ...item, ...smartTransaction }
-                  : item;
-              },
-            ),
-          },
-        },
+      this.#updateSmartTransaction(smartTransaction, {
+        chainId,
       });
     }
   }
@@ -580,18 +584,16 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
             baseFeePerGas,
           );
         }
-
         this.trackMetaMetricsEvent({
           event: MetaMetricsEventName.StxConfirmed,
           category: MetaMetricsEventCategory.Transactions,
+          properties: getSmartTransactionMetricsProperties(smartTransaction),
         });
-
         this.#updateSmartTransaction(
+          { ...smartTransaction, confirmed: true },
           {
-            ...smartTransaction,
-            confirmed: true,
+            chainId,
           },
-          { chainId, ethQuery },
         );
       }
     } catch (error) {
@@ -630,7 +632,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         cancellable: isSmartTransactionCancellable(stxStatus),
         uuid,
       };
-      this.#updateSmartTransaction(smartTransaction, { chainId, ethQuery });
+      this.#createOrUpdateSmartTransaction(smartTransaction, {
+        chainId,
+        ethQuery,
+      });
     });
 
     return data;
@@ -784,7 +789,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     };
 
     try {
-      this.#updateSmartTransaction(
+      this.#createOrUpdateSmartTransaction(
         {
           chainId,
           nonceDetails,
