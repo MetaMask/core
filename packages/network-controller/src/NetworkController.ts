@@ -27,6 +27,7 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
+import type { Logger } from 'loglevel';
 import * as URI from 'uri-js';
 import { inspect } from 'util';
 import { v4 as uuidV4 } from 'uuid';
@@ -47,7 +48,7 @@ import type {
   NetworkClientConfiguration,
 } from './types';
 
-const log = createModuleLogger(projectLogger, 'NetworkController');
+const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
 const INFURA_URL_REGEX =
   /^https:\/\/(?<networkName>[^.]+)\.infura\.io\/v\d+\/(?<apiKey>.+)$/u;
@@ -495,6 +496,7 @@ export type NetworkControllerOptions = {
   messenger: NetworkControllerMessenger;
   infuraProjectId: string;
   state?: Partial<NetworkState>;
+  log?: Logger;
 };
 
 /**
@@ -738,12 +740,19 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
+  #log: Logger | undefined;
+
   #networkConfigurationsByNetworkClientId: Map<
     NetworkClientId,
     NetworkConfiguration
   >;
 
-  constructor({ messenger, state, infuraProjectId }: NetworkControllerOptions) {
+  constructor({
+    messenger,
+    state,
+    infuraProjectId,
+    log,
+  }: NetworkControllerOptions) {
     const initialState = { ...getDefaultNetworkControllerState(), ...state };
     validateNetworkControllerState(initialState);
     if (!infuraProjectId || typeof infuraProjectId !== 'string') {
@@ -771,6 +780,8 @@ export class NetworkController extends BaseController<
     });
 
     this.#infuraProjectId = infuraProjectId;
+    this.#log = log;
+
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
     this.#networkConfigurationsByNetworkClientId =
@@ -1021,6 +1032,10 @@ export class NetworkController extends BaseController<
       );
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
+      debugLog('NetworkController: lookupNetworkByClientId: ', error);
+
+      // TODO: mock ethQuery.sendAsync to throw error without error code
+      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -1032,6 +1047,10 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch {
             // error.message must not be JSON
+            this.#log?.warn(
+              'NetworkController: lookupNetworkByClientId: json parse error: ',
+              error,
+            );
           }
         }
 
@@ -1042,8 +1061,16 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
+          this.#log?.warn(
+            'NetworkController: lookupNetworkByClientId: rpc internal error: ',
+            error,
+          );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
+          this.#log?.warn(
+            'NetworkController: lookupNetworkByClientId: ',
+            error,
+          );
         }
       } else if (
         typeof Error !== 'undefined' &&
@@ -1055,8 +1082,12 @@ export class NetworkController extends BaseController<
       ) {
         throw error;
       } else {
-        log('NetworkController - could not determine network status', error);
+        debugLog(
+          'NetworkController - could not determine network status',
+          error,
+        );
         updatedNetworkStatus = NetworkStatus.Unknown;
+        this.#log?.warn('NetworkController: lookupNetworkByClientId: ', error);
       }
     }
     this.update((state) => {
@@ -1128,6 +1159,8 @@ export class NetworkController extends BaseController<
       updatedNetworkStatus = NetworkStatus.Available;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
     } catch (error) {
+      // TODO: mock ethQuery.sendAsync to throw error without error code
+      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -1137,8 +1170,12 @@ export class NetworkController extends BaseController<
         ) {
           try {
             responseBody = JSON.parse(error.message);
-          } catch {
+          } catch (parseError) {
             // error.message must not be JSON
+            this.#log?.warn(
+              'NetworkController: lookupNetwork: json parse error',
+              parseError,
+            );
           }
         }
 
@@ -1149,12 +1186,21 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
+          this.#log?.warn(
+            'NetworkController: lookupNetwork: rpc internal error',
+            error,
+          );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
+          this.#log?.warn('NetworkController: lookupNetwork: ', error);
         }
       } else {
-        log('NetworkController - could not determine network status', error);
+        debugLog(
+          'NetworkController - could not determine network status',
+          error,
+        );
         updatedNetworkStatus = NetworkStatus.Unknown;
+        this.#log?.warn('NetworkController: lookupNetwork: ', error);
       }
     }
 

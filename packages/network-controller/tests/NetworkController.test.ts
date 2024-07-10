@@ -585,9 +585,7 @@ describe('NetworkController', () => {
 
               const networkClient = controller.getSelectedNetworkClient();
               assert(networkClient, 'Network client not set');
-              const { result } = await promisify(
-                networkClient.provider.sendAsync,
-              ).call(networkClient.provider, {
+              const result = await networkClient.provider.request({
                 id: 1,
                 jsonrpc: '2.0',
                 method: 'test_method',
@@ -704,7 +702,7 @@ describe('NetworkController', () => {
         const { provider, blockTracker } =
           controller.getProviderAndBlockTracker();
 
-        expect(provider).toHaveProperty('sendAsync');
+        expect(provider).toHaveProperty('request');
         expect(blockTracker).toHaveProperty('checkForLatestBlock');
       });
     });
@@ -800,26 +798,20 @@ describe('NetworkController', () => {
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider not set');
 
-              const promisifiedSendAsync1 = promisify(provider.sendAsync).bind(
-                provider,
-              );
-              const response1 = await promisifiedSendAsync1({
+              const result1 = await provider.request({
                 id: '1',
                 jsonrpc: '2.0',
                 method: 'test_method',
               });
-              expect(response1.result).toBe('test response 1');
+              expect(result1).toBe('test response 1');
 
               await controller.setActiveNetwork(infuraNetworkType);
-              const promisifiedSendAsync2 = promisify(provider.sendAsync).bind(
-                provider,
-              );
-              const response2 = await promisifiedSendAsync2({
+              const result2 = await provider.request({
                 id: '2',
                 jsonrpc: '2.0',
                 method: 'test_method',
               });
-              expect(response2.result).toBe('test response 2');
+              expect(result2).toBe('test response 2');
             },
           );
         });
@@ -899,26 +891,20 @@ describe('NetworkController', () => {
             const { provider } = controller.getProviderAndBlockTracker();
             assert(provider, 'Provider not set');
 
-            const promisifiedSendAsync1 = promisify(provider.sendAsync).bind(
-              provider,
-            );
-            const response1 = await promisifiedSendAsync1({
+            const result1 = await provider.request({
               id: '1',
               jsonrpc: '2.0',
               method: 'test_method',
             });
-            expect(response1.result).toBe('test response 1');
+            expect(result1).toBe('test response 1');
 
             await controller.setActiveNetwork('AAAA-AAAA-AAAA-AAAA');
-            const promisifiedSendAsync2 = promisify(provider.sendAsync).bind(
-              provider,
-            );
-            const response2 = await promisifiedSendAsync2({
+            const result2 = await provider.request({
               id: '2',
               jsonrpc: '2.0',
               method: 'test_method',
             });
-            expect(response2.result).toBe('test response 2');
+            expect(result2).toBe('test response 2');
           },
         );
       });
@@ -7784,15 +7770,12 @@ describe('NetworkController', () => {
 
               const networkClient = controller.getSelectedNetworkClient();
               assert(networkClient, 'Network client is somehow unset');
-              const promisifiedSendAsync = promisify(
-                networkClient.provider.sendAsync,
-              ).bind(networkClient.provider);
-              const response = await promisifiedSendAsync({
+              const result = await networkClient.provider.request({
                 id: '1',
                 jsonrpc: '2.0',
                 method: 'test',
               });
-              expect(response.result).toBe('test response');
+              expect(result).toBe('test response');
             },
           );
         });
@@ -8413,15 +8396,12 @@ describe('NetworkController', () => {
 
             const networkClient = controller.getSelectedNetworkClient();
             assert(networkClient, 'Network client is somehow unset');
-            const promisifiedSendAsync = promisify(
-              networkClient.provider.sendAsync,
-            ).bind(networkClient.provider);
-            const response = await promisifiedSendAsync({
+            const result = await networkClient.provider.request({
               id: '1',
               jsonrpc: '2.0',
               method: 'test_method',
             });
-            expect(response.result).toBe('test response');
+            expect(result).toBe('test response');
           },
         );
       });
@@ -8929,16 +8909,13 @@ function refreshNetworkTests({
           });
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
-          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-            provider,
-          );
-          const chainIdResult = await promisifiedSendAsync({
+          const chainIdResult = await provider.request({
             id: 1,
             jsonrpc: '2.0',
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe(toHex(111));
+          expect(chainIdResult).toBe(toHex(111));
         },
       );
     });
@@ -8973,16 +8950,13 @@ function refreshNetworkTests({
           });
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
-          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-            provider,
-          );
-          const chainIdResult = await promisifiedSendAsync({
+          const chainIdResult = await provider.request({
             id: 1,
             jsonrpc: '2.0',
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe(toHex(1337));
+          expect(chainIdResult).toBe(toHex(1337));
         },
       );
     });

@@ -54,7 +54,7 @@ export function buildSelectedNetworkControllerMessenger({
   getSubjectNames?: string[];
 } = {}) {
   const mockGetNetworkClientById = jest.fn().mockReturnValue({
-    provider: { sendAsync: jest.fn() },
+    provider: { request: jest.fn() },
     blockTracker: { getLatestBlock: jest.fn() },
   });
   messenger.registerActionHandler(
@@ -62,7 +62,7 @@ export function buildSelectedNetworkControllerMessenger({
     mockGetNetworkClientById,
   );
   const mockGetSelectedNetworkClient = jest.fn().mockReturnValue({
-    provider: { sendAsync: jest.fn() },
+    provider: { request: jest.fn() },
     blockTracker: { getLatestBlock: jest.fn() },
   });
   messenger.registerActionHandler(
@@ -154,7 +154,7 @@ const setup = ({
   const createEventEmitterProxyMock = jest.mocked(createEventEmitterProxy);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   createEventEmitterProxyMock.mockImplementation((initialTarget: any) => {
-    if (initialTarget?.sendAsync !== undefined) {
+    if (initialTarget?.request !== undefined) {
       return mockProviderProxy;
     }
     if (initialTarget?.getLatestBlock !== undefined) {
@@ -440,7 +440,7 @@ describe('SelectedNetworkController', () => {
 
           expect(mockProviderProxy.setTarget).toHaveBeenNthCalledWith(
             2,
-            expect.objectContaining({ sendAsync: expect.any(Function) }),
+            expect.objectContaining({ request: expect.any(Function) }),
           );
           expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(2);
         });
@@ -785,7 +785,7 @@ describe('SelectedNetworkController', () => {
         );
 
         expect(mockProviderProxy.setTarget).toHaveBeenCalledWith(
-          expect.objectContaining({ sendAsync: expect.any(Function) }),
+          expect.objectContaining({ request: expect.any(Function) }),
         );
         expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(1);
 

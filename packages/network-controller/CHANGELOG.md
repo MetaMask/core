@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If no initial state or this property is not included in initial state, the default value of this property will now include configurations for known Infura networks (Mainnet, Goerli, Sepolia, Linea Goerli, Linea Sepolia, and Linea Mainnet) by default.
 - Add `getNetworkConfigurationByChainId` method and `NetworkController:getNetworkConfigurationByChainId` messenger action ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `addNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to add new network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - It's worth noting that this method now publishes a `NetworkController:networkAdded` event instead of calling a `trackMetaMetricsEvent` callback. It is expected that you will subscribe to this event and create a MetaMetrics event yourself.
 - Add `updateNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to recreate the network clients for an existing chain based on an updated configuration ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `removeNetwork`, which replaces `removeNetworkConfiguration` and can be used to remove existing network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `getDefaultNetworkControllerState` function, which replaces `defaultState` and matches patterns in other controllers ([#4268](https://github.com/MetaMask/core/pull/4286))
@@ -21,8 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Update `networksMetadata` state property so that the keys in the object will only ever be network client IDs and not RPC URLs ([#4254](https://github.com/MetaMask/core/pull/4254))
-  - Some keys could have been RPC URLs if the initial network controller state had a `providerConfig` with an empty `id`, but since `providerConfig` is being removed, that won't happen anymore.
 - **BREAKING:** Replace `NetworkConfiguration` type with a new definition ([#4268](https://github.com/MetaMask/core/pull/4286))
   - A network configuration no longer represents a single RPC endpoint but rather a collection of RPC endpoints that can all be used to interface with a single chain.
   - The only property that has been retained on this type is `chainId`.
@@ -45,13 +44,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `providerConfig` property from state along with `ProviderConfig` type and `NetworkController:getProviderConfig` messenger action ([#4254](https://github.com/MetaMask/core/pull/4254))
-  - The best way to obtain the equivalent configuration object, e.g. to access the chain ID of the currently selected network, is to get `selectedNetworkClientId` from state, pass this to the `NetworkController:getNetworkClientId` messenger action, and then use the `configuration` property on the network client.
 - **BREAKING:** Remove `networkConfigurations` from `NetworkState`, which has been replaced with `networkConfigurationsByChainId` ([#4268](https://github.com/MetaMask/core/pull/4286))
 - **BREAKING:** Remove `upsertNetworkConfiguration` and `removeNetworkConfiguration`, which have been replaced with `addNetwork`, `updateNetwork`, and `removeNetwork` ([#4268](https://github.com/MetaMask/core/pull/4286))
 - **BREAKING:** Remove `defaultState`, which has been replaced with `getDefaultNetworkControllerState` ([#4268](https://github.com/MetaMask/core/pull/4286))
 - **BREAKING:** Remove `trackMetaMetricsEvent` option from the NetworkController constructor ([#4268](https://github.com/MetaMask/core/pull/4286))
   - Previously, this was used in `upsertNetworkConfiguration` to create a MetaMetrics event when a new network was added. This can now be achieved by subscribing to the `NetworkController:networkAdded` event.
+
+## [20.0.0]
+
+### Added
+
+- Add a new `log` argument to the constructor ([#4440](https://github.com/MetaMask/core/pull/4440))
+  - The new `log` argument must be a `Logger` object from the `loglevel` package and will be used to log a message when we fail to connect to a network or the network responds with an unknown error
+
+### Changed
+
+- **BREAKING:** Update `networksMetadata` state property so that the keys in the object will only ever be network client IDs and not RPC URLs ([#4254](https://github.com/MetaMask/core/pull/4254))
+  - Some keys could have been RPC URLs if the initial network controller state had a `providerConfig` with an empty `id`, but since `providerConfig` is being removed, that won't happen anymore.
+- Bump `@metamask/eth-block-tracker` to `^9.0.3` ([#4418](https://github.com/MetaMask/core/pull/4418))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.1.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+### Removed
+
+- **BREAKING:** Remove `providerConfig` property from state along with `ProviderConfig` type and `NetworkController:getProviderConfig` messenger action ([#4254](https://github.com/MetaMask/core/pull/4254))
+  - The best way to obtain the equivalent configuration object, e.g. to access the chain ID of the currently selected network, is to get `selectedNetworkClientId` from state, pass this to the `NetworkController:getNetworkClientId` messenger action, and then use the `configuration` property on the network client.
 
 ## [19.0.0]
 
@@ -551,7 +567,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.3...@metamask/network-controller@19.0.0
 [18.1.3]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.2...@metamask/network-controller@18.1.3
 [18.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.1...@metamask/network-controller@18.1.2
