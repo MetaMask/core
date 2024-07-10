@@ -783,7 +783,7 @@ export class NftController extends BaseController<
     });
     const [blockchainMetadata, nftApiMetadata] = await Promise.all([
       safelyExecute(() =>
-        this.#getNftInformationFromTokenURI(
+        this.getNftInformationFromTokenURI(
           contractAddress,
           tokenId,
           networkClientId,
