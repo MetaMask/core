@@ -668,9 +668,7 @@ export class NftDetectionController extends BaseController<
                 singleNFT.token = {
                   ...singleNFT.token,
                   collection: {
-                    ...(singleNFT.token.collection
-                      ? singleNFT.token.collection
-                      : {}),
+                    ...(singleNFT.token.collection ?? {}),
                     creator: found?.creator,
                     openseaVerificationStatus: found?.openseaVerificationStatus,
                     contractDeployedAt: found.contractDeployedAt,

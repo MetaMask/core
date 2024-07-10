@@ -58,8 +58,8 @@ export function hasNewCollectionFields(
   newNftMetadata: NftMetadata,
   nft: Nft,
 ): boolean {
-  const keysNewNftMetadata = Object.keys(newNftMetadata.collection || {});
-  const keysExistingNft = new Set(Object.keys(nft.collection || {}));
+  const keysNewNftMetadata = Object.keys(newNftMetadata.collection ?? {});
+  const keysExistingNft = new Set(Object.keys(nft.collection ?? {}));
 
   return keysNewNftMetadata.some((key) => !keysExistingNft.has(key));
 }
