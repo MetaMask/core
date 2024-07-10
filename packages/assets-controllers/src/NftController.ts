@@ -470,9 +470,7 @@ export class NftController extends BaseController<
   }
 
   getNftApi() {
-    // False negative.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    return `${NFT_API_BASE_URL}/tokens`;
+    return `${NFT_API_BASE_URL as string}/tokens`;
   }
 
   /**
