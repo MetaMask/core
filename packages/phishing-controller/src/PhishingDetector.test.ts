@@ -950,18 +950,6 @@ describe('PhishingDetector', () => {
       });
 
       it('blocks ipfs cid across various formats (cids located in subdomains and paths)', async () => {
-        // Gateways differ on where the CID is... sometimes in the path, sometimes in a magic subdomain
-        const expectedToBeBlocked = [
-          'ipfs.io/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
-          'gateway.pinata.cloud/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
-          'cloudflare-ipfs.com/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
-          'ipfs.eth.aragon.network/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
-          'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.dweb.link/#x-ipfs-companion-no-redirect',
-          'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.cf-ipfs.com/#x-ipfs-companion-no-redirect',
-          'example.com',
-          'example.com/foo/bar',
-        ];
-
         // CID should not blocked
         await withPhishingDetector(
           [
@@ -990,8 +978,20 @@ describe('PhishingDetector', () => {
           },
         );
 
+        // Gateways differ on where the CID is... sometimes in the path, sometimes in a magic subdomain
+        const expectedToBeBlocked = [
+          'ipfs.io/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
+          'gateway.pinata.cloud/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
+          'cloudflare-ipfs.com/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
+          'ipfs.eth.aragon.network/ipfs/bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m#x-ipfs-companion-no-redirect',
+          'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.dweb.link/#x-ipfs-companion-no-redirect',
+          'bafybeifx7yeb55armcsxwwitkymga5xf53dxiarykms3ygqic223w5sk3m.ipfs.cf-ipfs.com/#x-ipfs-companion-no-redirect',
+          'example.com',
+          'example.com/foo/bar',
+        ];
+
         // CID should be blocked
-        expectedToBeBlocked.forEach(async (entry) => {
+        for await (const entry of expectedToBeBlocked) {
           await withPhishingDetector(
             [
               {
@@ -1016,7 +1016,7 @@ describe('PhishingDetector', () => {
               expect(type).toBe('blocklist');
             },
           );
-        });
+        }
       });
     });
 
