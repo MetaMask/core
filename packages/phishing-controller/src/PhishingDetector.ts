@@ -204,13 +204,14 @@ export class PhishingDetector {
       }
     }
 
+    const ipfsCidMatch = url.match(ipfsCidRegex());
+
     // Check for IPFS CID related blocklist entries
-    if (url.match(ipfsCidRegex())) {
+    if (ipfsCidMatch !== null) {
       // there is a cID string somewhere
       // Determine if any of the entries are ipfs cids
       // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
-      const cidMatch = url.match(ipfsCidRegex());
-      const cID = cidMatch ? cidMatch[0] : '';
+      const cID = ipfsCidMatch[0];
       for (const { blocklist, name, version } of this.#configs) {
         const blocklistMatch = blocklist
           .filter((entries) => entries.length === 1)
