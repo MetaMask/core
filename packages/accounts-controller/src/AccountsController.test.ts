@@ -2053,7 +2053,7 @@ describe('AccountsController', () => {
         expected: mockNonEvmAccount,
       },
     ])(
-      "chainId $chainId with selectedAccount '$selectedAccount.id' should return $expected.id",
+      "chainId $chainId with selectedAccount '$selectedAccount.id' returns $expected.id",
       ({ chainId, selectedAccount, expected }) => {
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2158,7 +2158,7 @@ describe('AccountsController', () => {
       [undefined, [mockAccount, mockAccount2, mockNonEvmAccount]],
       ['eip155:1', [mockAccount, mockAccount2]],
       ['bip122:000000000019d6689c085ae165831e93', [mockNonEvmAccount]],
-    ])(`%s should return %s`, (chainId, expected) => {
+    ])(`%s returns %s`, (chainId, expected) => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2483,7 +2483,7 @@ describe('AccountsController', () => {
       expect(account).toStrictEqual(mockAccount);
     });
 
-    it("should return undefined if there isn't an account with the address", () => {
+    it("returns undefined if there isn't an account with the address", () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
