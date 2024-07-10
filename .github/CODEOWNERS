@@ -8,6 +8,7 @@
 /packages/rate-limit-controller      @MetaMask/snaps-devs
 
 /packages/gas-fee-controller         @MetaMask/confirmations
+/packages/message-manager            @MetaMask/confirmations
 /packages/name-controller            @MetaMask/confirmations
 /packages/signature-controller       @MetaMask/confirmations
 /packages/transaction-controller     @MetaMask/confirmations
