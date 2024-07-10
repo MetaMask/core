@@ -425,8 +425,6 @@ describe('KeyringController', () => {
               expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
               expect(controller.state.vault).toStrictEqual(initialVault);
-              expect(controller.state.encryptionKey).toBeUndefined();
-              expect(controller.state.encryptionSalt).toBeUndefined();
             },
           );
         });
@@ -573,6 +571,19 @@ describe('KeyringController', () => {
               },
             );
           });
+
+          !cacheEncryptionKey &&
+            it('should not set encryptionKey and encryptionSalt in state', async () => {
+              await withController(
+                { skipVaultCreation: true },
+                async ({ controller }) => {
+                  await controller.createNewVaultAndKeychain(password);
+
+                  expect(controller.state).not.toHaveProperty('encryptionKey');
+                  expect(controller.state).not.toHaveProperty('encryptionSalt');
+                },
+              );
+            });
         });
 
         describe('when there is an existing vault', () => {
@@ -597,11 +608,8 @@ describe('KeyringController', () => {
               },
             );
           });
-
           cacheEncryptionKey &&
-            // TODO: Re-enable this after we properly clear the key and salt from state upon lock
-            // eslint-disable-next-line jest/no-disabled-tests
-            it.skip('should set encryptionKey and encryptionSalt in state', async () => {
+            it('should set encryptionKey and encryptionSalt in state', async () => {
               await withController(
                 { cacheEncryptionKey },
                 async ({ controller }) => {
@@ -613,6 +621,17 @@ describe('KeyringController', () => {
 
                   expect(controller.state.encryptionKey).toBeDefined();
                   expect(controller.state.encryptionSalt).toBeDefined();
+                },
+              );
+            });
+          !cacheEncryptionKey &&
+            it('should not set encryptionKey and encryptionSalt in state', async () => {
+              await withController(
+                { skipVaultCreation: false, cacheEncryptionKey },
+                async ({ controller }) => {
+                  await controller.createNewVaultAndKeychain(password);
+                  expect(controller.state).not.toHaveProperty('encryptionKey');
+                  expect(controller.state).not.toHaveProperty('encryptionSalt');
                 },
               );
             });
@@ -631,8 +650,8 @@ describe('KeyringController', () => {
 
         expect(controller.isUnlocked()).toBe(false);
         expect(controller.state.isUnlocked).toBe(false);
-        expect(controller.state.encryptionKey).toBeUndefined();
-        expect(controller.state.encryptionSalt).toBeUndefined();
+        expect(controller.state).not.toHaveProperty('encryptionKey');
+        expect(controller.state).not.toHaveProperty('encryptionSalt');
       });
     });
 
