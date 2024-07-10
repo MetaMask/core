@@ -534,7 +534,11 @@ export class NftController extends BaseController<
       );
     }
 
-    return (await handleFetch(url)) as ReservoirResponse;
+    return (await handleFetch(url, {
+      headers: {
+        Version: NFT_API_VERSION,
+      },
+    })) as ReservoirResponse;
   }
 
   /**
