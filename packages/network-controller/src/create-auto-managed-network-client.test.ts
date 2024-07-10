@@ -1,5 +1,4 @@
 import { BUILT_IN_NETWORKS, NetworkType } from '@metamask/controller-utils';
-import { promisify } from 'util';
 
 import { mockNetwork } from '../../../tests/mock-network';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
@@ -69,6 +68,7 @@ describe('createAutoManagedNetworkClient', () => {
         expect('eventNames' in provider).toBe(true);
         expect('send' in provider).toBe(true);
         expect('sendAsync' in provider).toBe(true);
+        expect('request' in provider).toBe(true);
       });
 
       it('returns a provider proxy that acts like a provider, forwarding requests to the network', async () => {
@@ -91,7 +91,7 @@ describe('createAutoManagedNetworkClient', () => {
           networkClientConfiguration,
         );
 
-        const { result } = await promisify(provider.sendAsync).call(provider, {
+        const result = await provider.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'test_method',
@@ -125,13 +125,13 @@ describe('createAutoManagedNetworkClient', () => {
           networkClientConfiguration,
         );
 
-        await promisify(provider.sendAsync).call(provider, {
+        await provider.request({
           id: 1,
           jsonrpc: '2.0',
           method: 'test_method',
           params: [],
         });
-        await promisify(provider.sendAsync).call(provider, {
+        await provider.request({
           id: 2,
           jsonrpc: '2.0',
           method: 'test_method',
