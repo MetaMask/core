@@ -28,10 +28,10 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/eth-block-tracker": "^9.0.3",
-    "@metamask/eth-json-rpc-provider": "^3.0.2",
+    "@metamask/eth-block-tracker": "^10.0.0",
+    "@metamask/eth-json-rpc-provider": "^4.0.0",
     "@metamask/eth-sig-util": "^7.0.0",
-    "@metamask/json-rpc-engine": "^8.0.2",
+    "@metamask/json-rpc-engine": "^9.0.0",
     "@metamask/rpc-errors": "^6.0.0",
     "@metamask/utils": "^8.1.0",
     "@types/bn.js": "^5.1.5",
