@@ -425,6 +425,8 @@ describe('KeyringController', () => {
               expect(controller.state).not.toBe(initialState);
               expect(controller.state.vault).toBeDefined();
               expect(controller.state.vault).toStrictEqual(initialVault);
+              expect(controller.state.encryptionKey).toBeUndefined();
+              expect(controller.state.encryptionSalt).toBeUndefined();
             },
           );
         });
@@ -629,6 +631,8 @@ describe('KeyringController', () => {
 
         expect(controller.isUnlocked()).toBe(false);
         expect(controller.state.isUnlocked).toBe(false);
+        expect(controller.state.encryptionKey).toBeUndefined();
+        expect(controller.state.encryptionSalt).toBeUndefined();
       });
     });
 
