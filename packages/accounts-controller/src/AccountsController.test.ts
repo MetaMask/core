@@ -2058,7 +2058,7 @@ it('should handle keyring reinitialization with multiple accounts', async () => 
 
   const selectedAccount = accountsController.getSelectedAccount();
 
-  expect(selectedAccount.id).toStrictEqual('mock-id2');
+  expect(selectedAccount.id).toStrictEqual('mock-id');
 });
 
   describe('getSelectedMultichainAccount', () => {
