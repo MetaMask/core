@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- **BREAKING:** Bump peerDependency `@metamask/gas-fee-controller` to `^19.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+## [34.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^18.0.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+- Bump dependency `@metamask/accounts-controller` to `^17.2.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+
+## [33.0.1]
+
+### Changed
+
+- Document TransactionStatus enum ([#4380](https://github.com/MetaMask/core/pull/4380))
+- Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
+
 ## [33.0.0]
 
 ### Changed
@@ -896,7 +917,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.0.0...HEAD
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@34.0.0...@metamask/transaction-controller@35.0.0
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.1...@metamask/transaction-controller@34.0.0
+[33.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...@metamask/transaction-controller@33.0.1
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...@metamask/transaction-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0

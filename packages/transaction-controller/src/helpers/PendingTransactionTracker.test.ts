@@ -85,8 +85,6 @@ describe('PendingTransactionTracker', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     blockTracker = createBlockTrackerMock();
     failTransaction = jest.fn();
 

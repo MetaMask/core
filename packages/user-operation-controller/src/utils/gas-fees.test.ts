@@ -34,8 +34,6 @@ describe('gas-fees', () => {
   let request: jest.Mocked<UpdateGasFeesRequest>;
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     request = cloneDeep(UPDATE_GAS_FEES_REQUEST_MOCK);
 
     jest
