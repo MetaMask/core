@@ -1742,7 +1742,7 @@ describe('AccountsController', () => {
       KeyringTypes.lattice,
       KeyringTypes.qr,
       'Custody - JSON - RPC',
-    ])('should add accounts for %s type', async (keyringType) => {
+    ])('adds accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
 
       const messenger = buildMessenger();
@@ -1955,7 +1955,7 @@ describe('AccountsController', () => {
         expected: mockNewerEvmAccount,
       },
     ])(
-      'last selected account type is $lastSelectedAccount.type should return the selectedAccount with id $expected.id',
+      'returns the selectedAccount with id $expected.id when last selected account type is $lastSelectedAccount.type',
       ({ lastSelectedAccount, expected }) => {
         const { accountsController } = setupAccountsController({
           initialState: {
