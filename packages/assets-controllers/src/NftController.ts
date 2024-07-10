@@ -628,7 +628,7 @@ export class NftController extends BaseController<
    * @param networkClientId - The networkClientId that can be used to identify the network client to use for this request.
    * @returns Promise resolving to the current NFT name and image.
    */
-  async #getNftInformationFromTokenURI(
+  async getNftInformationFromTokenURI(
     contractAddress: string,
     tokenId: string,
     networkClientId?: NetworkClientId,
