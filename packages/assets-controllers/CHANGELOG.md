@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- Bump `@metamask/polling-controller` to `^9.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- Bump `@metamask/accounts-controller` to `^17.2.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+
+### Fixed
+
+- Add support for tokenURI encoded images to `NftController` methods `addNft`, `watchNft` and `updateNftMetadata` ([#4482](https://github.com/MetaMask/core/pull/4482))
+
 ## [34.0.0]
 
 ### Added
@@ -981,7 +993,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@35.0.0...HEAD
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...@metamask/assets-controllers@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@33.0.0...@metamask/assets-controllers@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@32.0.0...@metamask/assets-controllers@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@31.0.0...@metamask/assets-controllers@32.0.0
