@@ -470,7 +470,9 @@ export class NftController extends BaseController<
   }
 
   getNftApi() {
-    return `${NFT_API_BASE_URL as string}/tokens`;
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    return `${NFT_API_BASE_URL}/tokens`;
   }
 
   /**
