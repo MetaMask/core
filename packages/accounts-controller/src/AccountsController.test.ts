@@ -1742,7 +1742,7 @@ describe('AccountsController', () => {
       KeyringTypes.lattice,
       KeyringTypes.qr,
       'Custody - JSON - RPC',
-    ])('should add accounts for %s type', async (keyringType) => {
+    ])('adds accounts for %s type', async (keyringType) => {
       mockUUID.mockReturnValue('mock-id');
 
       const messenger = buildMessenger();
@@ -1955,7 +1955,7 @@ describe('AccountsController', () => {
         expected: mockNewerEvmAccount,
       },
     ])(
-      'last selected account type is $lastSelectedAccount.type should return the selectedAccount with id $expected.id',
+      'last selected account type is $lastSelectedAccount.type returns the selectedAccount with id $expected.id',
       ({ lastSelectedAccount, expected }) => {
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2053,7 +2053,7 @@ describe('AccountsController', () => {
         expected: mockNonEvmAccount,
       },
     ])(
-      "chainId $chainId with selectedAccount '$selectedAccount.id' should return $expected.id",
+      "chainId $chainId with selectedAccount '$selectedAccount.id' returns $expected.id",
       ({ chainId, selectedAccount, expected }) => {
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2158,7 +2158,7 @@ describe('AccountsController', () => {
       [undefined, [mockAccount, mockAccount2, mockNonEvmAccount]],
       ['eip155:1', [mockAccount, mockAccount2]],
       ['bip122:000000000019d6689c085ae165831e93', [mockNonEvmAccount]],
-    ])(`%s should return %s`, (chainId, expected) => {
+    ])(`%s returns %s`, (chainId, expected) => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2445,8 +2445,7 @@ describe('AccountsController', () => {
         [],
       );
 
-      // Finally we add a 3rd account, and it should be named "Account 4" (despite having a gap
-      // since "Account 2" no longer exists)
+      // Finally we add a 3rd account, and it is named "Account 4" (despite having a gap since "Account 2" no longer exists)
       messenger.publish(
         'KeyringController:stateChange',
         mockNewKeyringStateWith([
@@ -2483,7 +2482,7 @@ describe('AccountsController', () => {
       expect(account).toStrictEqual(mockAccount);
     });
 
-    it("should return undefined if there isn't an account with the address", () => {
+    it("returns undefined if there isn't an account with the address", () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2755,7 +2754,7 @@ describe('AccountsController', () => {
               internalAccounts: {
                 accounts: {
                   [mockAccount.id]: mockAccount,
-                  // Next name should be: "Account 2"
+                  // Next name is: "Account 2"
                 },
                 selectedAccount: mockAccount.id,
               },
@@ -2787,7 +2786,7 @@ describe('AccountsController', () => {
                       keyring: { type: KeyringTypes.hd },
                     },
                   },
-                  // Next name should be: "Account 4"
+                  // Next name is: "Account 4"
                 },
                 selectedAccount: mockAccount.id,
               },
