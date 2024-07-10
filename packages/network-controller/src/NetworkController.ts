@@ -1425,11 +1425,7 @@ export class NetworkController extends BaseController<
    * @see {@link NetworkConfiguration}
    */
   addNetwork(fields: AddNetworkFields): NetworkConfiguration {
-    const {
-      chainId,
-      nativeCurrency,
-      rpcEndpoints: setOfRpcEndpointFields,
-    } = fields;
+    const { rpcEndpoints: setOfRpcEndpointFields } = fields;
     const rpcEndpointUrls = setOfRpcEndpointFields.map(
       (rpcEndpointFields) => rpcEndpointFields.url,
     );
@@ -1470,54 +1466,28 @@ export class NetworkController extends BaseController<
       );
     }
 
-    const newRpcEndpoints = setOfRpcEndpointFields.map(
+    const rpcEndpointOperations = setOfRpcEndpointFields.map(
       (defaultOrCustomRpcEndpointFields) => {
-        if (defaultOrCustomRpcEndpointFields.type === RpcEndpointType.Custom) {
-          return {
-            ...defaultOrCustomRpcEndpointFields,
-            networkClientId: uuidV4(),
-          };
-        }
-        return defaultOrCustomRpcEndpointFields;
+        const rpcEndpoint =
+          defaultOrCustomRpcEndpointFields.type === RpcEndpointType.Custom
+            ? {
+                ...defaultOrCustomRpcEndpointFields,
+                networkClientId: uuidV4(),
+              }
+            : defaultOrCustomRpcEndpointFields;
+        return {
+          type: 'add' as const,
+          value: rpcEndpoint,
+        };
       },
     );
 
-    for (const rpcEndpoint of newRpcEndpoints) {
-      if (rpcEndpoint.type === RpcEndpointType.Infura) {
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          rpcEndpoint.networkClientId
-        ] = createAutoManagedNetworkClient({
-          chainId,
-          infuraProjectId: this.#infuraProjectId,
-          network: rpcEndpoint.networkClientId,
-          ticker: nativeCurrency,
-          type: NetworkClientType.Infura,
-        });
-      } else {
-        autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-          rpcEndpoint.networkClientId
-        ] = createAutoManagedNetworkClient({
-          chainId,
-          rpcUrl: rpcEndpoint.url,
-          ticker: nativeCurrency,
-          type: NetworkClientType.Custom,
-        });
-      }
-    }
-
-    const newNetworkConfiguration = {
-      ...fields,
-      rpcEndpoints: newRpcEndpoints,
-    };
-
-    this.update((state) => {
-      state.networkConfigurationsByChainId[chainId] = newNetworkConfiguration;
+    const newNetworkConfiguration = this.#applyNetworkConfigurationChanges({
+      mode: 'add',
+      networkFields: fields,
+      rpcEndpointOperations,
+      autoManagedNetworkClientRegistry,
     });
-
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
 
     this.messagingSystem.publish(
       `${controllerName}:networkAdded`,
@@ -1559,11 +1529,8 @@ export class NetworkController extends BaseController<
     }
 
     const existingChainId = chainId;
-    const {
-      chainId: newChainId,
-      nativeCurrency: newNativeTokenName,
-      rpcEndpoints: setOfNewRpcEndpointFields,
-    } = fields;
+    const { chainId: newChainId, rpcEndpoints: setOfNewRpcEndpointFields } =
+      fields;
 
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
@@ -1576,7 +1543,7 @@ export class NetworkController extends BaseController<
       autoManagedNetworkClientRegistry,
     });
 
-    const operations: {
+    const rpcEndpointOperations: {
       type: 'add' | 'remove' | 'noop';
       value: RpcEndpoint;
     }[] = [];
@@ -1591,7 +1558,7 @@ export class NetworkController extends BaseController<
               newRpcEndpointFields.url === existingRpcEndpoint.url,
           )
         ) {
-          operations.push({
+          rpcEndpointOperations.push({
             type: 'remove',
             value: existingRpcEndpoint,
           });
@@ -1611,12 +1578,12 @@ export class NetworkController extends BaseController<
             newRpcEndpointFields.type === RpcEndpointType.Infura
               ? newRpcEndpointFields
               : { ...newRpcEndpointFields, networkClientId: uuidV4() };
-          operations.push({
+          rpcEndpointOperations.push({
             type: 'add',
             value: newRpcEndpoint,
           });
         } else {
-          operations.push({
+          rpcEndpointOperations.push({
             type: 'noop',
             value: existingRpcEndpoint,
           });
@@ -1624,7 +1591,7 @@ export class NetworkController extends BaseController<
       }
     } else {
       for (const existingRpcEndpoint of existingNetworkConfiguration.rpcEndpoints) {
-        operations.push({
+        rpcEndpointOperations.push({
           type: 'remove',
           value: existingRpcEndpoint,
         });
@@ -1634,70 +1601,20 @@ export class NetworkController extends BaseController<
           newRpcEndpointFields.type === RpcEndpointType.Infura
             ? newRpcEndpointFields
             : { ...newRpcEndpointFields, networkClientId: uuidV4() };
-        operations.push({
+        rpcEndpointOperations.push({
           type: 'add',
           value: newRpcEndpoint,
         });
       }
     }
 
-    const newRpcEndpoints: RpcEndpoint[] = [];
-    for (const operation of operations) {
-      if (operation.type === 'remove') {
-        const networkClient = this.getNetworkClientById(
-          operation.value.networkClientId,
-        );
-        networkClient.destroy();
-        delete autoManagedNetworkClientRegistry[
-          networkClient.configuration.type
-        ][operation.value.networkClientId];
-      } else {
-        if (operation.type === 'add') {
-          if (operation.value.type === RpcEndpointType.Infura) {
-            autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-              operation.value.networkClientId
-            ] = createAutoManagedNetworkClient({
-              type: NetworkClientType.Infura,
-              chainId: newChainId,
-              network: operation.value.networkClientId,
-              infuraProjectId: this.#infuraProjectId,
-              ticker: newNativeTokenName,
-            });
-          } else {
-            autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-              operation.value.networkClientId
-            ] = createAutoManagedNetworkClient({
-              type: NetworkClientType.Custom,
-              chainId: newChainId,
-              rpcUrl: operation.value.url,
-              ticker: newNativeTokenName,
-            });
-          }
-        }
-        newRpcEndpoints.push(operation.value);
-      }
-    }
-
-    const updatedNetworkConfiguration = {
-      ...fields,
-      rpcEndpoints: newRpcEndpoints,
-    };
-
-    this.update((state) => {
-      if (newChainId !== existingChainId) {
-        delete state.networkConfigurationsByChainId[existingChainId];
-      }
-
-      state.networkConfigurationsByChainId[newChainId] =
-        updatedNetworkConfiguration;
+    return this.#applyNetworkConfigurationChanges({
+      mode: 'update',
+      networkFields: fields,
+      rpcEndpointOperations,
+      autoManagedNetworkClientRegistry,
+      existingNetworkConfiguration,
     });
-
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
-      );
-
-    return updatedNetworkConfiguration;
   }
 
   /**
@@ -1731,28 +1648,20 @@ export class NetworkController extends BaseController<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    for (const rpcEndpoint of existingNetworkConfiguration.rpcEndpoints) {
-      if (rpcEndpoint.type === RpcEndpointType.Infura) {
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          rpcEndpoint.networkClientId
-        ].destroy();
-        delete autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          rpcEndpoint.networkClientId
-        ];
-      } else {
-        autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-          rpcEndpoint.networkClientId
-        ].destroy();
-        delete autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-          rpcEndpoint.networkClientId
-        ];
-      }
-    }
+    const rpcEndpointOperations = existingNetworkConfiguration.rpcEndpoints.map(
+      (rpcEndpoint) => {
+        return {
+          type: 'remove' as const,
+          value: rpcEndpoint,
+        };
+      },
+    );
 
-    this.update((state) => {
-      delete state.networkConfigurationsByChainId[
-        existingNetworkConfiguration.chainId
-      ];
+    this.#applyNetworkConfigurationChanges({
+      mode: 'remove',
+      rpcEndpointOperations,
+      autoManagedNetworkClientRegistry,
+      existingNetworkConfiguration,
     });
   }
 
@@ -2022,6 +1931,153 @@ export class NetworkController extends BaseController<
         `${errorMessagePrefix}: \`defaultRpcEndpointIndex\` must refer to an entry in \`rpcEndpoints\``,
       );
     }
+  }
+
+  /**
+   * Carries out the work necessary to add or update a network.
+   *
+   * - When adding a new network, a set of fields is used to register the new
+   * network configuration in state and a set of operations is used to register
+   * network clients for new RPC endpoints.
+   * - When updating an existing network, a set of fields is used to register
+   * the new network configuration (removing the existing network configuration
+   * if the chain ID has changed) and a set of operations is used to register
+   * network clients for new RPC endpoints and destroy network clients for
+   * removed RPC endpoints.
+   *
+   * @param args - The arguments to this function.
+   * @returns The new network configuration when `args.mode` is 'add', or the
+   * updated network configuration when `args.mode` is 'update'.
+   */
+  #applyNetworkConfigurationChanges(
+    args:
+      | {
+          mode: 'add';
+          autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+          rpcEndpointOperations: { type: 'add'; value: RpcEndpoint }[];
+          networkFields: AddNetworkFields;
+        }
+      | {
+          mode: 'update';
+          autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+          rpcEndpointOperations: {
+            type: 'add' | 'remove' | 'noop';
+            value: RpcEndpoint;
+          }[];
+          networkFields: UpdateNetworkFields;
+          existingNetworkConfiguration: NetworkConfiguration;
+        },
+  ): NetworkConfiguration;
+
+  /**
+   * Carries out the work necessary to remove a network.
+   *
+   * - When removing an existing network, the corresponding network
+   * configuration is removed from state, and a set of operations is used to
+   * destroy all network clients for that network configuration.
+   *
+   * @param args - The arguments to this function.
+   * @returns null.
+   */
+  #applyNetworkConfigurationChanges(args: {
+    mode: 'remove';
+    autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+    rpcEndpointOperations: { type: 'remove'; value: RpcEndpoint }[];
+    existingNetworkConfiguration: NetworkConfiguration;
+  }): null;
+
+  #applyNetworkConfigurationChanges(
+    args: {
+      rpcEndpointOperations: {
+        type: 'add' | 'remove' | 'noop';
+        value: RpcEndpoint;
+      }[];
+      autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+    } & (
+      | { mode: 'add'; networkFields: AddNetworkFields }
+      | {
+          mode: 'update';
+          networkFields: UpdateNetworkFields;
+          existingNetworkConfiguration: NetworkConfiguration;
+        }
+      | {
+          mode: 'remove';
+          existingNetworkConfiguration: NetworkConfiguration;
+        }
+    ),
+  ): NetworkConfiguration | null {
+    const { mode, rpcEndpointOperations, autoManagedNetworkClientRegistry } =
+      args;
+
+    for (const rpcEndpointOperation of rpcEndpointOperations) {
+      if (rpcEndpointOperation.type === 'remove') {
+        const networkClient = this.getNetworkClientById(
+          rpcEndpointOperation.value.networkClientId,
+        );
+        networkClient.destroy();
+        delete autoManagedNetworkClientRegistry[
+          networkClient.configuration.type
+        ][rpcEndpointOperation.value.networkClientId];
+      } else if (mode !== 'remove' && rpcEndpointOperation.type === 'add') {
+        if (rpcEndpointOperation.value.type === RpcEndpointType.Infura) {
+          autoManagedNetworkClientRegistry[NetworkClientType.Infura][
+            rpcEndpointOperation.value.networkClientId
+          ] = createAutoManagedNetworkClient({
+            type: NetworkClientType.Infura,
+            chainId: args.networkFields.chainId,
+            network: rpcEndpointOperation.value.networkClientId,
+            infuraProjectId: this.#infuraProjectId,
+            ticker: args.networkFields.nativeCurrency,
+          });
+        } else {
+          autoManagedNetworkClientRegistry[NetworkClientType.Custom][
+            rpcEndpointOperation.value.networkClientId
+          ] = createAutoManagedNetworkClient({
+            type: NetworkClientType.Custom,
+            chainId: args.networkFields.chainId,
+            rpcUrl: rpcEndpointOperation.value.url,
+            ticker: args.networkFields.nativeCurrency,
+          });
+        }
+      }
+    }
+
+    const newRpcEndpoints = rpcEndpointOperations
+      .filter((rpcEndpointOperation) => rpcEndpointOperation.type !== 'remove')
+      .map((rpcEndpointOperation) => rpcEndpointOperation.value);
+
+    const updatedNetworkConfiguration =
+      mode === 'remove'
+        ? null
+        : {
+            ...args.networkFields,
+            rpcEndpoints: newRpcEndpoints,
+          };
+
+    this.update((state) => {
+      if (
+        mode === 'remove' ||
+        (mode === 'update' &&
+          args.networkFields.chainId !==
+            args.existingNetworkConfiguration.chainId)
+      ) {
+        delete state.networkConfigurationsByChainId[
+          args.existingNetworkConfiguration.chainId
+        ];
+      }
+
+      if (mode !== 'remove' && updatedNetworkConfiguration !== null) {
+        state.networkConfigurationsByChainId[args.networkFields.chainId] =
+          updatedNetworkConfiguration;
+      }
+    });
+
+    this.#networkConfigurationsByNetworkClientId =
+      buildNetworkConfigurationsByNetworkClientId(
+        this.state.networkConfigurationsByChainId,
+      );
+
+    return updatedNetworkConfiguration;
   }
 
   /**
