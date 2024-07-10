@@ -6,3 +6,9 @@
 /packages/permission-controller      @MetaMask/snaps-devs
 /packages/notification-controller    @MetaMask/snaps-devs
 /packages/rate-limit-controller      @MetaMask/snaps-devs
+
+/packages/gas-fee-controller         @MetaMask/confirmations
+/packages/name-controller            @MetaMask/confirmations
+/packages/signature-controller       @MetaMask/confirmations
+/packages/transaction-controller     @MetaMask/confirmations
+/packages/user-operation-controller  @MetaMask/confirmations
