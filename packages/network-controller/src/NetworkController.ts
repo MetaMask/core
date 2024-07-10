@@ -1426,140 +1426,23 @@ export class NetworkController extends BaseController<
    */
   addNetwork(fields: AddNetworkFields): NetworkConfiguration {
     const {
-      blockExplorerUrls,
       chainId,
-      defaultBlockExplorerUrlIndex,
-      defaultRpcEndpointIndex,
       nativeCurrency,
       rpcEndpoints: setOfRpcEndpointFields,
     } = fields;
     const rpcEndpointUrls = setOfRpcEndpointFields.map(
       (rpcEndpointFields) => rpcEndpointFields.url,
     );
-    const infuraRpcEndpoints = setOfRpcEndpointFields.filter(
-      (rpcEndpointFields): rpcEndpointFields is InfuraRpcEndpoint =>
-        rpcEndpointFields.type === RpcEndpointType.Infura,
-    );
-    const networkClientIds = infuraRpcEndpoints.map(
-      (rpcEndpointFields) => rpcEndpointFields.networkClientId,
-    );
 
-    if (!isStrictHexString(chainId) || !isSafeChainId(chainId)) {
-      throw new Error(
-        `Cannot add network: Invalid \`chainId\` ${inspect(
-          chainId,
-        )} (must start with "0x" and not exceed the maximum)`,
-      );
-    }
-    const existingNetworkConfigurationViaChain =
-      this.state.networkConfigurationsByChainId[chainId];
-    if (existingNetworkConfigurationViaChain !== undefined) {
-      throw new Error(
-        // False negative - this is a string.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `Cannot add network for chain ${chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChain.name}')`,
-      );
-    }
+    const autoManagedNetworkClientRegistry =
+      this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    if (
-      blockExplorerUrls.length > 0 &&
-      (defaultBlockExplorerUrlIndex === undefined ||
-        blockExplorerUrls[defaultBlockExplorerUrlIndex] === undefined)
-    ) {
-      throw new Error(
-        `Cannot add network: \`defaultBlockExplorerUrlIndex\` must refer to an entry in \`blockExplorerUrls\``,
-      );
-    }
-
-    if (setOfRpcEndpointFields.length === 0) {
-      throw new Error(
-        'Cannot add network: `rpcEndpoints` must be a non-empty array',
-      );
-    }
-    for (const rpcEndpointFields of setOfRpcEndpointFields) {
-      const { url } = rpcEndpointFields;
-
-      if (!isValidUrl(url)) {
-        throw new Error(
-          `Cannot add network: An entry in \`rpcEndpoints\` has invalid URL ${inspect(
-            url,
-          )}`,
-        );
-      }
-
-      if (
-        setOfRpcEndpointFields.some(
-          (otherNewRpcEndpointFields) =>
-            otherNewRpcEndpointFields !== rpcEndpointFields &&
-            URI.equal(otherNewRpcEndpointFields.url, rpcEndpointFields.url),
-        )
-      ) {
-        throw new Error(
-          `Cannot add network: Each entry in rpcEndpoints must have a unique URL`,
-        );
-      }
-
-      for (const networkConfiguration of Object.values(
-        this.state.networkConfigurationsByChainId,
-      )) {
-        const rpcEndpoint = networkConfiguration.rpcEndpoints.find(
-          (existingRpcEndpoint) =>
-            URI.equal(rpcEndpointFields.url, existingRpcEndpoint.url),
-        );
-        if (rpcEndpoint) {
-          throw new Error(
-            // False negative - these are strings.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            `Cannot add network that points to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
-          );
-        }
-      }
-    }
-
-    if (
-      [...new Set(setOfRpcEndpointFields)].length <
-      setOfRpcEndpointFields.length
-    ) {
-      throw new Error(
-        'Cannot add network: Each entry in rpcEndpoints must be unique',
-      );
-    }
-
-    if ([...new Set(networkClientIds)].length < networkClientIds.length) {
-      throw new Error(
-        'Cannot add network: Each entry in rpcEndpoints must have a unique networkClientId',
-      );
-    }
-
-    if (infuraRpcEndpoints.length > 1) {
-      throw new Error(
-        'Cannot add network: There cannot be more than one Infura RPC endpoint',
-      );
-    }
-
-    const infuraRpcEndpoint = setOfRpcEndpointFields.find(
-      (rpcEndpointFields) => rpcEndpointFields.type === RpcEndpointType.Infura,
-    );
-    if (infuraRpcEndpoint) {
-      const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
-        infuraRpcEndpoint.url,
-      );
-      const infuraNetworkNickname = NetworkNickname[infuraNetworkName];
-      const infuraChainId = ChainId[infuraNetworkName];
-      if (chainId !== infuraChainId) {
-        throw new Error(
-          // This is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `Cannot add network with chain ID ${chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
-        );
-      }
-    }
-
-    if (setOfRpcEndpointFields[defaultRpcEndpointIndex] === undefined) {
-      throw new Error(
-        `Cannot add network: \`defaultRpcEndpointIndex\` must refer to an entry in \`rpcEndpoints\``,
-      );
-    }
+    this.#validateNetworkFields({
+      mode: 'add',
+      errorMessagePrefix: 'Could not add network',
+      networkFields: fields,
+      autoManagedNetworkClientRegistry,
+    });
 
     let conflict:
       | {
@@ -1583,7 +1466,7 @@ export class NetworkController extends BaseController<
     }
     if (conflict !== undefined) {
       throw new Error(
-        `Cannot add network that points to same RPC endpoint as existing network for chain ${conflict.networkConfiguration.chainId} ("${conflict.networkConfiguration.name}")`,
+        `Could not add network that points to same RPC endpoint as existing network for chain ${conflict.networkConfiguration.chainId} ("${conflict.networkConfiguration.name}")`,
       );
     }
 
@@ -1599,8 +1482,6 @@ export class NetworkController extends BaseController<
       },
     );
 
-    const autoManagedNetworkClientRegistry =
-      this.#ensureAutoManagedNetworkClientRegistryPopulated();
     for (const rpcEndpoint of newRpcEndpoints) {
       if (rpcEndpoint.type === RpcEndpointType.Infura) {
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
@@ -1679,164 +1560,21 @@ export class NetworkController extends BaseController<
 
     const existingChainId = chainId;
     const {
-      blockExplorerUrls: newBlockExplorerUrls,
       chainId: newChainId,
-      defaultBlockExplorerUrlIndex: newDefaultBlockExplorerUrlIndex,
-      defaultRpcEndpointIndex: newDefaultRpcEndpointIndex,
       nativeCurrency: newNativeTokenName,
       rpcEndpoints: setOfNewRpcEndpointFields,
     } = fields;
-    const infuraRpcEndpoints = setOfNewRpcEndpointFields.filter(
-      (newRpcEndpointFields): newRpcEndpointFields is InfuraRpcEndpoint =>
-        newRpcEndpointFields.type === RpcEndpointType.Infura,
-    );
-    const newNetworkClientIds = setOfNewRpcEndpointFields
-      .map((newRpcEndpointFields) => newRpcEndpointFields.networkClientId)
-      .filter((networkClientId) => networkClientId !== undefined);
-    const networkConfigurationsForOtherChains = Object.values(
-      this.state.networkConfigurationsByChainId,
-    ).filter(
-      (networkConfiguration) =>
-        networkConfiguration.chainId !== existingChainId,
-    );
 
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    if (!isStrictHexString(newChainId) || !isSafeChainId(newChainId)) {
-      throw new Error(
-        `Cannot update network: New \`chainId\` ${inspect(
-          newChainId,
-        )} is invalid (must start with "0x" and not exceed the maximum)`,
-      );
-    }
-    if (newChainId !== existingChainId) {
-      const existingNetworkConfigurationViaChain =
-        this.state.networkConfigurationsByChainId[newChainId];
-      if (existingNetworkConfigurationViaChain !== undefined) {
-        throw new Error(
-          // False negative - these are strings.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `Cannot move network from chain ${existingChainId} to ${newChainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChain.name}')`,
-        );
-      }
-    }
-
-    if (
-      newBlockExplorerUrls.length > 0 &&
-      (newDefaultBlockExplorerUrlIndex === undefined ||
-        newBlockExplorerUrls[newDefaultBlockExplorerUrlIndex] === undefined)
-    ) {
-      throw new Error(
-        `Cannot update network: \`defaultBlockExplorerUrlIndex\` must refer to an entry in \`blockExplorerUrls\``,
-      );
-    }
-
-    if (setOfNewRpcEndpointFields.length === 0) {
-      throw new Error(
-        'Cannot update network: `rpcEndpoints` must be a non-empty array',
-      );
-    }
-    for (const newRpcEndpointFields of setOfNewRpcEndpointFields) {
-      const { url, networkClientId } = newRpcEndpointFields;
-
-      if (!isValidUrl(url)) {
-        throw new Error(
-          `Cannot update network: An entry in \`rpcEndpoints\` has invalid URL ${inspect(
-            url,
-          )}`,
-        );
-      }
-
-      if (
-        networkClientId !== undefined &&
-        !Object.values(autoManagedNetworkClientRegistry).some(
-          (networkClientsById) => networkClientId in networkClientsById,
-        )
-      ) {
-        throw new Error(
-          `Cannot update network: RPC endpoint '${
-            // This is a string.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            url
-          }' refers to network client ${inspect(
-            networkClientId,
-          )} that does not exist`,
-        );
-      }
-
-      if (
-        setOfNewRpcEndpointFields.some(
-          (otherNewRpcEndpointFields) =>
-            otherNewRpcEndpointFields !== newRpcEndpointFields &&
-            URI.equal(otherNewRpcEndpointFields.url, newRpcEndpointFields.url),
-        )
-      ) {
-        throw new Error(
-          `Cannot update network: Each entry in rpcEndpoints must have a unique URL`,
-        );
-      }
-
-      for (const networkConfiguration of networkConfigurationsForOtherChains) {
-        const rpcEndpoint = networkConfiguration.rpcEndpoints.find(
-          (existingRpcEndpoint) =>
-            URI.equal(newRpcEndpointFields.url, existingRpcEndpoint.url),
-        );
-        if (rpcEndpoint) {
-          throw new Error(
-            // False negative - these are strings.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            `Cannot update network to point to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
-          );
-        }
-      }
-    }
-
-    if (
-      [...new Set(setOfNewRpcEndpointFields)].length <
-      setOfNewRpcEndpointFields.length
-    ) {
-      throw new Error(
-        'Cannot update network: Each entry in rpcEndpoints must be unique',
-      );
-    }
-
-    if ([...new Set(newNetworkClientIds)].length < newNetworkClientIds.length) {
-      throw new Error(
-        'Cannot update network: Each entry in rpcEndpoints must have a unique networkClientId',
-      );
-    }
-
-    if (infuraRpcEndpoints.length > 1) {
-      throw new Error(
-        'Cannot update network: There cannot be more than one Infura RPC endpoint',
-      );
-    }
-
-    const infuraRpcEndpoint = setOfNewRpcEndpointFields.find(
-      (newRpcEndpointFields) =>
-        newRpcEndpointFields.type === RpcEndpointType.Infura,
-    );
-    if (infuraRpcEndpoint) {
-      const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
-        infuraRpcEndpoint.url,
-      );
-      const infuraNetworkNickname = NetworkNickname[infuraNetworkName];
-      const infuraChainId = ChainId[infuraNetworkName];
-      if (newChainId !== infuraChainId) {
-        throw new Error(
-          // This is a string.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `Cannot update network with chain ID ${newChainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
-        );
-      }
-    }
-
-    if (setOfNewRpcEndpointFields[newDefaultRpcEndpointIndex] === undefined) {
-      throw new Error(
-        `Cannot update network: \`defaultRpcEndpointIndex\` must refer to an entry in \`rpcEndpoints\``,
-      );
-    }
+    this.#validateNetworkFields({
+      mode: 'update',
+      errorMessagePrefix: 'Could not update network',
+      networkFields: fields,
+      existingNetworkConfiguration,
+      autoManagedNetworkClientRegistry,
+    });
 
     const operations: {
       type: 'add' | 'remove' | 'noop';
@@ -2071,6 +1809,219 @@ export class NetworkController extends BaseController<
       throw new Error("Couldn't find networkClientId for chainId");
     }
     return networkClientEntry[0];
+  }
+
+  /**
+   * Ensure that the given fields which will be used to either add or update a
+   * network are valid.
+   *
+   * @param args - The arguments.
+   */
+  #validateNetworkFields(
+    args: {
+      errorMessagePrefix: string;
+      autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+    } & (
+      | {
+          mode: 'add';
+          networkFields: AddNetworkFields;
+        }
+      | {
+          mode: 'update';
+          existingNetworkConfiguration: NetworkConfiguration;
+          networkFields: UpdateNetworkFields;
+        }
+    ),
+  ) {
+    const {
+      mode,
+      networkFields,
+      errorMessagePrefix,
+      autoManagedNetworkClientRegistry,
+    } = args;
+    const existingNetworkConfiguration =
+      'existingNetworkConfiguration' in args
+        ? args.existingNetworkConfiguration
+        : null;
+
+    if (
+      !isStrictHexString(networkFields.chainId) ||
+      !isSafeChainId(networkFields.chainId)
+    ) {
+      throw new Error(
+        `${errorMessagePrefix}: Invalid \`chainId\` ${inspect(
+          networkFields.chainId,
+        )} (must start with "0x" and not exceed the maximum)`,
+      );
+    }
+
+    if (
+      existingNetworkConfiguration === null ||
+      networkFields.chainId !== existingNetworkConfiguration.chainId
+    ) {
+      const existingNetworkConfigurationViaChainId =
+        this.state.networkConfigurationsByChainId[networkFields.chainId];
+      if (existingNetworkConfigurationViaChainId !== undefined) {
+        throw new Error(
+          // False negative - these are strings.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          existingNetworkConfiguration === null
+            ? `Could not add network for chain ${args.networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`
+            : `Cannot move network from chain ${existingNetworkConfiguration.chainId} to ${networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
+        );
+      }
+    }
+
+    if (
+      networkFields.blockExplorerUrls.length > 0 &&
+      (networkFields.defaultBlockExplorerUrlIndex === undefined ||
+        networkFields.blockExplorerUrls[
+          networkFields.defaultBlockExplorerUrlIndex
+        ] === undefined)
+    ) {
+      throw new Error(
+        `${errorMessagePrefix}: \`defaultBlockExplorerUrlIndex\` must refer to an entry in \`blockExplorerUrls\``,
+      );
+    }
+
+    if (networkFields.rpcEndpoints.length === 0) {
+      throw new Error(
+        `${errorMessagePrefix}: \`rpcEndpoints\` must be a non-empty array`,
+      );
+    }
+    for (const rpcEndpointFields of networkFields.rpcEndpoints) {
+      if (!isValidUrl(rpcEndpointFields.url)) {
+        throw new Error(
+          `${errorMessagePrefix}: An entry in \`rpcEndpoints\` has invalid URL ${inspect(
+            rpcEndpointFields.url,
+          )}`,
+        );
+      }
+      const networkClientId =
+        'networkClientId' in rpcEndpointFields
+          ? rpcEndpointFields.networkClientId
+          : undefined;
+
+      if (
+        mode === 'update' &&
+        networkClientId !== undefined &&
+        !Object.values(autoManagedNetworkClientRegistry).some(
+          (networkClientsById) => networkClientId in networkClientsById,
+        )
+      ) {
+        throw new Error(
+          `Could not update network: RPC endpoint '${
+            // This is a string.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            rpcEndpointFields.url
+          }' refers to network client ${inspect(
+            networkClientId,
+          )} that does not exist`,
+        );
+      }
+
+      if (
+        networkFields.rpcEndpoints.some(
+          (otherRpcEndpointFields) =>
+            otherRpcEndpointFields !== rpcEndpointFields &&
+            URI.equal(otherRpcEndpointFields.url, rpcEndpointFields.url),
+        )
+      ) {
+        throw new Error(
+          `${errorMessagePrefix}: Each entry in rpcEndpoints must have a unique URL`,
+        );
+      }
+
+      const networkConfigurationsForOtherChains = Object.values(
+        this.state.networkConfigurationsByChainId,
+      ).filter((networkConfiguration) =>
+        existingNetworkConfiguration
+          ? networkConfiguration.chainId !==
+            existingNetworkConfiguration.chainId
+          : true,
+      );
+      for (const networkConfiguration of networkConfigurationsForOtherChains) {
+        const rpcEndpoint = networkConfiguration.rpcEndpoints.find(
+          (existingRpcEndpoint) =>
+            URI.equal(rpcEndpointFields.url, existingRpcEndpoint.url),
+        );
+        if (rpcEndpoint) {
+          throw new Error(
+            mode === 'update'
+              ? // False negative - these are strings.
+                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                `Could not update network to point to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`
+              : // False negative - these are strings.
+                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+                `Could not add network that points to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
+          );
+        }
+      }
+    }
+
+    if (
+      [...new Set(networkFields.rpcEndpoints)].length <
+      networkFields.rpcEndpoints.length
+    ) {
+      throw new Error(
+        `${errorMessagePrefix}: Each entry in rpcEndpoints must be unique`,
+      );
+    }
+
+    const networkClientIds = networkFields.rpcEndpoints
+      .map((rpcEndpoint) =>
+        'networkClientId' in rpcEndpoint
+          ? rpcEndpoint.networkClientId
+          : undefined,
+      )
+      .filter(
+        (networkClientId): networkClientId is NetworkClientId =>
+          networkClientId !== undefined,
+      );
+    if ([...new Set(networkClientIds)].length < networkClientIds.length) {
+      throw new Error(
+        `${errorMessagePrefix}: Each entry in rpcEndpoints must have a unique networkClientId`,
+      );
+    }
+
+    const infuraRpcEndpoints = networkFields.rpcEndpoints.filter(
+      (rpcEndpointFields): rpcEndpointFields is InfuraRpcEndpoint =>
+        rpcEndpointFields.type === RpcEndpointType.Infura,
+    );
+    if (infuraRpcEndpoints.length > 1) {
+      throw new Error(
+        `${errorMessagePrefix}: There cannot be more than one Infura RPC endpoint`,
+      );
+    }
+
+    const soleInfuraRpcEndpoint = infuraRpcEndpoints[0];
+    if (soleInfuraRpcEndpoint) {
+      const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
+        soleInfuraRpcEndpoint.url,
+      );
+      const infuraNetworkNickname = NetworkNickname[infuraNetworkName];
+      const infuraChainId = ChainId[infuraNetworkName];
+      if (networkFields.chainId !== infuraChainId) {
+        throw new Error(
+          mode === 'add'
+            ? // This is a string.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+              `Could not add network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`
+            : // This is a string.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+              `Could not update network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
+        );
+      }
+    }
+
+    if (
+      networkFields.rpcEndpoints[networkFields.defaultRpcEndpointIndex] ===
+      undefined
+    ) {
+      throw new Error(
+        `${errorMessagePrefix}: \`defaultRpcEndpointIndex\` must refer to an entry in \`rpcEndpoints\``,
+      );
+    }
   }
 
   /**

@@ -2907,7 +2907,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            `Cannot add network: Invalid \`chainId\` '12345' (must start with "0x" and not exceed the maximum)`,
+            `Could not add network: Invalid \`chainId\` '12345' (must start with "0x" and not exceed the maximum)`,
           ),
         );
       });
@@ -2925,7 +2925,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            `Cannot add network: Invalid \`chainId\` '0xfffffffffffed' (must start with "0x" and not exceed the maximum)`,
+            `Could not add network: Invalid \`chainId\` '0xfffffffffffed' (must start with "0x" and not exceed the maximum)`,
           ),
         );
       });
@@ -2941,7 +2941,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            'Cannot add network: `rpcEndpoints` must be a non-empty array',
+            'Could not add network: `rpcEndpoints` must be a non-empty array',
           ),
         );
       });
@@ -2961,7 +2961,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            "Cannot add network: An entry in `rpcEndpoints` has invalid URL 'clearly-not-a-url'",
+            "Could not add network: An entry in `rpcEndpoints` has invalid URL 'clearly-not-a-url'",
           ),
         );
       });
@@ -2984,7 +2984,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            'Cannot add network: Each entry in rpcEndpoints must have a unique URL',
+            'Could not add network: Each entry in rpcEndpoints must have a unique URL',
           ),
         );
       });
@@ -3007,7 +3007,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            'Cannot add network: Each entry in rpcEndpoints must have a unique URL',
+            'Could not add network: Each entry in rpcEndpoints must have a unique URL',
           ),
         );
       });
@@ -3066,7 +3066,7 @@ describe('NetworkController', () => {
             ).toThrow(
               // This is a string.
               // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `Cannot add network that points to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
+              `Could not add network that points to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
             );
           },
         );
@@ -3105,7 +3105,7 @@ describe('NetworkController', () => {
               }),
             ),
           ).toThrow(
-            "Cannot add network that points to same RPC endpoint as existing network for chain 0x2448 ('Some Network')",
+            "Could not add network that points to same RPC endpoint as existing network for chain 0x2448 ('Some Network')",
           );
         },
       );
@@ -3122,7 +3122,7 @@ describe('NetworkController', () => {
             }),
           ),
         ).toThrow(
-          'Cannot add network: Each entry in rpcEndpoints must be unique',
+          'Could not add network: Each entry in rpcEndpoints must be unique',
         );
       });
     });
@@ -3153,7 +3153,7 @@ describe('NetworkController', () => {
               }),
             ),
           ).toThrow(
-            'Cannot add network: There cannot be more than one Infura RPC endpoint',
+            'Could not add network: There cannot be more than one Infura RPC endpoint',
           );
         },
       );
@@ -3177,7 +3177,7 @@ describe('NetworkController', () => {
           ),
         ).toThrow(
           new Error(
-            'Cannot add network: `defaultRpcEndpointIndex` must refer to an entry in `rpcEndpoints`',
+            'Could not add network: `defaultRpcEndpointIndex` must refer to an entry in `rpcEndpoints`',
           ),
         );
       });
@@ -3210,7 +3210,7 @@ describe('NetworkController', () => {
             ).toThrow(
               // This is a string.
               // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `Cannot add network for chain ${infuraChainId} as another network for that chain already exists ('${infuraNetworkNickname}')`,
+              `Could not add network for chain ${infuraChainId} as another network for that chain already exists ('${infuraNetworkNickname}')`,
             );
           },
         );
@@ -3237,7 +3237,7 @@ describe('NetworkController', () => {
               }),
             ),
           ).toThrow(
-            `Cannot add network for chain 0x1337 as another network for that chain already exists ('Some Network')`,
+            `Could not add network for chain 0x1337 as another network for that chain already exists ('Some Network')`,
           );
         },
       );
@@ -3605,7 +3605,7 @@ describe('NetworkController', () => {
               }),
             ).toThrow(
               new Error(
-                "Cannot add network with chain ID 0x1337 and Infura RPC endpoint for 'Mainnet' which represents 0x1, as the two conflict",
+                "Could not add network with chain ID 0x1337 and Infura RPC endpoint for 'Mainnet' which represents 0x1, as the two conflict",
               ),
             );
           },
@@ -3845,7 +3845,7 @@ describe('NetworkController', () => {
             ),
           ).toThrow(
             new Error(
-              `Cannot update network: New \`chainId\` '12345' is invalid (must start with "0x" and not exceed the maximum)`,
+              `Could not update network: Invalid \`chainId\` '12345' (must start with "0x" and not exceed the maximum)`,
             ),
           );
         },
@@ -3877,7 +3877,7 @@ describe('NetworkController', () => {
             ),
           ).toThrow(
             new Error(
-              `Cannot update network: New \`chainId\` '0xfffffffffffed' is invalid (must start with "0x" and not exceed the maximum)`,
+              `Could not update network: Invalid \`chainId\` '0xfffffffffffed' (must start with "0x" and not exceed the maximum)`,
             ),
           );
         },
@@ -3907,7 +3907,7 @@ describe('NetworkController', () => {
             ),
           ).toThrow(
             new Error(
-              'Cannot update network: `rpcEndpoints` must be a non-empty array',
+              'Could not update network: `rpcEndpoints` must be a non-empty array',
             ),
           );
         },
@@ -3939,7 +3939,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              "Cannot update network: An entry in `rpcEndpoints` has invalid URL 'clearly-not-a-url'",
+              "Could not update network: An entry in `rpcEndpoints` has invalid URL 'clearly-not-a-url'",
             ),
           );
         },
@@ -3972,7 +3972,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              "Cannot update network: RPC endpoint 'https://foo.com' refers to network client 'not-a-real-network-client-id' that does not exist",
+              "Could not update network: RPC endpoint 'https://foo.com' refers to network client 'not-a-real-network-client-id' that does not exist",
             ),
           );
         },
@@ -4005,7 +4005,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              'Cannot update network: Each entry in rpcEndpoints must have a unique URL',
+              'Could not update network: Each entry in rpcEndpoints must have a unique URL',
             ),
           );
         },
@@ -4038,7 +4038,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              'Cannot update network: Each entry in rpcEndpoints must have a unique URL',
+              'Could not update network: Each entry in rpcEndpoints must have a unique URL',
             ),
           );
         },
@@ -4111,7 +4111,7 @@ describe('NetworkController', () => {
             ).toThrow(
               // This is a string.
               // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-              `Cannot update network to point to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
+              `Could not update network to point to same RPC endpoint as existing network for chain ${infuraChainId} ('${infuraNetworkNickname}')`,
             );
           },
         );
@@ -4159,7 +4159,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              "Cannot update network to point to same RPC endpoint as existing network for chain 0x2448 ('Some Network')",
+              "Could not update network to point to same RPC endpoint as existing network for chain 0x2448 ('Some Network')",
             ),
           );
         },
@@ -4187,7 +4187,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              'Cannot update network: Each entry in rpcEndpoints must be unique',
+              'Could not update network: Each entry in rpcEndpoints must be unique',
             ),
           );
         },
@@ -4225,7 +4225,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              'Cannot update network: Each entry in rpcEndpoints must have a unique networkClientId',
+              'Could not update network: Each entry in rpcEndpoints must have a unique networkClientId',
             ),
           );
         },
@@ -4264,7 +4264,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              "Cannot update network to point to same RPC endpoint as existing network for chain 0x5 ('Goerli')",
+              "Could not update network to point to same RPC endpoint as existing network for chain 0x5 ('Goerli')",
             ),
           );
         },
@@ -4300,7 +4300,7 @@ describe('NetworkController', () => {
             }),
           ).toThrow(
             new Error(
-              'Cannot update network: `defaultRpcEndpointIndex` must refer to an entry in `rpcEndpoints`',
+              'Could not update network: `defaultRpcEndpointIndex` must refer to an entry in `rpcEndpoints`',
             ),
           );
         },
@@ -4977,7 +4977,7 @@ describe('NetworkController', () => {
                 ],
               }),
             ).toThrow(
-              "Cannot update network to point to same RPC endpoint as existing network for chain 0x1 ('Mainnet')",
+              "Could not update network to point to same RPC endpoint as existing network for chain 0x1 ('Mainnet')",
             );
           },
         );
@@ -5693,7 +5693,7 @@ describe('NetworkController', () => {
                   new Error(
                     // This is a string.
                     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                    `Cannot update network to point to same RPC endpoint as existing network for chain ${anotherInfuraChainId} ('${anotherInfuraNetworkNickname}')`,
+                    `Could not update network to point to same RPC endpoint as existing network for chain ${anotherInfuraChainId} ('${anotherInfuraNetworkNickname}')`,
                   ),
                 );
               },
@@ -6028,7 +6028,7 @@ describe('NetworkController', () => {
                   new Error(
                     // This is a string.
                     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                    `Cannot update network with chain ID 0x1337 and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
+                    `Could not update network with chain ID 0x1337 and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
                   ),
                 );
               },
@@ -6394,7 +6394,7 @@ describe('NetworkController', () => {
                   new Error(
                     // This is a string.
                     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                    `Cannot update network with chain ID ${anotherInfuraChainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
+                    `Could not update network with chain ID ${anotherInfuraChainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
                   ),
                 );
               },
@@ -6759,7 +6759,7 @@ describe('NetworkController', () => {
               }),
             ).toThrow(
               new Error(
-                "Cannot update network to point to same RPC endpoint as existing network for chain 0x5 ('Goerli')",
+                "Could not update network to point to same RPC endpoint as existing network for chain 0x5 ('Goerli')",
               ),
             );
           },
