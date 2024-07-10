@@ -13,4 +13,3 @@
 /packages/name-controller            @MetaMask/confirmations
 /packages/signature-controller       @MetaMask/confirmations
 /packages/transaction-controller     @MetaMask/confirmations
-/packages/user-operation-controller  @MetaMask/confirmations
