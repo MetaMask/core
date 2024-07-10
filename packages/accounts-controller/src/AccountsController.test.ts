@@ -1006,7 +1006,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('delete accounts and set the most recent lastSelected account', async () => {
+      it('delete accounts and set recent lastSelected account', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id')
@@ -1062,7 +1062,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('delete accounts and set the most recent lastSelected account when there are accounts that have never been selected', async () => {
+      it('delete accounts and set recent lastSelected account when there are unselected accounts', async () => {
         const messenger = buildMessenger();
         mockUUID
           .mockReturnValueOnce('mock-id')
@@ -1125,7 +1125,7 @@ describe('AccountsController', () => {
         );
       });
 
-      it('delete the account and select the account with the most recent lastSelected', async () => {
+      it('delete account and select recent lastSelected account', async () => {
         const currentTime = Date.now();
         const messenger = buildMessenger();
         mockUUID.mockReturnValueOnce('mock-id').mockReturnValueOnce('mock-id2');
