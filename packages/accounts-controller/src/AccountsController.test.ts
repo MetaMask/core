@@ -1955,7 +1955,7 @@ describe('AccountsController', () => {
         expected: mockNewerEvmAccount,
       },
     ])(
-      'last selected account type is $lastSelectedAccount.type returns the selectedAccount with id $expected.id',
+      'returns the selectedAccount with id $expected.id when last selected account type is $lastSelectedAccount.type',
       ({ lastSelectedAccount, expected }) => {
         const { accountsController } = setupAccountsController({
           initialState: {
@@ -2006,6 +2006,60 @@ describe('AccountsController', () => {
       );
     });
   });
+
+it('should handle keyring reinitialization with multiple accounts', async () => {
+  const messenger = buildMessenger();
+  const mockExistingAccount1 = createExpectedInternalAccount({
+    id: 'mock-id',
+    name: 'Account 1',
+    address: '0x123',
+    keyringType: KeyringTypes.hd,
+  });
+  const mockExistingAccount2 = createExpectedInternalAccount({
+    id: 'mock-id2',
+    name: 'Account 2',
+    address: '0x456',
+    keyringType: KeyringTypes.hd,
+  });
+
+  mockUUID
+    .mockReturnValueOnce('mock-id') // call to check if its a new account
+    .mockReturnValueOnce('mock-id2'); // call to check if its a new account
+
+  const { accountsController } = setupAccountsController({
+    initialState: {
+      internalAccounts: {
+        accounts: {
+          [mockExistingAccount1.id]: mockExistingAccount1,
+          [mockExistingAccount2.id]: mockExistingAccount2,
+        },
+        selectedAccount: 'unknown',
+      },
+    },
+    messenger,
+  });
+  const mockNewKeyringState = {
+    isUnlocked: true,
+    keyrings: [
+      {
+        type: KeyringTypes.hd,
+        accounts: [
+          mockExistingAccount1.address,
+          mockExistingAccount2.address,
+        ],
+      },
+    ],
+  };
+  messenger.publish(
+    'KeyringController:stateChange',
+    mockNewKeyringState,
+    [],
+  );
+
+  const selectedAccount = accountsController.getSelectedAccount();
+
+  expect(selectedAccount.id).toStrictEqual('mock-id2');
+});
 
   describe('getSelectedMultichainAccount', () => {
     const mockNonEvmAccount = createExpectedInternalAccount({
