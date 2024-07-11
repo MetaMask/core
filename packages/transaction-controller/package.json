@@ -56,7 +56,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/network-controller": "^20.0.0",
     "@metamask/nonce-tracker": "^5.0.0",
-    "@metamask/rpc-errors": "^6.2.1",
+    "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.0.0",
     "async-mutex": "^0.5.0",
     "bn.js": "^5.2.1",
