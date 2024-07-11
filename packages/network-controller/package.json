@@ -41,14 +41,14 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.0",
-    "@metamask/controller-utils": "^11.0.0",
+    "@metamask/base-controller": "^6.0.1",
+    "@metamask/controller-utils": "^11.0.1",
     "@metamask/eth-block-tracker": "^9.0.3",
     "@metamask/eth-json-rpc-infura": "^9.1.0",
     "@metamask/eth-json-rpc-middleware": "^12.1.1",
     "@metamask/eth-json-rpc-provider": "^4.1.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/json-rpc-engine": "^9.0.0",
+    "@metamask/json-rpc-engine": "^9.0.1",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^9.0.0",
