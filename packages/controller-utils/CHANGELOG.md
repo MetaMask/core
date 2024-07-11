@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.1]
+
 ### Uncategorized
 
 - chore(deps): Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
@@ -353,7 +355,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
