@@ -423,7 +423,6 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // @ts-expect-error ts(2589)
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
