@@ -1,6 +1,6 @@
 {
   "name": "@metamask/approval-controller",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "Manages requests that require user approval",
   "keywords": [
     "MetaMask",
@@ -41,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.0",
+    "@metamask/base-controller": "^6.0.1",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.0.0",
     "nanoid": "^3.1.31"

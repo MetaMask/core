@@ -41,7 +41,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.0"
+    "@metamask/base-controller": "^6.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
