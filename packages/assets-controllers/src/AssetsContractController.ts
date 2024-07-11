@@ -169,9 +169,9 @@ export class AssetsContractController {
 
   #provider: Provider | undefined;
 
-  ipfsGateway: string;
+  #ipfsGateway: string;
 
-  chainId: Hex;
+  #chainId: Hex;
 
   /**
    * Creates a AssetsContractController instance.
@@ -189,8 +189,8 @@ export class AssetsContractController {
   }) {
     this.messagingSystem = messenger;
     this.#provider = undefined;
-    this.ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
-    this.chainId = initialChainId;
+    this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
+    this.#chainId = initialChainId;
 
     this.#registerActionHandlers();
     this.#registerEventSubscriptions();
@@ -198,18 +198,21 @@ export class AssetsContractController {
 
   // TODO: Expand into base-controller utility function that batch registers action handlers.
   #registerActionHandlers() {
+    const nonMethodClassProperties = [
+      'constructor',
+      'messagingSystem',
+      'provider',
+      'ipfsGateway',
+      'chainId',
+    ];
+
     for (const method of Object.getOwnPropertyNames(
       Object.getPrototypeOf(this),
     ) as (keyof this)[]) {
       if (
         ((key: keyof this): key is AssetsContractControllerMethodName =>
-          ![
-            'constructor',
-            'messagingSystem',
-            'provider',
-            'ipfsGateway',
-            'chainId',
-          ].find((e) => e === key) && typeof this[key] === 'function')(method)
+          !nonMethodClassProperties.find((e) => e === key) &&
+          typeof this[key] === 'function')(method)
       ) {
         this.messagingSystem.registerActionHandler(
           `${name}:${method}`,
@@ -225,7 +228,7 @@ export class AssetsContractController {
     this.messagingSystem.subscribe(
       `PreferencesController:stateChange`,
       ({ ipfsGateway }) => {
-        this.ipfsGateway = ipfsGateway;
+        this.#ipfsGateway = ipfsGateway;
       },
     );
 
@@ -239,8 +242,8 @@ export class AssetsContractController {
           selectedNetworkClientId,
         );
 
-        if (this.chainId !== chainId) {
-          this.chainId = chainId;
+        if (this.#chainId !== chainId) {
+          this.#chainId = chainId;
           // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
           this.#provider = this.#getCorrectProvider();
         }
@@ -261,6 +264,14 @@ export class AssetsContractController {
 
   get provider() {
     throw new Error('Property only used for setting');
+  }
+
+  get ipfsGateway() {
+    return this.#ipfsGateway;
+  }
+
+  get chainId() {
+    return this.#chainId;
   }
 
   /**
@@ -296,7 +307,7 @@ export class AssetsContractController {
           `NetworkController:getNetworkClientById`,
           networkClientId,
         ).configuration.chainId
-      : this.chainId;
+      : this.#chainId;
   }
 
   /**
@@ -429,7 +440,7 @@ export class AssetsContractController {
       return {
         ...(await erc721Standard.getDetails(
           tokenAddress,
-          this.ipfsGateway,
+          this.#ipfsGateway,
           tokenId,
         )),
       };
@@ -443,7 +454,7 @@ export class AssetsContractController {
       return {
         ...(await erc1155Standard.getDetails(
           tokenAddress,
-          this.ipfsGateway,
+          this.#ipfsGateway,
           tokenId,
         )),
       };
@@ -630,7 +641,7 @@ export class AssetsContractController {
       tokensToDetect.forEach((tokenAddress, index) => {
         const balance: BN = result[index];
         /* istanbul ignore else */
-        if (String(balance) !== '0') {
+        if (!balance.isZero()) {
           nonZeroBalances[tokenAddress] = balance;
         }
       });
