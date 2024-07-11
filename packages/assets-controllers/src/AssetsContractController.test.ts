@@ -101,25 +101,27 @@ async function setupAssetContractControllers({
     const selectedNetworkClient = networkController.getSelectedNetworkClient();
     assert(selectedNetworkClient, 'No network is selected');
     provider = selectedNetworkClient.provider;
-
-    controllerMessenger.unregisterActionHandler(
-      'NetworkController:getNetworkClientById',
-    );
-    controllerMessenger.registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
-      (networkClientId: NetworkClientId) => {
-        return {
-          ...networkController.getNetworkClientById(networkClientId),
-          provider,
-        };
-      },
-    );
   } else {
     provider = new HttpProvider(
       `https://mainnet.infura.io/v3/${infuraProjectId}`,
     );
   }
+
+  controllerMessenger.unregisterActionHandler(
+    'NetworkController:getNetworkClientById',
+  );
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
+    (networkClientId: NetworkClientId) => {
+      return useNetworkControllerProvider
+        ? networkController.getNetworkClientById.bind(networkController)
+        : {
+            ...networkController.getNetworkClientById(networkClientId),
+            provider,
+          };
+    },
+  );
 
   const assetsContractMessenger = controllerMessenger.getRestricted({
     name: 'AssetsContractController',
@@ -1193,9 +1195,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
-    const { assetsContract, messenger, provider, networkClientConfiguration } =
+    const { messenger, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1223,7 +1224,7 @@ describe('AssetsContractController', () => {
       ERC1155_ADDRESS,
       ERC1155_ID,
     );
-    expect(balance.isZero() || balance.isNeg()).toBe(false);
+    expect(Number(balance)).toBeGreaterThan(0);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
