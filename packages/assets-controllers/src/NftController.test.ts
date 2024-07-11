@@ -1847,15 +1847,13 @@ describe('NftController', () => {
     });
     it('should add NFT erc721 and aggregate NFT data from both contract and NFT-API when  call to Get Collections succeeds', async () => {
       const { nftController } = setupController({
-        options: {
-          getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
-          getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
-          getERC721TokenURI: jest
-            .fn()
-            .mockResolvedValue(
-              'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
-            ),
-        },
+        getERC721AssetName: jest.fn().mockResolvedValue('KudosToken'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('KDO'),
+        getERC721TokenURI: jest
+          .fn()
+          .mockResolvedValue(
+            'https://ipfs.gitcoin.co:443/api/v0/cat/QmPmt6EAaioN78ECnW5oCL8v2YvVSpoBjLCjrXhhsAvoov',
+          ),
         defaultSelectedAccount: OWNER_ACCOUNT,
       });
       nock(NFT_API_BASE_URL)
@@ -2353,13 +2351,13 @@ describe('NftController', () => {
       const { nftController } = setupController({
         options: {
           onNftAdded: mockOnNftAdded,
-          getERC721AssetName: jest
-            .fn()
-            .mockRejectedValue(new Error('Failed to fetch')),
-          getERC721AssetSymbol: jest
-            .fn()
-            .mockRejectedValue(new Error('Failed to fetch')),
         },
+        getERC721AssetName: jest
+          .fn()
+          .mockRejectedValue(new Error('Failed to fetch')),
+        getERC721AssetSymbol: jest
+          .fn()
+          .mockRejectedValue(new Error('Failed to fetch')),
         defaultSelectedAccount: OWNER_ACCOUNT,
       });
       nock(NFT_API_BASE_URL)
