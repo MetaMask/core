@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- [phishing-controller] Add `PhishingDetector` from `eth-phishing-detector` ([#4137](https://github.com/MetaMask/core/pull/4137))
+
 ## [10.0.0]
 
 ### Changed
