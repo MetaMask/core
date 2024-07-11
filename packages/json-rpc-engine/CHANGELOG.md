@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.0.1]
 
-### Uncategorized
+### Changed
 
-- chore(deps): Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
-- json-rpc-engine: Wildcard exports -> named exports ([#4462](https://github.com/MetaMask/core/pull/4462))
-- Bump Yarn to v4 ([#3612](https://github.com/MetaMask/core/pull/3612))
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
 
 ## [9.0.0]
 
