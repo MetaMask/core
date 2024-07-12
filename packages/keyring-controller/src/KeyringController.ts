@@ -1098,6 +1098,8 @@ export class KeyringController extends BaseController<
       this.update((state) => {
         state.isUnlocked = false;
         state.keyrings = [];
+        delete state.encryptionKey;
+        delete state.encryptionSalt;
       });
 
       this.messagingSystem.publish(`${name}:lock`);
@@ -1876,6 +1878,12 @@ export class KeyringController extends BaseController<
     if (typeof password !== 'string') {
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
+
+    this.update((state) => {
+      delete state.encryptionKey;
+      delete state.encryptionSalt;
+    });
+
     this.#password = password;
 
     await this.#clearKeyrings();
