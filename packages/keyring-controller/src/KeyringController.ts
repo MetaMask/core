@@ -772,10 +772,12 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Create a new primary keychain and wipe any previous keychains.
+   * Create a new vault and primary keyring.
+   *
+   * This only works if keyrings are empty. If there is a pre-existing unlocked vault, calling this will have no effect.
+   * If there is a pre-existing locked vault, it will be replaced.
    *
    * @param password - Password to unlock the new vault.
-   * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndKeychain(password: string) {
     return this.#persistOrRollback(async () => {
