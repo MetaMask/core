@@ -608,6 +608,7 @@ describe('KeyringController', () => {
               },
             );
           });
+
           cacheEncryptionKey &&
             it('should set encryptionKey and encryptionSalt in state', async () => {
               await withController(
@@ -624,12 +625,14 @@ describe('KeyringController', () => {
                 },
               );
             });
+
           !cacheEncryptionKey &&
             it('should not set encryptionKey and encryptionSalt in state', async () => {
               await withController(
                 { skipVaultCreation: false, cacheEncryptionKey },
                 async ({ controller }) => {
                   await controller.createNewVaultAndKeychain(password);
+
                   expect(controller.state).not.toHaveProperty('encryptionKey');
                   expect(controller.state).not.toHaveProperty('encryptionSalt');
                 },
