@@ -41,14 +41,14 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^7.0.0",
-    "@metamask/base-controller": "^6.0.0",
-    "@metamask/controller-utils": "^11.0.0",
+    "@metamask/approval-controller": "^7.0.1",
+    "@metamask/base-controller": "^6.0.1",
+    "@metamask/controller-utils": "^11.0.1",
     "@metamask/keyring-controller": "^17.1.0",
     "@metamask/logging-controller": "^5.0.0",
     "@metamask/message-manager": "^10.0.0",
-    "@metamask/rpc-errors": "^6.2.1",
-    "@metamask/utils": "^8.3.0",
+    "@metamask/rpc-errors": "^6.3.1",
+    "@metamask/utils": "^9.0.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
