@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.1]
+
 ### Uncategorized
 
 - Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
@@ -123,7 +125,8 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.1...HEAD
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.0...@metamask/eth-json-rpc-provider@4.1.1
 [4.1.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.0.0...@metamask/eth-json-rpc-provider@4.1.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@3.0.2...@metamask/eth-json-rpc-provider@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@3.0.1...@metamask/eth-json-rpc-provider@3.0.2
