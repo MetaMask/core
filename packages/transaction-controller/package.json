@@ -68,7 +68,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-json-rpc-provider": "^4.1.0",
+    "@metamask/eth-json-rpc-provider": "^4.1.1",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-api": "^8.0.0",
     "@types/bn.js": "^5.1.5",
