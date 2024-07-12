@@ -34,6 +34,7 @@ module.exports = {
             selector: 'objectLiteralMethod',
             format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
           },
+          // This option is modified.
           {
             selector: 'objectLiteralProperty',
             format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
