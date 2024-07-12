@@ -27,6 +27,7 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
+import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
 import * as URI from 'uri-js';
 import { inspect } from 'util';
@@ -96,7 +97,7 @@ export enum RpcEndpointType {
  * representing it in the URL as `{infuraProjectId}`, which we replace this when
  * create network clients. But we need to know somehow that we only need to do
  * this replacement for Infura endpoints and not custom endpoints — hence the
- * type.
+ * separate type.
  */
 export type InfuraRpcEndpoint = {
   /**
@@ -105,18 +106,22 @@ export type InfuraRpcEndpoint = {
   name?: string;
   /**
    * The identifier for the network client that has been created for this RPC
-   * endpoint.
+   * endpoint. This is also used to uniquely identify the RPC endpoint in a
+   * set of RPC endpoints as well: once assigned, it is used to determine
+   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
    */
-  networkClientId: InfuraNetworkType;
+  networkClientId: BuiltInNetworkClientId;
   /**
    * The type of this endpoint, always "default".
    */
   type: RpcEndpointType.Infura;
   /**
-   * The URL of the endpoint. Expected to be a sort of template with the text
-   * `{infuraProjectId}`, which will get replaced with the Infura project ID.
+   * The URL of the endpoint. Expected to be a template with the string
+   * `{infuraProjectId}`, which will get replaced with the Infura project ID
+   * when the network client is created.
    */
-  url: string;
+  // TODO: Link this to networkClientId
+  url: `https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`;
 };
 
 /**
@@ -130,9 +135,11 @@ export type CustomRpcEndpoint = {
   name?: string;
   /**
    * The identifier for the network client that has been created for this RPC
-   * endpoint.
+   * endpoint. This is also used to uniquely identify the RPC endpoint in a
+   * set of RPC endpoints as well: once assigned, it is used to determine
+   * whether the `name`, `type`, or `url` of the RPC endpoint has changed.
    */
-  networkClientId: string;
+  networkClientId: CustomNetworkClientId;
   /**
    * The type of this endpoint, always "custom".
    */
@@ -515,7 +522,8 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
     const chainId = ChainId[infuraNetworkType];
     // False negative - this is a string.
     // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-    const rpcEndpointUrl = `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`;
+    const rpcEndpointUrl =
+      `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
     const networkConfiguration: NetworkConfiguration = {
       blockExplorerUrls: [],
@@ -578,6 +586,76 @@ export type AutoManagedNetworkClientRegistry = {
   [NetworkClientType.Infura]: AutoManagedBuiltInNetworkClientRegistry;
   [NetworkClientType.Custom]: AutoManagedCustomNetworkClientRegistry;
 };
+
+/**
+ * Instructs `addNetwork` and `updateNetwork` to create a network client for an
+ * RPC endpoint.
+ *
+ * @see {@link NetworkClientOperation}
+ */
+type AddNetworkClientOperation = {
+  type: 'add';
+  rpcEndpoint: RpcEndpoint;
+};
+
+/**
+ * Instructs `updateNetwork` and `removeNetwork` to remove a network client for
+ * an RPC endpoint.
+ *
+ * @see {@link NetworkClientOperation}
+ */
+type RemoveNetworkClientOperation = {
+  type: 'remove';
+  rpcEndpoint: RpcEndpoint;
+};
+
+/**
+ * Instructs `addNetwork` and `updateNetwork` to replace the network client for
+ * an RPC endpoint.
+ *
+ * @see {@link NetworkClientOperation}
+ */
+type ReplaceNetworkClientOperation = {
+  type: 'replace';
+  oldRpcEndpoint: RpcEndpoint;
+  newRpcEndpoint: RpcEndpoint;
+};
+
+/**
+ * Instructs `addNetwork` and `updateNetwork` not to do anything with an RPC
+ * endpoint, as far as the network client registry is concerned.
+ *
+ * @see {@link NetworkClientOperation}
+ */
+type NoopNetworkClientOperation = {
+  type: 'noop';
+  rpcEndpoint: RpcEndpoint;
+};
+
+/* eslint-disable jsdoc/check-indentation */
+/**
+ * Instructs `addNetwork`, `updateNetwork`, and `removeNetwork` how to
+ * update the network client registry.
+ *
+ * - When `addNetwork` is called, represents a network client that should be
+ * created for a new RPC endpoint.
+ * - When `removeNetwork` is called, represents a network client that should be
+ * destroyed for a previously existing RPC endpoint.
+ * - When `updateNetwork` is called, represents either:
+ *   - a network client that should be added for a new RPC endpoint
+ *   - a network client that should be removed for a previously existing RPC
+ *   endpoint
+ *   - a network client that should be replaced for an RPC endpoint that was
+ *   changed in a non-major way, or
+ *   - a network client that should be unchanged for an RPC endpoint that was
+ *   also unchanged.
+ */
+/* eslint-enable jsdoc/check-indentation */
+type NetworkClientOperation =
+  | AddNetworkClientOperation
+  | RemoveNetworkClientOperation
+  | ReplaceNetworkClientOperation
+  | NoopNetworkClientOperation;
 
 /**
  * Determines whether the given URL is valid by attempting to parse it.
@@ -656,13 +734,15 @@ function validateNetworkControllerState(state: NetworkState) {
       );
     }
 
-    if (
-      networkConfiguration.blockExplorerUrls.length > 0 &&
-      (networkConfiguration.defaultBlockExplorerUrlIndex === undefined ||
-        networkConfiguration.blockExplorerUrls[
-          networkConfiguration.defaultBlockExplorerUrlIndex
-        ] === undefined)
-    ) {
+    const isInvalidDefaultBlockExplorerUrlIndex =
+      networkConfiguration.blockExplorerUrls.length > 0
+        ? networkConfiguration.defaultBlockExplorerUrlIndex === undefined ||
+          networkConfiguration.blockExplorerUrls[
+            networkConfiguration.defaultBlockExplorerUrlIndex
+          ] === undefined
+        : networkConfiguration.defaultBlockExplorerUrlIndex !== undefined;
+
+    if (isInvalidDefaultBlockExplorerUrlIndex) {
       throw new Error(
         `NetworkController state has invalid \`networkConfigurationsByChainId\`: Network configuration '${networkConfiguration.name}' has a \`defaultBlockExplorerUrlIndex\` that does not refer to an entry in \`blockExplorerUrls\``,
       );
@@ -991,13 +1071,20 @@ export class NetworkController extends BaseController<
    * @param networkClientId - The ID of a network client that requests will be
    * routed through (either the name of an Infura network or the ID of a custom
    * network configuration).
+   * @param options - Options for this method.
+   * @param options.updateState - Allows for updating state.
    */
-  async #refreshNetwork(networkClientId: string) {
+  async #refreshNetwork(
+    networkClientId: string,
+    options: {
+      updateState?: (state: Draft<NetworkState>) => void;
+    } = {},
+  ) {
     this.messagingSystem.publish(
       'NetworkController:networkWillChange',
       this.state,
     );
-    this.#applyNetworkSelection(networkClientId);
+    this.#applyNetworkSelection(networkClientId, options);
     this.messagingSystem.publish(
       'NetworkController:networkDidChange',
       this.state,
@@ -1268,14 +1355,21 @@ export class NetworkController extends BaseController<
    *
    * @param networkClientId - The ID of a network client that will be used to
    * make requests.
+   * @param options - Options for this method.
+   * @param options.updateState - Allows for updating state.
    * @throws if no network client is associated with the given
    * network client ID.
    */
-  async setActiveNetwork(networkClientId: string) {
+  async setActiveNetwork(
+    networkClientId: string,
+    options: {
+      updateState?: (state: Draft<NetworkState>) => void;
+    } = {},
+  ) {
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
 
-    await this.#refreshNetwork(networkClientId);
+    await this.#refreshNetwork(networkClientId, options);
   }
 
   /**
@@ -1426,9 +1520,6 @@ export class NetworkController extends BaseController<
    */
   addNetwork(fields: AddNetworkFields): NetworkConfiguration {
     const { rpcEndpoints: setOfRpcEndpointFields } = fields;
-    const rpcEndpointUrls = setOfRpcEndpointFields.map(
-      (rpcEndpointFields) => rpcEndpointFields.url,
-    );
 
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
@@ -1440,33 +1531,7 @@ export class NetworkController extends BaseController<
       autoManagedNetworkClientRegistry,
     });
 
-    let conflict:
-      | {
-          networkConfiguration: NetworkConfiguration;
-          rpcEndpoint: RpcEndpoint;
-        }
-      | undefined;
-    for (const existingNetworkConfiguration of Object.values(
-      this.state.networkConfigurationsByChainId,
-    )) {
-      const existingRpcEndpoint =
-        existingNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) =>
-          rpcEndpointUrls.includes(rpcEndpoint.url),
-        );
-      if (existingRpcEndpoint) {
-        conflict = {
-          networkConfiguration: existingNetworkConfiguration,
-          rpcEndpoint: existingRpcEndpoint,
-        };
-      }
-    }
-    if (conflict !== undefined) {
-      throw new Error(
-        `Could not add network that points to same RPC endpoint as existing network for chain ${conflict.networkConfiguration.chainId} ("${conflict.networkConfiguration.name}")`,
-      );
-    }
-
-    const rpcEndpointOperations = setOfRpcEndpointFields.map(
+    const networkClientOperations = setOfRpcEndpointFields.map(
       (defaultOrCustomRpcEndpointFields) => {
         const rpcEndpoint =
           defaultOrCustomRpcEndpointFields.type === RpcEndpointType.Custom
@@ -1477,16 +1542,28 @@ export class NetworkController extends BaseController<
             : defaultOrCustomRpcEndpointFields;
         return {
           type: 'add' as const,
-          value: rpcEndpoint,
+          rpcEndpoint,
         };
       },
     );
 
-    const newNetworkConfiguration = this.#applyNetworkConfigurationChanges({
-      mode: 'add',
+    const newNetworkConfiguration =
+      this.#determineNetworkConfigurationToPersist({
+        networkFields: fields,
+        networkClientOperations,
+      });
+    this.#registerNetworkClientsAsNeeded({
       networkFields: fields,
-      rpcEndpointOperations,
+      networkClientOperations,
       autoManagedNetworkClientRegistry,
+    });
+    this.update((state) => {
+      this.#updateNetworkConfigurations({
+        state,
+        mode: 'add',
+        networkFields: fields,
+        networkConfigurationToPersist: newNetworkConfiguration,
+      });
     });
 
     this.messagingSystem.publish(
@@ -1499,9 +1576,9 @@ export class NetworkController extends BaseController<
 
   /**
    * Updates the configuration for a previously stored network filed under the
-   * given chain ID, creating and registering new network clients to represent
-   * RPC endpoints that have been added and destroying and unregistering
-   * existing network clients for RPC endpoints that have been removed.
+   * given chain ID, creating + registering new network clients to represent RPC
+   * endpoints that have been added and destroying + unregistering existing
+   * network clients for RPC endpoints that have been removed.
    *
    * Note that if `chainId` is changed, then all network clients associated with
    * that chain will be removed and re-added, even if none of the RPC endpoints
@@ -1510,21 +1587,32 @@ export class NetworkController extends BaseController<
    * @param chainId - The chain ID associated with an existing network.
    * @param fields - The object that describes the updates to the network/chain,
    * including the new set of RPC endpoints which should front that chain.
+   * @param options - Options to provide.
+   * @param options.replacementSelectedRpcEndpointIndex - Usually you cannot
+   * remove an RPC endpoint that is being represented by the currently selected
+   * network client. This option allows you to specify another RPC endpoint
+   * (either an existing one or a new one) that should be used to select a new
+   * network instead.
    * @returns The updated network configuration.
    * @throws if `chainId` does not refer to an existing network configuration,
-   * or if any part of `fields` would produce invalid state.
+   * if any part of `fields` would produce invalid state, etc.
    * @see {@link NetworkConfiguration}
    */
-  updateNetwork(
+  async updateNetwork(
     chainId: Hex,
     fields: UpdateNetworkFields,
-  ): NetworkConfiguration {
+    {
+      replacementSelectedRpcEndpointIndex,
+    }: { replacementSelectedRpcEndpointIndex?: number } = {},
+  ): Promise<NetworkConfiguration> {
     const existingNetworkConfiguration =
       this.state.networkConfigurationsByChainId[chainId];
 
     if (existingNetworkConfiguration === undefined) {
       throw new Error(
-        `Cannot find network configuration for chain ${inspect(chainId)}`,
+        `Could not update network: Cannot find network configuration for chain ${inspect(
+          chainId,
+        )}`,
       );
     }
 
@@ -1543,78 +1631,226 @@ export class NetworkController extends BaseController<
       autoManagedNetworkClientRegistry,
     });
 
-    const rpcEndpointOperations: {
-      type: 'add' | 'remove' | 'noop';
-      value: RpcEndpoint;
-    }[] = [];
-    if (newChainId === existingChainId) {
-      for (const existingRpcEndpoint of existingNetworkConfiguration.rpcEndpoints) {
-        if (
-          !setOfNewRpcEndpointFields.some(
-            (newRpcEndpointFields) =>
-              newRpcEndpointFields.networkClientId ===
-                existingRpcEndpoint.networkClientId &&
-              newRpcEndpointFields.type === existingRpcEndpoint.type &&
-              newRpcEndpointFields.url === existingRpcEndpoint.url,
-          )
-        ) {
-          rpcEndpointOperations.push({
-            type: 'remove',
-            value: existingRpcEndpoint,
-          });
-        }
-      }
-      for (const newRpcEndpointFields of setOfNewRpcEndpointFields) {
-        const existingRpcEndpoint =
-          existingNetworkConfiguration.rpcEndpoints.find(
-            (rpcEndpoint) =>
+    const networkClientOperations: NetworkClientOperation[] = [];
+
+    for (const newRpcEndpointFields of setOfNewRpcEndpointFields) {
+      const existingRpcEndpointForNoop =
+        existingNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+          return (
+            rpcEndpoint.type === newRpcEndpointFields.type &&
+            rpcEndpoint.url === newRpcEndpointFields.url &&
+            (rpcEndpoint.networkClientId ===
+              newRpcEndpointFields.networkClientId ||
+              newRpcEndpointFields.networkClientId === undefined)
+          );
+        });
+      const existingRpcEndpointForReplaceWhenChainChanged =
+        existingNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+          return (
+            (rpcEndpoint.type === RpcEndpointType.Infura &&
+              newRpcEndpointFields.type === RpcEndpointType.Infura) ||
+            (rpcEndpoint.type === newRpcEndpointFields.type &&
               rpcEndpoint.networkClientId ===
                 newRpcEndpointFields.networkClientId &&
-              rpcEndpoint.type === newRpcEndpointFields.type &&
-              rpcEndpoint.url === newRpcEndpointFields.url,
+              rpcEndpoint.url === newRpcEndpointFields.url)
           );
-        if (existingRpcEndpoint === undefined) {
-          const newRpcEndpoint =
-            newRpcEndpointFields.type === RpcEndpointType.Infura
-              ? newRpcEndpointFields
-              : { ...newRpcEndpointFields, networkClientId: uuidV4() };
-          rpcEndpointOperations.push({
-            type: 'add',
-            value: newRpcEndpoint,
-          });
-        } else {
-          rpcEndpointOperations.push({
-            type: 'noop',
-            value: existingRpcEndpoint,
-          });
-        }
-      }
-    } else {
-      for (const existingRpcEndpoint of existingNetworkConfiguration.rpcEndpoints) {
-        rpcEndpointOperations.push({
-          type: 'remove',
-          value: existingRpcEndpoint,
         });
-      }
-      for (const newRpcEndpointFields of setOfNewRpcEndpointFields) {
+      const existingRpcEndpointForReplaceWhenChainNotChanged =
+        existingNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+          return (
+            rpcEndpoint.type === newRpcEndpointFields.type &&
+            (rpcEndpoint.url === newRpcEndpointFields.url ||
+              rpcEndpoint.networkClientId ===
+                newRpcEndpointFields.networkClientId)
+          );
+        });
+
+      if (
+        newChainId !== existingChainId &&
+        existingRpcEndpointForReplaceWhenChainChanged !== undefined
+      ) {
         const newRpcEndpoint =
           newRpcEndpointFields.type === RpcEndpointType.Infura
             ? newRpcEndpointFields
             : { ...newRpcEndpointFields, networkClientId: uuidV4() };
-        rpcEndpointOperations.push({
-          type: 'add',
-          value: newRpcEndpoint,
+
+        networkClientOperations.push({
+          type: 'replace' as const,
+          oldRpcEndpoint: existingRpcEndpointForReplaceWhenChainChanged,
+          newRpcEndpoint,
         });
+      } else if (existingRpcEndpointForNoop !== undefined) {
+        let newRpcEndpoint;
+        if (existingRpcEndpointForNoop.type === RpcEndpointType.Infura) {
+          newRpcEndpoint = existingRpcEndpointForNoop;
+        } else {
+          // `networkClientId` shouldn't be missing at this point; if it is,
+          // that's a mistake, so fill it back in
+          newRpcEndpoint = Object.assign({}, newRpcEndpointFields, {
+            networkClientId: existingRpcEndpointForNoop.networkClientId,
+          });
+        }
+        networkClientOperations.push({
+          type: 'noop' as const,
+          rpcEndpoint: newRpcEndpoint,
+        });
+      } else if (
+        existingRpcEndpointForReplaceWhenChainNotChanged !== undefined
+      ) {
+        let newRpcEndpoint;
+        /* istanbul ignore if */
+        if (newRpcEndpointFields.type === RpcEndpointType.Infura) {
+          // This case can't actually happen. If we're here, it means that some
+          // part of the RPC endpoint changed. But there is no part of an Infura
+          // RPC endpoint that can be changed (as it would immediately make that
+          // RPC endpoint self-inconsistent). This is just here to appease
+          // TypeScript.
+          newRpcEndpoint = newRpcEndpointFields;
+        } else {
+          newRpcEndpoint = {
+            ...newRpcEndpointFields,
+            networkClientId: uuidV4(),
+          };
+        }
+
+        networkClientOperations.push({
+          type: 'replace' as const,
+          oldRpcEndpoint: existingRpcEndpointForReplaceWhenChainNotChanged,
+          newRpcEndpoint,
+        });
+      } else {
+        const newRpcEndpoint =
+          newRpcEndpointFields.type === RpcEndpointType.Infura
+            ? newRpcEndpointFields
+            : { ...newRpcEndpointFields, networkClientId: uuidV4() };
+        const networkClientOperation = {
+          type: 'add' as const,
+          rpcEndpoint: newRpcEndpoint,
+        };
+        networkClientOperations.push(networkClientOperation);
       }
     }
 
-    return this.#applyNetworkConfigurationChanges({
-      mode: 'update',
+    for (const existingRpcEndpoint of existingNetworkConfiguration.rpcEndpoints) {
+      if (
+        !networkClientOperations.some((networkClientOperation) => {
+          const otherRpcEndpoint =
+            networkClientOperation.type === 'replace'
+              ? networkClientOperation.oldRpcEndpoint
+              : networkClientOperation.rpcEndpoint;
+          return (
+            otherRpcEndpoint.type === existingRpcEndpoint.type &&
+            otherRpcEndpoint.networkClientId ===
+              existingRpcEndpoint.networkClientId &&
+            otherRpcEndpoint.url === existingRpcEndpoint.url
+          );
+        })
+      ) {
+        const networkClientOperation = {
+          type: 'remove' as const,
+          rpcEndpoint: existingRpcEndpoint,
+        };
+        networkClientOperations.push(networkClientOperation);
+      }
+    }
+
+    const updatedNetworkConfiguration =
+      this.#determineNetworkConfigurationToPersist({
+        networkFields: fields,
+        networkClientOperations,
+      });
+
+    if (
+      replacementSelectedRpcEndpointIndex === undefined &&
+      !updatedNetworkConfiguration.rpcEndpoints.some((rpcEndpoint) => {
+        return (
+          rpcEndpoint.networkClientId === this.state.selectedNetworkClientId
+        );
+      }) &&
+      !networkClientOperations.some((networkClientOperation) => {
+        return (
+          networkClientOperation.type === 'replace' &&
+          networkClientOperation.oldRpcEndpoint.networkClientId ===
+            this.state.selectedNetworkClientId
+        );
+      })
+    ) {
+      throw new Error(
+        `Could not update network: Cannot update RPC endpoints in such a way that the selected network '${this.state.selectedNetworkClientId}' would be removed without a replacement. Choose a different RPC endpoint as the selected network via the \`replacementSelectedRpcEndpointIndex\` option.`,
+      );
+    }
+
+    this.#registerNetworkClientsAsNeeded({
       networkFields: fields,
-      rpcEndpointOperations,
+      networkClientOperations,
       autoManagedNetworkClientRegistry,
-      existingNetworkConfiguration,
     });
+
+    const replacementSelectedRpcEndpointWithIndex = networkClientOperations
+      .map(
+        (networkClientOperation, index) =>
+          [networkClientOperation, index] as const,
+      )
+      .find(([networkClientOperation, _index]) => {
+        return (
+          networkClientOperation.type === 'replace' &&
+          networkClientOperation.oldRpcEndpoint.networkClientId ===
+            this.state.selectedNetworkClientId
+        );
+      });
+    const correctedReplacementSelectedRpcEndpointIndex =
+      replacementSelectedRpcEndpointIndex ??
+      replacementSelectedRpcEndpointWithIndex?.[1];
+
+    let rpcEndpointToSelect: RpcEndpoint | undefined;
+    if (correctedReplacementSelectedRpcEndpointIndex !== undefined) {
+      rpcEndpointToSelect =
+        updatedNetworkConfiguration.rpcEndpoints[
+          correctedReplacementSelectedRpcEndpointIndex
+        ];
+
+      // TODO: Test
+      if (rpcEndpointToSelect === undefined) {
+        throw new Error(
+          `Could not update network: \`replacementSelectedRpcEndpointIndex\` ${correctedReplacementSelectedRpcEndpointIndex} does not refer to an entry in \`rpcEndpoints\``,
+        );
+      }
+    }
+
+    // TODO: Test
+    if (
+      rpcEndpointToSelect &&
+      rpcEndpointToSelect.networkClientId !== this.state.selectedNetworkClientId
+    ) {
+      await this.setActiveNetwork(rpcEndpointToSelect.networkClientId, {
+        updateState: (state) => {
+          this.#updateNetworkConfigurations({
+            state,
+            mode: 'update',
+            networkFields: fields,
+            networkConfigurationToPersist: updatedNetworkConfiguration,
+            existingNetworkConfiguration,
+          });
+        },
+      });
+    } else {
+      this.update((state) => {
+        this.#updateNetworkConfigurations({
+          state,
+          mode: 'update',
+          networkFields: fields,
+          networkConfigurationToPersist: updatedNetworkConfiguration,
+          existingNetworkConfiguration,
+        });
+      });
+    }
+
+    this.#unregisterNetworkClientsAsNeeded({
+      networkClientOperations,
+      autoManagedNetworkClientRegistry,
+    });
+
+    return updatedNetworkConfiguration;
   }
 
   /**
@@ -1648,20 +1884,24 @@ export class NetworkController extends BaseController<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    const rpcEndpointOperations = existingNetworkConfiguration.rpcEndpoints.map(
-      (rpcEndpoint) => {
+    const networkClientOperations =
+      existingNetworkConfiguration.rpcEndpoints.map((rpcEndpoint) => {
         return {
           type: 'remove' as const,
-          value: rpcEndpoint,
+          rpcEndpoint,
         };
-      },
-    );
+      });
 
-    this.#applyNetworkConfigurationChanges({
-      mode: 'remove',
-      rpcEndpointOperations,
+    this.#unregisterNetworkClientsAsNeeded({
+      networkClientOperations,
       autoManagedNetworkClientRegistry,
-      existingNetworkConfiguration,
+    });
+    this.update((state) => {
+      this.#updateNetworkConfigurations({
+        state,
+        mode: 'remove',
+        existingNetworkConfiguration,
+      });
     });
   }
 
@@ -1781,13 +2021,15 @@ export class NetworkController extends BaseController<
       }
     }
 
-    if (
-      networkFields.blockExplorerUrls.length > 0 &&
-      (networkFields.defaultBlockExplorerUrlIndex === undefined ||
-        networkFields.blockExplorerUrls[
-          networkFields.defaultBlockExplorerUrlIndex
-        ] === undefined)
-    ) {
+    const isInvalidDefaultBlockExplorerUrlIndex =
+      networkFields.blockExplorerUrls.length > 0
+        ? networkFields.defaultBlockExplorerUrlIndex === undefined ||
+          networkFields.blockExplorerUrls[
+            networkFields.defaultBlockExplorerUrlIndex
+          ] === undefined
+        : networkFields.defaultBlockExplorerUrlIndex !== undefined;
+
+    if (isInvalidDefaultBlockExplorerUrlIndex) {
       throw new Error(
         `${errorMessagePrefix}: \`defaultBlockExplorerUrlIndex\` must refer to an entry in \`blockExplorerUrls\``,
       );
@@ -1812,14 +2054,29 @@ export class NetworkController extends BaseController<
           : undefined;
 
       if (
+        rpcEndpointFields.type === RpcEndpointType.Custom &&
+        networkClientId !== undefined &&
+        isInfuraNetworkType(networkClientId)
+      ) {
+        throw new Error(
+          `${errorMessagePrefix}: Custom RPC endpoint '${
+            // This is a string.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            rpcEndpointFields.url
+          }' has invalid network client ID '${networkClientId}'`,
+        );
+      }
+
+      if (
         mode === 'update' &&
         networkClientId !== undefined &&
+        rpcEndpointFields.type === RpcEndpointType.Custom &&
         !Object.values(autoManagedNetworkClientRegistry).some(
           (networkClientsById) => networkClientId in networkClientsById,
         )
       ) {
         throw new Error(
-          `Could not update network: RPC endpoint '${
+          `${errorMessagePrefix}: RPC endpoint '${
             // This is a string.
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             rpcEndpointFields.url
@@ -1934,70 +2191,194 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Carries out the work necessary to add or update a network.
-   *
-   * - When adding a new network, a set of fields is used to register the new
-   * network configuration in state and a set of operations is used to register
-   * network clients for new RPC endpoints.
-   * - When updating an existing network, a set of fields is used to register
-   * the new network configuration (removing the existing network configuration
-   * if the chain ID has changed) and a set of operations is used to register
-   * network clients for new RPC endpoints and destroy network clients for
-   * removed RPC endpoints.
+   * Constructs a network configuration that will be persisted to state when
+   * adding or updating a network.
    *
    * @param args - The arguments to this function.
-   * @returns The new network configuration when `args.mode` is 'add', or the
-   * updated network configuration when `args.mode` is 'update'.
+   * @param args.networkFields - The fields used to add or update a network.
+   * @param args.networkClientOperations - Operations which were calculated for
+   * updating the network client registry but which also map back to RPC
+   * endpoints (and so can be used to save those RPC endpoints).
+   * @returns The network configuration to persist.
    */
-  #applyNetworkConfigurationChanges(
-    args:
+  #determineNetworkConfigurationToPersist({
+    networkFields,
+    networkClientOperations,
+  }: {
+    networkFields: AddNetworkFields | UpdateNetworkFields;
+    networkClientOperations: NetworkClientOperation[];
+  }): NetworkConfiguration {
+    const rpcEndpointsToPersist = networkClientOperations
+      .filter(
+        (
+          networkClientOperation,
+        ): networkClientOperation is
+          | AddNetworkClientOperation
+          | NoopNetworkClientOperation => {
+          return (
+            networkClientOperation.type === 'add' ||
+            networkClientOperation.type === 'noop'
+          );
+        },
+      )
+      .map((networkClientOperation) => networkClientOperation.rpcEndpoint)
+      .concat(
+        networkClientOperations
+          .filter(
+            (
+              networkClientOperation,
+            ): networkClientOperation is ReplaceNetworkClientOperation => {
+              return networkClientOperation.type === 'replace';
+            },
+          )
+          .map(
+            (networkClientOperation) => networkClientOperation.newRpcEndpoint,
+          ),
+      );
+
+    return { ...networkFields, rpcEndpoints: rpcEndpointsToPersist };
+  }
+
+  /**
+   * Creates and registers network clients using the given operations calculated
+   * as a part of adding or updating a network.
+   *
+   * @param args - The arguments to this function.
+   * @param args.networkFields - The fields used to add or update a network.
+   * @param args.networkClientOperations - Dictate which network clients need to
+   * be created.
+   * @param args.autoManagedNetworkClientRegistry - The network client registry
+   * to update.
+   */
+  #registerNetworkClientsAsNeeded({
+    networkFields,
+    networkClientOperations,
+    autoManagedNetworkClientRegistry,
+  }: {
+    networkFields: AddNetworkFields | UpdateNetworkFields;
+    networkClientOperations: NetworkClientOperation[];
+    autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+  }) {
+    const addedRpcEndpoints = networkClientOperations
+      .filter(
+        (
+          networkClientOperation,
+        ): networkClientOperation is AddNetworkClientOperation => {
+          return networkClientOperation.type === 'add';
+        },
+      )
+      .map((networkClientOperation) => networkClientOperation.rpcEndpoint)
+      .concat(
+        networkClientOperations
+          .filter(
+            (
+              networkClientOperation,
+            ): networkClientOperation is ReplaceNetworkClientOperation => {
+              return networkClientOperation.type === 'replace';
+            },
+          )
+          .map(
+            (networkClientOperation) => networkClientOperation.newRpcEndpoint,
+          ),
+      );
+
+    for (const addedRpcEndpoint of addedRpcEndpoints) {
+      if (addedRpcEndpoint.type === RpcEndpointType.Infura) {
+        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
+          addedRpcEndpoint.networkClientId
+        ] = createAutoManagedNetworkClient({
+          type: NetworkClientType.Infura,
+          chainId: networkFields.chainId,
+          network: addedRpcEndpoint.networkClientId,
+          infuraProjectId: this.#infuraProjectId,
+          ticker: networkFields.nativeCurrency,
+        });
+      } else {
+        autoManagedNetworkClientRegistry[NetworkClientType.Custom][
+          addedRpcEndpoint.networkClientId
+        ] = createAutoManagedNetworkClient({
+          type: NetworkClientType.Custom,
+          chainId: networkFields.chainId,
+          rpcUrl: addedRpcEndpoint.url,
+          ticker: networkFields.nativeCurrency,
+        });
+      }
+    }
+  }
+
+  /**
+   * Destroys and removes network clients using the given operations calculated
+   * as a part of updating or removing a network.
+   *
+   * @param args - The arguments to this function.
+   * @param args.networkClientOperations - Dictate which network clients to
+   * remove.
+   * @param args.autoManagedNetworkClientRegistry - The network client registry
+   * to update.
+   */
+  #unregisterNetworkClientsAsNeeded({
+    networkClientOperations,
+    autoManagedNetworkClientRegistry,
+  }: {
+    networkClientOperations: NetworkClientOperation[];
+    autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
+  }) {
+    const removedRpcEndpoints = networkClientOperations
+      .filter(
+        (
+          networkClientOperation,
+        ): networkClientOperation is RemoveNetworkClientOperation => {
+          return networkClientOperation.type === 'remove';
+        },
+      )
+      .map((networkClientOperation) => networkClientOperation.rpcEndpoint)
+      .concat(
+        networkClientOperations
+          .filter(
+            (
+              networkClientOperation,
+            ): networkClientOperation is ReplaceNetworkClientOperation => {
+              return networkClientOperation.type === 'replace';
+            },
+          )
+          .map(
+            (networkClientOperation) => networkClientOperation.oldRpcEndpoint,
+          ),
+      );
+
+    for (const rpcEndpoint of removedRpcEndpoints) {
+      const networkClient = this.getNetworkClientById(
+        rpcEndpoint.networkClientId,
+      );
+      networkClient.destroy();
+      delete autoManagedNetworkClientRegistry[networkClient.configuration.type][
+        rpcEndpoint.networkClientId
+      ];
+    }
+  }
+
+  /**
+   * Updates `networkConfigurationsByChainId` in state depending on whether a
+   * network is being added, updated, or removed.
+   *
+   * - The existing network configuration will be removed when a network is
+   * being filed under a different chain or removed.
+   * - A network configuration will be stored when a network is being added or
+   * when a network is being updated.
+   *
+   * @param args - The arguments to this function.
+   */
+  #updateNetworkConfigurations(
+    args: { state: Draft<NetworkState> } & (
       | {
           mode: 'add';
-          autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
-          rpcEndpointOperations: { type: 'add'; value: RpcEndpoint }[];
           networkFields: AddNetworkFields;
+          networkConfigurationToPersist: NetworkConfiguration;
         }
       | {
           mode: 'update';
-          autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
-          rpcEndpointOperations: {
-            type: 'add' | 'remove' | 'noop';
-            value: RpcEndpoint;
-          }[];
           networkFields: UpdateNetworkFields;
-          existingNetworkConfiguration: NetworkConfiguration;
-        },
-  ): NetworkConfiguration;
-
-  /**
-   * Carries out the work necessary to remove a network.
-   *
-   * - When removing an existing network, the corresponding network
-   * configuration is removed from state, and a set of operations is used to
-   * destroy all network clients for that network configuration.
-   *
-   * @param args - The arguments to this function.
-   * @returns null.
-   */
-  #applyNetworkConfigurationChanges(args: {
-    mode: 'remove';
-    autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
-    rpcEndpointOperations: { type: 'remove'; value: RpcEndpoint }[];
-    existingNetworkConfiguration: NetworkConfiguration;
-  }): null;
-
-  #applyNetworkConfigurationChanges(
-    args: {
-      rpcEndpointOperations: {
-        type: 'add' | 'remove' | 'noop';
-        value: RpcEndpoint;
-      }[];
-      autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
-    } & (
-      | { mode: 'add'; networkFields: AddNetworkFields }
-      | {
-          mode: 'update';
-          networkFields: UpdateNetworkFields;
+          networkConfigurationToPersist: NetworkConfiguration;
           existingNetworkConfiguration: NetworkConfiguration;
         }
       | {
@@ -2005,79 +2386,29 @@ export class NetworkController extends BaseController<
           existingNetworkConfiguration: NetworkConfiguration;
         }
     ),
-  ): NetworkConfiguration | null {
-    const { mode, rpcEndpointOperations, autoManagedNetworkClientRegistry } =
-      args;
+  ) {
+    const { state, mode } = args;
 
-    for (const rpcEndpointOperation of rpcEndpointOperations) {
-      if (rpcEndpointOperation.type === 'remove') {
-        const networkClient = this.getNetworkClientById(
-          rpcEndpointOperation.value.networkClientId,
-        );
-        networkClient.destroy();
-        delete autoManagedNetworkClientRegistry[
-          networkClient.configuration.type
-        ][rpcEndpointOperation.value.networkClientId];
-      } else if (mode !== 'remove' && rpcEndpointOperation.type === 'add') {
-        if (rpcEndpointOperation.value.type === RpcEndpointType.Infura) {
-          autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-            rpcEndpointOperation.value.networkClientId
-          ] = createAutoManagedNetworkClient({
-            type: NetworkClientType.Infura,
-            chainId: args.networkFields.chainId,
-            network: rpcEndpointOperation.value.networkClientId,
-            infuraProjectId: this.#infuraProjectId,
-            ticker: args.networkFields.nativeCurrency,
-          });
-        } else {
-          autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-            rpcEndpointOperation.value.networkClientId
-          ] = createAutoManagedNetworkClient({
-            type: NetworkClientType.Custom,
-            chainId: args.networkFields.chainId,
-            rpcUrl: rpcEndpointOperation.value.url,
-            ticker: args.networkFields.nativeCurrency,
-          });
-        }
-      }
+    if (
+      mode === 'remove' ||
+      (mode === 'update' &&
+        args.networkFields.chainId !==
+          args.existingNetworkConfiguration.chainId)
+    ) {
+      delete state.networkConfigurationsByChainId[
+        args.existingNetworkConfiguration.chainId
+      ];
     }
 
-    const newRpcEndpoints = rpcEndpointOperations
-      .filter((rpcEndpointOperation) => rpcEndpointOperation.type !== 'remove')
-      .map((rpcEndpointOperation) => rpcEndpointOperation.value);
-
-    const updatedNetworkConfiguration =
-      mode === 'remove'
-        ? null
-        : {
-            ...args.networkFields,
-            rpcEndpoints: newRpcEndpoints,
-          };
-
-    this.update((state) => {
-      if (
-        mode === 'remove' ||
-        (mode === 'update' &&
-          args.networkFields.chainId !==
-            args.existingNetworkConfiguration.chainId)
-      ) {
-        delete state.networkConfigurationsByChainId[
-          args.existingNetworkConfiguration.chainId
-        ];
-      }
-
-      if (mode !== 'remove' && updatedNetworkConfiguration !== null) {
-        state.networkConfigurationsByChainId[args.networkFields.chainId] =
-          updatedNetworkConfiguration;
-      }
-    });
+    if (mode === 'add' || mode === 'update') {
+      state.networkConfigurationsByChainId[args.networkFields.chainId] =
+        args.networkConfigurationToPersist;
+    }
 
     this.#networkConfigurationsByNetworkClientId =
       buildNetworkConfigurationsByNetworkClientId(
         this.state.networkConfigurationsByChainId,
       );
-
-    return updatedNetworkConfiguration;
   }
 
   /**
@@ -2174,9 +2505,18 @@ export class NetworkController extends BaseController<
    * @param networkClientId - The ID of a network client that requests will be
    * routed through (either the name of an Infura network or the ID of a custom
    * network configuration).
+   * @param options - Options for this method.
+   * @param options.updateState - Allows for updating state.
    * @throws if no network client could be found matching the given ID.
    */
-  #applyNetworkSelection(networkClientId: string) {
+  #applyNetworkSelection(
+    networkClientId: string,
+    {
+      updateState,
+    }: {
+      updateState?: (state: Draft<NetworkState>) => void;
+    } = {},
+  ) {
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
@@ -2224,6 +2564,7 @@ export class NetworkController extends BaseController<
           EIPS: {},
         };
       }
+      updateState?.(state);
     });
 
     if (this.#providerProxy) {
