@@ -33,19 +33,17 @@ export function normalizeGWEIDecimalNumbers(n: string | number) {
  * Fetch gas estimates from the given URL.
  *
  * @param url - The gas estimate URL.
- * @param infuraAPIKey - The Infura API key used for infura API requests.
  * @param clientId - The client ID used to identify to the API who is asking for estimates.
  * @returns The gas estimates.
  */
 export async function fetchGasEstimates(
   url: string,
-  infuraAPIKey: string,
   clientId?: string,
 ): Promise<GasFeeEstimates> {
-  const infuraAuthToken = buildInfuraAuthToken(infuraAPIKey);
-  const estimates = await handleFetch(url, {
-    headers: getHeaders(infuraAuthToken, clientId),
-  });
+  const estimates = await handleFetch(
+    url,
+    clientId ? { headers: makeClientIdHeader(clientId) } : undefined,
+  );
   return {
     low: {
       ...estimates.low,
@@ -89,22 +87,22 @@ export async function fetchGasEstimates(
  * high values from that API.
  *
  * @param url - The URL to fetch gas price estimates from.
- * @param infuraAPIKey - The Infura API key used for infura API requests.
  * @param clientId - The client ID used to identify to the API who is asking for estimates.
  * @returns The gas price estimates.
  */
 export async function fetchLegacyGasPriceEstimates(
   url: string,
-  infuraAPIKey: string,
   clientId?: string,
 ): Promise<LegacyGasPriceEstimate> {
-  const infuraAuthToken = buildInfuraAuthToken(infuraAPIKey);
   const result = await handleFetch(url, {
     referrer: url,
     referrerPolicy: 'no-referrer-when-downgrade',
     method: 'GET',
     mode: 'cors',
-    headers: getHeaders(infuraAuthToken, clientId),
+    headers: {
+      'Content-Type': 'application/json',
+      ...(clientId && makeClientIdHeader(clientId)),
+    },
   });
   return {
     low: result.SafeGasPrice,
@@ -191,32 +189,5 @@ export function calculateTimeEstimate(
   return {
     lowerTimeBound,
     upperTimeBound,
-  };
-}
-
-/**
- * Build an infura auth token from the given API key and secret.
- *
- * @param infuraAPIKey - The Infura API key.
- * @returns The base64 encoded auth token.
- */
-function buildInfuraAuthToken(infuraAPIKey: string) {
-  // We intentionally leave the password empty, as Infura does not require one
-  return Buffer.from(`${infuraAPIKey}:`).toString('base64');
-}
-
-/**
- * Get the headers for a request to the gas fee API.
- *
- * @param infuraAuthToken - The Infura auth token to use for the request.
- * @param clientId - The client ID used to identify to the API who is asking for estimates.
- * @returns The headers for the request.
- */
-function getHeaders(infuraAuthToken: string, clientId?: string) {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Basic ${infuraAuthToken}`,
-    // Only add the clientId header if clientId is a non-empty string
-    ...(clientId?.trim() ? makeClientIdHeader(clientId) : {}),
   };
 }

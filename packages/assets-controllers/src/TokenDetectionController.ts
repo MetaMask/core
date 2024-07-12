@@ -1,6 +1,7 @@
 import type {
   AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerGetAccountAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   RestrictedControllerMessenger,
@@ -105,6 +106,7 @@ export type TokenDetectionControllerActions =
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
+  | AccountsControllerGetAccountAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerGetStateAction
@@ -121,7 +123,7 @@ export type TokenDetectionControllerEvents =
   TokenDetectionControllerStateChangeEvent;
 
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | KeyringControllerLockEvent
@@ -153,7 +155,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 > {
   #intervalId?: ReturnType<typeof setTimeout>;
 
-  #selectedAddress: string;
+  #selectedAccountId: string;
 
   #networkClientId: NetworkClientId;
 
@@ -190,19 +192,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.messenger - The controller messaging system.
    * @param options.disabled - If set to true, all network requests are blocked.
    * @param options.interval - Polling interval used to fetch new token rates
-   * @param options.selectedAddress - Vault selected address
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    */
   constructor({
-    selectedAddress,
     interval = DEFAULT_INTERVAL,
     disabled = true,
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
   }: {
-    selectedAddress?: string;
     interval?: number;
     disabled?: boolean;
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
@@ -231,10 +230,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.#disabled = disabled;
     this.setIntervalLength(interval);
 
-    this.#selectedAddress =
-      selectedAddress ??
-      this.messagingSystem.call('AccountsController:getSelectedAccount')
-        .address;
+    this.#selectedAccountId = this.#getSelectedAccount().id;
 
     const { chainId, networkClientId } =
       this.#getCorrectChainIdAndNetworkClientId();
@@ -291,34 +287,32 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'PreferencesController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ selectedAddress: newSelectedAddress, useTokenDetection }) => {
-        const isSelectedAddressChanged =
-          this.#selectedAddress !== newSelectedAddress;
+      async ({ useTokenDetection }) => {
+        const selectedAccount = this.#getSelectedAccount();
         const isDetectionChangedFromPreferences =
           this.#isDetectionEnabledFromPreferences !== useTokenDetection;
 
-        this.#selectedAddress = newSelectedAddress;
         this.#isDetectionEnabledFromPreferences = useTokenDetection;
 
-        if (isSelectedAddressChanged || isDetectionChangedFromPreferences) {
+        if (isDetectionChangedFromPreferences) {
           await this.#restartTokenDetection({
-            selectedAddress: this.#selectedAddress,
+            selectedAddress: selectedAccount.address,
           });
         }
       },
     );
 
     this.messagingSystem.subscribe(
-      'AccountsController:selectedAccountChange',
+      'AccountsController:selectedEvmAccountChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ address: newSelectedAddress }) => {
-        const isSelectedAddressChanged =
-          this.#selectedAddress !== newSelectedAddress;
-        if (isSelectedAddressChanged) {
-          this.#selectedAddress = newSelectedAddress;
+      async (selectedAccount) => {
+        const isSelectedAccountIdChanged =
+          this.#selectedAccountId !== selectedAccount.id;
+        if (isSelectedAccountIdChanged) {
+          this.#selectedAccountId = selectedAccount.id;
           await this.#restartTokenDetection({
-            selectedAddress: this.#selectedAddress,
+            selectedAddress: selectedAccount.address,
           });
         }
       },
@@ -493,7 +487,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     }
 
     const addressAgainstWhichToDetect =
-      selectedAddress ?? this.#selectedAddress;
+      selectedAddress ?? this.#getSelectedAddress();
     const { chainId, networkClientId: selectedNetworkClientId } =
       this.#getCorrectChainIdAndNetworkClientId(networkClientId);
     const chainIdAgainstWhichToDetect = chainId;
@@ -636,6 +630,19 @@ export class TokenDetectionController extends StaticIntervalPollingController<
         );
       }
     });
+  }
+
+  #getSelectedAccount() {
+    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #getSelectedAddress() {
+    // If the address is not defined (or empty), we fallback to the currently selected account's address
+    const account = this.messagingSystem.call(
+      'AccountsController:getAccount',
+      this.#selectedAccountId,
+    );
+    return account?.address || '';
   }
 }
 

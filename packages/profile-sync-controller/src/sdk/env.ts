@@ -1,13 +1,14 @@
-export const enum Env {
+export enum Env {
   DEV = 'dev',
   UAT = 'uat',
   PRD = 'prd',
 }
 
-export const enum Platform {
+export enum Platform {
   MOBILE = 'mobile',
   EXTENSION = 'extension',
   PORTFOLIO = 'portfolio',
+  INFURA = 'infura',
 }
 
 type EnvUrlsEntry = {
@@ -61,16 +62,19 @@ export function getOidcClientId(env: Env, platform: Platform): string {
       [Platform.PORTFOLIO]: 'c7ca94a0-5d52-4635-9502-1a50a9c410cc',
       [Platform.MOBILE]: 'e83c7cc9-267d-4fb4-8fec-f0e3bbe5ae8e',
       [Platform.EXTENSION]: 'f1a963d7-50dc-4cb5-8d81-f1f3654f0df3',
+      [Platform.INFURA]: 'bd887006-0d55-481a-a395-5ff9a0dc52c9',
     },
     [Env.UAT]: {
       [Platform.PORTFOLIO]: '8f2dd4ac-db07-4819-9ba5-1ee0ec1b56d1',
       [Platform.MOBILE]: 'c3cfdcd2-51d6-4fae-ad2c-ff238c8fef53',
       [Platform.EXTENSION]: 'a9de167c-c9a6-43d8-af39-d301fd44c485',
+      [Platform.INFURA]: '01929890-7002-4c97-9913-8f6c09a6d674',
     },
     [Env.PRD]: {
       [Platform.PORTFOLIO]: '35e1cd62-49c5-4be8-8b6e-a5212f2d2cfb',
       [Platform.MOBILE]: '75fa62a3-9ca0-4b91-9fe5-76bec86b0257',
       [Platform.EXTENSION]: '1132f10a-b4e5-4390-a5f2-d9c6022db564',
+      [Platform.INFURA]: '', // unset
     },
   };
 

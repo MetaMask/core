@@ -153,10 +153,6 @@ const GENERIC_JSON_RPC_ERROR = rpcErrors.internal(
 );
 
 describe('NetworkController', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   afterEach(() => {
     resetAllWhenMocks();
   });
@@ -312,15 +308,12 @@ describe('NetworkController', () => {
 
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is not set');
-              const { result } = await promisify(provider.sendAsync).call(
-                provider,
-                {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method: 'test_method',
-                  params: [],
-                },
-              );
+              const result = await provider.request({
+                id: 1,
+                jsonrpc: '2.0',
+                method: 'test_method',
+                params: [],
+              });
               expect(result).toBe('test response');
             },
           );
@@ -417,15 +410,12 @@ describe('NetworkController', () => {
 
             const { provider } = controller.getProviderAndBlockTracker();
             assert(provider, 'Provider is not set');
-            const { result } = await promisify(provider.sendAsync).call(
-              provider,
-              {
-                id: 1,
-                jsonrpc: '2.0',
-                method: 'test_method',
-                params: [],
-              },
-            );
+            const result = await provider.request({
+              id: 1,
+              jsonrpc: '2.0',
+              method: 'test_method',
+              params: [],
+            });
             expect(result).toBe('test response');
           },
         );
@@ -444,7 +434,7 @@ describe('NetworkController', () => {
         const { provider, blockTracker } =
           controller.getProviderAndBlockTracker();
 
-        expect(provider).toHaveProperty('sendAsync');
+        expect(provider).toHaveProperty('request');
         expect(blockTracker).toHaveProperty('checkForLatestBlock');
       });
     });
@@ -528,26 +518,20 @@ describe('NetworkController', () => {
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is somehow unset');
 
-              const promisifiedSendAsync1 = promisify(provider.sendAsync).bind(
-                provider,
-              );
-              const response1 = await promisifiedSendAsync1({
+              const result1 = await provider.request({
                 id: '1',
                 jsonrpc: '2.0',
                 method: 'test',
               });
-              expect(response1.result).toBe('test response 1');
+              expect(result1).toBe('test response 1');
 
               await controller.setProviderType(networkType);
-              const promisifiedSendAsync2 = promisify(provider.sendAsync).bind(
-                provider,
-              );
-              const response2 = await promisifiedSendAsync2({
+              const result2 = await provider.request({
                 id: '2',
                 jsonrpc: '2.0',
                 method: 'test',
               });
-              expect(response2.result).toBe('test response 2');
+              expect(result2).toBe('test response 2');
             },
           );
         });
@@ -618,26 +602,20 @@ describe('NetworkController', () => {
             const { provider } = controller.getProviderAndBlockTracker();
             assert(provider, 'Provider is somehow unset');
 
-            const promisifiedSendAsync1 = promisify(provider.sendAsync).bind(
-              provider,
-            );
-            const response1 = await promisifiedSendAsync1({
+            const result1 = await provider.request({
               id: '1',
               jsonrpc: '2.0',
               method: 'test',
             });
-            expect(response1.result).toBe('test response 1');
+            expect(result1).toBe('test response 1');
 
             await controller.setActiveNetwork('testNetworkConfigurationId');
-            const promisifiedSendAsync2 = promisify(provider.sendAsync).bind(
-              provider,
-            );
-            const response2 = await promisifiedSendAsync2({
+            const result2 = await provider.request({
               id: '2',
               jsonrpc: '2.0',
               method: 'test',
             });
-            expect(response2.result).toBe('test response 2');
+            expect(result2).toBe('test response 2');
           },
         );
       });
@@ -1021,7 +999,7 @@ describe('NetworkController', () => {
               ],
             ]);
             for (const networkClient of Object.values(networkClients)) {
-              expect(networkClient.provider).toHaveProperty('sendAsync');
+              expect(networkClient.provider).toHaveProperty('request');
               expect(networkClient.blockTracker).toHaveProperty(
                 'checkForLatestBlock',
               );
@@ -2913,15 +2891,12 @@ describe('NetworkController', () => {
 
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is not set');
-              const { result } = await promisify(provider.sendAsync).call(
-                provider,
-                {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method: 'test_method',
-                  params: [],
-                },
-              );
+              const result = await provider.request({
+                id: 1,
+                jsonrpc: '2.0',
+                method: 'test_method',
+                params: [],
+              });
               expect(result).toBe('test response from built-in network');
             },
           );
@@ -3017,15 +2992,12 @@ describe('NetworkController', () => {
 
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is not set');
-              const { result } = await promisify(provider.sendAsync).call(
-                provider,
-                {
-                  id: 1,
-                  jsonrpc: '2.0',
-                  method: 'test_method',
-                  params: [],
-                },
-              );
+              const result = await provider.request({
+                id: 1,
+                jsonrpc: '2.0',
+                method: 'test_method',
+                params: [],
+              });
               expect(result).toBe('test response from built-in network');
             },
           );
@@ -4157,15 +4129,12 @@ describe('NetworkController', () => {
 
               const { provider } = controller.getProviderAndBlockTracker();
               assert(provider, 'Provider is somehow unset');
-              const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-                provider,
-              );
-              const response = await promisifiedSendAsync({
+              const result = await provider.request({
                 id: '1',
                 jsonrpc: '2.0',
                 method: 'test',
               });
-              expect(response.result).toBe('test response');
+              expect(result).toBe('test response');
             },
           );
         });
@@ -4717,15 +4686,12 @@ describe('NetworkController', () => {
 
             const { provider } = controller.getProviderAndBlockTracker();
             assert(provider, 'Provider is somehow unset');
-            const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-              provider,
-            );
-            const response = await promisifiedSendAsync({
+            const result = await provider.request({
               id: '1',
               jsonrpc: '2.0',
               method: 'test',
             });
-            expect(response.result).toBe('test response');
+            expect(result).toBe('test response');
           },
         );
       });
@@ -5205,16 +5171,13 @@ function refreshNetworkTests({
           });
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
-          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-            provider,
-          );
-          const chainIdResult = await promisifiedSendAsync({
+          const chainIdResult = await provider.request({
             id: 1,
             jsonrpc: '2.0',
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe(toHex(111));
+          expect(chainIdResult).toBe(toHex(111));
         },
       );
     });
@@ -5249,16 +5212,13 @@ function refreshNetworkTests({
           });
           const { provider } = controller.getProviderAndBlockTracker();
           assert(provider);
-          const promisifiedSendAsync = promisify(provider.sendAsync).bind(
-            provider,
-          );
-          const chainIdResult = await promisifiedSendAsync({
+          const chainIdResult = await provider.request({
             id: 1,
             jsonrpc: '2.0',
             method: 'eth_chainId',
             params: [],
           });
-          expect(chainIdResult.result).toBe(toHex(1337));
+          expect(chainIdResult).toBe(toHex(1337));
         },
       );
     });

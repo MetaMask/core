@@ -93,8 +93,6 @@ describe('gas', () => {
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     updateGasRequest = JSON.parse(JSON.stringify(UPDATE_GAS_REQUEST_MOCK));
   });
 

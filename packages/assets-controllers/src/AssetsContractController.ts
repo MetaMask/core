@@ -198,7 +198,6 @@ export class AssetsContractController extends BaseControllerV1<
       throw new Error(MISSING_PROVIDER_ERROR);
     }
 
-    // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     return new Web3Provider(provider);
   }
 

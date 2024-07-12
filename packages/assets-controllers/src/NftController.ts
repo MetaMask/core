@@ -24,6 +24,7 @@ import {
   ERC1155,
   ApprovalType,
   NFT_API_BASE_URL,
+  NFT_API_VERSION,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-api';
 import type {
@@ -44,7 +45,11 @@ import BN from 'bn.js';
 import { v4 as random } from 'uuid';
 
 import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import {
+  compareNftMetadata,
+  getFormattedIpfsUrl,
+  hasNewCollectionFields,
+} from './assetsUtil';
 import { Source } from './constants';
 import type {
   ApiNftContract,
@@ -52,6 +57,7 @@ import type {
   Collection,
   Attributes,
   LastSale,
+  GetCollectionsResponse,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -532,12 +538,29 @@ export class NftController extends BaseController<
       includeAttributes: 'true',
       includeLastSale: 'true',
     }).toString();
+
+    // First fetch token information
     const nftInformation: ReservoirResponse | undefined =
       await fetchWithErrorHandling({
         url: `${this.getNftApi()}?${urlParams}`,
         options: {
           headers: {
-            Version: '1',
+            Version: NFT_API_VERSION,
+          },
+        },
+      });
+    // Params for getCollections API call
+    const getCollectionParams = new URLSearchParams({
+      chainId: '1',
+      id: `${nftInformation?.tokens[0]?.token?.collection?.id as string}`,
+    }).toString();
+    // Fetch collection information using collectionId
+    const collectionInformation: GetCollectionsResponse | undefined =
+      await fetchWithErrorHandling({
+        url: `${NFT_API_BASE_URL as string}/collections?${getCollectionParams}`,
+        options: {
+          headers: {
+            Version: NFT_API_VERSION,
           },
         },
       });
@@ -585,7 +608,20 @@ export class NftController extends BaseController<
       },
       rarityRank && { rarityRank },
       rarity && { rarity },
-      collection && { collection },
+      (collection || collectionInformation) && {
+        collection: {
+          ...(collection || {}),
+          creator:
+            collection?.creator ||
+            collectionInformation?.collections[0].creator,
+          openseaVerificationStatus:
+            collectionInformation?.collections[0].openseaVerificationStatus,
+          contractDeployedAt:
+            collectionInformation?.collections[0].contractDeployedAt,
+          ownerCount: collectionInformation?.collections[0].ownerCount,
+          topBid: collectionInformation?.collections[0].topBid,
+        },
+      },
     );
 
     return nftMetadata;
@@ -643,6 +679,16 @@ export class NftController extends BaseController<
         tokenURI,
         this.#useIpfsSubdomains,
       );
+    }
+    if (tokenURI.startsWith('data:image/')) {
+      return {
+        image: tokenURI,
+        name: null,
+        description: null,
+        standard: standard || null,
+        favorite: false,
+        tokenURI: tokenURI ?? null,
+      };
     }
 
     try {
@@ -910,7 +956,13 @@ export class NftController extends BaseController<
           existingEntry,
         );
 
-        if (!differentMetadata && existingEntry.isCurrentlyOwned) {
+        const hasNewFields = hasNewCollectionFields(nftMetadata, existingEntry);
+
+        if (
+          !differentMetadata &&
+          existingEntry.isCurrentlyOwned &&
+          !hasNewFields
+        ) {
           return;
         }
 

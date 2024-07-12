@@ -1,3 +1,4 @@
+import { createMockInternalAccount } from '@metamask/accounts-controller/src/tests/mocks';
 import type { AddApprovalRequest } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
@@ -7,16 +8,13 @@ import {
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientId,
   NetworkState,
 } from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 import type { NetworkClientConfiguration } from '@metamask/network-controller/src/types';
-import {
-  getDefaultPreferencesState,
-  type PreferencesState,
-} from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import assert from 'assert';
@@ -45,6 +43,9 @@ import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
 
 const defaultSelectedAddress = '0x0000000000000000000000000000000000000001';
+const defaultSelectedAccount = createMockInternalAccount({
+  address: defaultSelectedAddress,
+});
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
 
 const defaultSelectedNetworkClientId = 'AAAA-BBBB-CCCC-DDDD';
@@ -68,21 +69,18 @@ function buildTokenRatesControllerMessenger(
       'TokensController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
-      'PreferencesController:getState',
+      'AccountsController:getAccount',
+      'AccountsController:getSelectedAccount',
     ],
     allowedEvents: [
-      'PreferencesController:stateChange',
       'TokensController:stateChange',
       'NetworkController:stateChange',
+      'AccountsController:selectedEvmAccountChange',
     ],
   });
 }
 
 describe('TokenRatesController', () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
-
   describe('constructor', () => {
     let clock: sinon.SinonFakeTimers;
 
@@ -992,6 +990,9 @@ describe('TokenRatesController', () => {
       it('should update exchange rates when selected address changes', async () => {
         const alternateSelectedAddress =
           '0x0000000000000000000000000000000000000002';
+        const alternateSelectedAccount = createMockInternalAccount({
+          address: alternateSelectedAddress,
+        });
         await withController(
           {
             options: {
@@ -1018,69 +1019,26 @@ describe('TokenRatesController', () => {
               },
             },
           },
-          async ({ controller, triggerPreferencesStateChange }) => {
+          async ({ controller, triggerSelectedAccountChange }) => {
             await controller.start();
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            triggerPreferencesStateChange({
-              ...getDefaultPreferencesState(),
-              selectedAddress: alternateSelectedAddress,
-            });
+            triggerSelectedAccountChange(alternateSelectedAccount);
 
             expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
-          },
-        );
-      });
-
-      it('should not update exchange rates when preferences state changes without selected address changing', async () => {
-        await withController(
-          {
-            options: {
-              interval: 100,
-            },
-            mockTokensControllerState: {
-              allTokens: {
-                '0x1': {
-                  [defaultSelectedAddress]: [
-                    {
-                      address: '0x02',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                    {
-                      address: '0x03',
-                      decimals: 0,
-                      symbol: '',
-                      aggregators: [],
-                    },
-                  ],
-                },
-              },
-            },
-          },
-          async ({ controller, triggerPreferencesStateChange }) => {
-            await controller.start();
-            const updateExchangeRatesSpy = jest
-              .spyOn(controller, 'updateExchangeRates')
-              .mockResolvedValue();
-            triggerPreferencesStateChange({
-              ...getDefaultPreferencesState(),
-              selectedAddress: defaultSelectedAddress,
-              openSeaEnabled: false,
-            });
-
-            expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
           },
         );
       });
     });
 
     describe('when polling is inactive', () => {
-      it('should not update exchange rates when selected address changes', async () => {
+      it('does not update exchange rates when selected account changes', async () => {
         const alternateSelectedAddress =
           '0x0000000000000000000000000000000000000002';
+        const alternateSelectedAccount = createMockInternalAccount({
+          address: alternateSelectedAddress,
+        });
         await withController(
           {
             options: {
@@ -1107,14 +1065,11 @@ describe('TokenRatesController', () => {
               },
             },
           },
-          async ({ controller, triggerPreferencesStateChange }) => {
+          async ({ controller, triggerSelectedAccountChange }) => {
             const updateExchangeRatesSpy = jest
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
-            triggerPreferencesStateChange({
-              ...getDefaultPreferencesState(),
-              selectedAddress: alternateSelectedAddress,
-            });
+            triggerSelectedAccountChange(alternateSelectedAccount);
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
           },
@@ -2303,12 +2258,12 @@ describe('TokenRatesController', () => {
  */
 type WithControllerCallback<ReturnValue> = ({
   controller,
-  triggerPreferencesStateChange,
+  triggerSelectedAccountChange,
   triggerTokensStateChange,
   triggerNetworkStateChange,
 }: {
   controller: TokenRatesController;
-  triggerPreferencesStateChange: (state: PreferencesState) => void;
+  triggerSelectedAccountChange: (state: InternalAccount) => void;
   triggerTokensStateChange: (state: TokensControllerState) => void;
   triggerNetworkStateChange: (state: NetworkState) => void;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -2377,13 +2332,16 @@ async function withController<ReturnValue>(
     }),
   );
 
-  const mockPreferencesState = jest.fn<PreferencesState, []>();
+  const mockGetSelectedAccount = jest.fn<InternalAccount, []>();
   controllerMessenger.registerActionHandler(
-    'PreferencesController:getState',
-    mockPreferencesState.mockReturnValue({
-      ...getDefaultPreferencesState(),
-      selectedAddress: defaultSelectedAddress,
-    }),
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount.mockReturnValue(defaultSelectedAccount),
+  );
+
+  const mockGetAccount = jest.fn<InternalAccount, []>();
+  controllerMessenger.registerActionHandler(
+    'AccountsController:getAccount',
+    mockGetAccount.mockReturnValue(defaultSelectedAccount),
   );
 
   const controller = new TokenRatesController({
@@ -2394,13 +2352,13 @@ async function withController<ReturnValue>(
   try {
     return await fn({
       controller,
-      triggerPreferencesStateChange: (state: PreferencesState) => {
+      triggerSelectedAccountChange: (account: InternalAccount) => {
         controllerMessenger.publish(
-          'PreferencesController:stateChange',
-          state,
-          [],
+          'AccountsController:selectedEvmAccountChange',
+          account,
         );
       },
+
       triggerTokensStateChange: (state: TokensControllerState) => {
         controllerMessenger.publish('TokensController:stateChange', state, []);
       },

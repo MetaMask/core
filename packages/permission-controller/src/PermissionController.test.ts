@@ -774,10 +774,6 @@ function getPermissionMatcher({
 }
 
 describe('PermissionController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
