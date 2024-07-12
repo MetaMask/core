@@ -42,7 +42,6 @@ describe('revokePermissions RPC method', () => {
       method: 'wallet_revokePermissions',
       params: [
         {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           snap_dialog: {},
         },
       ],
