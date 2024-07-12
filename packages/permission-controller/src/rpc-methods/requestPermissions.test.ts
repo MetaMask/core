@@ -125,7 +125,7 @@ describe('requestPermissions RPC method', () => {
       delete expectedError.stack;
 
       // @ts-expect-error Intentional destructive testing
-      // TypeScript is confused; this signature is async.
+      // ESLint is confused; this signature is async.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);

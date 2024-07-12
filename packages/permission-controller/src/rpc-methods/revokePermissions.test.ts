@@ -83,7 +83,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TypeScript is confused; this signature is async.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -120,7 +120,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TypeScript is confused; this signature is async.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -156,7 +156,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TypeScript is confused; this signature is async.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -193,7 +193,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TypeScript is confused; this signature is async.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
