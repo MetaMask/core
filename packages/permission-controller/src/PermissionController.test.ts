@@ -610,7 +610,7 @@ type AddPermissionRequestParams = {
   id: string;
   origin: string;
   requestData: PermissionsRequest;
-  type: MethodNames.requestPermissions;
+  type: MethodNames.RequestPermissions;
 };
 
 type AddPermissionRequestArgs = [string, AddPermissionRequestParams];
@@ -2206,7 +2206,7 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
         () => {
           return {
-            operation: CaveatMutatorOperation.updateValue,
+            operation: CaveatMutatorOperation.UpdateValue,
             value: ['a', 'b'],
           };
         },
@@ -2222,7 +2222,7 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
         () => {
-          return { operation: CaveatMutatorOperation.noop };
+          return { operation: CaveatMutatorOperation.Noop };
         },
       );
       expect(controller.state).toStrictEqual(getMultiCaveatStateMatcher());
@@ -2235,7 +2235,7 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
         () => {
           return {
-            operation: CaveatMutatorOperation.updateValue,
+            operation: CaveatMutatorOperation.UpdateValue,
             value: ['a', 'b'],
           };
         },
@@ -2273,9 +2273,9 @@ describe('PermissionController', () => {
       const mutator = () => {
         counter += 1;
         return counter === 1
-          ? { operation: CaveatMutatorOperation.noop as const }
+          ? { operation: CaveatMutatorOperation.Noop as const }
           : {
-              operation: CaveatMutatorOperation.updateValue as const,
+              operation: CaveatMutatorOperation.UpdateValue as const,
               value: ['a', 'b'],
             };
       };
@@ -2307,7 +2307,7 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
         () => {
-          return { operation: CaveatMutatorOperation.deleteCaveat };
+          return { operation: CaveatMutatorOperation.DeleteCaveat };
         },
       );
 
@@ -2339,7 +2339,7 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterObjectResponse,
         () => {
-          return { operation: CaveatMutatorOperation.revokePermission };
+          return { operation: CaveatMutatorOperation.RevokePermission };
         },
       );
 
@@ -2364,8 +2364,8 @@ describe('PermissionController', () => {
         return {
           operation:
             counter === 1
-              ? CaveatMutatorOperation.revokePermission
-              : CaveatMutatorOperation.noop,
+              ? CaveatMutatorOperation.RevokePermission
+              : CaveatMutatorOperation.Noop,
         };
       };
 
@@ -2389,7 +2389,7 @@ describe('PermissionController', () => {
           CaveatTypes.filterArrayResponse,
           () => {
             return {
-              operation: CaveatMutatorOperation.updateValue,
+              operation: CaveatMutatorOperation.UpdateValue,
               value: 'foo',
             };
           },
@@ -2402,7 +2402,7 @@ describe('PermissionController', () => {
 
       expect(() =>
         controller.updatePermissionsByCaveat(CaveatTypes.noopCaveat, () => {
-          return { operation: CaveatMutatorOperation.deleteCaveat };
+          return { operation: CaveatMutatorOperation.DeleteCaveat };
         }),
       ).toThrow('noopWithRequiredCaveat permission validation failed');
     });
@@ -3340,7 +3340,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3392,7 +3392,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3463,7 +3463,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3543,7 +3543,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3639,7 +3639,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3728,7 +3728,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3787,7 +3787,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3861,7 +3861,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3917,7 +3917,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3987,7 +3987,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4066,7 +4066,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4141,7 +4141,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4225,7 +4225,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4502,7 +4502,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.snap_foo]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4617,7 +4617,7 @@ describe('PermissionController', () => {
                 permissions: { [PermissionNames.wallet_getSecretArray]: {} },
                 ...getRequestDataDiffProperty(),
               },
-              type: MethodNames.requestPermissions,
+              type: MethodNames.RequestPermissions,
             },
             true,
           );
@@ -4669,7 +4669,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4720,7 +4720,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4770,7 +4770,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4832,7 +4832,7 @@ describe('PermissionController', () => {
                 permissions: { [PermissionNames.wallet_getSecretArray]: {} },
                 ...getRequestDataDiffProperty(),
               },
-              type: MethodNames.requestPermissions,
+              type: MethodNames.RequestPermissions,
             },
             true,
           );
@@ -4907,7 +4907,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4968,7 +4968,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -5198,7 +5198,7 @@ describe('PermissionController', () => {
                 },
                 diff: getPermissionDiffMatcher(leftCaveats, caveatsDiff),
               },
-              type: MethodNames.requestPermissions,
+              type: MethodNames.RequestPermissions,
             },
             true,
           );

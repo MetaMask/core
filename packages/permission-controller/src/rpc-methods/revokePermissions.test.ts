@@ -28,7 +28,7 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // ESLint is confused; this expression evaluates to an async function.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
@@ -42,7 +42,6 @@ describe('revokePermissions RPC method', () => {
       method: 'wallet_revokePermissions',
       params: [
         {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/naming-convention
           snap_dialog: {},
         },
@@ -63,7 +62,7 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // ESLint is confused; this expression evaluates to an async function.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
@@ -100,7 +99,7 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // ESLint is confused; this expression evaluates to an async function.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
@@ -137,7 +136,7 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // ESLint is confused; this expression evaluates to an async function.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {
@@ -173,7 +172,7 @@ describe('revokePermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // ESLint is confused; this expression evaluates to an async function.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (req, res, next, end) =>
         await implementation(req, res, next, end, {

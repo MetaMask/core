@@ -17,7 +17,7 @@ export const revokePermissionsHandler: PermittedHandlerExport<
   RevokePermissionArgs,
   null
 > = {
-  methodNames: [MethodNames.revokePermissions],
+  methodNames: [MethodNames.RevokePermissions],
   implementation: revokePermissionsImplementation,
   hookNames: {
     revokePermissionsForOrigin: true,
