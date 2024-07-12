@@ -754,9 +754,9 @@ describe('PermissionController', () => {
                 },
               }),
             ),
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        ).toThrow(`Invalid permission type: "${invalidPermissionType}"`);
+        ).toThrow(
+          `Invalid permission type: "${String(invalidPermissionType)}"`,
+        );
       });
     });
 
@@ -6028,9 +6028,7 @@ describe('PermissionController', () => {
 
       const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await messenger.call(
+      messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
         'wallet_getSecretArray',
@@ -6199,7 +6197,7 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // TypeScript is confused; this signature is async.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
@@ -6223,7 +6221,7 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // TypeScript is confused; this signature is async.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
@@ -6274,7 +6272,7 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // TypeScript is confused; this signature is async.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);

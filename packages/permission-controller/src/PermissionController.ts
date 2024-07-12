@@ -2661,9 +2661,7 @@ export class PermissionController<
     }
 
     try {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.messagingSystem.call(
+      await this.messagingSystem.call(
         'ApprovalController:acceptRequest',
         id,
         request,
