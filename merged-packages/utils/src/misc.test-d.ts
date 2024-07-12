@@ -1,7 +1,27 @@
 import { expectAssignable, expectNotAssignable, expectType } from 'tsd';
 
-import type { RuntimeObject } from './misc';
+import type { PublicInterface, RuntimeObject } from './misc';
 import { isObject, hasProperty, getKnownPropertyNames } from './misc';
+
+//=============================================================================
+// PublicInterface
+//=============================================================================
+
+class ClassWithPrivateProperties {
+  #foo: string;
+
+  bar: string;
+
+  constructor({ foo, bar }: { foo: string; bar: string }) {
+    this.#foo = foo;
+    this.bar = bar;
+  }
+}
+
+// Private properties not required
+expectAssignable<PublicInterface<ClassWithPrivateProperties>>({ bar: 'bar' });
+// Public properties still required
+expectNotAssignable<PublicInterface<ClassWithPrivateProperties>>({});
 
 //=============================================================================
 // isObject
