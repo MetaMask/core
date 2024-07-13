@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4286))
 - `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4286))
 
+## [11.0.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
 ## [11.0.0]
 
 ### Added
@@ -355,7 +362,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
