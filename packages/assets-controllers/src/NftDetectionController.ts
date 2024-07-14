@@ -56,7 +56,10 @@ export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
-const supportedNftDetectionNetworks: Hex[] = [ChainId.mainnet];
+const supportedNftDetectionNetworks: Hex[] = [
+  ChainId.mainnet,
+  ChainId['linea-mainnet'],
+];
 
 /**
  * @type ApiNft
