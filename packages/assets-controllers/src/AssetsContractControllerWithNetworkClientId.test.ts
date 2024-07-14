@@ -31,7 +31,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     ).rejects.toThrow(
       `No custom network client was found with the ID "invalidNetworkClientId".`,
     );
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw when getting ERC-20 token decimal when networkClientId is invalid', async () => {
@@ -46,7 +46,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     ).rejects.toThrow(
       `No custom network client was found with the ID "invalidNetworkClientId".`,
     );
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get balance of ERC-20 token contract correctly', async () => {
@@ -103,7 +103,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     );
     expect(UNIBalance.toString(16)).not.toBe('0');
     expect(UNINoBalance.toString(16)).toBe('0');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 NFT tokenId correctly', async () => {
@@ -138,7 +138,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(tokenId).not.toBe(0);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw error when getting ERC-721 token standard and details when networkClientId is invalid', async () => {
@@ -153,7 +153,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow('No custom network client was found');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw contract standard error when getting ERC-20 token standard and details when provided with invalid ERC-20 address', async () => {
@@ -169,7 +169,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'mainnet',
         ),
     ).rejects.toThrow(error);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 token standard and details', async () => {
@@ -236,7 +236,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(standardAndDetails.standard).toBe('ERC721');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-1155 token standard and details', async () => {
@@ -287,7 +287,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(standardAndDetails.standard).toBe('ERC1155');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-20 token standard and details', async () => {
@@ -386,7 +386,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(standardAndDetails.standard).toBe('ERC20');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 NFT tokenURI correctly', async () => {
@@ -436,7 +436,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(tokenId).toBe('https://api.godsunchained.com/card/0');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should not throw an error when address given is does not support NFT Metadata interface', async () => {
@@ -494,7 +494,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     expect(errorLogSpy.mock.calls).toContainEqual([
       'Contract does not support ERC721 metadata interface.',
     ]);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 NFT name', async () => {
@@ -527,7 +527,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(name).toBe('Gods Unchained');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 NFT symbol', async () => {
@@ -560,7 +560,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(symbol).toBe('GODS');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw error when getting ERC-721 NFT symbol when networkClientId is invalid', async () => {
@@ -573,7 +573,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow('No custom network client was found');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-20 token decimals', async () => {
@@ -606,7 +606,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(Number(decimals)).toBe(18);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-20 token name', async () => {
@@ -641,7 +641,7 @@ describe('AssetsContractController with NetworkClientId', () => {
     );
 
     expect(name).toBe('Dai Stablecoin');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get ERC-721 NFT ownership', async () => {
@@ -675,7 +675,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(tokenId).not.toBe('');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw error when getting ERC-721 NFT ownership using networkClientId that is invalid', async () => {
@@ -689,7 +689,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow('No custom network client was found');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get balance of ERC-20 token in a single call on network with token detection support', async () => {
@@ -723,7 +723,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(balances[ERC20_SAI_ADDRESS]).toBeDefined();
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
@@ -796,7 +796,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'sepolia',
     );
     expect(noBalances).toStrictEqual({});
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw error when transferring single ERC-1155 when networkClientId is invalid', async () => {
@@ -813,7 +813,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow('No custom network client was found');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
@@ -848,7 +848,7 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(Number(balance)).toBeGreaterThan(0);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should throw error when getting the balance of a ERC-1155 NFT when networkClientId is invalid', async () => {
@@ -863,7 +863,7 @@ describe('AssetsContractController with NetworkClientId', () => {
           'invalidNetworkClientId',
         ),
     ).rejects.toThrow('No custom network client was found');
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should get the URI of a ERC-1155 NFT', async () => {
@@ -898,6 +898,6 @@ describe('AssetsContractController with NetworkClientId', () => {
       'mainnet',
     );
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
-    messenger.clearEventSubscriptions('NetworkController:stateChange');
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 });
