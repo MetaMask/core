@@ -44,7 +44,6 @@
   },
   "resolutions": {
     "@metamask/keyring-api": "github:MetaMask/keyring-api#replace-superstruct-with-fork",
-    "@metamask/providers": "17.0.0",
     "@metamask/snaps-sdk": "github:MetaMask/snaps#workspace=@metamask/snaps-sdk&commit=485c9699ddb0109068d7a07ecdd3539e510c8df6",
     "@metamask/snaps-utils": "github:MetaMask/snaps#workspace=@metamask/snaps-utils&commit=485c9699ddb0109068d7a07ecdd3539e510c8df6",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
