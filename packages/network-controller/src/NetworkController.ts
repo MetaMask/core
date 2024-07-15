@@ -1809,7 +1809,6 @@ export class NetworkController extends BaseController<
           correctedReplacementSelectedRpcEndpointIndex
         ];
 
-      // TODO: Test
       if (rpcEndpointToSelect === undefined) {
         throw new Error(
           `Could not update network: \`replacementSelectedRpcEndpointIndex\` ${correctedReplacementSelectedRpcEndpointIndex} does not refer to an entry in \`rpcEndpoints\``,
@@ -1817,7 +1816,6 @@ export class NetworkController extends BaseController<
       }
     }
 
-    // TODO: Test
     if (
       rpcEndpointToSelect &&
       rpcEndpointToSelect.networkClientId !== this.state.selectedNetworkClientId
