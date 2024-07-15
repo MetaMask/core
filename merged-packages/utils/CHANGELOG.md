@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0]
+### Added
+- Add `PublicInterface` type ([#197](https://github.com/MetaMask/utils/pull/197))
+
 ## [9.0.0]
 ### Changed
 - **BREAKING:** The return types of functions `getChecksumAddress`, `numberToHex`, `bigIntToHex` are narrowed from `string` to `Hex` ([#193](https://github.com/MetaMask/utils/pull/193))
@@ -247,7 +251,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/utils/compare/v9.0.0...v9.1.0
 [9.0.0]: https://github.com/MetaMask/utils/compare/v8.5.0...v9.0.0
 [8.5.0]: https://github.com/MetaMask/utils/compare/v8.4.0...v8.5.0
 [8.4.0]: https://github.com/MetaMask/utils/compare/v8.3.0...v8.4.0
