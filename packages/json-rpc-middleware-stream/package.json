@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-middleware-stream",
-  "version": "8.0.0",
+  "version": "8.0.1",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses",
   "keywords": [
     "MetaMask",

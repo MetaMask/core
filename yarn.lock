@@ -2561,7 +2561,7 @@ __metadata:
     "@metamask/eslint-config-nodejs": "npm:^12.1.0"
     "@metamask/eslint-config-typescript": "npm:^12.1.0"
     "@metamask/eth-block-tracker": "npm:^9.0.3"
-    "@metamask/eth-json-rpc-provider": "npm:^4.1.0"
+    "@metamask/eth-json-rpc-provider": "npm:^4.1.1"
     "@metamask/json-rpc-engine": "npm:^9.0.1"
     "@metamask/utils": "npm:^9.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -2768,7 +2768,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@npm:^4.1.0, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
+"@metamask/eth-json-rpc-provider@npm:^4.1.1, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
@@ -3241,7 +3241,7 @@ __metadata:
     "@metamask/eth-block-tracker": "npm:^9.0.3"
     "@metamask/eth-json-rpc-infura": "npm:^9.1.0"
     "@metamask/eth-json-rpc-middleware": "npm:^12.1.1"
-    "@metamask/eth-json-rpc-provider": "npm:^4.1.0"
+    "@metamask/eth-json-rpc-provider": "npm:^4.1.1"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^9.0.1"
     "@metamask/rpc-errors": "npm:^6.3.1"
@@ -3846,7 +3846,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.1"
     "@metamask/controller-utils": "npm:^11.0.1"
-    "@metamask/eth-json-rpc-provider": "npm:^4.1.0"
+    "@metamask/eth-json-rpc-provider": "npm:^4.1.1"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/gas-fee-controller": "npm:^19.0.0"
