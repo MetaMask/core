@@ -41,13 +41,13 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.0",
+    "@metamask/base-controller": "^6.0.1",
     "@metamask/chain-api": "^0.0.1",
     "@metamask/keyring-api": "^8.0.0",
     "@metamask/snaps-controllers": "^8.1.1",
     "@metamask/snaps-sdk": "^4.2.0",
     "@metamask/snaps-utils": "^7.4.0",
-    "@metamask/utils": "^8.3.0",
+    "@metamask/utils": "^9.0.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
