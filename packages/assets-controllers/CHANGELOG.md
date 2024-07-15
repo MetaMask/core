@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **BREAKING:** Change `attributes` type in `NftMetadata` to `Attributes[]` ([#4522](https://github.com/MetaMask/core/pull/4522))
+- **BREAKING:** The `attributes` property of the `NftMetadata` type must be of type `Attributes[]` ([#4522](https://github.com/MetaMask/core/pull/4522))
+  - The `attributes` property was added and typed as `Attributes` on `v28.0.0`.
 
 ## [35.0.0]
 
