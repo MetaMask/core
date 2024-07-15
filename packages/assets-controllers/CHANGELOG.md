@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Fetch NFT collections data from the OpenSea API `Get Collections` endpoint when calling the `detectNfts` method of `NftDetectionController`, and the `updateNftMetadata` and `watchNft` methods of `NftController`. ([#4443](https://github.com/MetaMask/core/pull/4443))
+- Fetch NFT collections data from the NFT-API `Get Collections` endpoint when calling the `detectNfts` method of `NftDetectionController`, and the `updateNftMetadata` and `watchNft` methods of `NftController`. ([#4443](https://github.com/MetaMask/core/pull/4443))
 - Bump `@metamask/utils` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
 - Bump `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
 
