@@ -1001,7 +1001,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked('https://example.com');
+      const result = detector.isMaliciousRequestDomain('https://example.com');
 
       expect(result).toStrictEqual({
         result: false,
@@ -1024,7 +1024,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked(
+      const result = detector.isMaliciousRequestDomain(
         'https://develop.d3bkcslj57l47p.amplifyapp.com',
       );
 
@@ -1050,7 +1050,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked('invalid-urlllll');
+      const result = detector.isMaliciousRequestDomain('invalid-urlllll');
 
       expect(result).toStrictEqual({
         name: 'test-config',
@@ -1075,7 +1075,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked(
+      const result = detector.isMaliciousRequestDomain(
         'https://develop.d3bkcslj57l47p.amplifyapp.com',
       );
 
@@ -1100,7 +1100,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked('https://example.com');
+      const result = detector.isMaliciousRequestDomain('https://example.com');
 
       expect(result).toStrictEqual({
         name: 'test-config',
@@ -1133,7 +1133,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked(
+      const result = detector.isMaliciousRequestDomain(
         'https://develop.d3bkcslj57l47p.amplifyapp.com',
       );
 
@@ -1163,7 +1163,7 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isBlocked('https://example.com');
+      const result = detector.isMaliciousRequestDomain('https://example.com');
 
       expect(result).toStrictEqual({
         result: false,

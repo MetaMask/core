@@ -110,7 +110,7 @@ export type EthPhishingDetectResult = {
   version?: string;
   result: boolean;
   match?: string; // Returned as undefined for non-fuzzy true results.
-  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
+  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist' | 'requestBlocklist';
 };
 
 /**
@@ -412,12 +412,20 @@ export class PhishingController extends BaseController<
     return this.#detector.check(punycodeOrigin);
   }
 
-  // Call isBlocked function
-
+  /**
+   * Checks if a request URL's domain is blocked against the request blocklist.
+   *
+   * This method is used to determine if a specific request URL is associated with a malicious
+   * command and control (C2) domain. The URL's hostname is hashed and checked against a configured
+   * blocklist of known malicious domains.
+   *
+   * @param origin - The full request URL to be checked.
+   * @returns An object indicating whether the URL's domain is blocked and relevant metadata.
+   */
   isBlockedRequest(origin: string): EthPhishingDetectResult {
     const punycodeOrigin = toASCII(origin);
 
-    return this.#detector.isBlocked(punycodeOrigin);
+    return this.#detector.isMaliciousRequestDomain(punycodeOrigin);
   }
 
   /**

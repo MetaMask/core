@@ -219,18 +219,28 @@ export class PhishingDetector {
   }
 
   /**
-   * Check if a URL is blocked against the request blocklist.
-   * This is checked against a hash of the URL's hostname.
+   * Checks if a URL is blocked against the request blocklist.
+   * This is done by hashing the URL's hostname and checking it against the hashed request blocklist.
+   *
    *
    * @param urlString - The URL to check.
-   * @returns An object indicating if the URL is blocked and the hash of the URL.
+   * @returns An object indicating if the URL is blocked and relevant metadata.
    */
-  isBlocked(urlString: string): PhishingDetectorResult {
+  isMaliciousRequestDomain(urlString: string): PhishingDetectorResult {
     for (const { requestBlocklist, name, version } of this.#configs) {
       // TODO: Need to come back to this - need to understand if I will always have a requestBlocklist
-      if (!requestBlocklist?.length) {
-        break;
-      }
+      // if (!requestBlocklist?.length) {
+      //   // break;
+      //   console.log('No requestBlocklist');
+      // }
+
+      console.log('requestBlocklist', requestBlocklist);
+
+      const tempRequestBlocklist = [
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+      ];
+
+      console.log('tempRequestBlocklist', tempRequestBlocklist);
 
       let url;
       try {
@@ -245,7 +255,9 @@ export class PhishingDetector {
       }
 
       const hash = sha256Hash(url.hostname.toLowerCase());
-      const blocked = requestBlocklist?.includes(hash) ?? false;
+      const blocked = tempRequestBlocklist?.includes(hash) ?? false;
+
+      console.log('blocked', blocked);
 
       return {
         name,

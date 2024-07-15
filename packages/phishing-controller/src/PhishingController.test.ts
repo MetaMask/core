@@ -11,7 +11,10 @@ import {
   PHISHING_CONFIG_BASE_URL,
   type PhishingControllerActions,
   type PhishingControllerOptions,
+  EthPhishingDetectResult,
 } from './PhishingController';
+import { toASCII } from 'punycode';
+import { PhishingDetector } from './PhishingDetector';
 
 const controllerName = 'PhishingController';
 
@@ -125,6 +128,81 @@ describe('PhishingController', () => {
     // Cleanup pending operations
     await pendingUpdate;
     await pendingUpdateTwo;
+  });
+
+  describe('PhishingController - isBlockedRequest', () => {
+    afterEach(() => {
+      sinon.restore();
+    });
+
+    it('should call isMaliciousRequestDomain with the correct punycode origin and return the result', () => {
+      const origin = 'https://develop.d3bkcslj57l47p.amplifyapp.com/';
+      // const punycodeOrigin = toASCII(origin);
+      // const mockDetector = new PhishingDetector(
+      //   [],
+      // ) as jest.Mocked<PhishingDetector>;
+
+      // mockDetector.isMaliciousRequestDomain.mockReturnValue({
+      //   name: 'test-config',
+      //   result: true,
+      //   type: 'requestBlocklist',
+      //   version: '1',
+      // });
+
+      const controller = getPhishingController();
+
+      const result = controller.isBlockedRequest(origin);
+
+      // expect(mockDetector.isMaliciousRequestDomain).toHaveBeenCalledWith(
+      //   punycodeOrigin,
+      // );
+      expect(result).toStrictEqual({
+        name: 'test-config',
+        result: true,
+        type: 'requestBlocklist',
+        version: '1',
+      });
+    });
+
+    // it('should handle internationalized domain names correctly', () => {
+    //   const origin = 'https://xn--fsq.com';
+    //   const punycodeOrigin = toASCII(origin);
+
+    //   detectorMock.isMaliciousRequestDomain.mockReturnValue({
+    //     name: 'test-config',
+    //     result: true,
+    //     type: 'requestBlocklist',
+    //     version: '1',
+    //   });
+
+    //   const result = controller.isBlockedRequest(origin);
+
+    //   expect(detectorMock.isMaliciousRequestDomain).toHaveBeenCalledWith(
+    //     punycodeOrigin,
+    //   );
+    //   expect(result).toStrictEqual({
+    //     name: 'test-config',
+    //     result: true,
+    //     type: 'requestBlocklist',
+    //     version: '1',
+    //   });
+    // });
+
+    it('should return the correct result from isMaliciousRequestDomain', () => {
+      const origin = 'https://example.com';
+      const punycodeOrigin = toASCII(origin);
+
+      const mockResult: EthPhishingDetectResult = {
+        result: false,
+        type: 'requestBlocklist',
+      };
+
+      const controller = getPhishingController();
+
+      const result = controller.isBlockedRequest(punycodeOrigin);
+
+      expect(result).toStrictEqual(mockResult);
+    });
   });
 
   describe('maybeUpdateState', () => {
