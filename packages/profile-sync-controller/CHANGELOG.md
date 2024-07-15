@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Switch ethers to a devDependency ([#4518](https://github.com/MetaMask/core/pull/4518))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
 
 ## [0.1.2]
 
