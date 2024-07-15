@@ -285,7 +285,7 @@ describe('sha256Hash', () => {
     const domain = 'develop.d3bkcslj57l47p.Amplifyapp.com';
     const expectedHash =
       '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455'; // Hash of 'example.com' as SHA-256 should be case-insensitive
-    const hash = sha256Hash(domain.toLowerCase());
+    const hash = sha256Hash(domain);
     expect(hash).toBe(expectedHash);
   });
 });

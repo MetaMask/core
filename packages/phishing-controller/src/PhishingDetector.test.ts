@@ -1037,12 +1037,41 @@ describe('PhishingDetector', () => {
       });
     });
 
+    it('should call sha256Hash and check the hash against requestBlocklist, returning the correct result without a version', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: [
+            '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+          ],
+          name: 'test-config',
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isMaliciousRequestDomain(
+        'https://develop.d3bkcslj57l47p.amplifyapp.com',
+      );
+
+      // Check that the function returns the correct result
+      expect(result).toStrictEqual({
+        name: 'test-config',
+        result: true,
+        type: 'requestBlocklist',
+        version: undefined,
+      });
+    });
+
     it('should return false if URL is invalid', () => {
       const config: PhishingDetectorOptions = [
         {
           blocklist: [],
           fuzzylist: [],
-          requestBlocklist: ['hash-example.com'],
+          requestBlocklist: [
+            '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+          ],
           name: 'test-config',
           version: 1,
           tolerance: 2,
@@ -1050,13 +1079,11 @@ describe('PhishingDetector', () => {
       ];
 
       detector = new PhishingDetector(config);
-      const result = detector.isMaliciousRequestDomain('invalid-urlllll');
+      const result = detector.isMaliciousRequestDomain('#$@(%&@#$(%');
 
       expect(result).toStrictEqual({
-        name: 'test-config',
         result: false,
         type: 'requestBlocklist',
-        version: '1',
       });
     });
 
@@ -1103,10 +1130,8 @@ describe('PhishingDetector', () => {
       const result = detector.isMaliciousRequestDomain('https://example.com');
 
       expect(result).toStrictEqual({
-        name: 'test-config',
         result: false,
         type: 'requestBlocklist',
-        version: '1',
       });
     });
 

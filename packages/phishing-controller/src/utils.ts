@@ -1,7 +1,4 @@
-/* eslint-disable import/no-extraneous-dependencies */
-// eslint-disable-next-line n/no-extraneous-import
 import { sha256 } from 'ethereum-cryptography/sha256';
-// eslint-disable-next-line n/no-extraneous-import
 import { toHex } from 'ethereum-cryptography/utils';
 
 import type {
@@ -241,6 +238,6 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
  * @returns The SHA-256 hash of the domain.
  */
 export function sha256Hash(domain: string): string {
-  const hashBuffer = sha256(new TextEncoder().encode(domain));
+  const hashBuffer = sha256(new TextEncoder().encode(domain.toLowerCase()));
   return toHex(hashBuffer);
 }
