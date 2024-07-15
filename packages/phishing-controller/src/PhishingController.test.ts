@@ -993,6 +993,8 @@ describe('PhishingController', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
       const exampleBlockedUrl = 'https://example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlOne =
         'https://another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
@@ -1035,6 +1037,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
+          requestBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
@@ -1044,6 +1047,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          requestBlocklist: [],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 1,
@@ -1056,6 +1060,8 @@ describe('PhishingController', () => {
     it('should update lists with removal diff from hotlist', async () => {
       sinon.useFakeTimers(2);
       const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
@@ -1102,6 +1108,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
+          requestBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1110,6 +1117,7 @@ describe('PhishingController', () => {
         },
         {
           blocklist: [],
+          requestBlocklist: [],
           allowlist: [],
           fuzzylist: [],
           tolerance: 0,
@@ -1133,6 +1141,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
+              requestBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1148,6 +1157,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          requestBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1170,6 +1180,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
+              requestBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1185,6 +1196,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          requestBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1311,6 +1323,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
+              requestBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1326,6 +1339,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
+          requestBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1345,6 +1359,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
+              requestBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,

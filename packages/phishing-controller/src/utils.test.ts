@@ -8,13 +8,17 @@ import {
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
+  sha256Hash,
   validateConfig,
 } from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
 const exampleBlockedUrlTwo = 'https://final-example-blocked-website.com';
+const exampleRequestBlocklistHashOne =
+  '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 const exampleBlocklist = [exampleBlockedUrl, exampleBlockedUrlOne];
+const emaampleRequestBlocklist = [exampleRequestBlocklistHashOne];
 
 const exampleAllowUrl = 'https://example-allowlist-item.com';
 const exampleFuzzyUrl = 'https://example-fuzzylist-item.com';
@@ -22,6 +26,7 @@ const exampleAllowlist = [exampleAllowUrl];
 const exampleFuzzylist = [exampleFuzzyUrl];
 const exampleListState = {
   blocklist: exampleBlocklist,
+  requestBlocklist: emaampleRequestBlocklist,
   fuzzylist: exampleFuzzylist,
   tolerance: 2,
   allowlist: exampleAllowlist,
@@ -264,5 +269,23 @@ describe('matchPartsAgainstList', () => {
     const result = matchPartsAgainstList(domainParts, list);
 
     expect(result).toBeUndefined();
+  });
+});
+
+describe('sha256Hash', () => {
+  it('should generate the correct SHA-256 hash for a given domain', async () => {
+    const domain = 'develop.d3bkcslj57l47p.amplifyapp.com';
+    const expectedHash =
+      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455'; // Calculate or get this value from a reliable source
+    const hash = sha256Hash(domain);
+    expect(hash).toBe(expectedHash);
+  });
+
+  it('should generate the correct SHA-256 hash for a domain with uppercase letters', async () => {
+    const domain = 'develop.d3bkcslj57l47p.Amplifyapp.com';
+    const expectedHash =
+      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455'; // Hash of 'example.com' as SHA-256 should be case-insensitive
+    const hash = sha256Hash(domain.toLowerCase());
+    expect(hash).toBe(expectedHash);
   });
 });

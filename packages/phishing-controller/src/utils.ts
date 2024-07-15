@@ -1,3 +1,9 @@
+/* eslint-disable import/no-extraneous-dependencies */
+// eslint-disable-next-line n/no-extraneous-import
+import { sha256 } from 'ethereum-cryptography/sha256';
+// eslint-disable-next-line n/no-extraneous-import
+import { toHex } from 'ethereum-cryptography/utils';
+
 import type {
   Hotlist,
   ListKeys,
@@ -65,6 +71,7 @@ export const applyDiffs = (
     allowlist: new Set(listState.allowlist),
     blocklist: new Set(listState.blocklist),
     fuzzylist: new Set(listState.fuzzylist),
+    requestBlocklist: new Set(listState.requestBlocklist),
   };
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
@@ -79,6 +86,7 @@ export const applyDiffs = (
   }
 
   return {
+    requestBlocklist: Array.from(listSets.requestBlocklist),
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
@@ -152,6 +160,7 @@ export const processDomainList = (list: string[]) => {
  * @param override - the optional override for the configuration.
  * @param override.allowlist - the optional allowlist to override.
  * @param override.blocklist - the optional blocklist to override.
+ * @param override.requestBlocklist - the optional requestBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
@@ -164,6 +173,7 @@ export const getDefaultPhishingDetectorConfig = ({
 }: {
   allowlist?: string[];
   blocklist?: string[];
+  requestBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
 }): PhishingDetectorConfiguration => ({
@@ -223,3 +233,14 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
     return target.every((part, index) => source[index] === part);
   });
 };
+
+/**
+ * Generate the SHA-256 hash of a domain.
+ *
+ * @param domain - The domain to hash.
+ * @returns The SHA-256 hash of the domain.
+ */
+export function sha256Hash(domain: string): string {
+  const hashBuffer = sha256(new TextEncoder().encode(domain));
+  return toHex(hashBuffer);
+}

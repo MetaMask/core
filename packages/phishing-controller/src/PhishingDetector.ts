@@ -7,18 +7,22 @@ import {
   getDefaultPhishingDetectorConfig,
   matchPartsAgainstList,
   processConfigs,
+  sha256Hash,
 } from './utils';
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
   blacklist?: string[];
+  requestBlocklist?: string[];
 } & FuzzyTolerance;
 
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
+  requestBlocklist?: string[];
   name?: string;
   version?: string | number;
+  tolerance?: number;
 } & FuzzyTolerance;
 
 export type FuzzyTolerance =
@@ -40,6 +44,7 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
+  requestBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
 };
@@ -79,7 +84,14 @@ export type PhishingDetectorResult = {
    * configuration object.
    * - "all" means that the domain was not found in any list.
    */
-  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist' | 'blacklist' | 'whitelist';
+  type:
+    | 'all'
+    | 'fuzzy'
+    | 'blocklist'
+    | 'allowlist'
+    | 'blacklist'
+    | 'whitelist'
+    | 'requestBlocklist';
 };
 
 export class PhishingDetector {
@@ -108,6 +120,7 @@ export class PhishingDetector {
         getDefaultPhishingDetectorConfig({
           allowlist: opts.whitelist,
           blocklist: opts.blacklist,
+          requestBlocklist: opts.requestBlocklist,
           fuzzylist: opts.fuzzylist,
           tolerance: opts.tolerance,
         }),
@@ -203,5 +216,47 @@ export class PhishingDetector {
 
     // matched nothing, PASS
     return { result: false, type: 'all' };
+  }
+
+  /**
+   * Check if a URL is blocked against the request blocklist.
+   * This is checked against a hash of the URL's hostname.
+   *
+   * @param urlString - The URL to check.
+   * @returns An object indicating if the URL is blocked and the hash of the URL.
+   */
+  isBlocked(urlString: string): PhishingDetectorResult {
+    for (const { requestBlocklist, name, version } of this.#configs) {
+      // TODO: Need to come back to this - need to understand if I will always have a requestBlocklist
+      if (!requestBlocklist?.length) {
+        break;
+      }
+
+      let url;
+      try {
+        url = new URL(urlString);
+      } catch (error) {
+        return {
+          name,
+          result: false,
+          type: 'requestBlocklist',
+          version: version === undefined ? version : String(version),
+        };
+      }
+
+      const hash = sha256Hash(url.hostname.toLowerCase());
+      const blocked = requestBlocklist?.includes(hash) ?? false;
+
+      return {
+        name,
+        result: blocked,
+        type: 'requestBlocklist',
+        version: version === undefined ? version : String(version),
+      };
+    }
+    return {
+      result: false,
+      type: 'requestBlocklist',
+    };
   }
 }

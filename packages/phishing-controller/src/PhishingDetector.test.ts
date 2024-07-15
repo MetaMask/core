@@ -980,6 +980,197 @@ describe('PhishingDetector', () => {
       });
     });
   });
+
+  describe('PhishingDetector - isBlocked', () => {
+    let detector: PhishingDetector;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should return false if requestBlocklist is not defined or empty', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: [], // empty requestBlocklist
+          name: 'test-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked('https://example.com');
+
+      expect(result).toStrictEqual({
+        result: false,
+        type: 'requestBlocklist',
+      });
+    });
+
+    it('should call sha256Hash and check the hash against requestBlocklist, returning the correct result', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: [
+            '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+          ],
+          name: 'test-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked(
+        'https://develop.d3bkcslj57l47p.amplifyapp.com',
+      );
+
+      // Check that the function returns the correct result
+      expect(result).toStrictEqual({
+        name: 'test-config',
+        result: true,
+        type: 'requestBlocklist',
+        version: '1',
+      });
+    });
+
+    it('should return false if URL is invalid', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: ['hash-example.com'],
+          name: 'test-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked('invalid-urlllll');
+
+      expect(result).toStrictEqual({
+        name: 'test-config',
+        result: false,
+        type: 'requestBlocklist',
+        version: '1',
+      });
+    });
+
+    it('should return true if URL is in the requestBlocklist', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: [
+            '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+          ],
+          name: 'test-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked(
+        'https://develop.d3bkcslj57l47p.amplifyapp.com',
+      );
+
+      expect(result).toStrictEqual({
+        name: 'test-config',
+        result: true,
+        type: 'requestBlocklist',
+        version: '1',
+      });
+    });
+
+    it('should return false if URL is not in the requestBlocklist', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: ['hash-other.com'],
+          name: 'test-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked('https://example.com');
+
+      expect(result).toStrictEqual({
+        name: 'test-config',
+        result: false,
+        type: 'requestBlocklist',
+        version: '1',
+      });
+    });
+
+    it('should check all configs and return the result from the first matching config', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: [
+            '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+          ],
+          name: 'first-config',
+          version: 1,
+          tolerance: 2,
+        },
+        {
+          blocklist: [],
+          fuzzylist: [],
+          requestBlocklist: [],
+          name: 'second-config',
+          version: 2,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked(
+        'https://develop.d3bkcslj57l47p.amplifyapp.com',
+      );
+
+      expect(result).toStrictEqual({
+        name: 'first-config',
+        result: true,
+        type: 'requestBlocklist',
+        version: '1',
+      });
+    });
+    it('should return false with type "all" if no configs have a valid requestBlocklist', () => {
+      const config: PhishingDetectorOptions = [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          name: 'first-config',
+          version: 1,
+          tolerance: 2,
+        },
+        {
+          blocklist: [],
+          fuzzylist: [],
+          name: 'second-config',
+          version: 2,
+          tolerance: 2,
+        },
+      ];
+
+      detector = new PhishingDetector(config);
+      const result = detector.isBlocked('https://example.com');
+
+      expect(result).toStrictEqual({
+        result: false,
+        type: 'requestBlocklist',
+      });
+    });
+  });
 });
 
 type WithPhishingDetectorCallback<ReturnValue> = ({

@@ -24,7 +24,11 @@ export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_
  *
  * Type outlining the types of lists provided by aggregating different source lists
  */
-export type ListTypes = 'fuzzylist' | 'blocklist' | 'allowlist';
+export type ListTypes =
+  | 'fuzzylist'
+  | 'blocklist'
+  | 'allowlist'
+  | 'requestBlocklist';
 
 /**
  * @type EthPhishingResponse
@@ -73,6 +77,7 @@ export type PhishingStalelist = {
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property requestBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
@@ -82,6 +87,7 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
+  requestBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;
   version: number;
@@ -295,6 +301,8 @@ export class PhishingController extends BaseController<
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
+    // eslint-disable-next-line no-void
+    // void this.fetchHashedRequestBlocklist(); // Initialize blocklist on construction
   }
 
   /**
@@ -404,6 +412,14 @@ export class PhishingController extends BaseController<
     return this.#detector.check(punycodeOrigin);
   }
 
+  // Call isBlocked function
+
+  isBlockedRequest(origin: string): EthPhishingDetectResult {
+    const punycodeOrigin = toASCII(origin);
+
+    return this.#detector.isBlocked(punycodeOrigin);
+  }
+
   /**
    * Temporarily marks a given origin as approved.
    *
@@ -469,10 +485,21 @@ export class PhishingController extends BaseController<
   async #updateStalelist() {
     let stalelistResponse;
     let hotlistDiffsResponse;
+    let requestBlocklistResponse;
     try {
       stalelistResponse = await this.#queryConfig<
         DataResultWrapper<PhishingStalelist>
       >(METAMASK_STALELIST_URL).then((d) => d);
+
+      // TODO: implement this
+
+      // requestBlocklistResponse = await fetch(
+      //   'https://api.walletguard.app/extension/v0/requests-blocklist',
+      // ).then((response) => response.json());
+
+      requestBlocklistResponse = [
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+      ];
 
       // Fetching hotlist diffs relies on having a lastUpdated timestamp to do `GET /v1/diffsSince/:timestamp`,
       // so it doesn't make sense to call if there is not a timestamp to begin with.
@@ -491,7 +518,11 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (!stalelistResponse || !hotlistDiffsResponse) {
+    if (
+      !stalelistResponse ||
+      !hotlistDiffsResponse ||
+      !requestBlocklistResponse
+    ) {
       return;
     }
 
@@ -510,6 +541,7 @@ export class PhishingController extends BaseController<
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
+      requestBlocklist: requestBlocklistResponse,
       name: phishingListKeyNameMap.eth_phishing_detect_config,
     };
     // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
