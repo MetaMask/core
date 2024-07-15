@@ -14,10 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add optional `topBid` property to the `NftMetadata` type. This property must be of type `TopBid`. ([#4522](https://github.com/MetaMask/core/pull/4522))
 - Add optional `floorAsk` property to the `TokenCollection` type. This property must be of type `FloorAskCollection`. ([#4522](https://github.com/MetaMask/core/pull/4522))
 - Add linea mainnet support to nft detection supported networks ([#4515](https://github.com/MetaMask/core/pull/4515))
-- Fetch NFT collections data from the NFT-API `getCollections` API when calling the `detectNfts` method of `NftDetectionController`, and the `updateNftMetadata` and `watchNft` methods of `NftController`. ([#4443](https://github.com/MetaMask/core/pull/4443))
+- The `Collection` type is expanded to include the following 'string'-type optional properties: `contractDeployedAt`, `creator`, `ownerCount`, and an optional property `topBid` of the type `TopBid & { sourceDomain?: string; }`. ([#4443](https://github.com/MetaMask/core/pull/4443))
 
 ### Changed
 
+- Fetch NFT collections data from the OpenSea API `Get Collections` endpoint when calling the `detectNfts` method of `NftDetectionController`, and the `updateNftMetadata` and `watchNft` methods of `NftController`. ([#4443](https://github.com/MetaMask/core/pull/4443))
 - Bump `@metamask/utils` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
 - Bump `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
 
