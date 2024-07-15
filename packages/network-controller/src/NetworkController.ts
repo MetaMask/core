@@ -120,7 +120,6 @@ export type InfuraRpcEndpoint = {
    * `{infuraProjectId}`, which will get replaced with the Infura project ID
    * when the network client is created.
    */
-  // TODO: Link this to networkClientId
   url: `https://${InfuraNetworkType}.infura.io/v3/{infuraProjectId}`;
 };
 
