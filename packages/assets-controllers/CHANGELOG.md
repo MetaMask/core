@@ -9,13 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [35.1.0]
 
-### Uncategorized
+### Added
 
-- fix: fix types ([#4522](https://github.com/MetaMask/core/pull/4522))
-- fix: add linea mainnet to nft detection supported networks ([#4515](https://github.com/MetaMask/core/pull/4515))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
-- chore(deps): Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
-- feat: add call to getCollection to get more collection data ([#4443](https://github.com/MetaMask/core/pull/4443))
+- Added optional `topBid` type in `NftMetadata` ([#4522](https://github.com/MetaMask/core/pull/4522))
+- Added optional `floorAsk` in `TokenCollection` type ([#4522](https://github.com/MetaMask/core/pull/4522))
+- Added linea mainnet support to nft detection supported networks ([#4515](https://github.com/MetaMask/core/pull/4515))
+- Added a batch call to get collections API in detectNfts function ([#4443](https://github.com/MetaMask/core/pull/4443))
+- Added a call to get collections API inside getNftInformationFromApi ([#4443](https://github.com/MetaMask/core/pull/4443))
+
+### Changed
+
+- Changed attributes type in `NftMetadata` to `Attributes[]` ([#4522](https://github.com/MetaMask/core/pull/4522))
+- Bump `@metamask/utils` to `^9.0.0` ([#4508](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/rpc-errors` to `^6.3.1` ([#4498](https://github.com/MetaMask/core/pull/4516))
 
 ## [35.0.0]
 
