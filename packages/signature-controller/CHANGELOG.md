@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
-- chore(deps): Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- Release 161.0.0 ([#4413](https://github.com/MetaMask/core/pull/4413))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
-
 ## [18.0.0]
 
 ### Changed
