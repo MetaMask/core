@@ -4830,7 +4830,6 @@ describe('NftController', () => {
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
   });
 
-
   describe('getNFTContractInfo', () => {
     it('fetches NFT collections metadata successfully', async () => {
       nock(NFT_API_BASE_URL)
