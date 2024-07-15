@@ -2012,7 +2012,11 @@ export class NftController extends BaseController<
       url.searchParams.append('contract', address);
     }
 
-    return await handleFetch(url);
+    return await handleFetch(url, {
+      headers: {
+        Version: NFT_API_VERSION,
+      },
+    });
   }
 
   async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {
