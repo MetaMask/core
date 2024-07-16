@@ -657,16 +657,25 @@ describe('NftController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValue({});
+        // 2. `AssetsContractController:getERC721OwnerOf`
+        .mockResolvedValueOnce(OWNER_ADDRESS)
+        // 3. `AssetsContractController:getERC721TokenURI`
+        .mockResolvedValueOnce('https://testtokenuri.com')
+        // 4. `ApprovalController:addRequest`
+        .mockResolvedValueOnce({})
+        // 5. `AccountsController:getAccount`
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        // 6. `AssetsContractController:getERC721AssetName`
+        .mockResolvedValueOnce('testERC721Name')
+        // 7. `AssetsContractController:getERC721AssetSymbol`
+        .mockResolvedValueOnce('testERC721Symbol');
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is `AccountsController:getAccount`
-      // Fifth call is `ApprovalController:addRequest`
-      // Sixth call is `AccountsController:getAccount`
-      expect(callActionSpy).toHaveBeenCalledTimes(6);
+      expect(callActionSpy).toHaveBeenCalledTimes(7);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
+        4,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -727,16 +736,25 @@ describe('NftController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValue({});
+        // 2. `AssetsContractController:getERC721OwnerOf`
+        .mockResolvedValueOnce(OWNER_ADDRESS)
+        // 3. `AssetsContractController:getERC721TokenURI`
+        .mockResolvedValueOnce('https://testtokenuri.com')
+        // 4. `ApprovalController:addRequest`
+        .mockResolvedValueOnce({})
+        // 5. `AccountsController:getAccount`
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        // 6. `AssetsContractController:getERC721AssetName`
+        .mockResolvedValueOnce('testERC721Name')
+        // 7. `AssetsContractController:getERC721AssetSymbol`
+        .mockResolvedValueOnce('testERC721Symbol');
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is `AccountsController:getAccount`
-      // Fifth call is `ApprovalController:addRequest`
-      // Sixth call is `AccountsController:getAccount`
-      expect(callActionSpy).toHaveBeenCalledTimes(6);
+      expect(callActionSpy).toHaveBeenCalledTimes(7);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
+        4,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -797,16 +815,25 @@ describe('NftController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValue({});
+        // 2. `AssetsContractController:getERC721OwnerOf`
+        .mockResolvedValueOnce(OWNER_ADDRESS)
+        // 3. `AssetsContractController:getERC721TokenURI`
+        .mockResolvedValueOnce('https://testtokenuri.com')
+        // 4. `ApprovalController:addRequest`
+        .mockResolvedValueOnce({})
+        // 5. `AccountsController:getAccount`
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        // 6. `AssetsContractController:getERC721AssetName`
+        .mockResolvedValueOnce('testERC721Name')
+        // 7. `AssetsContractController:getERC721AssetSymbol`
+        .mockResolvedValueOnce('testERC721Symbol');
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is `AccountsController:getAccount`
-      // Fifth call is `ApprovalController:addRequest`
-      // Sixth call is `AccountsController:getAccount`
-      expect(callActionSpy).toHaveBeenCalledTimes(6);
+      expect(callActionSpy).toHaveBeenCalledTimes(7);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
+        4,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -868,16 +895,25 @@ describe('NftController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValue({});
+        // 2. `AssetsContractController:getERC721OwnerOf`
+        .mockResolvedValueOnce(OWNER_ADDRESS)
+        // 3. `AssetsContractController:getERC721TokenURI`
+        .mockResolvedValueOnce('https://testtokenuri.com')
+        // 4. `ApprovalController:addRequest`
+        .mockResolvedValueOnce({})
+        // 5. `AccountsController:getAccount`
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        // 6. `AssetsContractController:getERC721AssetName`
+        .mockResolvedValueOnce('testERC721Name')
+        // 7. `AssetsContractController:getERC721AssetSymbol`
+        .mockResolvedValueOnce('testERC721Symbol');
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is `AccountsController:getAccount`
-      // Fifth call is `ApprovalController:addRequest`
-      // Sixth call is `AccountsController:getAccount`
-      expect(callActionSpy).toHaveBeenCalledTimes(6);
+      expect(callActionSpy).toHaveBeenCalledTimes(7);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
+        4,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -888,9 +924,9 @@ describe('NftController', () => {
             interactingAddress: OWNER_ADDRESS,
             asset: {
               ...ERC721_NFT,
-              description: null,
-              image: null,
-              name: null,
+              description: 'testERC721Description',
+              image: 'testERC721Image',
+              name: 'testERC721Name',
               standard: ERC721,
             },
           },
@@ -942,20 +978,33 @@ describe('NftController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValue({});
+        // 2. `AssetsContractController:getERC721OwnerOf`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
+        // 3. `AssetsContractController:getERC1155BalanceOf`
+        .mockResolvedValueOnce(new BN(1))
+        // 4. `AssetsContractController:getERC721TokenURI`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
+        // 5. `AssetsContractController:getERC1155TokenURI`
+        .mockResolvedValueOnce('https://testtokenuri.com')
+        // 6. `ApprovalController:addRequest`
+        .mockResolvedValueOnce({})
+        // 7. `AccountsController:getAccount`
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        // 8. `AssetsContractController:getERC1155AssetName`
+        .mockResolvedValueOnce('testERC1155Name')
+        // 9. `AssetsContractController:getERC1155AssetSymbol`
+        .mockResolvedValueOnce('testERC1155Symbol');
 
       await nftController.watchNft(
         ERC1155_NFT,
         ERC1155,
         'https://etherscan.io',
       );
-      // First call is `AccountsController:getAccount`
-      // Fifth call is `ApprovalController:addRequest`
-      // Sixth call is `AccountsController:getAccount`
-      expect(callActionSpy).toHaveBeenCalledTimes(6);
+      expect(callActionSpy).toHaveBeenCalledTimes(9);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
+        6,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -1014,20 +1063,34 @@ describe('NftController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
+        // 1. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValue({});
+        // 2. `AssetsContractController:getERC721OwnerOf`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
+        // 3. `AssetsContractController:getERC1155BalanceOf`
+        .mockResolvedValueOnce(new BN(1))
+        // 4. `AssetsContractController:getERC721TokenURI`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
+        // 5. `AssetsContractController:getERC1155TokenURI`
+        .mockResolvedValueOnce('https://testtokenuri.com')
+        // 6. `ApprovalController:addRequest`
+        .mockResolvedValueOnce({})
+        // 7. `AccountsController:getAccount`
+        .mockReturnValueOnce(OWNER_ACCOUNT)
+        // 8. `AssetsContractController:getERC1155AssetName`
+        .mockResolvedValueOnce('testERC1155Name')
+        // 9. `AssetsContractController:getERC1155AssetSymbol`
+        .mockResolvedValueOnce('testERC1155Symbol');
 
       await nftController.watchNft(
         ERC1155_NFT,
         ERC1155,
         'https://etherscan.io',
       );
-      // First call is `AccountsController:getAccount`
-      // Fifth call is `ApprovalController:addRequest`
-      // Sixth call is `AccountsController:getAccount`
-      expect(callActionSpy).toHaveBeenCalledTimes(6);
+
+      expect(callActionSpy).toHaveBeenCalledTimes(9);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        5,
+        6,
         'ApprovalController:addRequest',
         {
           id: requestId,
