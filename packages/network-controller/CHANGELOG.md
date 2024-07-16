@@ -25,10 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Replace `NetworkConfiguration` type with a new definition ([#4268](https://github.com/MetaMask/core/pull/4286))
   - A network configuration no longer represents a single RPC endpoint but rather a collection of RPC endpoints that can all be used to interface with a single chain.
-  - The only property that has been retained on this type is `chainId`.
+  - The only property that has brought over to this type unchanged is `chainId`.
   - `ticker` has been renamed to `nativeCurrency`.
   - `nickname` has been renamed to `name`.
-  - `rpcEndpoints` has been added as well. This is an an array of objects, where each object has properties `name` (optional), `networkClientId` (optional), `type`, and `url`.
+  - `rpcEndpoints` has been added. This is an an array of objects, where each object has properties `name` (optional), `networkClientId` (optional), `type`, and `url`.
   - `defaultRpcEndpointIndex` has been added. This must point to an entry in `rpcEndpoints`.
   - The block explorer URL is no longer located in `rpcPrefs` and is no longer restricted to one: `blockExplorerUrls` has been added along with a corresponding property `defaultBlockExplorerUrlIndex`, which must point to an entry in `blockExplorerUrls`.
   - `id` has been removed. Previously, this represented the ID of the network client associated with the network configuration. Since network clients are now created from RPC endpoints, the equivalent to this is the `networkClientId` property on an `RpcEndpoint`.
@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `networkConfigurationsByChainId` cannot be empty.
   - The `chainId` of a network configuration in `networkConfigurationsByChainId` must match the chain ID it is filed under.
   - The `defaultRpcEndpointIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `rpcEndpoints`.
+  - The `defaultBlockExplorerUrlIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `blockExplorerUrls`.
   - `selectedNetworkClientId` must match the `networkClientId` of an RPC endpoint in `networkConfigurationsByChainId`.
 - **BREAKING:** Update `getNetworkConfigurationByNetworkClientId` so that when given an Infura network name (that is, a value from `InfuraNetworkType`), it will return a masked version of the RPC endpoint URL for the associated Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
   - If you want the unmasked version, you'll need the `url` property from the network _client_ configuration, which you can get by calling `getNetworkClientById` and then accessing the `configuration` property off of the network client.
