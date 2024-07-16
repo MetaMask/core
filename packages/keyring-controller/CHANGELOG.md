@@ -9,12 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.1.1]
 
-### Uncategorized
+### Changed
 
-- fix: clear encryption salt and key ([#4514](https://github.com/MetaMask/core.git/pull/4514))
-- chore(keyring-controller): Improve `createNewVaultAndKeychain` tests and docs ([#4520](https://github.com/MetaMask/core.git/pull/4520))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core.git/pull/4517))
-- chore(deps): Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core.git/pull/4516))
+- Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core.git/pull/4516))
+
+### Fixed
+
+- Clear encryption salt and key in `setLocked` and `#createNewVaultWithKeyring` to ensure that encryption key is always generated with the latest password ([#4514](https://github.com/MetaMask/core.git/pull/4514))
 
 ## [17.1.0]
 
@@ -506,39 +507,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@17.1.1...HEAD
-[17.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@17.1.0...@metamask/keyring-controller@17.1.1
-[17.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@17.0.0...@metamask/keyring-controller@17.1.0
-[17.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@16.1.0...@metamask/keyring-controller@17.0.0
-[16.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@16.0.0...@metamask/keyring-controller@16.1.0
-[16.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@15.0.0...@metamask/keyring-controller@16.0.0
-[15.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
-[14.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
-[14.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
-[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
-[12.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0
-[12.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@12.0.0...@metamask/keyring-controller@12.1.0
-[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@11.0.0...@metamask/keyring-controller@12.0.0
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@10.0.0...@metamask/keyring-controller@11.0.0
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@9.0.0...@metamask/keyring-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@8.1.0...@metamask/keyring-controller@9.0.0
-[8.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@8.0.3...@metamask/keyring-controller@8.1.0
-[8.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
-[8.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2
-[8.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@8.0.0...@metamask/keyring-controller@8.0.1
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@7.5.0...@metamask/keyring-controller@8.0.0
-[7.5.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@7.4.0...@metamask/keyring-controller@7.5.0
-[7.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@7.3.0...@metamask/keyring-controller@7.4.0
-[7.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@7.2.0...@metamask/keyring-controller@7.3.0
-[7.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@7.1.0...@metamask/keyring-controller@7.2.0
-[7.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@7.0.0...@metamask/keyring-controller@7.1.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@6.1.0...@metamask/keyring-controller@7.0.0
-[6.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@6.0.0...@metamask/keyring-controller@6.1.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@5.1.0...@metamask/keyring-controller@6.0.0
-[5.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@5.0.0...@metamask/keyring-controller@5.1.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@2.0.0...@metamask/keyring-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/keyring-controller@1.0.0...@metamask/keyring-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/keyring-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.1...HEAD
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.0...@metamask/keyring-controller@17.1.1
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...@metamask/keyring-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.1.0...@metamask/keyring-controller@17.0.0
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...@metamask/keyring-controller@16.1.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...@metamask/keyring-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.0.0...@metamask/keyring-controller@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@11.0.0...@metamask/keyring-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@10.0.0...@metamask/keyring-controller@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@9.0.0...@metamask/keyring-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.1.0...@metamask/keyring-controller@9.0.0
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.3...@metamask/keyring-controller@8.1.0
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.2...@metamask/keyring-controller@8.0.3
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.1...@metamask/keyring-controller@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@8.0.0...@metamask/keyring-controller@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.5.0...@metamask/keyring-controller@8.0.0
+[7.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.4.0...@metamask/keyring-controller@7.5.0
+[7.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.3.0...@metamask/keyring-controller@7.4.0
+[7.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.2.0...@metamask/keyring-controller@7.3.0
+[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.1.0...@metamask/keyring-controller@7.2.0
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@7.0.0...@metamask/keyring-controller@7.1.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.1.0...@metamask/keyring-controller@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@6.0.0...@metamask/keyring-controller@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.1.0...@metamask/keyring-controller@6.0.0
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@5.0.0...@metamask/keyring-controller@5.1.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@4.0.0...@metamask/keyring-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@3.0.0...@metamask/keyring-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@2.0.0...@metamask/keyring-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.1...@metamask/keyring-controller@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@1.0.0...@metamask/keyring-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/keyring-controller@1.0.0
