@@ -1989,7 +1989,7 @@ export class NftController extends BaseController<
             name: suggestedNftMeta.asset.name,
             description: suggestedNftMeta.asset.description,
             image: suggestedNftMeta.asset.image,
-            standard: suggestedNftMeta.asset.standard,
+            standard: suggestedNftMeta.asset.standard ?? suggestedNftMeta.type,
           },
         },
       },
