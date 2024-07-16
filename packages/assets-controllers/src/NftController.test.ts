@@ -1280,6 +1280,8 @@ describe('NftController', () => {
       const requestId = 'approval-request-id-1';
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
+      // Awaiting `expect` as recommended by eslint results in this test stalling and timing out.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises, jest/valid-expect
       expect(
         async () =>
           await nftController.watchNft(
