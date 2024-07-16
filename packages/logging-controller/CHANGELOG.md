@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core.git/pull/4517))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core.git/pull/4417))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core.git/pull/4382))
-
 ## [5.0.0]
 
 ### Changed
@@ -112,17 +106,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial Release
   - Add logging controller ([#1089](https://github.com/MetaMask/core.git/pull/1089))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@5.0.0...HEAD
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@4.0.0...@metamask/logging-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@3.0.1...@metamask/logging-controller@4.0.0
-[3.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@3.0.0...@metamask/logging-controller@3.0.1
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@2.0.3...@metamask/logging-controller@3.0.0
-[2.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@2.0.2...@metamask/logging-controller@2.0.3
-[2.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@2.0.1...@metamask/logging-controller@2.0.2
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@2.0.0...@metamask/logging-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@1.0.4...@metamask/logging-controller@2.0.0
-[1.0.4]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@1.0.3...@metamask/logging-controller@1.0.4
-[1.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@1.0.2...@metamask/logging-controller@1.0.3
-[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@1.0.1...@metamask/logging-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/logging-controller@1.0.0...@metamask/logging-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/logging-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@4.0.0...@metamask/logging-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.1...@metamask/logging-controller@4.0.0
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@3.0.0...@metamask/logging-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.3...@metamask/logging-controller@3.0.0
+[2.0.3]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.2...@metamask/logging-controller@2.0.3
+[2.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.1...@metamask/logging-controller@2.0.2
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@2.0.0...@metamask/logging-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.4...@metamask/logging-controller@2.0.0
+[1.0.4]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.3...@metamask/logging-controller@1.0.4
+[1.0.3]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.2...@metamask/logging-controller@1.0.3
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.1...@metamask/logging-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/logging-controller@1.0.0...@metamask/logging-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/logging-controller@1.0.0

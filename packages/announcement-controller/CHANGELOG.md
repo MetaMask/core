@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core.git/pull/4517))
-
 ## [7.0.0]
 
 ### Changed
@@ -146,21 +142,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@7.0.0...HEAD
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@6.1.1...@metamask/announcement-controller@7.0.0
-[6.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@6.1.0...@metamask/announcement-controller@6.1.1
-[6.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@6.0.1...@metamask/announcement-controller@6.1.0
-[6.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@6.0.0...@metamask/announcement-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@5.0.2...@metamask/announcement-controller@6.0.0
-[5.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@5.0.1...@metamask/announcement-controller@5.0.2
-[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@5.0.0...@metamask/announcement-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@4.0.3...@metamask/announcement-controller@5.0.0
-[4.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@4.0.2...@metamask/announcement-controller@4.0.3
-[4.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@4.0.1...@metamask/announcement-controller@4.0.2
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@4.0.0...@metamask/announcement-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@3.0.0...@metamask/announcement-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@2.0.1...@metamask/announcement-controller@3.0.0
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@2.0.0...@metamask/announcement-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@1.0.1...@metamask/announcement-controller@2.0.0
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/announcement-controller@1.0.0...@metamask/announcement-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/announcement-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.1...@metamask/announcement-controller@7.0.0
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.0...@metamask/announcement-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.0.1...@metamask/announcement-controller@6.1.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.0.0...@metamask/announcement-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.2...@metamask/announcement-controller@6.0.0
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.1...@metamask/announcement-controller@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.0...@metamask/announcement-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.3...@metamask/announcement-controller@5.0.0
+[4.0.3]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.2...@metamask/announcement-controller@4.0.3
+[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.1...@metamask/announcement-controller@4.0.2
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.0...@metamask/announcement-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@3.0.0...@metamask/announcement-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@2.0.1...@metamask/announcement-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@2.0.0...@metamask/announcement-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@1.0.1...@metamask/announcement-controller@2.0.0
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@1.0.0...@metamask/announcement-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/announcement-controller@1.0.0
