@@ -11,13 +11,14 @@ import HttpProvider from '@metamask/ethjs-provider-http';
 import type {
   Provider,
   NetworkClientId,
-  NetworkControllerEvents,
   NetworkControllerActions,
+  NetworkControllerEvents,
 } from '@metamask/network-controller';
 import {
   NetworkController,
   NetworkClientType,
 } from '@metamask/network-controller';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
@@ -60,7 +61,7 @@ const TEST_ACCOUNT_PUBLIC_ADDRESS =
  */
 async function setupAssetContractControllers({
   options,
-  useNetworkControllerProvider,
+  useNetworkControllerProvider = false,
   infuraProjectId = '341eacb578dd44a1a049cbc5f6fd4035',
 }: {
   options?: Partial<
@@ -86,14 +87,13 @@ async function setupAssetContractControllers({
     | AssetsContractControllerEvents
     | AssetsContractAllowedEvents
   >();
-  const networkMessenger = controllerMessenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: [],
-    allowedEvents: [],
-  });
   const networkController = new NetworkController({
     infuraProjectId,
-    messenger: networkMessenger,
+    messenger: controllerMessenger.getRestricted({
+      name: 'NetworkController',
+      allowedActions: [],
+      allowedEvents: [],
+    }),
     trackMetaMetricsEvent: jest.fn(),
   });
   if (useNetworkControllerProvider) {
@@ -113,14 +113,12 @@ async function setupAssetContractControllers({
   controllerMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
     // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
-    (networkClientId: NetworkClientId) => {
-      return useNetworkControllerProvider
-        ? networkController.getNetworkClientById.bind(networkController)
-        : {
-            ...networkController.getNetworkClientById(networkClientId),
-            provider,
-          };
-    },
+    useNetworkControllerProvider
+      ? networkController.getNetworkClientById.bind(networkController)
+      : (networkClientId: NetworkClientId) => ({
+          ...networkController.getNetworkClientById(networkClientId),
+          provider,
+        }),
   );
 
   const assetsContractMessenger = controllerMessenger.getRestricted({
@@ -149,6 +147,13 @@ async function setupAssetContractControllers({
     provider,
     networkClientConfiguration,
     infuraProjectId,
+    triggerPreferencesStateChange: (state: PreferencesState) => {
+      controllerMessenger.publish(
+        'PreferencesController:stateChange',
+        state,
+        [],
+      );
+    },
   };
 }
 
