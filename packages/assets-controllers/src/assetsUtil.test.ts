@@ -161,6 +161,92 @@ describe('assetsUtil', () => {
     });
   });
 
+  describe('hasNewCollectionFields', () => {
+    let baseNftMetadata: NftMetadata;
+    let baseNft: Nft;
+
+    beforeEach(() => {
+      baseNftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
+
+      baseNft = {
+        ...baseNftMetadata,
+        address: 'address',
+        tokenId: '123',
+      };
+    });
+    it('should return false if both objects do not have collection', () => {
+      const different = assetsUtil.hasNewCollectionFields(
+        baseNftMetadata,
+        baseNft,
+      );
+      expect(different).toBe(false);
+    });
+
+    it('should return false if existing object has collection and new nft metadata object does not', () => {
+      const different = assetsUtil.hasNewCollectionFields(baseNftMetadata, {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      });
+      expect(different).toBe(false);
+    });
+
+    it('should return false if both objects has the same keys', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
+    });
+
+    it('should return true if new nft metadata object has keys that do not exist in the existing NFT', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          tokenCount: '5555',
+          ownerCount: '555',
+          contractDeployedAt: 'timestamp',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(true);
+    });
+  });
+
   describe('isTokenDetectionSupportedForNetwork', () => {
     it('returns true for Mainnet', () => {
       expect(

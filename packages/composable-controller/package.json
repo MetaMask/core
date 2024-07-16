@@ -41,11 +41,11 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.0"
+    "@metamask/base-controller": "^6.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^9.0.0",
+    "@metamask/json-rpc-engine": "^9.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
