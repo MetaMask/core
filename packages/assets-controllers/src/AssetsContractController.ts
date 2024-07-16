@@ -8,6 +8,9 @@ import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetSelectedNetworkClientAction,
+  NetworkControllerGetStateAction,
   NetworkControllerNetworkDidChangeEvent,
   Provider,
 } from '@metamask/network-controller';
@@ -147,7 +150,11 @@ export type AssetsContractControllerGetBalancesInSingleCallAction =
 
 export type AssetsContractControllerEvents = never;
 
-export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+export type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetStateAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -235,12 +242,7 @@ export class AssetsContractController {
     this.messagingSystem.subscribe(
       `NetworkController:networkDidChange`,
       ({ selectedNetworkClientId }) => {
-        const {
-          configuration: { chainId },
-        } = this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          selectedNetworkClientId,
-        );
+        const chainId = this.#getCorrectChainId(selectedNetworkClientId);
 
         if (this.#chainId !== chainId) {
           this.#chainId = chainId;
@@ -286,7 +288,8 @@ export class AssetsContractController {
           `NetworkController:getNetworkClientById`,
           networkClientId,
         ).provider
-      : this.#provider;
+      : this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
+          ?.provider ?? this.#provider;
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
@@ -302,12 +305,23 @@ export class AssetsContractController {
    * @returns Hex chain ID.
    */
   #getCorrectChainId(networkClientId?: NetworkClientId): Hex {
-    return networkClientId
-      ? this.messagingSystem.call(
-          `NetworkController:getNetworkClientById`,
-          networkClientId,
-        ).configuration.chainId
-      : this.#chainId;
+    if (networkClientId) {
+      const networkClientConfiguration = this.messagingSystem.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId,
+      );
+      if (networkClientConfiguration) {
+        return networkClientConfiguration.chainId;
+      }
+    }
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return networkClient.configuration?.chainId ?? this.#chainId;
   }
 
   /**
@@ -641,7 +655,7 @@ export class AssetsContractController {
       tokensToDetect.forEach((tokenAddress, index) => {
         const balance: BN = result[index];
         /* istanbul ignore else */
-        if (!balance.isZero()) {
+        if (String(balance) !== '0') {
           nonZeroBalances[tokenAddress] = balance;
         }
       });
