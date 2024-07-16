@@ -242,7 +242,7 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.provider = undefined;
+    assetsContract.setProvider(undefined);
     await expect(
       messenger.call(
         `AssetsContractController:getERC20BalanceOf`,
@@ -255,7 +255,7 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when getting ERC-20 token decimal when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.provider = undefined;
+    assetsContract.setProvider(undefined);
     await expect(
       messenger.call(
         `AssetsContractController:getERC20TokenDecimals`,
@@ -268,7 +268,7 @@ describe('AssetsContractController', () => {
   it('should get balance of ERC-20 token contract correctly', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -324,7 +324,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 NFT tokenId correctly', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -358,7 +358,7 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when getting ERC-721 token standard and details when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.provider = undefined;
+    assetsContract.setProvider(undefined);
     await expect(
       messenger.call(
         `AssetsContractController:getTokenStandardAndDetails`,
@@ -372,7 +372,7 @@ describe('AssetsContractController', () => {
   it('should throw contract standard error when getting ERC-20 token standard and details when provided with invalid ERC-20 address', async () => {
     const { assetsContract, messenger, provider } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     const error = 'Unable to determine contract standard';
     await expect(
       messenger.call(
@@ -387,7 +387,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 token standard and details', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -453,7 +453,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-1155 token standard and details', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -539,7 +539,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-20 token standard and details', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -637,7 +637,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 NFT tokenURI correctly', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -687,7 +687,7 @@ describe('AssetsContractController', () => {
   it('should not throw an error when address given does not support NFT Metadata interface', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     const errorLogSpy = jest
       .spyOn(console, 'error')
       .mockImplementationOnce(() => {
@@ -746,7 +746,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 NFT name', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -779,7 +779,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 NFT symbol', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -823,7 +823,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-20 token decimals', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -856,7 +856,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-20 token name', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -891,7 +891,7 @@ describe('AssetsContractController', () => {
   it('should get ERC-721 NFT ownership', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -937,7 +937,7 @@ describe('AssetsContractController', () => {
   it('should get balance of ERC-20 token in a single call on network with token detection support', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1044,7 +1044,7 @@ describe('AssetsContractController', () => {
         useNetworkControllerProvider: true,
         infuraProjectId,
       });
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
 
     const balancesOnMainnet = await messenger.call(
       'AssetsContractController:getBalancesInSingleCall',
@@ -1079,7 +1079,7 @@ describe('AssetsContractController', () => {
       provider,
       networkClientConfiguration,
     } = await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1152,7 +1152,7 @@ describe('AssetsContractController', () => {
 
   it('should throw missing provider error when transferring single ERC-1155 when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
-    assetsContract.provider = undefined;
+    assetsContract.setProvider(undefined);
     await expect(
       messenger.call(
         `AssetsContractController:transferSingleERC1155`,
@@ -1169,7 +1169,7 @@ describe('AssetsContractController', () => {
   it('should throw when ERC1155 function transferSingle is not defined', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1207,7 +1207,7 @@ describe('AssetsContractController', () => {
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
@@ -1255,7 +1255,7 @@ describe('AssetsContractController', () => {
   it('should get the URI of a ERC-1155 NFT', async () => {
     const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
-    assetsContract.provider = provider;
+    assetsContract.setProvider(provider);
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [

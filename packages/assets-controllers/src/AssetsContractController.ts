@@ -254,11 +254,9 @@ export class AssetsContractController {
   /**
    * Sets a new provider.
    *
-   * TODO: Replace this wth a method.
-   *
-   * @property provider - Provider used to create a new underlying Web3 instance
+   * @param provider - Provider used to create a new underlying Web3 instance
    */
-  set provider(provider: Provider | undefined) {
+  setProvider(provider: Provider | undefined) {
     this.#provider = provider;
   }
 
