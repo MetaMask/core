@@ -992,10 +992,10 @@ describe('NftController', () => {
         .mockResolvedValueOnce({})
         // 7. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 8. `AssetsContractController:getERC1155AssetName`
-        .mockResolvedValueOnce('testERC1155Name')
-        // 9. `AssetsContractController:getERC1155AssetSymbol`
-        .mockResolvedValueOnce('testERC1155Symbol');
+        // 8. `AssetsContractController:getERC721AssetName`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
+        // 9. `AssetsContractController:getERC721AssetSymbol`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'));
 
       await nftController.watchNft(
         ERC1155_NFT,
@@ -1077,10 +1077,10 @@ describe('NftController', () => {
         .mockResolvedValueOnce({})
         // 7. `AccountsController:getAccount`
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        // 8. `AssetsContractController:getERC1155AssetName`
-        .mockResolvedValueOnce('testERC1155Name')
-        // 9. `AssetsContractController:getERC1155AssetSymbol`
-        .mockResolvedValueOnce('testERC1155Symbol');
+        // 8. `AssetsContractController:getERC721AssetName`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'))
+        // 9. `AssetsContractController:getERC721AssetSymbol`
+        .mockRejectedValueOnce(new Error('Not an ERC721 contract'));
 
       await nftController.watchNft(
         ERC1155_NFT,
