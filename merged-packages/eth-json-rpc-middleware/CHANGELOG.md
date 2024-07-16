@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+### Changed
+- **BREAKING**: Drop support for Node.js v16; add support for Node.js v20, v22 ([#312](https://github.com/MetaMask/eth-json-rpc-middleware/pull/312))
+- Update `@metamask/eth-json-rpc-provider` from `^3.0.2` to `^4.0.0` ([#313](https://github.com/MetaMask/eth-json-rpc-middleware/pull/313))
+- Update `@metamask/eth-block-tracker` from `^9.0.3` to `^10.0.0` ([#313](https://github.com/MetaMask/eth-json-rpc-middleware/pull/313))
+- Update `@metamask/json-rpc-engine` from `^8.0.2` to `^9.0.0` ([#313](https://github.com/MetaMask/eth-json-rpc-middleware/pull/313))
+
 ## [12.1.2]
 ### Fixed
 - Update `@metamask/eth-block-tracker` from `^9.0.2` to `^9.0.3` ([#306](https://github.com/MetaMask/eth-json-rpc-middleware/pull/306))
@@ -178,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.1.2...v13.0.0
 [12.1.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.1.1...v12.1.2
 [12.1.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.1.0...v12.1.1
 [12.1.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.0.1...v12.1.0
