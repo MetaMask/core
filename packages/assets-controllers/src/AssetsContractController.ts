@@ -15,7 +15,7 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
+import { getKnownPropertyNames, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
@@ -213,9 +213,7 @@ export class AssetsContractController {
       'chainId',
     ];
 
-    for (const method of Object.getOwnPropertyNames(
-      Object.getPrototypeOf(this),
-    ) as (keyof this)[]) {
+    getKnownPropertyNames(this).forEach((method) => {
       if (
         ((key: keyof this): key is AssetsContractControllerMethodName =>
           !nonMethodClassProperties.find((e) => e === key) &&
@@ -223,12 +221,12 @@ export class AssetsContractController {
       ) {
         this.messagingSystem.registerActionHandler(
           `${name}:${method}`,
-          // TODO: Write a for-loop function that iterates over an input union type in tandem with the input array.
-          // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method`
+          // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
+          // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
           this[method].bind(this),
         );
       }
-    }
+    });
   }
 
   #registerEventSubscriptions() {
