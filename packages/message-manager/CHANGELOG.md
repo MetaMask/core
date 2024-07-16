@@ -12,7 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
-- Add type annotation to `EventEmitter` ([#4510](https://github.com/MetaMask/core/pull/4510))
+
+### Fixed
+
+- Add `EventEmitter` type annotation to the `hub` class field of `AbstractMessageManager` ([#4510](https://github.com/MetaMask/core/pull/4510))
+  - This ensures that `hub` is not inferred to be a generic type, which would break types for downstream consumers.
 
 ## [10.0.0]
 
