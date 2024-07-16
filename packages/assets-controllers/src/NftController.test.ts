@@ -1280,12 +1280,14 @@ describe('NftController', () => {
       const requestId = 'approval-request-id-1';
       (v4 as jest.Mock).mockImplementationOnce(() => requestId);
 
-      const result = nftController.watchNft(
-        ERC721_NFT,
-        ERC721,
-        'https://test-dapp.com',
-      );
-      await expect(result).rejects.toThrow(
+      expect(
+        async () =>
+          await nftController.watchNft(
+            ERC721_NFT,
+            ERC721,
+            'https://test-dapp.com',
+          ),
+      ).rejects.toThrow(
         "Unable to verify ownership. Possibly because the standard is not supported or the user's currently selected network does not match the chain of the asset in question.",
       );
     });
