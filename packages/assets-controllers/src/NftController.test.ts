@@ -54,12 +54,10 @@ import type {
   Nft,
   NftControllerState,
   NftControllerMessenger,
+  AllowedActions as NftControllerAllowedActions,
+  AllowedEvents as NftControllerAllowedEvents,
 } from './NftController';
-import {
-  NftController,
-  type AllowedActions,
-  type AllowedEvents,
-} from './NftController';
+import { NftController } from './NftController';
 
 const CRYPTOPUNK_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
 const ERC721_KUDOSADDRESS = '0x2aEa4Add166EBf38b63d09a75dE1a7b94Aa24163';
@@ -195,10 +193,10 @@ function setupController({
 } = {}) {
   const messenger = new ControllerMessenger<
     | ExtractAvailableAction<NftControllerMessenger>
-    | AllowedActions
+    | NftControllerAllowedActions
     | ExtractAvailableAction<ApprovalControllerMessenger>,
     | ExtractAvailableEvent<NftControllerMessenger>
-    | AllowedEvents
+    | NftControllerAllowedEvents
     | ExtractAvailableEvent<ApprovalControllerMessenger>
     | AccountsControllerSelectedAccountChangeEvent
   >();
@@ -660,14 +658,15 @@ describe('NftController', () => {
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValueOnce({})
-        .mockReturnValueOnce(OWNER_ACCOUNT);
+        .mockResolvedValue({});
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      // First call is `AccountsController:getAccount`
+      // Fifth call is `ApprovalController:addRequest`
+      // Sixth call is `AccountsController:getAccount`
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
+        5,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -729,14 +728,15 @@ describe('NftController', () => {
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValueOnce({})
-        .mockReturnValueOnce(OWNER_ACCOUNT);
+        .mockResolvedValue({});
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      // First call is `AccountsController:getAccount`
+      // Fifth call is `ApprovalController:addRequest`
+      // Sixth call is `AccountsController:getAccount`
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
+        5,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -798,14 +798,15 @@ describe('NftController', () => {
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValueOnce({})
-        .mockReturnValueOnce(OWNER_ACCOUNT);
+        .mockResolvedValue({});
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      // First call is `AccountsController:getAccount`
+      // Fifth call is `ApprovalController:addRequest`
+      // Sixth call is `AccountsController:getAccount`
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
+        5,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -868,14 +869,15 @@ describe('NftController', () => {
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValueOnce({})
-        .mockReturnValueOnce(OWNER_ACCOUNT);
+        .mockResolvedValue({});
 
       await nftController.watchNft(ERC721_NFT, ERC721, 'https://test-dapp.com');
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      // First call is `AccountsController:getAccount`
+      // Fifth call is `ApprovalController:addRequest`
+      // Sixth call is `AccountsController:getAccount`
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
+        5,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -941,18 +943,19 @@ describe('NftController', () => {
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValueOnce({})
-        .mockReturnValueOnce(OWNER_ACCOUNT);
+        .mockResolvedValue({});
 
       await nftController.watchNft(
         ERC1155_NFT,
         ERC1155,
         'https://etherscan.io',
       );
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      // First call is `AccountsController:getAccount`
+      // Fifth call is `ApprovalController:addRequest`
+      // Sixth call is `AccountsController:getAccount`
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
+        5,
         'ApprovalController:addRequest',
         {
           id: requestId,
@@ -1012,18 +1015,19 @@ describe('NftController', () => {
       const callActionSpy = jest
         .spyOn(messenger, 'call')
         .mockReturnValueOnce(OWNER_ACCOUNT)
-        .mockResolvedValueOnce({})
-        .mockReturnValue(OWNER_ACCOUNT);
+        .mockResolvedValue({});
 
       await nftController.watchNft(
         ERC1155_NFT,
         ERC1155,
         'https://etherscan.io',
       );
-      // First call is getInternalAccount. Second call is the approval request.
-      expect(callActionSpy).toHaveBeenCalledTimes(3);
+      // First call is `AccountsController:getAccount`
+      // Fifth call is `ApprovalController:addRequest`
+      // Sixth call is `AccountsController:getAccount`
+      expect(callActionSpy).toHaveBeenCalledTimes(6);
       expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
+        5,
         'ApprovalController:addRequest',
         {
           id: requestId,
