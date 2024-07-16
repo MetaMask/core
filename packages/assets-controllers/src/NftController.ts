@@ -1420,7 +1420,7 @@ export class NftController extends BaseController<
         tokenId,
         networkClientId,
       );
-      return String(balance) !== '0';
+      return !balance.isZero();
       // eslint-disable-next-line no-empty
     } catch {
       // Ignore ERC-1155 contract error
@@ -1989,7 +1989,7 @@ export class NftController extends BaseController<
             name: suggestedNftMeta.asset.name,
             description: suggestedNftMeta.asset.description,
             image: suggestedNftMeta.asset.image,
-            standard: suggestedNftMeta.asset.standard ?? suggestedNftMeta.type,
+            standard: suggestedNftMeta.asset.standard,
           },
         },
       },
