@@ -519,9 +519,9 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
     Record<Hex, NetworkConfiguration>
   >((obj, infuraNetworkType) => {
     const chainId = ChainId[infuraNetworkType];
-    // False negative - this is a string.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     const rpcEndpointUrl =
+      // False negative - this is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
     const networkConfiguration: NetworkConfiguration = {
@@ -1775,6 +1775,8 @@ export class NetworkController extends BaseController<
       })
     ) {
       throw new Error(
+        // False negative - this is a string.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Could not update network: Cannot update RPC endpoints in such a way that the selected network '${this.state.selectedNetworkClientId}' would be removed without a replacement. Choose a different RPC endpoint as the selected network via the \`replacementSelectedRpcEndpointIndex\` option.`,
       );
     }
@@ -2008,13 +2010,19 @@ export class NetworkController extends BaseController<
       const existingNetworkConfigurationViaChainId =
         this.state.networkConfigurationsByChainId[networkFields.chainId];
       if (existingNetworkConfigurationViaChainId !== undefined) {
-        throw new Error(
-          // False negative - these are strings.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          existingNetworkConfiguration === null
-            ? `Could not add network for chain ${args.networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`
-            : `Cannot move network from chain ${existingNetworkConfiguration.chainId} to ${networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
-        );
+        if (existingNetworkConfiguration === null) {
+          throw new Error(
+            // False negative - these are strings.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            `Could not add network for chain ${args.networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
+          );
+        } else {
+          throw new Error(
+            // False negative - these are strings.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+            `Cannot move network from chain ${existingNetworkConfiguration.chainId} to ${networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
+          );
+        }
       }
     }
 
@@ -2056,11 +2064,9 @@ export class NetworkController extends BaseController<
         isInfuraNetworkType(networkClientId)
       ) {
         throw new Error(
-          `${errorMessagePrefix}: Custom RPC endpoint '${
-            // This is a string.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            rpcEndpointFields.url
-          }' has invalid network client ID '${networkClientId}'`,
+          // This is a string.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          `${errorMessagePrefix}: Custom RPC endpoint '${rpcEndpointFields.url}' has invalid network client ID '${networkClientId}'`,
         );
       }
 

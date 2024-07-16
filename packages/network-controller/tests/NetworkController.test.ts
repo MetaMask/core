@@ -4655,6 +4655,8 @@ describe('NetworkController', () => {
                     {
                       networkClientId: infuraNetworkType,
                       type: RpcEndpointType.Infura,
+                      // This is a string.
+                      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
@@ -4706,6 +4708,8 @@ describe('NetworkController', () => {
                     {
                       networkClientId: infuraNetworkType,
                       type: RpcEndpointType.Infura,
+                      // This is a string.
+                      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
                       url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
                     },
                   ],
