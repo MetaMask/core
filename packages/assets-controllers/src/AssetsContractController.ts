@@ -237,25 +237,28 @@ export class AssetsContractController {
     const nonMethodClassProperties = [
       'constructor',
       'messagingSystem',
+      'setProvider',
       'provider',
       'ipfsGateway',
       'chainId',
     ];
 
-    getKnownPropertyNames(this).forEach((method) => {
-      if (
-        ((key: keyof this): key is AssetsContractControllerMethodName =>
-          !nonMethodClassProperties.find((e) => e === key) &&
-          typeof this[key] === 'function')(method)
-      ) {
-        this.messagingSystem.registerActionHandler(
-          `${name}:${method}`,
-          // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
-          // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
-          this[method].bind(this),
-        );
-      }
-    });
+    getKnownPropertyNames<keyof this>(Object.getPrototypeOf(this)).forEach(
+      (method) => {
+        if (
+          ((key: keyof this): key is AssetsContractControllerMethodName =>
+            !nonMethodClassProperties.find((e) => e === key) &&
+            typeof this[key] === 'function')(method)
+        ) {
+          this.messagingSystem.registerActionHandler(
+            `${name}:${method}`,
+            // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
+            // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
+            this[method].bind(this),
+          );
+        }
+      },
+    );
   }
 
   #registerEventSubscriptions() {
