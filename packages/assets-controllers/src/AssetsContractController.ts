@@ -82,21 +82,38 @@ export type BalanceMap = {
   [tokenAddress: string]: BN;
 };
 
+/**
+ * The name of the {@link AssetsContractController}
+ */
 const name = 'AssetsContractController';
 
-// TODO: Convert into generic type that takes controller type as input and move to base-controller
-type AssetsContractControllerActionsMap = {
-  [ClassMethod in keyof AssetsContractController as AssetsContractController[ClassMethod] extends ActionConstraint['handler']
+/**
+ * A utility type that derives the public method names of a given messenger consumer class,
+ * and uses it to generate the class's internal messenger action types.
+ * @template Controller - A messenger consumer class.
+ */
+// TODO: Figure out generic constraint and move to base-controller
+type ControllerActionsMap<Controller> = {
+  [ClassMethod in keyof Controller as Controller[ClassMethod] extends ActionConstraint['handler']
     ? ClassMethod
     : never]: {
-    type: `${typeof name}:${ClassMethod}`;
-    handler: AssetsContractController[ClassMethod];
+    type: `${typeof name}:${ClassMethod & string}`;
+    handler: Controller[ClassMethod];
   };
 };
 
+type AssetsContractControllerActionsMap =
+  ControllerActionsMap<AssetsContractController>;
+
+/**
+ * The union of all public class method names of {@link AssetsContractController}.
+ */
 type AssetsContractControllerMethodName =
   keyof AssetsContractControllerActionsMap;
 
+/**
+ * The union of all internal messenger actions available to the {@link AssetsContractControllerMessenger}.
+ */
 export type AssetsContractControllerActions =
   AssetsContractControllerActionsMap[AssetsContractControllerMethodName];
 
@@ -148,18 +165,30 @@ export type AssetsContractControllerGetTokenStandardAndDetailsAction =
 export type AssetsContractControllerGetBalancesInSingleCallAction =
   AssetsContractControllerActionsMap['getBalancesInSingleCall'];
 
+/**
+ * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
+ */
 export type AssetsContractControllerEvents = never;
 
+/**
+ * The union of all external messenger actions that must be allowed by the {@link AssetsContractControllerMessenger}.
+ */
 export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkConfigurationByNetworkClientId
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetStateAction;
 
+/**
+ * The union of all external messenger event that must be allowed by the {@link AssetsContractControllerMessenger}.
+ */
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent;
 
+/**
+ * The messenger of the {@link AssetsContractController}.
+ */
 export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   AssetsContractControllerActions | AllowedActions,
@@ -184,7 +213,7 @@ export class AssetsContractController {
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
-   * @param options.messenger -
+   * @param options.messenger - The controller messenger.
    * @param options.chainId - The chain ID of the current network.
    */
   constructor({
