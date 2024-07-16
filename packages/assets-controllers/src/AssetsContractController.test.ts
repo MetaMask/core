@@ -206,7 +206,8 @@ describe('AssetsContractController', () => {
   });
 
   it('should update the ipfsGateWay config value when this value is changed in the preferences controller', async () => {
-    const { assetsContract, messenger } = await setupAssetContractControllers();
+    const { assetsContract, messenger, triggerPreferencesStateChange } =
+      await setupAssetContractControllers();
     expect({
       chainId: assetsContract.chainId,
       ipfsGateway: assetsContract.ipfsGateway,
@@ -215,14 +216,10 @@ describe('AssetsContractController', () => {
       ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
     });
 
-    messenger.publish(
-      'PreferencesController:stateChange',
-      {
-        ...getDefaultPreferencesState(),
-        ipfsGateway: 'newIPFSGateWay',
-      },
-      [],
-    );
+    triggerPreferencesStateChange({
+      ...getDefaultPreferencesState(),
+      ipfsGateway: 'newIPFSGateWay',
+    });
 
     expect({
       chainId: assetsContract.chainId,
@@ -1039,7 +1036,7 @@ describe('AssetsContractController', () => {
         },
       ],
     });
-    const { assetsContract, messenger, network, provider } =
+    const { assetsContract, messenger, provider } =
       await setupAssetContractControllers({
         options: {
           chainId: ChainId.mainnet,
@@ -1050,7 +1047,7 @@ describe('AssetsContractController', () => {
     assetsContract.provider = provider;
 
     const balancesOnMainnet = await messenger.call(
-      `AssetsContractController:getBalancesInSingleCall`,
+      'AssetsContractController:getBalancesInSingleCall',
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
     );
@@ -1058,17 +1055,20 @@ describe('AssetsContractController', () => {
       [ERC20_SAI_ADDRESS]: BigNumber.from('0x0733ed8ef4c4a0155d09'),
     });
 
-    await network.setActiveNetwork(InfuraNetworkType['linea-mainnet']);
+    await messenger.call(
+      `NetworkController:setActiveNetwork`,
+      InfuraNetworkType['linea-mainnet'],
+    );
 
     const balancesOnLineaMainnet = await messenger.call(
-      `AssetsContractController:getBalancesInSingleCall`,
+      'AssetsContractController:getBalancesInSingleCall',
       ERC20_SAI_ADDRESS,
       [ERC20_SAI_ADDRESS],
-      InfuraNetworkType['linea-mainnet'],
     );
     expect(balancesOnLineaMainnet).toStrictEqual({
       [ERC20_SAI_ADDRESS]: BigNumber.from('0xa0155d09733ed8ef4c4'),
     });
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
   it('should not have balance in a single call after switching to network without token detection support', async () => {
@@ -1205,8 +1205,9 @@ describe('AssetsContractController', () => {
   });
 
   it('should get the balance of a ERC-1155 NFT for a given address', async () => {
-    const { messenger, networkClientConfiguration } =
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
       await setupAssetContractControllers();
+    assetsContract.provider = provider;
     mockNetworkWithDefaultChainId({
       networkClientConfiguration,
       mocks: [
