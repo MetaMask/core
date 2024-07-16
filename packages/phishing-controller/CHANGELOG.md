@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Port `PhishingDetector` from `eth-phishing-detector`; add TypeScript types ([#4137](https://github.com/MetaMask/core/pull/4137))
-- Update `PhishingDetector` to support IPFS CID blocking ([#4465](https://github.com/MetaMask/core/pull/4465))
+- Add support for IPFS CID blocking to `PhishingDetector` ([#4465](https://github.com/MetaMask/core/pull/4465))
 
 ### Changed
 
