@@ -351,6 +351,26 @@ export type CollectionResponse = {
   };
 };
 
+export type FloorAskCollection = {
+  id?: string;
+  price?: Price;
+  maker?: string;
+  kind?: string;
+  validFrom?: number;
+  validUntil?: number;
+  source?: SourceCollection;
+  rawData?: Metadata;
+  isNativeOffChainCancellable?: boolean;
+};
+
+export type SourceCollection = {
+  id: string;
+  domain: string;
+  name: string;
+  icon: string;
+  url: string;
+};
+
 export type TokenCollection = {
   id?: string;
   name?: string;
@@ -367,6 +387,7 @@ export type TokenCollection = {
   floorAskPrice?: Price;
   royaltiesBps?: number;
   royalties?: Royalties[];
+  floorAsk?: FloorAskCollection;
 };
 
 export type Collection = TokenCollection & CollectionResponse;

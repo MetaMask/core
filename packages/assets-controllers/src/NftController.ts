@@ -58,6 +58,7 @@ import type {
   Attributes,
   LastSale,
   GetCollectionsResponse,
+  TopBid,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -169,9 +170,10 @@ export type NftMetadata = {
   tokenURI?: string | null;
   collection?: Collection;
   address?: string;
-  attributes?: Attributes;
+  attributes?: Attributes[];
   lastSale?: LastSale;
   rarityRank?: string;
+  topBid?: TopBid;
 };
 
 /**

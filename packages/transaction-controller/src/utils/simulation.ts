@@ -233,7 +233,14 @@ export function getEvents(response: SimulationResponse): ParsedEvent[] {
         return undefined;
       }
 
-      const args = parseEventArgs(event.args, inputs);
+      if (!SUPPORTED_EVENTS.includes(event.name)) {
+        log('Ignoring unsupported event', event.name, event);
+        return undefined;
+      }
+
+      log('Normalizing event args', event.name, event);
+
+      const args = normalizeEventArgs(event.args, inputs);
 
       return {
         contractAddress: currentLog.address,
@@ -247,18 +254,18 @@ export function getEvents(response: SimulationResponse): ParsedEvent[] {
 }
 
 /**
- * Parse event arguments using ABI input definitions.
+ * Normalize event arguments using ABI input definitions.
  * @param args - The raw event arguments.
  * @param abiInputs - The ABI input definitions.
- * @returns The parsed event arguments.
+ * @returns The normalized event arguments.
  */
-function parseEventArgs(
+function normalizeEventArgs(
   args: Result,
   abiInputs: { name: string }[],
 ): Record<string, Hex | Hex[]> {
   return args.reduce((result, arg, index) => {
     const name = abiInputs[index].name.replace('_', '');
-    const value = parseEventArgValue(arg);
+    const value = normalizeEventArgValue(arg);
 
     result[name] = value;
 
@@ -267,17 +274,22 @@ function parseEventArgs(
 }
 
 /**
- * Parse an event argument value.
+ * Normalize an event argument value.
  * @param value - The event argument value.
- * @returns The parsed event argument value.
+ * @returns The normalized event argument value.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseEventArgValue(value: any): Hex | Hex[] {
+function normalizeEventArgValue(value: any): any {
   if (Array.isArray(value)) {
-    return value.map(parseEventArgValue) as Hex[];
+    return value.map(normalizeEventArgValue);
   }
 
-  return (value.toHexString?.() ?? value).toLowerCase();
+  let normalizedValue = value;
+
+  normalizedValue = normalizedValue.toHexString?.() ?? normalizedValue;
+  normalizedValue = normalizedValue.toLowerCase?.() ?? normalizedValue;
+
+  return normalizedValue;
 }
 
 /**
@@ -367,10 +379,8 @@ function getTokenBalanceTransactions(
   const before = new Map();
   const after = new Map();
 
-  const userEvents = events.filter(
-    (event) =>
-      SUPPORTED_EVENTS.includes(event.name) &&
-      [event.args.from, event.args.to].includes(request.from),
+  const userEvents = events.filter((event) =>
+    [event.args.from, event.args.to].includes(request.from),
   );
 
   log('Filtered user events', userEvents);
@@ -378,7 +388,7 @@ function getTokenBalanceTransactions(
   for (const event of userEvents) {
     const tokenIds = getEventTokenIds(event);
 
-    log('Extracted token ids', tokenIds);
+    log('Extracted token IDs', tokenIds);
 
     for (const tokenId of tokenIds) {
       const simulationToken: SimulationToken = {
