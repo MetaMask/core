@@ -292,10 +292,6 @@ export class AssetsContractController {
     this.#provider = provider;
   }
 
-  get provider() {
-    throw new Error('Property only used for setting');
-  }
-
   get ipfsGateway() {
     return this.#ipfsGateway;
   }

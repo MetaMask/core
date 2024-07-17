@@ -232,14 +232,6 @@ describe('AssetsContractController', () => {
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
 
-  it('should throw when provider property is accessed', async () => {
-    const { assetsContract, messenger } = await setupAssetContractControllers();
-    expect(() => console.log(assetsContract.provider)).toThrow(
-      'Property only used for setting',
-    );
-    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
-  });
-
   it('should throw missing provider error when getting ERC-20 token balance when missing provider', async () => {
     const { assetsContract, messenger } = await setupAssetContractControllers();
     assetsContract.setProvider(undefined);
