@@ -9,6 +9,7 @@ import type {
   StateMetadata,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import type { PublicInterface } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
@@ -29,10 +30,9 @@ type StateConstraintV1 = BaseState & object;
  * Note that this type is not the widest subtype or narrowest supertype of all `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
-export type BaseControllerV1Instance =
-  // `any` is used so that all `BaseControllerV1` instances are assignable to this type.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BaseControllerV1<any, any>;
+type BaseControllerV1Instance = PublicInterface<
+  BaseControllerV1<ConfigConstraintV1, StateConstraintV1>
+>;
 
 /**
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
