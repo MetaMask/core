@@ -12,6 +12,15 @@ import type {
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
+/**
+ * A universal supertype for the `BaseControllerV1` state object.
+ */
+type ConfigConstraintV1 = BaseConfig & object;
+
+/**
+ * A universal supertype for the `BaseControllerV1` state object.
+ */
+type StateConstraintV1 = BaseState & object;
 
 /**
  * A universal subtype of all controller instances that extend from `BaseControllerV1`.
