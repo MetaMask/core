@@ -1759,11 +1759,25 @@ export class NetworkController extends BaseController<
         networkClientOperations,
       });
 
+    /*
+    console.log(
+      'replacementSelectedRpcEndpointIndex',
+      replacementSelectedRpcEndpointIndex,
+      'updatedNetworkConfiguration',
+      updatedNetworkConfiguration,
+      'networkClientOperations',
+      networkClientOperations,
+      'this.state.selectedNetworkClientId',
+      this.state.selectedNetworkClientId,
+    )
+    */
     if (
       replacementSelectedRpcEndpointIndex === undefined &&
-      !updatedNetworkConfiguration.rpcEndpoints.some((rpcEndpoint) => {
+      networkClientOperations.some((networkClientOperation) => {
         return (
-          rpcEndpoint.networkClientId === this.state.selectedNetworkClientId
+          networkClientOperation.type === 'remove' &&
+          networkClientOperation.rpcEndpoint.networkClientId ===
+            this.state.selectedNetworkClientId
         );
       }) &&
       !networkClientOperations.some((networkClientOperation) => {

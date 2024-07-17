@@ -10555,14 +10555,18 @@ describe('NetworkController', () => {
             chainId: '0x1337',
           });
 
+          const state = buildNetworkControllerStateWithSelectedChain('0x2448', {
+            networkConfigurationsByChainId: {
+              '0x1337': existingNetworkConfiguration,
+              '0x2448': buildCustomNetworkConfiguration({
+                chainId: '0x2448',
+              }),
+            },
+          });
+
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': existingNetworkConfiguration,
-                  },
-                }),
+              state,
             },
             async ({ controller }) => {
               await controller.updateNetwork(
@@ -13683,8 +13687,10 @@ function getNetworkConfigurationsByNetworkClientId(
  * property must match the `networkClientId` of an RPC endpoint in
  * `networkConfigurationsByChainId`. Sometimes when writing tests we care about
  * what the `selectedNetworkClientId` is, but sometimes we don't and we'd rather
- * have this property automatically filled in for us. This function takes care
- * of that step.
+ * have this property automatically filled in for us.
+ *
+ * This function takes care of filling in the `selectedNetworkClientId` using
+ * the first RPC endpoint of the first network configuration given.
  *
  * @param networkControllerState - The desired NetworkController state
  * overrides.
@@ -13709,6 +13715,55 @@ function buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
       networkConfigurations.length > 0
         ? networkConfigurations[0].rpcEndpoints[0].networkClientId
         : undefined;
+    return {
+      networkConfigurationsByChainId,
+      selectedNetworkClientId,
+      ...rest,
+    };
+  }
+
+  return {
+    networkConfigurationsByChainId,
+    selectedNetworkClientId: givenSelectedNetworkClientId,
+    ...rest,
+  };
+}
+
+/**
+ * When initializing NetworkController with state, the `selectedNetworkClientId`
+ * property must match the `networkClientId` of an RPC endpoint in
+ * `networkConfigurationsByChainId`. Sometimes when writing tests we care about
+ * what the `selectedNetworkClientId` is, but sometimes we don't and we'd rather
+ * have this property automatically filled in for us.
+ *
+ * This function takes care of filling in the `selectedNetworkClientId` using
+ * the first RPC endpoint of the network configuration with the given chain ID.
+ *
+ * @param chainId - The chain ID to use.
+ * @param networkControllerState - The desired NetworkController state
+ * overrides.
+ * @param networkControllerState.networkConfigurationsByChainId - The desired
+ * `networkConfigurationsByChainId`.
+ * @param networkControllerState.selectedNetworkClientId - The desired
+ * `selectedNetworkClientId`; if not provided, then will be set to the
+ * `networkClientId` of the first RPC endpoint of the network configuration with
+ * the given chain ID.
+ * @returns The complete NetworkController state with `selectedNetworkClientId`
+ * properly filled in.
+ */
+function buildNetworkControllerStateWithSelectedChain(
+  chainId: Hex,
+  {
+    networkConfigurationsByChainId,
+    selectedNetworkClientId: givenSelectedNetworkClientId,
+    ...rest
+  }: Partial<Omit<NetworkState, 'networkConfigurationsByChainId'>> &
+    Pick<NetworkState, 'networkConfigurationsByChainId'>,
+) {
+  if (givenSelectedNetworkClientId === undefined) {
+    const networkConfiguration = networkConfigurationsByChainId[chainId];
+    const selectedNetworkClientId =
+      networkConfiguration.rpcEndpoints[0].networkClientId;
     return {
       networkConfigurationsByChainId,
       selectedNetworkClientId,

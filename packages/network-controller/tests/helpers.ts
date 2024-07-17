@@ -248,7 +248,7 @@ export function buildCustomNetworkConfiguration(
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         buildCustomRpcEndpoint({
-          url: 'https://test.endpoint',
+          url: generateCustomRpcEndpointUrl(),
         }),
       ],
     },
@@ -343,7 +343,7 @@ export function buildCustomRpcEndpoint(
     {
       networkClientId: () => uuidV4(),
       type: () => RpcEndpointType.Custom as const,
-      url: () => 'https://test.endpoint',
+      url: () => generateCustomRpcEndpointUrl(),
     },
     overrides,
   );
@@ -369,7 +369,7 @@ export function buildAddNetworkFields(
       nativeCurrency: () => 'TOKEN',
       rpcEndpoints: () => [
         buildAddNetworkCustomRpcEndpointFields({
-          url: 'https://test.endpoint',
+          url: generateCustomRpcEndpointUrl(),
         }),
       ],
     },
@@ -403,7 +403,7 @@ export function buildAddNetworkCustomRpcEndpointFields(
   return buildTestObject(
     {
       type: () => RpcEndpointType.Custom as const,
-      url: () => 'https://test.endpoint',
+      url: () => generateCustomRpcEndpointUrl(),
     },
     overrides,
   );
@@ -423,8 +423,21 @@ export function buildUpdateNetworkCustomRpcEndpointFields(
   return buildTestObject(
     {
       type: () => RpcEndpointType.Custom as const,
-      url: () => 'https://test.endpoint',
+      url: () => generateCustomRpcEndpointUrl(),
     },
     overrides,
   );
+}
+
+let testEndpointCounter = 0;
+
+/**
+ * Generates a unique custom RPC endpoint URL for testing.
+ *
+ * @returns The generated RPC endpoint URL.
+ */
+function generateCustomRpcEndpointUrl(): string {
+  const url = `https://test.endpoint/${testEndpointCounter}`;
+  testEndpointCounter += 1;
+  return url;
 }
