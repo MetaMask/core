@@ -70,7 +70,7 @@ jest.mock('uuid', () => {
 
   return {
     ...actual,
-    v4: jest.fn().mockReturnValue('UUID'),
+    v4: jest.fn(),
   };
 });
 
@@ -258,8 +258,16 @@ const setupController = async (
 
 describe('TransactionController Integration', () => {
   let clock: SinonFakeTimers;
+  let uuidCounter = 0;
+
   beforeEach(() => {
     clock = useFakeTimers();
+
+    uuidV4Mock.mockImplementation(() => {
+      const uuid = `UUID-${uuidCounter}`;
+      uuidCounter += 1;
+      return uuid;
+    });
   });
 
   afterEach(() => {
@@ -882,7 +890,7 @@ describe('TransactionController Integration', () => {
           'Could not find network configuration for Goerli',
         );
         const updatedGoerliNetworkConfiguration =
-          networkController.updateNetwork(ChainId.goerli, {
+          await networkController.updateNetwork(ChainId.goerli, {
             ...existingGoerliNetworkConfiguration,
             rpcEndpoints: [
               ...existingGoerliNetworkConfiguration.rpcEndpoints,
@@ -1047,9 +1055,8 @@ describe('TransactionController Integration', () => {
       existingGoerliNetworkConfiguration,
       'Could not find network configuration for Goerli',
     );
-    const updatedGoerliNetworkConfiguration = networkController.updateNetwork(
-      ChainId.goerli,
-      {
+    const updatedGoerliNetworkConfiguration =
+      await networkController.updateNetwork(ChainId.goerli, {
         ...existingGoerliNetworkConfiguration,
         rpcEndpoints: [
           ...existingGoerliNetworkConfiguration.rpcEndpoints,
@@ -1057,8 +1064,7 @@ describe('TransactionController Integration', () => {
             url: 'https://mock.rpc.url',
           }),
         ],
-      },
-    );
+      });
     const otherGoerliRpcEndpoint =
       updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
         return rpcEndpoint.url === 'https://mock.rpc.url';
@@ -1429,7 +1435,7 @@ describe('TransactionController Integration', () => {
           'Could not find network configuration for Goerli',
         );
         const updatedGoerliNetworkConfiguration =
-          networkController.updateNetwork(ChainId.goerli, {
+          await networkController.updateNetwork(ChainId.goerli, {
             ...existingGoerliNetworkConfiguration,
             rpcEndpoints: [
               ...existingGoerliNetworkConfiguration.rpcEndpoints,
@@ -1923,9 +1929,8 @@ describe('TransactionController Integration', () => {
         existingGoerliNetworkConfiguration,
         'Could not find network configuration for Goerli',
       );
-      const updatedGoerliNetworkConfiguration = networkController.updateNetwork(
-        ChainId.goerli,
-        {
+      const updatedGoerliNetworkConfiguration =
+        await networkController.updateNetwork(ChainId.goerli, {
           ...existingGoerliNetworkConfiguration,
           rpcEndpoints: [
             ...existingGoerliNetworkConfiguration.rpcEndpoints,
@@ -1933,8 +1938,7 @@ describe('TransactionController Integration', () => {
               url: 'https://mock.rpc.url',
             }),
           ],
-        },
-      );
+        });
       const otherGoerliRpcEndpoint =
         updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
           return rpcEndpoint.url === 'https://mock.rpc.url';
