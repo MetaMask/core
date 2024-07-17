@@ -234,7 +234,7 @@ export class AssetsContractController {
 
   // TODO: Expand into base-controller utility function that batch registers action handlers.
   #registerActionHandlers() {
-    const nonMethodClassProperties = [
+    const methodsExcludedFromMessenger = [
       'constructor',
       'messagingSystem',
       'setProvider',
@@ -247,7 +247,7 @@ export class AssetsContractController {
       (method) => {
         if (
           ((key: keyof this): key is AssetsContractControllerMethodName =>
-            !nonMethodClassProperties.find((e) => e === key) &&
+            !methodsExcludedFromMessenger.find((e) => e === key) &&
             typeof this[key] === 'function')(method)
         ) {
           this.messagingSystem.registerActionHandler(
