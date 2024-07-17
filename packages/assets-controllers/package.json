@@ -59,7 +59,7 @@
     "@metamask/polling-controller": "^9.0.0",
     "@metamask/preferences-controller": "^13.0.0",
     "@metamask/rpc-errors": "^6.3.1",
-    "@metamask/utils": "^9.0.0",
+    "@metamask/utils": "^9.1.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.5.0",

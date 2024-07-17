@@ -11,7 +11,7 @@ export const getPermissionsHandler: PermittedHandlerExport<
   [],
   PermissionConstraint[]
 > = {
-  methodNames: [MethodNames.getPermissions],
+  methodNames: [MethodNames.GetPermissions],
   implementation: getPermissionsImplementation,
   hookNames: {
     getPermissionsForOrigin: true,
