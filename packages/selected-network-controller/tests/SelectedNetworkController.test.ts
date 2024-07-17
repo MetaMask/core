@@ -302,7 +302,7 @@ describe('SelectedNetworkController', () => {
         messenger.publish(
           'NetworkController:stateChange',
           {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: 'goerli',
             networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
@@ -331,7 +331,7 @@ describe('SelectedNetworkController', () => {
         messenger.publish(
           'NetworkController:stateChange',
           {
-            selectedNetworkClientId: InfuraNetworkType.goerli,
+            selectedNetworkClientId: 'goerli',
             networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
