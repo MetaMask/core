@@ -11,7 +11,8 @@ module.exports = {
         // This is taken directly from @metamask/eslint-config-typescript@12.1.0
         '@typescript-eslint/naming-convention': [
           'error',
-          // We have to disable the default selector, or it doesn't work.
+          // We have to disable the default selector for our objectLiteralProperty
+          // filter to work.
           // {
           //   selector: 'default',
           //   format: ['camelCase'],
@@ -34,7 +35,7 @@ module.exports = {
             selector: 'objectLiteralMethod',
             format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
           },
-          // This option is modified.
+          // This option is modified by the addition of a filter.
           {
             selector: 'objectLiteralProperty',
             format: ['camelCase', 'PascalCase', 'UPPER_CASE'],
