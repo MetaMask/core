@@ -83,19 +83,22 @@ export type RestrictedControllerMessengerConstraint<
  */
 export function isBaseControllerV1(
   controller: ControllerInstance,
-): controller is BaseControllerV1<
-  BaseConfig & Record<string, unknown>,
-  BaseState & Record<string, unknown>
-> {
+): controller is BaseControllerV1Instance {
   return (
     'name' in controller &&
     typeof controller.name === 'string' &&
+    'config' in controller &&
+    typeof controller.config === 'object' &&
     'defaultConfig' in controller &&
     typeof controller.defaultConfig === 'object' &&
+    'state' in controller &&
+    typeof controller.state === 'object' &&
     'defaultState' in controller &&
     typeof controller.defaultState === 'object' &&
     'disabled' in controller &&
     typeof controller.disabled === 'boolean' &&
+    'subscribe' in controller &&
+    typeof controller.subscribe === 'function' &&
     controller instanceof BaseControllerV1
   );
 }
@@ -107,16 +110,14 @@ export function isBaseControllerV1(
  */
 export function isBaseController(
   controller: ControllerInstance,
-): controller is BaseController<
-  string,
-  StateConstraint,
-  RestrictedControllerMessengerConstraint
-> {
+): controller is BaseControllerInstance {
   return (
     'name' in controller &&
     typeof controller.name === 'string' &&
     'state' in controller &&
     typeof controller.state === 'object' &&
+    'metadata' in controller &&
+    typeof controller.metadata === 'object' &&
     controller instanceof BaseController
   );
 }
