@@ -1,6 +1,5 @@
 import { documentToHtmlString } from '@contentful/rich-text-html-renderer';
-import type { Entry, Asset } from 'contentful';
-import log from 'loglevel';
+import type { Entry, Asset, EntryCollection } from 'contentful';
 
 import { TRIGGER_TYPES } from '../constants/notification-schema';
 import { processFeatureAnnouncement } from '../processors/process-feature-announcement';
@@ -37,53 +36,30 @@ export type ContentfulResult = {
   items?: TypeFeatureAnnouncement[];
 };
 
-const fetchFromContentful = async (
-  url: string,
-  retries = 3,
-  retryDelay = 1000,
-): Promise<ContentfulResult | null> => {
-  let lastError: Error | null = null;
-
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Fetch failed with status: ${response.status}`);
-      }
-      return await response.json();
-    } catch (error) {
-      if (error instanceof Error) {
-        lastError = error;
-      }
-      if (i < retries - 1) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      }
-    }
-  }
-
-  log.error(
-    `Error fetching from Contentful after ${retries} retries:`,
-    lastError,
-  );
-  return null;
-};
+const getFeatureAnnouncementUrl = (env: Env) =>
+  FEATURE_ANNOUNCEMENT_URL.replace(DEFAULT_SPACE_ID, env.spaceId)
+    .replace(DEFAULT_ACCESS_TOKEN, env.accessToken)
+    .replace(DEFAULT_CLIENT_ID, env.platform);
 
 const fetchFeatureAnnouncementNotifications = async (
   env: Env,
 ): Promise<FeatureAnnouncementRawNotification[]> => {
-  const url = FEATURE_ANNOUNCEMENT_URL.replace(DEFAULT_SPACE_ID, env.spaceId)
-    .replace(DEFAULT_ACCESS_TOKEN, env.accessToken)
-    .replace(DEFAULT_CLIENT_ID, env.platform);
-  const data = await fetchFromContentful(url);
+  const url = getFeatureAnnouncementUrl(env);
+
+  const data = await fetch(url)
+    .then((r) => r.json())
+    .catch(() => null);
 
   if (!data) {
     return [];
   }
 
   const findIncludedItem = (sysId: string) => {
+    const typedData: EntryCollection<ImageFields | TypeExtensionLinkFields> =
+      data;
     const item =
-      data?.includes?.Entry?.find((i: Entry) => i?.sys?.id === sysId) ||
-      data?.includes?.Asset?.find((i: Asset) => i?.sys?.id === sysId);
+      typedData?.includes?.Entry?.find((i: Entry) => i?.sys?.id === sysId) ||
+      typedData?.includes?.Asset?.find((i: Asset) => i?.sys?.id === sysId);
     return item ? item?.fields : null;
   };
 
@@ -94,6 +70,7 @@ const fetchFeatureAnnouncementNotifications = async (
       const imageFields = fields.image
         ? (findIncludedItem(fields.image.sys.id) as ImageFields['fields'])
         : undefined;
+
       const extensionLinkFields = fields.extensionLink
         ? (findIncludedItem(
             fields.extensionLink.sys.id,
