@@ -125,7 +125,9 @@ export function isBaseController(
 /**
  * A universal supertype for the controller state object, encompassing both `BaseControllerV1` and `BaseControllerV2` state.
  */
-export type LegacyControllerStateConstraint = BaseState | StateConstraint;
+export type LegacyControllerStateConstraint =
+  | StateConstraintV1
+  | StateConstraint;
 
 /**
  * A universal supertype for the composable controller state object.
@@ -156,7 +158,7 @@ export type ComposableControllerStateConstraint = {
 // TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
 type LegacyControllerStateChangeEvent<
   ControllerName extends string,
-  ControllerState extends LegacyControllerStateConstraint,
+  ControllerState extends StateConstraintV1,
 > = {
   type: `${ControllerName}:stateChange`;
   payload: [ControllerState, Patch[]];
@@ -191,6 +193,7 @@ export type ComposableControllerEvents<
  *
  * @template ComposableControllerState - A type object that maps controller names to their state types.
  */
+export type ChildControllerStateChangeEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = ComposableControllerState extends Record<
   infer ControllerName extends string,
@@ -198,7 +201,8 @@ export type ComposableControllerEvents<
 >
   ? ControllerState extends StateConstraint
     ? ControllerStateChangeEvent<ControllerName, ControllerState>
-    : ControllerState extends Record<string, unknown>
+    : // TODO: Remove this conditional branch once `BaseControllerV2` migrations are completed for all controllers.
+    ControllerState extends StateConstraintV1
     ? LegacyControllerStateChangeEvent<ControllerName, ControllerState>
     : never
   : never;
