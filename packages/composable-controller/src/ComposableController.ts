@@ -43,9 +43,10 @@ type BaseControllerV1Instance = PublicInterface<
  *
  * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
  */
-export type BaseControllerInstance = {
+type BaseControllerInstance = {
   name: string;
   state: StateConstraint;
+  metadata: Record<string, unknown>;
 };
 
 /**
