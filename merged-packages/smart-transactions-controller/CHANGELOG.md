@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.2.0]
+### Changed
+- Update metrics, so events work even for non-swaps transactions ([#374](https://github.com/MetaMask/smart-transactions-controller/pull/374))
+- Update @metamask/transaction-controller from 32.0.0 to 34.0.0 ([#371](https://github.com/MetaMask/smart-transactions-controller/pull/371))
+- Update braces from 3.0.2 to 3.0.3 and remove the `--immutable-cache` flag in a build file ([#367](https://github.com/MetaMask/smart-transactions-controller/pull/367))
+
 ## [10.1.6]
 ### Changed
 - Update @metamask/transaction-controller from 29.1.0 to 32.0.0 ([#348](https://github.com/MetaMask/smart-transactions-controller/pull/348))
@@ -309,7 +315,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.6...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.2.0...HEAD
+[10.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.6...v10.2.0
 [10.1.6]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.5...v10.1.6
 [10.1.5]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.4...v10.1.5
 [10.1.4]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.3...v10.1.4
