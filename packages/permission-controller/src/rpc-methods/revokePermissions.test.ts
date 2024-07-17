@@ -27,8 +27,11 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(async (req, res, next, end) => {
-      await implementation(req, res, next, end, {
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       });
     });
@@ -57,8 +60,11 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(async (req, res, next, end) => {
-      await implementation(req, res, next, end, {
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       });
     });
@@ -91,8 +97,11 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(async (req, res, next, end) => {
-      await implementation(req, res, next, end, {
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       });
     });
@@ -125,8 +134,11 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(async (req, res, next, end) => {
-      await implementation(req, res, next, end, {
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       });
     });
@@ -158,8 +170,11 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(async (req, res, next, end) => {
-      await implementation(req, res, next, end, {
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
         revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
       });
     });
