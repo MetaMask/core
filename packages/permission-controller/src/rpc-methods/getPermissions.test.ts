@@ -14,17 +14,16 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      (
+      async (
         req: JsonRpcRequest<[]>,
         res: PendingJsonRpcResponse<PermissionConstraint[]>,
         next,
         end,
-      ) =>
-        implementation(req, res, next, end, {
+      ) => {
+        await implementation(req, res, next, end, {
           getPermissionsForOrigin: mockGetPermissionsForOrigin,
-        }),
+        });
+      },
     );
 
     const response = await engine.handle({
@@ -45,17 +44,16 @@ describe('getPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      (
+      async (
         req: JsonRpcRequest<[]>,
         res: PendingJsonRpcResponse<PermissionConstraint[]>,
         next,
         end,
-      ) =>
-        implementation(req, res, next, end, {
+      ) => {
+        await implementation(req, res, next, end, {
           getPermissionsForOrigin: mockGetPermissionsForOrigin,
-        }),
+        });
+      },
     );
 
     const response = await engine.handle({
