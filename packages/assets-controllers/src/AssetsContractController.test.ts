@@ -23,13 +23,12 @@ import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import assert from 'assert';
 
 import { mockNetwork } from '../../../tests/mock-network';
-import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
 import type {
-  AssetsContractControllerActions,
-  AssetsContractControllerEvents,
-  AllowedActions as AssetsContractAllowedActions,
-  AllowedEvents as AssetsContractAllowedEvents,
-} from './AssetsContractController';
+  ExtractAvailableAction,
+  ExtractAvailableEvent,
+} from '../../base-controller/tests/helpers';
+import { buildInfuraNetworkClientConfiguration } from '../../network-controller/tests/helpers';
+import type { AssetsContractControllerMessenger } from './AssetsContractController';
 import {
   AssetsContractController,
   MISSING_PROVIDER_ERROR,
@@ -80,12 +79,10 @@ async function setupAssetContractControllers({
   let provider: Provider;
 
   const controllerMessenger = new ControllerMessenger<
-    | NetworkControllerActions
-    | AssetsContractControllerActions
-    | AssetsContractAllowedActions,
+    | ExtractAvailableAction<AssetsContractControllerMessenger>
+    | NetworkControllerActions,
+    | ExtractAvailableEvent<AssetsContractControllerMessenger>
     | NetworkControllerEvents
-    | AssetsContractControllerEvents
-    | AssetsContractAllowedEvents
   >();
   const networkController = new NetworkController({
     infuraProjectId,
