@@ -1,5 +1,9 @@
 import type { Network } from '@ethersproject/providers';
-import type { AccountsControllerSelectedAccountChangeEvent } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import type { ApprovalControllerMessenger } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
@@ -146,6 +150,10 @@ jest.mock('uuid', () => {
  * @param args.mockNetworkClientConfigurationsByNetworkClientId - Used to construct
  * mock versions of network clients and ultimately mock the
  * `NetworkController:getNetworkClientById` action.
+ * @param args.getAccount - Used to construct mock versions of the
+ * `AccountsController:getAccount` action.
+ * @param args.getSelectedAccount - Used to construct mock versions of the
+ * `AccountsController:getSelectedAccount` action.
  * @param args.defaultSelectedAccount - The default selected account to use in
  * @returns A collection of test controllers and mocks.
  */
@@ -157,6 +165,8 @@ function setupController({
   getERC721OwnerOf,
   getERC1155BalanceOf,
   getERC1155TokenURI,
+  getAccount,
+  getSelectedAccount,
   mockNetworkClientConfigurationsByNetworkClientId = {},
   defaultSelectedAccount = OWNER_ACCOUNT,
 }: {
@@ -185,6 +195,14 @@ function setupController({
     ReturnType<AssetsContractControllerGetERC1155TokenURIAction['handler']>,
     Parameters<AssetsContractControllerGetERC1155TokenURIAction['handler']>
   >;
+  getAccount?: jest.Mock<
+    ReturnType<AccountsControllerGetAccountAction['handler']>,
+    Parameters<AccountsControllerGetAccountAction['handler']> | [null]
+  >;
+  getSelectedAccount?: jest.Mock<
+    ReturnType<AccountsControllerGetSelectedAccountAction['handler']>,
+    Parameters<AccountsControllerGetSelectedAccountAction['handler']>
+  >;
   mockNetworkClientConfigurationsByNetworkClientId?: Record<
     NetworkClientId,
     NetworkClientConfiguration
@@ -209,19 +227,15 @@ function setupController({
     getNetworkClientById,
   );
 
-  const mockGetAccount = jest
-    .fn()
-    .mockReturnValue(defaultSelectedAccount ?? OWNER_ACCOUNT);
-
+  const mockGetAccount =
+    getAccount ?? jest.fn().mockReturnValue(defaultSelectedAccount);
   messenger.registerActionHandler(
     'AccountsController:getAccount',
     mockGetAccount,
   );
 
-  const mockGetSelectedAccount = jest
-    .fn()
-    .mockReturnValue(defaultSelectedAccount ?? OWNER_ACCOUNT);
-
+  const mockGetSelectedAccount =
+    getSelectedAccount ?? jest.fn().mockReturnValue(defaultSelectedAccount);
   messenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
@@ -637,10 +651,13 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
+        getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
-          .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+          .mockResolvedValue('https://testtokenuri.com'),
+        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -716,10 +733,13 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
+        getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
-          .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+          .mockResolvedValue('https://testtokenuri.com'),
+        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -795,10 +815,13 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
+        getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
-          .mockImplementation(() => 'ipfs://testtokenuri.com'),
-        getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+          .mockResolvedValue('https://testtokenuri.com'),
+        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
       triggerSelectedAccountChange(OWNER_ACCOUNT);
       triggerPreferencesStateChange({
@@ -874,10 +897,13 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
+        getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+        getERC721OwnerOf: jest.fn().mockResolvedValue(OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
-          .mockImplementation(() => 'ipfs://testtokenuri.com'),
-        getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
+          .mockResolvedValue('https://testtokenuri.com'),
+        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
@@ -955,13 +981,17 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
+        getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+        getERC721OwnerOf: jest
+          .fn()
+          .mockRejectedValue(new Error('Not an ERC721 contract')),
+        getERC1155BalanceOf: jest.fn().mockResolvedValue(new BN(1)),
         getERC721TokenURI: jest
           .fn()
           .mockRejectedValue(new Error('Not an ERC721 contract')),
         getERC1155TokenURI: jest
           .fn()
-          .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(1)),
+          .mockResolvedValue('https://testtokenuri.com'),
       });
 
       triggerSelectedAccountChange(OWNER_ACCOUNT);
@@ -1042,13 +1072,17 @@ describe('NftController', () => {
 
       const { nftController, messenger, triggerPreferencesStateChange } =
         setupController({
+          getAccount: jest.fn().mockReturnValue(OWNER_ACCOUNT),
+          getERC721OwnerOf: jest
+            .fn()
+            .mockRejectedValue(new Error('Not an ERC721 contract')),
+          getERC1155BalanceOf: jest.fn().mockResolvedValue(new BN(1)),
           getERC721TokenURI: jest
             .fn()
             .mockRejectedValue(new Error('Not an ERC721 contract')),
           getERC1155TokenURI: jest
             .fn()
-            .mockImplementation(() => 'https://testtokenuri.com'),
-          getERC1155BalanceOf: jest.fn().mockImplementation(() => new BN(1)),
+            .mockResolvedValue('https://testtokenuri.com'),
         });
       triggerPreferencesStateChange({
         ...getDefaultPreferencesState(),
@@ -1134,18 +1168,12 @@ describe('NftController', () => {
         triggerPreferencesStateChange,
         triggerSelectedAccountChange,
       } = setupController({
-        getERC721OwnerOf: jest
-          .fn()
-          .mockImplementation(() => SECOND_OWNER_ADDRESS),
+        getERC721OwnerOf: jest.fn().mockResolvedValue(SECOND_OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
-          .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC721AssetName: jest
-          .fn()
-          .mockImplementation(() => 'testERC721Name'),
-        getERC721AssetSymbol: jest
-          .fn()
-          .mockImplementation(() => 'testERC721Symbol'),
+          .mockResolvedValue('https://testtokenuri.com'),
+        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
 
       const requestId = 'approval-request-id-1';
@@ -1241,13 +1269,9 @@ describe('NftController', () => {
         getERC721OwnerOf: jest.fn().mockImplementation(() => OWNER_ADDRESS),
         getERC721TokenURI: jest
           .fn()
-          .mockImplementation(() => 'https://testtokenuri.com'),
-        getERC721AssetName: jest
-          .fn()
-          .mockImplementation(() => 'testERC721Name'),
-        getERC721AssetSymbol: jest
-          .fn()
-          .mockImplementation(() => 'testERC721Symbol'),
+          .mockResolvedValue('https://testtokenuri.com'),
+        getERC721AssetName: jest.fn().mockResolvedValue('testERC721Name'),
+        getERC721AssetSymbol: jest.fn().mockResolvedValue('testERC721Symbol'),
       });
 
       const requestId = 'approval-request-id-1';
