@@ -104,16 +104,18 @@ const GOERLI = {
   ticker: NetworksTicker.goerli,
 };
 
-const CRYPTOPUNK_COLLECTION_MOCK = {
-  id: CRYPTOPUNK_ADDRESS,
+const ERC_721_1_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+const ERC_721_1_COLLECTION_MOCK = {
+  id: ERC_721_1_ADDRESS,
   name: 'CryptoPunks',
   slug: 'cryptopunks',
   symbol: 'PUNK',
   imageUrl: 'url',
 };
 
-const ERC721_KUDOS_COLLECTION_MOCK = {
-  id: ERC721_KUDOSADDRESS,
+const ERC_721_2_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
+const ERC_721_2_COLLECTION_MOCK = {
+  id: ERC_721_2_ADDRESS,
   name: 'Kudos',
   slug: 'kudos',
   symbol: 'KUDOS',
@@ -4834,24 +4836,21 @@ describe('NftController', () => {
     it('fetches NFT collections metadata successfully', async () => {
       nock(NFT_API_BASE_URL)
         .get(
-          `/collections?chainId=0x1&contract=${CRYPTOPUNK_ADDRESS}&contract=${ERC721_KUDOSADDRESS}`,
+          `/collections?chainId=0x1&contract=${ERC_721_1_ADDRESS}&contract=${ERC_721_2_ADDRESS}`,
         )
         .reply(200, {
-          collections: [
-            CRYPTOPUNK_COLLECTION_MOCK,
-            ERC721_KUDOS_COLLECTION_MOCK,
-          ],
+          collections: [ERC_721_1_COLLECTION_MOCK, ERC_721_2_COLLECTION_MOCK],
         });
 
       const { nftController } = setupController();
 
       const response = await nftController.getNFTContractInfo(
-        [CRYPTOPUNK_ADDRESS, ERC721_KUDOSADDRESS],
+        [ERC_721_1_ADDRESS, ERC_721_2_ADDRESS],
         ChainId.mainnet,
       );
 
       expect(response).toStrictEqual({
-        collections: [CRYPTOPUNK_COLLECTION_MOCK, ERC721_KUDOS_COLLECTION_MOCK],
+        collections: [ERC_721_1_COLLECTION_MOCK, ERC_721_2_COLLECTION_MOCK],
       });
     });
   });
