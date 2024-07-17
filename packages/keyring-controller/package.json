@@ -1,6 +1,6 @@
 {
   "name": "@metamask/keyring-controller",
-  "version": "17.1.0",
+  "version": "17.1.1",
   "description": "Stores identities seen in the wallet and manages interactions such as signing",
   "keywords": [
     "MetaMask",
@@ -49,8 +49,8 @@
     "@metamask/eth-sig-util": "^7.0.1",
     "@metamask/eth-simple-keyring": "^6.0.1",
     "@metamask/keyring-api": "^8.0.0",
-    "@metamask/message-manager": "^10.0.0",
-    "@metamask/utils": "^9.0.0",
+    "@metamask/message-manager": "^10.0.1",
+    "@metamask/utils": "^9.1.0",
     "async-mutex": "^0.5.0",
     "ethereumjs-wallet": "^1.0.1",
     "immer": "^9.0.6"

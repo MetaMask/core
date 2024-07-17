@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+### Fixed
+
+- Clear encryption salt and key in `setLocked` and `#createNewVaultWithKeyring` to ensure that encryption key is always generated with the latest password ([#4514](https://github.com/MetaMask/core/pull/4514))
+
 ## [17.1.0]
 
 ### Added
@@ -497,7 +507,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.1...HEAD
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.0...@metamask/keyring-controller@17.1.1
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...@metamask/keyring-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.1.0...@metamask/keyring-controller@17.0.0
 [16.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...@metamask/keyring-controller@16.1.0
