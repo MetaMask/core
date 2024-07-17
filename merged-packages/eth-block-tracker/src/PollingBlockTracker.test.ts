@@ -66,9 +66,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -117,9 +115,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -177,9 +173,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -197,20 +191,17 @@ describe('PollingBlockTracker', () => {
       await withPollingBlockTracker(
         { blockTracker: { setSkipCacheFlag: true } },
         async ({ provider, blockTracker }) => {
-          jest.spyOn(provider, 'sendAsync');
+          jest.spyOn(provider, 'request');
 
           await blockTracker.getLatestBlock();
 
-          expect(provider.sendAsync).toHaveBeenCalledWith(
-            {
-              jsonrpc: '2.0' as const,
-              id: expect.any(Number),
-              method: 'eth_blockNumber' as const,
-              params: [],
-              skipCache: true,
-            },
-            expect.any(Function),
-          );
+          expect(provider.request).toHaveBeenCalledWith({
+            jsonrpc: '2.0' as const,
+            id: expect.any(Number),
+            method: 'eth_blockNumber' as const,
+            params: [],
+            skipCache: true,
+          });
         },
       );
     });
@@ -219,14 +210,12 @@ describe('PollingBlockTracker', () => {
       recordCallsToSetTimeout();
 
       await withPollingBlockTracker(async ({ provider, blockTracker }) => {
-        const sendAsyncSpy = jest.spyOn(provider, 'sendAsync');
+        const requestSpy = jest.spyOn(provider, 'request');
         await blockTracker.getLatestBlock();
         await blockTracker.getLatestBlock();
-        const requestsForLatestBlock = sendAsyncSpy.mock.calls.filter(
-          (args) => {
-            return args[0].method === 'eth_blockNumber';
-          },
-        );
+        const requestsForLatestBlock = requestSpy.mock.calls.filter((args) => {
+          return args[0].method === 'eth_blockNumber';
+        });
         expect(requestsForLatestBlock).toHaveLength(1);
       });
     });
@@ -244,22 +233,18 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x1',
-                },
+                result: '0x1',
               },
             ],
           },
           blockTracker: blockTrackerOptions,
         },
         async ({ provider, blockTracker }) => {
-          const sendAsyncSpy = jest.spyOn(provider, 'sendAsync');
+          const requestSpy = jest.spyOn(provider, 'request');
           await blockTracker.getLatestBlock();
           // When the block tracker stops, there may be two `setTimeout`s in
           // play: one to go to the next iteration of the block tracker
@@ -269,7 +254,7 @@ describe('PollingBlockTracker', () => {
             blockTrackerOptions.blockResetDuration,
           );
           await blockTracker.getLatestBlock();
-          const requestsForLatestBlock = sendAsyncSpy.mock.calls.filter(
+          const requestsForLatestBlock = requestSpy.mock.calls.filter(
             (args) => {
               return args[0].method === 'eth_blockNumber';
             },
@@ -280,45 +265,6 @@ describe('PollingBlockTracker', () => {
     });
 
     METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-      it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if the request for the latest block number returns an error response`, async () => {
-        recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-        await withPollingBlockTracker(
-          {
-            provider: {
-              stubs: [
-                {
-                  methodName: 'eth_blockNumber',
-                  response: {
-                    error: 'boom',
-                  },
-                },
-                {
-                  methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
-                },
-              ],
-            },
-          },
-          async ({ blockTracker }) => {
-            const promiseForCaughtError = new Promise<any>((resolve) => {
-              blockTracker[methodToAddListener]('error', resolve);
-            });
-
-            const promiseForLatestBlock = blockTracker.getLatestBlock();
-
-            const caughtError = await promiseForCaughtError;
-            expect(caughtError.message).toMatch(
-              /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-            );
-            const latestBlock = await promiseForLatestBlock;
-            expect(latestBlock).toBe('0x0');
-          },
-        );
-      });
-
       it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws an Error`, async () => {
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
@@ -334,9 +280,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -373,9 +317,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -410,9 +352,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -433,41 +373,6 @@ describe('PollingBlockTracker', () => {
           },
         );
       });
-    });
-
-    it('should log an error if the request for the latest block number returns an error response and there is nothing listening to "error"', async () => {
-      recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-      await withPollingBlockTracker(
-        {
-          provider: {
-            stubs: [
-              {
-                methodName: 'eth_blockNumber',
-                response: {
-                  error: 'boom',
-                },
-              },
-            ],
-          },
-        },
-        async ({ blockTracker }) => {
-          jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-          blockTracker.getLatestBlock();
-          await new Promise((resolve) => {
-            blockTracker.on('_waitingForNextIteration', resolve);
-          });
-
-          expect(console.error).toHaveBeenCalledWith(
-            expect.objectContaining({
-              message: expect.stringMatching(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-              ),
-            }),
-          );
-        },
-      );
     });
 
     it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
@@ -582,9 +487,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -610,9 +513,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -646,15 +547,11 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x1',
-                },
+                result: '0x1',
               },
             ],
           },
@@ -687,9 +584,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -710,9 +605,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -731,45 +624,17 @@ describe('PollingBlockTracker', () => {
       await withPollingBlockTracker(
         { blockTracker: { setSkipCacheFlag: true } },
         async ({ provider, blockTracker }) => {
-          jest.spyOn(provider, 'sendAsync');
+          jest.spyOn(provider, 'request');
 
           await blockTracker.checkForLatestBlock();
 
-          expect(provider.sendAsync).toHaveBeenCalledWith(
-            {
-              jsonrpc: '2.0' as const,
-              id: expect.any(Number),
-              method: 'eth_blockNumber' as const,
-              params: [],
-              skipCache: true,
-            },
-            expect.any(Function),
-          );
-        },
-      );
-    });
-
-    it(`should not emit the "error" event, but should throw instead if the request for the latest block number returns an error response`, async () => {
-      recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-      await withPollingBlockTracker(
-        {
-          provider: {
-            stubs: [
-              {
-                methodName: 'eth_blockNumber',
-                response: {
-                  error: 'boom',
-                },
-              },
-            ],
-          },
-        },
-        async ({ blockTracker }) => {
-          const promiseForLatestBlock = blockTracker.checkForLatestBlock();
-          await expect(promiseForLatestBlock).rejects.toThrow(
-            'PollingBlockTracker - encountered error fetching block:\nboom',
-          );
+          expect(provider.request).toHaveBeenCalledWith({
+            jsonrpc: '2.0' as const,
+            id: expect.any(Number),
+            method: 'eth_blockNumber' as const,
+            params: [],
+            skipCache: true,
+          });
         },
       );
     });
@@ -788,9 +653,7 @@ describe('PollingBlockTracker', () => {
               },
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -815,9 +678,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -850,15 +711,11 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                 ],
               },
@@ -882,15 +739,11 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                 ],
               },
@@ -914,15 +767,11 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -946,15 +795,11 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -981,15 +826,11 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
               ],
             },
@@ -1013,15 +854,11 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
               ],
             },
@@ -1045,15 +882,11 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -1077,15 +910,11 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -1124,9 +953,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1149,9 +976,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1180,15 +1005,11 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                 ],
               },
@@ -1246,63 +1067,19 @@ describe('PollingBlockTracker', () => {
           await withPollingBlockTracker(
             { blockTracker: { setSkipCacheFlag: true } },
             async ({ provider, blockTracker }) => {
-              jest.spyOn(provider, 'sendAsync');
+              jest.spyOn(provider, 'request');
 
               await new Promise((resolve) => {
                 blockTracker[methodToAddListener]('latest', resolve);
               });
 
-              expect(provider.sendAsync).toHaveBeenCalledWith(
-                {
-                  jsonrpc: '2.0' as const,
-                  id: expect.any(Number),
-                  method: 'eth_blockNumber' as const,
-                  params: [],
-                  skipCache: true,
-                },
-                expect.any(Function),
-              );
-            },
-          );
-        });
-
-        it(`should emit the "error" event and should not kill the block tracker if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
+              expect(provider.request).toHaveBeenCalledWith({
+                jsonrpc: '2.0' as const,
+                id: expect.any(Number),
+                method: 'eth_blockNumber' as const,
+                params: [],
+                skipCache: true,
               });
-
-              const promiseForLatestBlock = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('latest', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-              );
-              const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toBe('0x0');
             },
           );
         });
@@ -1322,9 +1099,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1363,9 +1138,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1402,9 +1175,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1428,47 +1199,6 @@ describe('PollingBlockTracker', () => {
           );
         });
 
-        it('should log an error if the request for the latest block number returns an error response and there is nothing listening to "error"', async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-              blockTracker[methodToAddListener]('latest', EMPTY_FUNCTION);
-              await new Promise((resolve) => {
-                blockTracker.on('_waitingForNextIteration', resolve);
-              });
-
-              expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-                  ),
-                }),
-              );
-            },
-          );
-        });
-
         it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
@@ -1484,9 +1214,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1525,9 +1253,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1564,9 +1290,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1607,15 +1331,11 @@ describe('PollingBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x1',
-                        },
+                        result: '0x1',
                       },
                     ],
                   },
@@ -1651,15 +1371,11 @@ describe('PollingBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x1',
-                        },
+                        result: '0x1',
                       },
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                     ],
                   },
@@ -1695,15 +1411,11 @@ describe('PollingBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                     ],
                   },
@@ -1742,15 +1454,11 @@ describe('PollingBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x1',
-                      },
+                      result: '0x1',
                     },
                   ],
                 },
@@ -1786,15 +1494,11 @@ describe('PollingBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x1',
-                      },
+                      result: '0x1',
                     },
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                   ],
                 },
@@ -1830,15 +1534,11 @@ describe('PollingBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                   ],
                 },
@@ -1885,9 +1585,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1910,9 +1608,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1941,15 +1637,11 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                 ],
               },
@@ -2007,63 +1699,19 @@ describe('PollingBlockTracker', () => {
           await withPollingBlockTracker(
             { blockTracker: { setSkipCacheFlag: true } },
             async ({ provider, blockTracker }) => {
-              jest.spyOn(provider, 'sendAsync');
+              jest.spyOn(provider, 'request');
 
               await new Promise((resolve) => {
                 blockTracker[methodToAddListener]('sync', resolve);
               });
 
-              expect(provider.sendAsync).toHaveBeenCalledWith(
-                {
-                  jsonrpc: '2.0' as const,
-                  id: expect.any(Number),
-                  method: 'eth_blockNumber' as const,
-                  params: [],
-                  skipCache: true,
-                },
-                expect.any(Function),
-              );
-            },
-          );
-        });
-
-        it(`should emit the "error" event and should not kill the block tracker if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
+              expect(provider.request).toHaveBeenCalledWith({
+                jsonrpc: '2.0' as const,
+                id: expect.any(Number),
+                method: 'eth_blockNumber' as const,
+                params: [],
+                skipCache: true,
               });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('sync', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-              );
-              const sync = await promiseForSync;
-              expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
             },
           );
         });
@@ -2083,9 +1731,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2124,9 +1770,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2163,9 +1807,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2185,41 +1827,6 @@ describe('PollingBlockTracker', () => {
               );
               const sync = await promiseForSync;
               expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
-            },
-          );
-        });
-
-        it('should log an error if the request for the latest block number returns an error response and there is nothing listening to "error"', async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-              blockTracker[methodToAddListener]('sync', EMPTY_FUNCTION);
-              await new Promise((resolve) => {
-                blockTracker.on('_waitingForNextIteration', resolve);
-              });
-
-              expect(console.error).toHaveBeenCalledWith(
-                expect.objectContaining({
-                  message: expect.stringMatching(
-                    /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-                  ),
-                }),
-              );
             },
           );
         });
@@ -2344,15 +1951,11 @@ describe('PollingBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x1',
-                        },
+                        result: '0x1',
                       },
                     ],
                   },
@@ -2388,15 +1991,11 @@ describe('PollingBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x1',
-                        },
+                        result: '0x1',
                       },
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                     ],
                   },
@@ -2431,15 +2030,11 @@ describe('PollingBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                     ],
                   },
@@ -2477,15 +2072,11 @@ describe('PollingBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x1',
-                      },
+                      result: '0x1',
                     },
                   ],
                 },
@@ -2521,15 +2112,11 @@ describe('PollingBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x1',
-                      },
+                      result: '0x1',
                     },
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                   ],
                 },
@@ -2565,15 +2152,11 @@ describe('PollingBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                   ],
                 },
@@ -2619,9 +2202,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2676,9 +2257,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2724,21 +2303,15 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x1',
-                    },
+                    result: '0x1',
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x2',
-                    },
+                    result: '0x2',
                   },
                 ],
               },
@@ -2805,9 +2378,7 @@ describe('PollingBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2896,15 +2467,11 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
               ],
             },
@@ -2941,9 +2508,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -2968,47 +2533,6 @@ describe('PollingBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock = new Promise((resolve) => {
-                blockTracker.once('latest', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-              );
-              const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toBe('0x0');
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
@@ -3024,9 +2548,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -3065,9 +2587,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -3104,9 +2624,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -3131,47 +2649,6 @@ describe('PollingBlockTracker', () => {
         });
       });
 
-      it('should log an error if the request for the latest block number returns an error response and there is nothing listening to "error"', async () => {
-        recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-        await withPollingBlockTracker(
-          {
-            provider: {
-              stubs: [
-                {
-                  methodName: 'eth_blockNumber',
-                  response: {
-                    error: 'boom',
-                  },
-                },
-                {
-                  methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
-                },
-              ],
-            },
-          },
-          async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-            blockTracker.once('latest', EMPTY_FUNCTION);
-            await new Promise((resolve) => {
-              blockTracker.on('_waitingForNextIteration', resolve);
-            });
-
-            expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-                ),
-              }),
-            );
-          },
-        );
-      });
-
       it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
@@ -3187,9 +2664,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3228,9 +2703,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3267,9 +2740,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3324,9 +2795,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3351,47 +2820,6 @@ describe('PollingBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withPollingBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker.once('sync', resolve);
-              });
-
-              const caughtError = await promiseForCaughtError;
-              expect(caughtError.message).toMatch(
-                /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-              );
-              const sync = await promiseForSync;
-              expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not throw if, while making the request for the latest block number, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
@@ -3407,9 +2835,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -3448,9 +2874,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -3487,9 +2911,7 @@ describe('PollingBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -3514,47 +2936,6 @@ describe('PollingBlockTracker', () => {
         });
       });
 
-      it('should log an error if the request for the latest block number returns an error response and there is nothing listening to "error"', async () => {
-        recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-        await withPollingBlockTracker(
-          {
-            provider: {
-              stubs: [
-                {
-                  methodName: 'eth_blockNumber',
-                  response: {
-                    error: 'boom',
-                  },
-                },
-                {
-                  methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
-                },
-              ],
-            },
-          },
-          async ({ blockTracker }) => {
-            jest.spyOn(console, 'error').mockImplementation(EMPTY_FUNCTION);
-
-            blockTracker.once('sync', EMPTY_FUNCTION);
-            await new Promise((resolve) => {
-              blockTracker.on('_waitingForNextIteration', resolve);
-            });
-
-            expect(console.error).toHaveBeenCalledWith(
-              expect.objectContaining({
-                message: expect.stringMatching(
-                  /^PollingBlockTracker - encountered an error while attempting to update latest block:\nError: PollingBlockTracker - encountered error fetching block:\nboom/u,
-                ),
-              }),
-            );
-          },
-        );
-      });
-
       it('should log an error if, while making a request for the latest block number, the provider throws an Error and there is nothing listening to "error"', async () => {
         recordCallsToSetTimeout({ numAutomaticCalls: 1 });
 
@@ -3570,9 +2951,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3611,9 +2990,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3650,9 +3027,7 @@ describe('PollingBlockTracker', () => {
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3702,9 +3077,7 @@ describe('PollingBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3747,9 +3120,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -3806,9 +3177,7 @@ describe('PollingBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },

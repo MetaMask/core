@@ -70,9 +70,7 @@ describe('SubscribeBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -106,9 +104,7 @@ describe('SubscribeBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -164,9 +160,7 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -184,10 +178,10 @@ describe('SubscribeBlockTracker', () => {
         recordCallsToSetTimeout();
 
         await withSubscribeBlockTracker(async ({ provider, blockTracker }) => {
-          const sendAsyncSpy = jest.spyOn(provider, 'sendAsync');
+          const requestSpy = jest.spyOn(provider, 'request');
           await blockTracker[methodToGetLatestBlock]();
           await blockTracker[methodToGetLatestBlock]();
-          const requestsForLatestBlock = sendAsyncSpy.mock.calls.filter(
+          const requestsForLatestBlock = requestSpy.mock.calls.filter(
             (args) => {
               return args[0].method === 'eth_blockNumber';
             },
@@ -209,46 +203,34 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
                 {
                   methodName: 'eth_subscribe',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
                 {
                   methodName: 'eth_unsubscribe',
-                  response: {
-                    result: true,
-                  },
+                  result: true,
                 },
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
                 {
                   methodName: 'eth_subscribe',
-                  response: {
-                    result: '0x1',
-                  },
+                  result: '0x1',
                 },
                 {
                   methodName: 'eth_unsubscribe',
-                  response: {
-                    result: true,
-                  },
+                  result: true,
                 },
               ],
             },
             blockTracker: blockTrackerOptions,
           },
           async ({ provider, blockTracker }) => {
-            const sendAsyncSpy = jest.spyOn(provider, 'sendAsync');
+            const requestSpy = jest.spyOn(provider, 'request');
             await blockTracker[methodToGetLatestBlock]();
             // For PollingBlockTracker, there are possibly multiple
             // `setTimeout`s in play at this point. For SubscribeBlockTracker
@@ -258,7 +240,7 @@ describe('SubscribeBlockTracker', () => {
               blockTrackerOptions.blockResetDuration,
             );
             await blockTracker[methodToGetLatestBlock]();
-            const requestsForLatestBlock = sendAsyncSpy.mock.calls.filter(
+            const requestsForLatestBlock = requestSpy.mock.calls.filter(
               (args) => {
                 return args[0].method === 'eth_blockNumber';
               },
@@ -269,37 +251,6 @@ describe('SubscribeBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) and should resolve with undefined if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock =
-                blockTracker[methodToGetLatestBlock]();
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toBeUndefined();
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request for the latest block number, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
@@ -393,37 +344,6 @@ describe('SubscribeBlockTracker', () => {
           );
         });
 
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) and should still resolve with the latest block number if the request to subscribe returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_subscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock =
-                blockTracker[methodToGetLatestBlock]();
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const latestBlockNumber = await promiseForLatestBlock;
-              expect(latestBlockNumber).toBe('0x0');
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should never resolve if, while making the request to subscribe, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
@@ -513,34 +433,6 @@ describe('SubscribeBlockTracker', () => {
               const caughtError = await promiseForCaughtError;
               expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
-            },
-          );
-        });
-
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) if the request to unsubscribe returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_unsubscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              await blockTracker[methodToGetLatestBlock]();
-
-              await expect(promiseForCaughtError).toNeverResolve();
             },
           );
         });
@@ -642,9 +534,7 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -670,9 +560,7 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -719,9 +607,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -744,9 +630,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -770,15 +654,11 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_subscribe',
-                    response: {
-                      result: '0x64',
-                    },
+                    result: '0x64',
                   },
                 ],
               },
@@ -822,15 +702,11 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_subscribe',
-                    response: {
-                      result: '0x64',
-                    },
+                    result: '0x64',
                   },
                 ],
               },
@@ -885,38 +761,6 @@ describe('SubscribeBlockTracker', () => {
             const caughtError = await promiseForCaughtError;
             expect(caughtError).toBe(thrownError);
           });
-        });
-
-        it(`should not emit the "error" event and should emit "latest" with undefined if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('latest', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const latestBlock = await promiseForLatestBlock;
-              expect(latestBlock).toBeUndefined();
-            },
-          );
         });
 
         it(`should emit the "error" event and should not emit "latest" if, while making the request for the latest block number, the provider throws an Error`, async () => {
@@ -996,9 +840,7 @@ describe('SubscribeBlockTracker', () => {
                   },
                   {
                     methodName: 'eth_subscribe',
-                    response: {
-                      result: '0x64',
-                    },
+                    result: '0x64',
                   },
                 ],
               },
@@ -1015,43 +857,6 @@ describe('SubscribeBlockTracker', () => {
               const caughtError = await promiseForCaughtError;
               expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
-            },
-          );
-        });
-
-        it(`should not emit the "error" event and should still emit "latest" with the latest block number if the request to subscribe returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
-                  },
-                  {
-                    methodName: 'eth_subscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const latestBlockNumber = await new Promise<string>((resolve) => {
-                blockTracker[methodToAddListener]('latest', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              expect(latestBlockNumber).toBe('0x0');
             },
           );
         });
@@ -1165,15 +970,11 @@ describe('SubscribeBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_subscribe',
-                        response: {
-                          result: '0x64',
-                        },
+                        result: '0x64',
                       },
                     ],
                   },
@@ -1219,15 +1020,11 @@ describe('SubscribeBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x1',
-                        },
+                        result: '0x1',
                       },
                       {
                         methodName: 'eth_subscribe',
-                        response: {
-                          result: '0x64',
-                        },
+                        result: '0x64',
                       },
                     ],
                   },
@@ -1272,15 +1069,11 @@ describe('SubscribeBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_subscribe',
-                        response: {
-                          result: '0x64',
-                        },
+                        result: '0x64',
                       },
                     ],
                   },
@@ -1328,15 +1121,11 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_subscribe',
-                      response: {
-                        result: '0x64',
-                      },
+                      result: '0x64',
                     },
                   ],
                 },
@@ -1382,15 +1171,11 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x1',
-                      },
+                      result: '0x1',
                     },
                     {
                       methodName: 'eth_subscribe',
-                      response: {
-                        result: '0x64',
-                      },
+                      result: '0x64',
                     },
                   ],
                 },
@@ -1435,15 +1220,11 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_subscribe',
-                      response: {
-                        result: '0x64',
-                      },
+                      result: '0x64',
                     },
                   ],
                 },
@@ -1501,9 +1282,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1526,9 +1305,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -1552,15 +1329,11 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_subscribe',
-                    response: {
-                      result: '0x64',
-                    },
+                    result: '0x64',
                   },
                 ],
               },
@@ -1603,15 +1376,11 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                   {
                     methodName: 'eth_subscribe',
-                    response: {
-                      result: '0x64',
-                    },
+                    result: '0x64',
                   },
                 ],
               },
@@ -1665,41 +1434,6 @@ describe('SubscribeBlockTracker', () => {
             const caughtError = await promiseForCaughtError;
             expect(caughtError).toBe(thrownError);
           });
-        });
-
-        it(`should not emit the "error" event and should emit "sync" with undefined in place of the latest block if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('sync', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const sync = await promiseForSync;
-              expect(sync).toStrictEqual({
-                oldBlock: null,
-                newBlock: undefined,
-              });
-            },
-          );
         });
 
         it(`should emit the "error" event and should not emit "sync" if, while making a request for the latest block number, the provider throws an Error`, async () => {
@@ -1792,41 +1526,6 @@ describe('SubscribeBlockTracker', () => {
               const caughtError = await promiseForCaughtError;
               expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
-            },
-          );
-        });
-
-        it(`should not emit the "error" event and should still emit "sync" with the latest block number if the request to subscribe returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_subscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker[methodToAddListener]('sync', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const sync = await promiseForSync;
-              expect(sync).toStrictEqual({
-                oldBlock: null,
-                newBlock: '0x0',
-              });
             },
           );
         });
@@ -1940,15 +1639,11 @@ describe('SubscribeBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_subscribe',
-                        response: {
-                          result: '0x64',
-                        },
+                        result: '0x64',
                       },
                     ],
                   },
@@ -1994,15 +1689,11 @@ describe('SubscribeBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x1',
-                        },
+                        result: '0x1',
                       },
                       {
                         methodName: 'eth_subscribe',
-                        response: {
-                          result: '0x64',
-                        },
+                        result: '0x64',
                       },
                     ],
                   },
@@ -2046,15 +1737,11 @@ describe('SubscribeBlockTracker', () => {
                     stubs: [
                       {
                         methodName: 'eth_blockNumber',
-                        response: {
-                          result: '0x0',
-                        },
+                        result: '0x0',
                       },
                       {
                         methodName: 'eth_subscribe',
-                        response: {
-                          result: '0x64',
-                        },
+                        result: '0x64',
                       },
                     ],
                   },
@@ -2101,15 +1788,11 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_subscribe',
-                      response: {
-                        result: '0x64',
-                      },
+                      result: '0x64',
                     },
                   ],
                 },
@@ -2155,15 +1838,11 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x1',
-                      },
+                      result: '0x1',
                     },
                     {
                       methodName: 'eth_subscribe',
-                      response: {
-                        result: '0x64',
-                      },
+                      result: '0x64',
                     },
                   ],
                 },
@@ -2208,15 +1887,11 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_blockNumber',
-                      response: {
-                        result: '0x0',
-                      },
+                      result: '0x0',
                     },
                     {
                       methodName: 'eth_subscribe',
-                      response: {
-                        result: '0x64',
-                      },
+                      result: '0x64',
                     },
                   ],
                 },
@@ -2273,9 +1948,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2330,9 +2003,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2373,7 +2044,7 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_unsubscribe',
-                      response: {
+                      result: {
                         error: 'boom',
                       },
                     },
@@ -2541,9 +2212,7 @@ describe('SubscribeBlockTracker', () => {
                 stubs: [
                   {
                     methodName: 'eth_blockNumber',
-                    response: {
-                      result: '0x0',
-                    },
+                    result: '0x0',
                   },
                 ],
               },
@@ -2584,7 +2253,7 @@ describe('SubscribeBlockTracker', () => {
                   stubs: [
                     {
                       methodName: 'eth_unsubscribe',
-                      response: {
+                      result: {
                         error: 'boom',
                       },
                     },
@@ -2773,9 +2442,7 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -2800,38 +2467,6 @@ describe('SubscribeBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) and should emit "latest" with undefined if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForLatestBlock = new Promise((resolve) => {
-                blockTracker.once('latest', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const latestBlockNumber = await promiseForLatestBlock;
-              expect(latestBlockNumber).toBeUndefined();
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not emit "latest" if, while making the request for the latest block number, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
@@ -2928,37 +2563,6 @@ describe('SubscribeBlockTracker', () => {
           );
         });
 
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) and should still emit "latest" if the request to subscribe returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_subscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const latestBlockNumber = await new Promise<string>((resolve) => {
-                blockTracker[methodToAddListener]('latest', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              expect(latestBlockNumber).toBe('0x0');
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not emit "latest" if, while making the request to subscribe, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
@@ -3051,36 +2655,6 @@ describe('SubscribeBlockTracker', () => {
               const caughtError = await promiseForCaughtError;
               expect(caughtError.message).toBe('boom');
               await expect(promiseForLatestBlock).toNeverResolve();
-            },
-          );
-        });
-
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) if the request to unsubscribe returns an error response`, async () => {
-          recordCallsToSetTimeout();
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_unsubscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              await new Promise((resolve) => {
-                blockTracker.once('latest', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
             },
           );
         });
@@ -3208,9 +2782,7 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3235,41 +2807,6 @@ describe('SubscribeBlockTracker', () => {
       });
 
       METHODS_TO_ADD_LISTENER.forEach((methodToAddListener) => {
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) and should emit "sync" with undefined in place of the latest block number if the request for the latest block number returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_blockNumber',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const promiseForSync = new Promise((resolve) => {
-                blockTracker.once('sync', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              const sync = await promiseForSync;
-              expect(sync).toStrictEqual({
-                oldBlock: null,
-                newBlock: undefined,
-              });
-            },
-          );
-        });
-
         it(`should emit the "error" event (added via \`${methodToAddListener}\`) and should not emit "sync" if, while making the request for the latest block number, the provider throws an Error`, async () => {
           recordCallsToSetTimeout({ numAutomaticCalls: 1 });
           const thrownError = new Error('boom');
@@ -3362,37 +2899,6 @@ describe('SubscribeBlockTracker', () => {
               const caughtError = await promiseForCaughtError;
               expect(caughtError.message).toBe('boom');
               await expect(promiseForSync).toNeverResolve();
-            },
-          );
-        });
-
-        it(`should not emit the "error" event (added via \`${methodToAddListener}\`) and should still emit "sync" if the request to subscribe returns an error response`, async () => {
-          recordCallsToSetTimeout({ numAutomaticCalls: 1 });
-
-          await withSubscribeBlockTracker(
-            {
-              provider: {
-                stubs: [
-                  {
-                    methodName: 'eth_subscribe',
-                    response: {
-                      error: 'boom',
-                    },
-                  },
-                ],
-              },
-            },
-            async ({ blockTracker }) => {
-              const promiseForCaughtError = new Promise<any>((resolve) => {
-                blockTracker[methodToAddListener]('error', resolve);
-              });
-
-              const sync = await new Promise<string>((resolve) => {
-                blockTracker[methodToAddListener]('sync', resolve);
-              });
-
-              await expect(promiseForCaughtError).toNeverResolve();
-              expect(sync).toStrictEqual({ oldBlock: null, newBlock: '0x0' });
             },
           );
         });
@@ -3611,9 +3117,7 @@ describe('SubscribeBlockTracker', () => {
               stubs: [
                 {
                   methodName: 'eth_blockNumber',
-                  response: {
-                    result: '0x0',
-                  },
+                  result: '0x0',
                 },
               ],
             },
@@ -3656,9 +3160,7 @@ describe('SubscribeBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },
@@ -3714,9 +3216,7 @@ describe('SubscribeBlockTracker', () => {
             stubs: [
               {
                 methodName: 'eth_blockNumber',
-                response: {
-                  result: '0x0',
-                },
+                result: '0x0',
               },
             ],
           },

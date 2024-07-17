@@ -25,7 +25,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/eth-json-rpc-provider": "^4.0.0",
+    "@metamask/eth-json-rpc-provider": "^4.1.0",
     "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^8.1.0",
     "json-rpc-random-id": "^1.0.1",

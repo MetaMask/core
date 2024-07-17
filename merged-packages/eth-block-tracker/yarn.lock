@@ -700,14 +700,16 @@
   resolved "https://registry.yarnpkg.com/@metamask/eslint-config/-/eslint-config-12.2.0.tgz#6cefc8331e4a34d26ae951882437371ecfe4e3c4"
   integrity sha512-BurYsht8MKdhvW2itUPPF8NkAhYtDdsCGHTSY7EzVvlmGP4jc9XrRZyfNwlt0zhB6MCMjHB1uNWwchtX7vBFjw==
 
-"@metamask/eth-json-rpc-provider@^4.0.0":
-  version "4.0.0"
-  resolved "https://registry.yarnpkg.com/@metamask/eth-json-rpc-provider/-/eth-json-rpc-provider-4.0.0.tgz#0ab54548fceda1829f313f2f8ec072ef91cce687"
-  integrity sha512-HB/I5eNsS67rE5C+px5zASyEuAoK/UFeWe4c4FIm2U4zMo7Y2EED1p10A4zHRHjpctObHdvNDcZQbfu2gHcqsQ==
+"@metamask/eth-json-rpc-provider@^4.1.0":
+  version "4.1.0"
+  resolved "https://registry.yarnpkg.com/@metamask/eth-json-rpc-provider/-/eth-json-rpc-provider-4.1.0.tgz#4191de86c9ace77035135522c42a67a65ab366d0"
+  integrity sha512-c8aVSZbtJBqFeQFN/4uQz5DsJFsjcwyITXwEOnuqJ1B0dQWu3EWE/VtKjyIMJDmfyvbU2Ihi7SXwRcgCkALI6A==
   dependencies:
     "@metamask/json-rpc-engine" "^9.0.0"
+    "@metamask/rpc-errors" "^6.2.1"
     "@metamask/safe-event-emitter" "^3.0.0"
     "@metamask/utils" "^8.3.0"
+    uuid "^8.3.2"
 
 "@metamask/json-rpc-engine@^9.0.0":
   version "9.0.0"
@@ -4196,6 +4198,11 @@ util-deprecate@^1.0.1:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/util-deprecate/-/util-deprecate-1.0.2.tgz#450d4dc9fa70de732762fbd2d4a28981419a0ccf"
   integrity sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==
+
+uuid@^8.3.2:
+  version "8.3.2"
+  resolved "https://registry.yarnpkg.com/uuid/-/uuid-8.3.2.tgz#80d5b5ced271bb9af6c445f21a1a04c606cefbe2"
+  integrity sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==
 
 uuid@^9.0.1:
   version "9.0.1"
