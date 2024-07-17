@@ -13,6 +13,10 @@ import type { PublicInterface } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
+
+export const INVALID_CONTROLLER_ERROR =
+  'Invalid controller: controller must have a `messagingSystem` or be a class inheriting from `BaseControllerV1`.';
+
 /**
  * A universal supertype for the `BaseControllerV1` state object.
  */
@@ -292,36 +296,33 @@ export class ComposableController<
 
   /**
    * Constructor helper that subscribes to child controller state changes.
+   *
    * @param controller - Controller instance to update
    */
   #updateChildController(controller: ControllerInstance): void {
-    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
-      throw new Error(
-        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
-      );
-    }
-
     const { name } = controller;
     if (
-      (isBaseControllerV1(controller) && 'messagingSystem' in controller) ||
-      isBaseController(controller)
+      isBaseController(controller) ||
+      (isBaseControllerV1(controller) && 'messagingSystem' in controller)
     ) {
       this.messagingSystem.subscribe(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // False negative. `name` is a string type.
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${name}:stateChange`,
-        (childState: Record<string, unknown>) => {
+        (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
             Object.assign(state, { [name]: childState });
           });
         },
       );
     } else if (isBaseControllerV1(controller)) {
-      controller.subscribe((childState) => {
+      controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
           Object.assign(state, { [name]: childState });
         });
       });
+    } else {
+      throw new Error(INVALID_CONTROLLER_ERROR);
     }
   }
 }
