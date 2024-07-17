@@ -3772,22 +3772,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-sdk@github:MetaMask/snaps#workspace=@metamask/snaps-sdk&commit=485c9699ddb0109068d7a07ecdd3539e510c8df6":
+"@metamask/snaps-sdk@github:MetaMask/snaps#workspace=@metamask/snaps-sdk&commit=3c95d8b54a7778d0473499826688cefa5d0b7012":
   version: 6.0.0
-  resolution: "@metamask/snaps-sdk@https://github.com/MetaMask/snaps.git#workspace=%40metamask%2Fsnaps-sdk&commit=485c9699ddb0109068d7a07ecdd3539e510c8df6"
+  resolution: "@metamask/snaps-sdk@https://github.com/MetaMask/snaps.git#workspace=%40metamask%2Fsnaps-sdk&commit=3c95d8b54a7778d0473499826688cefa5d0b7012"
   dependencies:
     "@metamask/key-tree": "npm:^9.1.2"
     "@metamask/providers": "npm:17.0.0"
     "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^9.0.0"
-  checksum: 10/aba1cec053caf1a460bf143fa340f4722f97dbcf325bef7e0203cd0823b4411ab2da0bf945d54293a89cd3847d40057f2a524324e8d15897cfaf59b7b6acbe12
+    "@metamask/utils": "npm:^9.1.0"
+  checksum: 10/8a5ef3e62935150f0e2c4e17a87baf9f90779ea3fd530b8ae81cfb5c67bbfbeae6dc9c390dd208d950f421dec4f98732d8b391f3b5fa330377db8eda69d83659
   languageName: node
   linkType: hard
 
-"@metamask/snaps-utils@github:MetaMask/snaps#workspace=@metamask/snaps-utils&commit=485c9699ddb0109068d7a07ecdd3539e510c8df6":
+"@metamask/snaps-utils@github:MetaMask/snaps#workspace=@metamask/snaps-utils&commit=3c95d8b54a7778d0473499826688cefa5d0b7012":
   version: 7.7.0
-  resolution: "@metamask/snaps-utils@https://github.com/MetaMask/snaps.git#workspace=%40metamask%2Fsnaps-utils&commit=485c9699ddb0109068d7a07ecdd3539e510c8df6"
+  resolution: "@metamask/snaps-utils@https://github.com/MetaMask/snaps.git#workspace=%40metamask%2Fsnaps-utils&commit=3c95d8b54a7778d0473499826688cefa5d0b7012"
   dependencies:
     "@babel/core": "npm:^7.23.2"
     "@babel/types": "npm:^7.23.0"
@@ -3799,7 +3799,7 @@ __metadata:
     "@metamask/snaps-registry": "npm:^3.2.1"
     "@metamask/snaps-sdk": "npm:^6.0.0"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^9.0.0"
+    "@metamask/utils": "npm:^9.1.0"
     "@noble/hashes": "npm:^1.3.1"
     "@scure/base": "npm:^1.1.1"
     chalk: "npm:^4.1.2"
@@ -3812,7 +3812,7 @@ __metadata:
     semver: "npm:^7.5.4"
     ses: "npm:^1.1.0"
     validate-npm-package-name: "npm:^5.0.0"
-  checksum: 10/27e70d9c0450ae93ef6268fc26d62054bbd1c61b05d1237c5e888177956652aabca290f49ec7de34421dd311d6ed41691cdf9b611b6d28cbc17dffa672f89307
+  checksum: 10/73c2a2f41c91d4dd56a7bad48c3e95c80557f44742a4c2731c945f1ccb30dad4260f733cf2a8fbc6c643085499ac71ee3ec4af334944dc16819f844577cc9cda
   languageName: node
   linkType: hard
 
@@ -3985,21 +3985,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/curves@npm:1.4.2, @noble/curves@npm:~1.4.0":
+"@noble/curves@npm:1.4.2, @noble/curves@npm:^1.2.0, @noble/curves@npm:~1.4.0":
   version: 1.4.2
   resolution: "@noble/curves@npm:1.4.2"
   dependencies:
     "@noble/hashes": "npm:1.4.0"
   checksum: 10/f433a2e8811ae345109388eadfa18ef2b0004c1f79417553241db4f0ad0d59550be6298a4f43d989c627e9f7551ffae6e402a4edf0173981e6da95fc7cab5123
-  languageName: node
-  linkType: hard
-
-"@noble/curves@npm:^1.2.0":
-  version: 1.4.0
-  resolution: "@noble/curves@npm:1.4.0"
-  dependencies:
-    "@noble/hashes": "npm:1.4.0"
-  checksum: 10/b21b30a36ff02bfcc0f5e6163d245cdbaf7f640511fff97ccf83fc207ee79cfd91584b4d97977374de04cb118a55eb63a7964c82596a64162bbc42bc685ae6d9
   languageName: node
   linkType: hard
 
@@ -5102,21 +5093,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"acorn@npm:^8.11.0":
+"acorn@npm:^8.11.0, acorn@npm:^8.2.4, acorn@npm:^8.4.1, acorn@npm:^8.9.0":
   version: 8.12.1
   resolution: "acorn@npm:8.12.1"
   bin:
     acorn: bin/acorn
   checksum: 10/d08c2d122bba32d0861e0aa840b2ee25946c286d5dc5990abca991baf8cdbfbe199b05aacb221b979411a2fea36f83e26b5ac4f6b4e0ce49038c62316c1848f0
-  languageName: node
-  linkType: hard
-
-"acorn@npm:^8.2.4, acorn@npm:^8.4.1, acorn@npm:^8.9.0":
-  version: 8.11.3
-  resolution: "acorn@npm:8.11.3"
-  bin:
-    acorn: bin/acorn
-  checksum: 10/b688e7e3c64d9bfb17b596e1b35e4da9d50553713b3b3630cf5690f2b023a84eac90c56851e6912b483fe60e8b4ea28b254c07e92f17ef83d72d78745a8352dd
   languageName: node
   linkType: hard
 

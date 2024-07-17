@@ -423,7 +423,8 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
+      // Error is flaky. Leaving commented `ts-expect-error` directive so it can be re-enabled if needed.
+      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
