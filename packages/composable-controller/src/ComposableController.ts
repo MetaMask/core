@@ -52,6 +52,9 @@ export type ControllerInstance =
 
 /**
  * The narrowest supertype of all `RestrictedControllerMessenger` instances.
+ *
+ * @template ControllerName - Name of the controller.
+ * Optionally can be used to narrow the type to a specific controller.
  */
 export type RestrictedControllerMessengerConstraint =
   RestrictedControllerMessenger<
@@ -136,7 +139,7 @@ export type ComposableControllerStateConstraint = {
 };
 
 /**
- * A controller state change event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
+ * A `stateChange` event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
  */
 // TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
 type LegacyControllerStateChangeEvent<
@@ -147,6 +150,11 @@ type LegacyControllerStateChangeEvent<
   payload: [ControllerState, Patch[]];
 };
 
+/**
+ * The `stateChange` event type for the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
 export type ComposableControllerStateChangeEvent<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = LegacyControllerStateChangeEvent<
@@ -154,11 +162,23 @@ export type ComposableControllerStateChangeEvent<
   ComposableControllerState
 >;
 
+/**
+ * A union type of internal event types available to the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
 export type ComposableControllerEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = ComposableControllerStateChangeEvent<ComposableControllerState>;
 
-type ChildControllerStateChangeEvents<
+/**
+ * A utility type that extracts controllers from the {@link ComposableControllerState} type,
+ * and derives a union type of all of their corresponding `stateChange` events.
+ *
+ * This type can handle both `BaseController` and `BaseControllerV1` controller instances.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = ComposableControllerState extends Record<
   infer ControllerName extends string,
@@ -171,10 +191,20 @@ type ChildControllerStateChangeEvents<
     : never
   : never;
 
+/**
+ * A union type of external event types available to the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
 type AllowedEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = ChildControllerStateChangeEvents<ComposableControllerState>;
 
+/**
+ * The messenger of the {@link ComposableController}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
 export type ComposableControllerMessenger<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = RestrictedControllerMessenger<
@@ -186,21 +216,10 @@ export type ComposableControllerMessenger<
   AllowedEvents<ComposableControllerState>['type']
 >;
 
-type GetChildControllers<
-  ComposableControllerState,
-  ControllerName extends keyof ComposableControllerState = keyof ComposableControllerState,
-> = ControllerName extends string
-  ? ComposableControllerState[ControllerName] extends StateConstraint
-    ? { name: ControllerName; state: ComposableControllerState[ControllerName] }
-    : BaseControllerV1<
-        BaseConfig & Record<string, unknown>,
-        BaseState & ComposableControllerState[ControllerName]
-      >
-  : never;
-
 /**
- * Controller that can be used to compose multiple controllers together.
- * @template ChildControllerState - The composed state of the child controllers that are being used to instantiate the composable controller.
+ * Controller that composes multiple child controllers and maintains up-to-date composed state.
+ *
+ * @template ChildControllerState - A type object containing the names and state types of the child controllers are being used to instantiate the {@link ComposableController}.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
