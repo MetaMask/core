@@ -94,6 +94,9 @@ export type SmartTransaction = {
   type?: string;
   confirmed?: boolean;
   cancellable?: boolean;
+  accountHardwareType?: string;
+  accountType?: string;
+  deviceModel?: string;
 };
 
 export type Fee = {
@@ -130,4 +133,10 @@ export type GetTransactionsOptions = {
   initialList?: TransactionMeta[];
   filterToCurrentNetwork?: boolean;
   limit?: number;
+};
+
+export type MetaMetricsProps = {
+  accountHardwareType?: string;
+  accountType?: string;
+  deviceModel?: string;
 };

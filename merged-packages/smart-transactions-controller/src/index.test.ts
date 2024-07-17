@@ -12,6 +12,9 @@ describe('default export', () => {
       getTransactions: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),
       getNetworkClientById: jest.fn(),
+      getMetaMetricsProps: jest.fn(async () => {
+        return Promise.resolve({});
+      }),
     });
     expect(controller).toBeInstanceOf(SmartTransactionsController);
     jest.clearAllTimers();

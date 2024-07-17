@@ -237,8 +237,6 @@ export const getSmartTransactionMetricsProperties = (
   const smartTransactionStatusMetadata = smartTransaction.statusMetadata;
   return {
     stx_status: smartTransaction.status,
-    token_from_symbol: smartTransaction.sourceTokenSymbol,
-    token_to_symbol: smartTransaction.destinationTokenSymbol,
     type: smartTransaction.type,
     processing_time: getStxProcessingTime(smartTransaction.time),
     is_smart_transaction: true,
@@ -248,5 +246,20 @@ export const getSmartTransactionMetricsProperties = (
     stx_duplicated: smartTransactionStatusMetadata?.duplicated,
     stx_timed_out: smartTransactionStatusMetadata?.timedOut,
     stx_proxied: smartTransactionStatusMetadata?.proxied,
+  };
+};
+
+export const getSmartTransactionMetricsSensitiveProperties = (
+  smartTransaction: SmartTransaction,
+) => {
+  if (!smartTransaction) {
+    return {};
+  }
+  return {
+    token_from_symbol: smartTransaction.sourceTokenSymbol,
+    token_to_symbol: smartTransaction.destinationTokenSymbol,
+    account_hardware_type: smartTransaction.accountHardwareType,
+    account_type: smartTransaction.accountType,
+    device_model: smartTransaction.deviceModel,
   };
 };

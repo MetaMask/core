@@ -413,6 +413,13 @@ describe('SmartTransactionsController', () => {
             throw new Error('Invalid network client id');
         }
       }),
+      getMetaMetricsProps: jest.fn(async () => {
+        return Promise.resolve({
+          accountHardwareType: 'Ledger Hardware',
+          accountType: 'hardware',
+          deviceModel: 'ledger',
+        });
+      }),
     });
     // eslint-disable-next-line jest/prefer-spy-on
     smartTransactionsController.subscribe = jest.fn();
@@ -761,17 +768,22 @@ describe('SmartTransactionsController', () => {
           `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
         )
         .reply(200, submitTransactionsApiResponse);
-
       await smartTransactionsController.submitSignedTransactions({
         signedTransactions: [signedTransaction],
         signedCanceledTransactions: [signedCanceledTransaction],
         txParams: createTxParams(),
       });
-
-      expect(
+      const submittedSmartTransaction =
         smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet][0].uuid,
-      ).toBe('dP23W7c2kt4FK9TmXOkz1UM2F20');
+          .smartTransactions[ChainId.mainnet][0];
+      expect(submittedSmartTransaction.uuid).toBe(
+        'dP23W7c2kt4FK9TmXOkz1UM2F20',
+      );
+      expect(submittedSmartTransaction.accountHardwareType).toBe(
+        'Ledger Hardware',
+      );
+      expect(submittedSmartTransaction.accountType).toBe('hardware');
+      expect(submittedSmartTransaction.deviceModel).toBe('ledger');
     });
   });
 

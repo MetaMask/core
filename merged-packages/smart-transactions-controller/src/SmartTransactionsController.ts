@@ -28,6 +28,7 @@ import type {
   SmartTransactionsStatus,
   UnsignedTransaction,
   GetTransactionsOptions,
+  MetaMetricsProps,
 } from './types';
 import { APIType, SmartTransactionStatuses } from './types';
 import {
@@ -42,6 +43,7 @@ import {
   snapshotFromTxMeta,
   getTxHash,
   getSmartTransactionMetricsProperties,
+  getSmartTransactionMetricsSensitiveProperties,
 } from './utils';
 
 const SECOND = 1000;
@@ -100,6 +102,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
 
   private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
 
+  private readonly getMetaMetricsProps: () => Promise<MetaMetricsProps>;
+
   /* istanbul ignore next */
   private async fetch(request: string, options?: RequestInit) {
     const { clientId } = this.config;
@@ -123,6 +127,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       getTransactions,
       trackMetaMetricsEvent,
       getNetworkClientById,
+      getMetaMetricsProps,
     }: {
       onNetworkStateChange: (
         listener: (networkState: NetworkState) => void,
@@ -133,6 +138,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       getTransactions: (options?: GetTransactionsOptions) => TransactionMeta[];
       trackMetaMetricsEvent: any;
       getNetworkClientById: NetworkController['getNetworkClientById'];
+      getMetaMetricsProps: () => Promise<MetaMetricsProps>;
     },
     config?: Partial<SmartTransactionsControllerConfig>,
     state?: Partial<SmartTransactionsControllerState>,
@@ -181,6 +187,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.getRegularTransactions = getTransactions;
     this.trackMetaMetricsEvent = trackMetaMetricsEvent;
     this.getNetworkClientById = getNetworkClientById;
+    this.getMetaMetricsProps = getMetaMetricsProps;
 
     this.initializeSmartTransactionsForChainId();
     this.#ensureUniqueSmartTransactions();
@@ -316,7 +323,9 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.trackMetaMetricsEvent({
       event: MetaMetricsEventName.StxStatusUpdated,
       category: MetaMetricsEventCategory.Transactions,
-      properties: getSmartTransactionMetricsProperties(updatedSmartTransaction),
+      properties: getSmartTransactionMetricsProperties(smartTransaction),
+      sensitiveProperties:
+        getSmartTransactionMetricsSensitiveProperties(smartTransaction),
     });
   }
 
@@ -385,6 +394,16 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     });
   }
 
+  async #addMetaMetricsPropsToNewSmartTransaction(
+    smartTransaction: SmartTransaction,
+  ) {
+    const metaMetricsProps = await this.getMetaMetricsProps();
+    smartTransaction.accountHardwareType =
+      metaMetricsProps?.accountHardwareType;
+    smartTransaction.accountType = metaMetricsProps?.accountType;
+    smartTransaction.deviceModel = metaMetricsProps?.deviceModel;
+  }
+
   async #createOrUpdateSmartTransaction(
     smartTransaction: SmartTransaction,
     {
@@ -416,6 +435,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     );
 
     if (isNewSmartTransaction) {
+      await this.#addMetaMetricsPropsToNewSmartTransaction(smartTransaction);
       // add smart transaction
       const cancelledNonceIndex = currentSmartTransactions?.findIndex(
         (stx: SmartTransaction) =>
@@ -588,6 +608,8 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
           event: MetaMetricsEventName.StxConfirmed,
           category: MetaMetricsEventCategory.Transactions,
           properties: getSmartTransactionMetricsProperties(smartTransaction),
+          sensitiveProperties:
+            getSmartTransactionMetricsSensitiveProperties(smartTransaction),
         });
         this.#updateSmartTransaction(
           { ...smartTransaction, confirmed: true },
@@ -625,18 +647,18 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       SmartTransactionsStatus
     >;
 
-    Object.entries(data).forEach(([uuid, stxStatus]) => {
-      const smartTransaction = {
+    for (const [uuid, stxStatus] of Object.entries(data)) {
+      const smartTransaction: SmartTransaction = {
         statusMetadata: stxStatus,
         status: calculateStatus(stxStatus),
         cancellable: isSmartTransactionCancellable(stxStatus),
         uuid,
       };
-      this.#createOrUpdateSmartTransaction(smartTransaction, {
+      await this.#createOrUpdateSmartTransaction(smartTransaction, {
         chainId,
         ethQuery,
       });
-    });
+    }
 
     return data;
   }
@@ -789,7 +811,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     };
 
     try {
-      this.#createOrUpdateSmartTransaction(
+      await this.#createOrUpdateSmartTransaction(
         {
           chainId,
           nonceDetails,
