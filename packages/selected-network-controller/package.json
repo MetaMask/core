@@ -46,7 +46,7 @@
     "@metamask/network-controller": "^20.0.0",
     "@metamask/permission-controller": "^10.0.1",
     "@metamask/swappable-obj-proxy": "^2.2.0",
-    "@metamask/utils": "^9.0.0"
+    "@metamask/utils": "^9.1.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
