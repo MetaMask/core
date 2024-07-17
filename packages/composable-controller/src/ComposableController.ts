@@ -235,11 +235,12 @@ export type ComposableControllerMessenger<
 /**
  * Controller that composes multiple child controllers and maintains up-to-date composed state.
  *
- * @template ChildControllerState - A type object containing the names and state types of the child controllers are being used to instantiate the {@link ComposableController}.
+ * @template ComposableControllerState - A type object containing the names and state types of the child controllers.
+ * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}.
  */
 export class ComposableController<
   ComposableControllerState extends LegacyComposableControllerStateConstraint,
-  ChildControllers extends ControllerInstance = GetChildControllers<ComposableControllerState>,
+  ChildControllers extends ControllerInstance,
 > extends BaseController<
   typeof controllerName,
   ComposableControllerState,
