@@ -1,4 +1,3 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
   ActionConstraint,
   BaseConfig,
@@ -9,6 +8,7 @@ import type {
   StateMetadata,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type { PublicInterface } from '@metamask/utils';
 import type { Patch } from 'immer';
 
@@ -60,9 +60,7 @@ type BaseControllerInstance = {
  * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
  * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
  */
-export type ControllerInstance =
-  | BaseControllerV1Instance
-  | BaseControllerInstance;
+type ControllerInstance = BaseControllerV1Instance | BaseControllerInstance;
 
 /**
  * The narrowest supertype of all `RestrictedControllerMessenger` instances.
