@@ -135,10 +135,14 @@ const fetchFeatureAnnouncementNotifications = async (
 export async function getFeatureAnnouncementNotifications(
   env: Env,
 ): Promise<INotification[]> {
-  const rawNotifications = await fetchFeatureAnnouncementNotifications(env);
-  const notifications = rawNotifications.map((notification) =>
-    processFeatureAnnouncement(notification),
-  );
+  if (env && env.accessToken && env.spaceId && env.platform) {
+    const rawNotifications = await fetchFeatureAnnouncementNotifications(env);
+    const notifications = rawNotifications.map((notification) =>
+      processFeatureAnnouncement(notification),
+    );
 
-  return notifications;
+    return notifications;
+  }
+
+  return [];
 }
