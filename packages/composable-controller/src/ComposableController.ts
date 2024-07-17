@@ -66,14 +66,15 @@ export type ControllerInstance =
  * @template ControllerName - Name of the controller.
  * Optionally can be used to narrow the type to a specific controller.
  */
-export type RestrictedControllerMessengerConstraint =
-  RestrictedControllerMessenger<
-    string,
-    ActionConstraint,
-    EventConstraint,
-    string,
-    string
-  >;
+export type RestrictedControllerMessengerConstraint<
+  ControllerName extends string = string,
+> = RestrictedControllerMessenger<
+  ControllerName,
+  ActionConstraint,
+  EventConstraint,
+  string,
+  string
+>;
 
 /**
  * Determines if the given controller is an instance of `BaseControllerV1`
