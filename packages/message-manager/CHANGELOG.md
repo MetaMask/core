@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+### Fixed
+
+- Add `EventEmitter` type annotation to the `hub` class field of `AbstractMessageManager` ([#4510](https://github.com/MetaMask/core/pull/4510))
+  - This ensures that `hub` is not inferred to be a generic type, which would break types for downstream consumers.
+
 ## [10.0.0]
 
 ### Changed
@@ -255,7 +266,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.0...@metamask/message-manager@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@9.0.0...@metamask/message-manager@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.2...@metamask/message-manager@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.1...@metamask/message-manager@8.0.2
