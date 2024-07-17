@@ -58,7 +58,7 @@
     "@metamask/eth-block-tracker": "^9.0.3",
     "@metamask/eth-json-rpc-provider": "^4.1.1",
     "@metamask/json-rpc-engine": "^9.0.1",
-    "@metamask/utils": "^9.0.0",
+    "@metamask/utils": "^9.1.0",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
