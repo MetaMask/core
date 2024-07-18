@@ -77,6 +77,7 @@ export type {
   TokenBalancesControllerGetStateAction,
   TokenBalancesControllerEvents,
   TokenBalancesControllerStateChangeEvent,
+  TokenBalancesControllerState,
 } from './TokenBalancesController';
 export { TokenBalancesController } from './TokenBalancesController';
 export type {

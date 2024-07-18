@@ -10,6 +10,7 @@ import {
   mockEndpointLogin,
 } from './__fixtures__/mockServices';
 import type {
+  Actions,
   AllowedActions,
   AuthenticationControllerState,
 } from './AuthenticationController';
@@ -271,7 +272,7 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const messenger = new ControllerMessenger<AllowedActions, never>();
+  const messenger = new ControllerMessenger<Actions | AllowedActions, never>();
   return messenger.getRestricted({
     name: 'AuthenticationController',
     allowedActions: [`SnapController:handleRequest`],
@@ -310,13 +311,9 @@ function createMockAuthenticationMessenger() {
       );
     }
 
-    const exhaustedMessengerMocks = (action: never) => {
-      throw new Error(
-        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
-      );
-    };
-
-    return exhaustedMessengerMocks(actionType);
+    throw new Error(
+      `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
+    );
   });
 
   return { messenger, mockSnapGetPublicKey, mockSnapSignMessage };

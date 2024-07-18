@@ -284,28 +284,40 @@ export default class NotificationServicesController extends BaseController<
       if (!this.#isPushIntegrated) {
         return;
       }
-      await this.messagingSystem.call(
-        'NotificationServicesPushController:enablePushNotifications',
-        UUIDs,
-      );
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:enablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to enable push notifications', e);
+      }
     },
     disablePushNotifications: async (UUIDs: string[]) => {
       if (!this.#isPushIntegrated) {
         return;
       }
-      await this.messagingSystem.call(
-        'NotificationServicesPushController:disablePushNotifications',
-        UUIDs,
-      );
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:disablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to disable push notifications', e);
+      }
     },
     updatePushNotifications: async (UUIDs: string[]) => {
       if (!this.#isPushIntegrated) {
         return;
       }
-      await this.messagingSystem.call(
-        'NotificationServicesPushController:updateTriggerPushNotifications',
-        UUIDs,
-      );
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:updateTriggerPushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to update push notifications', e);
+      }
     },
     subscribe: () => {
       if (!this.#isPushIntegrated) {
