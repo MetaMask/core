@@ -44,7 +44,6 @@
     "@metamask/base-controller": "^6.0.1",
     "@metamask/snaps-controllers": "^8.1.1",
     "@metamask/snaps-sdk": "^4.2.0",
-    "@metamask/snaps-utils": "^7.4.0",
     "@noble/ciphers": "^0.5.2",
     "@noble/hashes": "^1.4.0",
     "immer": "^9.0.6",

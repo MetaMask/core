@@ -1,4 +1,3 @@
-import log from 'loglevel';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -426,55 +425,12 @@ export function toggleUserStorageTriggerStatus(
 }
 
 /**
- * Attempts to fetch a resource from the network, retrying the request up to a specified number of times
- * in case of failure, with a delay between attempts.
- *
- * @param url - The resource URL.
- * @param options - The options for the fetch request.
- * @param retries - Maximum number of retry attempts. Defaults to 3.
- * @param retryDelay - Delay between retry attempts in milliseconds. Defaults to 1000.
- * @returns A Promise resolving to the Response object.
- * @throws Will throw an error if the request fails after the specified number of retries.
- */
-async function fetchWithRetry(
-  url: string,
-  options: RequestInit,
-  retries = 3,
-  retryDelay = 1000,
-): Promise<Response> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const response = await fetch(url, options);
-      if (!response.ok) {
-        throw new Error(`Fetch failed with status: ${response.status}`);
-      }
-      return response;
-    } catch (error) {
-      log.error(`Attempt ${attempt} failed for fetch:`, error);
-      if (attempt < retries) {
-        await new Promise((resolve) => setTimeout(resolve, retryDelay));
-      } else {
-        throw new Error(
-          `Fetching failed after ${retries} retries. Last error: ${
-            error instanceof Error ? error.message : 'Unknown error'
-          }`,
-        );
-      }
-    }
-  }
-
-  throw new Error('Unexpected error in fetchWithRetry');
-}
-
-/**
  * Performs an API call with automatic retries on failure.
  *
  * @param bearerToken - The JSON Web Token for authorization.
  * @param endpoint - The URL of the API endpoint to call.
  * @param method - The HTTP method ('POST' or 'DELETE').
  * @param body - The body of the request. It should be an object that can be serialized to JSON.
- * @param retries - The number of retry attempts in case of failure (default is 3).
- * @param retryDelay - The delay between retries in milliseconds (default is 1000).
  * @returns A Promise that resolves to the response of the fetch request.
  */
 export async function makeApiCall<Body>(
@@ -482,8 +438,6 @@ export async function makeApiCall<Body>(
   endpoint: string,
   method: 'POST' | 'DELETE',
   body: Body,
-  retries = 3,
-  retryDelay = 1000,
 ): Promise<Response> {
   const options: RequestInit = {
     method,
@@ -494,5 +448,5 @@ export async function makeApiCall<Body>(
     body: JSON.stringify(body),
   };
 
-  return fetchWithRetry(endpoint, options, retries, retryDelay);
+  return await fetch(endpoint, options);
 }
