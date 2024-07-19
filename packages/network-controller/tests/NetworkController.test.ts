@@ -6211,7 +6211,9 @@ describe('NetworkController', () => {
                 });
 
                 expect(
-                  controller.state.networkConfigurationsByChainId[infuraChainId],
+                  controller.state.networkConfigurationsByChainId[
+                    infuraChainId
+                  ],
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
@@ -8302,7 +8304,8 @@ describe('NetworkController', () => {
                 state: {
                   networkConfigurationsByChainId: {
                     '0x1337': networkConfigurationToUpdate,
-                    [infuraChainId]: buildInfuraNetworkConfiguration(infuraNetworkType),
+                    [infuraChainId]:
+                      buildInfuraNetworkConfiguration(infuraNetworkType),
                     '0x9999': buildCustomNetworkConfiguration({
                       chainId: '0x9999',
                       nativeCurrency: 'TEST-9999',
@@ -10285,7 +10288,7 @@ describe('NetworkController', () => {
                 '0x1337': networkConfigurationToUpdate,
                 '0x2448': buildNetworkConfiguration({
                   name: 'Some Network',
-                  chainId: '0x2448'
+                  chainId: '0x2448',
                 }),
                 '0x9999': buildCustomNetworkConfiguration({
                   chainId: '0x9999',
