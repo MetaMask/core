@@ -8,7 +8,32 @@ export type {
   AccountTrackerControllerEvents,
 } from './AccountTrackerController';
 export { AccountTrackerController } from './AccountTrackerController';
-export * from './AssetsContractController';
+export type {
+  AssetsContractControllerActions,
+  AssetsContractControllerEvents,
+  AssetsContractControllerGetERC20StandardAction,
+  AssetsContractControllerGetERC721StandardAction,
+  AssetsContractControllerGetERC1155StandardAction,
+  AssetsContractControllerGetERC20BalanceOfAction,
+  AssetsContractControllerGetERC20TokenDecimalsAction,
+  AssetsContractControllerGetERC20TokenNameAction,
+  AssetsContractControllerGetERC721NftTokenIdAction,
+  AssetsContractControllerGetERC721TokenURIAction,
+  AssetsContractControllerGetERC721AssetNameAction,
+  AssetsContractControllerGetERC721AssetSymbolAction,
+  AssetsContractControllerGetERC721OwnerOfAction,
+  AssetsContractControllerGetERC1155TokenURIAction,
+  AssetsContractControllerGetERC1155BalanceOfAction,
+  AssetsContractControllerTransferSingleERC1155Action,
+  AssetsContractControllerGetTokenStandardAndDetailsAction,
+  AssetsContractControllerGetBalancesInSingleCallAction,
+  AssetsContractControllerMessenger,
+  BalanceMap,
+} from './AssetsContractController';
+export {
+  SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
+  AssetsContractController,
+} from './AssetsContractController';
 export * from './CurrencyRateController';
 export type {
   NftControllerState,
