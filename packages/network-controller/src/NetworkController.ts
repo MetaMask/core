@@ -6,7 +6,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
-  toHex,
   InfuraNetworkType,
   NetworkType,
   isSafeChainId,
@@ -20,12 +19,7 @@ import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
-import {
-  hexToBigInt,
-  isStrictHexString,
-  hasProperty,
-  isPlainObject,
-} from '@metamask/utils';
+import { isStrictHexString, hasProperty, isPlainObject } from '@metamask/utils';
 import { strict as assert } from 'assert';
 import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
@@ -2448,13 +2442,8 @@ export class NetworkController extends BaseController<
    * @returns The network clients keyed by ID.
    */
   #createAutoManagedNetworkClientRegistry(): AutoManagedNetworkClientRegistry {
-    const sortedChainIds = Object.keys(
-      this.state.networkConfigurationsByChainId,
-    )
-      .map(hexToBigInt)
-      .sort()
-      .map(toHex);
-    const networkClientsWithIds = sortedChainIds.flatMap((chainId) => {
+    const chainIds = knownKeysOf(this.state.networkConfigurationsByChainId);
+    const networkClientsWithIds = chainIds.flatMap((chainId) => {
       const networkConfiguration =
         this.state.networkConfigurationsByChainId[chainId];
       return networkConfiguration.rpcEndpoints.map((rpcEndpoint) => {
