@@ -32,8 +32,11 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
-      async (req, res, next, end) => {
-        await implementation(req, res, next, end, {
+      (req, res, next, end) => {
+        // We intentionally do not await this promise; JsonRpcEngine won't await
+        // middleware anyway.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
         });
       },
@@ -102,8 +105,11 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
-      async (req, res, next, end) => {
-        await implementation(req, res, next, end, {
+      (req, res, next, end) => {
+        // We intentionally do not await this promise; JsonRpcEngine won't await
+        // middleware anyway.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
         });
       },

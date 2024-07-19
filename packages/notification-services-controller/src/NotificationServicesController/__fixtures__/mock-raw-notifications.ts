@@ -14,7 +14,8 @@ export function createMockNotificationEthSent(): OnChainRawNotification {
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
-    tx_hash: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    tx_hash:
+      '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
     unread: true,
     created_at: '2022-03-01T00:00:00Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -48,7 +49,8 @@ export function createMockNotificationEthReceived(): OnChainRawNotification {
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
-    tx_hash: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    tx_hash:
+      '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
     unread: true,
     created_at: '2022-03-01T00:00:00Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -82,7 +84,8 @@ export function createMockNotificationERC20Sent(): OnChainRawNotification {
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
-    tx_hash: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    tx_hash:
+      '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
     unread: true,
     created_at: '2022-03-01T00:00:00Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -122,7 +125,8 @@ export function createMockNotificationERC20Received(): OnChainRawNotification {
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
-    tx_hash: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    tx_hash:
+      '0xb2256b183f2fb3872f99294ab55fb03e6a479b0d4aca556a3b27568b712505a6',
     unread: true,
     created_at: '2022-03-01T00:00:00Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',

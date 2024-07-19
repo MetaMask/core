@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
-import { HandlerType } from '@metamask/snaps-utils';
 
 type SnapRPCRequest = Parameters<HandleSnapRequest['handler']>[0];
 
@@ -15,7 +15,7 @@ export function createSnapPublicKeyRequest(): SnapRPCRequest {
   return {
     snapId,
     origin: '',
-    handler: HandlerType.OnRpcRequest,
+    handler: 'onRpcRequest' as any,
     request: {
       method: 'getPublicKey',
     },
@@ -34,7 +34,7 @@ export function createSnapSignMessageRequest(
   return {
     snapId,
     origin: '',
-    handler: HandlerType.OnRpcRequest,
+    handler: 'onRpcRequest' as any,
     request: {
       method: 'signMessage',
       params: { message },
