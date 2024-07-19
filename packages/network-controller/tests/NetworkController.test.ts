@@ -4552,14 +4552,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -4574,11 +4582,10 @@ describe('NetworkController', () => {
                   ],
                 });
 
-                // Skipping the 1st call because it's for the custom RPC
-                // endpoint
+                // Skipping network client creation for existing RPC endpoints
                 expect(
                   createAutoManagedNetworkClientSpy,
-                ).toHaveBeenNthCalledWith(2, {
+                ).toHaveBeenNthCalledWith(3, {
                   chainId: infuraChainId,
                   infuraProjectId: 'some-infura-project-id',
                   network: infuraNetworkType,
@@ -4591,18 +4598,24 @@ describe('NetworkController', () => {
                     controller.getNetworkClientRegistry(),
                   ),
                 ).toStrictEqual({
-                  'AAAA-AAAA-AAAA-AAAA': {
-                    chainId: infuraChainId,
-                    rpcUrl: 'https://rpc.network',
-                    ticker: infuraNativeTokenName,
-                    type: NetworkClientType.Custom,
-                  },
                   [infuraNetworkType]: {
                     chainId: infuraChainId,
                     infuraProjectId: 'some-infura-project-id',
                     network: infuraNetworkType,
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Infura,
+                  },
+                  'AAAA-AAAA-AAAA-AAAA': {
+                    chainId: infuraChainId,
+                    rpcUrl: 'https://rpc.network',
+                    ticker: infuraNativeTokenName,
+                    type: NetworkClientType.Custom,
+                  },
+                  'ZZZZ-ZZZZ-ZZZZ-ZZZZ': {
+                    chainId: '0x9999',
+                    rpcUrl: 'https://selected.endpoint',
+                    ticker: 'TEST-9999',
+                    type: NetworkClientType.Custom,
                   },
                 });
               },
@@ -4622,14 +4635,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -4678,14 +4699,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -4735,14 +4764,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -4766,10 +4803,10 @@ describe('NetworkController', () => {
                   ],
                 });
 
-                // Skipping the 1st call because it's for the Infura network
+                // Skipping network client creation for existing RPC endpoints
                 expect(
                   createAutoManagedNetworkClientSpy,
-                ).toHaveBeenNthCalledWith(2, {
+                ).toHaveBeenNthCalledWith(3, {
                   chainId: infuraChainId,
                   rpcUrl: 'https://rpc.endpoint/1',
                   ticker: infuraNativeTokenName,
@@ -4777,7 +4814,7 @@ describe('NetworkController', () => {
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
-                ).toHaveBeenNthCalledWith(3, {
+                ).toHaveBeenNthCalledWith(4, {
                   chainId: infuraChainId,
                   rpcUrl: 'https://rpc.endpoint/2',
                   ticker: infuraNativeTokenName,
@@ -4808,6 +4845,12 @@ describe('NetworkController', () => {
                     ticker: infuraNativeTokenName,
                     type: NetworkClientType.Custom,
                   },
+                  'ZZZZ-ZZZZ-ZZZZ-ZZZZ': {
+                    chainId: '0x9999',
+                    rpcUrl: 'https://selected.endpoint',
+                    ticker: 'TEST-9999',
+                    type: NetworkClientType.Custom,
+                  },
                 });
               },
             );
@@ -4815,35 +4858,39 @@ describe('NetworkController', () => {
 
           it('assigns the ID of the created network client to each RPC endpoint in state', async () => {
             uuidV4Mock
-              .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB')
-              .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC');
-            const rpcEndpoint1 = buildCustomRpcEndpoint({
-              name: 'Endpoint 1',
-              networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              url: 'https://rpc.endpoint/1',
-            });
-            const networkConfigurationToUpdate = buildNetworkConfiguration({
-              chainId: '0x1337',
-              rpcEndpoints: [rpcEndpoint1],
-            });
+              .mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA')
+              .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+            const networkConfigurationToUpdate =
+              buildInfuraNetworkConfiguration(infuraNetworkType, {
+                rpcEndpoints: [buildInfuraRpcEndpoint(infuraNetworkType)],
+              });
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
+                infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
-                await controller.updateNetwork('0x1337', {
+                await controller.updateNetwork(infuraChainId, {
                   ...networkConfigurationToUpdate,
                   defaultRpcEndpointIndex: 0,
                   rpcEndpoints: [
-                    rpcEndpoint1,
+                    ...networkConfigurationToUpdate.rpcEndpoints,
                     buildUpdateNetworkCustomRpcEndpointFields({
                       name: 'Endpoint 2',
                       url: 'https://rpc.endpoint/2',
@@ -4856,20 +4903,22 @@ describe('NetworkController', () => {
                 });
 
                 expect(
-                  controller.state.networkConfigurationsByChainId['0x1337'],
+                  controller.state.networkConfigurationsByChainId[
+                    infuraChainId
+                  ],
                 ).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
-                    rpcEndpoint1,
+                    ...networkConfigurationToUpdate.rpcEndpoints,
                     {
                       name: 'Endpoint 2',
-                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       type: RpcEndpointType.Custom,
                       url: 'https://rpc.endpoint/2',
                     },
                     {
                       name: 'Endpoint 3',
-                      networkClientId: 'CCCC-CCCC-CCCC-CCCC',
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                       type: RpcEndpointType.Custom,
                       url: 'https://rpc.endpoint/3',
                     },
@@ -4881,36 +4930,40 @@ describe('NetworkController', () => {
 
           it('returns the updated network configuration', async () => {
             uuidV4Mock
-              .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB')
-              .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC');
-            const rpcEndpoint1 = buildCustomRpcEndpoint({
-              name: 'Endpoint 1',
-              networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              url: 'https://rpc.endpoint/1',
-            });
-            const networkConfigurationToUpdate = buildNetworkConfiguration({
-              chainId: '0x1337',
-              rpcEndpoints: [rpcEndpoint1],
-            });
+              .mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA')
+              .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
+            const networkConfigurationToUpdate =
+              buildInfuraNetworkConfiguration(infuraNetworkType, {
+                rpcEndpoints: [buildInfuraRpcEndpoint(infuraNetworkType)],
+              });
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
+                infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
                 const updatedNetworkConfiguration =
-                  await controller.updateNetwork('0x1337', {
+                  await controller.updateNetwork(infuraChainId, {
                     ...networkConfigurationToUpdate,
                     defaultRpcEndpointIndex: 0,
                     rpcEndpoints: [
-                      rpcEndpoint1,
+                      ...networkConfigurationToUpdate.rpcEndpoints,
                       buildUpdateNetworkCustomRpcEndpointFields({
                         name: 'Endpoint 2',
                         url: 'https://rpc.endpoint/2',
@@ -4925,16 +4978,16 @@ describe('NetworkController', () => {
                 expect(updatedNetworkConfiguration).toStrictEqual({
                   ...networkConfigurationToUpdate,
                   rpcEndpoints: [
-                    rpcEndpoint1,
+                    ...networkConfigurationToUpdate.rpcEndpoints,
                     {
                       name: 'Endpoint 2',
-                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
+                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
                       type: RpcEndpointType.Custom,
                       url: 'https://rpc.endpoint/2',
                     },
                     {
                       name: 'Endpoint 3',
-                      networkClientId: 'CCCC-CCCC-CCCC-CCCC',
+                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
                       type: RpcEndpointType.Custom,
                       url: 'https://rpc.endpoint/3',
                     },
@@ -5580,10 +5633,20 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
-                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
                     [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
                   },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
               },
               async ({ controller }) => {
@@ -5641,10 +5704,20 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
-                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
                     [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
                   },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
               },
               async ({ controller }) => {
@@ -5706,10 +5779,20 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
-                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
                     [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
                   },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
               },
               async ({ controller }) => {
@@ -5768,10 +5851,20 @@ describe('NetworkController', () => {
             await withController(
               {
                 state: {
-                  selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                   networkConfigurationsByChainId: {
                     [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
                   },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
                 },
               },
               async ({ controller }) => {
@@ -6039,14 +6132,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -6086,14 +6187,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await controller.updateNetwork(infuraChainId, {
@@ -6102,12 +6211,10 @@ describe('NetworkController', () => {
                 });
 
                 expect(
-                  controller.state.networkConfigurationsByChainId,
+                  controller.state.networkConfigurationsByChainId[infuraChainId],
                 ).toStrictEqual({
-                  [infuraChainId]: {
-                    ...networkConfigurationToUpdate,
-                    rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
-                  },
+                  ...networkConfigurationToUpdate,
+                  rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
                 });
               },
             );
@@ -6134,14 +6241,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 const updatedNetworkConfiguration =
@@ -6180,14 +6295,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -6229,14 +6352,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 const previousNetworkConfigurationsByChainId =
@@ -6277,14 +6408,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 const updatedNetworkConfiguration =
@@ -6314,14 +6453,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -6354,15 +6501,15 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                  [ChainId.mainnet]: buildInfuraNetworkConfiguration(
-                    InfuraNetworkType.mainnet,
-                  ),
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.mainnet,
+                ),
+              },
+              selectedNetworkClientId: InfuraNetworkType.mainnet,
+            },
           },
           async ({ controller }) => {
             await expect(
@@ -6402,12 +6549,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               await controller.updateNetwork('0x1337', {
@@ -6483,12 +6640,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               await controller.updateNetwork('0x1337', {
@@ -6547,12 +6714,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               const updatedNetworkConfiguration =
@@ -7226,10 +7403,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
                   '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
                 },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
             },
             async ({ controller }) => {
@@ -7287,10 +7474,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
                   '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
                 },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
             },
             async ({ controller }) => {
@@ -7352,10 +7549,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
                   '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
                 },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
             },
             async ({ controller }) => {
@@ -7412,10 +7619,20 @@ describe('NetworkController', () => {
           await withController(
             {
               state: {
-                selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
                 networkConfigurationsByChainId: {
                   '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
                 },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
               },
             },
             async ({ controller }) => {
@@ -7687,12 +7904,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -7736,12 +7963,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               await controller.updateNetwork('0x1337', {
@@ -7750,12 +7987,10 @@ describe('NetworkController', () => {
               });
 
               expect(
-                controller.state.networkConfigurationsByChainId,
+                controller.state.networkConfigurationsByChainId['0x1337'],
               ).toStrictEqual({
-                '0x1337': {
-                  ...networkConfigurationToUpdate,
-                  rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
-                },
+                ...networkConfigurationToUpdate,
+                rpcEndpoints: [rpcEndpoint3, rpcEndpoint1, rpcEndpoint2],
               });
             },
           );
@@ -7786,12 +8021,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               const updatedNetworkConfiguration =
@@ -7830,12 +8075,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -7877,12 +8132,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               const previousNetworkConfigurationsByChainId =
@@ -7923,12 +8188,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               const updatedNetworkConfiguration =
@@ -7962,12 +8237,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': networkConfigurationToUpdate,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': networkConfigurationToUpdate,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               mockCreateNetworkClient().mockReturnValue(buildFakeClient());
@@ -8014,16 +8299,23 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                        [infuraChainId]:
-                          buildInfuraNetworkConfiguration(infuraNetworkType),
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    '0x1337': networkConfigurationToUpdate,
+                    [infuraChainId]: buildInfuraNetworkConfiguration(infuraNetworkType),
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await expect(
@@ -8046,17 +8338,25 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                        [anotherInfuraChainId]: buildInfuraNetworkConfiguration(
-                          anotherInfuraNetworkType,
-                        ),
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    '0x1337': networkConfigurationToUpdate,
+                    [anotherInfuraChainId]: buildInfuraNetworkConfiguration(
+                      anotherInfuraNetworkType,
+                    ),
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await expect(
@@ -8099,16 +8399,25 @@ describe('NetworkController', () => {
               rpcEndpoints: [rpcEndpoint1, rpcEndpoint2],
             });
 
+            // TODO: This is where we stopped
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    '0x1337': networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8172,14 +8481,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    '0x1337': networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8251,14 +8568,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    '0x1337': networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8332,14 +8657,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        '0x1337': networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    '0x1337': networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8585,18 +8918,26 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                        '0x1337': buildNetworkConfiguration({
-                          name: 'Some Network',
-                          chainId: '0x1337',
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x1337': buildCustomNetworkConfiguration({
+                      chainId: '0x1337',
+                      name: 'Some Network',
+                    }),
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
                         }),
-                      },
-                    },
-                  ),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await expect(
@@ -8619,14 +8960,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await expect(
@@ -8673,14 +9022,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8756,14 +9113,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8849,14 +9214,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -8943,14 +9316,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 mockCreateNetworkClient()
@@ -9207,17 +9588,25 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                        [anotherInfuraChainId]: buildInfuraNetworkConfiguration(
-                          anotherInfuraNetworkType,
-                        ),
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    [anotherInfuraChainId]: buildInfuraNetworkConfiguration(
+                      anotherInfuraNetworkType,
+                    ),
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await expect(
@@ -9240,14 +9629,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await expect(
@@ -9294,14 +9691,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -9388,14 +9793,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -9483,14 +9896,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -9533,14 +9954,7 @@ describe('NetworkController', () => {
                   getNetworkConfigurationsByNetworkClientId(
                     controller.getNetworkClientRegistry(),
                   ),
-                ).toStrictEqual({
-                  [anotherInfuraNetworkType]: {
-                    chainId: anotherInfuraChainId,
-                    infuraProjectId: 'some-infura-project-id',
-                    network: anotherInfuraNetworkType,
-                    ticker: anotherInfuraNativeTokenName,
-                    type: NetworkClientType.Infura,
-                  },
+                ).toMatchObject({
                   'CCCC-CCCC-CCCC-CCCC': {
                     chainId: anotherInfuraChainId,
                     rpcUrl: 'https://test.endpoint/1',
@@ -9586,14 +10000,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: networkConfigurationToUpdate,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: networkConfigurationToUpdate,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
                 infuraProjectId: 'some-infura-project-id',
               },
               async ({ controller }) => {
@@ -9858,13 +10280,26 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                  '0x2448': buildNetworkConfiguration({ chainId: '0x2448' }),
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                '0x2448': buildNetworkConfiguration({
+                  name: 'Some Network',
+                  chainId: '0x2448'
+                }),
+                '0x9999': buildCustomNetworkConfiguration({
+                  chainId: '0x9999',
+                  nativeCurrency: 'TEST-9999',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                      url: 'https://selected.endpoint',
+                    }),
+                  ],
+                }),
+              },
+              selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+            },
           },
           async ({ controller }) => {
             await expect(() =>
@@ -9886,15 +10321,25 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                  [ChainId.goerli]: buildInfuraNetworkConfiguration(
-                    InfuraNetworkType.goerli,
-                  ),
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+                '0x9999': buildCustomNetworkConfiguration({
+                  chainId: '0x9999',
+                  nativeCurrency: 'TEST-9999',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                      url: 'https://selected.endpoint',
+                    }),
+                  ],
+                }),
+              },
+              selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+            },
           },
           async ({ controller }) => {
             const newRpcEndpoint = buildInfuraRpcEndpoint(
@@ -9937,12 +10382,22 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                '0x9999': buildCustomNetworkConfiguration({
+                  chainId: '0x9999',
+                  nativeCurrency: 'TEST-9999',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                      url: 'https://selected.endpoint',
+                    }),
+                  ],
+                }),
+              },
+              selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+            },
           },
           async ({ controller }) => {
             const fakeProviders = [
@@ -10017,12 +10472,22 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                '0x9999': buildCustomNetworkConfiguration({
+                  chainId: '0x9999',
+                  nativeCurrency: 'TEST-9999',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                      url: 'https://selected.endpoint',
+                    }),
+                  ],
+                }),
+              },
+              selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+            },
           },
           async ({ controller }) => {
             const fakeProviders = [
@@ -10102,12 +10567,22 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                '0x9999': buildCustomNetworkConfiguration({
+                  chainId: '0x9999',
+                  nativeCurrency: 'TEST-9999',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                      url: 'https://selected.endpoint',
+                    }),
+                  ],
+                }),
+              },
+              selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+            },
           },
           async ({ controller }) => {
             const fakeProviders = [
@@ -10194,12 +10669,22 @@ describe('NetworkController', () => {
 
         await withController(
           {
-            state:
-              buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                networkConfigurationsByChainId: {
-                  '0x1337': networkConfigurationToUpdate,
-                },
-              }),
+            state: {
+              networkConfigurationsByChainId: {
+                '0x1337': networkConfigurationToUpdate,
+                '0x9999': buildCustomNetworkConfiguration({
+                  chainId: '0x9999',
+                  nativeCurrency: 'TEST-9999',
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                      url: 'https://selected.endpoint',
+                    }),
+                  ],
+                }),
+              },
+              selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+            },
           },
           async ({ controller }) => {
             const fakeProviders = [
@@ -10459,14 +10944,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: existingNetworkConfiguration,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: existingNetworkConfiguration,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await controller.updateNetwork(
@@ -10489,14 +10982,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: existingNetworkConfiguration,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: existingNetworkConfiguration,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 const existingNetworkClient =
@@ -10524,14 +11025,22 @@ describe('NetworkController', () => {
 
             await withController(
               {
-                state:
-                  buildNetworkControllerStateWithDefaultSelectedNetworkClientId(
-                    {
-                      networkConfigurationsByChainId: {
-                        [infuraChainId]: existingNetworkConfiguration,
-                      },
-                    },
-                  ),
+                state: {
+                  networkConfigurationsByChainId: {
+                    [infuraChainId]: existingNetworkConfiguration,
+                    '0x9999': buildCustomNetworkConfiguration({
+                      chainId: '0x9999',
+                      nativeCurrency: 'TEST-9999',
+                      rpcEndpoints: [
+                        buildCustomRpcEndpoint({
+                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                          url: 'https://selected.endpoint',
+                        }),
+                      ],
+                    }),
+                  },
+                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                },
               },
               async ({ controller }) => {
                 await controller.updateNetwork(
@@ -10539,9 +11048,9 @@ describe('NetworkController', () => {
                   existingNetworkConfiguration,
                 );
 
-                // Once when the controller is initialized, but no more
+                // 2 times for existing RPC endpoints, but no more
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledTimes(
-                  1,
+                  2,
                 );
               },
             );
@@ -10555,18 +11064,24 @@ describe('NetworkController', () => {
             chainId: '0x1337',
           });
 
-          const state = buildNetworkControllerStateWithSelectedChain('0x2448', {
-            networkConfigurationsByChainId: {
-              '0x1337': existingNetworkConfiguration,
-              '0x2448': buildCustomNetworkConfiguration({
-                chainId: '0x2448',
-              }),
-            },
-          });
-
           await withController(
             {
-              state,
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': existingNetworkConfiguration,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               await controller.updateNetwork(
@@ -10593,12 +11108,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': existingNetworkConfiguration,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': existingNetworkConfiguration,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               const existingNetworkClient = controller.getNetworkClientById(
@@ -10628,12 +11153,22 @@ describe('NetworkController', () => {
 
           await withController(
             {
-              state:
-                buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-                  networkConfigurationsByChainId: {
-                    '0x1337': existingNetworkConfiguration,
-                  },
-                }),
+              state: {
+                networkConfigurationsByChainId: {
+                  '0x1337': existingNetworkConfiguration,
+                  '0x9999': buildCustomNetworkConfiguration({
+                    chainId: '0x9999',
+                    nativeCurrency: 'TEST-9999',
+                    rpcEndpoints: [
+                      buildCustomRpcEndpoint({
+                        networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+                        url: 'https://selected.endpoint',
+                      }),
+                    ],
+                  }),
+                },
+                selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
+              },
             },
             async ({ controller }) => {
               await controller.updateNetwork(
@@ -10641,9 +11176,9 @@ describe('NetworkController', () => {
                 existingNetworkConfiguration,
               );
 
-              // Once when the controller is initialized, but no more
+              // 2 times for existing RPC endpoints, but no more
               expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledTimes(
-                1,
+                2,
               );
             },
           );
@@ -13715,55 +14250,6 @@ function buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
       networkConfigurations.length > 0
         ? networkConfigurations[0].rpcEndpoints[0].networkClientId
         : undefined;
-    return {
-      networkConfigurationsByChainId,
-      selectedNetworkClientId,
-      ...rest,
-    };
-  }
-
-  return {
-    networkConfigurationsByChainId,
-    selectedNetworkClientId: givenSelectedNetworkClientId,
-    ...rest,
-  };
-}
-
-/**
- * When initializing NetworkController with state, the `selectedNetworkClientId`
- * property must match the `networkClientId` of an RPC endpoint in
- * `networkConfigurationsByChainId`. Sometimes when writing tests we care about
- * what the `selectedNetworkClientId` is, but sometimes we don't and we'd rather
- * have this property automatically filled in for us.
- *
- * This function takes care of filling in the `selectedNetworkClientId` using
- * the first RPC endpoint of the network configuration with the given chain ID.
- *
- * @param chainId - The chain ID to use.
- * @param networkControllerState - The desired NetworkController state
- * overrides.
- * @param networkControllerState.networkConfigurationsByChainId - The desired
- * `networkConfigurationsByChainId`.
- * @param networkControllerState.selectedNetworkClientId - The desired
- * `selectedNetworkClientId`; if not provided, then will be set to the
- * `networkClientId` of the first RPC endpoint of the network configuration with
- * the given chain ID.
- * @returns The complete NetworkController state with `selectedNetworkClientId`
- * properly filled in.
- */
-function buildNetworkControllerStateWithSelectedChain(
-  chainId: Hex,
-  {
-    networkConfigurationsByChainId,
-    selectedNetworkClientId: givenSelectedNetworkClientId,
-    ...rest
-  }: Partial<Omit<NetworkState, 'networkConfigurationsByChainId'>> &
-    Pick<NetworkState, 'networkConfigurationsByChainId'>,
-) {
-  if (givenSelectedNetworkClientId === undefined) {
-    const networkConfiguration = networkConfigurationsByChainId[chainId];
-    const selectedNetworkClientId =
-      networkConfiguration.rpcEndpoints[0].networkClientId;
     return {
       networkConfigurationsByChainId,
       selectedNetworkClientId,
