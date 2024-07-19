@@ -2,7 +2,7 @@
 import { hexlify } from '@ethersproject/bytes';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { query, safelyExecute, ChainId } from '@metamask/controller-utils';
-import type { Provider } from '@metamask/eth-query';
+import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
@@ -133,7 +133,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         listener: (networkState: NetworkState) => void,
       ) => void;
       getNonceLock: any;
-      provider: Provider;
+      provider: SafeEventEmitterProvider;
       confirmExternalTransaction: any;
       getTransactions: (options?: GetTransactionsOptions) => TransactionMeta[];
       trackMetaMetricsEvent: any;

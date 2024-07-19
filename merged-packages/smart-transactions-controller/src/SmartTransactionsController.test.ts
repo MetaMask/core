@@ -18,7 +18,7 @@ import { API_BASE_URL } from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
 } from './SmartTransactionsController';
-import { advanceTime, flushPromises } from './test-helpers';
+import { advanceTime, flushPromises, getFakeProvider } from './test-helpers';
 import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
 import { SmartTransactionStatuses } from './types';
 import * as utils from './utils';
@@ -342,13 +342,9 @@ const defaultState = {
   },
 };
 
-const mockProvider = {
-  sendAsync: jest.fn(),
-};
-
 const mockProviderConfig = {
   chainId: ChainId.mainnet,
-  provider: mockProvider,
+  provider: getFakeProvider(),
   type: NetworkType.mainnet,
   ticker: 'ticker',
 };
@@ -391,7 +387,7 @@ describe('SmartTransactionsController', () => {
           releaseLock: jest.fn(),
         };
       }),
-      provider: { sendAsync: jest.fn() },
+      provider: getFakeProvider(),
       confirmExternalTransaction: jest.fn(),
       getTransactions: jest.fn(),
       trackMetaMetricsEvent: trackMetaMetricsEventSpy,

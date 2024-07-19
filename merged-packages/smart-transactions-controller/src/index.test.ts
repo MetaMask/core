@@ -1,5 +1,6 @@
 import DefaultExport from '.';
 import SmartTransactionsController from './SmartTransactionsController';
+import { getFakeProvider } from './test-helpers';
 
 describe('default export', () => {
   it('exports SmartTransactionsController', () => {
@@ -7,7 +8,7 @@ describe('default export', () => {
     const controller = new DefaultExport({
       onNetworkStateChange: jest.fn(),
       getNonceLock: null,
-      provider: { sendAsync: jest.fn() },
+      provider: getFakeProvider(),
       confirmExternalTransaction: jest.fn(),
       getTransactions: jest.fn(),
       trackMetaMetricsEvent: jest.fn(),

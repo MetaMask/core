@@ -1,3 +1,6 @@
+import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+
 /**
  * Resolve all pending promises.
  * This method is used for async tests that use fake timers.
@@ -34,4 +37,8 @@ export async function advanceTime({
     // eslint-disable-next-line no-param-reassign
     duration -= stepSize;
   } while (duration > 0);
+}
+
+export function getFakeProvider() {
+  return providerFromEngine(new JsonRpcEngine());
 }

@@ -1565,6 +1565,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/eth-json-rpc-provider@npm:^4.1.0":
+  version: 4.1.0
+  resolution: "@metamask/eth-json-rpc-provider@npm:4.1.0"
+  dependencies:
+    "@metamask/json-rpc-engine": ^9.0.0
+    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/safe-event-emitter": ^3.0.0
+    "@metamask/utils": ^8.3.0
+    uuid: ^8.3.2
+  checksum: c9669c93df073423d36ff941b512247b569e7f7c56cc6110565bc8dc6590ad691a78d6d17eea6243721c1c464f0f008ea1326fc7373f90fb705fba5fb85d804d
+  languageName: node
+  linkType: hard
+
 "@metamask/eth-query@npm:^4.0.0":
   version: 4.0.0
   resolution: "@metamask/eth-query@npm:4.0.0"
@@ -2071,7 +2084,9 @@ __metadata:
     "@metamask/eslint-config-jest": ^12.1.0
     "@metamask/eslint-config-nodejs": ^12.1.0
     "@metamask/eslint-config-typescript": ^12.1.0
+    "@metamask/eth-json-rpc-provider": ^4.1.0
     "@metamask/eth-query": ^4.0.0
+    "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/network-controller": ^19.0.0
     "@metamask/polling-controller": ^8.0.0
     "@metamask/transaction-controller": ^34.0.0
