@@ -43,8 +43,6 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/snaps-sdk": "github:MetaMask/snaps#workspace=@metamask/snaps-sdk&commit=3c95d8b54a7778d0473499826688cefa5d0b7012",
-    "@metamask/snaps-utils": "github:MetaMask/snaps#workspace=@metamask/snaps-utils&commit=3c95d8b54a7778d0473499826688cefa5d0b7012",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
