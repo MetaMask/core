@@ -272,6 +272,14 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
+    it('returns true for the SKALE Europa Mainnet network', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.skale_europa_mainnet,
+        ),
+      ).toBe(true);
+    });
+
     it('returns false for testnets such as Goerli', () => {
       expect(assetsUtil.isTokenDetectionSupportedForNetwork(toHex(5))).toBe(
         false,
