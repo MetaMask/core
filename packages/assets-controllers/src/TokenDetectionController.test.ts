@@ -121,9 +121,10 @@ const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
     InfuraNetworkType.goerli,
   ),
   polygon: {
-    blockExplorerUrl: 'https://polygonscan.com/',
+    blockExplorerUrls: ['https://polygonscan.com/'],
     chainId: '0x89',
-    defaultRpcEndpointUrl: 'https://polygon-mainnet.infura.io/v3/fakekey',
+    defaultBlockExplorerUrlIndex: 0,
+    defaultRpcEndpointIndex: 0,
     name: 'Polygon Mainnet',
     nativeCurrency: 'MATIC',
     rpcEndpoints: [
