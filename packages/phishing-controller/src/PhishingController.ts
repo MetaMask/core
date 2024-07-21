@@ -8,16 +8,18 @@ import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
-
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
-
 export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 
-export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
+export const CLIENT_SIDE_DETECION_BASE_URL = 'http://127.0.0.1:8080';
+export const REQUEST_BLOCKLIST_ENDPOINT = '/request-blocklist';
+
+export const HOTLIST_REFRESH_INTERVAL = 1 * 60; // 5 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
+export const REQUEST_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${REQUEST_BLOCKLIST_ENDPOINT}`;
 
 /**
  * @type ListTypes
@@ -47,6 +49,12 @@ export type EthPhishingResponse = {
   tolerance: number;
   version: number;
   whitelist: string[];
+};
+
+export type BlocklistResponse = {
+  recentlyAdded: string[];
+  recentlyRemoved: string[];
+  lastFetchedAt: string;
 };
 
 /**
@@ -301,8 +309,6 @@ export class PhishingController extends BaseController<
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
-    // eslint-disable-next-line no-void
-    // void this.fetchHashedRequestBlocklist(); // Initialize blocklist on construction
   }
 
   /**
@@ -499,15 +505,19 @@ export class PhishingController extends BaseController<
         DataResultWrapper<PhishingStalelist>
       >(METAMASK_STALELIST_URL).then((d) => d);
 
+      requestBlocklistResponse = await this.#queryConfig<BlocklistResponse>(
+        REQUEST_BLOCKLIST_URL,
+      ).then((d) => d);
+
       // TODO: implement this
 
       // requestBlocklistResponse = await fetch(
       //   'https://api.walletguard.app/extension/v0/requests-blocklist',
       // ).then((response) => response.json());
 
-      requestBlocklistResponse = [
-        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
-      ];
+      // requestBlocklistResponse = [
+      //   '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+      // ];
 
       // Fetching hotlist diffs relies on having a lastUpdated timestamp to do `GET /v1/diffsSince/:timestamp`,
       // so it doesn't make sense to call if there is not a timestamp to begin with.
@@ -549,7 +559,7 @@ export class PhishingController extends BaseController<
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
-      requestBlocklist: requestBlocklistResponse,
+      requestBlocklist: requestBlocklistResponse.recentlyAdded,
       name: phishingListKeyNameMap.eth_phishing_detect_config,
     };
     // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
@@ -594,6 +604,10 @@ export class PhishingController extends BaseController<
       });
     }
 
+    const requestBlocklistResponse = await this.#queryConfig<BlocklistResponse>(
+      REQUEST_BLOCKLIST_URL,
+    ).then((d) => d);
+
     if (!hotlistResponse?.data) {
       return;
     }
@@ -605,6 +619,12 @@ export class PhishingController extends BaseController<
         phishingListNameKeyMap[phishingList.name],
       ),
     );
+
+    console.log('newPhishingLists', newPhishingLists);
+    newPhishingLists[1].requestBlocklist =
+      requestBlocklistResponse?.recentlyAdded || [];
+    newPhishingLists[0].requestBlocklist =
+      requestBlocklistResponse?.recentlyAdded || [];
 
     this.update((draftState) => {
       draftState.phishingLists = newPhishingLists;

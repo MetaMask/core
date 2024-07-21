@@ -232,12 +232,12 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
 };
 
 /**
- * Generate the SHA-256 hash of a domain.
+ * Generate the SHA-256 hash of a hostname.
  *
- * @param domain - The domain to hash.
- * @returns The SHA-256 hash of the domain.
+ * @param hostname - The hostname to hash.
+ * @returns The SHA-256 hash of the hostname.
  */
-export function sha256Hash(domain: string): string {
-  const hashBuffer = sha256(new TextEncoder().encode(domain.toLowerCase()));
+export function sha256Hash(hostname: string): string {
+  const hashBuffer = sha256(new TextEncoder().encode(hostname.toLowerCase()));
   return toHex(hashBuffer);
 }

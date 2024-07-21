@@ -274,18 +274,18 @@ describe('matchPartsAgainstList', () => {
 
 describe('sha256Hash', () => {
   it('should generate the correct SHA-256 hash for a given domain', async () => {
-    const domain = 'develop.d3bkcslj57l47p.amplifyapp.com';
+    const hostname = 'develop.d3bkcslj57l47p.amplifyapp.com';
     const expectedHash =
-      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455'; // Calculate or get this value from a reliable source
-    const hash = sha256Hash(domain);
+      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+    const hash = sha256Hash(hostname);
     expect(hash).toBe(expectedHash);
   });
 
   it('should generate the correct SHA-256 hash for a domain with uppercase letters', async () => {
-    const domain = 'develop.d3bkcslj57l47p.Amplifyapp.com';
+    const hostname = 'develop.d3bkcslj57l47p.Amplifyapp.com';
     const expectedHash =
-      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455'; // Hash of 'example.com' as SHA-256 should be case-insensitive
-    const hash = sha256Hash(domain);
+      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+    const hash = sha256Hash(hostname);
     expect(hash).toBe(expectedHash);
   });
 });
