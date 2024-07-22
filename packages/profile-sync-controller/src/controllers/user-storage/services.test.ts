@@ -14,7 +14,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
   const actCallGetUserStorage = () => {
     return getUserStorage({
       bearerToken: 'MOCK_BEARER_TOKEN',
-      entryKey: 'notificationSettings',
+      path: 'notifications.notificationSettings',
       storageKey: MOCK_STORAGE_KEY,
     });
   };
@@ -63,7 +63,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
   const actCallUpsertUserStorage = () => {
     return upsertUserStorage(MOCK_ENCRYPTED_STORAGE_DATA, {
       bearerToken: 'MOCK_BEARER_TOKEN',
-      entryKey: 'notificationSettings',
+      path: 'notifications.notificationSettings',
       storageKey: MOCK_STORAGE_KEY,
     });
   };

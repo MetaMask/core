@@ -267,13 +267,13 @@ export default class NotificationServicesController extends BaseController<
     getNotificationStorage: async () => {
       return await this.messagingSystem.call(
         'UserStorageController:performGetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
       );
     },
     setNotificationStorage: async (state: string) => {
       return await this.messagingSystem.call(
         'UserStorageController:performSetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
         state,
       );
     },

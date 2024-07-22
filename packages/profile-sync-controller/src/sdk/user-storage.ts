@@ -1,11 +1,13 @@
+import type { UserStoragePath } from '../controllers/user-storage/schema';
+import { createEntryPath } from '../controllers/user-storage/schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import encryption, { createSHA256Hash } from './encryption';
 import type { Env } from './env';
 import { getEnvUrls } from './env';
-import { NotFoundError, UserStorageError, ValidationError } from './errors';
+import { NotFoundError, UserStorageError } from './errors';
 
-export const STORAGE_URL = (env: Env, feature: string, entry: string) =>
-  `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${feature}/${entry}`;
+export const STORAGE_URL = (env: Env, encryptedPath: string) =>
+  `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;
 
 export type UserStorageConfig = {
   env: Env;
@@ -39,18 +41,12 @@ export class UserStorage {
     this.options = options;
   }
 
-  async setItem(feature: string, key: string, value: string): Promise<void> {
-    if (!feature.trim() || !key.trim()) {
-      throw new ValidationError('feature or key cannot be empty strings');
-    }
-    await this.#upsertUserStorage(feature, key, value);
+  async setItem(path: UserStoragePath, value: string): Promise<void> {
+    await this.#upsertUserStorage(path, value);
   }
 
-  async getItem(feature: string, key: string): Promise<string> {
-    if (!feature.trim() || !key.trim()) {
-      throw new ValidationError('feature or key cannot be empty strings');
-    }
-    return this.#getUserStorage(feature, key);
+  async getItem(path: UserStoragePath): Promise<string> {
+    return this.#getUserStorage(path);
   }
 
   async getStorageKey(): Promise<string> {
@@ -68,18 +64,14 @@ export class UserStorage {
     return hashedStorageKeySignature;
   }
 
-  async #upsertUserStorage(
-    feature: string,
-    key: string,
-    data: string,
-  ): Promise<void> {
+  async #upsertUserStorage(path: UserStoragePath, data: string): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
       const encryptedData = encryption.encryptString(data, storageKey);
-      const url = new URL(
-        STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
-      );
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
       const response = await fetch(url.toString(), {
         method: 'PUT',
@@ -104,18 +96,18 @@ export class UserStorage {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
-        `failed to upsert user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
+        `failed to upsert user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
 
-  async #getUserStorage(feature: string, key: string): Promise<string> {
+  async #getUserStorage(path: UserStoragePath): Promise<string> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
-      const url = new URL(
-        STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
-      );
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
 
       const response = await fetch(url.toString(), {
         headers: {
@@ -126,7 +118,7 @@ export class UserStorage {
 
       if (response.status === 404) {
         throw new NotFoundError(
-          `feature/key set not found for feature '${feature}' and key '${key}'.`,
+          `feature/key set not found for path '${path}'.`,
         );
       }
 
@@ -149,7 +141,7 @@ export class UserStorage {
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
 
       throw new UserStorageError(
-        `failed to get user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
