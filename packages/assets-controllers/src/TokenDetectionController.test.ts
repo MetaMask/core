@@ -8,15 +8,15 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type {
   NetworkState,
   NetworkConfiguration,
   NetworkController,
   NetworkClientId,
+  AutoManagedNetworkClient,
+  CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
-import { getDefaultNetworkControllerState } from '@metamask/network-controller';
-import type { AutoManagedNetworkClient } from '@metamask/network-controller/src/create-auto-managed-network-client';
-import type { CustomNetworkClientConfiguration } from '@metamask/network-controller/src/types';
 import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "178.0.0",
+  "version": "179.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -43,6 +43,7 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/snaps-sdk@6.1.0/@metamask/providers": "17.1.1",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
@@ -57,7 +58,7 @@
     "@metamask/eslint-config-typescript": "^12.1.0",
     "@metamask/eth-block-tracker": "^9.0.3",
     "@metamask/eth-json-rpc-provider": "^4.1.1",
-    "@metamask/json-rpc-engine": "^9.0.1",
+    "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/utils": "^9.1.0",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
@@ -82,10 +83,11 @@
     "nock": "^13.3.1",
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.4.5",
+    "rimraf": "^5.0.5",
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
     "tsup": "^8.0.2",
-    "typescript": "~4.9.5",
+    "typescript": "~5.0.4",
     "yargs": "^17.7.2"
   },
   "packageManager": "yarn@4.2.2",

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-controller",
-  "version": "10.0.1",
+  "version": "11.0.0",
   "description": "Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for json-rpc-engine",
   "keywords": [
     "MetaMask",
@@ -35,15 +35,15 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/permission-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/permission-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.1",
-    "@metamask/controller-utils": "^11.0.1",
-    "@metamask/json-rpc-engine": "^9.0.1",
+    "@metamask/base-controller": "^6.0.2",
+    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
@@ -52,7 +52,7 @@
     "nanoid": "^3.1.31"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.0.1",
+    "@metamask/approval-controller": "^7.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -60,7 +60,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5"
+    "typescript": "~5.0.4"
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0"

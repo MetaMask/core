@@ -35,15 +35,15 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/signature-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/signature-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^7.0.1",
-    "@metamask/base-controller": "^6.0.1",
-    "@metamask/controller-utils": "^11.0.1",
+    "@metamask/approval-controller": "^7.0.2",
+    "@metamask/base-controller": "^6.0.2",
+    "@metamask/controller-utils": "^11.0.2",
     "@metamask/keyring-controller": "^17.1.1",
     "@metamask/logging-controller": "^5.0.0",
     "@metamask/message-manager": "^10.0.1",
@@ -59,7 +59,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5"
+    "typescript": "~5.0.4"
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0",
