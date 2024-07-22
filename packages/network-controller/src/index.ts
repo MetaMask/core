@@ -9,6 +9,8 @@ export type {
   NetworkState,
   BlockTrackerProxy,
   ProviderProxy,
+  AddNetworkFields,
+  UpdateNetworkFields,
   NetworkControllerStateChangeEvent,
   NetworkControllerNetworkWillChangeEvent,
   NetworkControllerNetworkDidChangeEvent,
