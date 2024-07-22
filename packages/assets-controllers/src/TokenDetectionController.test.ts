@@ -18,10 +18,6 @@ import type {
   CustomNetworkClientConfiguration,
 } from '@metamask/network-controller';
 import {
-  buildCustomRpcEndpoint,
-  buildInfuraNetworkConfiguration,
-} from '@metamask/network-controller/tests/helpers';
-import {
   getDefaultPreferencesState,
   type PreferencesState,
 } from '@metamask/preferences-controller';
@@ -32,6 +28,10 @@ import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
 import { TOKEN_END_POINT_API } from './token-service';
 import type {

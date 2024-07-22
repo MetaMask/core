@@ -249,7 +249,7 @@ export type UpdateNetworkCustomRpcEndpointFields = Partialize<
  * they do, then it is assumed that they already exist, and if not, then it is
  * assumed that they are new and are not represented by network clients yet.
  */
-type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
+export type UpdateNetworkFields = Omit<NetworkConfiguration, 'rpcEndpoints'> & {
   rpcEndpoints: (InfuraRpcEndpoint | UpdateNetworkCustomRpcEndpointFields)[];
 };
 
