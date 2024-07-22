@@ -1,3 +1,5 @@
+import type { UserStoragePath } from '../controllers/user-storage/schema';
+import { getFeatureAndKeyFromPath } from '../controllers/user-storage/schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import encryption, { createSHA256Hash } from './encryption';
 import type { Env } from './env';
@@ -39,18 +41,20 @@ export class UserStorage {
     this.options = options;
   }
 
-  async setItem(feature: string, key: string, value: string): Promise<void> {
+  async setItem(path: UserStoragePath, value: string): Promise<void> {
+    const { feature, key } = getFeatureAndKeyFromPath(path);
     if (!feature.trim() || !key.trim()) {
       throw new ValidationError('feature or key cannot be empty strings');
     }
-    await this.#upsertUserStorage(feature, key, value);
+    await this.#upsertUserStorage(path, value);
   }
 
-  async getItem(feature: string, key: string): Promise<string> {
+  async getItem(path: UserStoragePath): Promise<string> {
+    const { feature, key } = getFeatureAndKeyFromPath(path);
     if (!feature.trim() || !key.trim()) {
       throw new ValidationError('feature or key cannot be empty strings');
     }
-    return this.#getUserStorage(feature, key);
+    return this.#getUserStorage(path);
   }
 
   async getStorageKey(): Promise<string> {
@@ -68,15 +72,14 @@ export class UserStorage {
     return hashedStorageKeySignature;
   }
 
-  async #upsertUserStorage(
-    feature: string,
-    key: string,
-    data: string,
-  ): Promise<void> {
+  async #upsertUserStorage(path: UserStoragePath, data: string): Promise<void> {
+    const { feature, key } = getFeatureAndKeyFromPath(path);
+
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
       const encryptedData = encryption.encryptString(data, storageKey);
+
       const url = new URL(
         STORAGE_URL(this.env, feature, this.#createEntryKey(key, storageKey)),
       );
@@ -104,12 +107,16 @@ export class UserStorage {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
-        `failed to upsert user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
+        `failed to upsert user storage for feature '${String(
+          feature,
+        )}' and key '${String(key)}'. ${errorMessage}`,
       );
     }
   }
 
-  async #getUserStorage(feature: string, key: string): Promise<string> {
+  async #getUserStorage(path: UserStoragePath): Promise<string> {
+    const { feature, key } = getFeatureAndKeyFromPath(path);
+
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
@@ -126,7 +133,9 @@ export class UserStorage {
 
       if (response.status === 404) {
         throw new NotFoundError(
-          `feature/key set not found for feature '${feature}' and key '${key}'.`,
+          `feature/key set not found for feature '${String(
+            feature,
+          )}' and key '${String(key)}'.`,
         );
       }
 
@@ -149,7 +158,9 @@ export class UserStorage {
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
 
       throw new UserStorageError(
-        `failed to get user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
+        `failed to get user storage for feature '${String(
+          feature,
+        )}' and key '${String(key)}'. ${errorMessage}`,
       );
     }
   }

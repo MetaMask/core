@@ -2,7 +2,7 @@ import log from 'loglevel';
 
 import { Env, getEnvUrls } from '../../sdk';
 import encryption from './encryption';
-import type { UserStorageEntryKeys } from './schema';
+import type { UserStoragePath } from './schema';
 import { createEntryPath } from './schema';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
@@ -21,8 +21,8 @@ export type GetUserStorageResponse = {
 };
 
 export type UserStorageOptions = {
+  path: UserStoragePath;
   bearerToken: string;
-  entryKey: UserStorageEntryKeys;
   storageKey: string;
 };
 
@@ -36,13 +36,15 @@ export async function getUserStorage(
   opts: UserStorageOptions,
 ): Promise<string | null> {
   try {
-    const path = createEntryPath(opts.entryKey, opts.storageKey);
-    const url = new URL(`${USER_STORAGE_ENDPOINT}${path}`);
+    const { bearerToken, path, storageKey } = opts;
+
+    const entryPath = createEntryPath(path, storageKey);
+    const url = new URL(`${USER_STORAGE_ENDPOINT}${entryPath}`);
 
     const userStorageResponse = await fetch(url.toString(), {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${opts.bearerToken}`,
+        Authorization: `Bearer ${bearerToken}`,
       },
     });
 
@@ -85,15 +87,17 @@ export async function upsertUserStorage(
   data: string,
   opts: UserStorageOptions,
 ): Promise<void> {
+  const { bearerToken, path, storageKey } = opts;
+
   const encryptedData = encryption.encryptString(data, opts.storageKey);
-  const path = createEntryPath(opts.entryKey, opts.storageKey);
-  const url = new URL(`${USER_STORAGE_ENDPOINT}${path}`);
+  const entryPath = createEntryPath(path, storageKey);
+  const url = new URL(`${USER_STORAGE_ENDPOINT}${entryPath}`);
 
   const res = await fetch(url.toString(), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${opts.bearerToken}`,
+      Authorization: `Bearer ${bearerToken}`,
     },
     body: JSON.stringify({ data: encryptedData }),
   });
