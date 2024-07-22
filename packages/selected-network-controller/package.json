@@ -44,7 +44,7 @@
     "@metamask/base-controller": "^6.0.2",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/network-controller": "^20.0.0",
-    "@metamask/permission-controller": "^10.0.2",
+    "@metamask/permission-controller": "^11.0.0",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^9.1.0"
   },
@@ -64,7 +64,7 @@
   },
   "peerDependencies": {
     "@metamask/network-controller": "^20.0.0",
-    "@metamask/permission-controller": "^10.0.0"
+    "@metamask/permission-controller": "^11.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
