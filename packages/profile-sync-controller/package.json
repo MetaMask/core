@@ -35,15 +35,16 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/profile-sync-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/profile-sync-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
     "@metamask/base-controller": "^6.0.1",
-    "@metamask/snaps-controllers": "^8.1.1",
-    "@metamask/snaps-sdk": "^4.2.0",
+    "@metamask/snaps-controllers": "^9.3.0",
+    "@metamask/snaps-sdk": "^6.1.0",
+    "@metamask/snaps-utils": "^7.8.0",
     "@noble/ciphers": "^0.5.2",
     "@noble/hashes": "^1.4.0",
     "immer": "^9.0.6",
@@ -62,10 +63,10 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5"
+    "typescript": "~5.0.4"
   },
   "peerDependencies": {
-    "@metamask/snaps-controllers": "^8.1.1"
+    "@metamask/snaps-controllers": "^9.3.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

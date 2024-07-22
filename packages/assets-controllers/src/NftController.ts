@@ -652,7 +652,7 @@ export class NftController extends BaseController<
     }
 
     if (hasIpfsTokenURI) {
-      tokenURI = getFormattedIpfsUrl(
+      tokenURI = await getFormattedIpfsUrl(
         this.#ipfsGateway,
         tokenURI,
         this.#useIpfsSubdomains,
