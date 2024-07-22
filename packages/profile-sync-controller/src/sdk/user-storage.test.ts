@@ -17,7 +17,7 @@ const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
 describe('User Storage - STORAGE_URL()', () => {
   it('generates an example url path for User Storage', () => {
-    const result = STORAGE_URL(Env.DEV, 'my-feature', 'my-hashed-entry');
+    const result = STORAGE_URL(Env.DEV, 'my-feature/my-hashed-entry');
     expect(result).toBeDefined();
     expect(result).toContain('my-feature');
     expect(result).toContain('my-hashed-entry');

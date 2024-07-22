@@ -38,8 +38,8 @@ export async function getUserStorage(
   try {
     const { bearerToken, path, storageKey } = opts;
 
-    const entryPath = createEntryPath(path, storageKey);
-    const url = new URL(`${USER_STORAGE_ENDPOINT}${entryPath}`);
+    const encryptedPath = createEntryPath(path, storageKey);
+    const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
 
     const userStorageResponse = await fetch(url.toString(), {
       headers: {
@@ -90,8 +90,8 @@ export async function upsertUserStorage(
   const { bearerToken, path, storageKey } = opts;
 
   const encryptedData = encryption.encryptString(data, opts.storageKey);
-  const entryPath = createEntryPath(path, storageKey);
-  const url = new URL(`${USER_STORAGE_ENDPOINT}${entryPath}`);
+  const encryptedPath = createEntryPath(path, storageKey);
+  const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
 
   const res = await fetch(url.toString(), {
     method: 'PUT',

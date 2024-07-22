@@ -7,7 +7,6 @@ import { createSHA256Hash } from './encryption';
 
 export const USER_STORAGE_SCHEMA = {
   notifications: ['notificationSettings'],
-  accounts: ['accountsSettings'],
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
@@ -38,6 +37,10 @@ export const getFeatureAndKeyFromPath = (
 export const validatePath = (path: UserStoragePath) => {
   const { feature, key } = getFeatureAndKeyFromPath(path);
 
+  if (!feature.trim() || !key.trim()) {
+    throw new Error(`user-storage - feature and key cannot be empty`);
+  }
+
   if (!(feature in USER_STORAGE_SCHEMA)) {
     throw new Error(`user-storage - invalid feature provided: ${feature}`);
   }
@@ -67,7 +70,9 @@ export function createEntryPath(
   storageKey: string,
 ): string {
   validatePath(path);
+
   const { feature, key } = getFeatureAndKeyFromPath(path);
   const hashedKey = createSHA256Hash(key + storageKey);
+
   return `/${feature}/${hashedKey}`;
 }
