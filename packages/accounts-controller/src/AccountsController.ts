@@ -892,6 +892,8 @@ export class AccountsController extends BaseController<
 
     const index = Math.max(
       keyringAccounts.length + 1,
+      // ESLint is confused; this is a number.
+      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       lastDefaultIndexUsedForKeyringType + 1,
     );
 

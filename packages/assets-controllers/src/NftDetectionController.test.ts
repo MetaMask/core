@@ -1411,6 +1411,8 @@ describe('NftDetectionController', () => {
   it('should not call addNFt when the request to Nft API call throws', async () => {
     const selectedAccount = createMockInternalAccount({ address: '0x3' });
     nock(NFT_API_BASE_URL)
+      // ESLint is confused; this is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       .get(`/users/${selectedAccount.address}/tokens`)
       .query({
         continuation: '',
