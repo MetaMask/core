@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Please hold off on new releases of this package until the yarn resolution for `@metamask/providers` is removed.
   - This is blocked by a `@metamask/snaps-sdk` release with `@metamask/providers` bumped to `>=17.1.1`.
     - See: [Fix regressions introduced by @metamask/providers@17.1.1](https://github.com/MetaMask/snaps/pull/2579)
