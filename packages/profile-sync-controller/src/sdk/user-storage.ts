@@ -1,8 +1,5 @@
 import type { UserStoragePath } from '../controllers/user-storage/schema';
-import {
-  createEntryPath,
-  getFeatureAndKeyFromPath,
-} from '../controllers/user-storage/schema';
+import { createEntryPath } from '../controllers/user-storage/schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import encryption, { createSHA256Hash } from './encryption';
 import type { Env } from './env';
@@ -68,8 +65,6 @@ export class UserStorage {
   }
 
   async #upsertUserStorage(path: UserStoragePath, data: string): Promise<void> {
-    const { feature, key } = getFeatureAndKeyFromPath(path);
-
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
@@ -101,14 +96,12 @@ export class UserStorage {
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
-        `failed to upsert user storage for feature '${feature}' and key '${key}'. ${errorMessage}`,
+        `failed to upsert user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
 
   async #getUserStorage(path: UserStoragePath): Promise<string> {
-    const { feature, key } = getFeatureAndKeyFromPath(path);
-
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
@@ -125,7 +118,7 @@ export class UserStorage {
 
       if (response.status === 404) {
         throw new NotFoundError(
-          `feature/key set not found for feature '${feature}' and key '${key}'.`,
+          `feature/key set not found for path '${path}'.`,
         );
       }
 
@@ -148,9 +141,7 @@ export class UserStorage {
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
 
       throw new UserStorageError(
-        `failed to get user storage for feature '${String(
-          feature,
-        )}' and key '${String(key)}'. ${errorMessage}`,
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }

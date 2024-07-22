@@ -26,20 +26,16 @@ export type UserStoragePath = {
 export const getFeatureAndKeyFromPath = (
   path: UserStoragePath,
 ): UserStorageFeatureAndKey => {
+  if (!/^\w+\.\w+$/u.test(path)) {
+    throw new Error(
+      `user-storage - path is not in the correct format. Correct format: 'feature.key'`,
+    );
+  }
+
   const [feature, key] = path.split('.') as [
     UserStorageFeatures,
     UserStorageFeatureKeys<UserStorageFeatures>,
   ];
-
-  return { feature, key };
-};
-
-export const validatePath = (path: UserStoragePath) => {
-  const { feature, key } = getFeatureAndKeyFromPath(path);
-
-  if (!feature.trim() || !key.trim()) {
-    throw new Error(`user-storage - feature and key cannot be empty`);
-  }
 
   if (!(feature in USER_STORAGE_SCHEMA)) {
     throw new Error(`user-storage - invalid feature provided: ${feature}`);
@@ -54,6 +50,8 @@ export const validatePath = (path: UserStoragePath) => {
       `user-storage - invalid key provided for this feature: ${key}. Valid keys: ${validKeys}`,
     );
   }
+
+  return { feature, key };
 };
 
 /**
@@ -69,8 +67,6 @@ export function createEntryPath(
   path: UserStoragePath,
   storageKey: string,
 ): string {
-  validatePath(path);
-
   const { feature, key } = getFeatureAndKeyFromPath(path);
   const hashedKey = createSHA256Hash(key + storageKey);
 
