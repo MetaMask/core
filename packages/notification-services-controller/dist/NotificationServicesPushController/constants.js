@@ -1,0 +1,26 @@
+"use strict";Object.defineProperty(exports, "__esModule", {value: true});require('../chunk-IGY2S5BC.js');
+
+// src/NotificationServicesPushController/constants.ts
+var ENABLE_MV3 = true;
+var PUSH_NOTIFICATIONS_SERVICE_URL = "https://push.api.cx.metamask.io";
+var FIREBASE_API_KEY = "";
+var FIREBASE_AUTH_DOMAIN = "";
+var FIREBASE_STORAGE_BUCKET = "";
+var FIREBASE_PROJECT_ID = "";
+var FIREBASE_MESSAGING_SENDER_ID = "";
+var FIREBASE_APP_ID = "";
+var FIREBASE_MEASUREMENT_ID = "";
+var VAPID_KEY = "";
+
+
+
+
+
+
+
+
+
+
+
+exports.ENABLE_MV3 = ENABLE_MV3; exports.FIREBASE_API_KEY = FIREBASE_API_KEY; exports.FIREBASE_APP_ID = FIREBASE_APP_ID; exports.FIREBASE_AUTH_DOMAIN = FIREBASE_AUTH_DOMAIN; exports.FIREBASE_MEASUREMENT_ID = FIREBASE_MEASUREMENT_ID; exports.FIREBASE_MESSAGING_SENDER_ID = FIREBASE_MESSAGING_SENDER_ID; exports.FIREBASE_PROJECT_ID = FIREBASE_PROJECT_ID; exports.FIREBASE_STORAGE_BUCKET = FIREBASE_STORAGE_BUCKET; exports.PUSH_NOTIFICATIONS_SERVICE_URL = PUSH_NOTIFICATIONS_SERVICE_URL; exports.VAPID_KEY = VAPID_KEY;
+//# sourceMappingURL=constants.js.map

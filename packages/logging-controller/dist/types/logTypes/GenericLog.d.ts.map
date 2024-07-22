@@ -1,0 +1,1 @@
+{"version":3,"file":"GenericLog.d.ts","sourceRoot":"","sources":["../../../src/logTypes/GenericLog.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAOzC,MAAM,MAAM,UAAU,GAAG;IACvB,IAAI,EAAE,OAAO,CAAC,UAAU,CAAC;IAGzB,IAAI,EAAE,GAAG,CAAC;CACX,CAAC"}

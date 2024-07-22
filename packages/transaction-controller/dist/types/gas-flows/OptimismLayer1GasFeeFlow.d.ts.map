@@ -1,0 +1,1 @@
+{"version":3,"file":"OptimismLayer1GasFeeFlow.d.ts","sourceRoot":"","sources":["../../../src/gas-flows/OptimismLayer1GasFeeFlow.ts"],"names":[],"mappings":"AAGA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,UAAU,CAAC;AAChD,OAAO,EAAE,sBAAsB,EAAE,MAAM,0BAA0B,CAAC;AAgBlE;;GAEG;AACH,qBAAa,wBAAyB,SAAQ,sBAAsB;;IAKlE,kBAAkB,CAAC,eAAe,EAAE,eAAe,GAAG,OAAO;CAG9D"}

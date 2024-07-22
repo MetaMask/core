@@ -1,0 +1,1 @@
+{"version":3,"file":"index.d.ts","sourceRoot":"","sources":["../../../src/rpc-methods/index.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,mBAAmB,EAAE,MAAM,kBAAkB,CAAC;AAE5D,OAAO,KAAK,EAAE,uBAAuB,EAAE,MAAM,sBAAsB,CAAC;AAEpE,OAAO,KAAK,EAAE,sBAAsB,EAAE,MAAM,qBAAqB,CAAC;AAGlE,MAAM,MAAM,uBAAuB,GAAG,uBAAuB,GAC3D,mBAAmB,GACnB,sBAAsB,CAAC;AAEzB,eAAO,MAAM,QAAQ,6WAIX,CAAC"}

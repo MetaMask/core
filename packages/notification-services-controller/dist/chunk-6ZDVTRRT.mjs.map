@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/NotificationServicesController/constants/constants.ts"],"sourcesContent":["export const USER_STORAGE_VERSION = '1';\n\n// Force cast. We don't really care about the type here since we treat it as a unique symbol\nexport const USER_STORAGE_VERSION_KEY: unique symbol = 'v' as never;\n"],"mappings":";AAAO,IAAM,uBAAuB;AAG7B,IAAM,2BAA0C;","names":[]}

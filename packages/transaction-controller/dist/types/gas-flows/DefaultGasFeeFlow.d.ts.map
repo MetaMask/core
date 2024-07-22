@@ -1,0 +1,1 @@
+{"version":3,"file":"DefaultGasFeeFlow.d.ts","sourceRoot":"","sources":["../../../src/gas-flows/DefaultGasFeeFlow.ts"],"names":[],"mappings":"AAUA,OAAO,KAAK,EAIV,UAAU,EACV,iBAAiB,EACjB,kBAAkB,EAGlB,eAAe,EAChB,MAAM,UAAU,CAAC;AAMlB;;GAEG;AACH,qBAAa,iBAAkB,YAAW,UAAU;;IAClD,kBAAkB,CAAC,gBAAgB,EAAE,eAAe,GAAG,OAAO;IAIxD,UAAU,CAAC,OAAO,EAAE,iBAAiB,GAAG,OAAO,CAAC,kBAAkB,CAAC;CAqG1E"}

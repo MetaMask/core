@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/logger.ts"],"sourcesContent":["import { createProjectLogger, createModuleLogger } from '@metamask/utils';\n\nexport const projectLogger = createProjectLogger('network-controller');\n\nexport { createModuleLogger };\n"],"mappings":";AAAA,SAAS,qBAAqB,0BAA0B;AAEjD,IAAM,gBAAgB,oBAAoB,oBAAoB;","names":[]}

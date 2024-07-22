@@ -1,0 +1,26 @@
+import "../chunk-U5UIDVOO.mjs";
+
+// src/NotificationServicesPushController/constants.ts
+var ENABLE_MV3 = true;
+var PUSH_NOTIFICATIONS_SERVICE_URL = "https://push.api.cx.metamask.io";
+var FIREBASE_API_KEY = "";
+var FIREBASE_AUTH_DOMAIN = "";
+var FIREBASE_STORAGE_BUCKET = "";
+var FIREBASE_PROJECT_ID = "";
+var FIREBASE_MESSAGING_SENDER_ID = "";
+var FIREBASE_APP_ID = "";
+var FIREBASE_MEASUREMENT_ID = "";
+var VAPID_KEY = "";
+export {
+  ENABLE_MV3,
+  FIREBASE_API_KEY,
+  FIREBASE_APP_ID,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_MEASUREMENT_ID,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  PUSH_NOTIFICATIONS_SERVICE_URL,
+  VAPID_KEY
+};
+//# sourceMappingURL=constants.mjs.map

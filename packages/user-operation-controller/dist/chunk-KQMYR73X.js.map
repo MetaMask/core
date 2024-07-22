@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/logger.ts"],"names":[],"mappings":";AAEA,SAAS,qBAAqB,0BAA0B;AAEjD,IAAM,gBAAgB,oBAAoB,2BAA2B","sourcesContent":["/* istanbul ignore file */\n\nimport { createProjectLogger, createModuleLogger } from '@metamask/utils';\n\nexport const projectLogger = createProjectLogger('user-operation-controller');\n\nexport { createModuleLogger };\n"]}

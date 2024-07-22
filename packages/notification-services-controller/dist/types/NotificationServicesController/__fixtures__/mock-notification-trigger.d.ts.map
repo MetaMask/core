@@ -1,0 +1,1 @@
+{"version":3,"file":"mock-notification-trigger.d.ts","sourceRoot":"","sources":["../../../../src/NotificationServicesController/__fixtures__/mock-notification-trigger.ts"],"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAE1D;;;;;GAKG;AACH,wBAAgB,6BAA6B,CAC3C,QAAQ,CAAC,EAAE,OAAO,CAAC,mBAAmB,CAAC,GACtC,mBAAmB,CASrB"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"createEngineStream.d.ts","sourceRoot":"","sources":["../../src/createEngineStream.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,2BAA2B,CAAC;AAE/D,OAAO,EAAE,MAAM,EAAE,MAAM,iBAAiB,CAAC;AAEzC,KAAK,mBAAmB,GAAG;IACzB,MAAM,EAAE,aAAa,CAAC;CACvB,CAAC;AAEF;;;;;;GAMG;AACH,MAAM,CAAC,OAAO,UAAU,kBAAkB,CAAC,IAAI,EAAE,mBAAmB,GAAG,MAAM,CAgC5E"}

@@ -1,0 +1,11 @@
+export declare const ENABLE_MV3 = true;
+export declare const PUSH_NOTIFICATIONS_SERVICE_URL = "https://push.api.cx.metamask.io";
+export declare const FIREBASE_API_KEY = "";
+export declare const FIREBASE_AUTH_DOMAIN = "";
+export declare const FIREBASE_STORAGE_BUCKET = "";
+export declare const FIREBASE_PROJECT_ID = "";
+export declare const FIREBASE_MESSAGING_SENDER_ID = "";
+export declare const FIREBASE_APP_ID = "";
+export declare const FIREBASE_MEASUREMENT_ID = "";
+export declare const VAPID_KEY = "";
+//# sourceMappingURL=constants.d.ts.map

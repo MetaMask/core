@@ -1,0 +1,1 @@
+{"version":3,"sources":["../src/constants.ts"],"names":["Source"],"mappings":";AAAO,IAAK,SAAL,kBAAKA,YAAL;AACL,EAAAA,QAAA,YAAS;AACT,EAAAA,QAAA,UAAO;AACP,EAAAA,QAAA,cAAW;AAHD,SAAAA;AAAA,GAAA","sourcesContent":["export enum Source {\n  Custom = 'custom',\n  Dapp = 'dapp',\n  Detected = 'detected',\n}\n"]}

@@ -1,0 +1,1 @@
+{"version":3,"file":"mergeMiddleware.d.ts","sourceRoot":"","sources":["../../src/mergeMiddleware.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,IAAI,EAAE,aAAa,EAAE,MAAM,iBAAiB,CAAC;AAE3D,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,iBAAiB,CAAC;AAGzD;;;;;GAKG;AACH,wBAAgB,eAAe,CAC7B,eAAe,EAAE,iBAAiB,CAAC,aAAa,EAAE,IAAI,CAAC,EAAE,0CAK1D"}
