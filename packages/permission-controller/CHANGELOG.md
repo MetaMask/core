@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Fix permission-controller lint violations ([#4537](https://github.com/MetaMask/core/pull/4537))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+- refactor(permission-controller)!: Fix various lint rule violations ([#4521](https://github.com/MetaMask/core/pull/4521))
+
 ## [10.0.1]
 
 ### Changed
