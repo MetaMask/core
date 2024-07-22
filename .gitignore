@@ -16,7 +16,6 @@ package-lock.json
 preview-build-message.txt
 
 packages/*/coverage
-packages/*/dist
 packages/*/docs
 scripts/coverage
 
