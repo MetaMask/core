@@ -41,7 +41,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.1",
+    "@metamask/base-controller": "^6.0.2",
     "@metamask/snaps-controllers": "^9.3.0",
     "@metamask/snaps-sdk": "^6.1.0",
     "@metamask/snaps-utils": "^7.8.0",

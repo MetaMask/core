@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.1]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` to `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+
 ## [10.1.0]
 
 ### Added
@@ -210,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.1...HEAD
+[10.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.0...@metamask/phishing-controller@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.0.0...@metamask/phishing-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.4...@metamask/phishing-controller@10.0.0
 [9.0.4]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.3...@metamask/phishing-controller@9.0.4
