@@ -75,15 +75,15 @@ type ActionsObj = CreateActionsObj<
   | 'disableProfileSyncing'
 >;
 export type Actions = ActionsObj[keyof ActionsObj];
+export type UserStorageControllerPerformGetStorage =
+  ActionsObj['performGetStorage'];
+export type UserStorageControllerPerformSetStorage =
+  ActionsObj['performSetStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
 export type UserStorageControllerEnableProfileSyncing =
   ActionsObj['enableProfileSyncing'];
 export type UserStorageControllerDisableProfileSyncing =
   ActionsObj['disableProfileSyncing'];
-export type UserStorageControllerPerformGetStorage =
-  ActionsObj['performGetStorage'];
-export type UserStorageControllerPerformSetStorage =
-  ActionsObj['performSetStorage'];
 
 // Allowed Actions
 export type AllowedActions =
