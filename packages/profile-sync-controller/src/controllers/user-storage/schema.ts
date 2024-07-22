@@ -26,7 +26,9 @@ export type UserStoragePath = {
 export const getFeatureAndKeyFromPath = (
   path: UserStoragePath,
 ): UserStorageFeatureAndKey => {
-  if (!/^\w+\.\w+$/u.test(path)) {
+  const pathRegex = /^\w+\.\w+$/u;
+
+  if (!pathRegex.test(path)) {
     throw new Error(
       `user-storage - path is not in the correct format. Correct format: 'feature.key'`,
     );
