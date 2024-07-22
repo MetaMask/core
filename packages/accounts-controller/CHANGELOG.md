@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Please hold off on new releases of this package until the yarn resolution for `@metamask/providers` is removed.
+  - This is blocked by a `@metamask/snaps-sdk` release with `@metamask/providers` bumped to `>=17.1.1`.
+    - See: [Fix regressions introduced by @metamask/providers@17.1.1](https://github.com/MetaMask/snaps/pull/2579)
+  - Build error fixed by yarn resolution: [MetaMask/core/actions/runs/10011688901/job/27675682526?pr=3645](https://github.com/MetaMask/core/actions/runs/10011688901/job/27675682526?pr=3645)
+
 ## [17.2.0]
 
 ### Added

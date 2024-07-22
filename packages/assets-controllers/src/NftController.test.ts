@@ -85,12 +85,6 @@ const SECOND_OWNER_ADDRESS = '0x500017171kasdfbou081';
 const DEPRESSIONIST_CID_V1 =
   'bafybeidf7aw7bmnmewwj4ayq3she2jfk5jrdpp24aaucf6fddzb3cfhrvm';
 
-const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH = getFormattedIpfsUrl(
-  IPFS_DEFAULT_GATEWAY_URL,
-  `ipfs://${DEPRESSIONIST_CID_V1}`,
-  true,
-);
-
 const SEPOLIA = {
   chainId: toHex(11155111),
   type: NetworkType.sepolia,
@@ -398,7 +392,7 @@ function setupController({
 }
 
 describe('NftController', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     nock(NFT_API_BASE_URL)
       .get(
         `/tokens?chainIds=1&tokens=0x01%3A1&includeTopBid=true&includeAttributes=true&includeLastSale=true`,
@@ -421,7 +415,12 @@ describe('NftController', () => {
           },
         ],
       });
-
+    const DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH =
+      await getFormattedIpfsUrl(
+        IPFS_DEFAULT_GATEWAY_URL,
+        `ipfs://${DEPRESSIONIST_CID_V1}`,
+        true,
+      );
     nock(DEPRESSIONIST_CLOUDFLARE_IPFS_SUBDOMAIN_PATH).get('/').reply(200, {
       name: 'name',
       image: 'image',
