@@ -9,16 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.2.1]
 
-### Uncategorized
+### Changed
 
-- Bump `@metamask/snaps-{controllers,sdk,utils}` and remove yarn resolution for `@metamask/providers` ([#4547](https://github.com/MetaMask/core/pull/4547))
-- Fix lint issues ([#4545](https://github.com/MetaMask/core/pull/4545))
-- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
-- Release/176.0.0 ([#4527](https://github.com/MetaMask/core/pull/4527))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
-- chore(deps): Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Upgrade TypeScript to v5.0 and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/keyring-api` from `^8.0.0` to `^8.0.1` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/keyring-controller` from `^17.1.0` to `^17.1.1` ([#4527](https://github.com/MetaMask/core/pull/4527))
+- Bump `@metamask/snaps-sdk` from `^4.2.0` to `^6.1.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+- Bump `@metamask/snaps-utils` from `^7.4.0` to `^7.8.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+- Bump peerDependency `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
 
 ## [17.2.0]
 

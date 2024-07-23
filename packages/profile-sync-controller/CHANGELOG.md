@@ -9,12 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.5]
 
-### Uncategorized
+### Added
 
-- Bump `@metamask/snaps-{controllers,sdk,utils}` and remove yarn resolution for `@metamask/providers` ([#4547](https://github.com/MetaMask/core/pull/4547))
-- Feat(NOTIFY-852): Enforce user storage schema usage ([#4543](https://github.com/MetaMask/core/pull/4543))
-- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Add and export object `USER_STORAGE_SCHEMA`, function `getFeatureAndKeyFromPath`, and type `UserStoragePath` ([#4543](https://github.com/MetaMask/core/pull/4543))
+
+### Changed
+
+- **BREAKING:** Enforce `UserStorageSchema` usage in all functions that get or set user storage ([#4543](https://github.com/MetaMask/core/pull/4543))
+  - Keeps user storage entries consistent, and improves DX for consumers of user storage.
+  - **BREAKING:** Remove `entryKey` function parameter from `performGetStorage` and `performSetStorage` methods of `UserStorageController`, and replace with `path` parameter of type `UserStoragePath`.
+  - **BREAKING:** Remove `entryKey` function parameter from `createEntryPath`, and replace with `path` parameter of type `UserStoragePath`.
+  - **BREAKING:** Remove `entryKey` property from type `UserStorageOptions`, and replace with `path` property of type `UserStoragePath`.
+- Upgrade TypeScript to v5.0 and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.1` ([#3645](https://github.com/MetaMask/core/pull/3645))
+  - Bump peerDependency `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.0`
+- Bump `@metamask/snaps-sdk` from `^4.2.0` to `^6.1.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+- Bump `@metamask/snaps-utils` from `^7.4.0` to `^7.8.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+
+### Removed
+
+- Remove object `USER_STORAGE_ENTRIES` and type `UserStorageEntryKeys` ([#4543](https://github.com/MetaMask/core/pull/4543))
 
 ## [0.1.4]
 

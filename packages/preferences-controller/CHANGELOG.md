@@ -9,13 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.0.1]
 
-### Uncategorized
+### Changed
 
-- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Release/176.0.0 ([#4527](https://github.com/MetaMask/core/pull/4527))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
-- Release 161.0.0 ([#4413](https://github.com/MetaMask/core/pull/4413))
+- Upgrade TypeScript to v5.0 and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
 
 ## [13.0.0]
 
