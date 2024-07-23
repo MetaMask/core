@@ -237,7 +237,33 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
  * @param hostname - The hostname to hash.
  * @returns The SHA-256 hash of the hostname.
  */
-export function sha256Hash(hostname: string): string {
+export const sha256Hash = (hostname: string): string => {
   const hashBuffer = sha256(new TextEncoder().encode(hostname.toLowerCase()));
   return toHex(hashBuffer);
-}
+};
+
+/**
+ * Update the request blocklist with the recently added and removed hashes.
+ *
+ * @param currentList - current list of the hashed request blocklist
+ * @param recentlyAdded - list of hashes to add to the local request blocklist
+ * @param recentlyRemoved - list of hashes to remove from the local request blocklist
+ * @returns the updated list of the hashed request blocklist
+ */
+export const updateRequestBlocklist = (
+  currentList: string[],
+  recentlyAdded: string[],
+  recentlyRemoved: string[],
+): string[] => {
+  const updatedList = new Set(currentList);
+
+  for (const hash of recentlyAdded) {
+    updatedList.add(hash);
+  }
+
+  for (const hash of recentlyRemoved) {
+    updatedList.delete(hash);
+  }
+
+  return Array.from(updatedList);
+};

@@ -9,6 +9,7 @@ import {
   processConfigs,
   processDomainList,
   sha256Hash,
+  updateRequestBlocklist,
   validateConfig,
 } from './utils';
 
@@ -287,5 +288,91 @@ describe('sha256Hash', () => {
       '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
     const hash = sha256Hash(hostname);
     expect(hash).toBe(expectedHash);
+  });
+});
+
+describe('updateRequestBlocklist', () => {
+  it('should add hashes to the current list', () => {
+    const currentList = ['hash1', 'hash2'];
+    const recentlyAdded = ['hash3', 'hash4'];
+    const recentlyRemoved: string[] = [];
+    const expectedList = ['hash1', 'hash2', 'hash3', 'hash4'];
+
+    const result = updateRequestBlocklist(
+      currentList,
+      recentlyAdded,
+      recentlyRemoved,
+    );
+    expect(result).toStrictEqual(expectedList);
+  });
+
+  it('should remove hashes from the current list', () => {
+    const currentList = ['hash1', 'hash2', 'hash3'];
+    const recentlyAdded: string[] = [];
+    const recentlyRemoved = ['hash2'];
+    const expectedList = ['hash1', 'hash3'];
+
+    const result = updateRequestBlocklist(
+      currentList,
+      recentlyAdded,
+      recentlyRemoved,
+    );
+    expect(result).toStrictEqual(expectedList);
+  });
+
+  it('should handle adding and removing hashes simultaneously', () => {
+    const currentList = ['hash1', 'hash2'];
+    const recentlyAdded = ['hash3'];
+    const recentlyRemoved = ['hash2'];
+    const expectedList = ['hash1', 'hash3'];
+
+    const result = updateRequestBlocklist(
+      currentList,
+      recentlyAdded,
+      recentlyRemoved,
+    );
+    expect(result).toStrictEqual(expectedList);
+  });
+
+  it('should not add duplicates', () => {
+    const currentList = ['hash1', 'hash2'];
+    const recentlyAdded = ['hash2', 'hash3'];
+    const recentlyRemoved: string[] = [];
+    const expectedList = ['hash1', 'hash2', 'hash3'];
+
+    const result = updateRequestBlocklist(
+      currentList,
+      recentlyAdded,
+      recentlyRemoved,
+    );
+    expect(result).toStrictEqual(expectedList);
+  });
+
+  it('should handle empty recently added and removed lists', () => {
+    const currentList = ['hash1', 'hash2'];
+    const recentlyAdded: string[] = [];
+    const recentlyRemoved: string[] = [];
+    const expectedList = ['hash1', 'hash2'];
+
+    const result = updateRequestBlocklist(
+      currentList,
+      recentlyAdded,
+      recentlyRemoved,
+    );
+    expect(result).toStrictEqual(expectedList);
+  });
+
+  it('should handle removing a non-existent hash', () => {
+    const currentList = ['hash1', 'hash2'];
+    const recentlyAdded: string[] = [];
+    const recentlyRemoved = ['hash3'];
+    const expectedList = ['hash1', 'hash2'];
+
+    const result = updateRequestBlocklist(
+      currentList,
+      recentlyAdded,
+      recentlyRemoved,
+    );
+    expect(result).toStrictEqual(expectedList);
   });
 });

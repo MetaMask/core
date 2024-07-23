@@ -4,7 +4,7 @@ import { safelyExecute } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
 
 import { PhishingDetector } from './PhishingDetector';
-import { applyDiffs, fetchTimeNow } from './utils';
+import { applyDiffs, fetchTimeNow, updateRequestBlocklist } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -51,7 +51,7 @@ export type EthPhishingResponse = {
   whitelist: string[];
 };
 
-export type BlocklistResponse = {
+export type RequestBlocklistResponse = {
   recentlyAdded: string[];
   recentlyRemoved: string[];
   lastFetchedAt: string;
@@ -505,19 +505,11 @@ export class PhishingController extends BaseController<
         DataResultWrapper<PhishingStalelist>
       >(METAMASK_STALELIST_URL).then((d) => d);
 
-      requestBlocklistResponse = await this.#queryConfig<BlocklistResponse>(
-        REQUEST_BLOCKLIST_URL,
-      ).then((d) => d);
-
-      // TODO: implement this
-
-      // requestBlocklistResponse = await fetch(
-      //   'https://api.walletguard.app/extension/v0/requests-blocklist',
-      // ).then((response) => response.json());
-
-      // requestBlocklistResponse = [
-      //   '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
-      // ];
+      // This will fetch the entire request blocklist
+      requestBlocklistResponse =
+        await this.#queryConfig<RequestBlocklistResponse>(
+          REQUEST_BLOCKLIST_URL,
+        ).then((d) => d);
 
       // Fetching hotlist diffs relies on having a lastUpdated timestamp to do `GET /v1/diffsSince/:timestamp`,
       // so it doesn't make sense to call if there is not a timestamp to begin with.
@@ -591,11 +583,17 @@ export class PhishingController extends BaseController<
       ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
     );
     let hotlistResponse: DataResultWrapper<Hotlist> | null;
+    let requestBlocklistResponse: RequestBlocklistResponse | null;
 
     try {
       hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
         `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );
+
+      requestBlocklistResponse =
+        await this.#queryConfig<RequestBlocklistResponse>(
+          `${REQUEST_BLOCKLIST_URL}?timestamp=${lastDiffTimestamp}`,
+        ).then((d) => d);
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
@@ -603,10 +601,6 @@ export class PhishingController extends BaseController<
         draftState.hotlistLastFetched = fetchTimeNow();
       });
     }
-
-    const requestBlocklistResponse = await this.#queryConfig<BlocklistResponse>(
-      REQUEST_BLOCKLIST_URL,
-    ).then((d) => d);
 
     if (!hotlistResponse?.data) {
       return;
@@ -620,11 +614,15 @@ export class PhishingController extends BaseController<
       ),
     );
 
-    console.log('newPhishingLists', newPhishingLists);
-    newPhishingLists[1].requestBlocklist =
-      requestBlocklistResponse?.recentlyAdded || [];
-    newPhishingLists[0].requestBlocklist =
-      requestBlocklistResponse?.recentlyAdded || [];
+    if (requestBlocklistResponse) {
+      newPhishingLists.forEach((list) => {
+        list.requestBlocklist = updateRequestBlocklist(
+          list.requestBlocklist,
+          requestBlocklistResponse?.recentlyAdded || [],
+          requestBlocklistResponse?.recentlyRemoved || [],
+        );
+      });
+    }
 
     this.update((draftState) => {
       draftState.phishingLists = newPhishingLists;
