@@ -2206,7 +2206,7 @@ __metadata:
     "@metamask/keyring-api": "npm:^8.0.1"
     "@metamask/keyring-controller": "npm:^17.1.1"
     "@metamask/snaps-controllers": "npm:^9.3.1"
-    "@metamask/snaps-sdk": "npm:^6.1.0"
+    "@metamask/snaps-sdk": "npm:^6.1.1"
     "@metamask/snaps-utils": "npm:^7.8.1"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -2465,7 +2465,7 @@ __metadata:
     "@metamask/chain-api": "npm:^0.1.0"
     "@metamask/keyring-api": "npm:^8.0.1"
     "@metamask/snaps-controllers": "npm:^9.3.1"
-    "@metamask/snaps-sdk": "npm:^6.1.0"
+    "@metamask/snaps-sdk": "npm:^6.1.1"
     "@metamask/snaps-utils": "npm:^7.8.1"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -3547,7 +3547,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.2"
     "@metamask/snaps-controllers": "npm:^9.3.1"
-    "@metamask/snaps-sdk": "npm:^6.1.0"
+    "@metamask/snaps-sdk": "npm:^6.1.1"
     "@metamask/snaps-utils": "npm:^7.8.1"
     "@noble/ciphers": "npm:^0.5.2"
     "@noble/hashes": "npm:^1.4.0"
@@ -3569,9 +3569,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/providers@npm:17.1.1, @metamask/providers@npm:^17.0.0":
-  version: 17.1.1
-  resolution: "@metamask/providers@npm:17.1.1"
+"@metamask/providers@npm:^17.0.0, @metamask/providers@npm:^17.1.2":
+  version: 17.1.2
+  resolution: "@metamask/providers@npm:17.1.2"
   dependencies:
     "@metamask/json-rpc-engine": "npm:^9.0.1"
     "@metamask/json-rpc-middleware-stream": "npm:^8.0.1"
@@ -3586,7 +3586,7 @@ __metadata:
     readable-stream: "npm:^3.6.2"
   peerDependencies:
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
-  checksum: 10/9aed27c02ce97838705b3dacc4f2d8a821586e5aef2e98315f98e5be1a457ac5d48602fd7d5bdc4ac608e18cca13c723b685c3d03820b952f036647eac0121ce
+  checksum: 10/bf555f9774e340d4497c09c980094e759a198f11c5a78b403e639cf01904b9ec3b19a5e9f53567465dd8739da4138e2021ac9a404a99b1a6022add12a4b19a31
   languageName: node
   linkType: hard
 
@@ -3860,16 +3860,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-sdk@npm:^6.0.0, @metamask/snaps-sdk@npm:^6.1.0":
-  version: 6.1.0
-  resolution: "@metamask/snaps-sdk@npm:6.1.0"
+"@metamask/snaps-sdk@npm:^6.0.0, @metamask/snaps-sdk@npm:^6.1.0, @metamask/snaps-sdk@npm:^6.1.1":
+  version: 6.1.1
+  resolution: "@metamask/snaps-sdk@npm:6.1.1"
   dependencies:
     "@metamask/key-tree": "npm:^9.1.2"
-    "@metamask/providers": "npm:17.0.0"
+    "@metamask/providers": "npm:^17.1.2"
     "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^9.1.0"
-  checksum: 10/1cdad5356872dea44313914ed446cddd9bcaf397b60b47e1d93a11cacb6974066f60ca55cfa3c8fe74d7852188113994433401647fa02e13d1e9f0bd8dfde013
+  checksum: 10/d75fa0bf7a939399a04d230c73c6ba3c9c6c6b514c2a5494250f8a68847e49a52009baf324c83562c24217df94106c194cbe081e5ef4f01799718de672967956
   languageName: node
   linkType: hard
 
