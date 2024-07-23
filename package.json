@@ -43,7 +43,6 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/snaps-sdk@6.1.0/@metamask/providers": "17.1.1",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
