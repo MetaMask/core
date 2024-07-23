@@ -340,6 +340,18 @@ export type ClearPermissions = {
 };
 
 /**
+ * Execute a restricted method.
+ *
+ * @deprecated The permission middleware is intended to be the only place this is called. This was
+ * exposed as an action so that it could be used in a single legacy middleware function that needs
+ * to come before the permission middleware. Do not call this anywhere else.
+ */
+export type ExecuteRestructedMethod = {
+  type: `${typeof controllerName}:executeRestrictedMethod`;
+  handler: GenericPermissionController['executeRestrictedMethod'];
+};
+
+/**
  * Gets the endowments for the given subject and permission.
  */
 export type GetEndowments = {
@@ -352,6 +364,7 @@ export type GetEndowments = {
  */
 export type PermissionControllerActions =
   | ClearPermissions
+  | ExecuteRestructedMethod
   | GetEndowments
   | GetPermissionControllerState
   | GetSubjects
@@ -803,6 +816,12 @@ export class PermissionController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:clearPermissions` as const,
       () => this.clearState(),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:executeRestrictedMethod` as const,
+      (...args: Parameters<typeof this.executeRestrictedMethod>) =>
+        this.executeRestrictedMethod(...args),
     );
 
     this.messagingSystem.registerActionHandler(

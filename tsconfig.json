@@ -31,7 +31,8 @@
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
     { "path": "./packages/transaction-controller" },
-    { "path": "./packages/user-operation-controller" }
+    { "path": "./packages/user-operation-controller" },
+    { "path": "./packages/wallet-framework" }
   ],
   "files": [],
   "include": ["./types"]
