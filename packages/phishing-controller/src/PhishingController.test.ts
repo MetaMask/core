@@ -15,6 +15,7 @@ import {
   CLIENT_SIDE_DETECION_BASE_URL,
   REQUEST_BLOCKLIST_ENDPOINT,
 } from './PhishingController';
+import { formatHostnameToUrl } from './tests/utils';
 
 const controllerName = 'PhishingController';
 
@@ -229,14 +230,18 @@ describe('PhishingController', () => {
       expect(controller.isStalelistOutOfDate()).toBe(false);
       await controller.maybeUpdateState();
       expect(
-        controller.test('this-should-not-be-in-default-blocklist.com'),
+        controller.test(
+          formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
+        ),
       ).toMatchObject({
         result: false,
         type: 'all',
       });
 
       expect(
-        controller.test('this-should-not-be-in-default-allowlist.com'),
+        controller.test(
+          formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
+        ),
       ).toMatchObject({
         result: false,
         type: 'all',
@@ -248,14 +253,18 @@ describe('PhishingController', () => {
       console.log(controller.state.phishingLists);
 
       expect(
-        controller.test('this-should-not-be-in-default-blocklist.com'),
+        controller.test(
+          formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
+        ),
       ).toMatchObject({
         result: true,
         type: 'blocklist',
       });
 
       expect(
-        controller.test('this-should-not-be-in-default-allowlist.com'),
+        controller.test(
+          formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
+        ),
       ).toMatchObject({
         result: false,
         type: 'allowlist',
@@ -501,7 +510,7 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('metamask.io')).toMatchObject({
+    expect(controller.test(formatHostnameToUrl('metamask.io'))).toMatchObject({
       result: false,
       type: 'allowlist',
       name: ListNames.MetaMask,
@@ -535,7 +544,7 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('i❤.ws')).toMatchObject({
+    expect(controller.test(formatHostnameToUrl('i❤.ws'))).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -568,7 +577,7 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('xn--i-7iq.ws')).toMatchObject({
+    expect(controller.test(formatHostnameToUrl('xn--i-7iq.ws'))).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -609,7 +618,7 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('etnerscan.io')).toMatchObject({
+    expect(controller.test(formatHostnameToUrl('etnerscan.io'))).toMatchObject({
       result: true,
       type: 'blocklist',
       name: ListNames.MetaMask,
@@ -651,7 +660,9 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
+    expect(
+      controller.test(formatHostnameToUrl('myetherẉalletṭ.com')),
+    ).toMatchObject({
       result: true,
       type: 'blocklist',
       name: ListNames.MetaMask,
@@ -693,7 +704,9 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
+    expect(
+      controller.test(formatHostnameToUrl('xn--myetherallet-4k5fwn.com')),
+    ).toMatchObject({
       result: true,
       type: 'blocklist',
       name: ListNames.MetaMask,
@@ -744,7 +757,9 @@ describe('PhishingController', () => {
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      controller.test(
+        formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      ),
     ).toMatchObject({
       result: true,
       type: 'blocklist',
@@ -780,7 +795,9 @@ describe('PhishingController', () => {
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      controller.test(
+        formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      ),
     ).toMatchObject({
       result: false,
       type: 'all',
@@ -822,7 +839,7 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('opensea.io')).toMatchObject({
+    expect(controller.test(formatHostnameToUrl('opensea.io'))).toMatchObject({
       result: false,
       type: 'allowlist',
       name: ListNames.MetaMask,
@@ -864,7 +881,7 @@ describe('PhishingController', () => {
 
     const controller = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('ohpensea.io')).toMatchObject({
+    expect(controller.test(formatHostnameToUrl('ohpensea.io'))).toMatchObject({
       result: true,
       type: 'fuzzy',
       name: ListNames.MetaMask,
@@ -898,7 +915,9 @@ describe('PhishingController', () => {
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test('this-is-the-official-website-of-opensea.io'),
+      controller.test(
+        formatHostnameToUrl('this-is-the-official-website-of-opensea.io'),
+      ),
     ).toMatchObject({
       result: false,
       type: 'all',
@@ -942,12 +961,12 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      controller.test(formatHostnameToUrl(unsafeDomain)).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
+    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -990,13 +1009,13 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      controller.test(formatHostnameToUrl(unsafeDomain)).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
+    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -1039,12 +1058,12 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      controller.test(formatHostnameToUrl(unsafeDomain)).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
+    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
     });
@@ -1087,12 +1106,12 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      controller.test(formatHostnameToUrl(unsafeDomain)).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    controller.bypass(formatHostnameToUrl(unsafeDomain));
+    expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
       type: 'all',
     });

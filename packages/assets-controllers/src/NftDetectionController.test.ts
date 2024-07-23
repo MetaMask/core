@@ -1,6 +1,10 @@
 import type { AccountsController } from '@metamask/accounts-controller';
 import { ControllerMessenger } from '@metamask/base-controller';
-import { NFT_API_BASE_URL, ChainId } from '@metamask/controller-utils';
+import {
+  NFT_API_BASE_URL,
+  ChainId,
+  InfuraNetworkType,
+} from '@metamask/controller-utils';
 import {
   NetworkClientType,
   defaultState as defaultNetworkState,
@@ -381,6 +385,47 @@ describe('NftDetectionController', () => {
       },
       ({ controller }) => {
         expect(controller.isMainnet()).toBe(true);
+      },
+    );
+  });
+
+  it('should detect NFTs on Linea mainnet', async () => {
+    const selectedAddress = '0x1';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
+
+    await withController(
+      {
+        mockNetworkState: {
+          selectedNetworkClientId: InfuraNetworkType['linea-mainnet'],
+        },
+        mockGetSelectedAccount,
+      },
+      async ({ controller, controllerEvents }) => {
+        controllerEvents.triggerPreferencesStateChange({
+          ...getDefaultPreferencesState(),
+          useNftDetection: true,
+          selectedAddress,
+        });
+        // nock
+        const mockApiCall = nock(NFT_API_BASE_URL)
+          .get(`/users/${selectedAddress}/tokens`)
+          .query({
+            continuation: '',
+            limit: '50',
+            chainIds: '59144',
+            includeTopBid: true,
+          })
+          .reply(200, {
+            tokens: [],
+          });
+
+        // call detectNfts
+        await controller.detectNfts();
+
+        expect(mockApiCall.isDone()).toBe(true);
       },
     );
   });
@@ -1366,6 +1411,8 @@ describe('NftDetectionController', () => {
   it('should not call addNFt when the request to Nft API call throws', async () => {
     const selectedAccount = createMockInternalAccount({ address: '0x3' });
     nock(NFT_API_BASE_URL)
+      // ESLint is confused; this is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       .get(`/users/${selectedAccount.address}/tokens`)
       .query({
         continuation: '',

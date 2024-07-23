@@ -8,6 +8,8 @@ import { createMockInternalAccount } from '../../accounts-controller/src/tests/m
 import type {
   AllowedActions,
   AllowedEvents,
+  TokenBalancesControllerActions,
+  TokenBalancesControllerEvents,
   TokenBalancesControllerMessenger,
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
@@ -27,13 +29,16 @@ const controllerName = 'TokenBalancesController';
  */
 function getMessenger(
   controllerMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
+    TokenBalancesControllerActions | AllowedActions,
+    TokenBalancesControllerEvents | AllowedEvents
   >(),
 ): TokenBalancesControllerMessenger {
   return controllerMessenger.getRestricted({
     name: controllerName,
-    allowedActions: ['AccountsController:getSelectedAccount'],
+    allowedActions: [
+      'AccountsController:getSelectedAccount',
+      'AssetsContractController:getERC20BalanceOf',
+    ],
     allowedEvents: ['TokensController:stateChange'],
   });
 }
@@ -55,8 +60,8 @@ const setupController = ({
   triggerTokensStateChange: (state: TokensControllerState) => Promise<void>;
 } => {
   const controllerMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
+    TokenBalancesControllerActions | AllowedActions,
+    TokenBalancesControllerEvents | AllowedEvents
   >();
   const messenger = getMessenger(controllerMessenger);
 
@@ -67,9 +72,12 @@ const setupController = ({
     'AccountsController:getSelectedAccount',
     mockSelectedAccount,
   );
+  controllerMessenger.registerActionHandler(
+    'AssetsContractController:getERC20BalanceOf',
+    mockGetERC20BalanceOf,
+  );
 
   const controller = new TokenBalancesController({
-    getERC20BalanceOf: mockGetERC20BalanceOf,
     messenger,
     ...config,
   });
@@ -114,7 +122,6 @@ describe('TokenBalancesController', () => {
 
     new TokenBalancesController({
       interval: 10,
-      getERC20BalanceOf: jest.fn(),
       messenger: getMessenger(new ControllerMessenger()),
     });
     await flushPromises();

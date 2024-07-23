@@ -423,7 +423,8 @@ export class AccountsController extends BaseController<
         ...account,
         metadata: { ...account.metadata, name: accountName },
       };
-      // @ts-expect-error ts(2589)
+      // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
+      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
@@ -891,6 +892,8 @@ export class AccountsController extends BaseController<
 
     const index = Math.max(
       keyringAccounts.length + 1,
+      // ESLint is confused; this is a number.
+      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
