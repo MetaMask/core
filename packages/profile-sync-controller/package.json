@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^6.0.2",
-    "@metamask/snaps-controllers": "^9.3.0",
+    "@metamask/snaps-controllers": "^9.3.1",
     "@metamask/snaps-sdk": "^6.1.0",
     "@metamask/snaps-utils": "^7.8.0",
     "@noble/ciphers": "^0.5.2",
@@ -66,7 +66,7 @@
     "typescript": "~5.0.4"
   },
   "peerDependencies": {
-    "@metamask/snaps-controllers": "^9.3.0"
+    "@metamask/snaps-controllers": "^9.3.1"
   },
   "engines": {
     "node": "^18.18 || >=20"
