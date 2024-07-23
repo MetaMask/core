@@ -357,7 +357,7 @@ describe('wallet', () => {
         },
         primaryType: 'EIP712Domain',
         domain: {
-          verifyingContract: '996101235222674412020337938588541139382869425796',
+          verifyingContract: '0Xae7ab96520de3a18e5e111b5eaab095312d7fe84',
         },
         message: {},
       };
@@ -390,6 +390,139 @@ describe('wallet', () => {
         version: 'V3',
         signatureMethod: 'eth_signTypedData_v3',
       });
+    });
+
+    it('should throw if verifyingContract is invalid hex value', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+      );
+
+      const message = {
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+        },
+        primaryType: 'EIP712Domain',
+        domain: {
+          verifyingContract: '917551056842671309452305380979543736893630245704',
+        },
+        message: {},
+      };
+
+      const stringifiedMessage = JSON.stringify(message);
+
+      const payload = {
+        method: 'eth_signTypedData_v3',
+        params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      await expect(promise).rejects.toThrow('Invalid input.');
+    });
+  });
+
+  describe('signTypedDataV4', () => {
+    const getMsgParams = (verifyingContract?: string) => ({
+      types: {
+        EIP712Domain: [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'chainId', type: 'uint256' },
+          { name: 'verifyingContract', type: 'address' },
+        ],
+        Permit: [
+          { name: 'owner', type: 'address' },
+          { name: 'spender', type: 'address' },
+          { name: 'value', type: 'uint256' },
+          { name: 'nonce', type: 'uint256' },
+          { name: 'deadline', type: 'uint256' },
+        ],
+      },
+      primaryType: 'Permit',
+      domain: {
+        name: 'MyToken',
+        version: '1',
+        verifyingContract:
+          verifyingContract ?? '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+        chainId: '0x1',
+      },
+      message: {
+        owner: testAddresses[0],
+        spender: '0x0dcd5d886577d5081b0c52e242ef29e70be3e7bc',
+        value: 3000,
+        nonce: 0,
+        deadline: 50000000000,
+      },
+    });
+
+    it('should not throw if request is permit with valid hex value for verifyingContract address', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+      );
+
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [testAddresses[0], JSON.stringify(getMsgParams())],
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      const result = await promise;
+      expect(result).toStrictEqual({
+        id: undefined,
+        jsonrpc: undefined,
+        result:
+          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      });
+    });
+
+    it('should throw if request is permit with invalid hex value for verifyingContract address', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+      );
+
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [
+          testAddresses[0],
+          JSON.stringify(
+            getMsgParams('917551056842671309452305380979543736893630245704'),
+          ),
+        ],
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      await expect(promise).rejects.toThrow('Invalid input.');
     });
   });
 

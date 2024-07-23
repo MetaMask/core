@@ -5,14 +5,15 @@ import {
   createScaffoldMiddleware,
 } from '@metamask/json-rpc-engine';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import type {
-  Json,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
+import {
+  isValidHexAddress,
+  type Json,
+  type JsonRpcRequest,
+  type PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import type { Block } from './types';
-import { normalizeTypedMessage } from './utils/normalize';
+import { normalizeTypedMessage, parseTypedMessage } from './utils/normalize';
 
 /*
 export type TransactionParams = {
@@ -278,6 +279,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
 
     const address = await validateAndNormalizeKeyholder(params[0], req);
     const message = normalizeTypedMessage(params[1]);
+    validateVerifyingContract(message);
     const version = 'V3';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -308,6 +310,7 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
 
     const address = await validateAndNormalizeKeyholder(params[0], req);
     const message = normalizeTypedMessage(params[1]);
+    validateVerifyingContract(message);
     const version = 'V4';
     const msgParams: TypedMessageParams = {
       data: message,
@@ -487,6 +490,20 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     throw rpcErrors.invalidParams({
       message: `Invalid parameters: must provide an Ethereum address.`,
     });
+  }
+}
+
+/**
+ * Validates verifyingContract of typedSignMessage.
+ *
+ * @param data - The data passed in typedSign request.
+ */
+function validateVerifyingContract(data: string) {
+  const {
+    domain: { verifyingContract },
+  } = parseTypedMessage(data);
+  if (!isValidHexAddress(verifyingContract)) {
+    throw rpcErrors.invalidInput();
   }
 }
 

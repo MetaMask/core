@@ -1,9 +1,7 @@
-import { add0x, isValidHexAddress, isStrictHexString } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import BN from 'bn.js';
 
 type EIP712Domain = {
-  verifyingContract: string;
+  verifyingContract: Hex;
 };
 
 type SignTypedMessageDataV3V4 = {
@@ -45,7 +43,7 @@ export function normalizeTypedMessage(messageData: string) {
  * @param data - The messageData to parse.
  * @returns The data object for EIP712 normalization.
  */
-function parseTypedMessage(data: string) {
+export function parseTypedMessage(data: string) {
   if (typeof data !== 'string') {
     return data;
   }
@@ -54,36 +52,14 @@ function parseTypedMessage(data: string) {
 }
 
 /**
- * Normalizes the address to a hexadecimal format
+ * Normalizes the address to standard hexadecimal format
  *
  * @param address - The address to normalize.
  * @returns The normalized address.
  */
-function normalizeContractAddress(address: string): Hex | string {
-  if (isStrictHexString(address) && isValidHexAddress(address)) {
-    return address;
+function normalizeContractAddress(address: Hex): Hex {
+  if (address.startsWith('0X')) {
+    return `0x${address.slice(2)}`;
   }
-
-  // Check if the address is in octal format, convert to hexadecimal
-  if (address.startsWith('0o')) {
-    // If octal, convert to hexadecimal
-    return octalToHex(address);
-  }
-
-  // Check if the address is in decimal format, convert to hexadecimal
-  try {
-    const decimalBN = new BN(address, 10);
-    const hexString = decimalBN.toString(16);
-    return add0x(hexString);
-  } catch (e) {
-    // Ignore errors and return the original address
-  }
-
-  // Returning the original address without normalization
   return address;
-}
-
-function octalToHex(octalAddress: string): Hex {
-  const decimalAddress = parseInt(octalAddress.slice(2), 8).toString(16);
-  return add0x(decimalAddress);
 }
