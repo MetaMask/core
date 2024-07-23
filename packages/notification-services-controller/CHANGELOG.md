@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Feat(NOTIFY-852): Enforce user storage schema usage ([#4543](https://github.com/MetaMask/core/pull/4543))
+- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+
 ## [0.1.2]
 
 ### Added
