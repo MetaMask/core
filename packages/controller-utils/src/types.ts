@@ -124,5 +124,6 @@ export type NetworkNickname =
  * @template Type - The Record that you want to operate on.
  * @template Key - The union of keys you want to make optional.
  */
+// TODO: Move to @metamask/utils
 export type Partialize<Type, Key extends keyof Type> = Omit<Type, Key> &
   Partial<Pick<Type, Key>>;
