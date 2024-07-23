@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.2.1]
+
 ### Uncategorized
 
 - Bump `@metamask/snaps-{controllers,sdk,utils}` and remove yarn resolution for `@metamask/providers` ([#4547](https://github.com/MetaMask/core/pull/4547))
@@ -258,7 +260,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.2.1...HEAD
+[17.2.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.2.0...@metamask/accounts-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.1...@metamask/accounts-controller@17.2.0
 [17.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.0...@metamask/accounts-controller@17.1.1
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.0.0...@metamask/accounts-controller@17.1.0
