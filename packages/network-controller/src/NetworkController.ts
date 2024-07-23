@@ -1519,7 +1519,6 @@ export class NetworkController extends BaseController<
 
     this.#validateNetworkFields({
       mode: 'add',
-      errorMessagePrefix: 'Could not add network',
       networkFields: fields,
       autoManagedNetworkClientRegistry,
     });
@@ -1618,7 +1617,6 @@ export class NetworkController extends BaseController<
 
     this.#validateNetworkFields({
       mode: 'update',
-      errorMessagePrefix: 'Could not update network',
       networkFields: fields,
       existingNetworkConfiguration,
       autoManagedNetworkClientRegistry,
@@ -1963,7 +1961,6 @@ export class NetworkController extends BaseController<
    */
   #validateNetworkFields(
     args: {
-      errorMessagePrefix: string;
       autoManagedNetworkClientRegistry: AutoManagedNetworkClientRegistry;
     } & (
       | {
@@ -1977,16 +1974,14 @@ export class NetworkController extends BaseController<
         }
     ),
   ) {
-    const {
-      mode,
-      networkFields,
-      errorMessagePrefix,
-      autoManagedNetworkClientRegistry,
-    } = args;
+    const { mode, networkFields, autoManagedNetworkClientRegistry } = args;
     const existingNetworkConfiguration =
       'existingNetworkConfiguration' in args
         ? args.existingNetworkConfiguration
         : null;
+
+    const errorMessagePrefix =
+      mode === 'update' ? 'Could not update network' : 'Could not add network';
 
     if (
       !isStrictHexString(networkFields.chainId) ||
