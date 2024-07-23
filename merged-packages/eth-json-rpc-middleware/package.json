@@ -28,12 +28,12 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
-    "@metamask/eth-block-tracker": "^11.0.0",
-    "@metamask/eth-json-rpc-provider": "^4.1.0",
-    "@metamask/eth-sig-util": "^7.0.0",
-    "@metamask/json-rpc-engine": "^9.0.0",
-    "@metamask/rpc-errors": "^6.0.0",
-    "@metamask/utils": "^8.1.0",
+    "@metamask/eth-block-tracker": "^11.0.1",
+    "@metamask/eth-json-rpc-provider": "^4.1.1",
+    "@metamask/eth-sig-util": "^7.0.3",
+    "@metamask/json-rpc-engine": "^9.0.2",
+    "@metamask/rpc-errors": "^6.3.1",
+    "@metamask/utils": "^9.1.0",
     "@types/bn.js": "^5.1.5",
     "bn.js": "^5.2.1",
     "klona": "^2.0.6",
