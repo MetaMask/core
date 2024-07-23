@@ -3,13 +3,13 @@ import { providerFromEngine } from '@metamask/eth-json-rpc-provider';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
+import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import { createRetryOnEmptyMiddleware } from '.';
 import type { ProviderRequestStub } from '../test/util/helpers';
 import {
-  buildFinalMiddlewareWithDefaultResponse,
+  buildFinalMiddlewareWithDefaultResult,
   buildMockParamsWithBlockParamAt,
   buildMockParamsWithoutBlockParamAt,
   buildSimpleFinalMiddleware,
@@ -142,22 +142,18 @@ describe('createRetryOnEmptyMiddleware', () => {
                   blockNumber,
                 ),
               };
-              const sendAsyncSpy = stubProviderRequests(provider, [
+              const requestSpy = stubProviderRequests(provider, [
                 buildStubForBlockNumberRequest(blockNumber),
                 stubRequestThatFailsThenFinallySucceeds({
                   request,
                   numberOfTimesToFail: 9,
-                  successfulResponse: (req) => ({
-                    id: req.id,
-                    jsonrpc: '2.0',
-                    result: 'something',
-                  }),
+                  successfulResult: async () => 'something',
                 }),
               ]);
 
               const promiseForResponse = engine.handle(request);
               await waitForRequestToBeRetried({
-                sendAsyncSpy,
+                requestSpy,
                 request,
                 numberOfTimes: 10,
               });
@@ -166,7 +162,6 @@ describe('createRetryOnEmptyMiddleware', () => {
                 id: 1,
                 jsonrpc: '2.0',
                 result: 'something',
-                error: undefined,
               });
             },
           );
@@ -195,19 +190,12 @@ describe('createRetryOnEmptyMiddleware', () => {
                   blockNumber,
                 ),
               };
-              const sendAsyncSpy = stubProviderRequests(provider, [
+              const requestSpy = stubProviderRequests(provider, [
                 buildStubForBlockNumberRequest(blockNumber),
                 stubGenericRequest({
                   request,
-                  response: (req) => {
-                    return {
-                      id: req.id,
-                      jsonrpc: '2.0',
-                      error: {
-                        code: -1,
-                        message: 'oops',
-                      },
-                    };
+                  result: () => {
+                    throw providerErrors.custom({ code: -1, message: 'oops' });
                   },
                   remainAfterUse: true,
                 }),
@@ -215,7 +203,7 @@ describe('createRetryOnEmptyMiddleware', () => {
 
               const promiseForResponse = engine.handle(request);
               await waitForRequestToBeRetried({
-                sendAsyncSpy,
+                requestSpy,
                 request,
                 numberOfTimes: 10,
               });
@@ -263,13 +251,7 @@ describe('createRetryOnEmptyMiddleware', () => {
                 buildStubForBlockNumberRequest(blockNumber),
                 stubGenericRequest({
                   request,
-                  response: (req) => {
-                    return {
-                      id: req.id,
-                      jsonrpc: '2.0',
-                      result: 'success',
-                    };
-                  },
+                  result: async () => 'success',
                 }),
               ]);
 
@@ -303,13 +285,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                     '0x100',
                   ),
                 };
-                const sendAsyncSpy = stubProviderRequests(provider, [
+                const requestSpy = stubProviderRequests(provider, [
                   buildStubForBlockNumberRequest('0x0'),
                 ]);
 
                 await engine.handle(request);
 
-                expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+                expectProviderRequestNotToHaveBeenMade(requestSpy, request);
               },
             );
           });
@@ -376,13 +358,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                       blockParam,
                     ),
                   };
-                  const sendAsyncSpy = stubProviderRequests(provider, [
+                  const requestSpy = stubProviderRequests(provider, [
                     buildStubForBlockNumberRequest('0x0'),
                   ]);
 
                   await engine.handle(request);
 
-                  expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+                  expectProviderRequestNotToHaveBeenMade(requestSpy, request);
                 },
               );
             });
@@ -450,13 +432,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                       blockParam,
                     ),
                   };
-                  const sendAsyncSpy = stubProviderRequests(provider, [
+                  const requestSpy = stubProviderRequests(provider, [
                     buildStubForBlockNumberRequest(),
                   ]);
 
                   await engine.handle(request);
 
-                  expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+                  expectProviderRequestNotToHaveBeenMade(requestSpy, request);
                 },
               );
             });
@@ -519,13 +501,13 @@ describe('createRetryOnEmptyMiddleware', () => {
                   method,
                   params: buildMockParamsWithoutBlockParamAt(blockParamIndex),
                 };
-                const sendAsyncSpy = stubProviderRequests(provider, [
+                const requestSpy = stubProviderRequests(provider, [
                   buildStubForBlockNumberRequest(),
                 ]);
 
                 await engine.handle(request);
 
-                expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+                expectProviderRequestNotToHaveBeenMade(requestSpy, request);
               },
             );
           });
@@ -587,13 +569,13 @@ describe('createRetryOnEmptyMiddleware', () => {
             jsonrpc: '2.0',
             method,
           };
-          const sendAsyncSpy = stubProviderRequests(provider, [
+          const requestSpy = stubProviderRequests(provider, [
             buildStubForBlockNumberRequest(),
           ]);
 
           await engine.handle(request);
 
-          expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+          expectProviderRequestNotToHaveBeenMade(requestSpy, request);
         },
       );
     });
@@ -653,7 +635,7 @@ describe('createRetryOnEmptyMiddleware', () => {
             buildStubForBlockNumberRequest(),
             {
               request,
-              response: () => {
+              result: () => {
                 throw rpcErrors.invalidInput('execution reverted');
               },
             },
@@ -697,7 +679,7 @@ async function withTestSetup<T>(
 
   const {
     middlewareUnderTest,
-    otherMiddleware = [buildFinalMiddlewareWithDefaultResponse()],
+    otherMiddleware = [buildFinalMiddlewareWithDefaultResult()],
   } = configureMiddleware({ engine, provider, blockTracker });
 
   for (const middleware of [middlewareUnderTest, ...otherMiddleware]) {
@@ -711,9 +693,9 @@ async function withTestSetup<T>(
 }
 
 /**
- * Builds a canned response for a request made to `provider.sendAsync`. Intended
+ * Builds a canned result for a request made to `provider.request`. Intended
  * to be used in conjunction with `stubProviderRequests`. Although not strictly
- * necessary, it helps to assign a proper type to a request/response pair.
+ * necessary, it helps to assign a proper type to a request/result pair.
  *
  * @param requestStub - The request/response pair.
  * @returns The request/response pair, properly typed.
@@ -725,16 +707,16 @@ function stubGenericRequest<T extends JsonRpcParams, U extends Json>(
 }
 
 /**
- * Builds a canned response for a request made to `provider.sendAsync` which
+ * Builds a canned result for a request made to `provider.request` which
  * will error for the first N instances and then succeed on the last instance.
  * Intended to be used in conjunction with `stubProviderRequests`.
  *
  * @param request - The request matcher for the stub.
  * @param numberOfTimesToFail - The number of times the request is expected to
- * be called until it returns a successful response.
- * @param successfulResponse - The response that `provider.sendAsync` will
+ * be called until it returns a successful result.
+ * @param successfulResult - The result that `provider.request` will
  * return when called past `numberOfTimesToFail`.
- * @returns The request/response pair, properly typed.
+ * @returns The request/result pair, properly typed.
  */
 function stubRequestThatFailsThenFinallySucceeds<
   T extends JsonRpcParams,
@@ -742,27 +724,20 @@ function stubRequestThatFailsThenFinallySucceeds<
 >({
   request,
   numberOfTimesToFail,
-  successfulResponse,
+  successfulResult,
 }: {
   request: ProviderRequestStub<T, U>['request'];
   numberOfTimesToFail: number;
-  successfulResponse: ProviderRequestStub<T, U>['response'];
+  successfulResult: ProviderRequestStub<T, U>['result'];
 }): ProviderRequestStub<T, U> {
   return stubGenericRequest({
     request,
-    response: (req, callNumber) => {
+    result: async (callNumber) => {
       if (callNumber <= numberOfTimesToFail) {
-        return {
-          id: req.id,
-          jsonrpc: '2.0',
-          error: {
-            code: -1,
-            message: 'oops',
-          },
-        };
+        throw providerErrors.custom({ code: -1, message: 'oops' });
       }
 
-      return successfulResponse(req, callNumber);
+      return await successfulResult(callNumber);
     },
     remainAfterUse: true,
   });
@@ -770,30 +745,30 @@ function stubRequestThatFailsThenFinallySucceeds<
 
 /**
  * The `retryOnEmpty` middleware, as its name implies, uses the provider to make
- * the given request, retrying said request up to 10 times if the response is
+ * the given request, retrying said request up to 10 times if the result is
  * empty before failing. Upon retrying, it will wait a brief time using
  * `setTimeout`. Because we are using Jest's fake timers, we have to manually
  * trigger the callback passed to `setTimeout` atfter it is called. The problem
  * is that we don't know when `setTimeout` will be called while the
  * `retryOnEmpty` middleware is running, so we have to wait. We do this by
- * recording how many times `provider.sendAsync` has been called with the
+ * recording how many times `provider.request` has been called with the
  * request, and when that number goes up, we assume that `setTimeout` has been
  * called too and advance through time. We stop the loop when
- * `provider.sendAsync` has been called the given number of times.
+ * `provider.request` has been called the given number of times.
  *
  * @param args - The arguments.
- * @param sendAsyncSpy - The Jest spy object that represents
- * `provider.sendAsync`.
+ * @param requestSpy - The Jest spy object that represents
+ * `provider.request`.
  * @param request - The request object.
  * @param numberOfTimes - The number of times that we expect
- * `provider.sendAsync` to be called with `request`.
+ * `provider.request` to be called with `request`.
  */
 async function waitForRequestToBeRetried({
-  sendAsyncSpy,
+  requestSpy,
   request,
   numberOfTimes,
 }: {
-  sendAsyncSpy: jest.SpyInstance;
+  requestSpy: jest.SpyInstance;
   request: JsonRpcRequest;
   numberOfTimes: number;
 }) {
@@ -803,7 +778,7 @@ async function waitForRequestToBeRetried({
     await new Promise((resolve) => originalSetTimeout(resolve, 0));
 
     if (
-      sendAsyncSpy.mock.calls.filter((args) => requestMatches(args[0], request))
+      requestSpy.mock.calls.filter((args) => requestMatches(args[0], request))
         .length === iterationNumber
     ) {
       jest.runAllTimers();

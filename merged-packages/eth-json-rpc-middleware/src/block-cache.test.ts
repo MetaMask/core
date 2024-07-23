@@ -23,11 +23,7 @@ function createTestSetup() {
 describe('block cache', () => {
   it('should cache a request and only hit the provider once', async () => {
     const { engine, provider, blockTracker } = createTestSetup();
-    const spy = jest
-      .spyOn(provider, 'sendAsync')
-      .mockImplementation((req, cb) => {
-        cb(undefined, { id: req.id, result: '0x0', jsonrpc: '2.0' });
-      });
+    const requestSpy = jest.spyOn(provider, 'request').mockResolvedValue('0x0');
     let hitCount = 0;
 
     const hitCountMiddleware = createHitTrackerMiddleware();
@@ -56,6 +52,6 @@ describe('block cache', () => {
     expect(hitCount).toBe(1);
     expect(response.result).toBe('0x0');
     expect(response2.result).toBe('0x0');
-    expect(spy).toHaveBeenCalled();
+    expect(requestSpy).toHaveBeenCalled();
   });
 });

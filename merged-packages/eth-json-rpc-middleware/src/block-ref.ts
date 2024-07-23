@@ -2,13 +2,8 @@ import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
-import type {
-  Json,
-  JsonRpcParams,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { Json, JsonRpcParams } from '@metamask/utils';
 import { klona } from 'klona/full';
-import pify from 'pify';
 
 import { projectLogger, createModuleLogger } from './logging-utils';
 import type { Block } from './types';
@@ -68,12 +63,8 @@ export function createBlockRefMiddleware({
 
     // perform child request
     log('Performing another request %o', childRequest);
-    const childRes: PendingJsonRpcResponse<Block> = await pify(
-      provider.sendAsync,
-    ).call(provider, childRequest);
-    // copy child response onto original response
-    res.result = childRes.result;
-    res.error = childRes.error;
+    // copy child result onto original response
+    res.result = await provider.request<JsonRpcParams, Block>(childRequest);
 
     return undefined;
   });

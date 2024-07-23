@@ -1,5 +1,8 @@
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import {
+  createAsyncMiddleware,
+  type JsonRpcMiddleware,
+} from '@metamask/json-rpc-engine';
 import type {
   Json,
   JsonRpcParams,
@@ -9,21 +12,9 @@ import type {
 export function providerAsMiddleware(
   provider: SafeEventEmitterProvider,
 ): JsonRpcMiddleware<JsonRpcParams, Json> {
-  return (req, res, _next, end) => {
-    // send request to provider
-    provider.sendAsync(
-      req,
-      (err: unknown, providerRes: PendingJsonRpcResponse<any>) => {
-        // forward any error
-        if (err instanceof Error) {
-          return end(err);
-        }
-        // copy provider response onto original response
-        Object.assign(res, providerRes);
-        return end();
-      },
-    );
-  };
+  return createAsyncMiddleware(async (req, res) => {
+    res.result = await provider.request(req);
+  });
 }
 
 export function ethersProviderAsMiddleware(

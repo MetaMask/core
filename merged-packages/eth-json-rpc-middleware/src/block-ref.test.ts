@@ -10,7 +10,7 @@ import {
   stubProviderRequests,
   buildStubForBlockNumberRequest,
   buildStubForGenericRequest,
-  buildFinalMiddlewareWithDefaultResponse,
+  buildFinalMiddlewareWithDefaultResult,
   buildMockParamsWithoutBlockParamAt,
   expectProviderRequestNotToHaveBeenMade,
 } from '../test/util/helpers';
@@ -106,11 +106,7 @@ describe('createBlockRefMiddleware', () => {
                         '0x100',
                       ),
                     },
-                    response: (req) => ({
-                      id: req.id,
-                      jsonrpc: '2.0' as const,
-                      result: 'something',
-                    }),
+                    result: async () => 'something',
                   }),
                 ]);
 
@@ -120,14 +116,13 @@ describe('createBlockRefMiddleware', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   result: 'something',
-                  error: undefined,
                 });
               },
             );
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
-            const finalMiddleware = buildFinalMiddlewareWithDefaultResponse();
+            const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
             await withTestSetup(
               {
@@ -161,11 +156,7 @@ describe('createBlockRefMiddleware', () => {
                         '0x100',
                       ),
                     },
-                    response: (req) => ({
-                      id: req.id,
-                      jsonrpc: '2.0' as const,
-                      result: 'something',
-                    }),
+                    result: async () => 'something',
                   }),
                 ]);
 
@@ -207,11 +198,7 @@ describe('createBlockRefMiddleware', () => {
                         '0x100',
                       ),
                     },
-                    response: (req) => ({
-                      id: req.id,
-                      jsonrpc: '2.0' as const,
-                      result: 'something',
-                    }),
+                    result: async () => 'something',
                   }),
                 ]);
 
@@ -221,14 +208,13 @@ describe('createBlockRefMiddleware', () => {
                   id: 1,
                   jsonrpc: '2.0',
                   result: 'something',
-                  error: undefined,
                 });
               },
             );
           });
 
           it('does not proceed to the next middleware after making a request through the provider', async () => {
-            const finalMiddleware = buildFinalMiddlewareWithDefaultResponse();
+            const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
             await withTestSetup(
               {
@@ -259,11 +245,7 @@ describe('createBlockRefMiddleware', () => {
                         '0x100',
                       ),
                     },
-                    response: (req) => ({
-                      id: req.id,
-                      jsonrpc: '2.0' as const,
-                      result: 'something',
-                    }),
+                    result: async () => 'something',
                   }),
                 ]);
 
@@ -279,7 +261,7 @@ describe('createBlockRefMiddleware', () => {
           'if the block param is something other than "latest", like %o',
           (blockParam) => {
             it('does not make a direct request through the provider', async () => {
-              const finalMiddleware = buildFinalMiddlewareWithDefaultResponse();
+              const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
               await withTestSetup(
                 {
@@ -303,19 +285,19 @@ describe('createBlockRefMiddleware', () => {
                       blockParam,
                     ),
                   };
-                  const sendAsyncSpy = stubProviderRequests(provider, [
+                  const requestSpy = stubProviderRequests(provider, [
                     buildStubForBlockNumberRequest('0x100'),
                   ]);
 
                   await engine.handle(request);
 
-                  expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+                  expectProviderRequestNotToHaveBeenMade(requestSpy, request);
                 },
               );
             });
 
             it('proceeds to the next middleware', async () => {
-              const finalMiddleware = buildFinalMiddlewareWithDefaultResponse();
+              const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
               await withTestSetup(
                 {
@@ -366,7 +348,7 @@ describe('createBlockRefMiddleware', () => {
 
   describe('when the RPC method does not take a block parameter', () => {
     it('does not make a direct request through the provider', async () => {
-      const finalMiddleware = buildFinalMiddlewareWithDefaultResponse();
+      const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
       await withTestSetup(
         {
@@ -387,19 +369,19 @@ describe('createBlockRefMiddleware', () => {
             method: 'a_non_block_param_method',
             params: ['some value', '0x200'],
           };
-          const sendAsyncSpy = stubProviderRequests(provider, [
+          const requestSpy = stubProviderRequests(provider, [
             buildStubForBlockNumberRequest('0x100'),
           ]);
 
           await engine.handle(request);
 
-          expectProviderRequestNotToHaveBeenMade(sendAsyncSpy, request);
+          expectProviderRequestNotToHaveBeenMade(requestSpy, request);
         },
       );
     });
 
     it('proceeds to the next middleware', async () => {
-      const finalMiddleware = buildFinalMiddlewareWithDefaultResponse();
+      const finalMiddleware = buildFinalMiddlewareWithDefaultResult();
 
       await withTestSetup(
         {
@@ -465,7 +447,7 @@ async function withTestSetup<T>(
 
   const {
     middlewareUnderTest,
-    otherMiddleware = [buildFinalMiddlewareWithDefaultResponse()],
+    otherMiddleware = [buildFinalMiddlewareWithDefaultResult()],
   } = configureMiddleware({ engine, provider, blockTracker });
 
   for (const middleware of [middlewareUnderTest, ...otherMiddleware]) {
