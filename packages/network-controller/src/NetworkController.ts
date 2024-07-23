@@ -1753,18 +1753,6 @@ export class NetworkController extends BaseController<
         networkClientOperations,
       });
 
-    /*
-    console.log(
-      'replacementSelectedRpcEndpointIndex',
-      replacementSelectedRpcEndpointIndex,
-      'updatedNetworkConfiguration',
-      updatedNetworkConfiguration,
-      'networkClientOperations',
-      networkClientOperations,
-      'this.state.selectedNetworkClientId',
-      this.state.selectedNetworkClientId,
-    )
-    */
     if (
       replacementSelectedRpcEndpointIndex === undefined &&
       networkClientOperations.some((networkClientOperation) => {
