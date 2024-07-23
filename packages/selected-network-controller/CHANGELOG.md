@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/network-controller` from `^20.0.0` to `^20.1.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
+
 ## [16.0.0]
 
 ### Changed
