@@ -606,23 +606,29 @@ export class PhishingController extends BaseController<
       return;
     }
     const hotlist = hotlistResponse.data;
-    const newPhishingLists = this.state.phishingLists.map((phishingList) =>
-      applyDiffs(
+    const recentlyAdded = requestBlocklistResponse?.recentlyAdded || [];
+    const recentlyRemoved = requestBlocklistResponse?.recentlyRemoved || [];
+
+    const newPhishingLists = this.state.phishingLists.map((phishingList) => {
+      const updatedList = applyDiffs(
         phishingList,
         hotlist,
         phishingListNameKeyMap[phishingList.name],
-      ),
-    );
+      );
 
-    if (requestBlocklistResponse) {
-      newPhishingLists.forEach((list) => {
-        list.requestBlocklist = updateRequestBlocklist(
-          list.requestBlocklist,
-          requestBlocklistResponse?.recentlyAdded || [],
-          requestBlocklistResponse?.recentlyRemoved || [],
+      if (
+        phishingList.name === ListNames.MetaMask &&
+        requestBlocklistResponse
+      ) {
+        updatedList.requestBlocklist = updateRequestBlocklist(
+          updatedList.requestBlocklist,
+          recentlyAdded,
+          recentlyRemoved,
         );
-      });
-    }
+      }
+
+      return updatedList;
+    });
 
     this.update((draftState) => {
       draftState.phishingLists = newPhishingLists;
