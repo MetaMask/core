@@ -2,7 +2,11 @@ import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import { TransactionFactory } from '@ethereumjs/tx';
 import { CryptoHDKey, ETHSignature } from '@keystonehq/bc-ur-registry-eth';
 import { MetaMaskKeyring as QRKeyring } from '@keystonehq/metamask-airgapped-keyring';
-import { ControllerMessenger } from '@metamask/base-controller';
+import {
+  type ActionConstraint,
+  ControllerMessenger,
+  type EventConstraint,
+} from '@metamask/base-controller';
 import HDKeyring from '@metamask/eth-hd-keyring';
 import {
   normalize,
@@ -39,6 +43,7 @@ import type {
   KeyringControllerState,
   KeyringControllerOptions,
   KeyringControllerActions,
+  KeyringControllerWithKeyringAction,
 } from './KeyringController';
 import {
   AccountImportStrategy,
@@ -3268,6 +3273,74 @@ describe('KeyringController', () => {
       });
     });
 
+    describe('withKeyring', () => {
+      it('should call withKeyring', async () => {
+        const mockReturnedValue = 'foo';
+        jest
+          .spyOn(KeyringController.prototype, 'withKeyring')
+          .mockResolvedValue(mockReturnedValue);
+        const messenger = buildKeyringControllerMessenger<
+          | KeyringControllerWithKeyringAction<EthKeyring<Json>, string>
+          | KeyringControllerActions
+        >();
+        await withController({ messenger }, async ({ controller }) => {
+          const selector = { type: KeyringTypes.hd };
+          const fn = async () => mockReturnedValue;
+
+          await messenger.call('KeyringController:withKeyring', selector, fn);
+
+          expect(controller.withKeyring).toHaveBeenCalledWith(selector, fn);
+        });
+      });
+
+      it('should return the function result', async () => {
+        const messenger = buildKeyringControllerMessenger<
+          | KeyringControllerActions
+          | KeyringControllerWithKeyringAction<MockKeyring, string>
+        >();
+        await withController(
+          { messenger, keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async () => {
+            const mockReturnedValue = 'foo';
+            const selector = { type: MockKeyring.type };
+
+            const result: string = await messenger.call(
+              'KeyringController:withKeyring',
+              selector,
+              async (_keyring: MockKeyring) => mockReturnedValue,
+              { createIfMissing: true },
+            );
+
+            expect(result).toBe(mockReturnedValue);
+          },
+        );
+      });
+
+      it('should narrow the return type based on the handler return type', async () => {
+        const messenger = buildKeyringControllerMessenger<
+          | KeyringControllerActions
+          | KeyringControllerWithKeyringAction<MockKeyring, string>
+          | KeyringControllerWithKeyringAction<MockKeyring, number>
+        >();
+        await withController(
+          { messenger, keyringBuilders: [keyringBuilderFactory(MockKeyring)] },
+          async () => {
+            const selector = { type: MockKeyring.type };
+            const mockReturnedValue = 10;
+
+            const result: number = await messenger.call(
+              'KeyringController:withKeyring',
+              selector,
+              async (_keyring: EthKeyring<Json>) => mockReturnedValue,
+              { createIfMissing: true },
+            );
+
+            expect(result).toBe(mockReturnedValue);
+          },
+        );
+      });
+    });
+
     describe('prepareUserOperation', () => {
       const chainId = '0x1';
       const executionContext = {
@@ -3569,11 +3642,11 @@ function stubKeyringClassWithAccount(
  *
  * @returns The controller messenger.
  */
-function buildMessenger() {
-  return new ControllerMessenger<
-    KeyringControllerActions,
-    KeyringControllerEvents
-  >();
+function buildMessenger<
+  A extends ActionConstraint = KeyringControllerActions,
+  E extends EventConstraint = KeyringControllerEvents,
+>() {
+  return new ControllerMessenger<A, E>();
 }
 
 /**
@@ -3582,7 +3655,10 @@ function buildMessenger() {
  * @param messenger - A controller messenger.
  * @returns The keyring controller restricted messenger.
  */
-function buildKeyringControllerMessenger(messenger = buildMessenger()) {
+function buildKeyringControllerMessenger<
+  A extends ActionConstraint = KeyringControllerActions,
+  E extends EventConstraint = KeyringControllerEvents,
+>(messenger = buildMessenger<A, E>()) {
   return messenger.getRestricted({
     name: 'KeyringController',
     allowedActions: [],

@@ -139,11 +139,21 @@ export type KeyringControllerGetEncryptionPublicKeyAction = {
   handler: KeyringController['getEncryptionPublicKey'];
 };
 
+/**
+ * @deprecated Use of this method is discouraged as actions executed directly on
+ * keyrings are not being reflected in the KeyringController state and not
+ * persisted in the vault. Use `KeyringController:withKeyring` instead.
+ */
 export type KeyringControllerGetKeyringsByTypeAction = {
   type: `${typeof name}:getKeyringsByType`;
   handler: KeyringController['getKeyringsByType'];
 };
 
+/**
+ * @deprecated Use of this method is discouraged as actions executed directly on
+ * keyrings are not being reflected in the KeyringController state and not
+ * persisted in the vault. Use `KeyringController:withKeyring` instead.
+ */
 export type KeyringControllerGetKeyringForAccountAction = {
   type: `${typeof name}:getKeyringForAccount`;
   handler: KeyringController['getKeyringForAccount'];
@@ -154,6 +164,10 @@ export type KeyringControllerGetAccountsAction = {
   handler: KeyringController['getAccounts'];
 };
 
+/**
+ * @deprecated This action is being phased out in favor of
+ * `KeyringController:withKeyring`.
+ */
 export type KeyringControllerPersistAllKeyringsAction = {
   type: `${typeof name}:persistAllKeyrings`;
   handler: KeyringController['persistAllKeyrings'];
@@ -172,6 +186,14 @@ export type KeyringControllerPatchUserOperationAction = {
 export type KeyringControllerSignUserOperationAction = {
   type: `${typeof name}:signUserOperation`;
   handler: KeyringController['signUserOperation'];
+};
+
+export type KeyringControllerWithKeyringAction<
+  K extends EthKeyring<Json> = never,
+  T = never,
+> = {
+  type: `${typeof name}:withKeyring`;
+  handler: typeof KeyringController.prototype.withKeyring<K, T>;
 };
 
 export type KeyringControllerStateChangeEvent = {
@@ -207,6 +229,7 @@ export type KeyringControllerActions =
   | KeyringControllerDecryptMessageAction
   | KeyringControllerGetEncryptionPublicKeyAction
   | KeyringControllerGetAccountsAction
+  | KeyringControllerWithKeyringAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerPersistAllKeyringsAction
@@ -1795,6 +1818,11 @@ export class KeyringController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${name}:signUserOperation`,
       this.signUserOperation.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:withKeyring`,
+      this.withKeyring.bind(this),
     );
   }
 
