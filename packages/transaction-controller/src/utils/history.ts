@@ -8,6 +8,22 @@ import type {
 } from '../types';
 
 /**
+ * The maximum allowed length of the `transaction.history` property.
+ */
+export const MAX_HISTORY_LENGTH = 100;
+
+/**
+ * A list of the paths used in the display of a transaction activity log.
+ */
+export const ACTIVITY_LOG_HISTORY_PATHS = [
+  '/status',
+  '/txParams/gasPrice',
+  '/txParams/gas',
+  '/estimatedBaseFee',
+  '/blockTimestamp',
+];
+
+/**
  * Build a new version of the provided transaction with an initial history
  * entry, which is just a snapshot of the transaction.
  *
@@ -40,14 +56,97 @@ export function updateTransactionHistory(
 
   const currentState = snapshotFromTransactionMeta(transactionMeta);
   const previousState = replayHistory(transactionMeta.history);
-  const historyEntry = generateHistoryEntry(previousState, currentState, note);
+  const newHistoryEntry = generateHistoryEntry(
+    previousState,
+    currentState,
+    note,
+  );
 
-  if (historyEntry.length > 0) {
+  if (newHistoryEntry.length > 0) {
+    // Casts required here because this list has two separate types of entries:
+    // TransactionMeta and TransactionHistoryEntry. The only TransactionMeta is the first
+    // entry, but TypeScript loses that type information when `slice` is called for some reason.
+    let updatedHistory = transactionMeta.history.slice() as TransactionHistory;
+    updatedHistory.push(newHistoryEntry);
+
+    if (updatedHistory.length > MAX_HISTORY_LENGTH) {
+      updatedHistory = compressTransactionHistory(updatedHistory);
+    }
+
     return merge({}, transactionMeta, {
-      history: [...transactionMeta.history, historyEntry],
+      history: updatedHistory,
     });
   }
   return transactionMeta;
+}
+
+/**
+ * Compress the transaction history, if it is possible to do so without compressing entries used
+ * for display. History entries are merged together to make room for a single new entry.
+ *
+ * @param transactionHistory - The transaction history to compress.
+ * @returns A compressed transaction history.
+ */
+function compressTransactionHistory(
+  transactionHistory: TransactionHistory,
+): TransactionHistory {
+  const initialEntry = transactionHistory[0];
+  // Casts required here because this list has two separate types of entries:
+  // TransactionMeta and TransactionHistoryEntry. The only TransactionMeta is the first
+  // entry, but TypeScript loses that type information when `slice` is called for some reason.
+  const historyEntries = transactionHistory.slice(
+    1,
+  ) as TransactionHistoryEntry[];
+
+  const firstNonDisplayedEntryIndex = historyEntries.findIndex(
+    (historyEntry) => {
+      return !historyEntry.some(({ path }) =>
+        ACTIVITY_LOG_HISTORY_PATHS.includes(path),
+      );
+    },
+  );
+
+  // If no non-diplayed entry is found, let history exceed max size.
+  // TODO: Move data used for display to another property, so that we can more reliably limit
+  // history size or remove it altogether.
+  if (firstNonDisplayedEntryIndex === -1) {
+    return transactionHistory;
+  }
+
+  // If a non-displayed entry is found that we can remove, merge it with another entry.
+  // The entry we're merging with might be a "displayed" entry, but that's OK, merging more changes
+  // in does not break our display logic.
+  const mergeTargetEntryIndex =
+    // Merge with previous entry if there is no next entry.
+    // We default to merging with next because the next entry might also be non-displayed, so it
+    // might be removed in a future trim, saving more space.
+    firstNonDisplayedEntryIndex === historyEntries.length - 1
+      ? firstNonDisplayedEntryIndex - 1
+      : firstNonDisplayedEntryIndex + 1;
+  const firstIndexToMerge = Math.min(
+    firstNonDisplayedEntryIndex,
+    mergeTargetEntryIndex,
+  );
+
+  const beforeMergeState = replayHistory([
+    initialEntry,
+    ...historyEntries.slice(0, firstIndexToMerge),
+  ]);
+  const afterMergeState = replayHistory([
+    beforeMergeState,
+    historyEntries[firstIndexToMerge],
+    historyEntries[firstIndexToMerge + 1],
+  ]);
+  const mergedHistoryEntry = generateHistoryEntry(
+    beforeMergeState,
+    afterMergeState,
+    `${String(historyEntries[firstIndexToMerge][0].note)}, ${String(
+      historyEntries[firstIndexToMerge + 1][0].note,
+    )}`,
+  );
+
+  historyEntries.splice(firstIndexToMerge, 2, mergedHistoryEntry);
+  return [initialEntry, ...historyEntries];
 }
 
 /**
