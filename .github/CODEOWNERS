@@ -13,3 +13,5 @@
 /packages/name-controller            @MetaMask/confirmations
 /packages/signature-controller       @MetaMask/confirmations
 /packages/transaction-controller     @MetaMask/confirmations
+
+/packages/phishing-controller        @MetaMask/product-safety
