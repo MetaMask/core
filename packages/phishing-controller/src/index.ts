@@ -1,10 +1,10 @@
 export * from './PhishingController';
-export { 
-    PhishingDetector,
-    LegacyPhishingDetectorList,
-    PhishingDetectorList,
-    FuzzyTolerance,
-    PhishingDetectorOptions,
-    PhishingDetectorConfiguration,
-    PhishingDetectorResult
+export type {
+  LegacyPhishingDetectorList,
+  PhishingDetectorList,
+  FuzzyTolerance,
+  PhishingDetectorOptions,
+  PhishingDetectorConfiguration,
+  PhishingDetectorResult,
 } from './PhishingDetector';
+export { PhishingDetector } from './PhishingDetector';
