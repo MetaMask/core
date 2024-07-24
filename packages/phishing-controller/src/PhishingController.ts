@@ -11,8 +11,8 @@ export const PHISHING_CONFIG_BASE_URL =
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
 export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
 
-export const CLIENT_SIDE_DETECION_BASE_URL = 'http://127.0.0.1:8080';
-export const REQUEST_BLOCKLIST_ENDPOINT = '/request-blocklist';
+export const CLIENT_SIDE_DETECION_BASE_URL = 'https://api.walletguard.app';
+export const REQUEST_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 
 export const HOTLIST_REFRESH_INTERVAL = 1 * 60; // 5 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
