@@ -20,4 +20,47 @@ export const NOTIFICATION_NETWORK_CURRENCY_SYMBOL = {
   [NOTIFICATION_CHAINS_ID.POLYGON]: 'MATIC',
 };
 
+export type BlockExplorerConfig = {
+  url: string;
+  name: string;
+};
+
+export const SUPPORTED_NOTIFICATION_BLOCK_EXPLORERS = {
+  // ETHEREUM
+  [NOTIFICATION_CHAINS_ID.ETHEREUM]: {
+    url: 'https://etherscan.io',
+    name: 'Etherscan',
+  },
+  // OPTIMISM
+  [NOTIFICATION_CHAINS_ID.OPTIMISM]: {
+    url: 'https://optimistic.etherscan.io',
+    name: 'Optimistic Etherscan',
+  },
+  // BSC
+  [NOTIFICATION_CHAINS_ID.BSC]: {
+    url: 'https://bscscan.com',
+    name: 'BscScan',
+  },
+  // POLYGON
+  [NOTIFICATION_CHAINS_ID.POLYGON]: {
+    url: 'https://polygonscan.com',
+    name: 'PolygonScan',
+  },
+  // ARBITRUM
+  [NOTIFICATION_CHAINS_ID.ARBITRUM]: {
+    url: 'https://arbiscan.io',
+    name: 'Arbiscan',
+  },
+  // AVALANCHE
+  [NOTIFICATION_CHAINS_ID.AVALANCHE]: {
+    url: 'https://snowtrace.io',
+    name: 'Snowtrace',
+  },
+  // LINEA
+  [NOTIFICATION_CHAINS_ID.LINEA]: {
+    url: 'https://lineascan.build',
+    name: 'LineaScan',
+  },
+} satisfies Record<string, BlockExplorerConfig>;
+
 export { NOTIFICATION_CHAINS_ID } from '../constants/notification-schema';
