@@ -233,6 +233,9 @@ const createStateAfterPending = () => {
         minedTx: 'not_mined',
         minedHash: '',
       },
+      accountHardwareType: 'Ledger Hardware',
+      accountType: 'hardware',
+      deviceModel: 'ledger',
     },
   ];
 };
@@ -262,6 +265,9 @@ const createStateAfterSuccess = () => {
           '0x55ad39634ee10d417b6e190cfd3736098957e958879cffe78f1f00f4fd2654d6',
         minedTx: 'success',
       },
+      accountHardwareType: 'Ledger Hardware',
+      accountType: 'hardware',
+      deviceModel: 'ledger',
     },
   ];
 };
@@ -616,7 +622,21 @@ describe('SmartTransactionsController', () => {
       smartTransactionsController.trackStxStatusChange(
         smartTransaction as SmartTransaction,
       );
-      expect(trackMetaMetricsEventSpy).toHaveBeenCalled();
+      expect(trackMetaMetricsEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'STX Status Updated',
+          category: 'Transactions',
+          properties: expect.objectContaining({
+            stx_status: SmartTransactionStatuses.PENDING,
+            is_smart_transaction: true,
+          }),
+          sensitiveProperties: expect.objectContaining({
+            account_hardware_type: 'Ledger Hardware',
+            account_type: 'hardware',
+            device_model: 'ledger',
+          }),
+        }),
+      );
     });
 
     it('does not track if smartTransaction and prevSmartTransaction have the same status', () => {
@@ -630,15 +650,32 @@ describe('SmartTransactionsController', () => {
 
     it('tracks status change if smartTransaction and prevSmartTransaction have different statuses', () => {
       const smartTransaction = {
-        ...createStateAfterPending()[0],
+        ...createStateAfterSuccess()[0],
         swapMetaData: {},
       };
-      const prevSmartTransaction = { ...smartTransaction, status: '' };
+      const prevSmartTransaction = {
+        ...smartTransaction,
+        status: SmartTransactionStatuses.PENDING,
+      };
       smartTransactionsController.trackStxStatusChange(
         smartTransaction as SmartTransaction,
         prevSmartTransaction as SmartTransaction,
       );
-      expect(trackMetaMetricsEventSpy).toHaveBeenCalled();
+      expect(trackMetaMetricsEventSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: 'STX Status Updated',
+          category: 'Transactions',
+          properties: expect.objectContaining({
+            stx_status: SmartTransactionStatuses.SUCCESS,
+            is_smart_transaction: true,
+          }),
+          sensitiveProperties: expect.objectContaining({
+            account_hardware_type: 'Ledger Hardware',
+            account_type: 'hardware',
+            device_model: 'ledger',
+          }),
+        }),
+      );
     });
   });
 

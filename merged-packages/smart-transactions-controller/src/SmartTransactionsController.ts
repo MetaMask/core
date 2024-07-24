@@ -323,9 +323,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.trackMetaMetricsEvent({
       event: MetaMetricsEventName.StxStatusUpdated,
       category: MetaMetricsEventCategory.Transactions,
-      properties: getSmartTransactionMetricsProperties(smartTransaction),
-      sensitiveProperties:
-        getSmartTransactionMetricsSensitiveProperties(smartTransaction),
+      properties: getSmartTransactionMetricsProperties(updatedSmartTransaction),
+      sensitiveProperties: getSmartTransactionMetricsSensitiveProperties(
+        updatedSmartTransaction,
+      ),
     });
   }
 
@@ -427,6 +428,10 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       throw new Error(ETH_QUERY_ERROR_MSG);
     }
 
+    if (isNewSmartTransaction) {
+      await this.#addMetaMetricsPropsToNewSmartTransaction(smartTransaction);
+    }
+
     this.trackStxStatusChange(
       smartTransaction,
       isNewSmartTransaction
@@ -435,7 +440,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     );
 
     if (isNewSmartTransaction) {
-      await this.#addMetaMetricsPropsToNewSmartTransaction(smartTransaction);
       // add smart transaction
       const cancelledNonceIndex = currentSmartTransactions?.findIndex(
         (stx: SmartTransaction) =>
