@@ -1,0 +1,40 @@
+{
+  "name": "@metamask/example-controllers",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Fetches gas prices periodically",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build:docs": "typedoc",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/example-controllers",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/base-controller": "^6.0.2",
+    "@metamask/utils": "^9.1.0"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^3.4.4",
+    "@types/jest": "^27.4.1",
+    "deepmerge": "^4.2.2",
+    "jest": "^27.5.1",
+    "nock": "^13.3.1",
+    "ts-jest": "^27.1.4",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~5.0.4"
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
+  }
+}

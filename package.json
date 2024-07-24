@@ -9,6 +9,7 @@
   },
   "files": [],
   "workspaces": [
+    "examples/*",
     "packages/*"
   ],
   "scripts": {
