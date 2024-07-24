@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+### Changed
+- adapt to eip-1193 provider changes ([#384](https://github.com/MetaMask/smart-transactions-controller/pull/384))
+- **BREAKING**: Save new event props to a newly created smart transaction, use both `properties` and `sensitiveProperties` for events. ([#386](https://github.com/MetaMask/smart-transactions-controller/pull/386))([#390](https://github.com/MetaMask/smart-transactions-controller/pull/390))
+
 ## [10.2.0]
 ### Changed
 - Update metrics, so events work even for non-swaps transactions ([#374](https://github.com/MetaMask/smart-transactions-controller/pull/374))
@@ -315,7 +320,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.2.0...v11.0.0
 [10.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.6...v10.2.0
 [10.1.6]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.5...v10.1.6
 [10.1.5]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.4...v10.1.5
