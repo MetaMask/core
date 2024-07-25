@@ -109,7 +109,7 @@ function compressTransactionHistory(
     },
   );
 
-  // If no non-diplayed entry is found, let history exceed max size.
+  // If no non-displayed entry is found, let history exceed max size.
   // TODO: Move data used for display to another property, so that we can more reliably limit
   // history size or remove it altogether.
   if (firstNonDisplayedEntryIndex === -1) {
