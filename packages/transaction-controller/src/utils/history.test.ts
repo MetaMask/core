@@ -13,7 +13,8 @@ import { MAX_HISTORY_LENGTH, updateTransactionHistory } from './history';
 describe('History', () => {
   describe('updateTransactionHistory', () => {
     it('does nothing if the history property is missing', () => {
-      const mockTransaction = createMockTransaction();
+      const mockTransaction = createMinimalMockTransaction();
+      expect(mockTransaction.history).toBeUndefined();
       const originalInputTransaction = cloneDeep(mockTransaction);
 
       const updatedTransaction = updateTransactionHistory(
@@ -26,7 +27,7 @@ describe('History', () => {
     });
 
     it('does nothing if there have been no changes', () => {
-      const originalTransaction = createMockTransaction();
+      const originalTransaction = createMinimalMockTransaction();
       const mockTransaction = createMockTransaction({ originalTransaction });
       const mockTransactionClone = cloneDeep(mockTransaction);
 
@@ -40,7 +41,7 @@ describe('History', () => {
     });
 
     it('adds a new history entry', () => {
-      const originalTransaction = createMockTransaction();
+      const originalTransaction = createMinimalMockTransaction();
       const mockTransaction = createMockTransaction({
         originalTransaction,
         partialTransaction: {
@@ -74,7 +75,7 @@ describe('History', () => {
 
     describe('when history is past max size with non-displayed entries', () => {
       it('merges a non-displayed entry when adding a new entry after max history size is reached', () => {
-        const originalTransaction = createMockTransaction();
+        const originalTransaction = createMinimalMockTransaction();
         const mockTransaction = createMockTransaction({
           partialTransaction: {
             history: generateMockHistory({
@@ -137,7 +138,7 @@ describe('History', () => {
 
     describe('when history is past max size with a single non-displayed entry at the end', () => {
       it('merges a non-displayed entry when adding a new entry after max history size is reached', () => {
-        const originalTransaction = createMockTransaction();
+        const originalTransaction = createMinimalMockTransaction();
         // This matches the last gas price change in the mock history
         const mockTransactionGasPrice = toHex(MAX_HISTORY_LENGTH - 1);
         const mockTransaction = createMockTransaction({
@@ -202,7 +203,7 @@ describe('History', () => {
 
     describe('when history is past max size with only displayed entries', () => {
       it('adds a new history entry, exceeding max size', () => {
-        const originalTransaction = createMockTransaction();
+        const originalTransaction = createMinimalMockTransaction();
         const mockTransaction = createMockTransaction({
           partialTransaction: {
             history: generateMockHistory({
@@ -259,6 +260,23 @@ describe('History', () => {
 });
 
 /**
+ * Create a minimal mock transaction. It has just enough to satify the type.
+ *
+ * @returns A minimal transaction.
+ */
+function createMinimalMockTransaction(): TransactionMeta {
+  return {
+    chainId: toHex(1337),
+    id: 'mock-id',
+    time: 0,
+    status: TransactionStatus.submitted as const,
+    txParams: {
+      from: '',
+    },
+  };
+}
+
+/**
  * Create a mock transaction.
  *
  * Optionally an incomplete transaction can be passed in, and any missing required proeprties will
@@ -280,20 +298,15 @@ function createMockTransaction({
   partialTransaction?: Omit<Partial<TransactionMeta>, 'status'>;
   originalTransaction?: TransactionMeta;
 } = {}): TransactionMeta & Required<Pick<TransactionMeta, 'history'>> {
-  const minimalTransaction: TransactionMeta = {
-    chainId: toHex(1337),
-    id: 'mock-id',
-    time: 0,
-    status: TransactionStatus.submitted as const,
-    txParams: {
-      from: '',
-    },
-  };
+  const minimalTransaction = createMinimalMockTransaction();
 
   if (originalTransaction) {
-    minimalTransaction.history = originalTransaction.history || [
-      originalTransaction,
-    ];
+    if (originalTransaction.history) {
+      throw new Error(
+        'The original transaction should be an initial snapshot of the transaction, with no history property',
+      );
+    }
+    minimalTransaction.history = [originalTransaction];
   } else {
     minimalTransaction.history = [{ ...minimalTransaction }];
   }
