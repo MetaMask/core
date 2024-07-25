@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaces the removed `provider` setter method, and widens the `provider` function parameter type from `Provider` to `Provider | undefined`.
 - Export `TokenBalancesControllerState` type ([#4535](https://github.com/MetaMask/core/pull/4535))
   - This was defined but not exported in v34.0.0.
+- Add `getNFTContractInfo` method to the `NFTController` for fetching NFT Collection Metadata from the NFT API ([#4524](https://github.com/MetaMask/core/pull/4524))
 
 ### Changed
 

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.3]
 
+### Added
+
+- Add and export type `BlockExplorerConfig` and object `SUPPORTED_NOTIFICATION_BLOCK_EXPLORERS`, which is a collection of block explorers for chains on which notifications are supported ([#4552](https://github.com/MetaMask/core/pull/4552))
+
 ### Changed
 
 - Upgrade TypeScript to v5.0 and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
