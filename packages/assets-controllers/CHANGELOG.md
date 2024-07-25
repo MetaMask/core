@@ -37,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Type aliases have an index signature of `string` by default, and are compatible with the `StateConstraint` type defined in the `@metamask/base-controller` package.
 - **BREAKING:** `getIpfsCIDv1AndPath`, `getFormattedIpfsUrl` are now async functions ([#3645](https://github.com/MetaMask/core/pull/3645))
 - **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/preferences-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Add `immer` `^9.0.6` as a new dependency ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/abi-utils` from `^2.0.2` to `^2.0.3` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))

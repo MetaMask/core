@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/gas-fee-controller`, and `@metamask/network-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
 - Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))

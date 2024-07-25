@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump dependency and peerDependency `@metamask/permission-controller` from `^10.0.0` to `^11.0.0` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Remove `@metamask/network-controller` and `@metamask/permission-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
 - Bump `@metamask/json-rpc-engine` from `^9.0.1` to `^9.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))

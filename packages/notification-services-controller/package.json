@@ -44,8 +44,6 @@
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^6.0.2",
     "@metamask/controller-utils": "^11.0.2",
-    "@metamask/keyring-controller": "^17.1.2",
-    "@metamask/profile-sync-controller": "^0.2.0",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.3.6",
     "firebase": "^10.11.0",
@@ -55,6 +53,8 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-controller": "^17.1.1",
+    "@metamask/profile-sync-controller": "^0.1.4",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
