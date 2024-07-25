@@ -10,7 +10,7 @@ import type {
 /**
  * The maximum allowed length of the `transaction.history` property.
  */
-export const MAX_HISTORY_LENGTH = 100;
+export const MAX_TRANSACTION_HISTORY_LENGTH = 100;
 
 /**
  * A list of trarnsaction history paths that may be used for display. These entries will not be
@@ -75,7 +75,7 @@ export function updateTransactionHistory(
     newHistoryEntry,
   ] as TransactionHistory;
 
-  if (updatedHistory.length > MAX_HISTORY_LENGTH) {
+  if (updatedHistory.length > MAX_TRANSACTION_HISTORY_LENGTH) {
     updatedHistory = compressTransactionHistory(updatedHistory);
   }
 

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `DISPLAYED_TRANSACTION_HISTORY_PATHS` constant, representing the transaction history paths that may be used for display ([#4555](https://github.com/MetaMask/core/pull/4555))
   - This was exported so that it might be used to ensure display logic and internal history logic remains in-sync.
   - Any paths listed here will have their timestamps preserved. Unlisted paths may be compressed by the controller to minimize history size, losing the timestamp.
+- Add `MAX_TRANSACTION_HISTORY_LENGTH` constant, representing the expected maximum size of the `history` property for a given transaction ([#4555](https://github.com/MetaMask/core/pull/4555))
+  - Note that this is not strictly enforced, the length may exceed this number of all entries are "displayed" entries, but we expect this to be extremely improbable in practice.
 
 ### Fixed
 

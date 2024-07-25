@@ -8,7 +8,10 @@ import {
   type TransactionMeta,
   type TransactionHistoryEntry,
 } from '../types';
-import { MAX_HISTORY_LENGTH, updateTransactionHistory } from './history';
+import {
+  MAX_TRANSACTION_HISTORY_LENGTH,
+  updateTransactionHistory,
+} from './history';
 
 describe('History', () => {
   describe('updateTransactionHistory', () => {
@@ -80,7 +83,7 @@ describe('History', () => {
           partialTransaction: {
             history: generateMockHistory({
               originalTransaction,
-              length: MAX_HISTORY_LENGTH,
+              length: MAX_TRANSACTION_HISTORY_LENGTH,
             }),
             // This is the changed value
             txParams: { from: generateAddress(123) },
@@ -94,10 +97,12 @@ describe('History', () => {
             note: 'Mock non-displayed change',
             op: 'replace',
             path: '/txParams/from',
-            value: generateAddress(MAX_HISTORY_LENGTH - 1),
+            value: generateAddress(MAX_TRANSACTION_HISTORY_LENGTH - 1),
           },
         ]);
-        expect(mockTransaction.history).toHaveLength(MAX_HISTORY_LENGTH);
+        expect(mockTransaction.history).toHaveLength(
+          MAX_TRANSACTION_HISTORY_LENGTH,
+        );
 
         const updatedTransaction = updateTransactionHistory(
           mockTransaction,
@@ -132,7 +137,9 @@ describe('History', () => {
             ],
           ],
         });
-        expect(updatedTransaction.history).toHaveLength(MAX_HISTORY_LENGTH);
+        expect(updatedTransaction.history).toHaveLength(
+          MAX_TRANSACTION_HISTORY_LENGTH,
+        );
       });
     });
 
@@ -140,13 +147,15 @@ describe('History', () => {
       it('merges a non-displayed entry when adding a new entry after max history size is reached', () => {
         const originalTransaction = createMinimalMockTransaction();
         // This matches the last gas price change in the mock history
-        const mockTransactionGasPrice = toHex(MAX_HISTORY_LENGTH - 1);
+        const mockTransactionGasPrice = toHex(
+          MAX_TRANSACTION_HISTORY_LENGTH - 1,
+        );
         const mockTransaction = createMockTransaction({
           partialTransaction: {
             history: generateMockHistory({
-              numberOfDisplayEntries: MAX_HISTORY_LENGTH - 1,
+              numberOfDisplayEntries: MAX_TRANSACTION_HISTORY_LENGTH - 1,
               originalTransaction,
-              length: MAX_HISTORY_LENGTH,
+              length: MAX_TRANSACTION_HISTORY_LENGTH,
             }),
             txParams: {
               // This is the changed value
@@ -168,7 +177,9 @@ describe('History', () => {
           },
         ]);
         const mockTransactionClone = cloneDeep(mockTransaction);
-        expect(mockTransaction.history).toHaveLength(MAX_HISTORY_LENGTH);
+        expect(mockTransaction.history).toHaveLength(
+          MAX_TRANSACTION_HISTORY_LENGTH,
+        );
 
         const updatedTransaction = updateTransactionHistory(
           mockTransaction,
@@ -179,7 +190,10 @@ describe('History', () => {
         expect(updatedTransaction).toStrictEqual({
           ...mockTransaction,
           history: [
-            ...mockTransactionClone.history.slice(0, MAX_HISTORY_LENGTH - 1),
+            ...mockTransactionClone.history.slice(
+              0,
+              MAX_TRANSACTION_HISTORY_LENGTH - 1,
+            ),
             // This is the new merged entry:
             [
               {
@@ -197,7 +211,9 @@ describe('History', () => {
             ],
           ],
         });
-        expect(updatedTransaction.history).toHaveLength(MAX_HISTORY_LENGTH);
+        expect(updatedTransaction.history).toHaveLength(
+          MAX_TRANSACTION_HISTORY_LENGTH,
+        );
       });
     });
 
@@ -207,9 +223,9 @@ describe('History', () => {
         const mockTransaction = createMockTransaction({
           partialTransaction: {
             history: generateMockHistory({
-              numberOfDisplayEntries: MAX_HISTORY_LENGTH - 1,
+              numberOfDisplayEntries: MAX_TRANSACTION_HISTORY_LENGTH - 1,
               originalTransaction,
-              length: MAX_HISTORY_LENGTH,
+              length: MAX_TRANSACTION_HISTORY_LENGTH,
             }),
             txParams: {
               from: originalTransaction.txParams.from,
@@ -226,10 +242,12 @@ describe('History', () => {
             note: 'Mock displayed change',
             op: 'replace',
             path: '/txParams/gasPrice',
-            value: toHex(MAX_HISTORY_LENGTH - 1),
+            value: toHex(MAX_TRANSACTION_HISTORY_LENGTH - 1),
           },
         ]);
-        expect(mockTransaction.history).toHaveLength(MAX_HISTORY_LENGTH);
+        expect(mockTransaction.history).toHaveLength(
+          MAX_TRANSACTION_HISTORY_LENGTH,
+        );
 
         const updatedTransaction = updateTransactionHistory(
           mockTransaction,
@@ -253,7 +271,9 @@ describe('History', () => {
             ],
           ],
         });
-        expect(updatedTransaction.history).toHaveLength(MAX_HISTORY_LENGTH + 1);
+        expect(updatedTransaction.history).toHaveLength(
+          MAX_TRANSACTION_HISTORY_LENGTH + 1,
+        );
       });
     });
   });
