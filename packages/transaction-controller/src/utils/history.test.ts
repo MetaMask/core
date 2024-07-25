@@ -86,8 +86,9 @@ describe('History', () => {
           },
         });
         // Validate that last history entry is correct
-        const mockHistoryLength = mockTransaction.history.length;
-        expect(mockTransaction.history?.[mockHistoryLength - 1]).toStrictEqual([
+        expect(
+          mockTransaction.history?.[mockTransaction.history.length - 1],
+        ).toStrictEqual([
           {
             note: 'Mock non-displayed change',
             op: 'replace',
@@ -155,8 +156,9 @@ describe('History', () => {
           },
         });
         // Validate that last history entry is correct
-        const mockHistoryLength = mockTransaction.history.length;
-        expect(mockTransaction.history?.[mockHistoryLength - 1]).toStrictEqual([
+        expect(
+          mockTransaction.history?.[mockTransaction.history.length - 1],
+        ).toStrictEqual([
           {
             note: 'Mock displayed change',
             op: 'replace',
@@ -216,8 +218,9 @@ describe('History', () => {
           },
         });
         // Validate that last history entry is correct
-        const mockHistoryLength = mockTransaction.history.length;
-        expect(mockTransaction.history?.[mockHistoryLength - 1]).toStrictEqual([
+        expect(
+          mockTransaction.history?.[mockTransaction.history.length - 1],
+        ).toStrictEqual([
           {
             note: 'Mock displayed change',
             op: 'replace',
