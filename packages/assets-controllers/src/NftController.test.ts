@@ -4834,23 +4834,43 @@ describe('NftController', () => {
 
   describe('getNFTContractInfo', () => {
     it('fetches NFT collections metadata successfully', async () => {
+      const contractAddresses = [
+        '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
+        '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
+      ];
+      const collections = [
+        {
+          id: contractAddresses[0],
+          name: 'CryptoPunks',
+          slug: 'cryptopunks',
+          symbol: 'PUNK',
+          imageUrl: 'url',
+        },
+        {
+          id: contractAddresses[1],
+          name: 'Kudos',
+          slug: 'kudos',
+          symbol: 'KUDOS',
+          imageUrl: 'url',
+        },
+      ];
       nock(NFT_API_BASE_URL)
         .get(
-          `/collections?chainId=0x1&contract=${ERC_721_1_ADDRESS}&contract=${ERC_721_2_ADDRESS}`,
+          `/collections?chainId=0x1&contract=${contractAddresses[0]}&contract=${contractAddresses[1]}`,
         )
         .reply(200, {
-          collections: [ERC_721_1_COLLECTION_MOCK, ERC_721_2_COLLECTION_MOCK],
+          collections,
         });
 
       const { nftController } = setupController();
 
       const response = await nftController.getNFTContractInfo(
-        [ERC_721_1_ADDRESS, ERC_721_2_ADDRESS],
+        contractAddresses,
         ChainId.mainnet,
       );
 
       expect(response).toStrictEqual({
-        collections: [ERC_721_1_COLLECTION_MOCK, ERC_721_2_COLLECTION_MOCK],
+        collections,
       });
     });
   });
