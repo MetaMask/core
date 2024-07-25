@@ -1,3 +1,8 @@
+// This file is used to define, among other configuration, rules that Yarn will
+// execute when you run `yarn constraints`. These rules primarily check the
+// manifests of each package in the monorepo to ensure they follow a standard
+// format, but also check the presence of certain files as well.
+
 /** @type {import('@yarnpkg/types')} */
 const { defineConfig } = require('@yarnpkg/types');
 const { readFile } = require('fs/promises');
@@ -118,8 +123,9 @@ module.exports = defineConfig({
         // No non-root packages may have a "prepack" script.
         workspace.unset('scripts.prepack');
 
-        // All non-root package must have a valid "changelog:validate" script.
-        expectCorrectWorkspaceChangelogValidationScript(workspace);
+        // All non-root package must have valid "changelog:update" and
+        // "changelog:validate" scripts.
+        expectCorrectWorkspaceChangelogScripts(workspace);
 
         // All non-root packages must have the same "test" script.
         expectWorkspaceField(
@@ -467,23 +473,41 @@ function expectCorrectWorkspaceExports(workspace) {
 }
 
 /**
- * Expect that the workspace has a "changelog:validate" script which runs a
- * common script with the name of the package as the first argument.
+ * Expect that the workspace has "changelog:update" and "changelog:validate"
+ * scripts, and that these package scripts call a common script by passing the
+ * name of the package as the first argument.
  *
  * @param {Workspace} workspace - The workspace to check.
  */
-function expectCorrectWorkspaceChangelogValidationScript(workspace) {
-  const expectedStartString = `../../scripts/validate-changelog.sh ${workspace.manifest.name}`;
-  const changelogValidationScript =
-    workspace.manifest.scripts['changelog:validate'] ?? '';
-  expectWorkspaceField(workspace, 'scripts.changelog:validate');
+function expectCorrectWorkspaceChangelogScripts(workspace) {
+  const scripts = ['update', 'validate'].reduce((obj, variant) => {
+    const expectedStartString = `../../scripts/${variant}-changelog.sh ${workspace.manifest.name}`;
+    const script = workspace.manifest.scripts[`changelog:${variant}`] ?? '';
+    const match = script.match(new RegExp(`^${expectedStartString}(.*)$`, 'u'));
+    return { ...obj, [variant]: { expectedStartString, script, match } };
+  }, {});
+
   if (
-    changelogValidationScript !== '' &&
-    !changelogValidationScript.startsWith(expectedStartString)
+    scripts.update.match &&
+    scripts.validate.match &&
+    scripts.update.match[1] !== scripts.validate.match[1]
   ) {
     workspace.error(
-      `Expected package's "changelog:validate" script to be or start with "${expectedStartString}", but it was "${changelogValidationScript}".`,
+      'Expected package\'s "changelog:validate" and "changelog:update" scripts to pass the same arguments to their underlying scripts',
     );
+  }
+
+  for (const [
+    variant,
+    { expectedStartString, script, match },
+  ] of Object.entries(scripts)) {
+    expectWorkspaceField(workspace, `scripts.changelog:${variant}`);
+
+    if (script !== '' && !match) {
+      workspace.error(
+        `Expected package's "changelog:${variant}" script to be or start with "${expectedStartString}", but it was "${script}".`,
+      );
+    }
   }
 }
 
