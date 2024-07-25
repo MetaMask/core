@@ -69,8 +69,10 @@ export function updateTransactionHistory(
   // Casts required here because this list has two separate types of entries:
   // TransactionMeta and TransactionHistoryEntry. The only TransactionMeta is the first
   // entry, but TypeScript loses that type information when `slice` is called for some reason.
-  let updatedHistory = transactionMeta.history.slice() as TransactionHistory;
-  updatedHistory.push(newHistoryEntry);
+  let updatedHistory = [
+    ...transactionMeta.history,
+    newHistoryEntry,
+  ] as TransactionHistory;
 
   if (updatedHistory.length > MAX_HISTORY_LENGTH) {
     updatedHistory = compressTransactionHistory(updatedHistory);
