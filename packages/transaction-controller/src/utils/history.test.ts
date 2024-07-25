@@ -86,9 +86,7 @@ describe('History', () => {
           },
         });
         // Validate that last history entry is correct
-        // Assertion used because we know the history is set here.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const mockHistoryLength = mockTransaction.history!.length;
+        const mockHistoryLength = mockTransaction.history.length;
         expect(mockTransaction.history?.[mockHistoryLength - 1]).toStrictEqual([
           {
             note: 'Mock non-displayed change',
@@ -119,9 +117,7 @@ describe('History', () => {
                 value: generateAddress(2),
               },
             ],
-            // We know that the history was generated with a history.
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            ...mockTransaction.history!.slice(3),
+            ...mockTransaction.history.slice(3),
             // This is the new entry:
             [
               {
@@ -159,9 +155,7 @@ describe('History', () => {
           },
         });
         // Validate that last history entry is correct
-        // Assertion used because we know the history is set here.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const mockHistoryLength = mockTransaction.history!.length;
+        const mockHistoryLength = mockTransaction.history.length;
         expect(mockTransaction.history?.[mockHistoryLength - 1]).toStrictEqual([
           {
             note: 'Mock displayed change',
@@ -182,9 +176,7 @@ describe('History', () => {
         expect(updatedTransaction).toStrictEqual({
           ...mockTransaction,
           history: [
-            // We know that the history was generated with a history.
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            ...mockTransactionClone.history!.slice(0, MAX_HISTORY_LENGTH - 1),
+            ...mockTransactionClone.history.slice(0, MAX_HISTORY_LENGTH - 1),
             // This is the new merged entry:
             [
               {
@@ -224,9 +216,7 @@ describe('History', () => {
           },
         });
         // Validate that last history entry is correct
-        // Assertion used because we know the history is set here.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const mockHistoryLength = mockTransaction.history!.length;
+        const mockHistoryLength = mockTransaction.history.length;
         expect(mockTransaction.history?.[mockHistoryLength - 1]).toStrictEqual([
           {
             note: 'Mock displayed change',
@@ -246,9 +236,7 @@ describe('History', () => {
         expect(updatedTransaction).toStrictEqual({
           ...mockTransaction,
           history: [
-            // We know that the history was generated with a history.
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            ...mockTransaction.history!,
+            ...mockTransaction.history,
             // This is the new entry:
             [
               {
@@ -288,7 +276,7 @@ function createMockTransaction({
 }: {
   partialTransaction?: Omit<Partial<TransactionMeta>, 'status'>;
   originalTransaction?: TransactionMeta;
-} = {}): TransactionMeta {
+} = {}): TransactionMeta & Required<Pick<TransactionMeta, 'history'>> {
   const minimalTransaction: TransactionMeta = {
     chainId: toHex(1337),
     id: 'mock-id',
@@ -303,10 +291,14 @@ function createMockTransaction({
     minimalTransaction.history = originalTransaction.history || [
       originalTransaction,
     ];
+  } else {
+    minimalTransaction.history = [{ ...minimalTransaction }];
   }
 
   return {
-    ...minimalTransaction,
+    // Cast used here because TypeScript wasn't able to infer that `history` was guaranteed to be set
+    ...(minimalTransaction as TransactionMeta &
+      Required<Pick<TransactionMeta, 'history'>>),
     ...partialTransaction,
   };
 }
