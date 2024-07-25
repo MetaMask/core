@@ -39,10 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
 - Add `immer` `^9.0.6` as a new dependency ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/abi-utils` from `^2.0.2` to `^2.0.3` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Bump `@metamask/approval-controller` from `^7.0.1` to `^7.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
 - Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Bump `@metamask/keyring-controller` from `^17.1.0` to `^17.1.1` ([#4527](https://github.com/MetaMask/core/pull/4527))
 - Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
 - Bump `multiformats` from `^9.5.2` to `^13.1.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
 

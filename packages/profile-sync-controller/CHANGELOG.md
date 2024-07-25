@@ -24,7 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Widen `isProfileSyncingEnabled` property of the `UserStorageControllerState` type from `boolean` to `boolean | null` ([#4551](https://github.com/MetaMask/core/pull/4551))
 - Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
-- Bump `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.1` ([#3645](https://github.com/MetaMask/core/pull/3645))
 - Bump `@metamask/snaps-sdk` from `^4.2.0` to `^6.1.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
 - Bump `@metamask/snaps-utils` from `^7.4.0` to `^7.8.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
 
