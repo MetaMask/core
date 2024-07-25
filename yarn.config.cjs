@@ -78,13 +78,8 @@ module.exports = defineConfig({
           `${repositoryUri}.git`,
         );
 
-        // If not specified, the license for all non-root packages must be MIT.
-        if (
-          workspace.manifest.license === null ||
-          workspace.manifest.license === undefined
-        ) {
-          expectWorkspaceField(workspace, 'license', 'MIT');
-        }
+        // All non-root packages must have a license, defaulting to MIT.
+        await expectWorkspaceLicense(workspace);
 
         // All non-root packages must not have side effects. (An exception is
         // made for `@metamask/base-controller`).
@@ -337,6 +332,25 @@ async function getWorkspaceFile(workspace, path) {
 }
 
 /**
+ * Attempts to access the given file to know whether the file exists.
+ *
+ * @param {Workspace} workspace - The workspace.
+ * @param {string} path - The path to the file, relative to the workspace root.
+ * @returns {boolean} True if the file exists, false otherwise.
+ */
+async function workspaceFileExists(workspace, path) {
+  try {
+    await getWorkspaceFile(workspace, path);
+  } catch (error) {
+    if ('code' in error && error.code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+  return true;
+}
+
+/**
  * Expect that the workspace has the given field, and that it is a non-null
  * value. If the field is not present, or is null, this will log an error, and
  * cause the constraint to fail.
@@ -386,6 +400,38 @@ function expectWorkspaceDescription(workspace) {
 
   if (description.endsWith('.')) {
     workspace.set('description', description.slice(0, -1));
+  }
+}
+
+/**
+ * Expect that the workspace has a license file, and that the `license` field is
+ * set. By default, this should be MIT, although some packages have pre-existing
+ * license that we cannot change.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+async function expectWorkspaceLicense(workspace) {
+  if (
+    !(await workspaceFileExists(workspace, 'LICENSE')) &&
+    !(await workspaceFileExists(workspace, 'LICENCE'))
+  ) {
+    workspace.error('Could not find LICENSE file');
+  }
+
+  if (
+    workspace.manifest.license === null ||
+    workspace.manifest.license === undefined
+  ) {
+    expectWorkspaceField(workspace, 'license', 'MIT');
+  } else if (
+    [
+      '@metamask/json-rpc-engine',
+      '@metamask/json-rpc-middleware-stream',
+      '@metamask/permission-log-controller',
+      '@metamask/eth-json-rpc-provider',
+    ].includes(workspace.manifest.name)
+  ) {
+    expectWorkspaceField(workspace, 'license');
   }
 }
 
