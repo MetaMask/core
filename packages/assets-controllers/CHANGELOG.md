@@ -53,9 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **BREAKING:** Remove constructor option callbacks `onPreferencesStateChange`, `onNetworkDidChange`, `getNetworkClientById`, and replace with corresponding messenger actions and events.
   - **BREAKING:** Remove class fields: `name`, `config` (along with its properties `provider`, `ipfsGateway`, `chainId`).
   - **BREAKING:** Remove methods: `getProvider`, `getChainId`.
+    - Use the getters `provider` and `chainId` instead.
   - **BREAKING:** Remove the `provider` setter method.
+    - Use the `setProvider` method instead.
 - **BREAKING:** Remove the `getERC20BalanceOf` constructor option callback from the `TokenBalancesControllerOptions` type and the `TokenBalancesController` constructor ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - The messenger is expected to allow `AssetsContractController:getERC20BalanceOf` messenger action so that it can be used instead.
 - **BREAKING:** Remove `NftController` constructor option callbacks: `getERC721AssetName`, `getERC721AssetSymbol`, `getERC721TokenURI`, `getERC721OwnerOf`, `getERC1155BalanceOf`, `getERC1155TokenURI` ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - These are accessed through the messenger instead.
 - **BREAKING:** Remove the `AssetsContractConfig` type ([#4397](https://github.com/MetaMask/core/pull/4397))
 - **BREAKING:** Remove export for `MISSING_PROVIDER_ERROR` ([#4397](https://github.com/MetaMask/core/pull/4397))
 
