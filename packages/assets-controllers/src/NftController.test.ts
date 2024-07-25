@@ -104,24 +104,6 @@ const GOERLI = {
   ticker: NetworksTicker.goerli,
 };
 
-const ERC_721_1_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
-const ERC_721_1_COLLECTION_MOCK = {
-  id: ERC_721_1_ADDRESS,
-  name: 'CryptoPunks',
-  slug: 'cryptopunks',
-  symbol: 'PUNK',
-  imageUrl: 'url',
-};
-
-const ERC_721_2_ADDRESS = '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB';
-const ERC_721_2_COLLECTION_MOCK = {
-  id: ERC_721_2_ADDRESS,
-  name: 'Kudos',
-  slug: 'kudos',
-  symbol: 'KUDOS',
-  imageUrl: 'url',
-};
-
 type ApprovalActions =
   | AddApprovalRequest
   | AccountsControllerGetAccountAction
