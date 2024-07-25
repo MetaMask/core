@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `ACTIVITY_LOG_HISTORY_PATHS` constant, representing the transaction history paths used in displaying the transaction activity log ([#4555](https://github.com/MetaMask/core/pull/4555))
-  - This can be used to ensure display logic and internal history logic remains in-sync.
+- Add `DISPLAYED_TRANSACTION_HISTORY_PATHS` constant, representing the transaction history paths that may be used for display ([#4555](https://github.com/MetaMask/core/pull/4555))
+  - This was exported so that it might be used to ensure display logic and internal history logic remains in-sync.
+  - Any paths listed here will have their timestamps preserved. Unlisted paths may be compressed by the controller to minimize history size, losing the timestamp.
 
 ### Fixed
 

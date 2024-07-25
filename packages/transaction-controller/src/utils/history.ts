@@ -13,9 +13,10 @@ import type {
 export const MAX_HISTORY_LENGTH = 100;
 
 /**
- * A list of the paths used in the display of a transaction activity log.
+ * A list of trarnsaction history paths that may be used for display. These entries will not be
+ * compressed.
  */
-export const ACTIVITY_LOG_HISTORY_PATHS = [
+export const DISPLAYED_TRANSACTION_HISTORY_PATHS = [
   '/status',
   '/txParams/gasPrice',
   '/txParams/gas',
@@ -104,7 +105,7 @@ function compressTransactionHistory(
   const firstNonDisplayedEntryIndex = historyEntries.findIndex(
     (historyEntry) => {
       return !historyEntry.some(({ path }) =>
-        ACTIVITY_LOG_HISTORY_PATHS.includes(path),
+        DISPLAYED_TRANSACTION_HISTORY_PATHS.includes(path),
       );
     },
   );
