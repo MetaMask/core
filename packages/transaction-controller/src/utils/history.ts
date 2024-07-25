@@ -130,6 +130,8 @@ function compressTransactionHistory(
     firstNonDisplayedEntryIndex,
     mergeTargetEntryIndex,
   );
+  const firstEntryToMerge = historyEntries[firstIndexToMerge];
+  const secondEntryToMerge = historyEntries[firstIndexToMerge + 1];
 
   const beforeMergeState = replayHistory([
     initialEntry,
@@ -137,14 +139,14 @@ function compressTransactionHistory(
   ]);
   const afterMergeState = replayHistory([
     beforeMergeState,
-    historyEntries[firstIndexToMerge],
-    historyEntries[firstIndexToMerge + 1],
+    firstEntryToMerge,
+    secondEntryToMerge,
   ]);
   const mergedHistoryEntry = generateHistoryEntry(
     beforeMergeState,
     afterMergeState,
-    `${String(historyEntries[firstIndexToMerge][0].note)}, ${String(
-      historyEntries[firstIndexToMerge + 1][0].note,
+    `${String(firstEntryToMerge[0].note)}, ${String(
+      secondEntryToMerge[0].note,
     )}`,
   );
 
