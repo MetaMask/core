@@ -1,7 +1,3 @@
-import type {
-  ExternalProvider,
-  JsonRpcFetchFunc,
-} from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -113,20 +109,17 @@ export class EnsController extends BaseController<
    * @param options.registriesByChainId - Map between chain IDs and ENS contract addresses.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.provider - Provider instance.
    * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
     registriesByChainId = DEFAULT_ENS_NETWORK_MAP,
     messenger,
     state = {},
-    provider,
     onNetworkDidChange,
   }: {
     registriesByChainId?: Record<number, Hex>;
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
-    provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkDidChange?: (
       listener: (networkState: NetworkState) => void,
     ) => void;
@@ -153,26 +146,10 @@ export class EnsController extends BaseController<
       },
     });
 
-    if (provider && onNetworkDidChange) {
+    if (onNetworkDidChange) {
       onNetworkDidChange(({ selectedNetworkClientId }) => {
         this.resetState();
-        const selectedNetworkClient = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          selectedNetworkClientId,
-        );
-        const currentChainId = selectedNetworkClient.configuration.chainId;
-
-        if (this.#getChainEnsSupport(currentChainId)) {
-          this.#ethProvider = new Web3Provider(provider, {
-            chainId: convertHexToDecimal(currentChainId),
-            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentChainId as ChainId
-            ],
-            ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
-          });
-        } else {
-          this.#ethProvider = null;
-        }
+        this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
       });
     }
   }
@@ -293,6 +270,31 @@ export class EnsController extends BaseController<
       };
     });
     return true;
+  }
+
+  #setEthProvider(
+    selectedNetworkClientId: string,
+    registriesByChainId?: Record<number, Hex>,
+  ) {
+    const selectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    const currentChainId = selectedNetworkClient.configuration.chainId;
+
+    if (
+      registriesByChainId &&
+      registriesByChainId[parseInt(currentChainId, 16)] &&
+      this.#getChainEnsSupport(currentChainId)
+    ) {
+      this.#ethProvider = new Web3Provider(selectedNetworkClient.provider, {
+        chainId: convertHexToDecimal(currentChainId),
+        name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[currentChainId as ChainId],
+        ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
+      });
+    } else {
+      this.#ethProvider = null;
+    }
   }
 
   /**

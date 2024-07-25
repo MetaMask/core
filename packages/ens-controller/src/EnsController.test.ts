@@ -186,7 +186,6 @@ describe('EnsController', () => {
           [address1Checksum]: 'peaksignal.eth',
         },
       },
-      provider: getProvider(),
       onNetworkDidChange: (listener) => {
         listener({
           ...defaultNetworkState,
@@ -499,7 +498,6 @@ describe('EnsController', () => {
       );
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -524,7 +522,6 @@ describe('EnsController', () => {
       );
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -552,7 +549,6 @@ describe('EnsController', () => {
 
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -578,7 +574,6 @@ describe('EnsController', () => {
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -603,7 +598,6 @@ describe('EnsController', () => {
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -631,7 +625,6 @@ describe('EnsController', () => {
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -659,7 +652,6 @@ describe('EnsController', () => {
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -689,7 +681,6 @@ describe('EnsController', () => {
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
@@ -718,7 +709,6 @@ describe('EnsController', () => {
       jest.spyOn(providersModule, 'Web3Provider').mockReturnValue(ethProvider);
       const ens = new EnsController({
         messenger: ensControllerMessenger,
-        provider: getProvider(),
         onNetworkDidChange: (listener) => {
           listener({
             ...defaultNetworkState,
