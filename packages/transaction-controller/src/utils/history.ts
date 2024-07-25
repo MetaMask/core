@@ -62,22 +62,23 @@ export function updateTransactionHistory(
     note,
   );
 
-  if (newHistoryEntry.length > 0) {
-    // Casts required here because this list has two separate types of entries:
-    // TransactionMeta and TransactionHistoryEntry. The only TransactionMeta is the first
-    // entry, but TypeScript loses that type information when `slice` is called for some reason.
-    let updatedHistory = transactionMeta.history.slice() as TransactionHistory;
-    updatedHistory.push(newHistoryEntry);
-
-    if (updatedHistory.length > MAX_HISTORY_LENGTH) {
-      updatedHistory = compressTransactionHistory(updatedHistory);
-    }
-
-    return merge({}, transactionMeta, {
-      history: updatedHistory,
-    });
+  if (newHistoryEntry.length === 0) {
+    return transactionMeta;
   }
-  return transactionMeta;
+
+  // Casts required here because this list has two separate types of entries:
+  // TransactionMeta and TransactionHistoryEntry. The only TransactionMeta is the first
+  // entry, but TypeScript loses that type information when `slice` is called for some reason.
+  let updatedHistory = transactionMeta.history.slice() as TransactionHistory;
+  updatedHistory.push(newHistoryEntry);
+
+  if (updatedHistory.length > MAX_HISTORY_LENGTH) {
+    updatedHistory = compressTransactionHistory(updatedHistory);
+  }
+
+  return merge({}, transactionMeta, {
+    history: updatedHistory,
+  });
 }
 
 /**
