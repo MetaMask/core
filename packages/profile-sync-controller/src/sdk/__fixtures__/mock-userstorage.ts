@@ -10,7 +10,10 @@ type MockReply = {
 };
 
 // Example mock notifications storage entry (wildcard)
-const MOCK_STORAGE_URL = STORAGE_URL(Env.DEV, 'notifications', '');
+const MOCK_STORAGE_URL = STORAGE_URL(
+  Env.DEV,
+  'notifications/notificationSettings',
+);
 
 export const MOCK_STORAGE_KEY = 'MOCK_STORAGE_KEY';
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.

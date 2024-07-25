@@ -1,6 +1,7 @@
 import { ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
 import { MESSAGE_SIGNING_SNAP } from '../utils/messaging-signing-snap-requests';
+import { validateLoginResponse } from '../utils/validate-login-response';
 import { authenticate, authorizeOIDC, getNonce } from './services';
 import type {
   AuthConfig,
@@ -87,7 +88,7 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
   async #getAuthSession(): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse();
-    if (!auth) {
+    if (!validateLoginResponse(auth)) {
       return null;
     }
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove `@metamask/keyring-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+  - This was listed under `peerDependencies` already, so it was redundant as a dependency.
+
 ## [17.2.0]
 
 ### Added

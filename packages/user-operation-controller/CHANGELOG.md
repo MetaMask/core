@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove `@metamask/approval-controller`, `@metamask/gas-fee-controller`, `@metamask/keyring-controller`, `@metamask/network-controller`, and `@metamask/transaction-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
+
 ## [14.0.0]
 
 ### Changed

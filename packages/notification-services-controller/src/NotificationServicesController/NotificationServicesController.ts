@@ -267,13 +267,13 @@ export default class NotificationServicesController extends BaseController<
     getNotificationStorage: async () => {
       return await this.messagingSystem.call(
         'UserStorageController:performGetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
       );
     },
     setNotificationStorage: async (state: string) => {
       return await this.messagingSystem.call(
         'UserStorageController:performSetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
         state,
       );
     },
@@ -284,28 +284,40 @@ export default class NotificationServicesController extends BaseController<
       if (!this.#isPushIntegrated) {
         return;
       }
-      await this.messagingSystem.call(
-        'NotificationServicesPushController:enablePushNotifications',
-        UUIDs,
-      );
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:enablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to enable push notifications', e);
+      }
     },
     disablePushNotifications: async (UUIDs: string[]) => {
       if (!this.#isPushIntegrated) {
         return;
       }
-      await this.messagingSystem.call(
-        'NotificationServicesPushController:disablePushNotifications',
-        UUIDs,
-      );
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:disablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to disable push notifications', e);
+      }
     },
     updatePushNotifications: async (UUIDs: string[]) => {
       if (!this.#isPushIntegrated) {
         return;
       }
-      await this.messagingSystem.call(
-        'NotificationServicesPushController:updateTriggerPushNotifications',
-        UUIDs,
-      );
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:updateTriggerPushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to update push notifications', e);
+      }
     },
     subscribe: () => {
       if (!this.#isPushIntegrated) {
