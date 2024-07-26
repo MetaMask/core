@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Widen the `error` parameter of `JsonRpcEngineReturnHandler`, `JsonRpcEngineEndCallback` function types from `JsonRpcEngineCallbackError` to `unknown` ([#3906](https://github.com/MetaMask/core/pull/3906))
+- Narrow the function parameters `req`, `callback` of the last overload of the `handle` method of the `JsonRpcEngine` class ([#3906](https://github.com/MetaMask/core/pull/3906))
+  - This applies to the overload with two function parameters, one required and one optional, and no generic parameters.
+  - `req` is narrowed from `unknown` to `(JsonRpcRequest | JsonRpcNotification)[] | JsonRpcRequest | JsonRpcNotification`.
+  - `callback` is narrowed from `any` to `(error: unknown, response: never) => void`.
 - Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
 
 ## [8.0.1]

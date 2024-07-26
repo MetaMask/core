@@ -4901,4 +4901,47 @@ describe('NftController', () => {
 
     expect(updateNftMetadataSpy).not.toHaveBeenCalled();
   });
+
+  describe('getNFTContractInfo', () => {
+    it('fetches NFT collections metadata successfully', async () => {
+      const contractAddresses = [
+        '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
+        '0xb47e3cd837dDF8e4c57F05d70Ab865de6e193BBB',
+      ];
+      const collections = [
+        {
+          id: contractAddresses[0],
+          name: 'CryptoPunks',
+          slug: 'cryptopunks',
+          symbol: 'PUNK',
+          imageUrl: 'url',
+        },
+        {
+          id: contractAddresses[1],
+          name: 'Kudos',
+          slug: 'kudos',
+          symbol: 'KUDOS',
+          imageUrl: 'url',
+        },
+      ];
+      nock(NFT_API_BASE_URL)
+        .get(
+          `/collections?chainId=0x1&contract=${contractAddresses[0]}&contract=${contractAddresses[1]}`,
+        )
+        .reply(200, {
+          collections,
+        });
+
+      const { nftController } = setupController();
+
+      const response = await nftController.getNFTContractInfo(
+        contractAddresses,
+        ChainId.mainnet,
+      );
+
+      expect(response).toStrictEqual({
+        collections,
+      });
+    });
+  });
 });
