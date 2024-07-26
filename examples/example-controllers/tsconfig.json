@@ -7,5 +7,17 @@
     { "path": "../../packages/base-controller" },
     { "path": "../../packages/controller-utils" }
   ],
-  "include": ["../../types", "./src", "./tests"]
+  "include": ["../../types", "./src"],
+  /**
+   * Here we ensure that TypeScript resolves `@metamask/*` imports to the
+   * uncompiled source code for packages that live in this repo.
+   *
+   * NOTE: This must be synchronized with the `moduleNameMapper` option in
+   * `jest.config.packages.js`.
+   *
+   * NOTE 2: This is not necessary when copying this package to `packages/`.
+   */
+  "paths": {
+    "@metamask/*": ["../../packages/*/src", "../*/src"]
+  }
 }
