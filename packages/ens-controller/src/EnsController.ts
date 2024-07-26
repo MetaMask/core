@@ -13,6 +13,7 @@ import {
 } from '@metamask/controller-utils';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
@@ -68,7 +69,9 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
-type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+export type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction;
 
 export type EnsControllerMessenger = RestrictedControllerMessenger<
   typeof name,
@@ -145,6 +148,8 @@ export class EnsController extends BaseController<
         ...state,
       },
     });
+
+    this.#setDefaultEthProvider(registriesByChainId);
 
     if (onNetworkDidChange) {
       onNetworkDidChange(({ selectedNetworkClientId }) => {
@@ -270,6 +275,13 @@ export class EnsController extends BaseController<
       };
     });
     return true;
+  }
+
+  #setDefaultEthProvider(registriesByChainId?: Record<number, Hex>) {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
   }
 
   #setEthProvider(

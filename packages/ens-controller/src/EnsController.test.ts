@@ -5,6 +5,10 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import type {
+  NetworkController,
+  NetworkState,
+} from '@metamask/network-controller';
 import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 
 import type {
@@ -19,6 +23,7 @@ import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
 import type {
   EnsControllerState,
   EnsControllerMessenger,
+  AllowedActions,
 } from './EnsController';
 
 const defaultState: EnsControllerState = {
@@ -74,7 +79,10 @@ const name = 'EnsController';
  * @returns A restricted controller messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new ControllerMessenger();
+  return new ControllerMessenger<
+    ExtractAvailableAction<EnsControllerMessenger> | AllowedActions,
+    ExtractAvailableEvent<EnsControllerMessenger> | never
+  >();
 }
 
 /**
@@ -82,15 +90,37 @@ function getRootMessenger(): RootMessenger {
  *
  * @param rootMessenger - The root messenger to base the restricted messenger
  * off of.
+ * @param getNetworkClientByIdMock - Optional mock version of `getNetworkClientById`.
  * @returns A restricted controller messenger.
  */
-function getRestrictedMessenger(rootMessenger: RootMessenger) {
-  return rootMessenger.getRestricted<
-    'EnsController',
-    'NetworkController:getNetworkClientById'
-  >({
+function getRestrictedMessenger(
+  rootMessenger: RootMessenger,
+  getNetworkClientByIdMock?: NetworkController['getNetworkClientById'],
+) {
+  const mockNetworkState = jest.fn<NetworkState, []>().mockReturnValue({
+    ...defaultNetworkState,
+    selectedNetworkClientId: InfuraNetworkType.mainnet,
+  });
+
+  rootMessenger.registerActionHandler(
+    'NetworkController:getState',
+    mockNetworkState,
+  );
+
+  if (!getNetworkClientByIdMock) {
+    getNetworkClientByIdMock = buildMockGetNetworkClientById();
+  }
+  rootMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    getNetworkClientByIdMock,
+  );
+
+  return rootMessenger.getRestricted<'EnsController', AllowedActions['type']>({
     name,
-    allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedActions: [
+      'NetworkController:getNetworkClientById',
+      'NetworkController:getState',
+    ],
     allowedEvents: [],
   });
 }
@@ -174,11 +204,6 @@ describe('EnsController', () => {
   it('should clear ensResolutionsByAddress state propery on networkDidChange', async () => {
     const rootMessenger = getRootMessenger();
     const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
-    const getNetworkClientById = buildMockGetNetworkClientById();
-    rootMessenger.registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      getNetworkClientById,
-    );
     const controller = new EnsController({
       messenger: ensControllerMessenger,
       state: {
@@ -491,11 +516,6 @@ describe('EnsController', () => {
     it('should return undefined when network is loading', async function () {
       const rootMessenger = getRootMessenger();
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ens = new EnsController({
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
@@ -510,14 +530,13 @@ describe('EnsController', () => {
 
     it('should return undefined when network is not ens supported', async function () {
       const rootMessenger = getRootMessenger();
-      const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const getNetworkClientById = buildMockGetNetworkClientById({
         'AAAA-AAAA-AAAA-AAAA': buildCustomNetworkClientConfiguration({
           chainId: '0x9999999',
         }),
       });
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
+      const ensControllerMessenger = getRestrictedMessenger(
+        rootMessenger,
         getNetworkClientById,
       );
       const ens = new EnsController({
@@ -534,11 +553,6 @@ describe('EnsController', () => {
 
     it('should only resolve an ENS name once', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(address1);
@@ -563,11 +577,6 @@ describe('EnsController', () => {
 
     it('should fail if lookupAddress through an error', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'lookupAddress').mockRejectedValue('error');
@@ -587,11 +596,6 @@ describe('EnsController', () => {
 
     it('should fail if lookupAddress returns a null value', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'lookupAddress').mockResolvedValue(null);
@@ -611,11 +615,6 @@ describe('EnsController', () => {
 
     it('should fail if resolveName through an error', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest
@@ -638,11 +637,6 @@ describe('EnsController', () => {
 
     it('should fail if resolveName returns a null value', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest.spyOn(ethProvider, 'resolveName').mockResolvedValue(null);
@@ -665,11 +659,6 @@ describe('EnsController', () => {
 
     it('should fail if registred address is zero x error address', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
       const ethProvider = new providersModule.Web3Provider(getProvider());
       jest
@@ -694,11 +683,6 @@ describe('EnsController', () => {
 
     it('should fail if the name is registered to a different address than the reverse resolved', async () => {
       const rootMessenger = getRootMessenger();
-      const getNetworkClientById = buildMockGetNetworkClientById();
-      rootMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        getNetworkClientById,
-      );
       const ensControllerMessenger = getRestrictedMessenger(rootMessenger);
 
       const ethProvider = new providersModule.Web3Provider(getProvider());
