@@ -2,17 +2,38 @@
   "name": "@metamask/example-controllers",
   "version": "0.0.0",
   "private": true,
-  "description": "Fetches gas prices periodically",
+  "description": "Example package to illustrate best practices for controllers",
+  "keywords": [
+    "MetaMask",
+    "Ethereum"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/example-controllers#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/types/index.d.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/types/index.d.ts",
   "files": [
     "dist/"
   ],
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
     "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/example-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/example-controllers",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
