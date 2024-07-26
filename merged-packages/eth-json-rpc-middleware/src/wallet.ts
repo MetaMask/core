@@ -55,10 +55,6 @@ export interface WalletMiddlewareOptions {
     address: string,
     req: JsonRpcRequest,
   ) => Promise<string>;
-  processEthSignMessage?: (
-    msgParams: MessageParams,
-    req: JsonRpcRequest,
-  ) => Promise<string>;
   processPersonalMessage?: (
     msgParams: MessageParams,
     req: JsonRpcRequest,
@@ -92,7 +88,6 @@ export function createWalletMiddleware({
   getAccounts,
   processDecryptMessage,
   processEncryptionPublicKey,
-  processEthSignMessage,
   processPersonalMessage,
   processTransaction,
   processSignTransaction,
@@ -113,7 +108,6 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
     eth_sendTransaction: createAsyncMiddleware(sendTransaction),
     eth_signTransaction: createAsyncMiddleware(signTransaction),
     // message signatures
-    eth_sign: createAsyncMiddleware(ethSign),
     eth_signTypedData: createAsyncMiddleware(signTypedData),
     eth_signTypedData_v3: createAsyncMiddleware(signTypedDataV3),
     eth_signTypedData_v4: createAsyncMiddleware(signTypedDataV4),
@@ -195,36 +189,6 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
   //
   // message signatures
   //
-
-  async function ethSign(
-    req: JsonRpcRequest,
-    res: PendingJsonRpcResponse<Json>,
-  ): Promise<void> {
-    if (!processEthSignMessage) {
-      throw rpcErrors.methodNotSupported();
-    }
-    if (
-      !req?.params ||
-      !Array.isArray(req.params) ||
-      !(req.params.length >= 2)
-    ) {
-      throw rpcErrors.invalidInput();
-    }
-
-    const params = req.params as [string, string, Record<string, string>?];
-    const address: string = await validateAndNormalizeKeyholder(params[0], req);
-    const message = params[1];
-    const extraParams = params[2] || {};
-    const msgParams: MessageParams = {
-      ...extraParams,
-      from: address,
-      data: message,
-      signatureMethod: 'eth_sign',
-    };
-
-    res.result = await processEthSignMessage(msgParams, req);
-  }
-
   async function signTypedData(
     req: JsonRpcRequest,
     res: PendingJsonRpcResponse<Json>,
