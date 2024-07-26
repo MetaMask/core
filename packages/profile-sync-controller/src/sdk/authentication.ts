@@ -8,6 +8,8 @@ import type { UserProfile, Pair } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
 import type { Env } from './env';
 import { PairError, UnsupportedAuthTypeError } from './errors';
+import { getMetaMaskProviderEIP6963 } from './utils/eip-6963-metamask-provider';
+import { connectSnap } from './utils/messaging-signing-snap-requests';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -46,6 +48,15 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
   async getAccessToken(): Promise<string> {
     return await this.#sdk.getAccessToken();
+  }
+
+  async connectSnap(): Promise<string> {
+    const provider = await getMetaMaskProviderEIP6963();
+    if (!provider) {
+      throw new Error('failed to get MetaMaskProviderEIP6963 provider');
+    }
+    const res = await connectSnap(provider);
+    return res;
   }
 
   async getUserProfile(): Promise<UserProfile> {
