@@ -5,6 +5,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { isSafeDynamicKey } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 // === GENERAL ===
@@ -187,6 +188,10 @@ export class PetNamesController extends BaseController<
    * @param name - The name to assign to the address.
    */
   assignPetName(chainId: Hex, address: Hex, name: string) {
+    if (!isSafeDynamicKey(chainId)) {
+      throw new Error('Invalid chain ID');
+    }
+
     const normalizedAddress = address.toLowerCase() as Hex;
 
     this.update((state) => {

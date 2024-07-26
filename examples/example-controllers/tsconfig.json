@@ -3,6 +3,9 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [{ "path": "../../packages/base-controller" }],
+  "references": [
+    { "path": "../../packages/base-controller" },
+    { "path": "../../packages/controller-utils" }
+  ],
   "include": ["../../types", "./src", "./tests"]
 }

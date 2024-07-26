@@ -4,6 +4,7 @@ import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
 } from '../../../packages/base-controller/tests/helpers';
+import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../../packages/controller-utils/src/util';
 import type { PetNamesControllerMessenger } from './pet-names-controller';
 import { PetNamesController } from './pet-names-controller';
 
@@ -40,6 +41,19 @@ describe('PetNamesController', () => {
   });
 
   describe('assignPetName', () => {
+    for (const blockedKey of PROTOTYPE_POLLUTION_BLOCKLIST) {
+      it(`throws if given a chainId of "${blockedKey}"`, () => {
+        const controller = new PetNamesController({
+          messenger: getControllerMessenger(),
+        });
+
+        expect(() =>
+          // @ts-expect-error We are intentionally passing bad input.
+          controller.assignPetName(blockedKey, '0xbbbbbb', 'Account 2'),
+        ).toThrow('Invalid chain ID');
+      });
+    }
+
     it('registers the given pet name in state with the given chain ID and address', () => {
       const controller = new PetNamesController({
         messenger: getControllerMessenger(),
