@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/rpc-errors` from `^6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
 - Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
 
+### Fixed
+
+- Fix simulation data parsing logic to avoid failed simulations creating `ApprovalForAll` events ([#4512](https://github.com/MetaMask/core/pull/4512))
+
 ## [35.0.0]
 
 ### Changed

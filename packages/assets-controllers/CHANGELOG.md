@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
 - Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
 - Bump `multiformats` from `^9.5.2` to `^13.1.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/polling-controller` from `^9.0.0` to `^9.0.1` ([#4548](https://github.com/MetaMask/core/pull/4548))
 
 ### Removed
 
