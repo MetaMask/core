@@ -28,10 +28,10 @@ module.exports = {
       },
     },
     {
-      files: ['*.js'],
+      files: ['*.js', '*.cjs'],
       parserOptions: {
         sourceType: 'script',
-        ecmaVersion: '2018',
+        ecmaVersion: '2020',
       },
     },
     {
@@ -120,6 +120,9 @@ module.exports = {
   settings: {
     'import/resolver': {
       typescript: {},
+    },
+    jsdoc: {
+      mode: 'typescript',
     },
   },
 };

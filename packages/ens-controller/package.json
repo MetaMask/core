@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "13.0.0",
+  "version": "13.0.1",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^20.0.0",
+    "@metamask/network-controller": "^20.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
