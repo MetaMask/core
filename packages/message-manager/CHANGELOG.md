@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.2]
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` to `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
 ## [10.0.1]
 
 ### Changed
@@ -266,7 +275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.2...HEAD
+[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.1...@metamask/message-manager@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.0...@metamask/message-manager@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@9.0.0...@metamask/message-manager@10.0.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.2...@metamask/message-manager@9.0.0

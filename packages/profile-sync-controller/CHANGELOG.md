@@ -7,12 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [0.2.0]
 
-- Please hold off on new releases of this package until the yarn resolution for `@metamask/providers` is removed.
-  - This is blocked by a `@metamask/snaps-sdk` release with `@metamask/providers` bumped to `>=17.1.1`.
-    - See: [Fix regressions introduced by @metamask/providers@17.1.1](https://github.com/MetaMask/snaps/pull/2579)
-  - Build error fixed by yarn resolution: [MetaMask/core/actions/runs/10011688901/job/27675682526?pr=3645](https://github.com/MetaMask/core/actions/runs/10011688901/job/27675682526?pr=3645)
+### Added
+
+- Add and export object `USER_STORAGE_SCHEMA`, function `getFeatureAndKeyFromPath`, and type `UserStoragePath` ([#4543](https://github.com/MetaMask/core/pull/4543))
+- Add `connectSnap` method to the `JwtBearerAuth` class for connecting to snap after initializing the Profile Sync SDK ([#4560](https://github.com/MetaMask/core/pull/4560))
+
+### Changed
+
+- **BREAKING:** Enforce `UserStorageSchema` usage in all functions that get or set user storage ([#4543](https://github.com/MetaMask/core/pull/4543))
+  - Keeps user storage entries consistent, and improves DX for consumers of user storage.
+  - **BREAKING:** Remove `entryKey` function parameter from `performGetStorage` and `performSetStorage` methods of `UserStorageController`, and replace with `path` parameter of type `UserStoragePath`.
+  - **BREAKING:** Remove `entryKey` function parameter from `createEntryPath`, and replace with `path` parameter of type `UserStoragePath`.
+  - **BREAKING:** Remove `entryKey` property from type `UserStorageOptions`, and replace with `path` property of type `UserStoragePath`.
+- **BREAKING:** Bump peerDependency `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Remove `@metamask/snaps-controllers` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+  - This was listed under `peerDependencies` already, so it was redundant as a dependency.
+- Widen `isProfileSyncingEnabled` property of the `UserStorageControllerState` type from `boolean` to `boolean | null` ([#4551](https://github.com/MetaMask/core/pull/4551))
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` to `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/snaps-sdk` from `^4.2.0` to `^6.1.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+- Add new dependency `@metamask/snaps-utils` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+
+### Removed
+
+- Remove object `USER_STORAGE_ENTRIES` and type `UserStorageEntryKeys` ([#4543](https://github.com/MetaMask/core/pull/4543))
 
 ## [0.1.4]
 
@@ -64,7 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...HEAD
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.4...@metamask/profile-sync-controller@0.2.0
 [0.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.3...@metamask/profile-sync-controller@0.1.4
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.2...@metamask/profile-sync-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.1...@metamask/profile-sync-controller@0.1.2

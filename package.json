@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "179.0.0",
+  "version": "180.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -43,7 +43,6 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "@metamask/snaps-sdk@6.1.0/@metamask/providers": "17.1.1",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
   "devDependencies": {
@@ -57,7 +56,7 @@
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
     "@metamask/eth-block-tracker": "^9.0.3",
-    "@metamask/eth-json-rpc-provider": "^4.1.1",
+    "@metamask/eth-json-rpc-provider": "^4.1.2",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/utils": "^9.1.0",
     "@types/jest": "^27.4.1",
