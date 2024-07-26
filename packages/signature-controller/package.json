@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "18.0.0",
+  "version": "18.0.1",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -43,7 +43,7 @@
   "dependencies": {
     "@metamask/base-controller": "^6.0.2",
     "@metamask/controller-utils": "^11.0.2",
-    "@metamask/message-manager": "^10.0.1",
+    "@metamask/message-manager": "^10.0.2",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",
     "lodash": "^4.17.21"
@@ -51,7 +51,7 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.0.2",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.1.1",
+    "@metamask/keyring-controller": "^17.1.2",
     "@metamask/logging-controller": "^5.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
