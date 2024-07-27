@@ -3894,10 +3894,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/superstruct@npm:^3.0.0, @metamask/superstruct@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "@metamask/superstruct@npm:3.1.0"
-  checksum: 10/5066fe228d5f11da387606d7f9545de2b473ab5a9e0f1bb8aea2f52d3e2c9d25e427151acde61f4a2de80a07a9871fe9505ad06abca6a61b7c3b54ed5c403b01
+"@metamask/superstruct@npm:superstruct@2.0.3-1, superstruct@npm:2.0.3-1":
+  version: 2.0.3-1
+  resolution: "superstruct@npm:2.0.3-1"
+  checksum: 10/f8dcd616fff01eca62ada459463897fd75af9fcbfa3fae522e687d5f4b6979da9f16f7ceb8d4682aac358aca194cc1cf9878c176e946ee0a155d8bb8b94cd83c
   languageName: node
   linkType: hard
 
@@ -12359,13 +12359,6 @@ __metadata:
     sucrase: bin/sucrase
     sucrase-node: bin/sucrase-node
   checksum: 10/bc601558a62826f1c32287d4fdfa4f2c09fe0fec4c4d39d0e257fd9116d7d6227a18309721d4185ec84c9dc1af0d5ec0e05a42a337fbb74fc293e068549aacbe
-  languageName: node
-  linkType: hard
-
-"superstruct@npm:2.0.3-1":
-  version: 2.0.3-1
-  resolution: "superstruct@npm:2.0.3-1"
-  checksum: 10/f8dcd616fff01eca62ada459463897fd75af9fcbfa3fae522e687d5f4b6979da9f16f7ceb8d4682aac358aca194cc1cf9878c176e946ee0a155d8bb8b94cd83c
   languageName: node
   linkType: hard
 

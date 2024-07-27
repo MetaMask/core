@@ -43,6 +43,7 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/superstruct": "npm:superstruct@2.0.3-1",
     "superstruct": "2.0.3-1",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
   },
