@@ -497,28 +497,18 @@ describe('KeyringController', () => {
         describe('when there is no existing vault', () => {
           it('should create new vault, mnemonic and keychain', async () => {
             await withController(
-              { cacheEncryptionKey },
-              async ({ controller, initialState, encryptor }) => {
-                const cleanKeyringController = new KeyringController({
-                  messenger: buildKeyringControllerMessenger(),
-                  cacheEncryptionKey,
-                  encryptor,
-                });
-                const initialSeedWord = await controller.exportSeedPhrase(
+              { cacheEncryptionKey, skipVaultCreation: true },
+              async ({ controller }) => {
+                await controller.createNewVaultAndKeychain(password);
+
+                const currentSeedPhrase = await controller.exportSeedPhrase(
                   password,
                 );
-                await cleanKeyringController.createNewVaultAndKeychain(
-                  password,
-                );
-                const currentSeedWord =
-                  await cleanKeyringController.exportSeedPhrase(password);
-                expect(initialSeedWord).toBeDefined();
-                expect(initialState).not.toBe(cleanKeyringController.state);
-                expect(currentSeedWord).toBeDefined();
-                expect(initialSeedWord).not.toBe(currentSeedWord);
+
+                expect(currentSeedPhrase.length).toBeGreaterThan(0);
                 expect(
                   isValidHexAddress(
-                    cleanKeyringController.state.keyrings[0].accounts[0] as Hex,
+                    controller.state.keyrings[0].accounts[0] as Hex,
                   ),
                 ).toBe(true);
                 expect(controller.state.vault).toBeDefined();
@@ -526,19 +516,37 @@ describe('KeyringController', () => {
             );
           });
 
-          it('should set default state', async () => {
-            await withController(async ({ controller }) => {
-              expect(controller.state.keyrings).not.toStrictEqual([]);
-              const keyring = controller.state.keyrings[0];
-              expect(keyring.accounts).not.toStrictEqual([]);
-              expect(keyring.type).toBe('HD Key Tree');
-              expect(controller.state.vault).toBeDefined();
+          cacheEncryptionKey &&
+            it('should set encryptionKey and encryptionSalt in state', async () => {
+              await withController(
+                { cacheEncryptionKey, skipVaultCreation: true },
+                async ({ controller }) => {
+                  await controller.createNewVaultAndKeychain(password);
+
+                  expect(controller.state.encryptionKey).toBeDefined();
+                  expect(controller.state.encryptionSalt).toBeDefined();
+                },
+              );
             });
+
+          it('should set default state', async () => {
+            await withController(
+              { cacheEncryptionKey, skipVaultCreation: true },
+              async ({ controller }) => {
+                await controller.createNewVaultAndKeychain(password);
+
+                expect(controller.state.keyrings).not.toStrictEqual([]);
+                const keyring = controller.state.keyrings[0];
+                expect(keyring.accounts).not.toStrictEqual([]);
+                expect(keyring.type).toBe('HD Key Tree');
+                expect(controller.state.vault).toBeDefined();
+              },
+            );
           });
 
           it('should throw error if password is of wrong type', async () => {
             await withController(
-              { skipVaultCreation: true },
+              { cacheEncryptionKey, skipVaultCreation: true },
               async ({ controller }) => {
                 await expect(
                   controller.createNewVaultAndKeychain(
@@ -555,7 +563,7 @@ describe('KeyringController', () => {
               .spyOn(HDKeyring.prototype, 'getAccounts')
               .mockResolvedValue([]);
             await withController(
-              { skipVaultCreation: true },
+              { cacheEncryptionKey, skipVaultCreation: true },
               async ({ controller }) => {
                 await expect(
                   controller.createNewVaultAndKeychain(password),
@@ -563,40 +571,74 @@ describe('KeyringController', () => {
               },
             );
           });
+
+          !cacheEncryptionKey &&
+            it('should not set encryptionKey and encryptionSalt in state', async () => {
+              await withController(
+                { skipVaultCreation: true },
+                async ({ controller }) => {
+                  await controller.createNewVaultAndKeychain(password);
+
+                  expect(controller.state).not.toHaveProperty('encryptionKey');
+                  expect(controller.state).not.toHaveProperty('encryptionSalt');
+                },
+              );
+            });
         });
 
         describe('when there is an existing vault', () => {
-          it('should return existing vault', async () => {
+          it('should not create a new vault or keychain', async () => {
             await withController(
               { cacheEncryptionKey },
               async ({ controller, initialState }) => {
                 const initialSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
+                expect(initialSeedWord).toBeDefined();
                 const initialVault = controller.state.vault;
+
                 await controller.createNewVaultAndKeychain(password);
+
                 const currentSeedWord = await controller.exportSeedPhrase(
                   password,
                 );
-                expect(initialSeedWord).toBeDefined();
                 expect(initialState).toStrictEqual(controller.state);
-                expect(currentSeedWord).toBeDefined();
                 expect(initialSeedWord).toBe(currentSeedWord);
                 expect(initialVault).toStrictEqual(controller.state.vault);
               },
             );
           });
-        });
 
-        cacheEncryptionKey &&
-          it('should set encryptionKey and encryptionSalt in state', async () => {
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            withController({ cacheEncryptionKey }, async ({ initialState }) => {
-              expect(initialState.encryptionKey).toBeDefined();
-              expect(initialState.encryptionSalt).toBeDefined();
+          cacheEncryptionKey &&
+            it('should set encryptionKey and encryptionSalt in state', async () => {
+              await withController(
+                { cacheEncryptionKey },
+                async ({ controller }) => {
+                  await controller.setLocked();
+                  expect(controller.state.encryptionKey).toBeUndefined();
+                  expect(controller.state.encryptionSalt).toBeUndefined();
+
+                  await controller.createNewVaultAndKeychain(password);
+
+                  expect(controller.state.encryptionKey).toBeDefined();
+                  expect(controller.state.encryptionSalt).toBeDefined();
+                },
+              );
             });
-          });
+
+          !cacheEncryptionKey &&
+            it('should not set encryptionKey and encryptionSalt in state', async () => {
+              await withController(
+                { skipVaultCreation: false, cacheEncryptionKey },
+                async ({ controller }) => {
+                  await controller.createNewVaultAndKeychain(password);
+
+                  expect(controller.state).not.toHaveProperty('encryptionKey');
+                  expect(controller.state).not.toHaveProperty('encryptionSalt');
+                },
+              );
+            });
+        });
       }),
     );
   });
@@ -611,6 +653,8 @@ describe('KeyringController', () => {
 
         expect(controller.isUnlocked()).toBe(false);
         expect(controller.state.isUnlocked).toBe(false);
+        expect(controller.state).not.toHaveProperty('encryptionKey');
+        expect(controller.state).not.toHaveProperty('encryptionSalt');
       });
     });
 

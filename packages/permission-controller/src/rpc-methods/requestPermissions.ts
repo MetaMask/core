@@ -12,7 +12,7 @@ export const requestPermissionsHandler: PermittedHandlerExport<
   [RequestedPermissions],
   PermissionConstraint[]
 > = {
-  methodNames: [MethodNames.requestPermissions],
+  methodNames: [MethodNames.RequestPermissions],
   implementation: requestPermissionsImplementation,
   hookNames: {
     requestPermissionsForOrigin: true,

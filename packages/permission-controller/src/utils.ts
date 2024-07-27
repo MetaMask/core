@@ -21,15 +21,9 @@ import type {
 } from './Permission';
 
 export enum MethodNames {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  requestPermissions = 'wallet_requestPermissions',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  getPermissions = 'wallet_getPermissions',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  revokePermissions = 'wallet_revokePermissions',
+  RequestPermissions = 'wallet_requestPermissions',
+  GetPermissions = 'wallet_getPermissions',
+  RevokePermissions = 'wallet_revokePermissions',
 }
 
 /**
@@ -50,21 +44,15 @@ export type ExtractSpecifications<
  * A middleware function for handling a permitted method.
  */
 export type HandlerMiddlewareFunction<
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  T,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  U extends JsonRpcParams,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  V extends Json,
+  Hooks,
+  Params extends JsonRpcParams,
+  Result extends Json,
 > = (
-  req: JsonRpcRequest<U>,
-  res: PendingJsonRpcResponse<V>,
+  req: JsonRpcRequest<Params>,
+  res: PendingJsonRpcResponse<Result>,
   next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
-  hooks: T,
+  hooks: Hooks,
 ) => void | Promise<void>;
 
 /**
@@ -73,28 +61,20 @@ export type HandlerMiddlewareFunction<
  * This can then be used to select only the necessary hooks whenever a method
  * is called for purposes of POLA.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-export type HookNames<T> = {
-  [Property in keyof T]: true;
+export type HookNames<HookMap> = {
+  [Property in keyof HookMap]: true;
 };
 
 /**
  * A handler for a permitted method.
  */
 export type PermittedHandlerExport<
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  T,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  U extends JsonRpcParams,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  V extends Json,
+  Hooks,
+  Params extends JsonRpcParams,
+  Result extends Json,
 > = {
-  implementation: HandlerMiddlewareFunction<T, U, V>;
-  hookNames: HookNames<T>;
+  implementation: HandlerMiddlewareFunction<Hooks, Params, Result>;
+  hookNames: HookNames<Hooks>;
   methodNames: string[];
 };
 

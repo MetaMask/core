@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/snaps-controllers` from `^8.1.1` to `^9.3.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Remove `@metamask/keyring-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+  - This was listed under `peerDependencies` already, so it was redundant as a dependency.
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/keyring-api` from `^8.0.0` to `^8.0.1` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/snaps-sdk` from `^4.2.0` to `^6.1.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+- Bump `@metamask/snaps-utils` from `^7.4.0` to `^7.8.1` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4547](https://github.com/MetaMask/core/pull/4547))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [17.2.0]
+
+### Added
+
+- Add internal actions and events to `AccountsController` ([#4496](https://github.com/MetaMask/core/pull/4496), [#4497](https://github.com/MetaMask/core/pull/4497))
+  - Add events `AccountsController:accountAdded`, `AccountsController:accountRemoved`, and export corresponding event types `AccountsControllerAccountAddedEvent`, `AccountsControllerAccountRemovedEvent`.
+  - Export action types `AccountsControllerListMultichainAccountsAction`, `AccountsControllerGetSelectedMultichainAccountAction`, `AccountsControllerGetNextAvailableAccountNameAction`.
+
+### Changed
+
+- Improve support of non-EVM accounts ([#4494](https://github.com/MetaMask/core/pull/4494))
+  - We now use `listMultichainAccounts` instead of `listAccounts` for non-EVM specific multichain methods
+- Emit `selectedAccountChange` and update `lastSelected` for initial account ([#4494](https://github.com/MetaMask/core/pull/4494))
+
+## [17.1.1]
+
+### Fixed
+
+- Handle edge case of undefined `selectedAccount` during onboarding for `getSelectedMultichainAccount` ([#4466](https://github.com/MetaMask/core/pull/4466))
+
+## [17.1.0]
+
+### Added
+
+- Add `AccountsController:listMultichainAccounts` action ([#4426](https://github.com/MetaMask/core/pull/4426))
+
+### Fixed
+
+- Refactored `getSelectedAccount` to handle case when there are no accounts to return. The logic was previously contained in `getAccountExpect` has been transferred to `getSelectedAccount`. ([#4322](https://github.com/MetaMask/core/pull/4322))
+- Updated `handleAccountRemoved` to automatically select the most recent account if the removed account was the currently selected account. ([#4322](https://github.com/MetaMask/core/pull/4322))
+- Move `@metamask/keyring-controller` to dependency ([#4425](https://github.com/MetaMask/core/pull/4425))
+
 ## [17.0.0]
 
 ### Changed
@@ -215,7 +261,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.2.0...@metamask/accounts-controller@18.0.0
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.1...@metamask/accounts-controller@17.2.0
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.0...@metamask/accounts-controller@17.1.1
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.0.0...@metamask/accounts-controller@17.1.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@16.0.0...@metamask/accounts-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@15.0.0...@metamask/accounts-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@14.0.0...@metamask/accounts-controller@15.0.0

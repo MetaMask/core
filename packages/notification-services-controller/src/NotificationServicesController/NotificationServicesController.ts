@@ -241,6 +241,9 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerState,
   NotificationServicesControllerMessenger
 > {
+  // Temporary boolean as push notifications are not yet enabled on mobile
+  #isPushIntegrated = true;
+
   #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -264,13 +267,13 @@ export default class NotificationServicesController extends BaseController<
     getNotificationStorage: async () => {
       return await this.messagingSystem.call(
         'UserStorageController:performGetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
       );
     },
     setNotificationStorage: async (state: string) => {
       return await this.messagingSystem.call(
         'UserStorageController:performSetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
         state,
       );
     },
@@ -278,24 +281,48 @@ export default class NotificationServicesController extends BaseController<
 
   #pushNotifications = {
     enablePushNotifications: async (UUIDs: string[]) => {
-      return await this.messagingSystem.call(
-        'NotificationServicesPushController:enablePushNotifications',
-        UUIDs,
-      );
+      if (!this.#isPushIntegrated) {
+        return;
+      }
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:enablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to enable push notifications', e);
+      }
     },
     disablePushNotifications: async (UUIDs: string[]) => {
-      return await this.messagingSystem.call(
-        'NotificationServicesPushController:disablePushNotifications',
-        UUIDs,
-      );
+      if (!this.#isPushIntegrated) {
+        return;
+      }
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:disablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to disable push notifications', e);
+      }
     },
     updatePushNotifications: async (UUIDs: string[]) => {
-      return await this.messagingSystem.call(
-        'NotificationServicesPushController:updateTriggerPushNotifications',
-        UUIDs,
-      );
+      if (!this.#isPushIntegrated) {
+        return;
+      }
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:updateTriggerPushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to update push notifications', e);
+      }
     },
     subscribe: () => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       this.messagingSystem.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
@@ -305,6 +332,9 @@ export default class NotificationServicesController extends BaseController<
       );
     },
     initializePushNotifications: async () => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       if (!this.state.isNotificationServicesEnabled) {
         return;
       }
@@ -411,6 +441,7 @@ export default class NotificationServicesController extends BaseController<
    * @param args.state - Initial state to set on this controller.
    * @param args.env - environment variables for a given controller.
    * @param args.env.featureAnnouncements - env variables for feature announcements.
+   * @param args.env.isPushIntegrated - toggle push notifications on/off if client has integrated them.
    */
   constructor({
     messenger,
@@ -421,6 +452,7 @@ export default class NotificationServicesController extends BaseController<
     state?: Partial<NotificationServicesControllerState>;
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
+      isPushIntegrated?: boolean;
     };
   }) {
     super({
@@ -429,6 +461,8 @@ export default class NotificationServicesController extends BaseController<
       name: controllerName,
       state: { ...defaultState, ...state },
     });
+
+    this.#isPushIntegrated = env.isPushIntegrated ?? true;
 
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();

@@ -5,7 +5,6 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
-import type { UserStorageControllerDisableProfileSyncing } from '../user-storage/UserStorageController';
 import {
   createSnapPublicKeyRequest,
   createSnapSignMessageRequest,
@@ -37,7 +36,7 @@ type SessionData = {
 };
 
 type MetaMetricsAuth = {
-  getMetaMetricsId: () => string;
+  getMetaMetricsId: () => string | Promise<string>;
   agent: 'extension' | 'mobile';
 };
 
@@ -49,7 +48,9 @@ export type AuthenticationControllerState = {
   isSignedIn: boolean;
   sessionData?: SessionData;
 };
-const defaultState: AuthenticationControllerState = { isSignedIn: false };
+export const defaultState: AuthenticationControllerState = {
+  isSignedIn: false,
+};
 const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     persist: true,
@@ -86,9 +87,7 @@ export type AuthenticationControllerGetSessionProfile =
 export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
 
 // Allowed Actions
-export type AllowedActions =
-  | HandleSnapRequest
-  | UserStorageControllerDisableProfileSyncing;
+export type AllowedActions = HandleSnapRequest;
 
 // Messenger
 export type AuthenticationControllerMessenger = RestrictedControllerMessenger<
@@ -129,6 +128,10 @@ export default class AuthenticationController extends BaseController<
       name: controllerName,
       state: { ...defaultState, ...state },
     });
+
+    if (!metametrics) {
+      throw new Error('`metametrics` field is required');
+    }
 
     this.#metametrics = metametrics;
 
@@ -236,7 +239,7 @@ export default class AuthenticationController extends BaseController<
       const rawMessage = createLoginRawMessage(nonce, publicKey);
       const signature = await this.#snapSignMessage(rawMessage);
       const loginResponse = await login(rawMessage, signature, {
-        metametricsId: this.#metametrics.getMetaMetricsId(),
+        metametricsId: await this.#metametrics.getMetaMetricsId(),
         agent: this.#metametrics.agent,
       });
       if (!loginResponse?.token) {
@@ -249,7 +252,10 @@ export default class AuthenticationController extends BaseController<
       };
 
       // 3. Trade for Access Token
-      const accessToken = await getAccessToken(loginResponse.token);
+      const accessToken = await getAccessToken(
+        loginResponse.token,
+        this.#metametrics.agent,
+      );
       if (!accessToken) {
         throw new Error(`Unable to get Access Token`);
       }
@@ -272,10 +278,6 @@ export default class AuthenticationController extends BaseController<
       };
     } catch (e) {
       console.error('Failed to authenticate', e);
-      // Disable Profile Syncing
-      await this.messagingSystem.call(
-        'UserStorageController:disableProfileSyncing',
-      );
       const errorMessage =
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new Error(
@@ -302,17 +304,29 @@ export default class AuthenticationController extends BaseController<
     return THIRTY_MIN_MS > diffMs;
   }
 
+  #_snapPublicKeyCache: string | undefined;
+
   /**
    * Returns the auth snap public key.
    *
    * @returns The snap public key.
    */
-  #snapGetPublicKey(): Promise<string> {
-    return this.messagingSystem.call(
+  async #snapGetPublicKey(): Promise<string> {
+    if (this.#_snapPublicKeyCache) {
+      return this.#_snapPublicKeyCache;
+    }
+
+    const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       createSnapPublicKeyRequest(),
-    ) as Promise<string>;
+    )) as string;
+
+    this.#_snapPublicKeyCache = result;
+
+    return result;
   }
+
+  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
 
   /**
    * Signs a specific message using an underlying auth snap.
@@ -320,10 +334,18 @@ export default class AuthenticationController extends BaseController<
    * @param message - A specific tagged message to sign.
    * @returns A Signature created by the snap.
    */
-  #snapSignMessage(message: `metamask:${string}`): Promise<string> {
-    return this.messagingSystem.call(
+  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+    if (this.#_snapSignMessageCache[message]) {
+      return this.#_snapSignMessageCache[message];
+    }
+
+    const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       createSnapSignMessageRequest(message),
-    ) as Promise<string>;
+    )) as string;
+
+    this.#_snapSignMessageCache[message] = result;
+
+    return result;
   }
 }

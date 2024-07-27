@@ -32,12 +32,14 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      (req, res, next, end) =>
+      (req, res, next, end) => {
+        // We intentionally do not await this promise; JsonRpcEngine won't await
+        // middleware anyway.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
-        }),
+        });
+      },
     );
 
     const response = await engine.handle({
@@ -68,7 +70,7 @@ describe('requestPermissions RPC method', () => {
     // is catched.
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
       createAsyncMiddleware(async (req, res, next) =>
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // This promise will be awaited by the createAsyncMiddleware wrapper.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
@@ -103,10 +105,11 @@ describe('requestPermissions RPC method', () => {
 
     const engine = new JsonRpcEngine();
     engine.push<[RequestedPermissions], PermissionConstraint[]>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (req, res, next, end) => {
-        await implementation(req, res, next, end, {
+      (req, res, next, end) => {
+        // We intentionally do not await this promise; JsonRpcEngine won't await
+        // middleware anyway.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        implementation(req, res, next, end, {
           requestPermissionsForOrigin: mockRequestPermissionsForOrigin,
         });
       },
@@ -128,7 +131,7 @@ describe('requestPermissions RPC method', () => {
       delete expectedError.stack;
 
       // @ts-expect-error Intentional destructive testing
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // ESLint is confused; this signature is async.
       // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);

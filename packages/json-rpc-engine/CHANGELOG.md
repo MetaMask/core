@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
 ## [9.0.0]
 
 ### Changed
@@ -17,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Widen the `error` parameter of `JsonRpcEngineReturnHandler`, `JsonRpcEngineEndCallback` function types from `JsonRpcEngineCallbackError` to `unknown` ([#3906](https://github.com/MetaMask/core/pull/3906))
+- Narrow the function parameters `req`, `callback` of the last overload of the `handle` method of the `JsonRpcEngine` class ([#3906](https://github.com/MetaMask/core/pull/3906))
+  - This applies to the overload with two function parameters, one required and one optional, and no generic parameters.
+  - `req` is narrowed from `unknown` to `(JsonRpcRequest | JsonRpcNotification)[] | JsonRpcRequest | JsonRpcNotification`.
+  - `callback` is narrowed from `any` to `(error: unknown, response: never) => void`.
 - Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
 
 ## [8.0.1]
@@ -162,7 +181,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.1...@metamask/json-rpc-engine@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.0...@metamask/json-rpc-engine@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@8.0.2...@metamask/json-rpc-engine@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@8.0.1...@metamask/json-rpc-engine@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@8.0.0...@metamask/json-rpc-engine@8.0.1
