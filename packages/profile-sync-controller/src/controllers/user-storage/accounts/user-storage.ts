@@ -7,6 +7,8 @@ export type UserStorageAccountsListAccount = {
   a: string;
   /** the names 'n' of the account */
   n: string[];
+  /** the last updated timestamp 'lu' of the account */
+  lu: string;
 };
 
 export type UserStorageAccountsList = UserStorageAccountsListAccount[];

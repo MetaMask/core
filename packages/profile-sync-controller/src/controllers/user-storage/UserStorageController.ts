@@ -8,6 +8,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerAddNewAccountAction } from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
@@ -224,7 +225,7 @@ export default class UserStorageController extends BaseController<
           isUserStorageAccountSyncingInProgress;
       });
     },
-    getInternalAccountsList: async () => {
+    getInternalAccountsList: async (): Promise<InternalAccount[]> => {
       return this.messagingSystem.call('AccountsController:listAccounts');
     },
     getUserStorageAccountsList: async () => {
@@ -520,9 +521,10 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Syncs the internal accounts list with the user storage accounts list.
-   *
+   * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
+   * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the result to the user storage.
    */
-  async syncUserStorageAccountsList(): Promise<void> {
+  async syncInternalAccountsListWithUserStorage(): Promise<void> {
     try {
       this.#assertProfileSyncingEnabled();
 
@@ -579,6 +581,12 @@ export default class UserStorageController extends BaseController<
           continue;
         }
 
+        // Scenario A : we don't manage conflicting names
+        // if names equal, do nothing
+        // if names different
+        // const whichNameIsMoreRecent = internalAccount.metadata.name
+
+        // Scenario B : we manage conflicting names
         const areNamesEqual =
           internalAccount?.metadata.name === userStorageAccount.n[0] &&
           userStorageAccount.n.length === 1;
