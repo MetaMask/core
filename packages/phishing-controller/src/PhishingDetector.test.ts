@@ -1107,13 +1107,13 @@ describe('PhishingDetector', () => {
   });
 
   describe('PhishingDetector - isBlocked', () => {
-    it('should return false if requestBlocklist is not defined or empty', async () => {
+    it('should return false if c2DomainBlocklist is not defined or empty', async () => {
       await withPhishingDetector(
         [
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [],
+            c2DomainBlocklist: [],
             name: 'test-config',
             version: 1,
             tolerance: 2,
@@ -1125,19 +1125,19 @@ describe('PhishingDetector', () => {
           );
           expect(result).toStrictEqual({
             result: false,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
           });
         },
       );
     });
 
-    it('should call sha256Hash and check the hash against requestBlocklist, returning the correct result', async () => {
+    it('check the hash against c2DomainBlocklist, returning the correct result', async () => {
       await withPhishingDetector(
         [
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [
+            c2DomainBlocklist: [
               '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
             ],
             name: 'test-config',
@@ -1152,20 +1152,20 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'test-config',
             result: true,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
             version: '1',
           });
         },
       );
     });
 
-    it('should call sha256Hash and check the hash against requestBlocklist, returning the correct result without a version', async () => {
+    it('check the hash against c2DomainBlocklist, returning the correct result without a version', async () => {
       await withPhishingDetector(
         [
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [
+            c2DomainBlocklist: [
               '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
             ],
             name: 'test-config',
@@ -1179,7 +1179,7 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'test-config',
             result: true,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
             version: undefined,
           });
         },
@@ -1192,7 +1192,7 @@ describe('PhishingDetector', () => {
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [
+            c2DomainBlocklist: [
               '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
             ],
             name: 'test-config',
@@ -1204,19 +1204,19 @@ describe('PhishingDetector', () => {
           const result = detector.isMaliciousRequestDomain('#$@(%&@#$(%');
           expect(result).toStrictEqual({
             result: false,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
           });
         },
       );
     });
 
-    it('should return true if URL is in the requestBlocklist', async () => {
+    it('should return true if URL is in the c2DomainBlocklist', async () => {
       await withPhishingDetector(
         [
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [
+            c2DomainBlocklist: [
               '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
             ],
             name: 'test-config',
@@ -1231,20 +1231,20 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'test-config',
             result: true,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
             version: '1',
           });
         },
       );
     });
 
-    it('should return false if URL is not in the requestBlocklist', async () => {
+    it('should return false if URL is not in the c2DomainBlocklist', async () => {
       await withPhishingDetector(
         [
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: ['hash-other.com'],
+            c2DomainBlocklist: ['hash-other.com'],
             name: 'test-config',
             version: 1,
             tolerance: 2,
@@ -1256,7 +1256,7 @@ describe('PhishingDetector', () => {
           );
           expect(result).toStrictEqual({
             result: false,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
           });
         },
       );
@@ -1268,7 +1268,7 @@ describe('PhishingDetector', () => {
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [
+            c2DomainBlocklist: [
               '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
             ],
             name: 'first-config',
@@ -1278,7 +1278,7 @@ describe('PhishingDetector', () => {
           {
             blocklist: [],
             fuzzylist: [],
-            requestBlocklist: [],
+            c2DomainBlocklist: [],
             name: 'second-config',
             version: 2,
             tolerance: 2,
@@ -1291,14 +1291,14 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'first-config',
             result: true,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
             version: '1',
           });
         },
       );
     });
 
-    it('should return false with type "all" if no configs have a valid requestBlocklist', async () => {
+    it('should return false with type "c2DomainBlocklist" if no configs have a valid c2DomainBlocklist', async () => {
       await withPhishingDetector(
         [
           {
@@ -1322,7 +1322,7 @@ describe('PhishingDetector', () => {
           );
           expect(result).toStrictEqual({
             result: false,
-            type: 'requestBlocklist',
+            type: 'c2DomainBlocklist',
           });
         },
       );

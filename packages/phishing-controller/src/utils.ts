@@ -68,7 +68,7 @@ export const applyDiffs = (
     allowlist: new Set(listState.allowlist),
     blocklist: new Set(listState.blocklist),
     fuzzylist: new Set(listState.fuzzylist),
-    requestBlocklist: new Set(listState.requestBlocklist),
+    c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
@@ -83,7 +83,7 @@ export const applyDiffs = (
   }
 
   return {
-    requestBlocklist: Array.from(listSets.requestBlocklist),
+    c2DomainBlocklist: Array.from(listSets.c2DomainBlocklist),
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
@@ -157,7 +157,7 @@ export const processDomainList = (list: string[]) => {
  * @param override - the optional override for the configuration.
  * @param override.allowlist - the optional allowlist to override.
  * @param override.blocklist - the optional blocklist to override.
- * @param override.requestBlocklist - the optional requestBlocklist to override.
+ * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
@@ -170,7 +170,7 @@ export const getDefaultPhishingDetectorConfig = ({
 }: {
   allowlist?: string[];
   blocklist?: string[];
-  requestBlocklist?: string[];
+  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
 }): PhishingDetectorConfiguration => ({
@@ -250,7 +250,7 @@ export const sha256Hash = (hostname: string): string => {
  * @param recentlyRemoved - list of hashes to remove from the local request blocklist
  * @returns the updated list of the hashed request blocklist
  */
-export const updateRequestBlocklist = (
+export const updateC2DomainBlocklist = (
   currentList: string[],
   recentlyAdded: string[],
   recentlyRemoved: string[],

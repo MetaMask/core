@@ -13,7 +13,7 @@ import {
   type PhishingControllerActions,
   type PhishingControllerOptions,
   CLIENT_SIDE_DETECION_BASE_URL,
-  REQUEST_BLOCKLIST_ENDPOINT,
+  C2_DOMAIN_BLOCKLIST_ENDPOINT,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
 
@@ -173,7 +173,7 @@ describe('PhishingController', () => {
         });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
@@ -249,8 +249,6 @@ describe('PhishingController', () => {
 
       clock.tick(1000 * 10);
       await controller.maybeUpdateState();
-
-      console.log(controller.state.phishingLists);
 
       expect(
         controller.test(
@@ -501,7 +499,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -609,7 +607,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -651,7 +649,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -695,7 +693,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -747,7 +745,7 @@ describe('PhishingController', () => {
       });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -830,7 +828,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -872,7 +870,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -950,7 +948,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -998,7 +996,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -1047,7 +1045,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -1095,7 +1093,7 @@ describe('PhishingController', () => {
       .reply(200, { data: [] });
 
     nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(REQUEST_BLOCKLIST_ENDPOINT)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
       .reply(200, {
         recentlyAdded: [],
         recentlyRemoved: [],
@@ -1159,7 +1157,7 @@ describe('PhishingController', () => {
         });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
           recentlyRemoved: [],
@@ -1173,7 +1171,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
-          requestBlocklist: [exampleRequestBlockedHash],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
@@ -1183,7 +1181,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 1,
@@ -1238,7 +1236,7 @@ describe('PhishingController', () => {
         });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
           recentlyRemoved: [],
@@ -1252,7 +1250,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
-          requestBlocklist: [exampleRequestBlockedHash],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1261,7 +1259,7 @@ describe('PhishingController', () => {
         },
         {
           blocklist: [],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           allowlist: [],
           fuzzylist: [],
           tolerance: 0,
@@ -1285,7 +1283,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1301,7 +1299,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1319,7 +1317,7 @@ describe('PhishingController', () => {
         .reply(500);
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(500);
 
       const controller = getPhishingController({
@@ -1328,7 +1326,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1344,7 +1342,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1362,7 +1360,7 @@ describe('PhishingController', () => {
         .replyWithError('network error');
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .replyWithError('network error');
 
       const controller = getPhishingController();
@@ -1472,7 +1470,7 @@ describe('PhishingController', () => {
         });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${REQUEST_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
           recentlyRemoved: [],
@@ -1485,7 +1483,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1501,7 +1499,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
-          requestBlocklist: [exampleRequestBlockedHash],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1516,7 +1514,7 @@ describe('PhishingController', () => {
         .reply(404);
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(404);
 
       const controller = getPhishingController({
@@ -1525,7 +1523,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1565,7 +1563,7 @@ describe('PhishingController', () => {
 
       // Mock the request blocklist response with additions and removals
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${REQUEST_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
           recentlyRemoved: [exampleRequestBlockedHashTwo],
@@ -1579,7 +1577,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [exampleRequestBlockedHashTwo],
+              c2DomainBlocklist: [exampleRequestBlockedHashTwo],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1598,7 +1596,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
-          requestBlocklist: [exampleRequestBlockedHash],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1614,7 +1612,7 @@ describe('PhishingController', () => {
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${REQUEST_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
@@ -1627,7 +1625,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1643,11 +1641,108 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
           name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle errors during hotlist fetching gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .replyWithError('network error');
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHash],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 1,
+            },
+          ],
+        },
+      });
+
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+    it('should handle missing hotlist data and non-empty domain blocklist gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(500);
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
           lastUpdated: 0,
         },
       ]);
@@ -1669,7 +1764,7 @@ describe('PhishingController', () => {
         });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${REQUEST_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .replyWithError('network error');
 
       const controller = getPhishingController({
@@ -1678,7 +1773,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1694,7 +1789,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1719,7 +1814,7 @@ describe('PhishingController', () => {
         });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(`${REQUEST_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
         .reply(200, {
           lastFetchedAt: 1,
         });
@@ -1730,7 +1825,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
-              requestBlocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1746,7 +1841,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
-          requestBlocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1762,7 +1857,7 @@ describe('PhishingController', () => {
       nock.cleanAll();
     });
 
-    it('should return false if requestBlocklist is not defined or empty', async () => {
+    it('should return false if c2DomainBlocklist is not defined or empty', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -1784,7 +1879,7 @@ describe('PhishingController', () => {
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
@@ -1796,11 +1891,11 @@ describe('PhishingController', () => {
       const result = controller.isBlockedRequest('https://example.com');
       expect(result).toMatchObject({
         result: false,
-        type: 'requestBlocklist',
+        type: 'c2DomainBlocklist',
       });
     });
 
-    it('should return true if URL is in the requestBlocklist', async () => {
+    it('should return true if URL is in the c2DomainBlocklist', async () => {
       const exampleRequestBlockedHash =
         '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       nock(PHISHING_CONFIG_BASE_URL)
@@ -1824,7 +1919,7 @@ describe('PhishingController', () => {
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [exampleRequestBlockedHash],
           recentlyRemoved: [],
@@ -1839,11 +1934,11 @@ describe('PhishingController', () => {
       expect(result).toMatchObject({
         name: ListNames.MetaMask,
         result: true,
-        type: 'requestBlocklist',
+        type: 'c2DomainBlocklist',
       });
     });
 
-    it('should return false if URL is not in the requestBlocklist', async () => {
+    it('should return false if URL is not in the c2DomainBlocklist', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
@@ -1865,7 +1960,7 @@ describe('PhishingController', () => {
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
@@ -1877,7 +1972,7 @@ describe('PhishingController', () => {
       const result = controller.isBlockedRequest('https://example.com');
       expect(result).toMatchObject({
         result: false,
-        type: 'requestBlocklist',
+        type: 'c2DomainBlocklist',
       });
     });
 
@@ -1903,7 +1998,7 @@ describe('PhishingController', () => {
         .reply(200, { data: [] });
 
       nock(CLIENT_SIDE_DETECION_BASE_URL)
-        .get(REQUEST_BLOCKLIST_ENDPOINT)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .reply(200, {
           recentlyAdded: [],
           recentlyRemoved: [],
@@ -1915,7 +2010,7 @@ describe('PhishingController', () => {
       const result = controller.isBlockedRequest('#$@(%&@#$(%');
       expect(result).toMatchObject({
         result: false,
-        type: 'requestBlocklist',
+        type: 'c2DomainBlocklist',
       });
     });
   });

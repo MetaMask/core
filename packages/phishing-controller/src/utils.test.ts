@@ -9,17 +9,17 @@ import {
   processConfigs,
   processDomainList,
   sha256Hash,
-  updateRequestBlocklist,
+  updateC2DomainBlocklist,
   validateConfig,
 } from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
 const exampleBlockedUrlTwo = 'https://final-example-blocked-website.com';
-const exampleRequestBlocklistHashOne =
+const examplec2DomainBlocklistHashOne =
   '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 const exampleBlocklist = [exampleBlockedUrl, exampleBlockedUrlOne];
-const emaampleRequestBlocklist = [exampleRequestBlocklistHashOne];
+const examplec2DomainBlocklist = [examplec2DomainBlocklistHashOne];
 
 const exampleAllowUrl = 'https://example-allowlist-item.com';
 const exampleFuzzyUrl = 'https://example-fuzzylist-item.com';
@@ -27,7 +27,7 @@ const exampleAllowlist = [exampleAllowUrl];
 const exampleFuzzylist = [exampleFuzzyUrl];
 const exampleListState = {
   blocklist: exampleBlocklist,
-  requestBlocklist: emaampleRequestBlocklist,
+  c2DomainBlocklist: examplec2DomainBlocklist,
   fuzzylist: exampleFuzzylist,
   tolerance: 2,
   allowlist: exampleAllowlist,
@@ -291,14 +291,14 @@ describe('sha256Hash', () => {
   });
 });
 
-describe('updateRequestBlocklist', () => {
+describe('updateC2DomainBlocklist', () => {
   it('should add hashes to the current list', () => {
     const currentList = ['hash1', 'hash2'];
     const recentlyAdded = ['hash3', 'hash4'];
     const recentlyRemoved: string[] = [];
     const expectedList = ['hash1', 'hash2', 'hash3', 'hash4'];
 
-    const result = updateRequestBlocklist(
+    const result = updateC2DomainBlocklist(
       currentList,
       recentlyAdded,
       recentlyRemoved,
@@ -312,7 +312,7 @@ describe('updateRequestBlocklist', () => {
     const recentlyRemoved = ['hash2'];
     const expectedList = ['hash1', 'hash3'];
 
-    const result = updateRequestBlocklist(
+    const result = updateC2DomainBlocklist(
       currentList,
       recentlyAdded,
       recentlyRemoved,
@@ -326,7 +326,7 @@ describe('updateRequestBlocklist', () => {
     const recentlyRemoved = ['hash2'];
     const expectedList = ['hash1', 'hash3'];
 
-    const result = updateRequestBlocklist(
+    const result = updateC2DomainBlocklist(
       currentList,
       recentlyAdded,
       recentlyRemoved,
@@ -340,7 +340,7 @@ describe('updateRequestBlocklist', () => {
     const recentlyRemoved: string[] = [];
     const expectedList = ['hash1', 'hash2', 'hash3'];
 
-    const result = updateRequestBlocklist(
+    const result = updateC2DomainBlocklist(
       currentList,
       recentlyAdded,
       recentlyRemoved,
@@ -354,7 +354,7 @@ describe('updateRequestBlocklist', () => {
     const recentlyRemoved: string[] = [];
     const expectedList = ['hash1', 'hash2'];
 
-    const result = updateRequestBlocklist(
+    const result = updateC2DomainBlocklist(
       currentList,
       recentlyAdded,
       recentlyRemoved,
@@ -368,7 +368,7 @@ describe('updateRequestBlocklist', () => {
     const recentlyRemoved = ['hash3'];
     const expectedList = ['hash1', 'hash2'];
 
-    const result = updateRequestBlocklist(
+    const result = updateC2DomainBlocklist(
       currentList,
       recentlyAdded,
       recentlyRemoved,
