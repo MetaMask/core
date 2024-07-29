@@ -260,7 +260,7 @@ export default class NotificationServicesController extends BaseController<
   #isUnlocked = false;
 
   #keyringController = {
-    setupLockedState: (onUnlock: () => Promise<void>) => {
+    setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
       const { isUnlocked } = this.messagingSystem.call(
         'KeyringController:getState',
       );
@@ -510,7 +510,7 @@ export default class NotificationServicesController extends BaseController<
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
 
-    this.#keyringController.setupLockedState(
+    this.#keyringController.setupLockedStateSubscriptions(
       this.#pushNotifications.initializePushNotifications,
     );
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
