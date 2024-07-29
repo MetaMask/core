@@ -106,6 +106,11 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
+export type AccountsControllerSetAccountMetadata = {
+  type: `${typeof controllerName}:setAccountMetadata`;
+  handler: AccountsController['setAccountMetadata'];
+};
+
 export type AllowedActions =
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
@@ -122,7 +127,8 @@ export type AccountsControllerActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedMultichainAccountAction;
+  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerSetAccountMetadata;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -422,6 +428,29 @@ export class AccountsController extends BaseController<
       const internalAccount = {
         ...account,
         metadata: { ...account.metadata, name: accountName },
+      };
+      // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
+      // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
+      currentState.internalAccounts.accounts[accountId] = internalAccount;
+    });
+  }
+
+  /**
+   * Updates the metadata of the account with the given ID.
+   *
+   * @param accountId - The ID of the account to set the name for.
+   * @param metadata - The new metadata for the account.
+   */
+  setAccountMetadata(
+    accountId: string,
+    metadata: Partial<InternalAccount['metadata']>,
+  ): void {
+    const account = this.getAccountExpect(accountId);
+
+    this.update((currentState: Draft<AccountsControllerState>) => {
+      const internalAccount = {
+        ...account,
+        metadata: { ...account.metadata, ...metadata },
       };
       // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
       // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
@@ -1092,6 +1121,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `AccountsController:setAccountMetadata`,
+      this.setAccountMetadata.bind(this),
     );
   }
 }
