@@ -325,7 +325,9 @@ export class ComposableController<
         });
       });
     } else {
-      throw new Error(INVALID_CONTROLLER_ERROR);
+      // False negative. `name` is a string type.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
     }
   }
 }
