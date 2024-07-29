@@ -47,11 +47,16 @@ type BaseControllerV1Instance = PublicInterface<
  *
  * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
  */
-type BaseControllerInstance = {
-  name: string;
-  state: StateConstraint;
-  metadata: Record<string, unknown>;
-};
+type BaseControllerInstance = Omit<
+  PublicInterface<
+    BaseController<
+      string,
+      StateConstraint,
+      RestrictedControllerMessengerConstraint
+    >
+  >,
+  'metadata'
+> & { metadata: Record<string, unknown> };
 
 /**
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
