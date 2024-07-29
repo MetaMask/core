@@ -7,6 +7,7 @@ import { createSHA256Hash } from './encryption';
 
 export const USER_STORAGE_SCHEMA = {
   notifications: ['notificationSettings'],
+  accounts: ['list'],
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;

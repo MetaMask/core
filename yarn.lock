@@ -3544,8 +3544,10 @@ __metadata:
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
+    "@metamask/accounts-controller": "npm:^17.2.0"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.2"
+    "@metamask/keyring-api": "npm:^8.0.1"
     "@metamask/snaps-controllers": "npm:^9.3.1"
     "@metamask/snaps-sdk": "npm:^6.1.1"
     "@metamask/snaps-utils": "npm:^7.8.1"
