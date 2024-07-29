@@ -12,6 +12,7 @@ import {
 import type {
   Actions,
   AllowedActions,
+  AllowedEvents,
   AuthenticationControllerState,
 } from './AuthenticationController';
 import AuthenticationController from './AuthenticationController';
@@ -32,7 +33,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
   it('should initialize with default state', () => {
     const metametrics = createMockAuthMetaMetrics();
     const controller = new AuthenticationController({
-      messenger: createAuthenticationMessenger(),
+      messenger: createMockAuthenticationMessenger().messenger,
       metametrics,
     });
 
@@ -43,7 +44,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
   it('should initialize with override state', () => {
     const metametrics = createMockAuthMetaMetrics();
     const controller = new AuthenticationController({
-      messenger: createAuthenticationMessenger(),
+      messenger: createMockAuthenticationMessenger().messenger,
       state: mockSignedInState(),
       metametrics,
     });
@@ -272,11 +273,17 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const messenger = new ControllerMessenger<Actions | AllowedActions, never>();
+  const messenger = new ControllerMessenger<
+    Actions | AllowedActions,
+    AllowedEvents
+  >();
   return messenger.getRestricted({
     name: 'AuthenticationController',
-    allowedActions: [`SnapController:handleRequest`],
-    allowedEvents: [],
+    allowedActions: [
+      'KeyringController:getState',
+      'SnapController:handleRequest',
+    ],
+    allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
   });
 }
 
@@ -309,6 +316,10 @@ function createMockAuthenticationMessenger() {
           params?.request.method as string
         }`,
       );
+    }
+
+    if (actionType === 'KeyringController:getState') {
+      return { isUnlocked: true };
     }
 
     throw new Error(
