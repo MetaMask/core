@@ -6,7 +6,7 @@ import { handleFetch } from '@metamask/controller-utils';
  */
 const nativeSymbolOverrides = new Map([
   ['MNT', 'MANTLE'],
-  ['OMNI', 'OMNINET']
+  ['OMNI', 'OMNINET'],
 ]);
 
 const CRYPTO_COMPARE_DOMAIN = 'https://min-api.cryptocompare.com';
