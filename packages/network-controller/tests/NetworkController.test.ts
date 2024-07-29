@@ -3766,6 +3766,29 @@ describe('NetworkController', () => {
           },
         );
       });
+
+      it('throws an error if the given ID corresponds to the selected network', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network',
+                  ticker: 'TICKER',
+                  chainId: toHex(111),
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+              },
+              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            },
+          },
+          async ({ controller }) => {
+            expect(() =>
+              controller.removeNetworkConfiguration('AAAA-AAAA-AAAA-AAAA'),
+            ).toThrow('The selected network configuration cannot be removed');
+          },
+        );
+      });
     });
 
     describe('given an ID that does not identify a network configuration in state', () => {
