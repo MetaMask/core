@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { ControllerMessenger } from '@metamask/base-controller';
 import { strict as assert } from 'assert';
 import nock from 'nock';
@@ -1862,11 +1861,13 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             eth_phishing_detect_config: {
               allowlist: [],
               blocklist: [],
               fuzzylist: [],
             },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             phishfort_hotlist: {
               blocklist: [],
             },
@@ -1902,11 +1903,13 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             eth_phishing_detect_config: {
               allowlist: [],
               blocklist: [],
               fuzzylist: [],
             },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             phishfort_hotlist: {
               blocklist: [],
             },
@@ -1943,11 +1946,13 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             eth_phishing_detect_config: {
               allowlist: [],
               blocklist: [],
               fuzzylist: [],
             },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             phishfort_hotlist: {
               blocklist: [],
             },
@@ -1981,11 +1986,13 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             eth_phishing_detect_config: {
               allowlist: [],
               blocklist: [],
               fuzzylist: [],
             },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             phishfort_hotlist: {
               blocklist: [],
             },
