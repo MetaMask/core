@@ -18,6 +18,7 @@ import {
 } from './__fixtures__/mockStorage';
 import type {
   AllowedActions,
+  AllowedEvents,
   NotificationServicesControllerDisableNotificationServices,
   NotificationServicesControllerSelectIsNotificationServicesEnabled,
 } from './UserStorageController';
@@ -59,7 +60,9 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       getMetaMetricsState: () => true,
     });
 
-    const result = await controller.performGetStorage('notificationSettings');
+    const result = await controller.performGetStorage(
+      'notifications.notificationSettings',
+    );
     mockAPI.done();
     expect(result).toBe(MOCK_STORAGE_DATA);
   });
@@ -76,7 +79,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     await expect(
-      controller.performGetStorage('notificationSettings'),
+      controller.performGetStorage('notifications.notificationSettings'),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -111,7 +114,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       });
 
       await expect(
-        controller.performGetStorage('notificationSettings'),
+        controller.performGetStorage('notifications.notificationSettings'),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -132,7 +135,10 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       getMetaMetricsState: () => true,
     });
 
-    await controller.performSetStorage('notificationSettings', 'new data');
+    await controller.performSetStorage(
+      'notifications.notificationSettings',
+      'new data',
+    );
     expect(mockAPI.isDone()).toBe(true);
   });
 
@@ -148,7 +154,10 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
 
     await expect(
-      controller.performSetStorage('notificationSettings', 'new data'),
+      controller.performSetStorage(
+        'notifications.notificationSettings',
+        'new data',
+      ),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -183,7 +192,10 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       });
 
       await expect(
-        controller.performSetStorage('notificationSettings', 'new data'),
+        controller.performSetStorage(
+          'notifications.notificationSettings',
+          'new data',
+        ),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -197,7 +209,10 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       getMetaMetricsState: () => true,
     });
     await expect(
-      controller.performSetStorage('notificationSettings', 'new data'),
+      controller.performSetStorage(
+        'notifications.notificationSettings',
+        'new data',
+      ),
     ).rejects.toThrow(expect.any(Error));
   });
 });
@@ -291,10 +306,11 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
 function mockUserStorageMessenger() {
   const messenger = new ControllerMessenger<
     AllowedActions,
-    never
+    AllowedEvents
   >().getRestricted({
     name: 'UserStorageController',
     allowedActions: [
+      'KeyringController:getState',
       'SnapController:handleRequest',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:getSessionProfile',
@@ -304,7 +320,7 @@ function mockUserStorageMessenger() {
       'NotificationServicesController:disableNotificationServices',
       'NotificationServicesController:selectIsNotificationServicesEnabled',
     ],
-    allowedEvents: [],
+    allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
   });
 
   const mockSnapGetPublicKey = jest.fn().mockResolvedValue('MOCK_PUBLIC_KEY');
@@ -399,6 +415,10 @@ function mockUserStorageMessenger() {
 
     if (actionType === 'AuthenticationController:performSignOut') {
       return mockAuthPerformSignOut();
+    }
+
+    if (actionType === 'KeyringController:getState') {
+      return { isUnlocked: true };
     }
 
     const exhaustedMessengerMocks = (action: never) => {

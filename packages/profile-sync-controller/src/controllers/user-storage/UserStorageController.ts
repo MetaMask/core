@@ -3,6 +3,11 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -14,7 +19,7 @@ import type {
   AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
 import { createSHA256Hash } from './encryption';
-import type { UserStorageEntryKeys } from './schema';
+import type { UserStoragePath } from './schema';
 import { getUserStorage, upsertUserStorage } from './services';
 
 // TODO: fix external dependencies
@@ -37,14 +42,14 @@ export type UserStorageControllerState = {
   /**
    * Condition used by UI and to determine if we can use some of the User Storage methods.
    */
-  isProfileSyncingEnabled: boolean;
+  isProfileSyncingEnabled: boolean | null;
   /**
    * Loading state for the profile syncing update
    */
   isProfileSyncingUpdateLoading: boolean;
 };
 
-const defaultState: UserStorageControllerState = {
+export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
 };
@@ -87,6 +92,8 @@ export type UserStorageControllerDisableProfileSyncing =
 
 // Allowed Actions
 export type AllowedActions =
+  // Keyring Requests
+  | KeyringControllerGetStateAction
   // Snap Requests
   | HandleSnapRequest
   // Auth Requests
@@ -99,13 +106,17 @@ export type AllowedActions =
   | NotificationServicesControllerDisableNotificationServices
   | NotificationServicesControllerSelectIsNotificationServicesEnabled;
 
+export type AllowedEvents =
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent;
+
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   Actions | AllowedActions,
-  never,
+  AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 /**
@@ -161,6 +172,25 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #isUnlocked = false;
+
+  #keyringController = {
+    setupLockedStateSubscriptions: () => {
+      const { isUnlocked } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      this.#isUnlocked = isUnlocked;
+
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
+
+      this.messagingSystem.subscribe('KeyringController:lock', () => {
+        this.#isUnlocked = false;
+      });
+    },
+  };
+
   getMetaMetricsState: () => boolean;
 
   constructor(params: {
@@ -176,6 +206,7 @@ export default class UserStorageController extends BaseController<
     });
 
     this.getMetaMetricsState = params.getMetaMetricsState;
+    this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
   }
 
@@ -260,7 +291,7 @@ export default class UserStorageController extends BaseController<
       const isMetaMetricsParticipation = this.getMetaMetricsState();
 
       if (!isMetaMetricsParticipation) {
-        this.messagingSystem.call('AuthenticationController:performSignOut');
+        await this.#auth.signOut();
       }
 
       this.#setIsProfileSyncingUpdateLoading(false);
@@ -281,17 +312,19 @@ export default class UserStorageController extends BaseController<
    * Allows retrieval of stored data. Data stored is string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
-   * @param entryKey - entry key that matches schema
+   * @param path - string in the form of `${feature}.${key}` that matches schema
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
-    entryKey: UserStorageEntryKeys,
+    path: UserStoragePath,
   ): Promise<string | null> {
     this.#assertProfileSyncingEnabled();
+
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
+
     const result = await getUserStorage({
-      entryKey,
+      path,
       bearerToken,
       storageKey,
     });
@@ -303,20 +336,21 @@ export default class UserStorageController extends BaseController<
    * Allows storage of user data. Data stored must be string formatted.
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
-   * @param entryKey - entry key that matches schema
+   * @param path - string in the form of `${feature}.${key}` that matches schema
    * @param value - The string data you want to store.
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performSetStorage(
-    entryKey: UserStorageEntryKeys,
+    path: UserStoragePath,
     value: string,
   ): Promise<void> {
     this.#assertProfileSyncingEnabled();
+
     const { bearerToken, storageKey } =
       await this.#getStorageKeyAndBearerToken();
 
     await upsertUserStorage(value, {
-      entryKey,
+      path,
       bearerToken,
       storageKey,
     });
@@ -373,17 +407,33 @@ export default class UserStorageController extends BaseController<
     return storageKey;
   }
 
+  #_snapSignMessageCache: Record<`metamask:${string}`, string> = {};
+
   /**
    * Signs a specific message using an underlying auth snap.
    *
    * @param message - A specific tagged message to sign.
    * @returns A Signature created by the snap.
    */
-  #snapSignMessage(message: `metamask:${string}`): Promise<string> {
-    return this.messagingSystem.call(
+  async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
+    if (this.#_snapSignMessageCache[message]) {
+      return this.#_snapSignMessageCache[message];
+    }
+
+    if (!this.#isUnlocked) {
+      throw new Error(
+        '#snapSignMessage - unable to call snap, wallet is locked',
+      );
+    }
+
+    const result = (await this.messagingSystem.call(
       'SnapController:handleRequest',
       createSnapSignMessageRequest(message),
-    ) as Promise<string>;
+    )) as string;
+
+    this.#_snapSignMessageCache[message] = result;
+
+    return result;
   }
 
   #setIsProfileSyncingUpdateLoading(

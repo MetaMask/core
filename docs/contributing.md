@@ -4,7 +4,8 @@
 
 - Install the current LTS version of [Node.js](https://nodejs.org)
   - If you are using [nvm](https://github.com/creationix/nvm#installation) (recommended) running `nvm install` will install the latest version and running `nvm use` will automatically choose the right node version for you.
-- Install [Yarn v3](https://yarnpkg.com/getting-started/install).
+- Install [Yarn](https://yarnpkg.com) via [Corepack](https://github.com/nodejs/corepack?tab=readme-ov-file#how-to-install)
+  - If you have Yarn installed globally via Homebrew or NPM, you'll need to uninstall it before enabling it via Corepack.
 - Run `yarn install` to install dependencies and run any required post-install scripts.
 - Run `yarn simple-git-hooks` to add a [Git hook](https://github.com/toplenboren/simple-git-hooks#what-is-a-git-hook) to your local development environment which will ensure that all files pass linting before you push a branch.
 
@@ -152,8 +153,8 @@ To use a preview build for a package within a project, you need to override the 
 > If you're migrating an existing package to the monorepo, please see [the package migration documentation](./package-migration-process-guide.md).
 > You may be able to make use of `create-package` when migrating your package, but there's a lot more to it.
 
-Manually a new monorepo package can be a tedious, even frustrating process. To spare us from that
-suffering, we have created a CLI that automates most of the job for us, creatively titled
+Manually creating a new monorepo package can be a tedious, even frustrating process. To alleviate that
+problem, we have created a CLI that automates most of the job for us, creatively titled
 [`create-package`](../scripts/create-package/). To create a new monorepo package, follow these steps:
 
 1. Create a new package using `yarn create-package`.

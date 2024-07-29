@@ -22,6 +22,7 @@ import {
   isPlainObject,
 } from '@metamask/utils';
 import { strict as assert } from 'assert';
+import type { Logger } from 'loglevel';
 import { v4 as random } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -40,7 +41,7 @@ import type {
   NetworkClientConfiguration,
 } from './types';
 
-const log = createModuleLogger(projectLogger, 'NetworkController');
+const debugLog = createModuleLogger(projectLogger, 'NetworkController');
 
 export type Block = {
   baseFeePerGas?: string;
@@ -357,6 +358,7 @@ export type NetworkControllerOptions = {
   trackMetaMetricsEvent: () => void;
   infuraProjectId: string;
   state?: Partial<NetworkState>;
+  log?: Logger;
 };
 
 export const defaultState: NetworkState = {
@@ -431,11 +433,14 @@ export class NetworkController extends BaseController<
     | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
     | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
 
+  #log: Logger | undefined;
+
   constructor({
     messenger,
     state,
     infuraProjectId,
     trackMetaMetricsEvent,
+    log,
   }: NetworkControllerOptions) {
     super({
       name,
@@ -522,6 +527,8 @@ export class NetworkController extends BaseController<
 
     this.#previouslySelectedNetworkClientId =
       this.state.selectedNetworkClientId;
+
+    this.#log = log;
   }
 
   /**
@@ -699,6 +706,10 @@ export class NetworkController extends BaseController<
       );
       updatedNetworkStatus = NetworkStatus.Available;
     } catch (error) {
+      debugLog('NetworkController: lookupNetworkByClientId: ', error);
+
+      // TODO: mock ethQuery.sendAsync to throw error without error code
+      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -710,6 +721,10 @@ export class NetworkController extends BaseController<
             responseBody = JSON.parse(error.message);
           } catch {
             // error.message must not be JSON
+            this.#log?.warn(
+              'NetworkController: lookupNetworkByClientId: json parse error: ',
+              error,
+            );
           }
         }
 
@@ -720,8 +735,16 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
+          this.#log?.warn(
+            'NetworkController: lookupNetworkByClientId: rpc internal error: ',
+            error,
+          );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
+          this.#log?.warn(
+            'NetworkController: lookupNetworkByClientId: ',
+            error,
+          );
         }
       } else if (
         typeof Error !== 'undefined' &&
@@ -733,8 +756,12 @@ export class NetworkController extends BaseController<
       ) {
         throw error;
       } else {
-        log('NetworkController - could not determine network status', error);
+        debugLog(
+          'NetworkController - could not determine network status',
+          error,
+        );
         updatedNetworkStatus = NetworkStatus.Unknown;
+        this.#log?.warn('NetworkController: lookupNetworkByClientId: ', error);
       }
     }
     this.update((state) => {
@@ -806,6 +833,8 @@ export class NetworkController extends BaseController<
       updatedNetworkStatus = NetworkStatus.Available;
       updatedIsEIP1559Compatible = isEIP1559Compatible;
     } catch (error) {
+      // TODO: mock ethQuery.sendAsync to throw error without error code
+      /* istanbul ignore else */
       if (isErrorWithCode(error)) {
         let responseBody;
         if (
@@ -815,8 +844,12 @@ export class NetworkController extends BaseController<
         ) {
           try {
             responseBody = JSON.parse(error.message);
-          } catch {
+          } catch (parseError) {
             // error.message must not be JSON
+            this.#log?.warn(
+              'NetworkController: lookupNetwork: json parse error',
+              parseError,
+            );
           }
         }
 
@@ -827,12 +860,21 @@ export class NetworkController extends BaseController<
           updatedNetworkStatus = NetworkStatus.Blocked;
         } else if (error.code === errorCodes.rpc.internal) {
           updatedNetworkStatus = NetworkStatus.Unknown;
+          this.#log?.warn(
+            'NetworkController: lookupNetwork: rpc internal error',
+            error,
+          );
         } else {
           updatedNetworkStatus = NetworkStatus.Unavailable;
+          this.#log?.warn('NetworkController: lookupNetwork: ', error);
         }
       } else {
-        log('NetworkController - could not determine network status', error);
+        debugLog(
+          'NetworkController - could not determine network status',
+          error,
+        );
         updatedNetworkStatus = NetworkStatus.Unknown;
+        this.#log?.warn('NetworkController: lookupNetwork: ', error);
       }
     }
 
@@ -1204,6 +1246,10 @@ export class NetworkController extends BaseController<
       throw new Error(
         `networkConfigurationId ${networkConfigurationId} does not match a configured networkConfiguration`,
       );
+    }
+
+    if (networkConfigurationId === this.state.selectedNetworkClientId) {
+      throw new Error(`The selected network configuration cannot be removed`);
     }
 
     const autoManagedNetworkClientRegistry =

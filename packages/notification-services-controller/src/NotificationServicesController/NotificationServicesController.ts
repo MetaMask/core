@@ -9,6 +9,9 @@ import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type {
   AuthenticationController,
@@ -192,6 +195,7 @@ export type Actions =
 export type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetAccountsAction
+  | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
   | AuthenticationController.AuthenticationControllerIsSignedIn
@@ -214,7 +218,11 @@ export type NotificationServicesControllerMessengerEvents =
 
 // Allowed Events
 export type AllowedEvents =
+  // Keyring Events
   | KeyringControllerStateChangeEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
+  // Push Notification Events
   | NotificationServicesPushControllerOnNewNotification;
 
 // Type for the messenger of NotificationServicesController
@@ -241,6 +249,37 @@ export default class NotificationServicesController extends BaseController<
   NotificationServicesControllerState,
   NotificationServicesControllerMessenger
 > {
+  // Temporary boolean as push notifications are not yet enabled on mobile
+  #isPushIntegrated = true;
+
+  // Flag to check is notifications have been setup when the browser/extension is initialized.
+  // We want to re-initialize push notifications when the browser/extension is refreshed
+  // To ensure we subscribe to the most up-to-date notifications
+  #isPushNotificationsSetup = false;
+
+  #isUnlocked = false;
+
+  #keyringController = {
+    setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
+      const { isUnlocked } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      this.#isUnlocked = isUnlocked;
+
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+        // messaging system cannot await promises
+        // we don't need to wait for a result on this.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        onUnlock();
+      });
+
+      this.messagingSystem.subscribe('KeyringController:lock', () => {
+        this.#isUnlocked = false;
+      });
+    },
+  };
+
   #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -264,13 +303,13 @@ export default class NotificationServicesController extends BaseController<
     getNotificationStorage: async () => {
       return await this.messagingSystem.call(
         'UserStorageController:performGetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
       );
     },
     setNotificationStorage: async (state: string) => {
       return await this.messagingSystem.call(
         'UserStorageController:performSetStorage',
-        'notificationSettings',
+        'notifications.notificationSettings',
         state,
       );
     },
@@ -278,24 +317,48 @@ export default class NotificationServicesController extends BaseController<
 
   #pushNotifications = {
     enablePushNotifications: async (UUIDs: string[]) => {
-      return await this.messagingSystem.call(
-        'NotificationServicesPushController:enablePushNotifications',
-        UUIDs,
-      );
+      if (!this.#isPushIntegrated) {
+        return;
+      }
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:enablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to enable push notifications', e);
+      }
     },
     disablePushNotifications: async (UUIDs: string[]) => {
-      return await this.messagingSystem.call(
-        'NotificationServicesPushController:disablePushNotifications',
-        UUIDs,
-      );
+      if (!this.#isPushIntegrated) {
+        return;
+      }
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:disablePushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to disable push notifications', e);
+      }
     },
     updatePushNotifications: async (UUIDs: string[]) => {
-      return await this.messagingSystem.call(
-        'NotificationServicesPushController:updateTriggerPushNotifications',
-        UUIDs,
-      );
+      if (!this.#isPushIntegrated) {
+        return;
+      }
+      try {
+        await this.messagingSystem.call(
+          'NotificationServicesPushController:updateTriggerPushNotifications',
+          UUIDs,
+        );
+      } catch (e) {
+        log.error('Silently failed to update push notifications', e);
+      }
     },
     subscribe: () => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       this.messagingSystem.subscribe(
         'NotificationServicesPushController:onNewNotifications',
         (notification) => {
@@ -305,7 +368,16 @@ export default class NotificationServicesController extends BaseController<
       );
     },
     initializePushNotifications: async () => {
+      if (!this.#isPushIntegrated) {
+        return;
+      }
       if (!this.state.isNotificationServicesEnabled) {
+        return;
+      }
+      if (this.#isPushNotificationsSetup) {
+        return;
+      }
+      if (!this.#isUnlocked) {
         return;
       }
 
@@ -316,6 +388,7 @@ export default class NotificationServicesController extends BaseController<
 
       const uuids = Utils.getAllUUIDs(storage);
       await this.#pushNotifications.enablePushNotifications(uuids);
+      this.#isPushNotificationsSetup = true;
     },
   };
 
@@ -411,6 +484,7 @@ export default class NotificationServicesController extends BaseController<
    * @param args.state - Initial state to set on this controller.
    * @param args.env - environment variables for a given controller.
    * @param args.env.featureAnnouncements - env variables for feature announcements.
+   * @param args.env.isPushIntegrated - toggle push notifications on/off if client has integrated them.
    */
   constructor({
     messenger,
@@ -421,6 +495,7 @@ export default class NotificationServicesController extends BaseController<
     state?: Partial<NotificationServicesControllerState>;
     env: {
       featureAnnouncements: FeatureAnnouncementEnv;
+      isPushIntegrated?: boolean;
     };
   }) {
     super({
@@ -430,9 +505,14 @@ export default class NotificationServicesController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
+    this.#isPushIntegrated = env.isPushIntegrated ?? true;
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+
+    this.#keyringController.setupLockedStateSubscriptions(
+      this.#pushNotifications.initializePushNotifications,
+    );
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#accounts.initialize();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises

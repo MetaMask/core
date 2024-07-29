@@ -8,7 +8,7 @@ import {
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { Env } from './env';
-import { NotFoundError, UserStorageError, ValidationError } from './errors';
+import { NotFoundError, UserStorageError } from './errors';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
 
@@ -17,7 +17,7 @@ const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
 
 describe('User Storage - STORAGE_URL()', () => {
   it('generates an example url path for User Storage', () => {
-    const result = STORAGE_URL(Env.DEV, 'my-feature', 'my-hashed-entry');
+    const result = STORAGE_URL(Env.DEV, 'my-feature/my-hashed-entry');
     expect(result).toBeDefined();
     expect(result).toContain('my-feature');
     expect(result).toContain('my-hashed-entry');
@@ -34,12 +34,14 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications', 'ui_settings', data);
+    await userStorage.setItem('notifications.notificationSettings', data);
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
-    const response = await userStorage.getItem('notifications', 'ui_settings');
+    const response = await userStorage.getItem(
+      'notifications.notificationSettings',
+    );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
   });
@@ -60,12 +62,14 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications', 'ui_settings', data);
+    await userStorage.setItem('notifications.notificationSettings', data);
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
-    const response = await userStorage.getItem('notifications', 'ui_settings');
+    const response = await userStorage.getItem(
+      'notifications.notificationSettings',
+    );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
   });
@@ -84,7 +88,7 @@ describe('User Storage', () => {
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     await expect(
-      userStorage.setItem('notifications', 'ui_settings', data),
+      userStorage.setItem('notifications.notificationSettings', data),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -101,7 +105,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications', 'ui_settings'),
+      userStorage.getItem('notifications.notificationSettings'),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -118,25 +122,8 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications', 'ui_settings'),
+      userStorage.getItem('notifications.notificationSettings'),
     ).rejects.toThrow(NotFoundError);
-  });
-
-  it('get/set fails when given empty feature or keys', async () => {
-    const { auth } = arrangeAuth('SRP', MOCK_SRP);
-    const { userStorage } = arrangeUserStorage(auth);
-
-    handleMockUserStoragePut();
-    handleMockUserStorageGet();
-
-    // Test Set Error
-    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await expect(userStorage.setItem('', '', data)).rejects.toThrow(
-      ValidationError,
-    );
-
-    // Test Get Error
-    await expect(userStorage.getItem('', '')).rejects.toThrow(ValidationError);
   });
 
   it('get/sets using a newly generated storage key (not in storage)', async () => {
@@ -149,7 +136,10 @@ describe('User Storage', () => {
 
     handleMockUserStoragePut();
 
-    await userStorage.setItem('notifications', 'ui_settings', 'some fake data');
+    await userStorage.setItem(
+      'notifications.notificationSettings',
+      'some fake data',
+    );
     expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key
   });
 });
