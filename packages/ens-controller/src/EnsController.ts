@@ -288,18 +288,20 @@ export class EnsController extends BaseController<
     selectedNetworkClientId: string,
     registriesByChainId?: Record<number, Hex>,
   ) {
-    const selectedNetworkClient = this.messagingSystem.call(
+    const {
+      configuration: { chainId: currentChainId },
+      provider,
+    } = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       selectedNetworkClientId,
     );
-    const currentChainId = selectedNetworkClient.configuration.chainId;
 
     if (
       registriesByChainId &&
       registriesByChainId[parseInt(currentChainId, 16)] &&
       this.#getChainEnsSupport(currentChainId)
     ) {
-      this.#ethProvider = new Web3Provider(selectedNetworkClient.provider, {
+      this.#ethProvider = new Web3Provider(provider, {
         chainId: convertHexToDecimal(currentChainId),
         name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[currentChainId as ChainId],
         ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
