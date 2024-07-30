@@ -5,7 +5,7 @@ import { toASCII } from 'punycode/';
 
 import { PhishingDetector } from './PhishingDetector';
 import type { PhishingDetectorResult } from './types';
-import { applyDiffs, fetchTimeNow, updateC2DomainBlocklist } from './utils';
+import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -603,26 +603,19 @@ export class PhishingController extends BaseController<
       return;
     }
     const hotlist = hotlistResponse?.data || [];
-    const recentlyAdded = c2DomainBlocklistResponse?.recentlyAdded || [];
-    const recentlyRemoved = c2DomainBlocklistResponse?.recentlyRemoved || [];
+    const recentlyAddedC2Domains =
+      c2DomainBlocklistResponse?.recentlyAdded || [];
+    const recentlyRemovedC2Domains =
+      c2DomainBlocklistResponse?.recentlyRemoved || [];
 
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
         hotlist,
         phishingListNameKeyMap[phishingList.name],
+        recentlyAddedC2Domains,
+        recentlyRemovedC2Domains,
       );
-
-      if (
-        phishingList.name === ListNames.MetaMask &&
-        c2DomainBlocklistResponse
-      ) {
-        updatedList.c2DomainBlocklist = updateC2DomainBlocklist(
-          updatedList.c2DomainBlocklist,
-          recentlyAdded,
-          recentlyRemoved,
-        );
-      }
 
       return updatedList;
     });

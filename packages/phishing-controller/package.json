@@ -43,6 +43,7 @@
   "dependencies": {
     "@metamask/base-controller": "^6.0.2",
     "@metamask/controller-utils": "^11.0.2",
+    "@noble/hashes": "^1.4.0",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
     "ethereum-cryptography": "^2.1.2",

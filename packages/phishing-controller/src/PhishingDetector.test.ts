@@ -1106,7 +1106,7 @@ describe('PhishingDetector', () => {
     });
   });
 
-  describe('PhishingDetector - isBlocked', () => {
+  describe('isMaliciousRequestDomain', () => {
     it('should return false if c2DomainBlocklist is not defined or empty', async () => {
       await withPhishingDetector(
         [

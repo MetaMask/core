@@ -1,12 +1,8 @@
+import { bytesToHex } from '@noble/hashes/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
-import { toHex } from 'ethereum-cryptography/utils';
 
-import type {
-  Hotlist,
-  ListKeys,
-  PhishingListState,
-} from './PhishingController';
-import { phishingListKeyNameMap } from './PhishingController';
+import type { Hotlist, PhishingListState } from './PhishingController';
+import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
@@ -43,12 +39,16 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  * @param listState - the stalelist or the existing liststate that diffs will be applied to.
  * @param hotlistDiffs - the diffs to apply to the listState if valid.
  * @param listKey - the key associated with the input/output phishing list state.
+ * @param recentlyAddedC2Domains - sdads
+ * @param recentlyRemovedC2Domains - sds
  * @returns the new list state
  */
 export const applyDiffs = (
   listState: PhishingListState,
   hotlistDiffs: Hotlist,
   listKey: ListKeys,
+  recentlyAddedC2Domains: string[] = [],
+  recentlyRemovedC2Domains: string[] = [],
 ): PhishingListState => {
   // filter to remove diffs that were added before the lastUpdate time.
   // filter to remove diffs that aren't applicable to the specified list (by listKey).
@@ -79,6 +79,15 @@ export const applyDiffs = (
       listSets[targetListType].delete(url);
     } else {
       listSets[targetListType].add(url);
+    }
+  }
+
+  if (listKey === ListKeys.EthPhishingDetectConfig) {
+    for (const hash of recentlyAddedC2Domains) {
+      listSets.c2DomainBlocklist.add(hash);
+    }
+    for (const hash of recentlyRemovedC2Domains) {
+      listSets.c2DomainBlocklist.delete(hash);
     }
   }
 
@@ -239,7 +248,7 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
  */
 export const sha256Hash = (hostname: string): string => {
   const hashBuffer = sha256(new TextEncoder().encode(hostname.toLowerCase()));
-  return toHex(hashBuffer);
+  return bytesToHex(hashBuffer);
 };
 
 /**
