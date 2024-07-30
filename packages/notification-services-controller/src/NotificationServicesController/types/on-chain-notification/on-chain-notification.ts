@@ -45,6 +45,8 @@ export type OnChainRawNotification = {
   >;
 }[NotificationDataKinds];
 
+export type UnprocessedOnChainRawNotification = Notification;
+
 export type OnChainRawNotificationsWithNetworkFields = Extract<
   OnChainRawNotification,
   { data: { network_fee: unknown } }
