@@ -53,6 +53,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/keyring-controller": "^17.1.2",
     "@metamask/snaps-controllers": "^9.3.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -66,6 +67,7 @@
     "typescript": "~5.0.4"
   },
   "peerDependencies": {
+    "@metamask/keyring-controller": "^17.0.0",
     "@metamask/snaps-controllers": "^9.3.0"
   },
   "engines": {
