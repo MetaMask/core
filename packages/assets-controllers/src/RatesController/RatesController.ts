@@ -8,6 +8,7 @@ import type {
   RatesControllerOptions,
   RatesControllerMessenger,
 } from './types';
+import { Draft } from 'immer';
 
 export const name = 'RatesController';
 
@@ -134,9 +135,9 @@ export class RatesController extends BaseController<
         };
       }
 
-      this.update(() => {
+      this.update((state: Draft<RatesControllerState>): RatesControllerState => {
         return {
-          ...this.state,
+          ...state,
           rates: updatedRates,
         };
       });
@@ -188,9 +189,9 @@ export class RatesController extends BaseController<
     cryptocurrencies: Cryptocurrency[],
   ): Promise<void> {
     await this.#withLock(() => {
-      this.update(() => {
+      this.update((state: Draft<RatesControllerState>): RatesControllerState => {
         return {
-          ...this.state,
+          ...state,
           cryptocurrencies,
         };
       });
@@ -207,9 +208,9 @@ export class RatesController extends BaseController<
     }
 
     await this.#withLock(() => {
-      this.update(() => {
+      this.update((state: Draft<RatesControllerState>): RatesControllerState => {
         return {
-          ...defaultState,
+          ...state,
           fiatCurrency,
         };
       });
