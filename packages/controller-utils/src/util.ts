@@ -209,13 +209,14 @@ export function fromHex(value: string | BN): BN {
  * @param value - An integer, an integer encoded as a base-10 string, or a BN.
  * @returns The integer encoded as a hex string.
  */
-export function toHex(value: number | string | BN): Hex {
+export function toHex(value: number | bigint | string | BN): Hex {
   if (typeof value === 'string' && isStrictHexString(value)) {
     return value;
   }
-  const hexString = BN.isBN(value)
-    ? value.toString(16)
-    : new BN(value.toString(), 10).toString(16);
+  const hexString =
+    BN.isBN(value) || typeof value === 'bigint'
+      ? value.toString(16)
+      : new BN(value.toString(), 10).toString(16);
   return `0x${hexString}`;
 }
 

@@ -74,6 +74,10 @@ describe('util', () => {
       expect(util.toHex(new BN(4919))).toBe('0x1337');
     });
 
+    it('converts a bigint to a string prepended with "0x"', () => {
+      expect(util.toHex(4919n)).toBe('0x1337');
+    });
+
     it('parses a string as a number in decimal format and converts it to a hex string prepended with "0x"', () => {
       expect(util.toHex('4919')).toBe('0x1337');
     });

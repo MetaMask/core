@@ -290,7 +290,7 @@ describe('SelectedNetworkController', () => {
     });
   });
 
-  describe('networkController:stateChange', () => {
+  describe('NetworkController:stateChange', () => {
     describe('when a networkClient is deleted from the network controller state', () => {
       it('does not update state when useRequestQueuePreference is false', () => {
         const { controller, messenger } = setup({
@@ -303,7 +303,7 @@ describe('SelectedNetworkController', () => {
           'NetworkController:stateChange',
           {
             selectedNetworkClientId: 'goerli',
-            networkConfigurations: {},
+            networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
           [
@@ -332,7 +332,7 @@ describe('SelectedNetworkController', () => {
           'NetworkController:stateChange',
           {
             selectedNetworkClientId: 'goerli',
-            networkConfigurations: {},
+            networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
           [

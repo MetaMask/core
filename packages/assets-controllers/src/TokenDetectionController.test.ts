@@ -4,11 +4,11 @@ import {
   ChainId,
   NetworkType,
   convertHexToDecimal,
-  BUILT_IN_NETWORKS,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type {
   NetworkState,
   NetworkConfiguration,
@@ -28,6 +28,10 @@ import * as sinon from 'sinon';
 
 import { advanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
+import {
+  buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+} from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
 import { TOKEN_END_POINT_API } from './token-service';
 import type {
@@ -110,22 +114,24 @@ const sampleTokenB = {
 };
 
 const mockNetworkConfigurations: Record<string, NetworkConfiguration> = {
-  [NetworkType.mainnet]: {
-    ...BUILT_IN_NETWORKS[NetworkType.mainnet],
-    rpcUrl: 'https://mainnet.infura.io/v3/fakekey',
-  },
-  [NetworkType.goerli]: {
-    ...BUILT_IN_NETWORKS[NetworkType.goerli],
-    rpcUrl: 'https://goerli.infura.io/v3/fakekey',
-  },
+  [InfuraNetworkType.mainnet]: buildInfuraNetworkConfiguration(
+    InfuraNetworkType.mainnet,
+  ),
+  [InfuraNetworkType.goerli]: buildInfuraNetworkConfiguration(
+    InfuraNetworkType.goerli,
+  ),
   polygon: {
+    blockExplorerUrls: ['https://polygonscan.com/'],
     chainId: '0x89',
-    nickname: 'Polygon Mainnet',
-    rpcUrl: `https://polygon-mainnet.infura.io/v3/fakekey`,
-    ticker: 'MATIC',
-    rpcPrefs: {
-      blockExplorerUrl: 'https://polygonscan.com/',
-    },
+    defaultBlockExplorerUrlIndex: 0,
+    defaultRpcEndpointIndex: 0,
+    name: 'Polygon Mainnet',
+    nativeCurrency: 'MATIC',
+    rpcEndpoints: [
+      buildCustomRpcEndpoint({
+        url: 'https://polygon-mainnet.infura.io/v3/fakekey',
+      }),
+    ],
   },
 };
 
@@ -306,7 +312,7 @@ describe('TokenDetectionController', () => {
         },
         async ({ controller, mockNetworkState }) => {
           mockNetworkState({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: NetworkType.goerli,
           });
           await controller.start();
@@ -393,7 +399,7 @@ describe('TokenDetectionController', () => {
           callActionSpy,
         }) => {
           mockNetworkState({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'polygon',
           });
           mockGetNetworkClientById(
@@ -1400,7 +1406,7 @@ describe('TokenDetectionController', () => {
             });
 
             triggerNetworkDidChange({
-              ...defaultNetworkState,
+              ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'polygon',
             });
             await advanceTime({ clock, duration: 1 });
@@ -1461,7 +1467,7 @@ describe('TokenDetectionController', () => {
             });
 
             triggerNetworkDidChange({
-              ...defaultNetworkState,
+              ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'goerli',
             });
             await advanceTime({ clock, duration: 1 });
@@ -1512,7 +1518,7 @@ describe('TokenDetectionController', () => {
             });
 
             triggerNetworkDidChange({
-              ...defaultNetworkState,
+              ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'mainnet',
             });
             await advanceTime({ clock, duration: 1 });
@@ -1565,7 +1571,7 @@ describe('TokenDetectionController', () => {
               });
 
               triggerNetworkDidChange({
-                ...defaultNetworkState,
+                ...getDefaultNetworkControllerState(),
                 selectedNetworkClientId: 'polygon',
               });
               await advanceTime({ clock, duration: 1 });
@@ -1619,7 +1625,7 @@ describe('TokenDetectionController', () => {
             });
 
             triggerNetworkDidChange({
-              ...defaultNetworkState,
+              ...getDefaultNetworkControllerState(),
               selectedNetworkClientId: 'polygon',
             });
             await advanceTime({ clock, duration: 1 });
@@ -1955,7 +1961,7 @@ describe('TokenDetectionController', () => {
           callActionSpy,
         }) => {
           mockNetworkState({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: NetworkType.goerli,
           });
           triggerPreferencesStateChange({
@@ -2372,7 +2378,7 @@ async function withController<ReturnValue>(
   const mockNetworkState = jest.fn<NetworkState, []>();
   controllerMessenger.registerActionHandler(
     'NetworkController:getState',
-    mockNetworkState.mockReturnValue({ ...defaultNetworkState }),
+    mockNetworkState.mockReturnValue({ ...getDefaultNetworkControllerState() }),
   );
   const mockTokensState = jest.fn<TokensControllerState, []>();
   controllerMessenger.registerActionHandler(

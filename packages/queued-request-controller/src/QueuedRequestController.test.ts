@@ -1,12 +1,11 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import {
-  defaultState as defaultNetworkState,
+  getDefaultNetworkControllerState,
   type NetworkControllerGetStateAction,
   type NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
 import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
 
 import type {
   AllowedActions,
@@ -67,7 +66,7 @@ describe('QueuedRequestController', () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
-          ...cloneDeep(defaultNetworkState),
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
@@ -104,7 +103,7 @@ describe('QueuedRequestController', () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
-          ...cloneDeep(defaultNetworkState),
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
@@ -136,7 +135,7 @@ describe('QueuedRequestController', () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
-          ...cloneDeep(defaultNetworkState),
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
@@ -452,7 +451,7 @@ describe('QueuedRequestController', () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
-          ...cloneDeep(defaultNetworkState),
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
@@ -507,7 +506,7 @@ describe('QueuedRequestController', () => {
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
-          ...cloneDeep(defaultNetworkState),
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
@@ -554,7 +553,7 @@ describe('QueuedRequestController', () => {
         const switchError = new Error('switch error');
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
-            ...cloneDeep(defaultNetworkState),
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
           networkControllerSetActiveNetwork: jest
@@ -586,7 +585,7 @@ describe('QueuedRequestController', () => {
         const switchError = new Error('switch error');
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
-            ...cloneDeep(defaultNetworkState),
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
           networkControllerSetActiveNetwork: jest
@@ -641,7 +640,7 @@ describe('QueuedRequestController', () => {
         const switchError = new Error('switch error');
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
-            ...cloneDeep(defaultNetworkState),
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
           networkControllerSetActiveNetwork: jest
@@ -695,7 +694,7 @@ describe('QueuedRequestController', () => {
         const switchError = new Error('switch error');
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
-            ...cloneDeep(defaultNetworkState),
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
           networkControllerSetActiveNetwork: jest
@@ -1006,7 +1005,7 @@ function buildControllerMessenger({
   const mockNetworkControllerGetState =
     networkControllerGetState ??
     jest.fn().mockReturnValue({
-      ...cloneDeep(defaultNetworkState),
+      ...getDefaultNetworkControllerState(),
       selectedNetworkClientId: 'defaultNetworkClientId',
     });
   messenger.registerActionHandler(

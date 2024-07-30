@@ -91,7 +91,6 @@ async function setupAssetContractControllers({
       allowedActions: [],
       allowedEvents: [],
     }),
-    trackMetaMetricsEvent: jest.fn(),
   });
   if (useNetworkControllerProvider) {
     await networkController.initializeProvider();
