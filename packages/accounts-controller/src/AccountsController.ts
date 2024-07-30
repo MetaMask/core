@@ -438,7 +438,7 @@ export class AccountsController extends BaseController<
   /**
    * Updates the metadata of the account with the given ID.
    *
-   * @param accountId - The ID of the account to set the name for.
+   * @param accountId - The ID of the account for which the metadata will be updated.
    * @param metadata - The new metadata for the account.
    */
   updateAccountMetadata(
