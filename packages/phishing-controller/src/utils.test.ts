@@ -9,7 +9,6 @@ import {
   processConfigs,
   processDomainList,
   sha256Hash,
-  updateC2DomainBlocklist,
   validateConfig,
 } from './utils';
 
@@ -153,6 +152,82 @@ describe('applyDiffs', () => {
       name: ListNames.Phishfort,
     });
   });
+  // New tests for handling C2 domain blocklist
+  it('should add hashes to the current C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      ['hash3', 'hash4'],
+      [],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual([
+      ...exampleListState.c2DomainBlocklist,
+      'hash3',
+      'hash4',
+    ]);
+  });
+
+  it('should remove hashes from the current C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      [],
+      ['hash2'],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1']);
+  });
+
+  it('should handle adding and removing hashes simultaneously in C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      ['hash3'],
+      ['hash2'],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash3']);
+  });
+
+  it('should not add duplicates in C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      ['hash2', 'hash3'],
+      [],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2', 'hash3']);
+  });
+
+  it('should handle empty recently added and removed lists for C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      [],
+      [],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2']);
+  });
+
+  it('should handle removing a non-existent hash in C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      [],
+      ['hash3'],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2']);
+  });
 });
 
 describe('validateConfig', () => {
@@ -288,91 +363,5 @@ describe('sha256Hash', () => {
       '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
     const hash = sha256Hash(hostname);
     expect(hash).toBe(expectedHash);
-  });
-});
-
-describe('updateC2DomainBlocklist', () => {
-  it('should add hashes to the current list', () => {
-    const currentList = ['hash1', 'hash2'];
-    const recentlyAdded = ['hash3', 'hash4'];
-    const recentlyRemoved: string[] = [];
-    const expectedList = ['hash1', 'hash2', 'hash3', 'hash4'];
-
-    const result = updateC2DomainBlocklist(
-      currentList,
-      recentlyAdded,
-      recentlyRemoved,
-    );
-    expect(result).toStrictEqual(expectedList);
-  });
-
-  it('should remove hashes from the current list', () => {
-    const currentList = ['hash1', 'hash2', 'hash3'];
-    const recentlyAdded: string[] = [];
-    const recentlyRemoved = ['hash2'];
-    const expectedList = ['hash1', 'hash3'];
-
-    const result = updateC2DomainBlocklist(
-      currentList,
-      recentlyAdded,
-      recentlyRemoved,
-    );
-    expect(result).toStrictEqual(expectedList);
-  });
-
-  it('should handle adding and removing hashes simultaneously', () => {
-    const currentList = ['hash1', 'hash2'];
-    const recentlyAdded = ['hash3'];
-    const recentlyRemoved = ['hash2'];
-    const expectedList = ['hash1', 'hash3'];
-
-    const result = updateC2DomainBlocklist(
-      currentList,
-      recentlyAdded,
-      recentlyRemoved,
-    );
-    expect(result).toStrictEqual(expectedList);
-  });
-
-  it('should not add duplicates', () => {
-    const currentList = ['hash1', 'hash2'];
-    const recentlyAdded = ['hash2', 'hash3'];
-    const recentlyRemoved: string[] = [];
-    const expectedList = ['hash1', 'hash2', 'hash3'];
-
-    const result = updateC2DomainBlocklist(
-      currentList,
-      recentlyAdded,
-      recentlyRemoved,
-    );
-    expect(result).toStrictEqual(expectedList);
-  });
-
-  it('should handle empty recently added and removed lists', () => {
-    const currentList = ['hash1', 'hash2'];
-    const recentlyAdded: string[] = [];
-    const recentlyRemoved: string[] = [];
-    const expectedList = ['hash1', 'hash2'];
-
-    const result = updateC2DomainBlocklist(
-      currentList,
-      recentlyAdded,
-      recentlyRemoved,
-    );
-    expect(result).toStrictEqual(expectedList);
-  });
-
-  it('should handle removing a non-existent hash', () => {
-    const currentList = ['hash1', 'hash2'];
-    const recentlyAdded: string[] = [];
-    const recentlyRemoved = ['hash3'];
-    const expectedList = ['hash1', 'hash2'];
-
-    const result = updateC2DomainBlocklist(
-      currentList,
-      recentlyAdded,
-      recentlyRemoved,
-    );
-    expect(result).toStrictEqual(expectedList);
   });
 });

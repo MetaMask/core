@@ -39,8 +39,8 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  * @param listState - the stalelist or the existing liststate that diffs will be applied to.
  * @param hotlistDiffs - the diffs to apply to the listState if valid.
  * @param listKey - the key associated with the input/output phishing list state.
- * @param recentlyAddedC2Domains - sdads
- * @param recentlyRemovedC2Domains - sds
+ * @param recentlyAddedC2Domains - list of hashed C2 domains to add to the local c2 domain blocklist
+ * @param recentlyRemovedC2Domains - list of hashed C2 domains to remove from the local c2 domain blocklist
  * @returns the new list state
  */
 export const applyDiffs = (
@@ -249,30 +249,4 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
 export const sha256Hash = (hostname: string): string => {
   const hashBuffer = sha256(new TextEncoder().encode(hostname.toLowerCase()));
   return bytesToHex(hashBuffer);
-};
-
-/**
- * Update the request blocklist with the recently added and removed hashes.
- *
- * @param currentList - current list of the hashed request blocklist
- * @param recentlyAdded - list of hashes to add to the local request blocklist
- * @param recentlyRemoved - list of hashes to remove from the local request blocklist
- * @returns the updated list of the hashed request blocklist
- */
-export const updateC2DomainBlocklist = (
-  currentList: string[],
-  recentlyAdded: string[],
-  recentlyRemoved: string[],
-): string[] => {
-  const updatedList = new Set(currentList);
-
-  for (const hash of recentlyAdded) {
-    updatedList.add(hash);
-  }
-
-  for (const hash of recentlyRemoved) {
-    updatedList.delete(hash);
-  }
-
-  return Array.from(updatedList);
 };
