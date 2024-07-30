@@ -210,11 +210,27 @@ export type AllowedActions =
   | NotificationServicesPushControllerUpdateTriggerPushNotifications;
 
 // Events
-export type NotificationServicesControllerMessengerEvents =
+export type NotificationServicesControllerChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
     NotificationServicesControllerState
   >;
+
+export type MetamaskNotificationsControllerNotificationsListUpdatedEvent = {
+  type: `${typeof controllerName}:notificationsListUpdated`;
+  payload: [INotification[]];
+};
+
+export type MetamaskNotificationsControllerMarkNotificationsAsRead = {
+  type: `${typeof controllerName}:markNotificationsAsRead`;
+  payload: [INotification[]];
+};
+
+// Events
+export type Events =
+  | NotificationServicesControllerChangeEvent
+  | MetamaskNotificationsControllerNotificationsListUpdatedEvent
+  | MetamaskNotificationsControllerMarkNotificationsAsRead;
 
 // Allowed Events
 export type AllowedEvents =
@@ -230,7 +246,7 @@ export type NotificationServicesControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
     Actions | AllowedActions,
-    AllowedEvents,
+    Events | AllowedEvents,
     AllowedActions['type'],
     AllowedEvents['type']
   >;
@@ -1066,6 +1082,11 @@ export default class NotificationServicesController extends BaseController<
         state.metamaskNotificationsList = metamaskNotifications;
       });
 
+      this.messagingSystem.publish(
+        `${controllerName}:notificationsListUpdated`,
+        this.state.metamaskNotificationsList,
+      );
+
       this.#setIsFetchingMetamaskNotifications(false);
       return metamaskNotifications;
     } catch (err) {
@@ -1150,6 +1171,11 @@ export default class NotificationServicesController extends BaseController<
         },
       );
     });
+
+    this.messagingSystem.publish(
+      `${controllerName}:markNotificationsAsRead`,
+      this.state.metamaskNotificationsList,
+    );
   }
 
   /**
@@ -1181,6 +1207,10 @@ export default class NotificationServicesController extends BaseController<
             notification,
             ...state.metamaskNotificationsList,
           ];
+          this.messagingSystem.publish(
+            `${controllerName}:notificationsListUpdated`,
+            state.metamaskNotificationsList,
+          );
         }
       });
     }
