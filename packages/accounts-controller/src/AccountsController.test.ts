@@ -2342,12 +2342,13 @@ describe('AccountsController', () => {
         },
       });
       accountsController.updateAccountMetadata(mockAccount.id, {
-        name: 'new name',
+        lastSelected: 1,
       });
 
       expect(
-        accountsController.getAccountExpect(mockAccount.id).metadata.name,
-      ).toBe('new name');
+        accountsController.getAccountExpect(mockAccount.id).metadata
+          .lastSelected,
+      ).toBe(1);
     });
   });
 
