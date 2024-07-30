@@ -2,7 +2,6 @@
 import { hexlify } from '@ethersproject/bytes';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { query, safelyExecute, ChainId } from '@metamask/controller-utils';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
@@ -122,7 +121,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     {
       onNetworkStateChange,
       getNonceLock,
-      provider,
       confirmExternalTransaction,
       getTransactions,
       trackMetaMetricsEvent,
@@ -133,7 +131,6 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         listener: (networkState: NetworkState) => void,
       ) => void;
       getNonceLock: any;
-      provider: SafeEventEmitterProvider;
       confirmExternalTransaction: any;
       getTransactions: (options?: GetTransactionsOptions) => TransactionMeta[];
       trackMetaMetricsEvent: any;
@@ -192,8 +189,11 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     this.initializeSmartTransactionsForChainId();
     this.#ensureUniqueSmartTransactions();
 
-    onNetworkStateChange(({ providerConfig: newProvider }) => {
-      const { chainId } = newProvider;
+    onNetworkStateChange(({ selectedNetworkClientId }) => {
+      const {
+        configuration: { chainId },
+        provider,
+      } = this.getNetworkClientById(selectedNetworkClientId);
       const isNewChainId = chainId !== this.config.chainId;
       this.configure({ chainId });
       this.initializeSmartTransactionsForChainId();

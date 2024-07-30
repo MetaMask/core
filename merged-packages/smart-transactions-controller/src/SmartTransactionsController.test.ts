@@ -348,16 +348,8 @@ const defaultState = {
   },
 };
 
-const mockProviderConfig = {
-  chainId: ChainId.mainnet,
-  provider: getFakeProvider(),
-  type: NetworkType.mainnet,
-  ticker: 'ticker',
-};
-
 const mockNetworkState = {
-  providerConfig: mockProviderConfig,
-  selectedNetworkClientId: 'id',
+  selectedNetworkClientId: NetworkType.mainnet,
   networkConfigurations: {
     id: {
       id: 'id',
@@ -393,7 +385,6 @@ describe('SmartTransactionsController', () => {
           releaseLock: jest.fn(),
         };
       }),
-      provider: getFakeProvider(),
       confirmExternalTransaction: jest.fn(),
       getTransactions: jest.fn(),
       trackMetaMetricsEvent: trackMetaMetricsEventSpy,
@@ -404,12 +395,14 @@ describe('SmartTransactionsController', () => {
               configuration: {
                 chainId: ChainId.mainnet,
               },
+              provider: getFakeProvider(),
             };
           case NetworkType.sepolia:
             return {
               configuration: {
                 chainId: ChainId.sepolia,
               },
+              provider: getFakeProvider(),
             };
           default:
             throw new Error('Invalid network client id');
@@ -451,19 +444,17 @@ describe('SmartTransactionsController', () => {
   describe('onNetworkChange', () => {
     it('is triggered', () => {
       networkListener({
-        providerConfig: { chainId: '0x32', type: 'rpc', ticker: 'CET' },
-        selectedNetworkClientId: 'networkClientId',
+        selectedNetworkClientId: NetworkType.sepolia,
         networkConfigurations: {},
         networksMetadata: {},
       } as NetworkState);
-      expect(smartTransactionsController.config.chainId).toBe('0x32');
+      expect(smartTransactionsController.config.chainId).toBe(ChainId.sepolia);
     });
 
     it('calls poll', () => {
       const checkPollSpy = jest.spyOn(smartTransactionsController, 'checkPoll');
       networkListener({
-        providerConfig: { chainId: '0x32', type: 'rpc', ticker: 'CET' },
-        selectedNetworkClientId: 'networkClientId',
+        selectedNetworkClientId: NetworkType.sepolia,
         networkConfigurations: {},
         networksMetadata: {},
       } as NetworkState);
@@ -489,12 +480,7 @@ describe('SmartTransactionsController', () => {
       });
       smartTransactionsController.config.chainId = ChainId.sepolia;
       networkListener({
-        providerConfig: {
-          chainId: ChainId.mainnet,
-          type: 'rpc',
-          ticker: 'ETH',
-        },
-        selectedNetworkClientId: 'networkClientId',
+        selectedNetworkClientId: NetworkType.mainnet,
         networkConfigurations: {},
         networksMetadata: {},
       } as NetworkState);
@@ -525,12 +511,7 @@ describe('SmartTransactionsController', () => {
         },
       });
       networkListener({
-        providerConfig: {
-          chainId: ChainId.mainnet,
-          type: 'rpc',
-          ticker: 'ETH',
-        },
-        selectedNetworkClientId: 'networkClientId',
+        selectedNetworkClientId: NetworkType.mainnet,
         networkConfigurations: {},
         networksMetadata: {},
       } as NetworkState);
@@ -580,9 +561,9 @@ describe('SmartTransactionsController', () => {
         'updateSmartTransactions',
       );
       expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
+      smartTransactionsController.config.supportedChainIds = [ChainId.mainnet];
       networkListener({
-        providerConfig: { chainId: '0x32', type: 'rpc', ticker: 'CET' },
-        selectedNetworkClientId: 'networkClientId',
+        selectedNetworkClientId: NetworkType.sepolia,
         networkConfigurations: {},
         networksMetadata: {},
       } as NetworkState);
