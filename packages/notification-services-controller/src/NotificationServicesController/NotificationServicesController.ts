@@ -9,6 +9,9 @@ import { toChecksumHexAddress } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type {
   AuthenticationController,
@@ -192,6 +195,7 @@ export type Actions =
 export type AllowedActions =
   // Keyring Controller Requests
   | KeyringControllerGetAccountsAction
+  | KeyringControllerGetStateAction
   // Auth Controller Requests
   | AuthenticationController.AuthenticationControllerGetBearerToken
   | AuthenticationController.AuthenticationControllerIsSignedIn
@@ -214,7 +218,11 @@ export type NotificationServicesControllerMessengerEvents =
 
 // Allowed Events
 export type AllowedEvents =
+  // Keyring Events
   | KeyringControllerStateChangeEvent
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent
+  // Push Notification Events
   | NotificationServicesPushControllerOnNewNotification;
 
 // Type for the messenger of NotificationServicesController
@@ -243,6 +251,34 @@ export default class NotificationServicesController extends BaseController<
 > {
   // Temporary boolean as push notifications are not yet enabled on mobile
   #isPushIntegrated = true;
+
+  // Flag to check is notifications have been setup when the browser/extension is initialized.
+  // We want to re-initialize push notifications when the browser/extension is refreshed
+  // To ensure we subscribe to the most up-to-date notifications
+  #isPushNotificationsSetup = false;
+
+  #isUnlocked = false;
+
+  #keyringController = {
+    setupLockedStateSubscriptions: (onUnlock: () => Promise<void>) => {
+      const { isUnlocked } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      this.#isUnlocked = isUnlocked;
+
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+        // messaging system cannot await promises
+        // we don't need to wait for a result on this.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        onUnlock();
+      });
+
+      this.messagingSystem.subscribe('KeyringController:lock', () => {
+        this.#isUnlocked = false;
+      });
+    },
+  };
 
   #auth = {
     getBearerToken: async () => {
@@ -338,6 +374,12 @@ export default class NotificationServicesController extends BaseController<
       if (!this.state.isNotificationServicesEnabled) {
         return;
       }
+      if (this.#isPushNotificationsSetup) {
+        return;
+      }
+      if (!this.#isUnlocked) {
+        return;
+      }
 
       const storage = await this.#getUserStorage();
       if (!storage) {
@@ -346,6 +388,7 @@ export default class NotificationServicesController extends BaseController<
 
       const uuids = Utils.getAllUUIDs(storage);
       await this.#pushNotifications.enablePushNotifications(uuids);
+      this.#isPushNotificationsSetup = true;
     },
   };
 
@@ -463,10 +506,13 @@ export default class NotificationServicesController extends BaseController<
     });
 
     this.#isPushIntegrated = env.isPushIntegrated ?? true;
-
     this.#featureAnnouncementEnv = env.featureAnnouncements;
     this.#registerMessageHandlers();
     this.#clearLoadingStates();
+
+    this.#keyringController.setupLockedStateSubscriptions(
+      this.#pushNotifications.initializePushNotifications,
+    );
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.#accounts.initialize();
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
