@@ -182,14 +182,16 @@ export class RatesController extends BaseController<
 
   /**
    * Sets the list of supported cryptocurrencies.
-   * @param list - The list of supported cryptocurrencies.
+   * @param cryptocurrencies - The list of supported cryptocurrencies.
    */
-  async setCryptocurrencyList(list: Cryptocurrency[]): Promise<void> {
+  async setCryptocurrencyList(
+    cryptocurrencies: Cryptocurrency[],
+  ): Promise<void> {
     await this.#withLock(() => {
       this.update(() => {
         return {
           ...this.state,
-          fromCurrencies: list,
+          cryptocurrencies,
         };
       });
     });
