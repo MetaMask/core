@@ -106,9 +106,9 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
-export type AccountsControllerSetAccountMetadata = {
-  type: `${typeof controllerName}:setAccountMetadata`;
-  handler: AccountsController['setAccountMetadata'];
+export type AccountsControllerUpdateAccountMetadata = {
+  type: `${typeof controllerName}:updateAccountMetadata`;
+  handler: AccountsController['updateAccountMetadata'];
 };
 
 export type AllowedActions =
@@ -128,7 +128,7 @@ export type AccountsControllerActions =
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerSetAccountMetadata;
+  | AccountsControllerUpdateAccountMetadata;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -441,7 +441,7 @@ export class AccountsController extends BaseController<
    * @param accountId - The ID of the account to set the name for.
    * @param metadata - The new metadata for the account.
    */
-  setAccountMetadata(
+  updateAccountMetadata(
     accountId: string,
     metadata: Partial<InternalAccount['metadata']>,
   ): void {
@@ -1124,8 +1124,8 @@ export class AccountsController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `AccountsController:setAccountMetadata`,
-      this.setAccountMetadata.bind(this),
+      `AccountsController:updateAccountMetadata`,
+      this.updateAccountMetadata.bind(this),
     );
   }
 }

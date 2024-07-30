@@ -2331,7 +2331,7 @@ describe('AccountsController', () => {
     });
   });
 
-  describe('setAccountMetadata', () => {
+  describe('updateAccountMetadata', () => {
     it('updates the metadata of an existing account', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -2341,7 +2341,7 @@ describe('AccountsController', () => {
           },
         },
       });
-      accountsController.setAccountMetadata(mockAccount.id, {
+      accountsController.updateAccountMetadata(mockAccount.id, {
         name: 'new name',
       });
 
