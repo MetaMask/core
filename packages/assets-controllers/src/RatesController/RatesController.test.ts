@@ -100,8 +100,8 @@ describe('RatesController', () => {
       const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
       expect(ratesController).toBeDefined();
       expect(fiatCurrency).toBe('usd');
-      expect(Object.keys(rates)).toStrictEqual(['btc']);
-      expect(cryptocurrencies).toStrictEqual(['btc']);
+      expect(Object.keys(rates)).toStrictEqual([Cryptocurrency.Btc]);
+      expect(cryptocurrencies).toStrictEqual([Cryptocurrency.Btc]);
     });
   });
 
@@ -326,7 +326,7 @@ describe('RatesController', () => {
 
       const cryptocurrencyListPreUpdate =
         ratesController.getCryptocurrencyList();
-      expect(cryptocurrencyListPreUpdate).toStrictEqual(['btc']);
+      expect(cryptocurrencyListPreUpdate).toStrictEqual([Cryptocurrency.Btc]);
 
       await ratesController.setCryptocurrencyList(mockCryptocurrencyList);
       const cryptocurrencyListPostUpdate =
