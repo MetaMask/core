@@ -315,7 +315,7 @@ describe('RatesController', () => {
   describe('setCryptocurrencyList', () => {
     it('updates the cryptocurrency list', async () => {
       const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
-      const mockCryptocurrencyList = [Cryptocurrency.Btc];
+      const mockCryptocurrencyList: Cryptocurrency[] = [];
       const ratesController = setupRatesController({
         interval: 150,
         initialState: {},
