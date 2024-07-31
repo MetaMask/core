@@ -78,6 +78,7 @@ import type {
   SimulationData,
   GasFeeEstimates,
   GasFeeFlowResponse,
+  TraceCallback,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -313,6 +314,7 @@ export type TransactionControllerOptions = {
   ) => Promise<TypedTransaction>;
   state?: Partial<TransactionControllerState>;
   testGasFeeFlows?: boolean;
+  trace?: TraceCallback;
   transactionHistoryLimit: number;
   hooks: {
     afterSign?: (
@@ -634,6 +636,8 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
+  #trace: TraceCallback;
+
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
@@ -743,6 +747,7 @@ export class TransactionController extends BaseController<
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
    * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
+   * @param options.trace - Callback to generate trace information.
    * @param options.transactionHistoryLimit - Transaction history limit.
    * @param options.hooks - The controller hooks.
    */
@@ -770,6 +775,7 @@ export class TransactionController extends BaseController<
     sign,
     state,
     testGasFeeFlows,
+    trace,
     transactionHistoryLimit = 40,
     hooks,
   }: TransactionControllerOptions) {
@@ -807,6 +813,7 @@ export class TransactionController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
+    this.#trace = trace ?? ((_request, fn) => fn());
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -976,6 +983,7 @@ export class TransactionController extends BaseController<
    * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
    * @param opts.swaps.meta - Metadata for swap transaction.
    * @param opts.networkClientId - The id of the network client for this transaction.
+   * @param opts.traceContext - The trace context for this transaction.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -1003,6 +1011,7 @@ export class TransactionController extends BaseController<
         hasApproveTx?: boolean;
         meta?: Partial<TransactionMeta>;
       };
+      traceContext?: unknown;
       type?: TransactionType;
       networkClientId?: NetworkClientId;
     } = {},
