@@ -304,10 +304,12 @@ export class ComposableController<
    */
   #updateChildController(controller: ControllerInstance): void {
     const { name } = controller;
-    if (
-      isBaseController(controller) ||
-      (isBaseControllerV1(controller) && 'messagingSystem' in controller)
-    ) {
+    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
+      // False negative. `name` is a string type.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
+    }
+    try {
       this.messagingSystem.subscribe(
         // False negative. `name` is a string type.
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
@@ -318,16 +320,17 @@ export class ComposableController<
           });
         },
       );
-    } else if (isBaseControllerV1(controller)) {
+    } catch (error: unknown) {
+      // False negative. `name` is a string type.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      console.error(`${name} - ${String(error)}`);
+    }
+    if (isBaseControllerV1(controller)) {
       controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
           Object.assign(state, { [name]: childState });
         });
       });
-    } else {
-      // False negative. `name` is a string type.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
     }
   }
 }
