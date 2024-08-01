@@ -3,11 +3,5 @@ export type {
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
   ComposableControllerMessenger,
-  LegacyControllerStateConstraint,
-  RestrictedControllerMessengerConstraint,
 } from './ComposableController';
-export {
-  ComposableController,
-  isBaseController,
-  isBaseControllerV1,
-} from './ComposableController';
+export { ComposableController } from './ComposableController';

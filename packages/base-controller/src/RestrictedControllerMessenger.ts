@@ -14,6 +14,23 @@ import type {
 } from './ControllerMessenger';
 
 /**
+ * A universal supertype of all `RestrictedControllerMessenger` instances.
+ * This type can be assigned to any `RestrictedControllerMessenger` type.
+ *
+ * @template ControllerName - Name of the controller. Optionally can be used to
+ * narrow this type to a constraint for the messenger of a specific controller.
+ */
+export type RestrictedControllerMessengerConstraint<
+  ControllerName extends string = string,
+> = RestrictedControllerMessenger<
+  ControllerName,
+  ActionConstraint,
+  EventConstraint,
+  string,
+  string
+>;
+
+/**
  * A restricted controller messenger.
  *
  * This acts as a wrapper around the controller messenger instance that restricts access to actions
