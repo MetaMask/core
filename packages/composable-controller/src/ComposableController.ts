@@ -10,7 +10,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { PublicInterface } from '@metamask/utils';
+import type { Json, PublicInterface } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
@@ -40,6 +40,23 @@ type BaseControllerV1Instance = PublicInterface<
 >;
 
 /**
+ * A universal supertype of functions that accept a piece of controller state and return some derivation of that state.
+ */
+type StateDeriverConstraint = (value: never) => Json;
+
+/**
+ * A universal supertype of metadata objects for individual state properties.
+ */
+type StatePropertyMetadataConstraint = {
+  [P in 'anonymous' | 'persist']: boolean | StateDeriverConstraint;
+};
+
+/**
+ * A universal supertype of state metadata objects.
+ */
+type StateMetadataConstraint = Record<string, StatePropertyMetadataConstraint>;
+
+/**
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
  * Any `BaseController` instance can be assigned to this type.
  *
@@ -57,7 +74,9 @@ type BaseControllerInstance = Omit<
     >
   >,
   'metadata'
-> & { metadata: Record<string, unknown> };
+> & {
+  metadata: StateMetadataConstraint;
+};
 
 /**
  * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
