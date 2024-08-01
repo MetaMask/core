@@ -1,6 +1,7 @@
 import type {
   ActionConstraint,
   BaseConfig,
+  BaseControllerV1,
   BaseState,
   EventConstraint,
   RestrictedControllerMessenger,
@@ -8,7 +9,7 @@ import type {
   StateMetadata,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { PublicInterface } from '@metamask/utils';
 import type { Patch } from 'immer';
 
@@ -105,8 +106,7 @@ export function isBaseControllerV1(
     'disabled' in controller &&
     typeof controller.disabled === 'boolean' &&
     'subscribe' in controller &&
-    typeof controller.subscribe === 'function' &&
-    controller instanceof BaseControllerV1
+    typeof controller.subscribe === 'function'
   );
 }
 
@@ -124,8 +124,7 @@ export function isBaseController(
     'state' in controller &&
     typeof controller.state === 'object' &&
     'metadata' in controller &&
-    typeof controller.metadata === 'object' &&
-    controller instanceof BaseController
+    typeof controller.metadata === 'object'
   );
 }
 
