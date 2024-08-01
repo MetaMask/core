@@ -1,17 +1,60 @@
 import * as sinon from 'sinon';
 
+import { JsonRpcEngine } from '../../json-rpc-engine/src';
 import type { BaseConfig, BaseState } from './BaseControllerV1';
-import { BaseControllerV1 as BaseController } from './BaseControllerV1';
+import {
+  BaseControllerV1 as BaseController,
+  isBaseControllerV1,
+} from './BaseControllerV1';
+import type {
+  CountControllerAction,
+  CountControllerEvent,
+} from './BaseControllerV2.test';
+import {
+  CountController,
+  countControllerName,
+  countControllerStateMetadata,
+  getCountMessenger,
+} from './BaseControllerV2.test';
+import { ControllerMessenger } from './ControllerMessenger';
 
 const STATE = { name: 'foo' };
 const CONFIG = { disabled: true };
 
-class TestController extends BaseController<BaseConfig, BaseState> {
+// eslint-disable-next-line jest/no-export
+export class TestController extends BaseController<BaseConfig, BaseState> {
   constructor(config?: BaseConfig, state?: BaseState) {
     super(config, state);
     this.initialize();
   }
 }
+
+describe('isBaseControllerV1', () => {
+  it('should return false if passed a V1 controller', () => {
+    const controller = new TestController();
+    expect(isBaseControllerV1(controller)).toBe(true);
+  });
+
+  it('should return false if passed a V2 controller', () => {
+    const controllerMessenger = new ControllerMessenger<
+      CountControllerAction,
+      CountControllerEvent
+    >();
+    const controller = new CountController({
+      messenger: getCountMessenger(controllerMessenger),
+      name: countControllerName,
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+    expect(isBaseControllerV1(controller)).toBe(false);
+  });
+
+  it('should return false if passed a non-controller', () => {
+    const notController = new JsonRpcEngine();
+    // @ts-expect-error Intentionally passing invalid input to test runtime behavior
+    expect(isBaseControllerV1(notController)).toBe(false);
+  });
+});
 
 describe('BaseController', () => {
   afterEach(() => {
