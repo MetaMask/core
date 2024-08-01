@@ -1,6 +1,9 @@
+/* eslint-disable jest/no-export */
 import type { Draft, Patch } from 'immer';
 import * as sinon from 'sinon';
 
+import { JsonRpcEngine } from '../../json-rpc-engine/src';
+import { TestController } from './BaseControllerV1.test';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
@@ -9,27 +12,28 @@ import {
   BaseController,
   getAnonymizedState,
   getPersistentState,
+  isBaseController,
 } from './BaseControllerV2';
 import { ControllerMessenger } from './ControllerMessenger';
 import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
 
-const countControllerName = 'CountController';
+export const countControllerName = 'CountController';
 
 type CountControllerState = {
   count: number;
 };
 
-type CountControllerAction = ControllerGetStateAction<
+export type CountControllerAction = ControllerGetStateAction<
   typeof countControllerName,
   CountControllerState
 >;
 
-type CountControllerEvent = ControllerStateChangeEvent<
+export type CountControllerEvent = ControllerStateChangeEvent<
   typeof countControllerName,
   CountControllerState
 >;
 
-const countControllerStateMetadata = {
+export const countControllerStateMetadata = {
   count: {
     persist: true,
     anonymous: true,
@@ -50,7 +54,7 @@ type CountMessenger = RestrictedControllerMessenger<
  * @param controllerMessenger - The controller messenger.
  * @returns A restricted controller messenger for the Count controller.
  */
-function getCountMessenger(
+export function getCountMessenger(
   controllerMessenger?: ControllerMessenger<
     CountControllerAction,
     CountControllerEvent
@@ -69,7 +73,7 @@ function getCountMessenger(
   });
 }
 
-class CountController extends BaseController<
+export class CountController extends BaseController<
   typeof countControllerName,
   CountControllerState,
   CountMessenger
@@ -176,6 +180,33 @@ class MessagesController extends BaseController<
     super.destroy();
   }
 }
+
+describe('isBaseController', () => {
+  it('should return true if passed a V2 controller', () => {
+    const controllerMessenger = new ControllerMessenger<
+      CountControllerAction,
+      CountControllerEvent
+    >();
+    const controller = new CountController({
+      messenger: getCountMessenger(controllerMessenger),
+      name: countControllerName,
+      state: { count: 0 },
+      metadata: countControllerStateMetadata,
+    });
+    expect(isBaseController(controller)).toBe(true);
+  });
+
+  it('should return false if passed a V1 controller', () => {
+    const controller = new TestController();
+    expect(isBaseController(controller)).toBe(false);
+  });
+
+  it('should return false if passed a non-controller', () => {
+    const notController = new JsonRpcEngine();
+    // @ts-expect-error Intentionally passing invalid input to test runtime behavior
+    expect(isBaseController(notController)).toBe(false);
+  });
+});
 
 describe('BaseController', () => {
   afterEach(() => {
