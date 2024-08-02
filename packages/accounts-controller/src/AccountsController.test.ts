@@ -2312,6 +2312,29 @@ describe('AccountsController', () => {
       ).toBe('new name');
     });
 
+    it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
+      const expectedTimestamp = Number(new Date('2024-01-02'));
+
+      jest.spyOn(Date, 'now').mockImplementation(() => expectedTimestamp);
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+      accountsController.setAccountName(mockAccount.id, 'new name');
+
+      expect(
+        accountsController.getAccountExpect(mockAccount.id).metadata
+          .nameLastUpdatedAt,
+      ).toBe(expectedTimestamp);
+
+      jest.spyOn(Date, 'now').mockRestore();
+    });
+
     it('throw an error if the account name already exists', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
