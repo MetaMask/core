@@ -1,5 +1,6 @@
 import { BaseController } from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
+import type { Draft } from 'immer';
 
 import { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import type {
@@ -134,12 +135,14 @@ export class RatesController extends BaseController<
         };
       }
 
-      this.update(() => {
-        return {
-          ...this.state,
-          rates: updatedRates,
-        };
-      });
+      this.update(
+        (state: Draft<RatesControllerState>): RatesControllerState => {
+          return {
+            ...state,
+            rates: updatedRates,
+          };
+        },
+      );
     });
   }
 
@@ -182,16 +185,20 @@ export class RatesController extends BaseController<
 
   /**
    * Sets the list of supported cryptocurrencies.
-   * @param list - The list of supported cryptocurrencies.
+   * @param cryptocurrencies - The list of supported cryptocurrencies.
    */
-  async setCryptocurrencyList(list: Cryptocurrency[]): Promise<void> {
+  async setCryptocurrencyList(
+    cryptocurrencies: Cryptocurrency[],
+  ): Promise<void> {
     await this.#withLock(() => {
-      this.update(() => {
-        return {
-          ...this.state,
-          fromCurrencies: list,
-        };
-      });
+      this.update(
+        (state: Draft<RatesControllerState>): RatesControllerState => {
+          return {
+            ...state,
+            cryptocurrencies,
+          };
+        },
+      );
     });
   }
 
@@ -205,12 +212,14 @@ export class RatesController extends BaseController<
     }
 
     await this.#withLock(() => {
-      this.update(() => {
-        return {
-          ...defaultState,
-          fiatCurrency,
-        };
-      });
+      this.update(
+        (state: Draft<RatesControllerState>): RatesControllerState => {
+          return {
+            ...state,
+            fiatCurrency,
+          };
+        },
+      );
     });
     await this.#updateRates();
   }

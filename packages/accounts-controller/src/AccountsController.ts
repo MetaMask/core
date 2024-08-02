@@ -106,6 +106,11 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
+export type AccountsControllerUpdateAccountMetadata = {
+  type: `${typeof controllerName}:updateAccountMetadata`;
+  handler: AccountsController['updateAccountMetadata'];
+};
+
 export type AllowedActions =
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
@@ -122,7 +127,8 @@ export type AccountsControllerActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedMultichainAccountAction;
+  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerUpdateAccountMetadata;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -406,8 +412,6 @@ export class AccountsController extends BaseController<
    * @throws An error if an account with the same name already exists.
    */
   setAccountName(accountId: string, accountName: string): void {
-    const account = this.getAccountExpect(accountId);
-
     if (
       this.listMultichainAccounts().find(
         (internalAccount) =>
@@ -418,12 +422,29 @@ export class AccountsController extends BaseController<
       throw new Error('Account name already exists');
     }
 
+    this.updateAccountMetadata(accountId, { name: accountName });
+  }
+
+  /**
+   * Updates the metadata of the account with the given ID.
+   * Use {@link setAccountName} if you only need to update the name of the account.
+   *
+   * @param accountId - The ID of the account for which the metadata will be updated.
+   * @param metadata - The new metadata for the account.
+   */
+  updateAccountMetadata(
+    accountId: string,
+    metadata: Partial<InternalAccount['metadata']>,
+  ): void {
+    const account = this.getAccountExpect(accountId);
+
     this.update((currentState: Draft<AccountsControllerState>) => {
       const internalAccount = {
         ...account,
-        metadata: { ...account.metadata, name: accountName },
+        metadata: { ...account.metadata, ...metadata },
       };
       // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
+      // See: https://github.com/MetaMask/utils/issues/168
       // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
@@ -1092,6 +1113,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `AccountsController:updateAccountMetadata`,
+      this.updateAccountMetadata.bind(this),
     );
   }
 }

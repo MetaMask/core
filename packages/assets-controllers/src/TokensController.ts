@@ -190,7 +190,7 @@ export class TokensController extends BaseController<
 
   #selectedAccountId: string;
 
-  #provider: Provider | undefined;
+  #provider: Provider;
 
   #abortController: AbortController;
 
@@ -209,7 +209,7 @@ export class TokensController extends BaseController<
     messenger,
   }: {
     chainId: Hex;
-    provider: Provider | undefined;
+    provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
   }) {
@@ -750,7 +750,6 @@ export class TokensController extends BaseController<
 
   #getProvider(networkClientId?: NetworkClientId): Web3Provider {
     return new Web3Provider(
-      // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
       networkClientId
         ? this.messagingSystem.call(
             'NetworkController:getNetworkClientById',

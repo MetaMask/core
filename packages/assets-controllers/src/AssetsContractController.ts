@@ -201,6 +201,8 @@ export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
  * Controller that interacts with contracts on mainnet through web3
  */
 export class AssetsContractController {
+  readonly name: typeof name = name;
+
   protected messagingSystem: AssetsContractControllerMessenger;
 
   #provider: Provider | undefined;
