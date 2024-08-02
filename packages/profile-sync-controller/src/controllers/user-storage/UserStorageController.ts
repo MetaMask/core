@@ -25,6 +25,7 @@ import type {
   AuthenticationControllerPerformSignIn,
   AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
+import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from './accounts/constants';
 import {
   extactUserStorageAccountsListFromResponse,
   formatUserStorageAccountsListPayload,
@@ -268,17 +269,23 @@ export default class UserStorageController extends BaseController<
           id,
           address,
           // TODO: add this key to the schema in keyring-api
-          metadata: { name, conflictingNames },
+          metadata: { name, nameLastUpdatedAt },
         } = account;
 
         return {
           i: id,
           a: address,
-          n: [name, ...conflictingNames],
+          n: name,
+          ...(nameLastUpdatedAt && { lu: nameLastUpdatedAt }),
         };
       });
 
       await this.#accounts.setUserStorageAccountsList(mappedAccountsList);
+    },
+    isDefaultName: (name: string) => {
+      return LOCALIZED_DEFAULT_ACCOUNT_NAMES.some((prefix) => {
+        return new RegExp(`${prefix} ([0-9]+)$`, 'u').test(name);
+      });
     },
   };
 
@@ -576,8 +583,7 @@ export default class UserStorageController extends BaseController<
 
       // Compare internal accounts list with user storage accounts list
       // First step: compare lengths
-      const internalAccountsList =
-        await this.#accounts.getInternalAccountsList();
+      let internalAccountsList = await this.#accounts.getInternalAccountsList();
 
       if (!internalAccountsList) {
         throw new Error(`Failed to get internal accounts list`);
@@ -593,12 +599,10 @@ export default class UserStorageController extends BaseController<
           userStorageAccountsList.length - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
+        // TODO: Promise.all
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for await (const _ of Array.from({ length: numberOfAccountsToAdd })) {
-          // TODO: expose this method in the keyring controller
-          const newAccount = await this.messagingSystem.call(
-            'KeyringController:addNewAccount',
-          );
+          await this.messagingSystem.call('KeyringController:addNewAccount');
 
           // TODO: Await for the new account to be added
           // Timeout is used as a temporary solution
@@ -607,48 +611,39 @@ export default class UserStorageController extends BaseController<
       }
 
       // Second step: compare account names
-      for await (const userStorageAccount of userStorageAccountsList) {
-        const internalAccount = internalAccountsList.find(
-          (account) => account.address === userStorageAccount.a,
+      // Get the internal accounts list again since new accounts might have been added in the previous step
+      internalAccountsList = await this.#accounts.getInternalAccountsList();
+
+      // TODO: Promise.all
+      for await (const internalAccount of internalAccountsList) {
+        const userStorageAccount = userStorageAccountsList.find(
+          (account) => account.a === internalAccount.address,
         );
 
-        if (!internalAccount) {
+        if (!userStorageAccount) {
           continue;
         }
 
-        // Scenario A : we don't manage conflicting names
-        // if names equal, do nothing
-        // if names different
-        // const whichNameIsMoreRecent = internalAccount.metadata.name
-
-        // Scenario B : we manage conflicting names
-        const areNamesEqual =
-          internalAccount?.metadata.name === userStorageAccount.n[0] &&
-          userStorageAccount.n.length === 1;
-
-        const doesInternalAccountHaveConflictingNames =
-          Array.isArray(internalAccount.metadata.conflictingNames) &&
-          internalAccount.metadata.conflictingNames?.length > 0;
-
-        if (areNamesEqual && !doesInternalAccountHaveConflictingNames) {
-          continue;
-        }
-
-        // Set conflicting names
-        const conflictingNames = new Set([
+        const isInternalAccountNameDefault = this.#accounts.isDefaultName(
           internalAccount.metadata.name,
-          ...internalAccount.metadata.conflictingNames,
-          ...userStorageAccount.n,
-        ]);
-
-        await this.messagingSystem.call(
-          'AccountsController:setAccountMetadata',
-          internalAccount.id,
-          {
-            ...internalAccount.metadata,
-            conflictingNames: Array.from(conflictingNames),
-          },
         );
+
+        const isUserStorageAccountNameDefault = this.#accounts.isDefaultName(
+          userStorageAccount.n,
+        );
+
+        if (isInternalAccountNameDefault) {
+          if (isUserStorageAccountNameDefault) {
+            await this.messagingSystem.call(
+              'AccountsController:setAccountMetadata',
+              {
+                name: userStorageAccount.n,
+              },
+            );
+          }
+
+          continue;
+        }
       }
 
       await this.#accounts.saveInternalAccountsListToUserStorage();

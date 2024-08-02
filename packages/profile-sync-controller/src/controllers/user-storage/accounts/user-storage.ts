@@ -5,10 +5,10 @@ export type UserStorageAccountsListAccount = {
   i: string;
   /** the address 'a' of the account */
   a: string;
-  /** the names 'n' of the account */
-  n: string[];
+  /** the name 'n' of the account */
+  n: string;
   /** the last updated timestamp 'lu' of the account */
-  lu: string;
+  lu?: number;
 };
 
 export type UserStorageAccountsList = UserStorageAccountsListAccount[];
