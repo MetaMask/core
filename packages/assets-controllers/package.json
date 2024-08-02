@@ -64,7 +64,7 @@
     "lodash": "^4.17.21",
     "multiformats": "^13.1.0",
     "single-call-balance-checker-abi": "^1.0.0",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^18.0.0",

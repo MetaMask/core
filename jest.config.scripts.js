@@ -44,6 +44,7 @@ module.exports = {
     '^@metamask/utils/(.+)$': [
       '<rootDir>/node_modules/@metamask/utils/dist/$1.cjs',
     ],
+    '^uuid$': ['<rootDir>/node_modules/uuid/dist/commonjs-browser/index.js'],
   },
 
   // Disabled due to use of 'transform' below.

@@ -55,7 +55,7 @@
     "async-mutex": "^0.5.0",
     "immer": "^9.0.6",
     "loglevel": "^1.8.1",
-    "uuid": "^8.3.2"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
