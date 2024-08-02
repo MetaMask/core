@@ -60,8 +60,9 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
 });
 
 describe('user-storage/services.ts - upsertUserStorage() tests', () => {
+  const encryptedData = MOCK_ENCRYPTED_STORAGE_DATA();
   const actCallUpsertUserStorage = () => {
-    return upsertUserStorage(MOCK_ENCRYPTED_STORAGE_DATA, {
+    return upsertUserStorage(encryptedData, {
       bearerToken: 'MOCK_BEARER_TOKEN',
       path: 'notifications.notificationSettings',
       storageKey: MOCK_STORAGE_KEY,
