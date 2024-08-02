@@ -2213,7 +2213,7 @@ __metadata:
     "@types/readable-stream": "npm:^2.3.0"
     deepmerge: "npm:^4.2.2"
     ethereum-cryptography: "npm:^2.1.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
@@ -2338,7 +2338,7 @@ __metadata:
     bn.js: "npm:^5.2.1"
     cockatiel: "npm:^3.1.2"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     jest-environment-jsdom: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
@@ -2409,7 +2409,7 @@ __metadata:
     "@types/jest": "npm:^27.4.1"
     "@types/sinon": "npm:^9.0.10"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     sinon: "npm:^9.2.4"
     ts-jest: "npm:^27.1.4"
@@ -2489,7 +2489,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^9.0.2"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     sinon: "npm:^9.2.4"
     ts-jest: "npm:^27.1.4"
@@ -3159,7 +3159,7 @@ __metadata:
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     ethereumjs-wallet: "npm:^1.0.1"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     jest-environment-node: "npm:^27.5.1"
     sinon: "npm:^9.2.4"
@@ -3259,7 +3259,7 @@ __metadata:
     "@types/lodash": "npm:^4.14.191"
     async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     jest-when: "npm:^3.4.2"
     lodash: "npm:^4.17.21"
@@ -3400,7 +3400,7 @@ __metadata:
     "@types/jest": "npm:^27.4.1"
     deep-freeze-strict: "npm:^1.1.1"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     nanoid: "npm:^3.1.31"
     ts-jest: "npm:^27.1.4"
@@ -3560,7 +3560,7 @@ __metadata:
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     ethers: "npm:^6.12.0"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     jest-environment-jsdom: "npm:^27.5.1"
     loglevel: "npm:^1.8.1"
@@ -3612,7 +3612,7 @@ __metadata:
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.3.1"
@@ -3685,7 +3685,7 @@ __metadata:
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.3.1"
@@ -3959,7 +3959,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     eth-method-registry: "npm:^4.0.0"
     fast-json-patch: "npm:^3.1.1"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
     nock: "npm:^13.3.1"
@@ -3998,7 +3998,7 @@ __metadata:
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
     deepmerge: "npm:^4.2.2"
-    immer: "npm:^9.0.6"
+    immer: "npm:^10.1.1"
     jest: "npm:^27.5.1"
     lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
@@ -8619,6 +8619,13 @@ __metadata:
   version: 5.3.1
   resolution: "ignore@npm:5.3.1"
   checksum: 10/0a884c2fbc8c316f0b9f92beaf84464253b73230a4d4d286697be45fca081199191ca33e1c2e82d9e5f851f5e9a48a78e25a35c951e7eb41e59f150db3530065
+  languageName: node
+  linkType: hard
+
+"immer@npm:^10.1.1":
+  version: 10.1.1
+  resolution: "immer@npm:10.1.1"
+  checksum: 10/9dacf1e8c201d69191ccd88dc5d733bafe166cd45a5a360c5d7c88f1de0dff974a94114d72b35f3106adfe587fcfb131c545856184a2247d89d735ad25589863
   languageName: node
   linkType: hard
 

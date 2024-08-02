@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@metamask/utils": "^9.1.0",
-    "immer": "^9.0.6"
+    "immer": "^10.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

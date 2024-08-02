@@ -48,7 +48,7 @@
     "@metamask/utils": "^9.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "deep-freeze-strict": "^1.1.1",
-    "immer": "^9.0.6",
+    "immer": "^10.1.1",
     "nanoid": "^3.1.31"
   },
   "devDependencies": {

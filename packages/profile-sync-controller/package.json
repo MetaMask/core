@@ -46,7 +46,7 @@
     "@metamask/snaps-utils": "^7.8.1",
     "@noble/ciphers": "^0.5.2",
     "@noble/hashes": "^1.4.0",
-    "immer": "^9.0.6",
+    "immer": "^10.1.1",
     "loglevel": "^1.8.1",
     "siwe": "^2.3.2"
   },
