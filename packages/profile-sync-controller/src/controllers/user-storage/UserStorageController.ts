@@ -1,6 +1,7 @@
 import type {
   AccountsControllerListAccountsAction,
   AccountsControllerSetAccountNameAction,
+  AccountsControllerUpdateAccountMetadataAction,
 } from '@metamask/accounts-controller';
 import type {
   ControllerStateChangeEvent,
@@ -130,6 +131,7 @@ export type AllowedActions =
   // Account syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerSetAccountNameAction
+  | AccountsControllerUpdateAccountMetadataAction
   | KeyringControllerAddNewAccountAction;
 
 // Messenger events
@@ -624,23 +626,56 @@ export default class UserStorageController extends BaseController<
           continue;
         }
 
+        // One or both accounts have default names
         const isInternalAccountNameDefault = this.#accounts.isDefaultName(
           internalAccount.metadata.name,
         );
-
         const isUserStorageAccountNameDefault = this.#accounts.isDefaultName(
           userStorageAccount.n,
         );
 
+        // Internal account has default name
         if (isInternalAccountNameDefault) {
-          if (isUserStorageAccountNameDefault) {
-            await this.messagingSystem.call(
-              'AccountsController:setAccountMetadata',
+          if (!isUserStorageAccountNameDefault) {
+            this.messagingSystem.call(
+              'AccountsController:updateAccountMetadata',
+              internalAccount.id,
               {
                 name: userStorageAccount.n,
               },
             );
           }
+          continue;
+        }
+
+        // Internal account has custom name but user storage account has default name
+        if (isUserStorageAccountNameDefault) {
+          continue;
+        }
+
+        // Both accounts have custom names
+
+        // User storage account has a nameLastUpdatedAt timestamp
+        // Note: not storing the undefined checks to act as a type guard
+        if (userStorageAccount.lu !== undefined) {
+          if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
+            const isInternalAccountNameNewer =
+              internalAccount.metadata.nameLastUpdatedAt >
+              userStorageAccount.lu;
+
+            if (isInternalAccountNameNewer) {
+              continue;
+            }
+          }
+
+          this.messagingSystem.call(
+            'AccountsController:updateAccountMetadata',
+            internalAccount.id,
+            {
+              name: userStorageAccount.n,
+              nameLastUpdatedAt: userStorageAccount.lu,
+            },
+          );
 
           continue;
         }
