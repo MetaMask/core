@@ -1128,7 +1128,7 @@ export class TransactionController extends BaseController<
 
       if (requireApproval !== false) {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.#updateSimulationData(addedTransactionMeta);
+        this.#updateSimulationData(addedTransactionMeta, { traceContext });
       } else {
         log('Skipping simulation as approval not required');
       }
@@ -3780,7 +3780,10 @@ export class TransactionController extends BaseController<
     }
   }
 
-  async #updateSimulationData(transactionMeta: TransactionMeta) {
+  async #updateSimulationData(
+    transactionMeta: TransactionMeta,
+    { traceContext }: { traceContext?: TraceContext } = {},
+  ) {
     const { id: transactionId, chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
@@ -3800,13 +3803,17 @@ export class TransactionController extends BaseController<
         },
       );
 
-      simulationData = await getSimulationData({
-        chainId,
-        from: from as Hex,
-        to: to as Hex,
-        value: value as Hex,
-        data: data as Hex,
-      });
+      simulationData = await this.#trace(
+        { name: 'Simulate', parentContext: traceContext },
+        () =>
+          getSimulationData({
+            chainId,
+            from: from as Hex,
+            to: to as Hex,
+            value: value as Hex,
+            data: data as Hex,
+          }),
+      );
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);
