@@ -1369,6 +1369,8 @@ export class PermissionController<
         );
 
         if (caveatIndex === -1) {
+          // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
+          // // @ts-expect-error - Known issue: `Json` causes recursive error in immer `Draft`/`WritableDraft` types (See: https://github.com/MetaMask/utils/issues/168)
           permission.caveats.push(caveat);
         } else {
           permission.caveats.splice(caveatIndex, 1, caveat);

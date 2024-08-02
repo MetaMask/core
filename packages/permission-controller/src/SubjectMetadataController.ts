@@ -235,7 +235,8 @@ export class SubjectMetadataController extends BaseController<
    */
   trimMetadataState(): void {
     this.update((draftState) => {
-      // @ts-expect-error ts(2589)
+      // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
+      // @ts-expect-error - Known issue: `Json` causes recursive error in immer `Draft`/`WritableDraft` types (See: https://github.com/MetaMask/utils/issues/168)
       return SubjectMetadataController.getTrimmedState(
         draftState,
         this.subjectHasPermissions,
