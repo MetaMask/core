@@ -65,7 +65,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.4.5"
+    "typescript": "~5.5.4"
   },
   "peerDependencies": {
     "@metamask/network-controller": "^20.0.0"
