@@ -1,9 +1,8 @@
-import type {
-  Hotlist,
-  ListKeys,
-  PhishingListState,
-} from './PhishingController';
-import { phishingListKeyNameMap } from './PhishingController';
+import { bytesToHex } from '@noble/hashes/utils';
+import { sha256 } from 'ethereum-cryptography/sha256';
+
+import type { Hotlist, PhishingListState } from './PhishingController';
+import { ListKeys, phishingListKeyNameMap } from './PhishingController';
 import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
@@ -40,12 +39,16 @@ const splitStringByPeriod = <Start extends string, End extends string>(
  * @param listState - the stalelist or the existing liststate that diffs will be applied to.
  * @param hotlistDiffs - the diffs to apply to the listState if valid.
  * @param listKey - the key associated with the input/output phishing list state.
+ * @param recentlyAddedC2Domains - list of hashed C2 domains to add to the local c2 domain blocklist
+ * @param recentlyRemovedC2Domains - list of hashed C2 domains to remove from the local c2 domain blocklist
  * @returns the new list state
  */
 export const applyDiffs = (
   listState: PhishingListState,
   hotlistDiffs: Hotlist,
   listKey: ListKeys,
+  recentlyAddedC2Domains: string[] = [],
+  recentlyRemovedC2Domains: string[] = [],
 ): PhishingListState => {
   // filter to remove diffs that were added before the lastUpdate time.
   // filter to remove diffs that aren't applicable to the specified list (by listKey).
@@ -65,6 +68,7 @@ export const applyDiffs = (
     allowlist: new Set(listState.allowlist),
     blocklist: new Set(listState.blocklist),
     fuzzylist: new Set(listState.fuzzylist),
+    c2DomainBlocklist: new Set(listState.c2DomainBlocklist),
   };
   for (const { isRemoval, targetList, url, timestamp } of diffsToApply) {
     const targetListType = splitStringByPeriod(targetList)[1];
@@ -78,7 +82,17 @@ export const applyDiffs = (
     }
   }
 
+  if (listKey === ListKeys.EthPhishingDetectConfig) {
+    for (const hash of recentlyAddedC2Domains) {
+      listSets.c2DomainBlocklist.add(hash);
+    }
+    for (const hash of recentlyRemovedC2Domains) {
+      listSets.c2DomainBlocklist.delete(hash);
+    }
+  }
+
   return {
+    c2DomainBlocklist: Array.from(listSets.c2DomainBlocklist),
     allowlist: Array.from(listSets.allowlist),
     blocklist: Array.from(listSets.blocklist),
     fuzzylist: Array.from(listSets.fuzzylist),
@@ -152,6 +166,7 @@ export const processDomainList = (list: string[]) => {
  * @param override - the optional override for the configuration.
  * @param override.allowlist - the optional allowlist to override.
  * @param override.blocklist - the optional blocklist to override.
+ * @param override.c2DomainBlocklist - the optional c2DomainBlocklist to override.
  * @param override.fuzzylist - the optional fuzzylist to override.
  * @param override.tolerance - the optional tolerance to override.
  * @returns the default phishing detector configuration.
@@ -164,6 +179,7 @@ export const getDefaultPhishingDetectorConfig = ({
 }: {
   allowlist?: string[];
   blocklist?: string[];
+  c2DomainBlocklist?: string[];
   fuzzylist?: string[];
   tolerance?: number;
 }): PhishingDetectorConfiguration => ({
@@ -222,4 +238,15 @@ export const matchPartsAgainstList = (source: string[], list: string[][]) => {
     // source matches target or (is deeper subdomain)
     return target.every((part, index) => source[index] === part);
   });
+};
+
+/**
+ * Generate the SHA-256 hash of a hostname.
+ *
+ * @param hostname - The hostname to hash.
+ * @returns The SHA-256 hash of the hostname.
+ */
+export const sha256Hash = (hostname: string): string => {
+  const hashBuffer = sha256(new TextEncoder().encode(hostname.toLowerCase()));
+  return bytesToHex(hashBuffer);
 };

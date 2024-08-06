@@ -1105,6 +1105,229 @@ describe('PhishingDetector', () => {
       });
     });
   });
+
+  describe('isMaliciousRequestDomain', () => {
+    it('should return false if c2DomainBlocklist is not defined or empty', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://example.com',
+          );
+          expect(result).toStrictEqual({
+            result: false,
+            type: 'c2DomainBlocklist',
+          });
+        },
+      );
+    });
+
+    it('check the hash against c2DomainBlocklist, returning the correct result', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+            ],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://develop.d3bkcslj57l47p.amplifyapp.com',
+          );
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: 'c2DomainBlocklist',
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('check the hash against c2DomainBlocklist, returning the correct result without a version', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+            ],
+            name: 'test-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://develop.d3bkcslj57l47p.amplifyapp.com',
+          );
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: 'c2DomainBlocklist',
+            version: undefined,
+          });
+        },
+      );
+    });
+
+    it('should return false if URL is invalid', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+            ],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain('#$@(%&@#$(%');
+          expect(result).toStrictEqual({
+            result: false,
+            type: 'c2DomainBlocklist',
+          });
+        },
+      );
+    });
+
+    it('should return true if URL is in the c2DomainBlocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+            ],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://develop.d3bkcslj57l47p.amplifyapp.com',
+          );
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: 'c2DomainBlocklist',
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return false if URL is not in the c2DomainBlocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: ['hash-other.com'],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://example.com',
+          );
+          expect(result).toStrictEqual({
+            result: false,
+            type: 'c2DomainBlocklist',
+          });
+        },
+      );
+    });
+
+    it('should check all configs and return the result from the first matching config', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+            ],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'second-config',
+            version: 2,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://develop.d3bkcslj57l47p.amplifyapp.com',
+          );
+          expect(result).toStrictEqual({
+            name: 'first-config',
+            result: true,
+            type: 'c2DomainBlocklist',
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return false with type "c2DomainBlocklist" if no configs have a valid c2DomainBlocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+          {
+            blocklist: [],
+            fuzzylist: [],
+            name: 'second-config',
+            version: 2,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://example.com',
+          );
+          expect(result).toStrictEqual({
+            result: false,
+            type: 'c2DomainBlocklist',
+          });
+        },
+      );
+    });
+  });
 });
 
 type WithPhishingDetectorCallback<ReturnValue> = ({

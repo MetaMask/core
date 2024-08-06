@@ -1,5 +1,6 @@
 import { distance } from 'fastest-levenshtein';
 
+import type { PhishingDetectorResult } from './types';
 import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
@@ -7,18 +8,22 @@ import {
   getDefaultPhishingDetectorConfig,
   matchPartsAgainstList,
   processConfigs,
+  sha256Hash,
 } from './utils';
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
   blacklist?: string[];
+  c2DomainBlocklist?: string[];
 } & FuzzyTolerance;
 
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
+  c2DomainBlocklist?: string[];
   name?: string;
   version?: string | number;
+  tolerance?: number;
 } & FuzzyTolerance;
 
 export type FuzzyTolerance =
@@ -40,46 +45,9 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
+  c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
-};
-
-/**
- * Represents the result of checking a domain.
- */
-export type PhishingDetectorResult = {
-  /**
-   * The name of the configuration object in which the domain was found within
-   * an allowlist, blocklist, or fuzzylist.
-   */
-  name?: string;
-  /**
-   * The version associated with the configuration object in which the domain
-   * was found within an allowlist, blocklist, or fuzzylist.
-   */
-  version?: string;
-  /**
-   * Whether the domain is regarded as allowed (true) or not (false).
-   */
-  result: boolean;
-  /**
-   * A normalized version of the domain, which is only constructed if the domain
-   * is found within a list.
-   */
-  match?: string;
-  /**
-   * Which type of list in which the domain was found.
-   *
-   * - "allowlist" means that the domain was found in the allowlist.
-   * - "blocklist" means that the domain was found in the blocklist.
-   * - "fuzzy" means that the domain was found in the fuzzylist.
-   * - "blacklist" means that the domain was found in a blacklist of a legacy
-   * configuration object.
-   * - "whitelist" means that the domain was found in a whitelist of a legacy
-   * configuration object.
-   * - "all" means that the domain was not found in any list.
-   */
-  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist' | 'blacklist' | 'whitelist';
 };
 
 export class PhishingDetector {
@@ -108,6 +76,7 @@ export class PhishingDetector {
         getDefaultPhishingDetectorConfig({
           allowlist: opts.whitelist,
           blocklist: opts.blacklist,
+          c2DomainBlocklist: opts.c2DomainBlocklist,
           fuzzylist: opts.fuzzylist,
           tolerance: opts.tolerance,
         }),
@@ -232,6 +201,42 @@ export class PhishingDetector {
 
     // matched nothing, PASS
     return { result: false, type: 'all' };
+  }
+
+  /**
+   * Checks if a URL is blocked against the hashed request blocklist.
+   * This is done by hashing the URL's hostname and checking it against the hashed request blocklist.
+   *
+   *
+   * @param urlString - The URL to check.
+   * @returns An object indicating if the URL is blocked and relevant metadata.
+   */
+  isMaliciousRequestDomain(urlString: string): PhishingDetectorResult {
+    for (const { c2DomainBlocklist, name, version } of this.#configs) {
+      try {
+        const url = new URL(urlString);
+
+        const hash = sha256Hash(url.hostname.toLowerCase());
+        const blocked = c2DomainBlocklist?.includes(hash) ?? false;
+
+        if (blocked) {
+          return {
+            name,
+            result: true,
+            type: 'c2DomainBlocklist',
+            version: version === undefined ? version : String(version),
+          };
+        }
+      } catch (error) {
+        return {
+          result: false,
+          type: 'c2DomainBlocklist',
+        };
+      }
+    }
+
+    // did not match, PASS
+    return { result: false, type: 'c2DomainBlocklist' };
   }
 }
 

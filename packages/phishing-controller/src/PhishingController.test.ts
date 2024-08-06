@@ -11,6 +11,8 @@ import {
   PHISHING_CONFIG_BASE_URL,
   type PhishingControllerActions,
   type PhishingControllerOptions,
+  CLIENT_SIDE_DETECION_BASE_URL,
+  C2_DOMAIN_BLOCKLIST_ENDPOINT,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
 
@@ -167,6 +169,14 @@ describe('PhishingController', () => {
               targetList: 'eth_phishing_detect_config.blocklist',
             },
           ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
         });
     });
 
@@ -486,6 +496,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('metamask.io'))).toMatchObject({
@@ -586,6 +605,14 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('etnerscan.io'))).toMatchObject({
@@ -619,6 +646,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(
@@ -654,6 +690,14 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
 
     const controller = getPhishingController();
     await controller.updateStalelist();
@@ -697,6 +741,14 @@ describe('PhishingController', () => {
             targetList: 'eth_phishing_detect_config.blocklist',
           },
         ],
+      });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
       });
 
     const controller = getPhishingController();
@@ -773,6 +825,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('opensea.io'))).toMatchObject({
@@ -806,6 +867,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('ohpensea.io'))).toMatchObject({
@@ -875,6 +945,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
@@ -914,6 +993,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
@@ -954,6 +1042,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'myetherẉalletṭ.com';
@@ -993,6 +1090,15 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
     const controller = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
@@ -1012,6 +1118,8 @@ describe('PhishingController', () => {
     it('should update lists with addition to hotlist', async () => {
       sinon.useFakeTimers(2);
       const exampleBlockedUrl = 'https://example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlOne =
         'https://another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
@@ -1047,6 +1155,14 @@ describe('PhishingController', () => {
           ],
         });
 
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController();
       await controller.updateStalelist();
 
@@ -1054,6 +1170,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
@@ -1063,6 +1180,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 1,
@@ -1075,6 +1193,8 @@ describe('PhishingController', () => {
     it('should update lists with removal diff from hotlist', async () => {
       sinon.useFakeTimers(2);
       const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
@@ -1114,6 +1234,14 @@ describe('PhishingController', () => {
           ],
         });
 
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController();
       await controller.updateStalelist();
 
@@ -1121,6 +1249,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 0,
           version: 0,
@@ -1129,6 +1258,7 @@ describe('PhishingController', () => {
         },
         {
           blocklist: [],
+          c2DomainBlocklist: [],
           allowlist: [],
           fuzzylist: [],
           tolerance: 0,
@@ -1152,6 +1282,7 @@ describe('PhishingController', () => {
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1167,6 +1298,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1183,12 +1315,17 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(500);
 
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(500);
+
       const controller = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1204,6 +1341,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          c2DomainBlocklist: [],
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1218,6 +1356,10 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .replyWithError('network error')
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .replyWithError('network error');
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
         .replyWithError('network error');
 
       const controller = getPhishingController();
@@ -1312,6 +1454,8 @@ describe('PhishingController', () => {
   describe('updateHotlist', () => {
     it('should update phishing lists if hotlist fetch returns 200', async () => {
       const testBlockedDomain = 'some-test-blocked-url.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(200, {
@@ -1324,12 +1468,21 @@ describe('PhishingController', () => {
           ],
         });
 
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
       const controller = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1345,6 +1498,7 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1358,12 +1512,17 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
 
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(404);
+
       const controller = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1381,6 +1540,485 @@ describe('PhishingController', () => {
           lastUpdated: 0,
         },
       ]);
+    });
+    it('should update request blocklist with additions and removals', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      const exampleRequestBlockedHashTwo = 'd3bkcslj57l47pamplifyapp';
+
+      // Mock the hotlist diff response
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      // Mock the request blocklist response with additions and removals
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [exampleRequestBlockedHashTwo],
+          lastFetchedAt: 1,
+        });
+
+      // Initialize the controller with an existing state
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHashTwo],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+
+      // Perform the hotlist update
+      await controller.updateHotlist();
+
+      // Check the updated state
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [testBlockedDomain],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+
+    it('should handle empty hotlist and request blocklist responses gracefully', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle errors during hotlist fetching gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .replyWithError('network error');
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHash],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 1,
+            },
+          ],
+        },
+      });
+
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+    it('should handle missing hotlist data and non-empty domain blocklist gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(500);
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle errors during request blocklist fetching gracefully', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .replyWithError('network error');
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [testBlockedDomain],
+          c2DomainBlocklist: [],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+    it('should handle response without recentlyAdded or recentlyRemoved gracefully', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [testBlockedDomain],
+          c2DomainBlocklist: [],
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+  });
+
+  describe('PhishingController - isBlockedRequest', () => {
+    afterEach(() => {
+      nock.cleanAll();
+    });
+
+    it('should return false if c2DomainBlocklist is not defined or empty', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            eth_phishing_detect_config: {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+            },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            phishfort_hotlist: {
+              blocklist: [],
+            },
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      const result = controller.isBlockedRequest('https://example.com');
+      expect(result).toMatchObject({
+        result: false,
+        type: 'c2DomainBlocklist',
+      });
+    });
+
+    it('should return true if URL is in the c2DomainBlocklist', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            eth_phishing_detect_config: {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+            },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            phishfort_hotlist: {
+              blocklist: [],
+            },
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      const result = controller.isBlockedRequest(
+        'https://develop.d3bkcslj57l47p.amplifyapp.com',
+      );
+      expect(result).toMatchObject({
+        name: ListNames.MetaMask,
+        result: true,
+        type: 'c2DomainBlocklist',
+      });
+    });
+
+    it('should return false if URL is not in the c2DomainBlocklist', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            eth_phishing_detect_config: {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+            },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            phishfort_hotlist: {
+              blocklist: [],
+            },
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      const result = controller.isBlockedRequest('https://example.com');
+      expect(result).toMatchObject({
+        result: false,
+        type: 'c2DomainBlocklist',
+      });
+    });
+
+    it('should return false if URL is invalid', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            eth_phishing_detect_config: {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+            },
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            phishfort_hotlist: {
+              blocklist: [],
+            },
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const controller = getPhishingController();
+      await controller.updateStalelist();
+      const result = controller.isBlockedRequest('#$@(%&@#$(%');
+      expect(result).toMatchObject({
+        result: false,
+        type: 'c2DomainBlocklist',
+      });
     });
   });
 });

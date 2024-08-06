@@ -4,27 +4,34 @@ import { safelyExecute } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
 
 import { PhishingDetector } from './PhishingDetector';
+import type { PhishingDetectorResult } from './types';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
-
 export const METAMASK_STALELIST_FILE = '/v1/stalelist';
-
 export const METAMASK_HOTLIST_DIFF_FILE = '/v1/diffsSince';
+
+export const CLIENT_SIDE_DETECION_BASE_URL = 'https://api.walletguard.app';
+export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
 
 export const METAMASK_STALELIST_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_STALELIST_FILE}`;
 export const METAMASK_HOTLIST_DIFF_URL = `${PHISHING_CONFIG_BASE_URL}${METAMASK_HOTLIST_DIFF_FILE}`;
+export const C2_DOMAIN_BLOCKLIST_URL = `${CLIENT_SIDE_DETECION_BASE_URL}${C2_DOMAIN_BLOCKLIST_ENDPOINT}`;
 
 /**
  * @type ListTypes
  *
  * Type outlining the types of lists provided by aggregating different source lists
  */
-export type ListTypes = 'fuzzylist' | 'blocklist' | 'allowlist';
+export type ListTypes =
+  | 'fuzzylist'
+  | 'blocklist'
+  | 'allowlist'
+  | 'c2DomainBlocklist';
 
 /**
  * @type EthPhishingResponse
@@ -43,6 +50,20 @@ export type EthPhishingResponse = {
   tolerance: number;
   version: number;
   whitelist: string[];
+};
+
+/**
+ * @type C2DomainBlocklistResponse
+ *
+ * Response for blocklist update requests
+ * @property recentlyAdded - List of c2 domains recently added to the blocklist
+ * @property recentlyRemoved - List of c2 domains recently removed from the blocklist
+ * @property lastFetchedAt - Timestamp of the last fetch request
+ */
+export type C2DomainBlocklistResponse = {
+  recentlyAdded: string[];
+  recentlyRemoved: string[];
+  lastFetchedAt: string;
 };
 
 /**
@@ -73,6 +94,7 @@ export type PhishingStalelist = {
  * type defining the persisted list state. This is the persisted state that is updated frequently with `this.maybeUpdateState()`.
  * @property allowlist - List of approved origins (legacy naming "whitelist")
  * @property blocklist - List of unapproved origins (legacy naming "blacklist")
+ * @property c2DomainBlocklist - List of hashed hostnames that C2 requests are blocked against.
  * @property fuzzylist - List of fuzzy-matched unapproved origins
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
@@ -82,29 +104,12 @@ export type PhishingStalelist = {
 export type PhishingListState = {
   allowlist: string[];
   blocklist: string[];
+  c2DomainBlocklist: string[];
   fuzzylist: string[];
   tolerance: number;
   version: number;
   lastUpdated: number;
   name: ListNames;
-};
-
-/**
- * @type EthPhishingDetectResult
- *
- * type that describes the result of the `test` method.
- * @property name - Name of the config on which a match was found.
- * @property version - Version of the config on which a match was found.
- * @property result - Whether a domain was detected as a phishing domain. True means an unsafe domain.
- * @property match - The matching fuzzylist origin when a fuzzylist match is found. Returned as undefined for non-fuzzy true results.
- * @property type - The field of the config on which a match was found.
- */
-export type EthPhishingDetectResult = {
-  name?: string;
-  version?: string;
-  result: boolean;
-  match?: string; // Returned as undefined for non-fuzzy true results.
-  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist';
 };
 
 /**
@@ -396,12 +401,28 @@ export class PhishingController extends BaseController<
    * @param origin - Domain origin of a website.
    * @returns Whether the origin is an unapproved origin.
    */
-  test(origin: string): EthPhishingDetectResult {
+  test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.includes(punycodeOrigin)) {
       return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
     }
     return this.#detector.check(punycodeOrigin);
+  }
+
+  /**
+   * Checks if a request URL's domain is blocked against the request blocklist.
+   *
+   * This method is used to determine if a specific request URL is associated with a malicious
+   * command and control (C2) domain. The URL's hostname is hashed and checked against a configured
+   * blocklist of known malicious domains.
+   *
+   * @param origin - The full request URL to be checked.
+   * @returns An object indicating whether the URL's domain is blocked and relevant metadata.
+   */
+  isBlockedRequest(origin: string): PhishingDetectorResult {
+    const punycodeOrigin = toASCII(origin);
+
+    return this.#detector.isMaliciousRequestDomain(punycodeOrigin);
   }
 
   /**
@@ -467,13 +488,21 @@ export class PhishingController extends BaseController<
    * this function that prevents redundant configuration updates.
    */
   async #updateStalelist() {
-    let stalelistResponse;
-    let hotlistDiffsResponse;
+    let stalelistResponse: DataResultWrapper<PhishingStalelist> | null = null;
+    let hotlistDiffsResponse: DataResultWrapper<Hotlist> | null = null;
+    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
     try {
-      stalelistResponse = await this.#queryConfig<
+      const stalelistPromise = this.#queryConfig<
         DataResultWrapper<PhishingStalelist>
-      >(METAMASK_STALELIST_URL).then((d) => d);
+      >(METAMASK_STALELIST_URL);
 
+      const c2DomainBlocklistPromise =
+        this.#queryConfig<C2DomainBlocklistResponse>(C2_DOMAIN_BLOCKLIST_URL);
+
+      [stalelistResponse, c2DomainBlocklistResponse] = await Promise.all([
+        stalelistPromise,
+        c2DomainBlocklistPromise,
+      ]);
       // Fetching hotlist diffs relies on having a lastUpdated timestamp to do `GET /v1/diffsSince/:timestamp`,
       // so it doesn't make sense to call if there is not a timestamp to begin with.
       if (stalelistResponse?.data && stalelistResponse.data.lastUpdated > 0) {
@@ -491,7 +520,11 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (!stalelistResponse || !hotlistDiffsResponse) {
+    if (
+      !stalelistResponse ||
+      !hotlistDiffsResponse ||
+      !c2DomainBlocklistResponse
+    ) {
       return;
     }
 
@@ -510,6 +543,7 @@ export class PhishingController extends BaseController<
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
+      c2DomainBlocklist: c2DomainBlocklistResponse.recentlyAdded,
       name: phishingListKeyNameMap.eth_phishing_detect_config,
     };
     // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
@@ -540,12 +574,23 @@ export class PhishingController extends BaseController<
     const lastDiffTimestamp = Math.max(
       ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
     );
-    let hotlistResponse: DataResultWrapper<Hotlist> | null;
+    let hotlistResponse: DataResultWrapper<Hotlist> | null = null;
+    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
 
     try {
-      hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
+      const hotlistPromise = this.#queryConfig<DataResultWrapper<Hotlist>>(
         `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );
+
+      const c2DomainBlocklistPromise =
+        this.#queryConfig<C2DomainBlocklistResponse>(
+          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${lastDiffTimestamp}`,
+        );
+
+      [hotlistResponse, c2DomainBlocklistResponse] = await Promise.all([
+        hotlistPromise,
+        c2DomainBlocklistPromise,
+      ]);
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
@@ -554,17 +599,26 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (!hotlistResponse?.data) {
+    if (!hotlistResponse?.data && !c2DomainBlocklistResponse) {
       return;
     }
-    const hotlist = hotlistResponse.data;
-    const newPhishingLists = this.state.phishingLists.map((phishingList) =>
-      applyDiffs(
+    const hotlist = hotlistResponse?.data || [];
+    const recentlyAddedC2Domains =
+      c2DomainBlocklistResponse?.recentlyAdded || [];
+    const recentlyRemovedC2Domains =
+      c2DomainBlocklistResponse?.recentlyRemoved || [];
+
+    const newPhishingLists = this.state.phishingLists.map((phishingList) => {
+      const updatedList = applyDiffs(
         phishingList,
         hotlist,
         phishingListNameKeyMap[phishingList.name],
-      ),
-    );
+        recentlyAddedC2Domains,
+        recentlyRemovedC2Domains,
+      );
+
+      return updatedList;
+    });
 
     this.update((draftState) => {
       draftState.phishingLists = newPhishingLists;

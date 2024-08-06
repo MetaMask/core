@@ -8,13 +8,17 @@ import {
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
+  sha256Hash,
   validateConfig,
 } from './utils';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';
 const exampleBlockedUrlTwo = 'https://final-example-blocked-website.com';
+const examplec2DomainBlocklistHashOne =
+  '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
 const exampleBlocklist = [exampleBlockedUrl, exampleBlockedUrlOne];
+const examplec2DomainBlocklist = [examplec2DomainBlocklistHashOne];
 
 const exampleAllowUrl = 'https://example-allowlist-item.com';
 const exampleFuzzyUrl = 'https://example-fuzzylist-item.com';
@@ -22,6 +26,7 @@ const exampleAllowlist = [exampleAllowUrl];
 const exampleFuzzylist = [exampleFuzzyUrl];
 const exampleListState = {
   blocklist: exampleBlocklist,
+  c2DomainBlocklist: examplec2DomainBlocklist,
   fuzzylist: exampleFuzzylist,
   tolerance: 2,
   allowlist: exampleAllowlist,
@@ -147,6 +152,82 @@ describe('applyDiffs', () => {
       name: ListNames.Phishfort,
     });
   });
+  // New tests for handling C2 domain blocklist
+  it('should add hashes to the current C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      ['hash3', 'hash4'],
+      [],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual([
+      ...exampleListState.c2DomainBlocklist,
+      'hash3',
+      'hash4',
+    ]);
+  });
+
+  it('should remove hashes from the current C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      [],
+      ['hash2'],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1']);
+  });
+
+  it('should handle adding and removing hashes simultaneously in C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      ['hash3'],
+      ['hash2'],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash3']);
+  });
+
+  it('should not add duplicates in C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      ['hash2', 'hash3'],
+      [],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2', 'hash3']);
+  });
+
+  it('should handle empty recently added and removed lists for C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      [],
+      [],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2']);
+  });
+
+  it('should handle removing a non-existent hash in C2 domain blocklist', () => {
+    exampleListState.c2DomainBlocklist = ['hash1', 'hash2'];
+    const result = applyDiffs(
+      exampleListState,
+      [],
+      ListKeys.EthPhishingDetectConfig,
+      [],
+      ['hash3'],
+    );
+    expect(result.c2DomainBlocklist).toStrictEqual(['hash1', 'hash2']);
+  });
 });
 
 describe('validateConfig', () => {
@@ -264,5 +345,23 @@ describe('matchPartsAgainstList', () => {
     const result = matchPartsAgainstList(domainParts, list);
 
     expect(result).toBeUndefined();
+  });
+});
+
+describe('sha256Hash', () => {
+  it('should generate the correct SHA-256 hash for a given domain', async () => {
+    const hostname = 'develop.d3bkcslj57l47p.amplifyapp.com';
+    const expectedHash =
+      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+    const hash = sha256Hash(hostname);
+    expect(hash).toBe(expectedHash);
+  });
+
+  it('should generate the correct SHA-256 hash for a domain with uppercase letters', async () => {
+    const hostname = 'develop.d3bkcslj57l47p.Amplifyapp.com';
+    const expectedHash =
+      '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+    const hash = sha256Hash(hostname);
+    expect(hash).toBe(expectedHash);
   });
 });
