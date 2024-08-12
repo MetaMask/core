@@ -3412,7 +3412,7 @@ export class TransactionController extends BaseController<
       // TODO: Fix types
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       provider: provider as any,
-      // @ts-expect-error TODO: Fix types
+      // TODO: Fix types
       blockTracker,
       getPendingTransactions: this.#getNonceTrackerPendingTransactions.bind(
         this,
