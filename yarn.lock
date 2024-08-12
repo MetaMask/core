@@ -3119,23 +3119,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^8.0.0":
-  version: 8.0.1
-  resolution: "@metamask/keyring-api@npm:8.0.1"
-  dependencies:
-    "@metamask/snaps-sdk": "npm:^6.0.0"
-    "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^9.1.0"
-    "@types/uuid": "npm:^9.0.8"
-    bech32: "npm:^2.0.0"
-    uuid: "npm:^9.0.1"
-  peerDependencies:
-    "@metamask/providers": ">=15 <18"
-  checksum: 10/a54d78130a71b51eebcaff1aaf35e5f7c56e6032850453c155ef2085df541a8b4b231106aaf481d049ec0f95da9faca04ead56944b71b4602916e6cacdd96c7f
-  languageName: node
-  linkType: hard
-
-"@metamask/keyring-api@npm:^8.1.0":
+"@metamask/keyring-api@npm:^8.0.0, @metamask/keyring-api@npm:^8.1.0":
   version: 8.1.0
   resolution: "@metamask/keyring-api@npm:8.1.0"
   dependencies:
