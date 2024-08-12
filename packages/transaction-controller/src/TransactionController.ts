@@ -1107,8 +1107,6 @@ export class TransactionController extends BaseController<
         },
       );
 
-      // Ensure transaction parameters are still valid before adding metadata to state.
-      validateTxParams(addedTransactionMeta.txParams, isEIP1559Compatible);
       this.addMetadata(addedTransactionMeta);
 
       if (requireApproval !== false) {
