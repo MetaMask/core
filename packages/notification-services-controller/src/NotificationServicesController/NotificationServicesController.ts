@@ -14,9 +14,15 @@ import type {
   KeyringControllerUnlockEvent,
 } from '@metamask/keyring-controller';
 import type {
-  AuthenticationController,
-  UserStorageController,
-} from '@metamask/profile-sync-controller';
+  AuthenticationControllerGetBearerToken,
+  AuthenticationControllerIsSignedIn,
+} from '@metamask/profile-sync-controller/auth';
+import type {
+  UserStorageControllerEnableProfileSyncing,
+  UserStorageControllerGetStorageKey,
+  UserStorageControllerPerformGetStorage,
+  UserStorageControllerPerformSetStorage,
+} from '@metamask/profile-sync-controller/user-storage';
 import log from 'loglevel';
 
 import { USER_STORAGE_VERSION_KEY } from './constants/constants';
@@ -197,13 +203,13 @@ export type AllowedActions =
   | KeyringControllerGetAccountsAction
   | KeyringControllerGetStateAction
   // Auth Controller Requests
-  | AuthenticationController.AuthenticationControllerGetBearerToken
-  | AuthenticationController.AuthenticationControllerIsSignedIn
+  | AuthenticationControllerGetBearerToken
+  | AuthenticationControllerIsSignedIn
   // User Storage Controller Requests
-  | UserStorageController.UserStorageControllerEnableProfileSyncing
-  | UserStorageController.UserStorageControllerGetStorageKey
-  | UserStorageController.UserStorageControllerPerformGetStorage
-  | UserStorageController.UserStorageControllerPerformSetStorage
+  | UserStorageControllerEnableProfileSyncing
+  | UserStorageControllerGetStorageKey
+  | UserStorageControllerPerformGetStorage
+  | UserStorageControllerPerformSetStorage
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerEnablePushNotifications
   | NotificationServicesPushControllerDisablePushNotifications

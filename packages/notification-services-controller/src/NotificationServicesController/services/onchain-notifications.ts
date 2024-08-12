@@ -1,4 +1,4 @@
-import { UserStorageController } from '@metamask/profile-sync-controller';
+import { createSHA256Hash } from '@metamask/profile-sync-controller/user-storage';
 import log from 'loglevel';
 
 import { toRawOnChainNotification } from '../../shared/to-raw-notification';
@@ -59,7 +59,7 @@ export async function createOnChainTriggers(
   };
   const triggersToCreate: RequestPayloadTrigger[] = triggers.map((t) => ({
     id: t.id,
-    token: UserStorageController.createSHA256Hash(t.id + storageKey),
+    token: createSHA256Hash(t.id + storageKey),
     config: {
       kind: t.kind,
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -118,7 +118,7 @@ export async function deleteOnChainTriggers(
 ): Promise<UserStorage> {
   const triggersToDelete = uuids.map((uuid) => ({
     id: uuid,
-    token: UserStorageController.createSHA256Hash(uuid + storageKey),
+    token: createSHA256Hash(uuid + storageKey),
   }));
 
   try {
