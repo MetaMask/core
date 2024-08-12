@@ -2435,6 +2435,7 @@ export class TransactionController extends BaseController<
   }
 
   private addMetadata(transactionMeta: TransactionMeta) {
+    validateTxParams(transactionMeta.txParams);
     this.update((state) => {
       state.transactions = this.trimTransactionsForState([
         ...state.transactions,

@@ -66,7 +66,7 @@ export function validateTxParams(
 }
 
 /**
- * Validates type property, ensuring that if it is specified, it is a valid transaction envelope type.
+ * Validates the `type` property, ensuring that if it is specified, it is a valid transaction envelope type.
  *
  * @param type - The transaction envelope type to validate.
  * @throws Throws invalid params if the type is not a valid transaction envelope type.
@@ -79,7 +79,9 @@ function validateEnvelopeType(type: string | undefined) {
     )
   ) {
     throw rpcErrors.invalidParams(
-      `Invalid transaction envelope type: "${type}"`,
+      `Invalid transaction envelope type: "${type}". Must be one of: ${Object.values(
+        TransactionEnvelopeType,
+      ).join(', ')}`,
     );
   }
 }
