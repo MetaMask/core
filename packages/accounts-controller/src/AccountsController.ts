@@ -106,7 +106,7 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
-export type AccountsControllerUpdateAccountMetadata = {
+export type AccountsControllerUpdateAccountMetadataAction = {
   type: `${typeof controllerName}:updateAccountMetadata`;
   handler: AccountsController['updateAccountMetadata'];
 };
@@ -128,7 +128,7 @@ export type AccountsControllerActions =
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerUpdateAccountMetadata;
+  | AccountsControllerUpdateAccountMetadataAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
