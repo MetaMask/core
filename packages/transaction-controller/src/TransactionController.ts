@@ -1110,8 +1110,10 @@ export class TransactionController extends BaseController<
       this.addMetadata(addedTransactionMeta);
 
       if (requireApproval !== false) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.#updateSimulationData(addedTransactionMeta);
+        this.#updateSimulationData(addedTransactionMeta).catch((error) => {
+          log('Error while updating simulation data', error);
+          throw error;
+        });
       } else {
         log('Skipping simulation as approval not required');
       }
@@ -1694,8 +1696,10 @@ export class TransactionController extends BaseController<
       this.onTransactionStatusChange(updatedTransactionMeta);
 
       // Intentional given potential duration of process.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.updatePostBalance(updatedTransactionMeta);
+      this.updatePostBalance(updatedTransactionMeta).catch((error) => {
+        log('Error while updating post balance', error);
+        throw error;
+      });
 
       this.messagingSystem.publish(
         `${controllerName}:transactionConfirmed`,
@@ -2429,6 +2433,7 @@ export class TransactionController extends BaseController<
   }
 
   private addMetadata(transactionMeta: TransactionMeta) {
+    validateTxParams(transactionMeta.txParams);
     this.update((state) => {
       state.transactions = this.trimTransactionsForState([
         ...state.transactions,
@@ -2439,8 +2444,8 @@ export class TransactionController extends BaseController<
 
   private async updateGasProperties(transactionMeta: TransactionMeta) {
     const isEIP1559Compatible =
-      (await this.getEIP1559Compatibility(transactionMeta.networkClientId)) &&
-      transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
+      transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
+      (await this.getEIP1559Compatibility(transactionMeta.networkClientId));
 
     const { networkClientId, chainId } = transactionMeta;
 
@@ -3358,8 +3363,10 @@ export class TransactionController extends BaseController<
     this.onTransactionStatusChange(transactionMeta);
 
     // Intentional given potential duration of process.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.updatePostBalance(transactionMeta);
+    this.updatePostBalance(transactionMeta).catch((error) => {
+      log('Error while updating post balance', error);
+      throw error;
+    });
   }
 
   private async updatePostBalance(transactionMeta: TransactionMeta) {
@@ -3710,8 +3717,10 @@ export class TransactionController extends BaseController<
       )
     ) {
       log('Updating simulation data due to transaction parameter update');
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.#updateSimulationData(transactionMeta);
+      this.#updateSimulationData(transactionMeta).catch((error) => {
+        log('Error updating simulation data', error);
+        throw error;
+      });
     }
   }
 
