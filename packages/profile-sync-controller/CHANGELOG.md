@@ -7,17 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.1]
-
-### Added
-
-- unlock checks for when controller methods are called ([#4569](https://github.com/MetaMask/core/pull/4569))
-
-### Changed
-
-- **BREAKING** made `MOCK_ENCRYPTED_STORAGE_DATA` fixture a function to be lazily evaluated ([#4592](https://github.com/MetaMask/core/pull/4592))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
-
 ## [0.2.0]
 
 ### Added
@@ -95,8 +84,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...HEAD
-[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...@metamask/profile-sync-controller@0.2.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...HEAD
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.4...@metamask/profile-sync-controller@0.2.0
 [0.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.3...@metamask/profile-sync-controller@0.1.4
 [0.1.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.2...@metamask/profile-sync-controller@0.1.3
