@@ -8,7 +8,6 @@ import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerIsSignedIn,
 } from '@metamask/profile-sync-controller/auth';
-import { MOCK_ACCESS_TOKEN } from '@metamask/profile-sync-controller/auth/mocks';
 import type {
   UserStorageControllerEnableProfileSyncing,
   UserStorageControllerGetStorageKey,
@@ -701,7 +700,7 @@ function mockNotificationMessenger() {
 
   const mockGetBearerToken =
     typedMockAction<AuthenticationControllerGetBearerToken>().mockResolvedValue(
-      MOCK_ACCESS_TOKEN,
+      'MOCK_ACCESS_TOKEN',
     );
 
   const mockIsSignedIn =
