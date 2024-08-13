@@ -511,7 +511,6 @@ describe('convertEip1193RequestToJsonRpcRequest', () => {
       id: 'mock-id',
       jsonrpc: '2.0',
       method: 'test',
-      params: [],
     });
   });
 });
