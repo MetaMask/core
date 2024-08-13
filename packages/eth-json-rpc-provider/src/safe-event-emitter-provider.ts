@@ -35,7 +35,7 @@ export function convertEip1193RequestToJsonRpcRequest<
     id = uuidV4(),
     jsonrpc = '2.0',
     method,
-    params = {},
+    params = [],
   } = eip1193Request;
   return {
     id,
