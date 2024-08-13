@@ -527,33 +527,46 @@ describe('SelectedNetworkController', () => {
       });
 
       describe('when the requesting domain is a snap (starts with "npm:" or "local:"', () => {
-        it('skips setting the networkClientId for the passed in domain', () => {
+        it('sets the networkClientId for the passed in snap ID', () => {
           const { controller, mockHasPermissions } = setup({
             state: { domains: {} },
             useRequestQueuePreference: true,
           });
           mockHasPermissions.mockReturnValue(true);
-          const snapDomainOne = 'npm:@metamask/bip32-example-snap';
-          const snapDomainTwo = 'local:@metamask/bip32-example-snap';
-          const nonSnapDomain = 'example.com';
+          const domain = 'npm:foo-snap';
           const networkClientId = 'network1';
+          controller.setNetworkClientIdForDomain(domain, networkClientId);
+          expect(controller.state.domains[domain]).toBe(networkClientId);
+        });
 
-          controller.setNetworkClientIdForDomain(
-            nonSnapDomain,
-            networkClientId,
-          );
-          controller.setNetworkClientIdForDomain(
-            snapDomainOne,
-            networkClientId,
-          );
-          controller.setNetworkClientIdForDomain(
-            snapDomainTwo,
-            networkClientId,
-          );
-
-          expect(controller.state.domains).toStrictEqual({
-            [nonSnapDomain]: networkClientId,
+        it('updates the provider and block tracker proxy when they already exist for the snap ID', () => {
+          const { controller, mockProviderProxy, mockHasPermissions } = setup({
+            state: { domains: {} },
+            useRequestQueuePreference: true,
           });
+          mockHasPermissions.mockReturnValue(true);
+          const initialNetworkClientId = '123';
+
+          // creates the proxy for the new domain
+          controller.setNetworkClientIdForDomain(
+            'npm:foo-snap',
+            initialNetworkClientId,
+          );
+          const newNetworkClientId = 'abc';
+
+          expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(1);
+
+          // calls setTarget on the proxy
+          controller.setNetworkClientIdForDomain(
+            'npm:foo-snap',
+            newNetworkClientId,
+          );
+
+          expect(mockProviderProxy.setTarget).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ request: expect.any(Function) }),
+          );
+          expect(mockProviderProxy.setTarget).toHaveBeenCalledTimes(2);
         });
       });
 
