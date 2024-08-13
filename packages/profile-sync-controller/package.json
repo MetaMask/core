@@ -32,17 +32,17 @@
       "require": "./dist/controllers/authentication/index.js",
       "types": "./dist/types/controllers/authentication/index.d.ts"
     },
+    "./auth/__mocks__": {
+      "import": "./dist/controllers/authentication/__fixtures__/index.mjs",
+      "require": "./dist/controllers/authentication/__fixtures__/index.js",
+      "types": "./dist/types/controllers/authentication/__fixtures__/index.d.ts"
+    },
     "./user-storage": {
       "import": "./dist/controllers/user-storage/index.mjs",
       "require": "./dist/controllers/user-storage/index.js",
       "types": "./dist/types/controllers/user-storage/index.d.ts"
     },
-    "./dist/mocks/auth": {
-      "import": "./dist/controllers/authentication/__fixtures__/index.mjs",
-      "require": "./dist/controllers/authentication/__fixtures__/index.js",
-      "types": "./dist/types/controllers/authentication/__fixtures__/index.d.ts"
-    },
-    "./dist/mocks/user-storage": {
+    "./user-storage/__mocks__": {
       "import": "./dist/controllers/user-storage/__fixtures__/index.mjs",
       "require": "./dist/controllers/user-storage/__fixtures__/index.js",
       "types": "./dist/types/controllers/user-storage/__fixtures__/index.d.ts"
