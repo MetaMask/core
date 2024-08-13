@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [35.1.1]
 
+### Changed
+
+- Upgrade TypeScript version from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
 ### Fixed
 
 - Fix gaps in transaction validation and async error logging ([#4596](https://github.com/MetaMask/core/pull/4596))
