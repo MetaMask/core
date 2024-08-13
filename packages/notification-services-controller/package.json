@@ -47,7 +47,7 @@
       "require": "./dist/NotificationServicesController/ui/index.js",
       "types": "./dist/types/NotificationServicesController/ui/index.d.ts"
     },
-    "./notification-services/__mocks__": {
+    "./notification-services/mocks": {
       "import": "./dist/NotificationServicesController/__fixtures__/index.mjs",
       "require": "./dist/NotificationServicesController/__fixtures__/index.js",
       "types": "./dist/types/NotificationServicesController/__fixtures__/index.d.ts"
@@ -67,7 +67,7 @@
       "require": "./dist/NotificationServicesPushController/utils/index.js",
       "types": "./dist/types/NotificationServicesPushController/utils/index.d.ts"
     },
-    "./push-services/__mocks__": {
+    "./push-services/mocks": {
       "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",
       "require": "./dist/NotificationServicesPushController/__fixtures__/index.js",
       "types": "./dist/types/NotificationServicesPushController/__fixtures__/index.d.ts"
