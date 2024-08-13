@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "181.0.0",
+  "version": "182.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -91,7 +91,7 @@
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
     "tsup": "^8.0.2",
-    "typescript": "~5.1.6",
+    "typescript": "~5.2.2",
     "yargs": "^17.7.2"
   },
   "packageManager": "yarn@4.2.2",
