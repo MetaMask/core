@@ -789,23 +789,22 @@ describe('SelectedNetworkController', () => {
 
     // TODO - improve these tests by using a full NetworkController and doing more robust behavioral testing
     describe('when the domain is a snap (starts with "npm:" or "local:")', () => {
-      it('returns a proxied globally selected networkClient and does not create a new proxy in the domainProxyMap', () => {
-        const { controller, domainProxyMap, messenger } = setup({
+      it('calls to NetworkController:getSelectedNetworkClient and creates a new proxy provider and block tracker with the proxied globally selected network client', () => {
+        const { controller, messenger } = setup({
           state: {
             domains: {},
           },
-          useRequestQueuePreference: true,
+          useRequestQueuePreference: false,
         });
         jest.spyOn(messenger, 'call');
-        const snapDomain = 'npm:@metamask/bip32-example-snap';
 
-        const result = controller.getProviderAndBlockTracker(snapDomain);
-
-        expect(domainProxyMap.get(snapDomain)).toBeUndefined();
+        const result = controller.getProviderAndBlockTracker('npm:foo-snap');
+        expect(result).toBeDefined();
+        // unfortunately checking which networkController method is called is the best
+        // proxy (no pun intended) for checking that the correct instance of the networkClient is used
         expect(messenger.call).toHaveBeenCalledWith(
           'NetworkController:getSelectedNetworkClient',
         );
-        expect(result).toBeDefined();
       });
 
       it('throws an error if the globally selected network client is not initialized', () => {
