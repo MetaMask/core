@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -48,7 +48,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^20.0.0",
+    "@metamask/network-controller": "^20.1.0",
     "@metamask/permission-controller": "^11.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -60,7 +60,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "peerDependencies": {
     "@metamask/network-controller": "^20.0.0",

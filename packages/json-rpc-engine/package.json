@@ -63,7 +63,7 @@
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

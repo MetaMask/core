@@ -1248,6 +1248,10 @@ export class NetworkController extends BaseController<
       );
     }
 
+    if (networkConfigurationId === this.state.selectedNetworkClientId) {
+      throw new Error(`The selected network configuration cannot be removed`);
+    }
+
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
     const networkClientId = networkConfigurationId;

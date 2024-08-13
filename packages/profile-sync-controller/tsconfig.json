@@ -3,6 +3,9 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [{ "path": "../base-controller" }],
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../keyring-controller" }
+  ],
   "include": ["../../types", "./src"]
 }

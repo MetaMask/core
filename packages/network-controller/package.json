@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-controller",
-  "version": "20.0.0",
+  "version": "20.1.0",
   "description": "Provides an interface to the currently selected network via a MetaMask-compatible provider object",
   "keywords": [
     "MetaMask",
@@ -46,7 +46,7 @@
     "@metamask/eth-block-tracker": "^9.0.3",
     "@metamask/eth-json-rpc-infura": "^9.1.0",
     "@metamask/eth-json-rpc-middleware": "^12.1.1",
-    "@metamask/eth-json-rpc-provider": "^4.1.1",
+    "@metamask/eth-json-rpc-provider": "^4.1.2",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/rpc-errors": "^6.3.1",
@@ -72,7 +72,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

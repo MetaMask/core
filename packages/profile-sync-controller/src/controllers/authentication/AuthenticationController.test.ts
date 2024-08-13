@@ -12,6 +12,7 @@ import {
 import type {
   Actions,
   AllowedActions,
+  AllowedEvents,
   AuthenticationControllerState,
 } from './AuthenticationController';
 import AuthenticationController from './AuthenticationController';
@@ -32,7 +33,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
   it('should initialize with default state', () => {
     const metametrics = createMockAuthMetaMetrics();
     const controller = new AuthenticationController({
-      messenger: createAuthenticationMessenger(),
+      messenger: createMockAuthenticationMessenger().messenger,
       metametrics,
     });
 
@@ -43,7 +44,7 @@ describe('authentication/authentication-controller - constructor() tests', () =>
   it('should initialize with override state', () => {
     const metametrics = createMockAuthMetaMetrics();
     const controller = new AuthenticationController({
-      messenger: createAuthenticationMessenger(),
+      messenger: createMockAuthenticationMessenger().messenger,
       state: mockSignedInState(),
       metametrics,
     });
@@ -88,6 +89,20 @@ describe('authentication/authentication-controller - performSignIn() tests', () 
   it('should error when tokens endpoint fails', async () => {
     expect(true).toBe(true);
     await testAndAssertFailingEndpoints('token');
+  });
+
+  // When the wallet is locked, we are unable to call the snap
+  it('should error when wallet is locked', async () => {
+    const { messenger, mockKeyringControllerGetState } =
+      createMockAuthenticationMessenger();
+    const metametrics = createMockAuthMetaMetrics();
+
+    // Mock wallet is locked
+    mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+
+    const controller = new AuthenticationController({ messenger, metametrics });
+
+    await expect(controller.performSignIn()).rejects.toThrow(expect.any(Error));
   });
 
   /**
@@ -208,6 +223,38 @@ describe('authentication/authentication-controller - getBearerToken() tests', ()
     expect(result).toBeDefined();
     expect(result).toBe(MOCK_ACCESS_TOKEN);
   });
+
+  // If the state is invalid, we need to re-login.
+  // But as wallet is locked, we will not be able to call the snap
+  it('should throw error if wallet is locked', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const { messenger, mockKeyringControllerGetState } =
+      createMockAuthenticationMessenger();
+    mockAuthenticationFlowEndpoints();
+
+    // Invalid/old state
+    const originalState = mockSignedInState();
+    if (originalState.sessionData) {
+      originalState.sessionData.accessToken = 'ACCESS_TOKEN_1';
+
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
+      originalState.sessionData.expiresIn = d.toString();
+    }
+
+    // Mock wallet is locked
+    mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+
+    const controller = new AuthenticationController({
+      messenger,
+      state: originalState,
+      metametrics,
+    });
+
+    await expect(controller.getBearerToken()).rejects.toThrow(
+      expect.any(Error),
+    );
+  });
 });
 
 describe('authentication/authentication-controller - getSessionProfile() tests', () => {
@@ -264,6 +311,38 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
     expect(result.identifierId).toBe(MOCK_LOGIN_RESPONSE.profile.identifier_id);
     expect(result.profileId).toBe(MOCK_LOGIN_RESPONSE.profile.profile_id);
   });
+
+  // If the state is invalid, we need to re-login.
+  // But as wallet is locked, we will not be able to call the snap
+  it('should throw error if wallet is locked', async () => {
+    const metametrics = createMockAuthMetaMetrics();
+    const { messenger, mockKeyringControllerGetState } =
+      createMockAuthenticationMessenger();
+    mockAuthenticationFlowEndpoints();
+
+    // Invalid/old state
+    const originalState = mockSignedInState();
+    if (originalState.sessionData) {
+      originalState.sessionData.profile.identifierId = 'ID_1';
+
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - 31); // expires at 30 mins
+      originalState.sessionData.expiresIn = d.toString();
+    }
+
+    // Mock wallet is locked
+    mockKeyringControllerGetState.mockReturnValue({ isUnlocked: false });
+
+    const controller = new AuthenticationController({
+      messenger,
+      state: originalState,
+      metametrics,
+    });
+
+    await expect(controller.getSessionProfile()).rejects.toThrow(
+      expect.any(Error),
+    );
+  });
 });
 
 /**
@@ -272,11 +351,17 @@ describe('authentication/authentication-controller - getSessionProfile() tests',
  * @returns Auth Messenger
  */
 function createAuthenticationMessenger() {
-  const messenger = new ControllerMessenger<Actions | AllowedActions, never>();
+  const messenger = new ControllerMessenger<
+    Actions | AllowedActions,
+    AllowedEvents
+  >();
   return messenger.getRestricted({
     name: 'AuthenticationController',
-    allowedActions: [`SnapController:handleRequest`],
-    allowedEvents: [],
+    allowedActions: [
+      'KeyringController:getState',
+      'SnapController:handleRequest',
+    ],
+    allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
   });
 }
 
@@ -292,6 +377,10 @@ function createMockAuthenticationMessenger() {
   const mockSnapSignMessage = jest
     .fn()
     .mockResolvedValue('MOCK_SIGNED_MESSAGE');
+
+  const mockKeyringControllerGetState = jest
+    .fn()
+    .mockReturnValue({ isUnlocked: true });
 
   mockCall.mockImplementation((...args) => {
     const [actionType, params] = args;
@@ -311,12 +400,21 @@ function createMockAuthenticationMessenger() {
       );
     }
 
+    if (actionType === 'KeyringController:getState') {
+      return mockKeyringControllerGetState();
+    }
+
     throw new Error(
       `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
     );
   });
 
-  return { messenger, mockSnapGetPublicKey, mockSnapSignMessage };
+  return {
+    messenger,
+    mockSnapGetPublicKey,
+    mockSnapSignMessage,
+    mockKeyringControllerGetState,
+  };
 }
 
 /**
