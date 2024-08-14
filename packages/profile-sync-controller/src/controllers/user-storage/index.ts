@@ -5,3 +5,4 @@ export { Controller };
 export default UserStorageController;
 export * from './UserStorageController';
 export * from './encryption';
+export * as Mocks from './__fixtures__';

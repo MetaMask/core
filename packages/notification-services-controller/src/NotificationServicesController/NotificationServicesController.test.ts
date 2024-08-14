@@ -4,10 +4,8 @@ import type {
   KeyringControllerGetAccountsAction,
   KeyringControllerState,
 } from '@metamask/keyring-controller';
-import type {
-  AuthenticationController,
-  UserStorageController,
-} from '@metamask/profile-sync-controller';
+import type { UserStorageController } from '@metamask/profile-sync-controller';
+import { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import {
   createMockFeatureAnnouncementAPIResult,
@@ -694,7 +692,7 @@ function mockNotificationMessenger() {
 
   const mockGetBearerToken =
     typedMockAction<AuthenticationController.AuthenticationControllerGetBearerToken>().mockResolvedValue(
-      'MOCK_ACCESS_TOKEN',
+      AuthenticationController.Mocks.MOCK_ACCESS_TOKEN,
     );
 
   const mockIsSignedIn =
