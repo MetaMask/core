@@ -367,10 +367,10 @@ describe('SignatureController', () => {
     it('throws if approval rejected', async () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
+        .mockRejectedValueOnce({ message: 'User rejected the request.' }); // ApprovalController:addRequest
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
+      const error: any = await getError<Error>(
         async () =>
           await signatureController.newUnsignedPersonalMessage(
             messageParamsMock,
@@ -519,10 +519,10 @@ describe('SignatureController', () => {
     it('throws if approval rejected', async () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
+        .mockRejectedValueOnce({ message: 'User rejected the request.' }); // ApprovalController:addRequest
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
+      const error: any = await getError<Error>(
         async () =>
           await signatureController.newUnsignedTypedMessage(
             messageParamsMock,
