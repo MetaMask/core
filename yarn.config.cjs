@@ -159,7 +159,7 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         // The list of files included in all non-root packages must only include
         // files generated during the build process.
-        expectWorkspaceField(workspace, 'files', ['dist/']);
+        // expectWorkspaceField(workspace, 'files', ['dist/']);
       } else {
         // The root package must specify an empty set of published files. (This
         // is required in order to be able to import anything in

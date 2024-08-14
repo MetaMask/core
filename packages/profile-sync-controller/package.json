@@ -52,7 +52,9 @@
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "files": [
-    "dist/"
+    "dist/",
+    "auth/",
+    "user-storage/"
   ],
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
