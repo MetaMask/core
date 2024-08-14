@@ -26,10 +26,11 @@ import type {
   AuthenticationControllerPerformSignIn,
   AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
-import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from './accounts/constants';
 import {
-  extactUserStorageAccountsListFromResponse,
+  extractUserStorageAccountsListFromResponse,
   formatUserStorageAccountsListPayload,
+  isNameDefaultAccountName,
+  mapInternalAccountsListToUserStorageAccountsList,
   type UserStorageAccountsList,
 } from './accounts/user-storage';
 import { createSHA256Hash } from './encryption';
@@ -101,6 +102,7 @@ type ActionsObj = CreateActionsObj<
   | 'getStorageKey'
   | 'enableProfileSyncing'
   | 'disableProfileSyncing'
+  | 'syncInternalAccountsListWithUserStorage'
 >;
 export type Actions = ActionsObj[keyof ActionsObj];
 export type UserStorageControllerPerformGetStorage =
@@ -112,6 +114,8 @@ export type UserStorageControllerEnableProfileSyncing =
   ActionsObj['enableProfileSyncing'];
 export type UserStorageControllerDisableProfileSyncing =
   ActionsObj['disableProfileSyncing'];
+export type UserStorageControllerSyncInternalAccountsListWithUserStorage =
+  ActionsObj['syncInternalAccountsListWithUserStorage'];
 
 // Allowed Actions
 export type AllowedActions =
@@ -245,7 +249,9 @@ export default class UserStorageController extends BaseController<
         'accounts.list',
       );
 
-      return extactUserStorageAccountsListFromResponse(rawAccountsListResponse);
+      return extractUserStorageAccountsListFromResponse(
+        rawAccountsListResponse,
+      );
     },
     setUserStorageAccountsList: async (
       accountsList: UserStorageAccountsList,
@@ -266,28 +272,10 @@ export default class UserStorageController extends BaseController<
       }
 
       // Map the internal accounts to the user storage accounts list schema
-      const mappedAccountsList = internalAccountsList.map((account) => {
-        const {
-          id,
-          address,
-          // TODO: add this key to the schema in keyring-api
-          metadata: { name, nameLastUpdatedAt },
-        } = account;
-
-        return {
-          i: id,
-          a: address,
-          n: name,
-          ...(nameLastUpdatedAt && { lu: nameLastUpdatedAt }),
-        };
-      });
+      const mappedAccountsList =
+        mapInternalAccountsListToUserStorageAccountsList(internalAccountsList);
 
       await this.#accounts.setUserStorageAccountsList(mappedAccountsList);
-    },
-    isDefaultName: (name: string) => {
-      return LOCALIZED_DEFAULT_ACCOUNT_NAMES.some((prefix) => {
-        return new RegExp(`${prefix} ([0-9]+)$`, 'u').test(name);
-      });
     },
   };
 
@@ -357,6 +345,10 @@ export default class UserStorageController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'UserStorageController:disableProfileSyncing',
       this.disableProfileSyncing.bind(this),
+    );
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:syncInternalAccountsListWithUserStorage',
+      this.syncInternalAccountsListWithUserStorage.bind(this),
     );
   }
 
@@ -601,22 +593,19 @@ export default class UserStorageController extends BaseController<
           userStorageAccountsList.length - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
-        // TODO: Promise.all
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of Array.from({ length: numberOfAccountsToAdd })) {
+        const addNewAccountsPromises = Array.from({
+          length: numberOfAccountsToAdd,
+        }).map(async () => {
           await this.messagingSystem.call('KeyringController:addNewAccount');
+        });
 
-          // TODO: Await for the new account to be added
-          // Timeout is used as a temporary solution
-          // Or find a way to subscribe to the update
-        }
+        await Promise.all(addNewAccountsPromises);
       }
 
       // Second step: compare account names
       // Get the internal accounts list again since new accounts might have been added in the previous step
       internalAccountsList = await this.#accounts.getInternalAccountsList();
 
-      // TODO: Promise.all
       for await (const internalAccount of internalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
@@ -627,10 +616,10 @@ export default class UserStorageController extends BaseController<
         }
 
         // One or both accounts have default names
-        const isInternalAccountNameDefault = this.#accounts.isDefaultName(
+        const isInternalAccountNameDefault = isNameDefaultAccountName(
           internalAccount.metadata.name,
         );
-        const isUserStorageAccountNameDefault = this.#accounts.isDefaultName(
+        const isUserStorageAccountNameDefault = isNameDefaultAccountName(
           userStorageAccount.n,
         );
 
@@ -656,12 +645,12 @@ export default class UserStorageController extends BaseController<
         // Both accounts have custom names
 
         // User storage account has a nameLastUpdatedAt timestamp
-        // Note: not storing the undefined checks to act as a type guard
-        if (userStorageAccount.lu !== undefined) {
+        // Note: not storing the undefined checks in constants to act as a type guard
+        if (userStorageAccount.nlu !== undefined) {
           if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
             const isInternalAccountNameNewer =
               internalAccount.metadata.nameLastUpdatedAt >
-              userStorageAccount.lu;
+              userStorageAccount.nlu;
 
             if (isInternalAccountNameNewer) {
               continue;
@@ -673,7 +662,7 @@ export default class UserStorageController extends BaseController<
             internalAccount.id,
             {
               name: userStorageAccount.n,
-              nameLastUpdatedAt: userStorageAccount.lu,
+              nameLastUpdatedAt: userStorageAccount.nlu,
             },
           );
 

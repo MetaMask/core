@@ -8,6 +8,10 @@ import type {
   AuthenticationControllerPerformSignIn,
 } from '../authentication/AuthenticationController';
 import {
+  MOCK_ACCOUNTS_STORAGE_DATA,
+  MOCK_INTERNAL_ACCOUNTS_LIST,
+} from './__fixtures__/mockAccounts';
+import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
 } from './__fixtures__/mockServices';
@@ -16,6 +20,7 @@ import {
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
 } from './__fixtures__/mockStorage';
+import encryption from './encryption/encryption';
 import type {
   AllowedActions,
   AllowedEvents,
@@ -75,6 +80,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -150,6 +156,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -202,7 +209,10 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
   it('rejects if api call fails', async () => {
     const { messengerMocks } = arrangeMocks({
-      mockAPI: mockEndpointUpsertUserStorage({ status: 500 }),
+      mockAPI: mockEndpointUpsertUserStorage(
+        'notifications.notificationSettings',
+        { status: 500 },
+      ),
     });
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
@@ -243,6 +253,7 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -287,6 +298,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
+        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -295,6 +307,58 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
     expect(controller.state.isProfileSyncingEnabled).toBe(true);
     expect(messengerMocks.mockAuthIsSignedIn).toHaveBeenCalled();
     expect(messengerMocks.mockAuthPerformSignIn).toHaveBeenCalled();
+  });
+});
+
+describe('user-storage/user-storage-controller - syncInternalAccountsListWithUserStorage() tests', () => {
+  const mockUserStorageAccountsResponse = {
+    status: 200,
+    body: {
+      HashedKey: 'HASHED_KEY',
+      Data: encryption.encryptString(
+        JSON.stringify(MOCK_ACCOUNTS_STORAGE_DATA),
+        MOCK_STORAGE_KEY,
+      ),
+    },
+  };
+
+  const arrangeMocks = () => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointGetUserStorage(
+        'accounts.list',
+        mockUserStorageAccountsResponse,
+      ),
+    };
+  };
+
+  it('returns users account storage', async () => {
+    const { messengerMocks, mockAPI } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    const result = await controller.performGetStorage('accounts.list');
+    mockAPI.done();
+    expect(result).toBe(JSON.stringify(MOCK_ACCOUNTS_STORAGE_DATA));
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+        isUserStorageAccountSyncingInProgress: false,
+      },
+    });
+
+    await expect(
+      controller.syncInternalAccountsListWithUserStorage(),
+    ).rejects.toThrow(expect.any(Error));
   });
 });
 
@@ -319,6 +383,9 @@ function mockUserStorageMessenger() {
       'AuthenticationController:performSignOut',
       'NotificationServicesController:disableNotificationServices',
       'NotificationServicesController:selectIsNotificationServicesEnabled',
+      'AccountsController:listAccounts',
+      'AccountsController:setAccountName',
+      'AccountsController:updateAccountMetadata',
     ],
     allowedEvents: ['KeyringController:lock', 'KeyringController:unlock'],
   });
@@ -368,17 +435,23 @@ function mockUserStorageMessenger() {
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType, params] = args;
     if (actionType === 'SnapController:handleRequest') {
-      if (params?.request.method === 'getPublicKey') {
+      if (
+        (params as Exclude<typeof params, string>)?.request.method ===
+        'getPublicKey'
+      ) {
         return mockSnapGetPublicKey();
       }
 
-      if (params?.request.method === 'signMessage') {
+      if (
+        (params as Exclude<typeof params, string>)?.request.method ===
+        'signMessage'
+      ) {
         return mockSnapSignMessage();
       }
 
       throw new Error(
         `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
-          params?.request.method as string
+          (params as Exclude<typeof params, string>)?.request.method as string
         }`,
       );
     }
@@ -419,6 +492,20 @@ function mockUserStorageMessenger() {
 
     if (actionType === 'KeyringController:getState') {
       return { isUnlocked: true };
+    }
+
+    if (actionType === 'AccountsController:listAccounts') {
+      return MOCK_INTERNAL_ACCOUNTS_LIST;
+    }
+
+    if (actionType === 'AccountsController:setAccountName') {
+      // TODO: fix this
+      return true;
+    }
+
+    if (actionType === 'AccountsController:updateAccountMetadata') {
+      // TODO: fix this
+      return true;
     }
 
     const exhaustedMessengerMocks = (action: never) => {

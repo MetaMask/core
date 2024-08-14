@@ -59,6 +59,7 @@ export async function getUserStorage(
 
     const userStorage: GetUserStorageResponse | null =
       await userStorageResponse.json();
+
     const encryptedData = userStorage?.Data ?? null;
 
     if (!encryptedData) {

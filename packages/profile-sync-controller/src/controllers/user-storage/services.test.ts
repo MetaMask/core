@@ -28,7 +28,10 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
   });
 
   it('returns null if endpoint does not have entry', async () => {
-    const mockGetUserStorage = mockEndpointGetUserStorage({ status: 404 });
+    const mockGetUserStorage = mockEndpointGetUserStorage(
+      'notifications.notificationSettings',
+      { status: 404 },
+    );
     const result = await actCallGetUserStorage();
 
     mockGetUserStorage.done();
@@ -36,7 +39,10 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
   });
 
   it('returns null if endpoint fails', async () => {
-    const mockGetUserStorage = mockEndpointGetUserStorage({ status: 500 });
+    const mockGetUserStorage = mockEndpointGetUserStorage(
+      'notifications.notificationSettings',
+      { status: 500 },
+    );
     const result = await actCallGetUserStorage();
 
     mockGetUserStorage.done();
@@ -48,10 +54,13 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
       HashedKey: 'MOCK_HASH',
       Data: 'Bad Encrypted Data',
     };
-    const mockGetUserStorage = mockEndpointGetUserStorage({
-      status: 200,
-      body: badResponseData,
-    });
+    const mockGetUserStorage = mockEndpointGetUserStorage(
+      'notifications.notificationSettings',
+      {
+        status: 200,
+        body: badResponseData,
+      },
+    );
     const result = await actCallGetUserStorage();
 
     mockGetUserStorage.done();
@@ -76,9 +85,12 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
   });
 
   it('throws error if unable to upsert user storage', async () => {
-    const mockUpsertUserStorage = mockEndpointUpsertUserStorage({
-      status: 500,
-    });
+    const mockUpsertUserStorage = mockEndpointUpsertUserStorage(
+      'notifications.notificationSettings',
+      {
+        status: 500,
+      },
+    );
 
     await expect(actCallUpsertUserStorage()).rejects.toThrow(expect.any(Error));
     mockUpsertUserStorage.done();

@@ -1,5 +1,6 @@
 import nock from 'nock';
 
+import type { UserStoragePath } from '../schema';
 import {
   getMockUserStorageGetResponse,
   getMockUserStoragePutResponse,
@@ -10,8 +11,11 @@ type MockReply = {
   body?: nock.Body;
 };
 
-export const mockEndpointGetUserStorage = (mockReply?: MockReply) => {
-  const mockResponse = getMockUserStorageGetResponse();
+export const mockEndpointGetUserStorage = (
+  path: UserStoragePath = 'notifications.notificationSettings',
+  mockReply?: MockReply,
+) => {
+  const mockResponse = getMockUserStorageGetResponse(path);
   const reply = mockReply ?? {
     status: 200,
     body: mockResponse.response,
@@ -25,9 +29,10 @@ export const mockEndpointGetUserStorage = (mockReply?: MockReply) => {
 };
 
 export const mockEndpointUpsertUserStorage = (
+  path: UserStoragePath = 'notifications.notificationSettings',
   mockReply?: Pick<MockReply, 'status'>,
 ) => {
-  const mockResponse = getMockUserStoragePutResponse();
+  const mockResponse = getMockUserStoragePutResponse(path);
   const mockEndpoint = nock(mockResponse.url)
     .put('')
     .reply(mockReply?.status ?? 204);
