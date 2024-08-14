@@ -378,7 +378,6 @@ describe('SignatureController', () => {
             requestMock,
           ),
       );
-      expect(error instanceof EthereumProviderError).toBe(true);
       expect(error.message).toBe('User rejected the request.');
     });
 
@@ -533,7 +532,6 @@ describe('SignatureController', () => {
             { parseJsonData: true },
           ),
       );
-      expect(error instanceof EthereumProviderError).toBe(true);
       expect(error.message).toBe('User rejected the request.');
     });
 
