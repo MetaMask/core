@@ -6,8 +6,8 @@ import {
   InfuraNetworkType,
 } from '@metamask/controller-utils';
 import {
-  NetworkController,
-  NetworkState,
+  type NetworkController,
+  type NetworkState,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 
