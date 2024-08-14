@@ -1,8 +1,8 @@
 import type { InternalAccount } from '@metamask/keyring-api';
 
 import {
-  MOCK_INTERNAL_ACCOUNTS_LIST,
-  MOCK_USER_STORAGE_ACCOUNTS_LIST,
+  MOCK_INTERNAL_ACCOUNTS_LISTS,
+  MOCK_USER_STORAGE_ACCOUNTS_LISTS,
   getMockRandomDefaultAccountName,
 } from '../__fixtures__/mockAccounts';
 import {
@@ -21,19 +21,23 @@ describe('user-storage/acounts/extractUserStorageAccountsListFromResponse', () =
   it('should return the list if response is valid', () => {
     expect(
       extractUserStorageAccountsListFromResponse(
-        `{"v":1,"l":${JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS_LIST)}}`,
+        `{"v":1,"l":${JSON.stringify(
+          MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL,
+        )}}`,
       ),
-    ).toStrictEqual(MOCK_USER_STORAGE_ACCOUNTS_LIST);
+    ).toStrictEqual(MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL);
   });
 });
 
 describe('user-storage/acounts/formatUserStorageAccountsListPayload', () => {
   it('should format the list correctly', () => {
     expect(
-      formatUserStorageAccountsListPayload(MOCK_USER_STORAGE_ACCOUNTS_LIST),
+      formatUserStorageAccountsListPayload(
+        MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL.l,
+      ),
     ).toStrictEqual({
       v: '1',
-      l: MOCK_USER_STORAGE_ACCOUNTS_LIST,
+      l: MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL,
     });
   });
 });
@@ -61,8 +65,8 @@ describe('user-storage/acounts/mapInternalAccountsListToUserStorageAccountsList'
   it('should map the list correctly', () => {
     expect(
       mapInternalAccountsListToUserStorageAccountsList(
-        MOCK_INTERNAL_ACCOUNTS_LIST as InternalAccount[],
+        MOCK_INTERNAL_ACCOUNTS_LISTS.FULL as InternalAccount[],
       ),
-    ).toStrictEqual(MOCK_USER_STORAGE_ACCOUNTS_LIST);
+    ).toStrictEqual(MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL);
   });
 });
