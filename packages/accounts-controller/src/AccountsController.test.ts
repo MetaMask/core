@@ -2331,6 +2331,27 @@ describe('AccountsController', () => {
     });
   });
 
+  describe('updateAccountMetadata', () => {
+    it('updates the metadata of an existing account', () => {
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+      accountsController.updateAccountMetadata(mockAccount.id, {
+        lastSelected: 1,
+      });
+
+      expect(
+        accountsController.getAccountExpect(mockAccount.id).metadata
+          .lastSelected,
+      ).toBe(1);
+    });
+  });
+
   describe('#getNextAccountNumber', () => {
     // Account names start at 2 since have 1 HD account + 2 simple keypair accounts (and both
     // those keyring types are "grouped" together)

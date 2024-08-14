@@ -58,6 +58,7 @@ import {
 import type {
   TransactionControllerActions,
   TransactionControllerEvents,
+  TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
@@ -130,7 +131,7 @@ const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const ACCOUNT_3_MOCK = '0xe688b84b23f322a994a53dbf8e15fa82cdb71127';
 const infuraProjectId = 'fake-infura-project-id';
 
-const BLOCK_TRACKER_POLLING_INTERVAL = 20000;
+const BLOCK_TRACKER_POLLING_INTERVAL = 30000;
 
 /**
  * Builds the Infura network client configuration.
@@ -216,7 +217,7 @@ const setupController = async (
     mockGetSelectedAccount,
   );
 
-  const options = {
+  const options: TransactionControllerOptions = {
     blockTracker,
     disableHistory: false,
     disableSendFlowHistory: false,
@@ -238,6 +239,9 @@ const setupController = async (
     messenger,
     onNetworkStateChange: () => {
       // noop
+    },
+    pendingTransactions: {
+      isResubmitEnabled: () => false,
     },
     provider,
     sign: async (transaction: TypedTransaction) => transaction,
@@ -282,7 +286,7 @@ describe('TransactionController Integration', () => {
     });
 
     // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('should submit all approved transactions in state', async () => {
+    it('should submit all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
@@ -386,6 +390,8 @@ describe('TransactionController Integration', () => {
           ],
         },
       });
+
+      await advanceTime({ clock, duration: 1 });
       await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toMatchObject([
@@ -821,7 +827,7 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       // eslint-disable-next-line jest/no-disabled-tests
-      it.skip('should add each transaction with consecutive nonces', async () => {
+      it('should add each transaction with consecutive nonces', async () => {
         const goerliNetworkClientConfiguration =
           buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli);
 
@@ -931,6 +937,7 @@ describe('TransactionController Integration', () => {
           approvalController.accept(addTx2.transactionMeta.id),
         ]);
         await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
 
@@ -944,7 +951,7 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
       // eslint-disable-next-line jest/no-disabled-tests
-      it.skip('should add each transaction with consecutive nonces', async () => {
+      it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
             InfuraNetworkType.goerli,
@@ -956,6 +963,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -1007,6 +1015,7 @@ describe('TransactionController Integration', () => {
           approvalController.accept(addTx2.transactionMeta.id),
         ]);
 
+        await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
@@ -1220,7 +1229,7 @@ describe('TransactionController Integration', () => {
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
     // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
+    it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.mainnet,
@@ -1662,7 +1671,7 @@ describe('TransactionController Integration', () => {
 
   describe('updateIncomingTransactions', () => {
     // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
+    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
       const selectedAccountMock = createMockInternalAccount({
         address: selectedAddress,
@@ -1721,6 +1730,7 @@ describe('TransactionController Integration', () => {
       );
 
       // we have to wait for the mutex to be released after the 5 second API rate limit timer
+      await advanceTime({ clock, duration: 1 });
       await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toHaveLength(

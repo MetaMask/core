@@ -40,6 +40,10 @@ import * as OnChainNotifications from './services/onchain-notifications';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
 
+// Mock type used for testing purposes
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MockVar = any;
+
 const featureAnnouncementsEnv = {
   spaceId: ':space_id',
   accessToken: ':access_token',
@@ -664,6 +668,7 @@ function mockNotificationMessenger() {
     name: 'NotificationServicesController',
     allowedActions: [
       'KeyringController:getAccounts',
+      'KeyringController:getState',
       'AuthenticationController:getBearerToken',
       'AuthenticationController:isSignedIn',
       'NotificationServicesPushController:disablePushNotifications',
@@ -676,6 +681,8 @@ function mockNotificationMessenger() {
     ],
     allowedEvents: [
       'KeyringController:stateChange',
+      'KeyringController:lock',
+      'KeyringController:unlock',
       'NotificationServicesPushController:onNewNotifications',
     ],
   });
@@ -729,6 +736,10 @@ function mockNotificationMessenger() {
       return mockListAccounts();
     }
 
+    if (actionType === 'KeyringController:getState') {
+      return { isUnlocked: true } as MockVar;
+    }
+
     if (actionType === 'AuthenticationController:getBearerToken') {
       return mockGetBearerToken();
     }
@@ -774,12 +785,9 @@ function mockNotificationMessenger() {
       return mockPerformSetStorage(params[0], params[1]);
     }
 
-    const exhaustedMessengerMocks = (action: never) => {
-      return new Error(
-        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
-      );
-    };
-    throw exhaustedMessengerMocks(actionType);
+    throw new Error(
+      `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
+    );
   });
 
   return {

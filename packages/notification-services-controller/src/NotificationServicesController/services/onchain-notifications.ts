@@ -1,14 +1,16 @@
 import { UserStorageController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
-import type { TRIGGER_TYPES } from '../constants/notification-schema';
-import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
-import type { components } from '../types/on-chain-notification/schema';
+import { toRawOnChainNotification } from '../../shared/to-raw-notification';
+import type {
+  OnChainRawNotification,
+  UnprocessedOnChainRawNotification,
+} from '../types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from '../types/user-storage/user-storage';
 import {
-  traverseUserStorageTriggers,
-  toggleUserStorageTriggerStatus,
   makeApiCall,
+  toggleUserStorageTriggerStatus,
+  traverseUserStorageTriggers,
 } from '../utils/utils';
 
 export type NotificationTrigger = {
@@ -213,24 +215,18 @@ export async function getOnChainNotifications(
         { trigger_ids: triggerIds },
       );
 
-      const notifications = (await response.json()) as OnChainRawNotification[];
+      const notifications =
+        (await response.json()) as UnprocessedOnChainRawNotification[];
 
       // Transform and sort notifications
       const transformedNotifications = notifications
-        .map(
-          (
-            n: components['schemas']['Notification'],
-          ): OnChainRawNotification | undefined => {
-            if (!n.data?.kind) {
-              return undefined;
-            }
+        .map((n): OnChainRawNotification | undefined => {
+          if (!n.data?.kind) {
+            return undefined;
+          }
 
-            return {
-              ...n,
-              type: n.data.kind as TRIGGER_TYPES,
-            } as OnChainRawNotification;
-          },
-        )
+          return toRawOnChainNotification(n);
+        })
         .filter((n): n is OnChainRawNotification => Boolean(n));
 
       onChainNotifications.push(...transformedNotifications);
