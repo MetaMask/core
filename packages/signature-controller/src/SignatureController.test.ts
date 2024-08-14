@@ -12,7 +12,6 @@ import {
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
-import { EthereumProviderError } from '@metamask/rpc-errors';
 
 import type {
   SignatureControllerMessenger,
