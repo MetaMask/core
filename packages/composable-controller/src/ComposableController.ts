@@ -231,7 +231,9 @@ export class ComposableController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
+      metadata: controllers.reduce<
+        Required<StateMetadata<ComposableControllerState>>
+      >(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
