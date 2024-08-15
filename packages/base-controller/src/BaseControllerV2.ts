@@ -144,7 +144,7 @@ export class BaseController<
     state,
   }: {
     messenger: messenger;
-    metadata: StateMetadata<ControllerState>;
+    metadata: Required<StateMetadata<ControllerState>>;
     name: ControllerName;
     state: ControllerState;
   }) {
