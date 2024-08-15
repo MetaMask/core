@@ -18,7 +18,6 @@ import type {
   SignatureControllerOptions,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
-import exp from 'constants';
 
 jest.mock('@metamask/message-manager', () => ({
   PersonalMessageManager: jest.fn(),
