@@ -1,3 +1,4 @@
+// @ts-check
 // This file is used to define, among other configuration, rules that Yarn will
 // execute when you run `yarn constraints`. These rules primarily check the
 // manifests of each package in the monorepo to ensure they follow a standard
@@ -14,7 +15,7 @@ const { inspect } = require('util');
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
- * @typedef {import('@yarnpkg/types').Yarn} Yarn
+ * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Workspace} Workspace
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Dependency} Dependency
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.DependencyType} DependencyType
@@ -342,7 +343,7 @@ async function getWorkspaceFile(workspace, path) {
  *
  * @param {Workspace} workspace - The workspace.
  * @param {string} path - The path to the file, relative to the workspace root.
- * @returns {boolean} True if the file exists, false otherwise.
+ * @returns {Promise<boolean>} True if the file exists, false otherwise.
  */
 async function workspaceFileExists(workspace, path) {
   try {
@@ -480,8 +481,12 @@ function expectCorrectWorkspaceExports(workspace) {
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectCorrectWorkspaceChangelogScripts(workspace) {
+  /**
+   * @type {Record<string, { expectedStartString: string, script: string, match: RegExpMatchArray | null }>}
+   */
   const scripts = ['update', 'validate'].reduce((obj, variant) => {
     const expectedStartString = `../../scripts/${variant}-changelog.sh ${workspace.manifest.name}`;
+    /** @type {string} */
     const script = workspace.manifest.scripts[`changelog:${variant}`] ?? '';
     const match = script.match(new RegExp(`^${expectedStartString}(.*)$`, 'u'));
     return { ...obj, [variant]: { expectedStartString, script, match } };
@@ -576,7 +581,7 @@ function expectUpToDateWorkspacePeerDependencies(Yarn, workspace) {
  * `dependencies` and `devDependencies`.
  *
  * @param {Workspace} workspace - The workspace to check.
- * @param {Map<string, Dependency>} dependenciesByIdentAndType - Map of
+ * @param {Map<string, Map<DependencyType, Dependency>>} dependenciesByIdentAndType - Map of
  * dependency ident to dependency type and dependency.
  */
 function expectDependenciesNotInBothProdAndDev(
@@ -614,7 +619,7 @@ function expectDependenciesNotInBothProdAndDev(
  *
  * @param {Yarn} Yarn - The Yarn "global".
  * @param {Workspace} workspace - The workspace to check.
- * @param {Map<string, Dependency>} dependenciesByIdentAndType - Map of
+ * @param {Map<string, Map<DependencyType, Dependency>>} dependenciesByIdentAndType - Map of
  * dependency ident to dependency type and dependency.
  */
 function expectControllerDependenciesListedAsPeerDependencies(
