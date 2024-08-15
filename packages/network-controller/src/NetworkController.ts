@@ -1207,7 +1207,11 @@ export class NetworkController extends BaseController<
    * @returns The ID for the added or updated network configuration.
    */
   async upsertNetworkConfiguration(
-    networkConfiguration: NetworkConfiguration,
+    // Core PR: https://github.com/MetaMask/core/pull/4614
+    // Core Patch Branch: jl/network-controller@19.0.0-patch
+    networkConfiguration: NetworkConfiguration & {
+      id?: NetworkConfigurationId;
+    },
     {
       referrer,
       source,
@@ -1218,11 +1222,19 @@ export class NetworkController extends BaseController<
       setActive?: boolean;
     },
   ): Promise<string> {
-    const sanitizedNetworkConfiguration: NetworkConfiguration = pick(
-      networkConfiguration,
-      ['rpcUrl', 'chainId', 'ticker', 'nickname', 'rpcPrefs'],
-    );
-    const { rpcUrl, chainId, ticker } = sanitizedNetworkConfiguration;
+    // Core PR: https://github.com/MetaMask/core/pull/4614
+    // Core Patch Branch: jl/network-controller@19.0.0-patch
+    const sanitizedNetworkConfiguration: NetworkConfiguration & {
+      id?: NetworkConfigurationId;
+    } = pick(networkConfiguration, [
+      'rpcUrl',
+      'chainId',
+      'ticker',
+      'nickname',
+      'rpcPrefs',
+      'id',
+    ]);
+    const { rpcUrl, chainId, ticker, id } = sanitizedNetworkConfiguration;
 
     assertIsStrictHexString(chainId);
     if (!isSafeChainId(chainId)) {
@@ -1258,12 +1270,35 @@ export class NetworkController extends BaseController<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    const existingNetworkConfiguration = Object.values(
+    // Core PR: https://github.com/MetaMask/core/pull/4614
+    // Core Patch Branch: jl/network-controller@19.0.0-patch
+    const existingNetworkConfigurationWithId = Object.values(
+      this.state.networkConfigurations,
+    ).find((networkConfig) => networkConfig.id === id);
+    if (id && !existingNetworkConfigurationWithId) {
+      throw new Error('No network configuration matches the provided id');
+    }
+
+    const existingNetworkConfigurationWithRpcUrl = Object.values(
       this.state.networkConfigurations,
     ).find(
       (networkConfig) =>
         networkConfig.rpcUrl.toLowerCase() === rpcUrl.toLowerCase(),
     );
+    if (
+      id &&
+      existingNetworkConfigurationWithRpcUrl &&
+      existingNetworkConfigurationWithRpcUrl.id !== id
+    ) {
+      throw new Error(
+        'A different network configuration already exists with the provided rpcUrl',
+      );
+    }
+
+    const existingNetworkConfiguration =
+      existingNetworkConfigurationWithId ??
+      existingNetworkConfigurationWithRpcUrl;
+
     const upsertedNetworkConfigurationId = existingNetworkConfiguration
       ? existingNetworkConfiguration.id
       : random();
@@ -1296,8 +1331,10 @@ export class NetworkController extends BaseController<
 
     this.update((state) => {
       state.networkConfigurations[upsertedNetworkConfigurationId] = {
-        id: upsertedNetworkConfigurationId,
+        // Core PR: https://github.com/MetaMask/core/pull/4614
+        // Core Patch Branch: jl/network-controller@19.0.0-patch
         ...sanitizedNetworkConfiguration,
+        id: upsertedNetworkConfigurationId,
       };
     });
 
