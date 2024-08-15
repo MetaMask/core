@@ -2622,7 +2622,7 @@ describe('NetworkController', () => {
   }
 
   describe('upsertNetworkConfiguration', () => {
-    describe('when the rpcUrl of the given network configuration does not match an existing network configuration', () => {
+    describe('when no id is provided and the rpcUrl of the given network configuration does not match an existing network configuration', () => {
       it('adds the network configuration to state without updating or removing any existing network configurations', async () => {
         await withController(
           {
@@ -3122,7 +3122,7 @@ describe('NetworkController', () => {
       ['case-sensitively', 'https://test.network', 'https://test.network'],
       ['case-insensitively', 'https://test.network', 'https://TEST.NETWORK'],
     ])(
-      'when the rpcUrl of the given network configuration matches an existing network configuration in state (%s)',
+      'when no id is provided and the rpcUrl of the given network configuration matches an existing network configuration in state (%s)',
       (_qualifier, oldRpcUrl, newRpcUrl) => {
         it('completely overwrites the existing network configuration in state, but does not update or remove any other network configurations', async () => {
           await withController(
@@ -3446,6 +3446,399 @@ describe('NetworkController', () => {
         });
       },
     );
+
+    describe('when an id is provided and matches an existing network configuration in state with the rpcUrl (%s)', () => {
+      it('completely overwrites the existing network configuration in state, but does not update or remove any other network configurations', async () => {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network.1',
+                  chainId: toHex(111),
+                  ticker: 'TICKER1',
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+                'BBBB-BBBB-BBBB-BBBB': {
+                  rpcUrl: 'https://test.network.2',
+                  chainId: toHex(222),
+                  ticker: 'TICKER2',
+                  id: 'BBBB-BBBB-BBBB-BBBB',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.upsertNetworkConfiguration(
+              {
+                id: 'BBBB-BBBB-BBBB-BBBB',
+                rpcUrl: 'https://test.network.2',
+                chainId: toHex(999),
+                ticker: 'NEW_TICKER',
+                nickname: 'test network 2',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://testchainscan.io',
+                },
+              },
+              {
+                referrer: 'https://test-dapp.com',
+                source: 'dapp',
+              },
+            );
+
+            expect(controller.state.networkConfigurations).toStrictEqual({
+              'AAAA-AAAA-AAAA-AAAA': {
+                rpcUrl: 'https://test.network.1',
+                chainId: toHex(111),
+                ticker: 'TICKER1',
+                id: 'AAAA-AAAA-AAAA-AAAA',
+              },
+              'BBBB-BBBB-BBBB-BBBB': {
+                rpcUrl: 'https://test.network.2',
+                chainId: toHex(999),
+                ticker: 'NEW_TICKER',
+                nickname: 'test network 2',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://testchainscan.io',
+                },
+                id: 'BBBB-BBBB-BBBB-BBBB',
+              },
+            });
+          },
+        );
+      });
+
+      it('removes properties not specific to the NetworkConfiguration interface before persisting it to state', async function () {
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network.1',
+                  chainId: toHex(111),
+                  ticker: 'TICKER',
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+              },
+            },
+          },
+          async ({ controller }) => {
+            await controller.upsertNetworkConfiguration(
+              {
+                id: 'AAAA-AAAA-AAAA-AAAA',
+                rpcUrl: 'https://test.network.1',
+                chainId: toHex(999),
+                ticker: 'NEW_TICKER',
+                nickname: 'test network',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://testchainscan.io',
+                },
+                // @ts-expect-error We are intentionally passing bad input.
+                invalidKey: 'some value',
+              },
+              {
+                referrer: 'https://test-dapp.com',
+                source: 'dapp',
+              },
+            );
+
+            expect(controller.state.networkConfigurations).toStrictEqual({
+              'AAAA-AAAA-AAAA-AAAA': {
+                rpcUrl: 'https://test.network.1',
+                chainId: toHex(999),
+                ticker: 'NEW_TICKER',
+                nickname: 'test network',
+                rpcPrefs: {
+                  blockExplorerUrl: 'https://testchainscan.io',
+                },
+                id: 'AAAA-AAAA-AAAA-AAAA',
+              },
+            });
+          },
+        );
+      });
+
+      describe('if at least the chain ID is being updated', () => {
+        it('destroys and removes the existing network client for the old network configuration', async () => {
+          await withController(
+            {
+              state: {
+                networkConfigurations: {
+                  'AAAA-AAAA-AAAA-AAAA': {
+                    rpcUrl: 'https://test.network',
+                    chainId: toHex(111),
+                    ticker: 'TICKER',
+                    id: 'AAAA-AAAA-AAAA-AAAA',
+                  },
+                },
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller }) => {
+              const newCustomNetworkClient = buildFakeClient();
+              mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
+                infuraProjectId: 'some-infura-project-id',
+              })
+                .calledWith({
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                })
+                .mockReturnValue(newCustomNetworkClient);
+              const networkClientToDestroy = Object.values(
+                controller.getNetworkClientRegistry(),
+              ).find(({ configuration }) => {
+                return (
+                  configuration.type === NetworkClientType.Custom &&
+                  configuration.chainId === toHex(111) &&
+                  configuration.rpcUrl === 'https://test.network'
+                );
+              });
+              assert(networkClientToDestroy);
+              jest.spyOn(networkClientToDestroy, 'destroy');
+
+              await controller.upsertNetworkConfiguration(
+                {
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                  rpcUrl: 'https://test.network',
+                  chainId: toHex(999),
+                  ticker: 'TICKER',
+                },
+                {
+                  referrer: 'https://test-dapp.com',
+                  source: 'dapp',
+                },
+              );
+
+              const networkClients = controller.getNetworkClientRegistry();
+              expect(networkClientToDestroy.destroy).toHaveBeenCalled();
+              expect(Object.keys(networkClients)).toHaveLength(7);
+              expect(networkClients).not.toMatchObject({
+                'https://test.network.1': expect.objectContaining({
+                  configuration: {
+                    chainId: toHex(111),
+                    rpcUrl: 'https://test.network.1',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TEST',
+                  },
+                }),
+              });
+            },
+          );
+        });
+
+        it('creates a new network client for the network configuration and adds it to the registry', async () => {
+          await withController(
+            {
+              state: {
+                networkConfigurations: {
+                  'AAAA-AAAA-AAAA-AAAA': {
+                    rpcUrl: 'https://test.network.1',
+                    chainId: toHex(111),
+                    ticker: 'TICKER',
+                    id: 'AAAA-AAAA-AAAA-AAAA',
+                  },
+                },
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller }) => {
+              const newCustomNetworkClient = buildFakeClient();
+              mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
+                infuraProjectId: 'some-infura-project-id',
+              })
+                .calledWith({
+                  chainId: toHex(999),
+                  rpcUrl: 'https://test.network.1',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TICKER',
+                })
+                .mockReturnValue(newCustomNetworkClient);
+
+              await controller.upsertNetworkConfiguration(
+                {
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                  rpcUrl: 'https://test.network.1',
+                  chainId: toHex(999),
+                  ticker: 'TICKER',
+                },
+                {
+                  referrer: 'https://test-dapp.com',
+                  source: 'dapp',
+                },
+              );
+
+              const networkClients = controller.getNetworkClientRegistry();
+              expect(Object.keys(networkClients)).toHaveLength(7);
+              expect(networkClients).toMatchObject({
+                'AAAA-AAAA-AAAA-AAAA': expect.objectContaining({
+                  configuration: {
+                    chainId: toHex(999),
+                    rpcUrl: 'https://test.network.1',
+                    type: NetworkClientType.Custom,
+                    ticker: 'TICKER',
+                  },
+                }),
+              });
+            },
+          );
+        });
+      });
+
+      describe('if the chain ID is not being updated', () => {
+        it('does not update the network client registry', async () => {
+          await withController(
+            {
+              state: {
+                networkConfigurations: {
+                  'AAAA-AAAA-AAAA-AAAA': {
+                    rpcUrl: 'https://test.network.1',
+                    chainId: toHex(111),
+                    ticker: 'TICKER',
+                    id: 'AAAA-AAAA-AAAA-AAAA',
+                  },
+                },
+              },
+              infuraProjectId: 'some-infura-project-id',
+            },
+            async ({ controller }) => {
+              const newCustomNetworkClient = buildFakeClient();
+              mockCreateNetworkClientWithDefaultsForBuiltInNetworkClients({
+                infuraProjectId: 'some-infura-project-id',
+              })
+                .calledWith({
+                  chainId: toHex(111),
+                  rpcUrl: 'https://test.network',
+                  type: NetworkClientType.Custom,
+                  ticker: 'TEST',
+                })
+                .mockReturnValue(newCustomNetworkClient);
+              const networkClientsBefore =
+                controller.getNetworkClientRegistry();
+
+              await controller.upsertNetworkConfiguration(
+                {
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                  rpcUrl: 'https://test.network.1',
+                  chainId: toHex(111),
+                  ticker: 'NEW_TICKER',
+                },
+                {
+                  referrer: 'https://test-dapp.com',
+                  source: 'dapp',
+                },
+              );
+
+              const networkClientsAfter = controller.getNetworkClientRegistry();
+              expect(networkClientsBefore).toStrictEqual(networkClientsAfter);
+            },
+          );
+        });
+      });
+
+      it('does not call trackMetaMetricsEvent', async () => {
+        const trackMetaMetricsEventSpy = jest.fn();
+
+        await withController(
+          {
+            state: {
+              networkConfigurations: {
+                'AAAA-AAAA-AAAA-AAAA': {
+                  rpcUrl: 'https://test.network.1',
+                  chainId: toHex(111),
+                  ticker: 'TICKER',
+                  id: 'AAAA-AAAA-AAAA-AAAA',
+                },
+              },
+            },
+            infuraProjectId: 'some-infura-project-id',
+            trackMetaMetricsEvent: trackMetaMetricsEventSpy,
+          },
+          async ({ controller }) => {
+            await controller.upsertNetworkConfiguration(
+              {
+                id: 'AAAA-AAAA-AAAA-AAAA',
+                rpcUrl: 'https://test.network.1',
+                chainId: toHex(111),
+                ticker: 'NEW_TICKER',
+              },
+              {
+                referrer: 'https://test-dapp.com',
+                source: 'dapp',
+              },
+            );
+
+            expect(trackMetaMetricsEventSpy).not.toHaveBeenCalled();
+          },
+        );
+      });
+    });
+
+    it('throws if an id is provided and it does not match an existing network configuration', async () => {
+      await withController(async ({ controller }) => {
+        await expect(
+          controller.upsertNetworkConfiguration(
+            {
+              id: 'networkClientIdDoesNotExist',
+              rpcUrl: 'https://test.network',
+              chainId: toHex(111),
+              ticker: 'TICKER',
+            },
+            {
+              referrer: 'https://test-dapp.com',
+              source: 'dapp',
+            },
+          ),
+        ).rejects.toThrow(
+          new Error('No network configuration matches the provided id'),
+        );
+      });
+    });
+
+    it('throws if an id is provided and it does not match an existing network configuration with the rpcUrl', async () => {
+      await withController(
+        {
+          state: {
+            networkConfigurations: {
+              networkClientIdExists: {
+                rpcUrl: 'https://test.network',
+                ticker: 'TICKER',
+                chainId: toHex(111),
+                id: 'networkClientIdExists',
+              },
+              'AAAA-AAAA-AAAA-AAAA': {
+                rpcUrl: 'https://existing-rpcurl-on-different-client.network',
+                ticker: 'TICKER',
+                chainId: toHex(111),
+                id: 'AAAA-AAAA-AAAA-AAAA',
+              },
+            },
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+          },
+        },
+        async ({ controller }) => {
+          await expect(
+            controller.upsertNetworkConfiguration(
+              {
+                id: 'networkClientIdExists',
+                rpcUrl: 'https://existing-rpcurl-on-different-client.network',
+                chainId: toHex(111),
+                ticker: 'TICKER',
+              },
+              {
+                referrer: 'https://test-dapp.com',
+                source: 'dapp',
+              },
+            ),
+          ).rejects.toThrow(
+            new Error(
+              'A different network configuration already exists with the provided rpcUrl',
+            ),
+          );
+        },
+      );
+    });
 
     it('throws if the given chain ID is not a 0x-prefixed hex number', async () => {
       await withController(async ({ controller }) => {
