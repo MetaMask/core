@@ -1,7 +1,4 @@
-import type {
-  RestrictedControllerMessenger,
-  StateMetadata,
-} from '@metamask/base-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   KeyringControllerGetStateAction,
