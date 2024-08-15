@@ -56,7 +56,7 @@ export type AuthenticationControllerState = {
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
 };
-const metadata: StateMetadata<AuthenticationControllerState> = {
+const metadata = {
   isSignedIn: {
     persist: true,
     anonymous: true,
