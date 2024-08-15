@@ -3447,7 +3447,7 @@ describe('NetworkController', () => {
       },
     );
 
-    describe('when an id is provided and matches an existing network configuration in state with the rpcUrl (%s)', () => {
+    describe('when an id is provided and matches an existing network configuration in state with the rpcUrl', () => {
       it('completely overwrites the existing network configuration in state, but does not update or remove any other network configurations', async () => {
         await withController(
           {
