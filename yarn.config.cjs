@@ -160,7 +160,7 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         // The list of files included in all non-root packages must only include
         // files generated during the build process.
-        expectWorkspaceField(workspace, 'files', ['dist/']);
+        expectWorkspaceArrayField(workspace, 'files', 'dist/');
       } else {
         // The root package must specify an empty set of published files. (This
         // is required in order to be able to import anything in
@@ -376,6 +376,31 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
     workspace.set(fieldName, expectedValue);
   } else if (fieldValue === undefined || fieldValue === null) {
     workspace.error(`Missing required field "${fieldName}".`);
+  }
+}
+
+/**
+ * Expect that the workspace has the given field, and that it is an array-like
+ * property containing the specified value. If the field is not present, is not
+ * an array, or does not contain the value, this will log an error, and cause
+ * the constraint to fail.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ * @param {string} fieldName - The field to check.
+ * @param {unknown} expectedValue - The value that should be contained in the array.
+ */
+function expectWorkspaceArrayField(workspace, fieldName, expectedValue) {
+  const fieldValue = get(workspace.manifest, fieldName);
+
+  if (!Array.isArray(fieldValue)) {
+    workspace.error(`Field "${fieldName}" is not an array.`);
+    return;
+  }
+
+  if (!fieldValue.includes(expectedValue)) {
+    workspace.error(
+      `Field "${fieldName}" does not contain the expected value "${expectedValue}".`,
+    );
   }
 }
 
