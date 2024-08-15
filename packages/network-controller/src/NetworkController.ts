@@ -791,7 +791,8 @@ export class NetworkController extends BaseController<
     this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
     this.#applyNetworkSelection();
-    await this.lookupNetwork();
+    // Core Patch Branch: jl/network-controller@19.0.0-patch
+    // await this.lookupNetwork();
   }
 
   /**
