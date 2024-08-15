@@ -431,7 +431,7 @@ export class SignatureController extends BaseController<
         );
 
         resultCallbacks = acceptResult.resultCallbacks;
-      } catch (e) {
+      } catch (error) {
         // User rejected the signature request
         this.#addLog(
           signTypeForLogger,
@@ -440,7 +440,7 @@ export class SignatureController extends BaseController<
         );
 
         this.#cancelAbstractMessage(messageManager, messageId);
-        throw e;
+        throw error;
       }
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.

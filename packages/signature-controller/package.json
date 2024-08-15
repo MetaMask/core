@@ -44,7 +44,6 @@
     "@metamask/base-controller": "^6.0.2",
     "@metamask/controller-utils": "^11.0.2",
     "@metamask/message-manager": "^10.0.2",
-    "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",
     "lodash": "^4.17.21"
   },

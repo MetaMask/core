@@ -18,6 +18,7 @@ import type {
   SignatureControllerOptions,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
+import exp from 'constants';
 
 jest.mock('@metamask/message-manager', () => ({
   PersonalMessageManager: jest.fn(),
@@ -367,7 +368,12 @@ describe('SignatureController', () => {
     it('throws if approval rejected', async () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({ message: 'User rejected the request.' }); // ApprovalController:addRequest
+        .mockRejectedValueOnce({
+          message: 'User rejected the request.',
+          data: {
+            source: 'MetaMask',
+          },
+        }); // ApprovalController:addRequest
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError<Error>(
@@ -378,6 +384,7 @@ describe('SignatureController', () => {
           ),
       );
       expect(error.message).toBe('User rejected the request.');
+      expect(error.data).toStrictEqual({ source: 'MetaMask' });
     });
 
     it('throws if cannot get signature', async () => {
@@ -519,7 +526,10 @@ describe('SignatureController', () => {
     it('throws if approval rejected', async () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({ message: 'User rejected the request.' }); // ApprovalController:addRequest
+        .mockRejectedValueOnce({
+          message: 'User rejected the request.',
+          data: { source: 'Metamask' },
+        }); // ApprovalController:addRequest
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const error: any = await getError<Error>(
@@ -532,6 +542,7 @@ describe('SignatureController', () => {
           ),
       );
       expect(error.message).toBe('User rejected the request.');
+      expect(error.data).toStrictEqual({ source: 'Metamask' });
     });
 
     it('throws if cannot get signature', async () => {
