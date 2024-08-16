@@ -1,6 +1,5 @@
 import type {
   AccountsControllerListAccountsAction,
-  AccountsControllerSetAccountNameAction,
   AccountsControllerUpdateAccountMetadataAction,
 } from '@metamask/accounts-controller';
 import type {
@@ -134,7 +133,6 @@ export type AllowedActions =
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
   // Account syncing
   | AccountsControllerListAccountsAction
-  | AccountsControllerSetAccountNameAction
   | AccountsControllerUpdateAccountMetadataAction
   | KeyringControllerAddNewAccountAction;
 
@@ -288,12 +286,16 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messagingSystem.subscribe('KeyringController:unlock', async () => {
         this.#isUnlocked = true;
+
+        await this.syncInternalAccountsListWithUserStorage();
       });
 
-      this.messagingSystem.subscribe('KeyringController:lock', () => {
+      this.messagingSystem.subscribe('KeyringController:lock', async () => {
         this.#isUnlocked = false;
+
+        await this.syncInternalAccountsListWithUserStorage();
       });
     },
   };
