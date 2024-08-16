@@ -1328,10 +1328,11 @@ describe('TokenRatesController', () => {
         });
 
         describe('when the native currency is not supported', () => {
+          const fallbackRate = 0.5;
           it('returns the exchange rates using ETH as a fallback currency', async () => {
             nock('https://min-api.cryptocompare.com')
               .get('/data/price?fsym=ETH&tsyms=LOL')
-              .reply(200, { LOL: 0.5 });
+              .reply(200, { LOL: fallbackRate });
             const tokenPricesService = buildMockTokenPricesService({
               fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
               validateCurrencySupported(currency: unknown): currency is string {
@@ -1383,47 +1384,47 @@ describe('TokenRatesController', () => {
                     // token price in LOL = (token price in ETH) * (ETH value in LOL)
                     '0x02': {
                       tokenAddress: '0x02',
-                      currency: 'ETH',
+                      currency: 'LOL',
                       pricePercentChange1d: 0,
                       priceChange1d: 0,
-                      allTimeHigh: 4000,
-                      allTimeLow: 900,
+                      allTimeHigh: 4000 * fallbackRate,
+                      allTimeLow: 900 * fallbackRate,
                       circulatingSupply: 2000,
-                      dilutedMarketCap: 100,
-                      high1d: 200,
-                      low1d: 100,
-                      marketCap: 1000,
+                      dilutedMarketCap: 100 * fallbackRate,
+                      high1d: 200 * fallbackRate,
+                      low1d: 100 * fallbackRate,
+                      marketCap: 1000 * fallbackRate,
                       marketCapPercentChange1d: 100,
-                      price: 0.0005,
+                      price: (1 / 1000) * fallbackRate,
                       pricePercentChange14d: 100,
                       pricePercentChange1h: 1,
                       pricePercentChange1y: 200,
                       pricePercentChange200d: 300,
                       pricePercentChange30d: 200,
                       pricePercentChange7d: 100,
-                      totalVolume: 100,
+                      totalVolume: 100 * fallbackRate,
                     },
                     '0x03': {
                       tokenAddress: '0x03',
-                      currency: 'ETH',
+                      currency: 'LOL',
                       pricePercentChange1d: 0,
                       priceChange1d: 0,
-                      allTimeHigh: 4000,
-                      allTimeLow: 900,
+                      allTimeHigh: 4000 * fallbackRate,
+                      allTimeLow: 900 * fallbackRate,
                       circulatingSupply: 2000,
-                      dilutedMarketCap: 100,
-                      high1d: 200,
-                      low1d: 100,
-                      marketCap: 1000,
+                      dilutedMarketCap: 100 * fallbackRate,
+                      high1d: 200 * fallbackRate,
+                      low1d: 100 * fallbackRate,
+                      marketCap: 1000 * fallbackRate,
                       marketCapPercentChange1d: 100,
-                      price: 0.001,
+                      price: (2 / 1000) * fallbackRate,
                       pricePercentChange14d: 100,
                       pricePercentChange1h: 1,
                       pricePercentChange1y: 200,
                       pricePercentChange200d: 300,
                       pricePercentChange30d: 200,
                       pricePercentChange7d: 100,
-                      totalVolume: 100,
+                      totalVolume: 100 * fallbackRate,
                     },
                   },
                 });
@@ -1983,14 +1984,28 @@ describe('TokenRatesController', () => {
             "marketData": Object {
               "0x89": Object {
                 "0x0000000000000000000000000000000000000001": Object {
-                  "currency": "ETH",
+                  "allTimeHigh": undefined,
+                  "allTimeLow": undefined,
+                  "currency": "UNSUPPORTED",
+                  "dilutedMarketCap": undefined,
+                  "high1d": undefined,
+                  "low1d": undefined,
+                  "marketCap": undefined,
                   "price": 0.0005,
                   "tokenAddress": "0x0000000000000000000000000000000000000001",
+                  "totalVolume": undefined,
                 },
                 "0x0000000000000000000000000000000000000002": Object {
-                  "currency": "ETH",
+                  "allTimeHigh": undefined,
+                  "allTimeLow": undefined,
+                  "currency": "UNSUPPORTED",
+                  "dilutedMarketCap": undefined,
+                  "high1d": undefined,
+                  "low1d": undefined,
+                  "marketCap": undefined,
                   "price": 0.001,
                   "tokenAddress": "0x0000000000000000000000000000000000000002",
+                  "totalVolume": undefined,
                 },
               },
             },
