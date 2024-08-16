@@ -579,7 +579,7 @@ export default class UserStorageController extends BaseController<
       // First step: compare lengths
       let internalAccountsList = await this.#accounts.getInternalAccountsList();
 
-      if (!internalAccountsList) {
+      if (!internalAccountsList || !internalAccountsList.length) {
         throw new Error(`Failed to get internal accounts list`);
       }
 

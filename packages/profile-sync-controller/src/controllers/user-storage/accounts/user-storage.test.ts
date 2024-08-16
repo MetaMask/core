@@ -37,7 +37,7 @@ describe('user-storage/acounts/formatUserStorageAccountsListPayload', () => {
       ),
     ).toStrictEqual({
       v: '1',
-      l: MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL,
+      l: MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL.l,
     });
   });
 });
@@ -65,8 +65,8 @@ describe('user-storage/acounts/mapInternalAccountsListToUserStorageAccountsList'
   it('should map the list correctly', () => {
     expect(
       mapInternalAccountsListToUserStorageAccountsList(
-        MOCK_INTERNAL_ACCOUNTS_LISTS.FULL as InternalAccount[],
+        MOCK_INTERNAL_ACCOUNTS_LISTS.ALL as InternalAccount[],
       ),
-    ).toStrictEqual(MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL);
+    ).toStrictEqual(MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL.l);
   });
 });

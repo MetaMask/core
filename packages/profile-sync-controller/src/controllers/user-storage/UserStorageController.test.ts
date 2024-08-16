@@ -373,6 +373,49 @@ describe('user-storage/user-storage-controller - syncInternalAccountsListWithUse
     ).rejects.toThrow(expect.any(Error));
   });
 
+  it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
+    const mockUserStorageAccountsResponse = {
+      status: 200,
+      body: {
+        HashedKey: 'HASHED_KEY',
+        Data: encryption.encryptString(
+          JSON.stringify(
+            MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL,
+          ),
+          MOCK_STORAGE_KEY,
+        ),
+      },
+    };
+
+    const arrangeMocksForAccounts = () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: [],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+            'accounts.list',
+            mockUserStorageAccountsResponse,
+          ),
+        },
+      };
+    };
+
+    const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.syncInternalAccountsListWithUserStorage(),
+    ).rejects.toThrow(expect.any(Error));
+
+    mockAPI.mockEndpointGetUserStorage.done();
+  });
+
   it('uploads accounts list to user storage if user storage is empty', async () => {
     const mockUserStorageAccountsResponse = {
       status: 404,
@@ -425,7 +468,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsListWithUse
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
-            accountsList: MOCK_INTERNAL_ACCOUNTS_LISTS.EMPTY,
+            accountsList: MOCK_INTERNAL_ACCOUNTS_LISTS.ONE as InternalAccount[],
           },
         }),
         mockAPI: {
@@ -454,7 +497,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsListWithUse
     expect(mockAPI.mockEndpointUpsertUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
-      MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL.l.length,
+      MOCK_USER_STORAGE_ACCOUNTS_LISTS.SAME_AS_INTERNAL_FULL.l.length -
+        MOCK_INTERNAL_ACCOUNTS_LISTS.ONE.length,
     );
   });
 
@@ -464,7 +508,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsListWithUse
       body: {
         HashedKey: 'HASHED_KEY',
         Data: encryption.encryptString(
-          JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS_LISTS.JUST_ONE),
+          JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE),
           MOCK_STORAGE_KEY,
         ),
       },
@@ -474,8 +518,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsListWithUse
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
-            accountsList:
-              MOCK_INTERNAL_ACCOUNTS_LISTS.FULL as InternalAccount[],
+            accountsList: MOCK_INTERNAL_ACCOUNTS_LISTS.ALL as InternalAccount[],
           },
         }),
         mockAPI: {
@@ -504,6 +547,482 @@ describe('user-storage/user-storage-controller - syncInternalAccountsListWithUse
     expect(mockAPI.mockEndpointUpsertUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).not.toHaveBeenCalled();
+  });
+
+  describe('User storage name is a default name', () => {
+    const mockUserStorageAccountsResponse = {
+      status: 200,
+      body: {
+        HashedKey: 'HASHED_KEY',
+        Data: encryption.encryptString(
+          JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_DEFAULT_NAME),
+          MOCK_STORAGE_KEY,
+        ),
+      },
+    };
+
+    it('does not update the internal account name if both user storage and internal accounts have default names', async () => {
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('does not update the internal account name if the internal account name is custom without last updated', async () => {
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('does not update the internal account name if the internal account name is custom with last updated', async () => {
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('User storage name is a custom name without last updated', () => {
+    const mockUserStorageAccountsResponse = {
+      status: 200,
+      body: {
+        HashedKey: 'HASHED_KEY',
+        Data: encryption.encryptString(
+          JSON.stringify(
+            MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED,
+          ),
+          MOCK_STORAGE_KEY,
+        ),
+      },
+    };
+
+    it('updates the internal account name if the internal account name is a default name', async () => {
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).toHaveBeenCalledWith([
+        MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED
+          .l[0].i,
+        {
+          name: MOCK_USER_STORAGE_ACCOUNTS_LISTS
+            .ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED.l[0].n,
+        },
+      ]);
+    });
+
+    it('does not update internal account name if both user storage and internal accounts have custom names without last updated', async () => {
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('does not update the internal account name if the internal account name is custom with last updated', async () => {
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('User storage name is a custom name with last updated', () => {
+    it('updates the internal account name if the internal account name is a default name', async () => {
+      const mockUserStorageAccountsResponse = {
+        status: 200,
+        body: {
+          HashedKey: 'HASHED_KEY',
+          Data: encryption.encryptString(
+            JSON.stringify(
+              MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED,
+            ),
+            MOCK_STORAGE_KEY,
+          ),
+        },
+      };
+
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).toHaveBeenCalledWith([
+        MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED.l[0]
+          .i,
+        {
+          name: MOCK_USER_STORAGE_ACCOUNTS_LISTS
+            .ONE_CUSTOM_NAME_WITH_LAST_UPDATED.l[0].n,
+        },
+      ]);
+    });
+
+    it('updates the internal account name and last updated if the internal account name is a custom name without last updated', async () => {
+      const mockUserStorageAccountsResponse = {
+        status: 200,
+        body: {
+          HashedKey: 'HASHED_KEY',
+          Data: encryption.encryptString(
+            JSON.stringify(
+              MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED,
+            ),
+            MOCK_STORAGE_KEY,
+          ),
+        },
+      };
+
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).toHaveBeenCalledWith([
+        MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED.l[0]
+          .i,
+        {
+          name: MOCK_USER_STORAGE_ACCOUNTS_LISTS
+            .ONE_CUSTOM_NAME_WITH_LAST_UPDATED.l[0].n,
+          nameLastUpdatedAt:
+            MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED
+              .l[0].nlu,
+        },
+      ]);
+    });
+
+    it('updates the internal account name and last updated if the user storage account is more recent', async () => {
+      const mockUserStorageAccountsResponse = {
+        status: 200,
+        body: {
+          HashedKey: 'HASHED_KEY',
+          Data: encryption.encryptString(
+            JSON.stringify(
+              MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED,
+            ),
+            MOCK_STORAGE_KEY,
+          ),
+        },
+      };
+
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).toHaveBeenCalledWith([
+        MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED.l[0]
+          .i,
+        {
+          name: MOCK_USER_STORAGE_ACCOUNTS_LISTS
+            .ONE_CUSTOM_NAME_WITH_LAST_UPDATED.l[0].n,
+          nameLastUpdatedAt:
+            MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED
+              .l[0].nlu,
+        },
+      ]);
+    });
+
+    it('does not update the internal account if the user storage account is less recent', async () => {
+      const mockUserStorageAccountsResponse = {
+        status: 200,
+        body: {
+          HashedKey: 'HASHED_KEY',
+          Data: encryption.encryptString(
+            JSON.stringify(
+              MOCK_USER_STORAGE_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED,
+            ),
+            MOCK_STORAGE_KEY,
+          ),
+        },
+      };
+
+      const arrangeMocksForAccounts = () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS_LISTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage: mockEndpointGetUserStorage(
+              'accounts.list',
+              mockUserStorageAccountsResponse,
+            ),
+            mockEndpointUpsertUserStorage:
+              mockEndpointUpsertUserStorage('accounts.list'),
+          },
+        };
+      };
+
+      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsListWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+      mockAPI.mockEndpointUpsertUserStorage.done();
+
+      expect(
+        messengerMocks.mockAccountsUpdateAccountMetadata,
+      ).not.toHaveBeenCalled();
+    });
   });
 });
 
@@ -536,7 +1055,6 @@ function mockUserStorageMessenger(options?: {
       'NotificationServicesController:disableNotificationServices',
       'NotificationServicesController:selectIsNotificationServicesEnabled',
       'AccountsController:listAccounts',
-      'AccountsController:setAccountName',
       'AccountsController:updateAccountMetadata',
       'KeyringController:addNewAccount',
     ],
@@ -586,6 +1104,8 @@ function mockUserStorageMessenger(options?: {
     >().mockResolvedValue();
 
   const mockKeyringAddNewAccount = jest.fn().mockResolvedValue('0x123');
+
+  const mockAccountsUpdateAccountMetadata = jest.fn().mockResolvedValue(true);
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     const [actionType, params] = args;
@@ -658,17 +1178,11 @@ function mockUserStorageMessenger(options?: {
       if (options?.accounts?.accountsList) {
         return options.accounts.accountsList;
       }
-      return MOCK_INTERNAL_ACCOUNTS_LISTS.FULL;
-    }
-
-    if (actionType === 'AccountsController:setAccountName') {
-      // TODO: fix this
-      return true;
+      return MOCK_INTERNAL_ACCOUNTS_LISTS.ALL;
     }
 
     if (actionType === 'AccountsController:updateAccountMetadata') {
-      // TODO: fix this
-      return true;
+      return mockAccountsUpdateAccountMetadata(args.slice(1));
     }
 
     const exhaustedMessengerMocks = (action: never) => {
@@ -692,5 +1206,6 @@ function mockUserStorageMessenger(options?: {
     mockNotificationServicesDisableNotifications,
     mockAuthPerformSignOut,
     mockKeyringAddNewAccount,
+    mockAccountsUpdateAccountMetadata,
   };
 }
