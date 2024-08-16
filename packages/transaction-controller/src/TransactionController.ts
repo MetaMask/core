@@ -79,6 +79,8 @@ import type {
   GasFeeEstimates,
   GasFeeFlowResponse,
   SubmitHistoryEntry,
+  TraceCallback,
+  TraceContext,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -320,6 +322,7 @@ export type TransactionControllerOptions = {
   ) => Promise<TypedTransaction>;
   state?: Partial<TransactionControllerState>;
   testGasFeeFlows?: boolean;
+  trace?: TraceCallback;
   transactionHistoryLimit: number;
   hooks: {
     afterSign?: (
@@ -644,6 +647,8 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
+  #trace: TraceCallback;
+
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
@@ -753,6 +758,7 @@ export class TransactionController extends BaseController<
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
    * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
+   * @param options.trace - Callback to generate trace information.
    * @param options.transactionHistoryLimit - Transaction history limit.
    * @param options.hooks - The controller hooks.
    */
@@ -780,6 +786,7 @@ export class TransactionController extends BaseController<
     sign,
     state,
     testGasFeeFlows,
+    trace,
     transactionHistoryLimit = 40,
     hooks,
   }: TransactionControllerOptions) {
@@ -817,6 +824,7 @@ export class TransactionController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -986,6 +994,7 @@ export class TransactionController extends BaseController<
    * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
    * @param opts.swaps.meta - Metadata for swap transaction.
    * @param opts.networkClientId - The id of the network client for this transaction.
+   * @param opts.traceContext - The parent context for any new traces.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -999,6 +1008,7 @@ export class TransactionController extends BaseController<
       securityAlertResponse,
       sendFlowHistory,
       swaps = {},
+      traceContext,
       type,
       networkClientId: requestNetworkClientId,
     }: {
@@ -1013,6 +1023,7 @@ export class TransactionController extends BaseController<
         hasApproveTx?: boolean;
         meta?: Partial<TransactionMeta>;
       };
+      traceContext?: unknown;
       type?: TransactionType;
       networkClientId?: NetworkClientId;
     } = {},
@@ -1084,7 +1095,13 @@ export class TransactionController extends BaseController<
           networkClientId,
         };
 
-    await this.updateGasProperties(addedTransactionMeta);
+    await this.#trace(
+      { name: 'Estimate Gas Properties', parentContext: traceContext },
+      (context) =>
+        this.updateGasProperties(addedTransactionMeta, {
+          traceContext: context,
+        }),
+    );
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -1120,8 +1137,12 @@ export class TransactionController extends BaseController<
       this.addMetadata(addedTransactionMeta);
 
       if (requireApproval !== false) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.#updateSimulationData(addedTransactionMeta);
+        this.#updateSimulationData(addedTransactionMeta, {
+          traceContext,
+        }).catch((error) => {
+          log('Error while updating simulation data', error);
+          throw error;
+        });
       } else {
         log('Skipping simulation as approval not required');
       }
@@ -1137,6 +1158,7 @@ export class TransactionController extends BaseController<
         isExisting: Boolean(existingTransactionMeta),
         requireApproval,
         actionId,
+        traceContext,
       }),
       transactionMeta: addedTransactionMeta,
     };
@@ -2451,7 +2473,10 @@ export class TransactionController extends BaseController<
     });
   }
 
-  private async updateGasProperties(transactionMeta: TransactionMeta) {
+  private async updateGasProperties(
+    transactionMeta: TransactionMeta,
+    { traceContext }: { traceContext?: TraceContext } = {},
+  ) {
     const isEIP1559Compatible =
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId)) &&
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy;
@@ -2470,27 +2495,40 @@ export class TransactionController extends BaseController<
       chainId,
     });
 
-    await updateGas({
-      ethQuery,
-      chainId,
-      isCustomNetwork,
-      txMeta: transactionMeta,
-    });
+    await this.#trace(
+      { name: 'Update Gas', parentContext: traceContext },
+      async () => {
+        await updateGas({
+          ethQuery,
+          chainId,
+          isCustomNetwork,
+          txMeta: transactionMeta,
+        });
+      },
+    );
 
-    await updateGasFees({
-      eip1559: isEIP1559Compatible,
-      ethQuery,
-      gasFeeFlows: this.gasFeeFlows,
-      getGasFeeEstimates: this.getGasFeeEstimates,
-      getSavedGasFees: this.getSavedGasFees.bind(this),
-      txMeta: transactionMeta,
-    });
+    await this.#trace(
+      { name: 'Update Gas Fees', parentContext: traceContext },
+      async () =>
+        await updateGasFees({
+          eip1559: isEIP1559Compatible,
+          ethQuery,
+          gasFeeFlows: this.gasFeeFlows,
+          getGasFeeEstimates: this.getGasFeeEstimates,
+          getSavedGasFees: this.getSavedGasFees.bind(this),
+          txMeta: transactionMeta,
+        }),
+    );
 
-    await updateTransactionLayer1GasFee({
-      layer1GasFeeFlows: this.layer1GasFeeFlows,
-      provider,
-      transactionMeta,
-    });
+    await this.#trace(
+      { name: 'Update Layer 1 Gas Fees', parentContext: traceContext },
+      async () =>
+        await updateTransactionLayer1GasFee({
+          layer1GasFeeFlows: this.layer1GasFeeFlows,
+          provider,
+          transactionMeta,
+        }),
+    );
   }
 
   private onBootCleanup() {
@@ -2522,11 +2560,13 @@ export class TransactionController extends BaseController<
       requireApproval,
       shouldShowRequest = true,
       actionId,
+      traceContext,
     }: {
       isExisting?: boolean;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
       actionId?: string;
+      traceContext?: TraceContext;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
@@ -2539,9 +2579,15 @@ export class TransactionController extends BaseController<
     if (meta && !isExisting && !isCompleted) {
       try {
         if (requireApproval !== false) {
-          const acceptResult = await this.requestApproval(transactionMeta, {
-            shouldShowRequest,
-          });
+          const acceptResult = await this.#trace(
+            { name: 'Await Approval', parentContext: traceContext },
+            (context) =>
+              this.requestApproval(transactionMeta, {
+                shouldShowRequest,
+                traceContext: context,
+              }),
+          );
+
           resultCallbacks = acceptResult.resultCallbacks;
 
           const approvalValue = acceptResult.value as
@@ -2569,7 +2615,10 @@ export class TransactionController extends BaseController<
           this.isTransactionCompleted(transactionId);
 
         if (!isTxCompleted) {
-          const approvalResult = await this.approveTransaction(transactionId);
+          const approvalResult = await this.approveTransaction(
+            transactionId,
+            traceContext,
+          );
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
             resultCallbacks
@@ -2636,8 +2685,12 @@ export class TransactionController extends BaseController<
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
    * @param transactionId - The ID of the transaction to approve.
+   * @param traceContext - The parent context for any new traces.
    */
-  private async approveTransaction(transactionId: string) {
+  private async approveTransaction(
+    transactionId: string,
+    traceContext?: unknown,
+  ) {
     const cleanupTasks = new Array<() => void>();
     cleanupTasks.push(await this.mutex.acquire());
 
@@ -2699,9 +2752,9 @@ export class TransactionController extends BaseController<
 
       this.onTransactionStatusChange(transactionMeta);
 
-      const rawTx = await this.signTransaction(
-        transactionMeta,
-        transactionMeta.txParams,
+      const rawTx = await this.#trace(
+        { name: 'Sign', parentContext: traceContext },
+        () => this.signTransaction(transactionMeta, transactionMeta.txParams),
       );
 
       if (!this.beforePublish(transactionMeta)) {
@@ -2736,20 +2789,27 @@ export class TransactionController extends BaseController<
 
       log('Publishing transaction', transactionMeta.txParams);
 
-      let { transactionHash: hash } = await this.publish(
-        transactionMeta,
-        rawTx,
-      );
+      let hash: string | undefined;
 
-      if (hash === undefined) {
-        hash = await this.publishTransaction(
-          ethQuery,
-          rawTx,
-          transactionMeta.txParams,
-          transactionMeta.chainId,
-          transactionMeta.origin,
-        );
-      }
+      await this.#trace(
+        { name: 'Publish', parentContext: traceContext },
+        async () => {
+          ({ transactionHash: hash } = await this.publish(
+            transactionMeta,
+            rawTx,
+          ));
+
+          if (hash === undefined) {
+            hash = await this.publishTransaction(
+              ethQuery,
+              rawTx,
+              transactionMeta.txParams,
+              transactionMeta.chainId,
+              transactionMeta.origin,
+            );
+          }
+        },
+      );
 
       log('Publish successful', hash);
 
@@ -2934,12 +2994,21 @@ export class TransactionController extends BaseController<
 
   private async requestApproval(
     txMeta: TransactionMeta,
-    { shouldShowRequest }: { shouldShowRequest: boolean },
+    {
+      shouldShowRequest,
+      traceContext,
+    }: { shouldShowRequest: boolean; traceContext?: TraceContext },
   ): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
     const requestData = { txId: txMeta.id };
+
+    await this.#trace({
+      name: 'Notification Display',
+      id,
+      parentContext: traceContext,
+    });
 
     return (await this.messagingSystem.call(
       'ApprovalController:addRequest',
@@ -3759,7 +3828,10 @@ export class TransactionController extends BaseController<
     }
   }
 
-  async #updateSimulationData(transactionMeta: TransactionMeta) {
+  async #updateSimulationData(
+    transactionMeta: TransactionMeta,
+    { traceContext }: { traceContext?: TraceContext } = {},
+  ) {
     const { id: transactionId, chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
@@ -3779,13 +3851,17 @@ export class TransactionController extends BaseController<
         },
       );
 
-      simulationData = await getSimulationData({
-        chainId,
-        from: from as Hex,
-        to: to as Hex,
-        value: value as Hex,
-        data: data as Hex,
-      });
+      simulationData = await this.#trace(
+        { name: 'Simulate', parentContext: traceContext },
+        () =>
+          getSimulationData({
+            chainId,
+            from: from as Hex,
+            to: to as Hex,
+            value: value as Hex,
+            data: data as Hex,
+          }),
+      );
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);
