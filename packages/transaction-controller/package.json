@@ -70,7 +70,7 @@
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^19.0.1",
     "@metamask/keyring-api": "^8.1.0",
-    "@metamask/network-controller": "^20.1.0",
+    "@metamask/network-controller": "^20.2.0",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
     "@types/node": "^16.18.54",
