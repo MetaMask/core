@@ -294,8 +294,6 @@ export default class UserStorageController extends BaseController<
 
       this.messagingSystem.subscribe('KeyringController:lock', async () => {
         this.#isUnlocked = false;
-
-        await this.syncInternalAccountsListWithUserStorage();
       });
     },
   };
