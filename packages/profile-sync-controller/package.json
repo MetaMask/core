@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -66,7 +66,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.1.6"
+    "typescript": "~5.2.2"
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^17.0.0",
