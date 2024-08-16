@@ -230,7 +230,7 @@ export default class NotificationServicesPushController extends BaseController<
             );
           }
 
-          this.#config.onPushNotificationClicked(e);
+          this.#config.onPushNotificationClicked(e, n);
         },
       });
 
