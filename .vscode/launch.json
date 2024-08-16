@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Attach to Chrome",
+      "port": 9222,
+      "request": "attach",
+      "type": "chrome",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "Debug unit tests",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "runtimeExecutable": "${workspaceFolder}/node_modules/jest/bin/jest.js",
+      "runtimeArgs": [
+        "-c",
+        "packages/assets-controllers/jest.config.js",
+        "packages/assets-controllers/src/NftDetectionController.test.ts",
+        "-t",
+        "ld not detect and add NFTs if there is no selectedAd"
+      ]
+    }
+  ]
+}

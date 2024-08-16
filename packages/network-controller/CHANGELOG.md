@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: NetworkController.upsertNetworkConfiguration allow upsert by networkConfigurationId ([#4614](https://github.com/MetaMask/core/pull/4614))
+- Release 184.0.0 ([#4607](https://github.com/MetaMask/core/pull/4607))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+- fix: throw error when removing selected network ([#4566](https://github.com/MetaMask/core/pull/4566))
+
 ## [20.1.0]
 
 ### Added
