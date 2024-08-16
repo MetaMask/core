@@ -1336,3 +1336,12 @@ export type TraceCallback = <ReturnType>(
    */
   fn?: (context?: TraceContext) => ReturnType,
 ) => Promise<ReturnType>;
+
+export type GasPriceValue = {
+  gasPrice: string;
+};
+
+export type FeeMarketEIP1559Values = {
+  maxFeePerGas: string;
+  maxPriorityFeePerGas: string;
+};
