@@ -11,23 +11,29 @@ export type FeatureAnnouncementRawNotificationData = Omit<
     description?: string;
     url: string;
   };
-
-  // Portfolio Links
-  link?: {
-    linkText: string;
-    linkUrl: string;
-    isExternal: boolean;
+  
+  // External Link
+  externalLink?: {
+    externalLinkText: string;
+    externalLinkUrl: string;
   };
-  action?: {
-    actionText: string;
-    actionUrl: string;
-    isExternal: boolean;
+
+  // Portfolio Link
+  portfolioLink?: {
+    portfolioLinkText: string;
+    portfolioLinkUrl: string;
   };
 
   // Extension Link
   extensionLink?: {
     extensionLinkText: string;
     extensionLinkRoute: string;
+  };
+
+  // Mobile Link
+  mobileLink?: {
+    mobileLinkText: string;
+    mobileLinkUrl: string;
   };
 };
 
