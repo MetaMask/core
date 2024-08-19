@@ -211,8 +211,8 @@ export type PermissionControllerState<Permission> =
  * @returns The state metadata
  */
 function getStateMetadata<Permission extends PermissionConstraint>() {
-  return { subjects: { anonymous: true, persist: true } } as Required<
-    StateMetadata<PermissionControllerState<Permission>>
+  return { subjects: { anonymous: true, persist: true } } as StateMetadata<
+    PermissionControllerState<Permission>
   >;
 }
 

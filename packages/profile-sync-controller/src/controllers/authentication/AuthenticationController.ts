@@ -1,4 +1,7 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  RestrictedControllerMessenger,
+  StateMetadata,
+} from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -53,7 +56,7 @@ export type AuthenticationControllerState = {
 export const defaultState: AuthenticationControllerState = {
   isSignedIn: false,
 };
-const metadata = {
+const metadata: StateMetadata<AuthenticationControllerState> = {
   isSignedIn: {
     persist: true,
     anonymous: true,
