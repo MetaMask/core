@@ -602,6 +602,11 @@ export class AccountsController extends BaseController<
 
       const id = getUUIDFromAddressOfNormalAccount(address);
 
+      const nameLastUpdatedAt = this.#populateExistingMetadata(
+        id,
+        'nameLastUpdatedAt',
+      );
+
       internalAccounts.push({
         id,
         address,
@@ -617,6 +622,7 @@ export class AccountsController extends BaseController<
         type: EthAccountType.Eoa,
         metadata: {
           name: this.#populateExistingMetadata(id, 'name') ?? '',
+          ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
           lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,
