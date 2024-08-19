@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [18.1.0]
 
-- fix: Return error as sent from the UI instead of throwing a new one ([#4610](https://github.com/MetaMask/core/pull/4610))
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+### Changed
+
+- Throw exact error provided by client on rejection ([#4610](https://github.com/MetaMask/core/pull/4610))
+- Upgrade TypeScript version to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Upgrade TypeScript version to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+
+### Removed
+
+- Remove `@metamask/rpc-errors` dependency ([#4610](https://github.com/MetaMask/core/pull/4610))
 
 ## [18.0.1]
 
@@ -289,7 +295,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...HEAD
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.0...@metamask/signature-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@17.0.0...@metamask/signature-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@16.0.0...@metamask/signature-controller@17.0.0

@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 185.0.0 ([#4618](https://github.com/MetaMask/core/pull/4618))
-- feat: add initial tracing to transaction controller ([#4575](https://github.com/MetaMask/core/pull/4575))
-- Release 184.0.0 ([#4607](https://github.com/MetaMask/core/pull/4607))
-
 ## [35.1.1]
 
 ### Changed
