@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
@@ -6,6 +5,13 @@ import { add0x } from '@metamask/utils';
 import type { FeeMarketEIP1559Values, GasPriceValue } from '../types';
 import { type TransactionParams } from '../types';
 
+/**
+ * Returns new transaction parameters with increased gas fees.
+ * @param originalTransactionParams - The original transaction parameters.
+ * @param rate - The rate by which to increase the existing gas fee properties.
+ * @param newGasValues - Optional new gas values to use instead of increased the existing values.
+ * @returns The new transaction parameters with the increased gas fee properties.
+ */
 export function getTransactionParamsWithIncreasedGasFee(
   originalTransactionParams: TransactionParams,
   rate: number,
@@ -51,6 +57,13 @@ export function getTransactionParamsWithIncreasedGasFee(
   );
 }
 
+/**
+ * Generate the increased EIP-1559 gas properties.
+ * @param originalTransactionParams - The original transaction parameters.
+ * @param rate - The rate by which to increase the existing gas fee properties.
+ * @param newGasValues - Optional new gas values to use instead of increased the existing values.
+ * @returns The new EIP-1559 gas properties.
+ */
 function getIncreased1559Values(
   originalTransactionParams: TransactionParams,
   rate: number,
@@ -86,6 +99,13 @@ function getIncreased1559Values(
   return { maxFeePerGas, maxPriorityFeePerGas };
 }
 
+/**
+ * Generate the increased gas price.
+ * @param originalTransactionParams - The original transaction parameters.
+ * @param rate - The rate by which to increase the existing gas fee properties.
+ * @param newGasValues - Optional new gas values to use instead of increased the existing values.
+ * @returns The new gas price.
+ */
 function getIncreasedGasPrice(
   originalTransactionParams: TransactionParams,
   rate: number,
@@ -104,6 +124,12 @@ function getIncreasedGasPrice(
   return multiplyHex(currentGasPrice, rate);
 }
 
+/**
+ * Multiply a hex value by a multiplier.
+ * @param value - The hex value to multiply.
+ * @param multiplier - The multiplier.
+ * @returns The multiplied hex value.
+ */
 function multiplyHex(value: Hex | undefined, multiplier: number): Hex {
   const decimalValue = convertHexToDecimal(value);
   const decimalResult = parseInt(`${decimalValue * multiplier}`, 10);
