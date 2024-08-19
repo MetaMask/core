@@ -179,6 +179,8 @@ export default class UserStorageController extends BaseController<
   UserStorageControllerState,
   UserStorageControllerMessenger
 > {
+  #logAccountSyncing = true;
+
   #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -262,6 +264,9 @@ export default class UserStorageController extends BaseController<
       );
     },
     saveInternalAccountsListToUserStorage: async () => {
+      if (this.#logAccountSyncing) {
+        console.log('saveInternalAccountsListToUserStorage');
+      }
       const internalAccountsList =
         await this.#accounts.getInternalAccountsList();
 
@@ -564,10 +569,18 @@ export default class UserStorageController extends BaseController<
     try {
       this.#assertProfileSyncingEnabled();
 
+      if (this.#logAccountSyncing) {
+        console.log('original this', this);
+      }
+
       await this.#accounts.setIsUserStorageAccountSyncingInProgress(true);
 
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
+
+      if (this.#logAccountSyncing) {
+        console.log({ userStorageAccountsList });
+      }
 
       if (!userStorageAccountsList) {
         await this.#accounts.saveInternalAccountsListToUserStorage();
@@ -579,12 +592,23 @@ export default class UserStorageController extends BaseController<
       // First step: compare lengths
       let internalAccountsList = await this.#accounts.getInternalAccountsList();
 
+      if (this.#logAccountSyncing) {
+        console.log('getInternalAccountsList', { internalAccountsList });
+      }
+
       if (!internalAccountsList || !internalAccountsList.length) {
         throw new Error(`Failed to get internal accounts list`);
       }
 
       const hasMoreInternalAccountsThanUserStorageAccounts =
         internalAccountsList.length > userStorageAccountsList.length;
+
+      if (this.#logAccountSyncing) {
+        console.log(
+          'hasMoreInternalAccountsThanUserStorageAccounts',
+          hasMoreInternalAccountsThanUserStorageAccounts,
+        );
+      }
 
       // We don't want to remove existing accounts for a user
       // so we only add new accounts if the user has more accounts than the internal accounts list
@@ -596,6 +620,9 @@ export default class UserStorageController extends BaseController<
         const addNewAccountsPromises = Array.from({
           length: numberOfAccountsToAdd,
         }).map(async () => {
+          if (this.#logAccountSyncing) {
+            console.log('this', this);
+          }
           await this.messagingSystem.call('KeyringController:addNewAccount');
         });
 
@@ -622,6 +649,13 @@ export default class UserStorageController extends BaseController<
         const isUserStorageAccountNameDefault = isNameDefaultAccountName(
           userStorageAccount.n,
         );
+
+        if (this.#logAccountSyncing) {
+          console.log({
+            isInternalAccountNameDefault,
+            isUserStorageAccountNameDefault,
+          });
+        }
 
         // Internal account has default name
         if (isInternalAccountNameDefault) {
@@ -652,6 +686,12 @@ export default class UserStorageController extends BaseController<
               internalAccount.metadata.nameLastUpdatedAt >
               userStorageAccount.nlu;
 
+            if (this.#logAccountSyncing) {
+              console.log({
+                isInternalAccountNameNewer,
+              });
+            }
+
             if (isInternalAccountNameNewer) {
               continue;
             }
@@ -668,6 +708,10 @@ export default class UserStorageController extends BaseController<
 
           continue;
         }
+      }
+
+      if (this.#logAccountSyncing) {
+        console.log('end of sync');
       }
 
       await this.#accounts.saveInternalAccountsListToUserStorage();

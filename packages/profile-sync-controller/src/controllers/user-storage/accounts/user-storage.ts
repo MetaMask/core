@@ -86,6 +86,7 @@ export const isNameDefaultAccountName = (name: string) => {
 export const mapInternalAccountsListToUserStorageAccountsList = (
   internalAccountsList: InternalAccount[],
 ): UserStorageAccountsList => {
+  console.log({ internalAccountsList });
   return internalAccountsList.map((internalAccount) => ({
     a: internalAccount.address,
     i: internalAccount.id,
