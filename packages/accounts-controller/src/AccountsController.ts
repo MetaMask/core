@@ -106,7 +106,7 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
-export type AccountsControllerUpdateAccountMetadata = {
+export type AccountsControllerUpdateAccountMetadataAction = {
   type: `${typeof controllerName}:updateAccountMetadata`;
   handler: AccountsController['updateAccountMetadata'];
 };
@@ -128,7 +128,7 @@ export type AccountsControllerActions =
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedMultichainAccountAction
-  | AccountsControllerUpdateAccountMetadata;
+  | AccountsControllerUpdateAccountMetadataAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -504,6 +504,28 @@ export class AccountsController extends BaseController<
 
     this.update((currentState: Draft<AccountsControllerState>) => {
       currentState.internalAccounts.accounts = accounts;
+
+      if (
+        !currentState.internalAccounts.accounts[
+          currentState.internalAccounts.selectedAccount
+        ]
+      ) {
+        const lastSelectedAccount = this.#getLastSelectedAccount(
+          Object.values(accounts),
+        );
+
+        if (lastSelectedAccount) {
+          currentState.internalAccounts.selectedAccount =
+            lastSelectedAccount.id;
+          currentState.internalAccounts.accounts[
+            lastSelectedAccount.id
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
+          this.#publishAccountChangeEvent(lastSelectedAccount);
+        } else {
+          // It will be undefined if there are no accounts
+          currentState.internalAccounts.selectedAccount = '';
+        }
+      }
     });
   }
 
@@ -767,30 +789,20 @@ export class AccountsController extends BaseController<
             this.state.internalAccounts.selectedAccount
           ]
         ) {
-          // if currently selected account is undefined and there are no accounts
-          // it mean the keyring was reinitialized.
-          if (existingAccounts.length === 0) {
+          const lastSelectedAccount =
+            this.#getLastSelectedAccount(existingAccounts);
+
+          if (lastSelectedAccount) {
+            currentState.internalAccounts.selectedAccount =
+              lastSelectedAccount.id;
+            currentState.internalAccounts.accounts[
+              lastSelectedAccount.id
+            ].metadata.lastSelected = this.#getLastSelectedIndex();
+            this.#publishAccountChangeEvent(lastSelectedAccount);
+          } else {
+            // It will be undefined if there are no accounts
             currentState.internalAccounts.selectedAccount = '';
-            return;
           }
-
-          // at this point, we know that `existingAccounts.length` is > 0, so
-          // `accountToSelect` won't be `undefined`!
-          const [accountToSelect] = existingAccounts.sort(
-            (accountA, accountB) => {
-              // sort by lastSelected descending
-              return (
-                (accountB.metadata.lastSelected ?? 0) -
-                (accountA.metadata.lastSelected ?? 0)
-              );
-            },
-          );
-          currentState.internalAccounts.selectedAccount = accountToSelect.id;
-          currentState.internalAccounts.accounts[
-            accountToSelect.id
-          ].metadata.lastSelected = this.#getLastSelectedIndex();
-
-          this.#publishAccountChangeEvent(accountToSelect);
         }
       });
     }
@@ -859,19 +871,15 @@ export class AccountsController extends BaseController<
   #getLastSelectedAccount(
     accounts: InternalAccount[],
   ): InternalAccount | undefined {
-    return accounts.reduce((prevAccount, currentAccount) => {
-      if (
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        currentAccount.metadata.lastSelected! >
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        prevAccount.metadata.lastSelected!
-      ) {
-        return currentAccount;
-      }
-      return prevAccount;
-    }, accounts[0]);
+    const [accountToSelect] = accounts.sort((accountA, accountB) => {
+      // sort by lastSelected descending
+      return (
+        (accountB.metadata.lastSelected ?? 0) -
+        (accountA.metadata.lastSelected ?? 0)
+      );
+    });
+
+    return accountToSelect;
   }
 
   /**

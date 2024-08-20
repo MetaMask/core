@@ -71,9 +71,9 @@
     "@metamask/approval-controller": "^7.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@metamask/keyring-api": "^8.0.1",
+    "@metamask/keyring-api": "^8.1.0",
     "@metamask/keyring-controller": "^17.1.2",
-    "@metamask/network-controller": "^20.1.0",
+    "@metamask/network-controller": "^20.2.0",
     "@metamask/preferences-controller": "^13.0.1",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
@@ -86,7 +86,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "peerDependencies": {
     "@metamask/accounts-controller": "^18.0.0",

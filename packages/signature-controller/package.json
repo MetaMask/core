@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "18.0.1",
+  "version": "18.1.0",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -44,7 +44,6 @@
     "@metamask/base-controller": "^6.0.2",
     "@metamask/controller-utils": "^11.0.2",
     "@metamask/message-manager": "^10.0.2",
-    "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",
     "lodash": "^4.17.21"
   },
@@ -59,7 +58,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0",
