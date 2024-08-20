@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.0]
 
-### Uncategorized
+### Changed
 
-- feat: Remove the Phishfort list from the PhishingController ([#4621](https://github.com/MetaMask/core/pull/4621))
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584), [#4576](https://github.com/MetaMask/core/pull/4576))
+
+### Removed
+
+- **BREAKING:** Remove the Phishfort list from the PhishingController ([#4621](https://github.com/MetaMask/core/pull/4621))
 
 ## [10.1.1]
 
