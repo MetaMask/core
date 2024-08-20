@@ -7,12 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core.git/pull/4584))
-- chore: bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core.git/pull/4594))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core.git/pull/4576))
-
 ## [0.1.1]
 
 ### Changed
@@ -32,6 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.1.1...HEAD
-[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/chain-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.1...HEAD
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-controller@0.1.0

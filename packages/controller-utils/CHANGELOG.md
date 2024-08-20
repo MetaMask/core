@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core.git/pull/4584))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core.git/pull/4576))
-
 ## [11.0.2]
 
 ### Changed
@@ -367,37 +362,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.0.2...HEAD
-[11.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.0.1...@metamask/controller-utils@11.0.2
-[11.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
-[9.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
-[9.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
-[9.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@8.0.4...@metamask/controller-utils@9.0.0
-[8.0.4]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@8.0.3...@metamask/controller-utils@8.0.4
-[8.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@8.0.2...@metamask/controller-utils@8.0.3
-[8.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@8.0.1...@metamask/controller-utils@8.0.2
-[8.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@6.1.0...@metamask/controller-utils@7.0.0
-[6.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@6.0.0...@metamask/controller-utils@6.1.0
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@5.0.2...@metamask/controller-utils@6.0.0
-[5.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@5.0.1...@metamask/controller-utils@5.0.2
-[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@5.0.0...@metamask/controller-utils@5.0.1
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.3.2...@metamask/controller-utils@5.0.0
-[4.3.2]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.3.1...@metamask/controller-utils@4.3.2
-[4.3.1]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.3.0...@metamask/controller-utils@4.3.1
-[4.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.2.0...@metamask/controller-utils@4.3.0
-[4.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.1.0...@metamask/controller-utils@4.2.0
-[4.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.0.1...@metamask/controller-utils@4.1.0
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@4.0.0...@metamask/controller-utils@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.4.0...@metamask/controller-utils@4.0.0
-[3.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.3.0...@metamask/controller-utils@3.4.0
-[3.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.2.0...@metamask/controller-utils@3.3.0
-[3.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.1.0...@metamask/controller-utils@3.2.0
-[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@3.0.0...@metamask/controller-utils@3.1.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@2.0.0...@metamask/controller-utils@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/controller-utils@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.2...HEAD
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.1...@metamask/controller-utils@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.4...@metamask/controller-utils@9.0.0
+[8.0.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.3...@metamask/controller-utils@8.0.4
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.2...@metamask/controller-utils@8.0.3
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...@metamask/controller-utils@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.0...@metamask/controller-utils@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@7.0.0...@metamask/controller-utils@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.1.0...@metamask/controller-utils@7.0.0
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@6.0.0...@metamask/controller-utils@6.1.0
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.2...@metamask/controller-utils@6.0.0
+[5.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.1...@metamask/controller-utils@5.0.2
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@5.0.0...@metamask/controller-utils@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.2...@metamask/controller-utils@5.0.0
+[4.3.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.1...@metamask/controller-utils@4.3.2
+[4.3.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.3.0...@metamask/controller-utils@4.3.1
+[4.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.2.0...@metamask/controller-utils@4.3.0
+[4.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.1.0...@metamask/controller-utils@4.2.0
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.1...@metamask/controller-utils@4.1.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@4.0.0...@metamask/controller-utils@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.4.0...@metamask/controller-utils@4.0.0
+[3.4.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.3.0...@metamask/controller-utils@3.4.0
+[3.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.2.0...@metamask/controller-utils@3.3.0
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.1.0...@metamask/controller-utils@3.2.0
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@3.0.0...@metamask/controller-utils@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@2.0.0...@metamask/controller-utils@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@1.0.0...@metamask/controller-utils@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/controller-utils@1.0.0

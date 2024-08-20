@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.2.0]
+
 ### Uncategorized
 
 - feat: Remove the Phishfort list from the PhishingController ([#4621](https://github.com/MetaMask/core.git/pull/4621))
@@ -224,7 +226,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.2.0...HEAD
+[10.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@10.2.0
 [10.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.1.0...@metamask/phishing-controller@10.1.1
 [10.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@10.0.0...@metamask/phishing-controller@10.1.0
 [10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/phishing-controller@9.0.4...@metamask/phishing-controller@10.0.0
