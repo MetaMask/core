@@ -1,6 +1,6 @@
+import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import * as sinon from 'sinon';
 
-import { JsonRpcEngine } from '../../json-rpc-engine/src';
 import type { BaseConfig, BaseState } from './BaseControllerV1';
 import {
   BaseControllerV1 as BaseController,

@@ -2405,6 +2405,7 @@ __metadata:
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/json-rpc-engine": "npm:^9.0.2"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     "@types/sinon": "npm:^9.0.10"
