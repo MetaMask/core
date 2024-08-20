@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/rpc-errors` from `^6.0.0` to `^6.3.1` ([#323](https://github.com/MetaMask/eth-json-rpc-middleware/pull/323))
 - Bump `@metamask/utils` from `^8.1.0` to `^9.1.0` ([#323](https://github.com/MetaMask/eth-json-rpc-middleware/pull/323))
 
+### Security
+- **BREAKING:** Typed signature validation only replaces `0X` prefix with `0x`, and contract address normalization is removed for decimal and octal values ([#318](https://github.com/MetaMask/eth-json-rpc-middleware/pull/318))
+  - Threat actors have been manipulating `eth_signTypedData_v4` fields to cause failures in blockaid's detectors.
+  - Extension crashes with an error when performing Malicious permit with a non-0x prefixed integer address.
+  - This fixes an issue where the key value row or petname component disappears if a signed address is prefixed by "0X" instead of "0x".
+
 ## [13.0.0]
 ### Changed
 - **BREAKING**: Drop support for Node.js v16; add support for Node.js v20, v22 ([#312](https://github.com/MetaMask/eth-json-rpc-middleware/pull/312))
