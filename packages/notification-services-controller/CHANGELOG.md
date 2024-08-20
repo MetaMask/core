@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: add notification on push notification click callback ([#4613](https://github.com/MetaMask/core.git/pull/4613))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core.git/pull/4584))
+
 ## [0.2.1]
 
 ### Added
@@ -68,9 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.1...HEAD
-[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.0...@metamask/notification-services-controller@0.2.1
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.2...@metamask/notification-services-controller@0.2.0
-[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.1...@metamask/notification-services-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.0...@metamask/notification-services-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/notification-services-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.2.1...HEAD
+[0.2.1]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.2.0...@metamask/notification-services-controller@0.2.1
+[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.1.2...@metamask/notification-services-controller@0.2.0
+[0.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.1.1...@metamask/notification-services-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.1.0...@metamask/notification-services-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/notification-services-controller@0.1.0
