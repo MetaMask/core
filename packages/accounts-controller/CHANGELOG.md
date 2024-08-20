@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: handle undefined selectedAccount in updateAccounts ([#4623](https://github.com/MetaMask/core/pull/4623))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- chore: bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+- fix: updateAccountMetadata action type name and export ([#4590](https://github.com/MetaMask/core/pull/4590))
+- feat: add new method `updateAccountMetadata` ([#4568](https://github.com/MetaMask/core/pull/4568))
+
 ## [18.0.0]
 
 ### Changed

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- [composable-controller] Fix incorrect behavior and improve type-level safeguards ([#4467](https://github.com/MetaMask/core/pull/4467))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
+- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+
 ## [7.0.0]
 
 ### Changed
