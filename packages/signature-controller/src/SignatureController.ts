@@ -40,7 +40,6 @@ import {
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
-import { providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
@@ -432,7 +431,7 @@ export class SignatureController extends BaseController<
         );
 
         resultCallbacks = acceptResult.resultCallbacks;
-      } catch {
+      } catch (error) {
         // User rejected the signature request
         this.#addLog(
           signTypeForLogger,
@@ -441,7 +440,7 @@ export class SignatureController extends BaseController<
         );
 
         this.#cancelAbstractMessage(messageManager, messageId);
-        throw providerErrors.userRejectedRequest('User rejected the request.');
+        throw error;
       }
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
