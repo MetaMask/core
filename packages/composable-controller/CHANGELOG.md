@@ -9,15 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [8.0.0]
 
-### Uncategorized
+### Changed
 
-- [composable-controller] Fix incorrect behavior and improve type-level safeguards ([#4467](https://github.com/MetaMask/core/pull/4467))
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
-- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- **BREAKING:** Add two required generic parameters to the `ComposableController` class: `ComposedControllerState` (constrained by `LegacyComposableControllerStateConstraint`) and `ChildControllers` (constrained by `ControllerInstance`) ([#4467](https://github.com/MetaMask/core/pull/4467))
+- **BREAKING:** The type guard `isBaseController` now validates that the input has an object-type property named `metadata` in addition to its existing checks ([#4467](https://github.com/MetaMask/core/pull/4467))
+- **BREAKING:** The type guard `isBaseControllerV1` now validates that the input has object-type properties `config`, `state`, and function-type property `subscribe`, in addition to its existing checks ([#4467](https://github.com/MetaMask/core/pull/4467))
+- **BREAKING:** Narrow `LegacyControllerStateConstraint` type from `BaseState | StateConstraint` to `BaseState & object | StateConstraint` ([#4467](https://github.com/MetaMask/core/pull/4467))
+- Add an optional generic parameter `ControllerName` to the `RestrictedControllerMessengerConstraint` type, which extends `string` and defaults to `string` ([#4467](https://github.com/MetaMask/core/pull/4467))
+- Bump `@metamask/base-controller` from `~6.0.0` to `~6.0.3` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544), [#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `typescript` from `~4.9.5` to `~5.2.2` and set `module{,Resolution}` options to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- **BREAKING:** The `ComposableController` class raises a type error if a non-controller with no `state` property is passed into the `ChildControllers` generic parameter or the `controllers` constructor option ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - Previously, a runtime error was thrown at class instantiation with no type-level enforcement.
+- When the `ComposableController` class is instantiated, its messenger now attempts to subscribe to all child controller `stateChange` events that are included in the messenger's events allowlist ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - This was always the expected behavior, but a bug introduced in `@metamask/composable-controller@6.0.0` caused `stateChange` event subscriptions to fail.
+- `isBaseController` and `isBaseControllerV1` no longer return false negatives ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - The `instanceof` operator is no longer used to validate that the input is a subclass of `BaseController` or `BaseControllerV1`.
+- The `ChildControllerStateChangeEvents` type checks that the child controller's state extends from the `StateConstraintV1` type instead of from `Record<string, unknown>` ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - V1 controllers define their state types using the `interface` keyword, which are incompatible with `Record<string, unknown>` by default. This resulted in `ChildControllerStateChangeEvents` failing to generate `stateChange` events for V1 controllers and returning `never`.
 
 ## [7.0.0]
 
