@@ -789,9 +789,8 @@ export class AccountsController extends BaseController<
             this.state.internalAccounts.selectedAccount
           ]
         ) {
-          const lastSelectedAccount = this.#getLastSelectedAccount(
-            Object.values(existingAccounts),
-          );
+          const lastSelectedAccount =
+            this.#getLastSelectedAccount(existingAccounts);
 
           if (lastSelectedAccount) {
             currentState.internalAccounts.selectedAccount =
