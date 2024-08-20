@@ -19,12 +19,15 @@ type UserStorageFeatureAndKey = {
   key: UserStorageFeatureKeys<UserStorageFeatures>;
 };
 
-export type UserStoragePath = {
-  [K in keyof UserStorageSchema]: `${K}.${UserStorageSchema[K][number]}`;
-}[keyof UserStorageSchema];
+export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
+
+export type UserStoragePathWithFeatureAndKey =
+  | {
+      [K in keyof UserStorageSchema]: `${K}.${UserStorageSchema[K][number]}`;
+    }[UserStoragePathWithFeatureOnly];
 
 export const getFeatureAndKeyFromPath = (
-  path: UserStoragePath,
+  path: UserStoragePathWithFeatureAndKey,
 ): UserStorageFeatureAndKey => {
   const pathRegex = /^\w+\.\w+$/u;
 
@@ -56,6 +59,14 @@ export const getFeatureAndKeyFromPath = (
   return { feature, key };
 };
 
+export const isPathWithFeatureAndKey = (
+  path: string,
+): path is UserStoragePathWithFeatureAndKey => {
+  const pathRegex = /^\w+\.\w+$/u;
+
+  return pathRegex.test(path);
+};
+
 /**
  * Constructs a unique entry path for a user.
  * This can be done due to the uniqueness of the storage key (no users will share the same storage key).
@@ -66,7 +77,7 @@ export const getFeatureAndKeyFromPath = (
  * @returns path to store entry
  */
 export function createEntryPath(
-  path: UserStoragePath,
+  path: UserStoragePathWithFeatureAndKey,
   storageKey: string,
 ): string {
   const { feature, key } = getFeatureAndKeyFromPath(path);

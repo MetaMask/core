@@ -19,8 +19,15 @@ import type {
   AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
 import { createSHA256Hash } from './encryption';
-import type { UserStoragePath } from './schema';
-import { getUserStorage, upsertUserStorage } from './services';
+import type {
+  UserStoragePathWithFeatureAndKey,
+  UserStoragePathWithFeatureOnly,
+} from './schema';
+import {
+  getUserStorage,
+  getUserStorageAllFeatureEntries,
+  upsertUserStorage,
+} from './services';
 
 // TODO: fix external dependencies
 export declare type NotificationServicesControllerDisableNotificationServices =
@@ -74,6 +81,7 @@ type CreateActionsObj<Controller extends keyof UserStorageController> = {
 };
 type ActionsObj = CreateActionsObj<
   | 'performGetStorage'
+  | 'performGetStorageAllFeatureEntries'
   | 'performSetStorage'
   | 'getStorageKey'
   | 'enableProfileSyncing'
@@ -82,6 +90,8 @@ type ActionsObj = CreateActionsObj<
 export type Actions = ActionsObj[keyof ActionsObj];
 export type UserStorageControllerPerformGetStorage =
   ActionsObj['performGetStorage'];
+export type UserStorageControllerPerformGetStorageAllFeatureEntries =
+  ActionsObj['performGetStorageAllFeatureEntries'];
 export type UserStorageControllerPerformSetStorage =
   ActionsObj['performSetStorage'];
 export type UserStorageControllerGetStorageKey = ActionsObj['getStorageKey'];
@@ -221,6 +231,11 @@ export default class UserStorageController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
+      'UserStorageController:performGetStorageAllFeatureEntries',
+      this.performGetStorageAllFeatureEntries.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
       'UserStorageController:performSetStorage',
       this.performSetStorage.bind(this),
     );
@@ -316,7 +331,7 @@ export default class UserStorageController extends BaseController<
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
-    path: UserStoragePath,
+    path: UserStoragePathWithFeatureAndKey,
   ): Promise<string | null> {
     this.#assertProfileSyncingEnabled();
 
@@ -324,6 +339,30 @@ export default class UserStorageController extends BaseController<
       await this.#getStorageKeyAndBearerToken();
 
     const result = await getUserStorage({
+      path,
+      bearerToken,
+      storageKey,
+    });
+
+    return result;
+  }
+
+  /**
+   * Allows retrieval of all stored data for a specific feature. Data stored is formatted as an array of strings.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @returns the array of decrypted string contents found from user storage (or null if not found)
+   */
+  public async performGetStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<(string | null)[] | null> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    const result = await getUserStorageAllFeatureEntries({
       path,
       bearerToken,
       storageKey,
@@ -341,7 +380,7 @@ export default class UserStorageController extends BaseController<
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
   public async performSetStorage(
-    path: UserStoragePath,
+    path: UserStoragePathWithFeatureAndKey,
     value: string,
   ): Promise<void> {
     this.#assertProfileSyncingEnabled();
