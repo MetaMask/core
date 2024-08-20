@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed Stalelist and hotlist update intervals ([#4202](https://github.com/MetaMask/core/pull/4202))
   - Updated the Stalelist update interval to 30 days and the hotlist update interval to 5 mins
 - Bump `@metamask/controller-utils` version to `~9.1.0` ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core.git/pull/4084))
 - Bump `@metamask/base-controller` to `^5.0.2`
 
 ## [9.0.1]
