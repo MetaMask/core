@@ -42,7 +42,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^6.0.3",
     "@metamask/controller-utils": "^11.0.2",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/rpc-errors": "^6.3.1",
@@ -51,7 +51,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^20.1.0",
+    "@metamask/network-controller": "^20.2.0",
     "@metamask/selected-network-controller": "^17.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -63,7 +63,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "peerDependencies": {
     "@metamask/network-controller": "^20.0.0",

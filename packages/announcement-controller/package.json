@@ -42,7 +42,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2"
+    "@metamask/base-controller": "^6.0.3"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
@@ -52,7 +52,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

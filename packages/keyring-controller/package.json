@@ -44,12 +44,12 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@keystonehq/metamask-airgapped-keyring": "^0.14.1",
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^6.0.3",
     "@metamask/browser-passworder": "^4.3.0",
     "@metamask/eth-hd-keyring": "^7.0.1",
     "@metamask/eth-sig-util": "^7.0.1",
     "@metamask/eth-simple-keyring": "^6.0.1",
-    "@metamask/keyring-api": "^8.0.1",
+    "@metamask/keyring-api": "^8.1.0",
     "@metamask/message-manager": "^10.0.2",
     "@metamask/utils": "^9.1.0",
     "async-mutex": "^0.5.0",
@@ -71,7 +71,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4",
+    "typescript": "~5.2.2",
     "uuid": "^8.3.2"
   },
   "engines": {

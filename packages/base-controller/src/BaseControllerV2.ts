@@ -51,7 +51,7 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export type StateMetadata<T extends StateConstraint> = {
-  [P in keyof T]: StatePropertyMetadata<T[P]>;
+  [P in keyof T]-?: StatePropertyMetadata<T[P]>;
 };
 
 /**

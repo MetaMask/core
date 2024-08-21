@@ -1,6 +1,6 @@
 {
   "name": "@metamask/base-controller",
-  "version": "6.0.2",
+  "version": "6.0.3",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
     "MetaMask",
@@ -54,7 +54,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
