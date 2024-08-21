@@ -20,7 +20,7 @@ export const getMockUserStorageEndpoint = (
   path: UserStoragePathWithFeatureAndKey | UserStoragePathWithFeatureOnly,
 ) => {
   if (path.split('.').length === 1) {
-    return `${USER_STORAGE_ENDPOINT}${path}`;
+    return `${USER_STORAGE_ENDPOINT}/${path}`;
   }
 
   return `${USER_STORAGE_ENDPOINT}${createEntryPath(

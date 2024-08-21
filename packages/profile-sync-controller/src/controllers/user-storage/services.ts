@@ -105,7 +105,7 @@ export async function getUserStorageAllFeatureEntries(
 ): Promise<string[] | null> {
   try {
     const { bearerToken, path } = opts;
-    const url = new URL(`${USER_STORAGE_ENDPOINT}${path}`);
+    const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
     const userStorageResponse = await fetch(url.toString(), {
       headers: {
