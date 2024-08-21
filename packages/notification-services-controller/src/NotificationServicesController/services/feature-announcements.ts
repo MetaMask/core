@@ -8,11 +8,12 @@ import type {
   ImageFields,
   TypeFeatureAnnouncement,
 } from '../types/feature-announcement/type-feature-announcement';
-import type { TypeExternalLinkFields } from '../types/feature-announcement/type-links';
-import type { TypePortfolioLinkFields } from '../types/feature-announcement/type-links';
-import type { TypeExtensionLinkFields } from '../types/feature-announcement/type-links';
-import type { TypeMobileLinkFields } from '../types/feature-announcement/type-links';
-
+import type {
+  TypeExternalLinkFields,
+  TypePortfolioLinkFields,
+  TypeExtensionLinkFields,
+  TypeMobileLinkFields,
+} from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
 
 const DEFAULT_SPACE_ID = ':space_id';
@@ -59,8 +60,13 @@ const fetchFeatureAnnouncementNotifications = async (
   }
 
   const findIncludedItem = (sysId: string) => {
-    const typedData: EntryCollection<ImageFields | TypeExtensionLinkFields | TypePortfolioLinkFields | TypeMobileLinkFields | TypeExternalLinkFields> =
-      data;
+    const typedData: EntryCollection<
+      | ImageFields
+      | TypeExtensionLinkFields
+      | TypePortfolioLinkFields
+      | TypeMobileLinkFields
+      | TypeExternalLinkFields
+    > = data;
     const item =
       typedData?.includes?.Entry?.find((i: Entry) => i?.sys?.id === sysId) ||
       typedData?.includes?.Asset?.find((i: Asset) => i?.sys?.id === sysId);

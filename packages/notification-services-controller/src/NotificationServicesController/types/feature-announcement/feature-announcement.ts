@@ -11,7 +11,7 @@ export type FeatureAnnouncementRawNotificationData = Omit<
     description?: string;
     url: string;
   };
-  
+
   // External Link
   externalLink?: {
     externalLinkText: string;
