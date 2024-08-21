@@ -67,7 +67,7 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/accounts-controller": "^18.0.0",
+    "@metamask/accounts-controller": "^18.1.0",
     "@metamask/approval-controller": "^7.0.2",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
