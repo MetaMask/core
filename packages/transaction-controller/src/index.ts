@@ -1,6 +1,4 @@
 export type {
-  FeeMarketEIP1559Values,
-  GasPriceValue,
   MethodData,
   Result,
   TransactionControllerActions,
@@ -33,10 +31,12 @@ export {
 export type {
   DappSuggestedGasFees,
   DefaultGasEstimates,
+  FeeMarketEIP1559Values,
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
   GasFeeEstimates,
   GasPriceGasFeeEstimates,
+  GasPriceValue,
   InferTransactionTypeResult,
   LegacyGasFeeEstimates,
   Log,

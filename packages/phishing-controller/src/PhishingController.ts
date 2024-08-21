@@ -50,7 +50,6 @@ export type EthPhishingResponse = {
  *
  * type defining expected type of the stalelist.json file.
  * @property eth_phishing_detect_config - Stale list sourced from eth-phishing-detect's config.json.
- * @property phishfort_hotlist - Stale list sourced from phishfort's hotlist.json. Only includes blocklist. Deduplicated entries from eth_phishing_detect_config.
  * @property tolerance - Fuzzy match tolerance level
  * @property lastUpdated - Timestamp of last update.
  * @property version - Stalelist data structure iteration.
@@ -59,9 +58,6 @@ export type PhishingStalelist = {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   eth_phishing_detect_config: Record<ListTypes, string[]>;
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  phishfort_hotlist: Record<ListTypes, string[]>;
   tolerance: number;
   version: number;
   lastUpdated: number;
@@ -145,7 +141,6 @@ export type Hotlist = HotlistDiff[];
  * These are the keys denoting lists consumed by the upstream data provider.
  */
 export enum ListKeys {
-  PhishfortHotlist = 'phishfort_hotlist',
   EthPhishingDetectConfig = 'eth_phishing_detect_config',
 }
 
@@ -154,7 +149,6 @@ export enum ListKeys {
  */
 export enum ListNames {
   MetaMask = 'MetaMask',
-  Phishfort = 'Phishfort',
 }
 
 /**
@@ -162,7 +156,6 @@ export enum ListNames {
  * to list key sourced from upstream data provider.
  */
 const phishingListNameKeyMap = {
-  [ListNames.Phishfort]: ListKeys.PhishfortHotlist,
   [ListNames.MetaMask]: ListKeys.EthPhishingDetectConfig,
 };
 
@@ -172,7 +165,6 @@ const phishingListNameKeyMap = {
  */
 export const phishingListKeyNameMap = {
   [ListKeys.EthPhishingDetectConfig]: ListNames.MetaMask,
-  [ListKeys.PhishfortHotlist]: ListNames.Phishfort,
 };
 
 const controllerName = 'PhishingController';
@@ -497,27 +489,15 @@ export class PhishingController extends BaseController<
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const { phishfort_hotlist, eth_phishing_detect_config, ...partialState } =
+    const { eth_phishing_detect_config, ...partialState } =
       stalelistResponse.data;
 
-    const phishfortListState: PhishingListState = {
-      ...phishfort_hotlist,
-      ...partialState,
-      fuzzylist: [], // Phishfort hotlist doesn't contain a fuzzylist
-      allowlist: [], // Phishfort hotlist doesn't contain an allowlist
-      name: phishingListKeyNameMap.phishfort_hotlist,
-    };
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
       name: phishingListKeyNameMap.eth_phishing_detect_config,
     };
-    // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
-    const newPhishfortListState: PhishingListState = applyDiffs(
-      phishfortListState,
-      hotlistDiffsResponse.data,
-      ListKeys.PhishfortHotlist,
-    );
+
     const newMetaMaskListState: PhishingListState = applyDiffs(
       metamaskListState,
       hotlistDiffsResponse.data,
@@ -525,7 +505,7 @@ export class PhishingController extends BaseController<
     );
 
     this.update((draftState) => {
-      draftState.phishingLists = [newMetaMaskListState, newPhishfortListState];
+      draftState.phishingLists = [newMetaMaskListState];
     });
     this.updatePhishingDetector();
   }
