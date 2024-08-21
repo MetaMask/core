@@ -2195,7 +2195,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/accounts-controller@npm:^18.0.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
+"@metamask/accounts-controller@npm:^18.1.0, @metamask/accounts-controller@workspace:packages/accounts-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/accounts-controller@workspace:packages/accounts-controller"
   dependencies:
@@ -2313,7 +2313,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/abi-utils": "npm:^2.0.3"
-    "@metamask/accounts-controller": "npm:^18.0.0"
+    "@metamask/accounts-controller": "npm:^18.1.0"
     "@metamask/approval-controller": "npm:^7.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.3"
@@ -2405,6 +2405,7 @@ __metadata:
   resolution: "@metamask/base-controller@workspace:packages/base-controller"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/json-rpc-engine": "npm:^9.0.2"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     "@types/sinon": "npm:^9.0.10"
@@ -2487,7 +2488,6 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.3"
     "@metamask/json-rpc-engine": "npm:^9.0.2"
-    "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
@@ -3930,7 +3930,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^35.1.1, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^35.2.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3941,7 +3941,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/accounts-controller": "npm:^18.0.0"
+    "@metamask/accounts-controller": "npm:^18.1.0"
     "@metamask/approval-controller": "npm:^7.0.2"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^6.0.3"
@@ -3998,7 +3998,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^9.0.1"
     "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^35.1.1"
+    "@metamask/transaction-controller": "npm:^35.2.0"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
