@@ -375,6 +375,60 @@ describe('updateSwapsTransaction', () => {
       swapAndSendRecipient,
     });
   });
+
+  it('should update swap and send approval transaction and publish TransactionController:transactionNewSwapAndSendApproval', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const type = TransactionType.swapAndSendApproval;
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      type,
+    };
+    transactionType = TransactionType.swapAndSendApproval;
+
+    const transactionNewSwapAndSendApprovalEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewSwapAndSendApproval',
+      transactionNewSwapAndSendApprovalEventListener,
+    );
+
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
+    expect(
+      transactionNewSwapAndSendApprovalEventListener,
+    ).toHaveBeenCalledTimes(1);
+    expect(transactionNewSwapAndSendApprovalEventListener).toHaveBeenCalledWith(
+      {
+        transactionMeta: {
+          ...transactionMeta,
+          sourceTokenSymbol,
+          type,
+        },
+      },
+    );
+  });
+
+  it('should return the swap and send approval transaction updated with information', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const type = TransactionType.swapAndSendApproval;
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      type,
+    };
+    transactionType = TransactionType.swapAndSendApproval;
+
+    const updatedSwapsTransaction = updateSwapsTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      type,
+    });
+  });
 });
 
 describe('updatePostTransactionBalance', () => {
