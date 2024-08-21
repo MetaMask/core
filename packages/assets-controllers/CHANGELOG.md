@@ -7,20 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/189.0.0 ([#4628](https://github.com/MetaMask/core/pull/4628))
-- chore: Add export of MarketDataDetails type ([#4622](https://github.com/MetaMask/core/pull/4622))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
-- Release 185.0.0 ([#4618](https://github.com/MetaMask/core/pull/4618))
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
-- chore: bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
-- fix: fetch correct price for $OMNI ([#4570](https://github.com/MetaMask/core/pull/4570))
-- fix: fix RatesController.setCryptoCurrencyList invalid internal field ([#4572](https://github.com/MetaMask/core/pull/4572))
-- Add public `name` property to `AssetsContractController` class ([#4564](https://github.com/MetaMask/core/pull/4564))
-- remove provider undefined type ([#4567](https://github.com/MetaMask/core/pull/4567))
-
 ## [37.0.0]
 
 ### Added
