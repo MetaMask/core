@@ -654,6 +654,14 @@ export enum TransactionType {
   swapAndSend = 'swapAndSend',
 
   /**
+   * At a contract level, identical to the swapApproval type but requested
+   * during the swap+send flow and only for the amount needed for the trade
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  swapAndSendApproval = 'swapAndSendApproval',
+
+  /**
    * Similar to the approve type, a swap approval is a special case of ERC20
    * approve method that requests an allowance of the token to spend on behalf
    * of the user for the MetaMask Swaps contract. The first swap for any token

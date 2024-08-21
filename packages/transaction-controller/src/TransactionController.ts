@@ -444,10 +444,18 @@ export type TransactionControllerTransactionNewSwapEvent = {
 };
 
 /**
- * Represents the `TransactionController:transactionNewSwapApproval` event.
+ * Represents the `TransactionController:transactionNewSwapAndSend` event.
  */
 export type TransactionControllerTransactionNewSwapAndSendEvent = {
   type: `${typeof controllerName}:transactionNewSwapAndSend`;
+  payload: [{ transactionMeta: TransactionMeta }];
+};
+
+/**
+ * Represents the `TransactionController:transactionNewSwapAndSendApproval` event.
+ */
+export type TransactionControllerTransactionNewSwapAndSendApprovalEvent = {
+  type: `${typeof controllerName}:transactionNewSwapAndSendApproval`;
   payload: [{ transactionMeta: TransactionMeta }];
 };
 
@@ -521,6 +529,7 @@ export type TransactionControllerEvents =
   | TransactionControllerTransactionNewSwapApprovalEvent
   | TransactionControllerTransactionNewSwapEvent
   | TransactionControllerTransactionNewSwapAndSendEvent
+  | TransactionControllerTransactionNewSwapAndSendApprovalEvent
   | TransactionControllerTransactionPublishingSkipped
   | TransactionControllerTransactionRejectedEvent
   | TransactionControllerTransactionStatusUpdatedEvent

@@ -109,6 +109,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
 export const SWAP_TRANSACTION_TYPES = [
   TransactionType.swap,
   TransactionType.swapAndSend,
+  TransactionType.swapAndSendApproval,
   TransactionType.swapApproval,
 ];
 
@@ -191,6 +192,20 @@ export function updateSwapsTransaction(
     messenger.publish('TransactionController:transactionNewSwapAndSend', {
       transactionMeta: updatedTransactionMeta,
     });
+  }
+
+  if (transactionType === TransactionType.swapAndSendApproval) {
+    updatedTransactionMeta = updateSwapApprovalTransaction(
+      transactionMeta,
+      swapsMeta,
+      true,
+    );
+    messenger.publish(
+      'TransactionController:transactionNewSwapAndSendApproval',
+      {
+        transactionMeta: updatedTransactionMeta,
+      },
+    );
   }
 
   if (transactionType === TransactionType.swap) {
@@ -413,15 +428,19 @@ function updateSwapAndSendTransaction(
  * @param propsToUpdate - Properties to update
  * @param propsToUpdate.type - Type of the transaction
  * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
+ * @param isSwapAndSend - if this approval is for a swap and send
  * @returns The updated transaction meta object.
  */
 function updateSwapApprovalTransaction(
   transactionMeta: TransactionMeta,
   { type, sourceTokenSymbol }: Partial<TransactionMeta>,
+  isSwapAndSend = false,
 ): TransactionMeta {
   validateIfTransactionUnapproved(
     transactionMeta,
-    'updateSwapApprovalTransaction',
+    isSwapAndSend
+      ? 'updateSwapAndSendApprovalTransaction'
+      : 'updateSwapApprovalTransaction',
   );
 
   // TODO: Replace `any` with type
