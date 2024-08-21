@@ -41,5 +41,14 @@ describe('user-storage/schema.ts', () => {
         key: 'notificationSettings',
       });
     });
+
+    it('should return feature and key from path with arbitrary key', () => {
+      const path = 'accounts.0x123';
+      const result = getFeatureAndKeyFromPath(path);
+      expect(result).toStrictEqual({
+        feature: 'accounts',
+        key: '0x123',
+      });
+    });
   });
 });
