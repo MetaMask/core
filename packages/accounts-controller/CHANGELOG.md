@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [18.0.1]
+## [18.1.0]
 
 ### Added
 
-- Export UpdateAccountMetadata action ([#4590](https://github.com/MetaMask/core/pull/4590))
+- Export `AccountsControllerUpdateAccountMetadataAction` action ([#4590](https://github.com/MetaMask/core/pull/4590))
 - Add new method `updateAccountMetadata` ([#4568](https://github.com/MetaMask/core/pull/4568))
 
 ### Changed
@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Handle undefined selectedAccount in updateAccounts ([#4623](https://github.com/MetaMask/core/pull/4623))
-- Fix UpdateAccountMetadata action type name ([#4590](https://github.com/MetaMask/core/pull/4590))
+- Handle undefined `selectedAccount` in `updateAccounts` ([#4623](https://github.com/MetaMask/core/pull/4623))
+- Fix `AccountsControllerUpdateAccountMetadataAction` action type name ([#4590](https://github.com/MetaMask/core/pull/4590))
 
 ## [18.0.0]
 
