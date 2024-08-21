@@ -303,7 +303,7 @@ export type TransactionControllerOptions = {
   ) => Promise<GasFeeState>;
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
-  getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  getPermittedAccounts?: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   incomingTransactions?: IncomingTransactionOptions;
   isMultichainEnabled: boolean;
@@ -621,7 +621,9 @@ export class TransactionController extends BaseController<
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  private readonly getPermittedAccounts?: (
+    origin?: string,
+  ) => Promise<string[]>;
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -1036,7 +1038,7 @@ export class TransactionController extends BaseController<
 
     validateTxParams(txParams, isEIP1559Compatible);
 
-    if (origin) {
+    if (origin && this.getPermittedAccounts) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
         this.#getSelectedAccount().address,
