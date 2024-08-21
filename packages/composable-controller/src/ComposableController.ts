@@ -1,158 +1,23 @@
 import type {
-  ActionConstraint,
-  BaseConfig,
-  BaseControllerV1,
-  BaseState,
-  EventConstraint,
   RestrictedControllerMessenger,
   StateConstraint,
+  StateConstraintV1,
   StateMetadata,
   ControllerStateChangeEvent,
+  LegacyControllerStateConstraint,
+  ControllerInstance,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import type { Json, PublicInterface } from '@metamask/utils';
+import {
+  BaseController,
+  isBaseController,
+  isBaseControllerV1,
+} from '@metamask/base-controller';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
 export const INVALID_CONTROLLER_ERROR =
   'Invalid controller: controller must have a `messagingSystem` or be a class inheriting from `BaseControllerV1`.';
-
-/**
- * A universal supertype for the `BaseControllerV1` state object.
- */
-type ConfigConstraintV1 = BaseConfig & object;
-
-/**
- * A universal supertype for the `BaseControllerV1` state object.
- */
-type StateConstraintV1 = BaseState & object;
-
-/**
- * A universal subtype of all controller instances that extend from `BaseControllerV1`.
- * Any `BaseControllerV1` instance can be assigned to this type.
- *
- * Note that this type is not the widest subtype or narrowest supertype of all `BaseControllerV1` instances.
- * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
- */
-type BaseControllerV1Instance = PublicInterface<
-  BaseControllerV1<ConfigConstraintV1, StateConstraintV1>
->;
-
-/**
- * A universal supertype of functions that accept a piece of controller state and return some derivation of that state.
- */
-type StateDeriverConstraint = (value: never) => Json;
-
-/**
- * A universal supertype of metadata objects for individual state properties.
- */
-type StatePropertyMetadataConstraint = {
-  [P in 'anonymous' | 'persist']: boolean | StateDeriverConstraint;
-};
-
-/**
- * A universal supertype of state metadata objects.
- */
-type StateMetadataConstraint = Record<string, StatePropertyMetadataConstraint>;
-
-/**
- * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
- * Any `BaseController` instance can be assigned to this type.
- *
- * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` instances.
- * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
- *
- * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
- */
-type BaseControllerInstance = Omit<
-  PublicInterface<
-    BaseController<
-      string,
-      StateConstraint,
-      RestrictedControllerMessengerConstraint
-    >
-  >,
-  'metadata'
-> & {
-  metadata: StateMetadataConstraint;
-};
-
-/**
- * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
- * Any `BaseController` or `BaseControllerV1` instance can be assigned to this type.
- *
- * Note that this type is not the widest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
- * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
- */
-type ControllerInstance = BaseControllerV1Instance | BaseControllerInstance;
-
-/**
- * The narrowest supertype of all `RestrictedControllerMessenger` instances.
- *
- * @template ControllerName - Name of the controller.
- * Optionally can be used to narrow the type to a specific controller.
- */
-export type RestrictedControllerMessengerConstraint<
-  ControllerName extends string = string,
-> = RestrictedControllerMessenger<
-  ControllerName,
-  ActionConstraint,
-  EventConstraint,
-  string,
-  string
->;
-
-/**
- * Determines if the given controller is an instance of `BaseControllerV1`
- * @param controller - Controller instance to check
- * @returns True if the controller is an instance of `BaseControllerV1`
- */
-export function isBaseControllerV1(
-  controller: ControllerInstance,
-): controller is BaseControllerV1Instance {
-  return (
-    'name' in controller &&
-    typeof controller.name === 'string' &&
-    'config' in controller &&
-    typeof controller.config === 'object' &&
-    'defaultConfig' in controller &&
-    typeof controller.defaultConfig === 'object' &&
-    'state' in controller &&
-    typeof controller.state === 'object' &&
-    'defaultState' in controller &&
-    typeof controller.defaultState === 'object' &&
-    'disabled' in controller &&
-    typeof controller.disabled === 'boolean' &&
-    'subscribe' in controller &&
-    typeof controller.subscribe === 'function'
-  );
-}
-
-/**
- * Determines if the given controller is an instance of `BaseController`
- * @param controller - Controller instance to check
- * @returns True if the controller is an instance of `BaseController`
- */
-export function isBaseController(
-  controller: ControllerInstance,
-): controller is BaseControllerInstance {
-  return (
-    'name' in controller &&
-    typeof controller.name === 'string' &&
-    'state' in controller &&
-    typeof controller.state === 'object' &&
-    'metadata' in controller &&
-    typeof controller.metadata === 'object'
-  );
-}
-
-/**
- * A universal supertype for the controller state object, encompassing both `BaseControllerV1` and `BaseControllerV2` state.
- */
-export type LegacyControllerStateConstraint =
-  | StateConstraintV1
-  | StateConstraint;
 
 /**
  * A universal supertype for the composable controller state object.
@@ -237,7 +102,7 @@ export type ChildControllerStateChangeEvents<
  *
  * @template ComposableControllerState - A type object that maps controller names to their state types.
  */
-type AllowedEvents<
+export type AllowedEvents<
   ComposableControllerState extends ComposableControllerStateConstraint,
 > = ChildControllerStateChangeEvents<ComposableControllerState>;
 
