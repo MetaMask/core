@@ -1,4 +1,6 @@
 import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
@@ -79,7 +81,13 @@ type ActionsObj = CreateActionsObj<
   | 'enableProfileSyncing'
   | 'disableProfileSyncing'
 >;
-export type Actions = ActionsObj[keyof ActionsObj];
+export type UserStorageControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Actions =
+  | ActionsObj[keyof ActionsObj]
+  | UserStorageControllerGetStateAction;
 export type UserStorageControllerPerformGetStorage =
   ActionsObj['performGetStorage'];
 export type UserStorageControllerPerformSetStorage =
@@ -89,6 +97,12 @@ export type UserStorageControllerEnableProfileSyncing =
   ActionsObj['enableProfileSyncing'];
 export type UserStorageControllerDisableProfileSyncing =
   ActionsObj['disableProfileSyncing'];
+
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Events = UserStorageControllerStateChangeEvent;
 
 // Allowed Actions
 export type AllowedActions =
@@ -114,7 +128,7 @@ export type AllowedEvents =
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   Actions | AllowedActions,
-  AllowedEvents,
+  Events | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
