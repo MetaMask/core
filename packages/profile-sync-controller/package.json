@@ -52,7 +52,7 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
-    "@metamask/accounts-controller": "^18.0.0",
+    "@metamask/accounts-controller": "^18.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^8.1.0",
     "@metamask/keyring-controller": "^17.1.2",
@@ -69,7 +69,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/accounts-controller": "^18.0.0",
+    "@metamask/accounts-controller": "^18.1.0",
     "@metamask/keyring-controller": "^17.1.2",
     "@metamask/snaps-controllers": "^9.3.0"
   },
