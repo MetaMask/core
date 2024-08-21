@@ -424,6 +424,7 @@ describe('UserOperationController', () => {
           smartContractAccount,
           swaps: {
             approvalTxId: 'testTxId',
+            approvalTxParams: { data: { from: 'from' } },
             destinationTokenAmount: '0x1',
             destinationTokenAddress: '0x1',
             destinationTokenDecimals: 3,
@@ -445,6 +446,7 @@ describe('UserOperationController', () => {
         expect.objectContaining({
           swapsMetadata: {
             approvalTxId: 'testTxId',
+            approvalTxParams: { data: { from: 'from' } },
             destinationTokenAmount: '0x1',
             destinationTokenAddress: '0x1',
             destinationTokenDecimals: 3,
@@ -480,6 +482,7 @@ describe('UserOperationController', () => {
         expect.objectContaining({
           swapsMetadata: {
             approvalTxId: null,
+            approvalTxParams: null,
             destinationTokenAddress: null,
             destinationTokenAmount: null,
             destinationTokenDecimals: null,
