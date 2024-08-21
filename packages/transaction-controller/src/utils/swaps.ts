@@ -357,6 +357,7 @@ function updateSwapTransaction(
  * @param propsToUpdate.swapMetaData - Metadata of the swap
  * @param propsToUpdate.swapTokenValue - Value of the token to be swapped – possibly the same as sourceTokenAmount; included for consistency
  * @param propsToUpdate.type - Type of the transaction
+ * @param propsToUpdate.approvalTxParams - The parameters of the approval transaction
  * @returns The updated transaction meta object.
  */
 function updateSwapAndSendTransaction(
@@ -367,6 +368,7 @@ function updateSwapAndSendTransaction(
     destinationTokenAmount,
     destinationTokenDecimals,
     destinationTokenSymbol,
+    approvalTxParams,
     estimatedBaseFee,
     sourceTokenAddress,
     sourceTokenAmount,
@@ -386,6 +388,7 @@ function updateSwapAndSendTransaction(
     destinationTokenAmount,
     destinationTokenDecimals,
     destinationTokenSymbol,
+    approvalTxParams,
     estimatedBaseFee,
     sourceTokenAddress,
     sourceTokenAmount,

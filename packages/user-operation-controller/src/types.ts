@@ -1,4 +1,5 @@
 import type {
+  TransactionMeta,
   TransactionParams,
   TransactionType,
   UserFeeLevel,
@@ -347,6 +348,17 @@ export type SwapsMetadata = {
 
   /** Symbol of the destination token. */
   destinationTokenSymbol: string | null;
+
+  approvalTxParams?: {
+    data: TransactionParams;
+    params?: {
+      requireApproval?: boolean;
+      type?: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  } | null;
 
   /** Amount of the destination token. */
   destinationTokenAmount: string | null;

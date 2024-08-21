@@ -106,6 +106,7 @@ export function getTransactionMetadata(
 
   const swaps = {
     approvalTxId: swapsMetadata?.approvalTxId ?? undefined,
+    approvalTxParams: swapsMetadata?.approvalTxParams ?? undefined,
     destinationTokenAddress:
       swapsMetadata?.destinationTokenAddress ?? undefined,
     destinationTokenAmount: swapsMetadata?.destinationTokenAmount ?? undefined,

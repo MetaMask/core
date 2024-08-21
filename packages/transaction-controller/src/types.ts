@@ -398,6 +398,17 @@ type TransactionMetaBase = {
    */
   txParams: TransactionParams;
 
+  approvalTxParams?: {
+    data?: TransactionParams;
+    params?: {
+      requireApproval?: boolean;
+      type?: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  };
+
   /**
    * Transaction receipt.
    */

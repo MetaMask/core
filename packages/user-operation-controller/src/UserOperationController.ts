@@ -146,6 +146,16 @@ export type AddUserOperationSwapOptions = {
   destinationTokenAmount?: string;
   destinationTokenDecimals?: number;
   destinationTokenSymbol?: string;
+  approvalTxParams?: {
+    data: TransactionParams;
+    params?: {
+      requireApproval: boolean;
+      type: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  };
   estimatedBaseFee?: string;
   sourceTokenAddress?: string;
   sourceTokenAmount?: string;
@@ -451,6 +461,7 @@ export class UserOperationController extends BaseController<
             destinationTokenAmount: swaps.destinationTokenAmount ?? null,
             destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
             destinationTokenSymbol: swaps.destinationTokenSymbol ?? null,
+            approvalTxParams: swaps.approvalTxParams ?? null,
             estimatedBaseFee: swaps.estimatedBaseFee ?? null,
             sourceTokenAddress: swaps.sourceTokenAddress ?? null,
             sourceTokenAmount: swaps.sourceTokenAmount ?? null,
