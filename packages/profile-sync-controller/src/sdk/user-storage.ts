@@ -1,10 +1,9 @@
-import type { GetUserStorageAllFeatureEntriesResponse } from 'src/controllers/user-storage/services';
-
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
 } from '../controllers/user-storage/schema';
 import { createEntryPath } from '../controllers/user-storage/schema';
+import type { GetUserStorageAllFeatureEntriesResponse } from '../controllers/user-storage/services';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import encryption, { createSHA256Hash } from './encryption';
 import type { Env } from './env';
