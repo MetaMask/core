@@ -1,12 +1,20 @@
 import type {
+  AccountsControllerListAccountsAction,
+  AccountsControllerUpdateAccountMetadataAction,
+  AccountsControllerGetAccountByAddressAction,
+} from '@metamask/accounts-controller';
+import type {
+  ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
+  KeyringControllerAddNewAccountAction,
 } from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
@@ -18,6 +26,11 @@ import type {
   AuthenticationControllerPerformSignIn,
   AuthenticationControllerPerformSignOut,
 } from '../authentication/AuthenticationController';
+import type { UserStorageAccount } from './accounts/user-storage';
+import {
+  isNameDefaultAccountName,
+  mapInternalAccountToUserStorageAccount,
+} from './accounts/user-storage';
 import { createSHA256Hash } from './encryption';
 import type {
   UserStoragePathWithFeatureAndKey,
@@ -54,11 +67,16 @@ export type UserStorageControllerState = {
    * Loading state for the profile syncing update
    */
   isProfileSyncingUpdateLoading: boolean;
+  /**
+   * Loading state for the account syncing update
+   */
+  isUserStorageAccountSyncingInProgress: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
+  isUserStorageAccountSyncingInProgress: false,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
@@ -67,6 +85,10 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: true,
   },
   isProfileSyncingUpdateLoading: {
+    persist: false,
+    anonymous: false,
+  },
+  isUserStorageAccountSyncingInProgress: {
     persist: false,
     anonymous: false,
   },
@@ -86,6 +108,8 @@ type ActionsObj = CreateActionsObj<
   | 'getStorageKey'
   | 'enableProfileSyncing'
   | 'disableProfileSyncing'
+  | 'syncInternalAccountsWithUserStorage'
+  | 'saveInternalAccountToUserStorage'
 >;
 export type Actions = ActionsObj[keyof ActionsObj];
 export type UserStorageControllerPerformGetStorage =
@@ -99,6 +123,10 @@ export type UserStorageControllerEnableProfileSyncing =
   ActionsObj['enableProfileSyncing'];
 export type UserStorageControllerDisableProfileSyncing =
   ActionsObj['disableProfileSyncing'];
+export type UserStorageControllerSyncInternalAccountsWithUserStorage =
+  ActionsObj['syncInternalAccountsWithUserStorage'];
+export type UserStorageControllerSaveInternalAccountToUserStorage =
+  ActionsObj['saveInternalAccountToUserStorage'];
 
 // Allowed Actions
 export type AllowedActions =
@@ -114,9 +142,31 @@ export type AllowedActions =
   | AuthenticationControllerPerformSignOut
   // Metamask Notifications
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled;
+  | NotificationServicesControllerSelectIsNotificationServicesEnabled
+  // Account syncing
+  | AccountsControllerListAccountsAction
+  | AccountsControllerGetAccountByAddressAction
+  | AccountsControllerUpdateAccountMetadataAction
+  | KeyringControllerAddNewAccountAction;
+
+// Messenger events
+export type UserStorageControllerChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type UserStorageControllerAccountSyncingInProgress = {
+  type: `${typeof controllerName}:accountSyncingInProgress`;
+  payload: [boolean];
+};
+export type UserStorageControllerAccountSyncingComplete = {
+  type: `${typeof controllerName}:accountSyncingComplete`;
+  payload: [boolean];
+};
 
 export type AllowedEvents =
+  | UserStorageControllerChangeEvent
+  | UserStorageControllerAccountSyncingInProgress
+  | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent;
 
@@ -169,6 +219,87 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #accounts = {
+    setIsUserStorageAccountSyncingInProgress: async (
+      isUserStorageAccountSyncingInProgress: boolean,
+    ) => {
+      // Publish event
+      const eventToPublish = isUserStorageAccountSyncingInProgress
+        ? 'UserStorageController:accountSyncingInProgress'
+        : 'UserStorageController:accountSyncingComplete';
+
+      this.messagingSystem.publish(
+        eventToPublish,
+        isUserStorageAccountSyncingInProgress,
+      );
+
+      // Update state
+      this.update((state) => {
+        state.isUserStorageAccountSyncingInProgress =
+          isUserStorageAccountSyncingInProgress;
+      });
+    },
+    getInternalAccountByAddress: async (address: string) => {
+      return this.messagingSystem.call(
+        'AccountsController:getAccountByAddress',
+        address,
+      );
+    },
+    getInternalAccountsList: async (): Promise<InternalAccount[]> => {
+      return this.messagingSystem.call('AccountsController:listAccounts');
+    },
+    getUserStorageAccountsList: async (): Promise<
+      UserStorageAccount[] | null
+    > => {
+      const rawAccountsListResponse =
+        await this.performGetStorageAllFeatureEntries('accounts');
+
+      return (
+        rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ??
+        null
+      );
+    },
+    saveInternalAccountToUserStorage: async (address: string) => {
+      const internalAccount = await this.#accounts.getInternalAccountByAddress(
+        address,
+      );
+
+      if (!internalAccount) {
+        return;
+      }
+
+      // Map the internal account to the user storage account schema
+      const mappedAccount =
+        mapInternalAccountToUserStorageAccount(internalAccount);
+
+      await this.performSetStorage(
+        `accounts.${address}`,
+        JSON.stringify(mappedAccount),
+      );
+    },
+    saveInternalAccountsListToUserStorage: async () => {
+      const internalAccountsList =
+        await this.#accounts.getInternalAccountsList();
+
+      if (!internalAccountsList) {
+        return;
+      }
+
+      const userStorageAccountsList = internalAccountsList.map(
+        mapInternalAccountToUserStorageAccount,
+      );
+
+      await Promise.all(
+        userStorageAccountsList.map(async (userStorageAccount) => {
+          await this.performSetStorage(
+            `accounts.${userStorageAccount.a}`,
+            JSON.stringify(userStorageAccount),
+          );
+        }),
+      );
+    },
+  };
+
   #notificationServices = {
     disableNotificationServices: async () => {
       return await this.messagingSystem.call(
@@ -191,8 +322,10 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+      this.messagingSystem.subscribe('KeyringController:unlock', async () => {
         this.#isUnlocked = true;
+
+        await this.syncInternalAccountsWithUserStorage();
       });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
@@ -253,6 +386,16 @@ export default class UserStorageController extends BaseController<
     this.messagingSystem.registerActionHandler(
       'UserStorageController:disableProfileSyncing',
       this.disableProfileSyncing.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:syncInternalAccountsWithUserStorage',
+      this.syncInternalAccountsWithUserStorage.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      'UserStorageController:saveInternalAccountToUserStorage',
+      this.saveInternalAccountToUserStorage.bind(this),
     );
   }
 
@@ -356,7 +499,7 @@ export default class UserStorageController extends BaseController<
    */
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
-  ): Promise<(string | null)[] | null> {
+  ): Promise<string[] | null> {
     this.#assertProfileSyncingEnabled();
 
     const { bearerToken, storageKey } =
@@ -481,5 +624,150 @@ export default class UserStorageController extends BaseController<
     this.update((state) => {
       state.isProfileSyncingUpdateLoading = isProfileSyncingUpdateLoading;
     });
+  }
+
+  /**
+   * Syncs the internal accounts list with the user storage accounts list.
+   * This method is used to make sure that the internal accounts list is up-to-date with the user storage accounts list and vice-versa.
+   * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
+   */
+  async syncInternalAccountsWithUserStorage(): Promise<void> {
+    try {
+      this.#assertProfileSyncingEnabled();
+
+      await this.#accounts.setIsUserStorageAccountSyncingInProgress(true);
+
+      const userStorageAccountsList =
+        await this.#accounts.getUserStorageAccountsList();
+
+      if (!userStorageAccountsList || !userStorageAccountsList.length) {
+        await this.#accounts.saveInternalAccountsListToUserStorage();
+        await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
+        return;
+      }
+
+      // Compare internal accounts list with user storage accounts list
+      // First step: compare lengths
+      let internalAccountsList = await this.#accounts.getInternalAccountsList();
+
+      if (!internalAccountsList || !internalAccountsList.length) {
+        throw new Error(`Failed to get internal accounts list`);
+      }
+
+      const hasMoreInternalAccountsThanUserStorageAccounts =
+        internalAccountsList.length > userStorageAccountsList.length;
+
+      // We don't want to remove existing accounts for a user
+      // so we only add new accounts if the user has more accounts than the internal accounts list
+      if (!hasMoreInternalAccountsThanUserStorageAccounts) {
+        const numberOfAccountsToAdd =
+          userStorageAccountsList.length - internalAccountsList.length;
+
+        // Create new accounts to match the user storage accounts list
+        const addNewAccountsPromises = Array.from({
+          length: numberOfAccountsToAdd,
+        }).map(async () => {
+          await this.messagingSystem.call('KeyringController:addNewAccount');
+        });
+
+        await Promise.all(addNewAccountsPromises);
+      }
+
+      // Second step: compare account names
+      // Get the internal accounts list again since new accounts might have been added in the previous step
+      internalAccountsList = await this.#accounts.getInternalAccountsList();
+
+      for await (const internalAccount of internalAccountsList) {
+        const userStorageAccount = userStorageAccountsList.find(
+          (account) => account.a === internalAccount.address,
+        );
+
+        if (!userStorageAccount) {
+          continue;
+        }
+
+        // One or both accounts have default names
+        const isInternalAccountNameDefault = isNameDefaultAccountName(
+          internalAccount.metadata.name,
+        );
+        const isUserStorageAccountNameDefault = isNameDefaultAccountName(
+          userStorageAccount.n,
+        );
+
+        // Internal account has default name
+        if (isInternalAccountNameDefault) {
+          if (!isUserStorageAccountNameDefault) {
+            this.messagingSystem.call(
+              'AccountsController:updateAccountMetadata',
+              internalAccount.id,
+              {
+                name: userStorageAccount.n,
+              },
+            );
+          }
+          continue;
+        }
+
+        // Internal account has custom name but user storage account has default name
+        if (isUserStorageAccountNameDefault) {
+          await this.#accounts.saveInternalAccountToUserStorage(
+            internalAccount.address,
+          );
+          continue;
+        }
+
+        // Both accounts have custom names
+
+        // User storage account has a nameLastUpdatedAt timestamp
+        // Note: not storing the undefined checks in constants to act as a type guard
+        if (userStorageAccount.nlu !== undefined) {
+          if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
+            const isInternalAccountNameNewer =
+              internalAccount.metadata.nameLastUpdatedAt >
+              userStorageAccount.nlu;
+
+            if (isInternalAccountNameNewer) {
+              await this.#accounts.saveInternalAccountToUserStorage(
+                internalAccount.address,
+              );
+              continue;
+            }
+          }
+
+          this.messagingSystem.call(
+            'AccountsController:updateAccountMetadata',
+            internalAccount.id,
+            {
+              name: userStorageAccount.n,
+              nameLastUpdatedAt: userStorageAccount.nlu,
+            },
+          );
+
+          continue;
+        } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
+          await this.#accounts.saveInternalAccountToUserStorage(
+            internalAccount.address,
+          );
+          continue;
+        }
+      }
+
+      await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
+    } catch (e) {
+      await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
+
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      throw new Error(
+        `${controllerName} - failed to sync user storage accounts list - ${errorMessage}`,
+      );
+    }
+  }
+
+  /**
+   * Saves an individual internal account to the user storage.
+   * @param address - The address of the internal account to save
+   */
+  async saveInternalAccountToUserStorage(address: string): Promise<void> {
+    await this.#accounts.saveInternalAccountToUserStorage(address);
   }
 }
