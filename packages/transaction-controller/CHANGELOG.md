@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- refactor: remove retry validation ([#4617](https://github.com/MetaMask/core/pull/4617))
+- Release/189.0.0 ([#4628](https://github.com/MetaMask/core/pull/4628))
+- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Release 185.0.0 ([#4618](https://github.com/MetaMask/core/pull/4618))
+- feat: add initial tracing to transaction controller ([#4575](https://github.com/MetaMask/core/pull/4575))
+- Release 184.0.0 ([#4607](https://github.com/MetaMask/core/pull/4607))
+
 ## [35.1.1]
 
 ### Changed

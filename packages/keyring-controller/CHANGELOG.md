@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- chore: bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+- feat: add `KeyringController:addNewAccount` messenger action ([#4565](https://github.com/MetaMask/core/pull/4565))
+
 ## [17.1.2]
 
 ### Changed
