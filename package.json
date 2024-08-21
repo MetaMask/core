@@ -43,7 +43,11 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
+    "axios@~1.6.8": "^1.7.4",
+    "elliptic@6.5.4": "^6.5.7",
+    "fast-xml-parser@^4.3.4": "^4.4.1",
+    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch",
+    "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
