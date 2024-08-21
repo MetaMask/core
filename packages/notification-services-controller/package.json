@@ -42,7 +42,7 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^6.0.3",
     "@metamask/controller-utils": "^11.0.2",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.3.6",

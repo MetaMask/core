@@ -47,7 +47,7 @@
     "@ethersproject/abi": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^6.0.3",
     "@metamask/controller-utils": "^11.0.2",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
