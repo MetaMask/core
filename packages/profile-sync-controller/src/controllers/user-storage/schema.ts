@@ -3,16 +3,24 @@ import { createSHA256Hash } from './encryption';
 /**
  * The User Storage Endpoint requires a feature name and a namespace key.
  * Developers can provide additional features and keys by extending these types below.
+ *
+ * Adding ALLOW_ARBITRARY_KEYS as the first key in the array allows for any key to be used for this feature.
+ * This can be useful for features where keys are not deterministic (eg. accounts addresses).
  */
+const ALLOW_ARBITRARY_KEYS = 'ALLOW_ARBITRARY_KEYS' as const;
 
 export const USER_STORAGE_SCHEMA = {
   notifications: ['notificationSettings'],
+  accounts: [ALLOW_ARBITRARY_KEYS],
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
+
 type UserStorageFeatures = keyof UserStorageSchema;
 type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
-  UserStorageSchema[Feature][number];
+  UserStorageSchema[Feature][0] extends typeof ALLOW_ARBITRARY_KEYS
+    ? string
+    : UserStorageSchema[Feature][number];
 
 type UserStorageFeatureAndKey = {
   feature: UserStorageFeatures;
@@ -20,11 +28,12 @@ type UserStorageFeatureAndKey = {
 };
 
 export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
-
 export type UserStoragePathWithFeatureAndKey =
   | {
-      [K in keyof UserStorageSchema]: `${K}.${UserStorageSchema[K][number]}`;
+      [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
     }[UserStoragePathWithFeatureOnly];
+
+export const f = (path: UserStoragePathWithFeatureAndKey) => path;
 
 export const getFeatureAndKeyFromPath = (
   path: UserStoragePathWithFeatureAndKey,
@@ -48,7 +57,10 @@ export const getFeatureAndKeyFromPath = (
 
   const validFeature = USER_STORAGE_SCHEMA[feature] as readonly string[];
 
-  if (!validFeature.includes(key)) {
+  if (
+    !validFeature.includes(key) &&
+    !validFeature.includes(ALLOW_ARBITRARY_KEYS)
+  ) {
     const validKeys = USER_STORAGE_SCHEMA[feature].join(', ');
 
     throw new Error(

@@ -356,7 +356,7 @@ export default class UserStorageController extends BaseController<
    */
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
-  ): Promise<(string | null)[] | null> {
+  ): Promise<string[] | null> {
     this.#assertProfileSyncingEnabled();
 
     const { bearerToken, storageKey } =
