@@ -80,6 +80,8 @@ import type {
   GasFeeFlowResponse,
   TraceCallback,
   TraceContext,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -103,6 +105,7 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
+import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -110,14 +113,10 @@ import {
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
-  getIncreasedPriceFromExisting,
   normalizeTransactionParams,
   isEIP1559Transaction,
-  isFeeMarketEIP1559Values,
-  isGasPriceValue,
   validateGasValues,
   validateIfTransactionUnapproved,
-  validateMinimumIncrease,
   normalizeTxError,
   normalizeGasFeeValues,
 } from './utils/utils';
@@ -160,21 +159,6 @@ export const HARDFORK = Hardfork.London;
 export interface Result {
   result: Promise<string>;
   transactionMeta: TransactionMeta;
-}
-
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface GasPriceValue {
-  gasPrice: string;
-}
-
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface FeeMarketEIP1559Values {
-  maxFeePerGas: string;
-  maxPriorityFeePerGas: string;
 }
 
 /**
@@ -1207,160 +1191,31 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
-    // If transaction is found for same action id, do not create a cancel transaction.
-    if (this.getTransactionWithActionId(actionId)) {
-      return;
-    }
-
-    if (gasValues) {
-      // Not good practice to reassign a parameter but temporarily avoiding a larger refactor.
-      gasValues = normalizeGasFeeValues(gasValues);
-      validateGasValues(gasValues);
-    }
-
-    log('Creating cancel transaction', transactionId, gasValues);
-
-    const transactionMeta = this.getTransaction(transactionId);
-    if (!transactionMeta) {
-      return;
-    }
-
-    if (!this.sign) {
-      throw new Error('No sign method defined.');
-    }
-
-    // gasPrice (legacy non EIP1559)
-    const minGasPrice = getIncreasedPriceFromExisting(
-      transactionMeta.txParams.gasPrice,
-      CANCEL_RATE,
-    );
-
-    const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
-
-    const newGasPrice =
-      (gasPriceFromValues &&
-        validateMinimumIncrease(gasPriceFromValues, minGasPrice)) ||
-      minGasPrice;
-
-    // maxFeePerGas (EIP1559)
-    const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
-    const minMaxFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxFeePerGas,
-      CANCEL_RATE,
-    );
-    const maxFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
-    const newMaxFeePerGas =
-      (maxFeePerGasValues &&
-        validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
-      (existingMaxFeePerGas && minMaxFeePerGas);
-
-    // maxPriorityFeePerGas (EIP1559)
-    const existingMaxPriorityFeePerGas =
-      transactionMeta.txParams?.maxPriorityFeePerGas;
-    const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxPriorityFeePerGas,
-      CANCEL_RATE,
-    );
-    const maxPriorityFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
-    const newMaxPriorityFeePerGas =
-      (maxPriorityFeePerGasValues &&
-        validateMinimumIncrease(
-          maxPriorityFeePerGasValues,
-          minMaxPriorityFeePerGas,
-        )) ||
-      (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
-
-    const newTxParams: TransactionParams =
-      newMaxFeePerGas && newMaxPriorityFeePerGas
-        ? {
-            from: transactionMeta.txParams.from,
-            gasLimit: transactionMeta.txParams.gas,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: TransactionEnvelopeType.feeMarket,
-            nonce: transactionMeta.txParams.nonce,
-            to: transactionMeta.txParams.from,
-            value: '0x0',
-          }
-        : {
-            from: transactionMeta.txParams.from,
-            gasLimit: transactionMeta.txParams.gas,
-            gasPrice: newGasPrice,
-            nonce: transactionMeta.txParams.nonce,
-            to: transactionMeta.txParams.from,
-            value: '0x0',
-          };
-
-    const unsignedEthTx = this.prepareUnsignedEthTx(
-      transactionMeta.chainId,
-      newTxParams,
-    );
-
-    const signedTx = await this.sign(
-      unsignedEthTx,
-      transactionMeta.txParams.from,
-    );
-
-    const rawTx = bufferToHex(signedTx.serialize());
-
-    const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
-
-    const oldFee = newTxParams.maxFeePerGas
-      ? transactionMeta.txParams.maxFeePerGas
-      : transactionMeta.txParams.gasPrice;
-
-    log('Submitting cancel transaction', {
-      oldFee,
-      newFee,
-      txParams: newTxParams,
-    });
-
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-      networkClientId: transactionMeta.networkClientId,
-      chainId: transactionMeta.chainId,
-    });
-    const hash = await this.publishTransactionForRetry(
-      ethQuery,
-      rawTx,
-      transactionMeta,
-    );
-
-    const cancelTransactionMeta = {
+    return await this.#retryTransaction({
       actionId,
-      chainId: transactionMeta.chainId,
-      networkClientId: transactionMeta.networkClientId,
       estimatedBaseFee,
-      hash,
-      id: random(),
-      originalGasEstimate: transactionMeta.txParams.gas,
-      status: TransactionStatus.submitted as const,
-      time: Date.now(),
-      type: TransactionType.cancel as const,
-      txParams: newTxParams,
-    };
+      gasValues,
+      label: 'cancel',
+      rate: CANCEL_RATE,
+      transactionId,
+      transactionType: TransactionType.cancel,
+      prepareTransactionParams: (txParams) => {
+        delete txParams.data;
+        txParams.to = txParams.from;
+        txParams.value = '0x0';
+      },
+      afterSubmit: (newTransactionMeta) => {
+        this.messagingSystem.publish(
+          `${controllerName}:transactionFinished`,
+          newTransactionMeta,
+        );
 
-    this.addMetadata(cancelTransactionMeta);
-
-    // stopTransaction has no approval request, so we assume the user has already approved the transaction
-    this.messagingSystem.publish(`${controllerName}:transactionApproved`, {
-      transactionMeta: cancelTransactionMeta,
-      actionId,
+        this.#internalEvents.emit(
+          `${newTransactionMeta.id}:finished`,
+          newTransactionMeta,
+        );
+      },
     });
-    this.messagingSystem.publish(`${controllerName}:transactionSubmitted`, {
-      transactionMeta: cancelTransactionMeta,
-      actionId,
-    });
-
-    this.messagingSystem.publish(
-      `${controllerName}:transactionFinished`,
-      cancelTransactionMeta,
-    );
-    this.#internalEvents.emit(
-      `${transactionMeta.id}:finished`,
-      cancelTransactionMeta,
-    );
   }
 
   /**
@@ -1380,7 +1235,45 @@ export class TransactionController extends BaseController<
       estimatedBaseFee,
     }: { actionId?: string; estimatedBaseFee?: string } = {},
   ) {
-    // If transaction is found for same action id, do not create a new speed up transaction.
+    return await this.#retryTransaction({
+      actionId,
+      estimatedBaseFee,
+      gasValues,
+      label: 'speed up',
+      rate: SPEED_UP_RATE,
+      transactionId,
+      transactionType: TransactionType.retry,
+      afterSubmit: (newTransactionMeta) => {
+        this.messagingSystem.publish(
+          `${controllerName}:speedupTransactionAdded`,
+          newTransactionMeta,
+        );
+      },
+    });
+  }
+
+  async #retryTransaction({
+    actionId,
+    afterSubmit,
+    estimatedBaseFee,
+    gasValues,
+    label,
+    prepareTransactionParams,
+    rate,
+    transactionId,
+    transactionType,
+  }: {
+    actionId?: string;
+    afterSubmit?: (transactionMeta: TransactionMeta) => void;
+    estimatedBaseFee?: string;
+    gasValues?: GasPriceValue | FeeMarketEIP1559Values;
+    label: string;
+    prepareTransactionParams?: (txParams: TransactionParams) => void;
+    rate: number;
+    transactionId: string;
+    transactionType: TransactionType;
+  }) {
+    // If transaction is found for same action id, do not create a new transaction.
     if (this.getTransactionWithActionId(actionId)) {
       return;
     }
@@ -1391,7 +1284,7 @@ export class TransactionController extends BaseController<
       validateGasValues(gasValues);
     }
 
-    log('Creating speed up transaction', transactionId, gasValues);
+    log(`Creating ${label} transaction`, transactionId, gasValues);
 
     const transactionMeta = this.getTransaction(transactionId);
     /* istanbul ignore next */
@@ -1404,67 +1297,18 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    // gasPrice (legacy non EIP1559)
-    const minGasPrice = getIncreasedPriceFromExisting(
-      transactionMeta.txParams.gasPrice,
-      SPEED_UP_RATE,
-    );
+    const newTxParams: TransactionParams =
+      getTransactionParamsWithIncreasedGasFee(
+        transactionMeta.txParams,
+        rate,
+        gasValues,
+      );
 
-    const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
-
-    const newGasPrice =
-      (gasPriceFromValues &&
-        validateMinimumIncrease(gasPriceFromValues, minGasPrice)) ||
-      minGasPrice;
-
-    // maxFeePerGas (EIP1559)
-    const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
-    const minMaxFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxFeePerGas,
-      SPEED_UP_RATE,
-    );
-    const maxFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
-    const newMaxFeePerGas =
-      (maxFeePerGasValues &&
-        validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
-      (existingMaxFeePerGas && minMaxFeePerGas);
-
-    // maxPriorityFeePerGas (EIP1559)
-    const existingMaxPriorityFeePerGas =
-      transactionMeta.txParams?.maxPriorityFeePerGas;
-    const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxPriorityFeePerGas,
-      SPEED_UP_RATE,
-    );
-    const maxPriorityFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
-    const newMaxPriorityFeePerGas =
-      (maxPriorityFeePerGasValues &&
-        validateMinimumIncrease(
-          maxPriorityFeePerGasValues,
-          minMaxPriorityFeePerGas,
-        )) ||
-      (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
-
-    const txParams: TransactionParams =
-      newMaxFeePerGas && newMaxPriorityFeePerGas
-        ? {
-            ...transactionMeta.txParams,
-            gasLimit: transactionMeta.txParams.gas,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: TransactionEnvelopeType.feeMarket,
-          }
-        : {
-            ...transactionMeta.txParams,
-            gasLimit: transactionMeta.txParams.gas,
-            gasPrice: newGasPrice,
-          };
+    prepareTransactionParams?.(newTxParams);
 
     const unsignedEthTx = this.prepareUnsignedEthTx(
       transactionMeta.chainId,
-      txParams,
+      newTxParams,
     );
 
     const signedTx = await this.sign(
@@ -1476,27 +1320,32 @@ export class TransactionController extends BaseController<
       transactionMeta,
       signedTx,
     );
+
     const rawTx = bufferToHex(signedTx.serialize());
+    const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
 
-    const newFee = txParams.maxFeePerGas ?? txParams.gasPrice;
-
-    const oldFee = txParams.maxFeePerGas
+    const oldFee = newTxParams.maxFeePerGas
       ? transactionMetaWithRsv.txParams.maxFeePerGas
       : transactionMetaWithRsv.txParams.gasPrice;
 
-    log('Submitting speed up transaction', { oldFee, newFee, txParams });
+    log(`Submitting ${label} transaction`, {
+      oldFee,
+      newFee,
+      txParams: newTxParams,
+    });
 
     const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
+
     const hash = await this.publishTransactionForRetry(
       ethQuery,
       rawTx,
       transactionMeta,
     );
 
-    const baseTransactionMeta = {
+    const newTransactionMeta = {
       ...transactionMetaWithRsv,
       estimatedBaseFee,
       id: random(),
@@ -1504,27 +1353,10 @@ export class TransactionController extends BaseController<
       hash,
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
-      type: TransactionType.retry as const,
+      type: transactionType,
+      txParams: newTxParams,
       originalType: transactionMeta.type,
     };
-
-    const newTransactionMeta =
-      newMaxFeePerGas && newMaxPriorityFeePerGas
-        ? {
-            ...baseTransactionMeta,
-            txParams: {
-              ...transactionMeta.txParams,
-              maxFeePerGas: newMaxFeePerGas,
-              maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            },
-          }
-        : {
-            ...baseTransactionMeta,
-            txParams: {
-              ...transactionMeta.txParams,
-              gasPrice: newGasPrice,
-            },
-          };
 
     this.addMetadata(newTransactionMeta);
 
@@ -1539,10 +1371,7 @@ export class TransactionController extends BaseController<
       actionId,
     });
 
-    this.messagingSystem.publish(
-      `${controllerName}:speedupTransactionAdded`,
-      newTransactionMeta,
-    );
+    afterSubmit?.(newTransactionMeta);
   }
 
   /**
