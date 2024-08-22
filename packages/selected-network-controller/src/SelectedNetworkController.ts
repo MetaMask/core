@@ -191,14 +191,25 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      ({ selectedNetworkClientId }, patches) => {
+      (
+        { selectedNetworkClientId, networkConfigurationsByChainId },
+        patches,
+      ) => {
         patches.forEach(({ op, path }) => {
-          // if a network is removed, update the networkClientId for all domains that were using it to the selected network
-          if (op === 'remove' && path[0] === 'networkConfigurations') {
-            const removedNetworkClientId = path[1] as NetworkClientId;
+          // if a network is updated or removed, update domains that were referencing a networkClientId that is now deleted
+          if (
+            (op === 'replace' || op === 'remove') &&
+            path[0] === 'networkConfigurationsByChainId'
+          ) {
+            const allNetworkClientIds = Object.values(
+              networkConfigurationsByChainId,
+            ).flatMap((network) =>
+              network.rpcEndpoints.map((endpoint) => endpoint.networkClientId),
+            );
+
             Object.entries(this.state.domains).forEach(
               ([domain, networkClientIdForDomain]) => {
-                if (networkClientIdForDomain === removedNetworkClientId) {
+                if (!allNetworkClientIds.includes(networkClientIdForDomain)) {
                   this.setNetworkClientIdForDomain(
                     domain,
                     selectedNetworkClientId,
