@@ -194,7 +194,7 @@ export class SelectedNetworkController extends BaseController<
       ({ selectedNetworkClientId }, patches) => {
         patches.forEach(({ op, path }) => {
           // if a network is removed, update the networkClientId for all domains that were using it to the selected network
-          if (op === 'remove' && path[0] === 'networkConfigurations') {
+          if (op === 'remove' && path[0] === 'networkConfigurationsByChainId') {
             const removedNetworkClientId = path[1] as NetworkClientId;
             Object.entries(this.state.domains).forEach(
               ([domain, networkClientIdForDomain]) => {
