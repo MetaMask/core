@@ -376,7 +376,7 @@ describe('updateSwapsTransaction', () => {
     });
   });
 
-  it('should update swap and send approval transaction and publish TransactionController:transactionNewSwapAndSendApproval', async () => {
+  it('should update swap and send approval transaction and publish TransactionController:transactionNewSwapAndSendApproval', () => {
     const sourceTokenSymbol = 'ETH';
     const type = TransactionType.swapAndSendApproval;
 
@@ -407,7 +407,7 @@ describe('updateSwapsTransaction', () => {
     );
   });
 
-  it('should return the swap and send approval transaction updated with information', async () => {
+  it('should return the swap and send approval transaction updated with information', () => {
     const sourceTokenSymbol = 'ETH';
     const type = TransactionType.swapAndSendApproval;
 
