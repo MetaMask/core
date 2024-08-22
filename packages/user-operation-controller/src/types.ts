@@ -337,6 +337,18 @@ export type UserOperationReceipt = {
 
 /** Information specific to user operations created from swap transactions. */
 export type SwapsMetadata = {
+  /** Transaction data for approval to be ran immediately before the swap transaction */
+  approvalTxParams?: {
+    data: TransactionParams;
+    params?: {
+      requireApproval?: boolean;
+      type?: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  } | null;
+
   /** ID of the associated approval transaction. */
   approvalTxId: string | null;
 
@@ -348,17 +360,6 @@ export type SwapsMetadata = {
 
   /** Symbol of the destination token. */
   destinationTokenSymbol: string | null;
-
-  approvalTxParams?: {
-    data: TransactionParams;
-    params?: {
-      requireApproval?: boolean;
-      type?: TransactionType;
-      swaps?: {
-        meta?: Partial<TransactionMeta>;
-      };
-    };
-  } | null;
 
   /** Amount of the destination token. */
   destinationTokenAmount: string | null;

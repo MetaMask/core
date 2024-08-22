@@ -457,11 +457,11 @@ export class UserOperationController extends BaseController<
       swapsMetadata: swaps
         ? {
             approvalTxId: swaps.approvalTxId ?? null,
+            approvalTxParams: swaps.approvalTxParams ?? null,
             destinationTokenAddress: swaps.destinationTokenAddress ?? null,
             destinationTokenAmount: swaps.destinationTokenAmount ?? null,
             destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
             destinationTokenSymbol: swaps.destinationTokenSymbol ?? null,
-            approvalTxParams: swaps.approvalTxParams ?? null,
             estimatedBaseFee: swaps.estimatedBaseFee ?? null,
             sourceTokenAddress: swaps.sourceTokenAddress ?? null,
             sourceTokenAmount: swaps.sourceTokenAmount ?? null,
