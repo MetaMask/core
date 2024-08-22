@@ -394,7 +394,10 @@ function updateSwapAndSendTransaction(
     type,
   }: Partial<TransactionMeta>,
 ): TransactionMeta {
-  validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
+  validateIfTransactionUnapproved(
+    transactionMeta,
+    'updateSwapAndSendTransaction',
+  );
 
   let swapTransaction = {
     approvalTx,
