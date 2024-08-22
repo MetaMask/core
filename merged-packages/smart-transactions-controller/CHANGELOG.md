@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+### Fixed
+- Fix issue where this.ethQuery is sometimes unexpectedly undefined ([#405](https://github.com/MetaMask/smart-transactions-controller/pull/405))
+- Remove code that is no longer needed to ensure unique smart transactions ([#404](https://github.com/MetaMask/smart-transactions-controller/pull/404))
+
 ## [12.0.0]
 ### Changed
 - Upgrade @metamask/network-controller from 19.0.0 to 20.0.0 ([#395](https://github.com/MetaMask/smart-transactions-controller/pull/395))
@@ -325,7 +330,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.0...v12.0.1
 [12.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v11.0.0...v12.0.0
 [11.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.2.0...v11.0.0
 [10.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.1.6...v10.2.0
