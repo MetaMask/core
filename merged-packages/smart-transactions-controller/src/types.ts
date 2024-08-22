@@ -113,8 +113,8 @@ export type IndividualTxFees = {
 };
 
 export type Fees = {
-  approvalTxFees: IndividualTxFees | undefined;
-  tradeTxFees: IndividualTxFees | undefined;
+  approvalTxFees: IndividualTxFees | null;
+  tradeTxFees: IndividualTxFees | null;
 };
 
 // TODO

@@ -1,22 +1,28 @@
+import { ControllerMessenger } from '@metamask/base-controller';
 import {
   NetworkType,
   convertHexToDecimal,
   ChainId,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
-import { NetworkStatus } from '@metamask/network-controller';
+import { NetworkStatus, type NetworkState } from '@metamask/network-controller';
 import {
+  type TransactionParams,
   TransactionStatus,
   TransactionType,
 } from '@metamask/transaction-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 import { API_BASE_URL } from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
+  getDefaultSmartTransactionsControllerState,
+} from './SmartTransactionsController';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  SmartTransactionsControllerActions,
+  SmartTransactionsControllerEvents,
 } from './SmartTransactionsController';
 import { advanceTime, flushPromises, getFakeProvider } from './test-helpers';
 import type { SmartTransaction, UnsignedTransaction, Hex } from './types';
@@ -192,17 +198,17 @@ const createSignedTransaction = () => {
   return '0xf86c098504a817c800825208943535353535353535353535353535353535353535880de0b6b3a76400008025a02b79f322a625d623a2bb2911e0c6b3e7eaf741a7c7c5d2e8c67ef3ff4acf146ca01ae168fea63dc3391b75b586c8a7c0cb55cdf3b8e2e4d8e097957a3a56c6f2c5';
 };
 
-const createTxParams = () => {
+const createTxParams = (): TransactionParams => {
   return {
     from: addressFrom,
     to: '0x0000000000000000000000000000000000000000',
-    value: 0,
+    value: '0',
     data: '0x',
-    nonce: 0,
-    type: 2,
-    chainId: 4,
-    maxFeePerGas: 2310003200,
-    maxPriorityFeePerGas: 513154852,
+    nonce: '0',
+    type: '2',
+    chainId: '0x4',
+    maxFeePerGas: '2310003200',
+    maxPriorityFeePerGas: '513154852',
   };
 };
 
@@ -319,884 +325,917 @@ const ethereumChainIdDec = parseInt(ChainId.mainnet, 16);
 const sepoliaChainIdDec = parseInt(ChainId.sepolia, 16);
 
 const trackMetaMetricsEventSpy = jest.fn();
-const defaultState = {
-  smartTransactionsState: {
-    smartTransactions: {
-      [ChainId.mainnet]: [],
-    },
-    userOptIn: undefined,
-    userOptInV2: undefined,
-    fees: {
-      approvalTxFees: undefined,
-      tradeTxFees: undefined,
-    },
-    feesByChainId: {
-      [ChainId.mainnet]: {
-        approvalTxFees: undefined,
-        tradeTxFees: undefined,
-      },
-      [ChainId.sepolia]: {
-        approvalTxFees: undefined,
-        tradeTxFees: undefined,
-      },
-    },
-    liveness: true,
-    livenessByChainId: {
-      [ChainId.mainnet]: true,
-      [ChainId.sepolia]: true,
-    },
-  },
-};
-
-const mockNetworkState = {
-  selectedNetworkClientId: NetworkType.mainnet,
-  networkConfigurations: {
-    id: {
-      id: 'id',
-      rpcUrl: 'string',
-      chainId: ChainId.mainnet,
-      ticker: 'string',
-    },
-  },
-  networksMetadata: {
-    id: {
-      EIPS: {
-        1155: true,
-      },
-      status: NetworkStatus.Available,
-    },
-  },
-};
 
 describe('SmartTransactionsController', () => {
-  let smartTransactionsController: SmartTransactionsController;
-  let networkListener: (networkState: NetworkState) => void;
-
-  beforeEach(() => {
-    smartTransactionsController = new SmartTransactionsController({
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => {
-        networkListener = listener;
-      },
-      getNonceLock: jest.fn(() => {
-        return {
-          nextNonce: 'nextNonce',
-          releaseLock: jest.fn(),
-        };
-      }),
-      confirmExternalTransaction: jest.fn(),
-      getTransactions: jest.fn(),
-      trackMetaMetricsEvent: trackMetaMetricsEventSpy,
-      getNetworkClientById: jest.fn().mockImplementation((networkClientId) => {
-        switch (networkClientId) {
-          case NetworkType.mainnet:
-            return {
-              configuration: {
-                chainId: ChainId.mainnet,
-              },
-              provider: getFakeProvider(),
-            };
-          case NetworkType.sepolia:
-            return {
-              configuration: {
-                chainId: ChainId.sepolia,
-              },
-              provider: getFakeProvider(),
-            };
-          default:
-            throw new Error('Invalid network client id');
-        }
-      }),
-      getMetaMetricsProps: jest.fn(async () => {
-        return Promise.resolve({
-          accountHardwareType: 'Ledger Hardware',
-          accountType: 'hardware',
-          deviceModel: 'ledger',
-        });
-      }),
-    });
-    // eslint-disable-next-line jest/prefer-spy-on
-    smartTransactionsController.subscribe = jest.fn();
-
-    networkListener(mockNetworkState);
-  });
-
   afterEach(async () => {
     jest.clearAllMocks();
     nock.cleanAll();
-    await smartTransactionsController.stop();
   });
 
-  it('initializes with default config', () => {
-    expect(smartTransactionsController.config).toStrictEqual({
-      interval: DEFAULT_INTERVAL,
-      supportedChainIds: [ChainId.mainnet, ChainId.sepolia],
-      chainId: ChainId.mainnet,
-      clientId: 'default',
+  it('initializes with default state', async () => {
+    const defaultState = getDefaultSmartTransactionsControllerState();
+    await withController(({ controller }) => {
+      expect(controller.state).toStrictEqual({
+        ...defaultState,
+        smartTransactionsState: {
+          ...defaultState.smartTransactionsState,
+          smartTransactions: {
+            [ChainId.mainnet]: [],
+          },
+        },
+      });
     });
-  });
-
-  it('initializes with default state', () => {
-    expect(smartTransactionsController.state).toStrictEqual(defaultState);
   });
 
   describe('onNetworkChange', () => {
-    it('is triggered', () => {
-      networkListener({
-        selectedNetworkClientId: NetworkType.sepolia,
-        networkConfigurations: {},
-        networksMetadata: {},
-      } as NetworkState);
-      expect(smartTransactionsController.config.chainId).toBe(ChainId.sepolia);
-    });
+    it('calls poll', async () => {
+      await withController(({ controller, triggerNetworStateChange }) => {
+        const checkPollSpy = jest.spyOn(controller, 'checkPoll');
 
-    it('calls poll', () => {
-      const checkPollSpy = jest.spyOn(smartTransactionsController, 'checkPoll');
-      networkListener({
-        selectedNetworkClientId: NetworkType.sepolia,
-        networkConfigurations: {},
-        networksMetadata: {},
-      } as NetworkState);
-      expect(checkPollSpy).toHaveBeenCalled();
+        triggerNetworStateChange({
+          selectedNetworkClientId: NetworkType.sepolia,
+          networkConfigurations: {},
+          networksMetadata: {},
+        } as NetworkState);
+
+        expect(checkPollSpy).toHaveBeenCalled();
+      });
     });
   });
 
   describe('checkPoll', () => {
-    it('calls poll if there is no pending transaction and pending transactions', () => {
+    it('calls poll if there is no pending transaction and pending transactions', async () => {
       const pollSpy = jest
-        .spyOn(smartTransactionsController, 'poll')
+        .spyOn(SmartTransactionsController.prototype, 'poll')
         .mockImplementation(async () => {
           return new Promise(() => ({}));
         });
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = createStateAfterPending();
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: pendingStx as SmartTransaction[],
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: pendingStx as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      expect(pollSpy).toHaveBeenCalled();
+        () => {
+          expect(pollSpy).toHaveBeenCalled();
+        },
+      );
     });
 
-    it('calls stop if there is a timeoutHandle and no pending transactions', () => {
-      const stopSpy = jest.spyOn(smartTransactionsController, 'stop');
-      smartTransactionsController.timeoutHandle = setTimeout(() => ({}));
-      smartTransactionsController.checkPoll(smartTransactionsController.state);
-      expect(stopSpy).toHaveBeenCalled();
-      clearInterval(smartTransactionsController.timeoutHandle);
+    it('calls stop if there is a timeoutHandle and no pending transactions', async () => {
+      await withController(({ controller }) => {
+        const stopSpy = jest.spyOn(controller, 'stop');
+        controller.timeoutHandle = setTimeout(() => ({}));
+
+        controller.checkPoll(controller.state);
+
+        expect(stopSpy).toHaveBeenCalled();
+
+        clearInterval(controller.timeoutHandle);
+      });
     });
   });
 
   describe('poll', () => {
     it('does not call updateSmartTransactions on unsupported networks', async () => {
-      const updateSmartTransactionsSpy = jest.spyOn(
-        smartTransactionsController,
-        'updateSmartTransactions',
+      await withController(
+        {
+          options: {
+            supportedChainIds: [ChainId.mainnet],
+          },
+        },
+        ({ controller, triggerNetworStateChange }) => {
+          const updateSmartTransactionsSpy = jest.spyOn(
+            controller,
+            'updateSmartTransactions',
+          );
+
+          expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
+
+          triggerNetworStateChange({
+            selectedNetworkClientId: NetworkType.sepolia,
+            networkConfigurations: {},
+            networksMetadata: {},
+          } as NetworkState);
+
+          expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
+        },
       );
-      expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
-      smartTransactionsController.config.supportedChainIds = [ChainId.mainnet];
-      networkListener({
-        selectedNetworkClientId: NetworkType.sepolia,
-        networkConfigurations: {},
-        networksMetadata: {},
-      } as NetworkState);
-      expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('updateSmartTransactions', () => {
     // TODO rewrite this test... updateSmartTransactions is getting called via the checkPoll method which is called whenever state is updated.
     // this test should be more isolated to the updateSmartTransactions method.
-    it('calls fetchSmartTransactionsStatus if there are pending transactions', () => {
+    it('calls fetchSmartTransactionsStatus if there are pending transactions', async () => {
       const fetchSmartTransactionsStatusSpy = jest
-        .spyOn(smartTransactionsController, 'fetchSmartTransactionsStatus')
+        .spyOn(
+          SmartTransactionsController.prototype,
+          'fetchSmartTransactionsStatus',
+        )
         .mockImplementation(async () => {
           return new Promise(() => ({}));
         });
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = createStateAfterPending();
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: pendingStx as SmartTransaction[],
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: pendingStx as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      expect(fetchSmartTransactionsStatusSpy).toHaveBeenCalled();
+        () => {
+          expect(fetchSmartTransactionsStatusSpy).toHaveBeenCalled();
+        },
+      );
     });
   });
 
   describe('trackStxStatusChange', () => {
-    it('tracks status change if prevSmartTransactions is undefined', () => {
-      const smartTransaction = {
-        ...createStateAfterPending()[0],
-        swapMetaData: {},
-      };
-      smartTransactionsController.trackStxStatusChange(
-        smartTransaction as SmartTransaction,
-      );
-      expect(trackMetaMetricsEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: 'STX Status Updated',
-          category: 'Transactions',
-          properties: expect.objectContaining({
-            stx_status: SmartTransactionStatuses.PENDING,
-            is_smart_transaction: true,
+    it('tracks status change if prevSmartTransactions is undefined', async () => {
+      await withController(({ controller }) => {
+        const smartTransaction = {
+          ...createStateAfterPending()[0],
+          swapMetaData: {},
+        } as SmartTransaction;
+
+        controller.trackStxStatusChange(smartTransaction);
+
+        expect(trackMetaMetricsEventSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'STX Status Updated',
+            category: 'Transactions',
+            properties: expect.objectContaining({
+              stx_status: SmartTransactionStatuses.PENDING,
+              is_smart_transaction: true,
+            }),
+            sensitiveProperties: expect.objectContaining({
+              account_hardware_type: 'Ledger Hardware',
+              account_type: 'hardware',
+              device_model: 'ledger',
+            }),
           }),
-          sensitiveProperties: expect.objectContaining({
-            account_hardware_type: 'Ledger Hardware',
-            account_type: 'hardware',
-            device_model: 'ledger',
-          }),
-        }),
-      );
+        );
+      });
     });
 
-    it('does not track if smartTransaction and prevSmartTransaction have the same status', () => {
-      const smartTransaction = createStateAfterPending()[0];
-      smartTransactionsController.trackStxStatusChange(
-        smartTransaction as SmartTransaction,
-        smartTransaction as SmartTransaction,
-      );
-      expect(trackMetaMetricsEventSpy).not.toHaveBeenCalled();
+    it('does not track if smartTransaction and prevSmartTransaction have the same status', async () => {
+      await withController(({ controller }) => {
+        const smartTransaction = createStateAfterPending()[0];
+
+        controller.trackStxStatusChange(
+          smartTransaction as SmartTransaction,
+          smartTransaction as SmartTransaction,
+        );
+
+        expect(trackMetaMetricsEventSpy).not.toHaveBeenCalled();
+      });
     });
 
-    it('tracks status change if smartTransaction and prevSmartTransaction have different statuses', () => {
-      const smartTransaction = {
-        ...createStateAfterSuccess()[0],
-        swapMetaData: {},
-      };
-      const prevSmartTransaction = {
-        ...smartTransaction,
-        status: SmartTransactionStatuses.PENDING,
-      };
-      smartTransactionsController.trackStxStatusChange(
-        smartTransaction as SmartTransaction,
-        prevSmartTransaction as SmartTransaction,
-      );
-      expect(trackMetaMetricsEventSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: 'STX Status Updated',
-          category: 'Transactions',
-          properties: expect.objectContaining({
-            stx_status: SmartTransactionStatuses.SUCCESS,
-            is_smart_transaction: true,
+    it('tracks status change if smartTransaction and prevSmartTransaction have different statuses', async () => {
+      await withController(({ controller }) => {
+        const smartTransaction = {
+          ...createStateAfterSuccess()[0],
+          swapMetaData: {},
+        };
+        const prevSmartTransaction = {
+          ...smartTransaction,
+          status: SmartTransactionStatuses.PENDING,
+        };
+
+        controller.trackStxStatusChange(
+          smartTransaction as SmartTransaction,
+          prevSmartTransaction as SmartTransaction,
+        );
+
+        expect(trackMetaMetricsEventSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            event: 'STX Status Updated',
+            category: 'Transactions',
+            properties: expect.objectContaining({
+              stx_status: SmartTransactionStatuses.SUCCESS,
+              is_smart_transaction: true,
+            }),
+            sensitiveProperties: expect.objectContaining({
+              account_hardware_type: 'Ledger Hardware',
+              account_type: 'hardware',
+              device_model: 'ledger',
+            }),
           }),
-          sensitiveProperties: expect.objectContaining({
-            account_hardware_type: 'Ledger Hardware',
-            account_type: 'hardware',
-            device_model: 'ledger',
-          }),
-        }),
-      );
+        );
+      });
     });
   });
 
   describe('setOptInState', () => {
-    it('sets optIn state', () => {
-      smartTransactionsController.setOptInState(true);
-      expect(
-        smartTransactionsController.state.smartTransactionsState.userOptInV2,
-      ).toBe(true);
-      smartTransactionsController.setOptInState(false);
-      expect(
-        smartTransactionsController.state.smartTransactionsState.userOptInV2,
-      ).toBe(false);
-      smartTransactionsController.setOptInState(undefined);
-      expect(
-        smartTransactionsController.state.smartTransactionsState.userOptInV2,
-      ).toBeUndefined();
+    it('sets optIn state', async () => {
+      await withController(({ controller }) => {
+        controller.setOptInState(true);
+
+        expect(controller.state.smartTransactionsState.userOptInV2).toBe(true);
+
+        controller.setOptInState(false);
+
+        expect(controller.state.smartTransactionsState.userOptInV2).toBe(false);
+
+        controller.setOptInState(null);
+
+        expect(controller.state.smartTransactionsState.userOptInV2).toBeNull();
+      });
     });
   });
 
   describe('clearFees', () => {
     it('clears fees', async () => {
-      const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
-      const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
-      const getFeesApiResponse = createGetFeesApiResponse();
-      nock(API_BASE_URL)
-        .post(`/networks/${ethereumChainIdDec}/getFees`)
-        .reply(200, getFeesApiResponse);
-      const fees = await smartTransactionsController.getFees(
-        tradeTx,
-        approvalTx,
-      );
-      expect(fees).toMatchObject({
-        approvalTxFees: getFeesApiResponse.txs[0],
-        tradeTxFees: getFeesApiResponse.txs[1],
-      });
-      smartTransactionsController.clearFees();
-      expect(
-        smartTransactionsController.state.smartTransactionsState.fees,
-      ).toStrictEqual({
-        approvalTxFees: undefined,
-        tradeTxFees: undefined,
+      await withController(async ({ controller }) => {
+        const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+        const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
+        const getFeesApiResponse = createGetFeesApiResponse();
+        nock(API_BASE_URL)
+          .post(`/networks/${ethereumChainIdDec}/getFees`)
+          .reply(200, getFeesApiResponse);
+
+        const fees = await controller.getFees(tradeTx, approvalTx);
+
+        expect(fees).toMatchObject({
+          approvalTxFees: getFeesApiResponse.txs[0],
+          tradeTxFees: getFeesApiResponse.txs[1],
+        });
+
+        controller.clearFees();
+
+        expect(controller.state.smartTransactionsState.fees).toStrictEqual({
+          approvalTxFees: null,
+          tradeTxFees: null,
+        });
       });
     });
   });
 
   describe('getFees', () => {
     it('gets unsigned transactions and estimates based on an unsigned transaction', async () => {
-      const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
-      const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
-      const getFeesApiResponse = createGetFeesApiResponse();
-      nock(API_BASE_URL)
-        .post(`/networks/${ethereumChainIdDec}/getFees`)
-        .reply(200, getFeesApiResponse);
-      const fees = await smartTransactionsController.getFees(
-        tradeTx,
-        approvalTx,
-      );
-      expect(fees).toMatchObject({
-        approvalTxFees: getFeesApiResponse.txs[0],
-        tradeTxFees: getFeesApiResponse.txs[1],
+      await withController(async ({ controller }) => {
+        const tradeTx = createUnsignedTransaction(ethereumChainIdDec);
+        const approvalTx = createUnsignedTransaction(ethereumChainIdDec);
+        const getFeesApiResponse = createGetFeesApiResponse();
+        nock(API_BASE_URL)
+          .post(`/networks/${ethereumChainIdDec}/getFees`)
+          .reply(200, getFeesApiResponse);
+
+        const fees = await controller.getFees(tradeTx, approvalTx);
+
+        expect(fees).toMatchObject({
+          approvalTxFees: getFeesApiResponse.txs[0],
+          tradeTxFees: getFeesApiResponse.txs[1],
+        });
       });
     });
 
     it('gets estimates based on an unsigned transaction with an undefined nonce', async () => {
-      const tradeTx: UnsignedTransaction =
-        createUnsignedTransaction(ethereumChainIdDec);
-      tradeTx.nonce = undefined;
-      const getFeesApiResponse = createGetFeesApiResponse();
-      nock(API_BASE_URL)
-        .post(`/networks/${ethereumChainIdDec}/getFees`)
-        .reply(200, getFeesApiResponse);
-      const fees = await smartTransactionsController.getFees(tradeTx);
-      expect(fees).toMatchObject({
-        tradeTxFees: getFeesApiResponse.txs[0],
+      await withController(async ({ controller }) => {
+        const tradeTx: UnsignedTransaction =
+          createUnsignedTransaction(ethereumChainIdDec);
+        tradeTx.nonce = undefined;
+        const getFeesApiResponse = createGetFeesApiResponse();
+        nock(API_BASE_URL)
+          .post(`/networks/${ethereumChainIdDec}/getFees`)
+          .reply(200, getFeesApiResponse);
+
+        const fees = await controller.getFees(tradeTx);
+
+        expect(fees).toMatchObject({
+          tradeTxFees: getFeesApiResponse.txs[0],
+        });
       });
     });
 
     it('should add fee data to feesByChainId state using the networkClientId passed in to identify the appropriate chain', async () => {
-      const tradeTx = createUnsignedTransaction(sepoliaChainIdDec);
-      const approvalTx = createUnsignedTransaction(sepoliaChainIdDec);
-      const getFeesApiResponse = createGetFeesApiResponse();
-      nock(API_BASE_URL)
-        .post(`/networks/${sepoliaChainIdDec}/getFees`)
-        .reply(200, getFeesApiResponse);
+      await withController(async ({ controller }) => {
+        const tradeTx = createUnsignedTransaction(sepoliaChainIdDec);
+        const approvalTx = createUnsignedTransaction(sepoliaChainIdDec);
+        const getFeesApiResponse = createGetFeesApiResponse();
+        nock(API_BASE_URL)
+          .post(`/networks/${sepoliaChainIdDec}/getFees`)
+          .reply(200, getFeesApiResponse);
 
-      expect(
-        smartTransactionsController.state.smartTransactionsState.feesByChainId,
-      ).toStrictEqual(defaultState.smartTransactionsState.feesByChainId);
+        expect(
+          controller.state.smartTransactionsState.feesByChainId,
+        ).toStrictEqual(
+          getDefaultSmartTransactionsControllerState().smartTransactionsState
+            .feesByChainId,
+        );
 
-      await smartTransactionsController.getFees(tradeTx, approvalTx, {
-        networkClientId: NetworkType.sepolia,
-      });
+        await controller.getFees(tradeTx, approvalTx, {
+          networkClientId: NetworkType.sepolia,
+        });
 
-      expect(
-        smartTransactionsController.state.smartTransactionsState.feesByChainId,
-      ).toMatchObject({
-        [ChainId.mainnet]: {
-          approvalTxFees: undefined,
-          tradeTxFees: undefined,
-        },
-        [ChainId.sepolia]: {
-          approvalTxFees: getFeesApiResponse.txs[0],
-          tradeTxFees: getFeesApiResponse.txs[1],
-        },
+        expect(
+          controller.state.smartTransactionsState.feesByChainId,
+        ).toMatchObject({
+          [ChainId.mainnet]: {
+            approvalTxFees: null,
+            tradeTxFees: null,
+          },
+          [ChainId.sepolia]: {
+            approvalTxFees: getFeesApiResponse.txs[0],
+            tradeTxFees: getFeesApiResponse.txs[1],
+          },
+        });
       });
     });
   });
 
   describe('submitSignedTransactions', () => {
     beforeEach(() => {
-      // eslint-disable-next-line jest/prefer-spy-on
-      smartTransactionsController.checkPoll = jest.fn(() => ({}));
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => ({}));
     });
 
     it('submits a smart transaction with signed transactions', async () => {
-      const signedTransaction = createSignedTransaction();
-      const signedCanceledTransaction = createSignedCanceledTransaction();
-      const submitTransactionsApiResponse =
-        createSubmitTransactionsApiResponse(); // It has uuid.
-      nock(API_BASE_URL)
-        .post(
-          `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
-        )
-        .reply(200, submitTransactionsApiResponse);
-      await smartTransactionsController.submitSignedTransactions({
-        signedTransactions: [signedTransaction],
-        signedCanceledTransactions: [signedCanceledTransaction],
-        txParams: createTxParams(),
+      await withController(async ({ controller }) => {
+        const signedTransaction = createSignedTransaction();
+        const signedCanceledTransaction = createSignedCanceledTransaction();
+        const submitTransactionsApiResponse =
+          createSubmitTransactionsApiResponse(); // It has uuid.
+        nock(API_BASE_URL)
+          .post(
+            `/networks/${ethereumChainIdDec}/submitTransactions?stxControllerVersion=${packageJson.version}`,
+          )
+          .reply(200, submitTransactionsApiResponse);
+
+        await controller.submitSignedTransactions({
+          signedTransactions: [signedTransaction],
+          signedCanceledTransactions: [signedCanceledTransaction],
+          txParams: createTxParams(),
+        });
+
+        const submittedSmartTransaction =
+          controller.state.smartTransactionsState.smartTransactions[
+            ChainId.mainnet
+          ][0];
+        expect(submittedSmartTransaction.uuid).toBe(
+          'dP23W7c2kt4FK9TmXOkz1UM2F20',
+        );
+        expect(submittedSmartTransaction.accountHardwareType).toBe(
+          'Ledger Hardware',
+        );
+        expect(submittedSmartTransaction.accountType).toBe('hardware');
+        expect(submittedSmartTransaction.deviceModel).toBe('ledger');
       });
-      const submittedSmartTransaction =
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet][0];
-      expect(submittedSmartTransaction.uuid).toBe(
-        'dP23W7c2kt4FK9TmXOkz1UM2F20',
-      );
-      expect(submittedSmartTransaction.accountHardwareType).toBe(
-        'Ledger Hardware',
-      );
-      expect(submittedSmartTransaction.accountType).toBe('hardware');
-      expect(submittedSmartTransaction.deviceModel).toBe('ledger');
     });
   });
 
   describe('fetchSmartTransactionsStatus', () => {
     beforeEach(() => {
-      // eslint-disable-next-line jest/prefer-spy-on
-      smartTransactionsController.checkPoll = jest.fn(() => ({}));
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => ({}));
     });
 
     it('fetches a pending status for a single smart transaction via batchStatus API', async () => {
-      const uuids = ['uuid1'];
-      const pendingBatchStatusApiResponse =
-        createPendingBatchStatusApiResponse();
-      nock(API_BASE_URL)
-        .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
-        .reply(200, pendingBatchStatusApiResponse);
+      await withController(async ({ controller }) => {
+        const uuids = ['uuid1'];
+        const pendingBatchStatusApiResponse =
+          createPendingBatchStatusApiResponse();
+        nock(API_BASE_URL)
+          .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid1`)
+          .reply(200, pendingBatchStatusApiResponse);
 
-      await smartTransactionsController.fetchSmartTransactionsStatus(uuids, {
-        networkClientId: NetworkType.mainnet,
-      });
-      const pendingState = createStateAfterPending()[0];
-      const pendingTransaction = { ...pendingState, history: [pendingState] };
-      expect(smartTransactionsController.state).toMatchObject({
-        smartTransactionsState: {
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingTransaction],
-          },
-          userOptIn: undefined,
-          userOptInV2: undefined,
-          fees: {
-            approvalTxFees: undefined,
-            tradeTxFees: undefined,
-          },
-          feesByChainId: {
-            [ChainId.mainnet]: {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
+        await controller.fetchSmartTransactionsStatus(uuids, {
+          networkClientId: NetworkType.mainnet,
+        });
+
+        const pendingState = createStateAfterPending()[0];
+        const pendingTransaction = { ...pendingState, history: [pendingState] };
+        expect(controller.state).toMatchObject({
+          smartTransactionsState: {
+            smartTransactions: {
+              [ChainId.mainnet]: [pendingTransaction],
             },
-            [ChainId.sepolia]: {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
+            userOptIn: null,
+            userOptInV2: null,
+            fees: {
+              approvalTxFees: null,
+              tradeTxFees: null,
+            },
+            feesByChainId: {
+              [ChainId.mainnet]: {
+                approvalTxFees: null,
+                tradeTxFees: null,
+              },
+              [ChainId.sepolia]: {
+                approvalTxFees: null,
+                tradeTxFees: null,
+              },
+            },
+            liveness: true,
+            livenessByChainId: {
+              [ChainId.mainnet]: true,
+              [ChainId.sepolia]: true,
             },
           },
-          liveness: true,
-          livenessByChainId: {
-            [ChainId.mainnet]: true,
-            [ChainId.sepolia]: true,
-          },
-        },
+        });
       });
     });
 
     it('fetches a success status for a single smart transaction via batchStatus API', async () => {
-      const uuids = ['uuid2'];
-      const successBatchStatusApiResponse =
-        createSuccessBatchStatusApiResponse();
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsController.state.smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: createStateAfterPending() as SmartTransaction[],
-          },
-        },
-      });
-
-      nock(API_BASE_URL)
-        .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
-        .reply(200, successBatchStatusApiResponse);
-
-      await smartTransactionsController.fetchSmartTransactionsStatus(uuids, {
-        networkClientId: NetworkType.mainnet,
-      });
-      const successState = createStateAfterSuccess()[0];
-      const successTransaction = { ...successState, history: [successState] };
-      expect(smartTransactionsController.state).toMatchObject({
-        smartTransactionsState: {
-          smartTransactions: {
-            [ChainId.mainnet]: [
-              ...createStateAfterPending(),
-              ...[successTransaction],
-            ],
-          },
-          userOptIn: undefined,
-          userOptInV2: undefined,
-          fees: {
-            approvalTxFees: undefined,
-            tradeTxFees: undefined,
-          },
-          liveness: true,
-          feesByChainId: {
-            [ChainId.mainnet]: {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
-            },
-            [ChainId.sepolia]: {
-              approvalTxFees: undefined,
-              tradeTxFees: undefined,
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]:
+                    createStateAfterPending() as SmartTransaction[],
+                },
+              },
             },
           },
-          livenessByChainId: {
-            [ChainId.mainnet]: true,
-            [ChainId.sepolia]: true,
-          },
         },
-      });
+        async ({ controller }) => {
+          const uuids = ['uuid2'];
+          const successBatchStatusApiResponse =
+            createSuccessBatchStatusApiResponse();
+          nock(API_BASE_URL)
+            .get(`/networks/${ethereumChainIdDec}/batchStatus?uuids=uuid2`)
+            .reply(200, successBatchStatusApiResponse);
+
+          await controller.fetchSmartTransactionsStatus(uuids, {
+            networkClientId: NetworkType.mainnet,
+          });
+
+          const [successState] = createStateAfterSuccess();
+          const successTransaction = {
+            ...successState,
+            history: [successState],
+          };
+          expect(controller.state).toMatchObject({
+            smartTransactionsState: {
+              smartTransactions: {
+                [ChainId.mainnet]: [
+                  ...createStateAfterPending(),
+                  ...[successTransaction],
+                ],
+              },
+              userOptIn: null,
+              userOptInV2: null,
+              fees: {
+                approvalTxFees: null,
+                tradeTxFees: null,
+              },
+              liveness: true,
+              feesByChainId: {
+                [ChainId.mainnet]: {
+                  approvalTxFees: null,
+                  tradeTxFees: null,
+                },
+                [ChainId.sepolia]: {
+                  approvalTxFees: null,
+                  tradeTxFees: null,
+                },
+              },
+              livenessByChainId: {
+                [ChainId.mainnet]: true,
+                [ChainId.sepolia]: true,
+              },
+            },
+          });
+        },
+      );
     });
   });
 
   describe('fetchLiveness', () => {
     it('fetches a liveness for Smart Transactions API', async () => {
-      const successLivenessApiResponse = createSuccessLivenessApiResponse();
-      nock(API_BASE_URL)
-        .get(`/networks/${ethereumChainIdDec}/health`)
-        .reply(200, successLivenessApiResponse);
-      const liveness = await smartTransactionsController.fetchLiveness();
-      expect(liveness).toBe(true);
+      await withController(async ({ controller }) => {
+        const successLivenessApiResponse = createSuccessLivenessApiResponse();
+        nock(API_BASE_URL)
+          .get(`/networks/${ethereumChainIdDec}/health`)
+          .reply(200, successLivenessApiResponse);
+
+        const liveness = await controller.fetchLiveness();
+
+        expect(liveness).toBe(true);
+      });
     });
 
     it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
-      nock(API_BASE_URL)
-        .get(`/networks/${sepoliaChainIdDec}/health`)
-        .replyWithError('random error');
+      await withController(async ({ controller }) => {
+        nock(API_BASE_URL)
+          .get(`/networks/${sepoliaChainIdDec}/health`)
+          .replyWithError('random error');
 
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .livenessByChainId,
-      ).toStrictEqual({
-        [ChainId.mainnet]: true,
-        [ChainId.sepolia]: true,
-      });
+        expect(
+          controller.state.smartTransactionsState.livenessByChainId,
+        ).toStrictEqual({
+          [ChainId.mainnet]: true,
+          [ChainId.sepolia]: true,
+        });
 
-      await smartTransactionsController.fetchLiveness({
-        networkClientId: NetworkType.sepolia,
-      });
+        await controller.fetchLiveness({
+          networkClientId: NetworkType.sepolia,
+        });
 
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .livenessByChainId,
-      ).toStrictEqual({
-        [ChainId.mainnet]: true,
-        [ChainId.sepolia]: false,
+        expect(
+          controller.state.smartTransactionsState.livenessByChainId,
+        ).toStrictEqual({
+          [ChainId.mainnet]: true,
+          [ChainId.sepolia]: false,
+        });
       });
     });
   });
 
   describe('updateSmartTransaction', () => {
     beforeEach(() => {
-      // eslint-disable-next-line jest/prefer-spy-on
-      smartTransactionsController.checkPoll = jest.fn(() => ({}));
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => ({}));
     });
 
-    it('updates smart transaction based on uuid', () => {
+    it('updates smart transaction based on uuid', async () => {
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
       };
-      const { smartTransactionsState } = smartTransactionsController.state;
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      const updateTransaction = {
-        ...pendingStx,
-        status: 'test',
-      };
-      smartTransactionsController.updateSmartTransaction(
-        updateTransaction as SmartTransaction,
-        {
-          networkClientId: NetworkType.mainnet,
+        ({ controller }) => {
+          const updateTransaction = {
+            ...pendingStx,
+            status: 'test',
+          };
+
+          controller.updateSmartTransaction(
+            updateTransaction as SmartTransaction,
+            {
+              networkClientId: NetworkType.mainnet,
+            },
+          );
+
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ][0].status,
+          ).toBe('test');
         },
       );
-
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet][0].status,
-      ).toBe('test');
     });
 
     it('confirms a smart transaction that has status success', async () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
       };
-
-      jest
-        .spyOn(smartTransactionsController, 'getRegularTransactions')
-        .mockImplementation(() => {
-          return [createTransactionMeta()];
-        });
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      const confirmExternalTransactionSpy = jest.fn();
+      const getRegularTransactionsSpy = jest.fn().mockImplementation(() => {
+        return [createTransactionMeta()];
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
+            confirmExternalTransaction: confirmExternalTransactionSpy,
+            getTransactions: getRegularTransactionsSpy,
           },
         },
-      });
-      const updateTransaction = {
-        ...pendingStx,
-        statusMetadata: {
-          ...pendingStx.statusMetadata,
-          minedHash: txHash,
-        },
-        status: SmartTransactionStatuses.SUCCESS,
-      };
+        async ({ controller }) => {
+          const updateTransaction = {
+            ...pendingStx,
+            statusMetadata: {
+              ...pendingStx.statusMetadata,
+              minedHash: txHash,
+            },
+            status: SmartTransactionStatuses.SUCCESS,
+          };
 
-      smartTransactionsController.updateSmartTransaction(
-        updateTransaction as SmartTransaction,
-        {
-          networkClientId: NetworkType.mainnet,
+          controller.updateSmartTransaction(
+            updateTransaction as SmartTransaction,
+            {
+              networkClientId: NetworkType.mainnet,
+            },
+          );
+          await flushPromises();
+
+          expect(confirmExternalTransactionSpy).toHaveBeenCalledTimes(1);
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([
+            {
+              ...updateTransaction,
+              confirmed: true,
+            },
+          ]);
         },
       );
-      await flushPromises();
-      expect(
-        smartTransactionsController.confirmExternalTransaction,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet],
-      ).toStrictEqual([
-        {
-          ...updateTransaction,
-          confirmed: true,
-        },
-      ]);
     });
 
     it('confirms a smart transaction that was not found in the list of regular transactions', async () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
       };
-
-      jest
-        .spyOn(smartTransactionsController, 'getRegularTransactions')
-        .mockImplementation(() => {
-          return [];
-        });
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      const confirmExternalTransactionSpy = jest.fn();
+      const getRegularTransactionsSpy = jest.fn().mockImplementation(() => {
+        return [];
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
+            confirmExternalTransaction: confirmExternalTransactionSpy,
+            getTransactions: getRegularTransactionsSpy,
           },
         },
-      });
-      const updateTransaction = {
-        ...pendingStx,
-        statusMetadata: {
-          ...pendingStx.statusMetadata,
-          minedHash: txHash,
-        },
-        status: SmartTransactionStatuses.SUCCESS,
-      };
+        async ({ controller }) => {
+          const updateTransaction = {
+            ...pendingStx,
+            statusMetadata: {
+              ...pendingStx.statusMetadata,
+              minedHash: txHash,
+            },
+            status: SmartTransactionStatuses.SUCCESS,
+          };
 
-      smartTransactionsController.updateSmartTransaction(
-        updateTransaction as SmartTransaction,
-        {
-          networkClientId: NetworkType.mainnet,
+          controller.updateSmartTransaction(
+            updateTransaction as SmartTransaction,
+            {
+              networkClientId: NetworkType.mainnet,
+            },
+          );
+          await flushPromises();
+
+          expect(confirmExternalTransactionSpy).toHaveBeenCalledTimes(1);
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([
+            {
+              ...updateTransaction,
+              confirmed: true,
+            },
+          ]);
         },
       );
-      await flushPromises();
-      expect(
-        smartTransactionsController.confirmExternalTransaction,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet],
-      ).toStrictEqual([
-        {
-          ...updateTransaction,
-          confirmed: true,
-        },
-      ]);
     });
 
     it('confirms a smart transaction that does not have a minedHash', async () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
       };
-
-      jest
-        .spyOn(smartTransactionsController, 'getRegularTransactions')
-        .mockImplementation(() => {
-          return [createTransactionMeta(TransactionStatus.confirmed)];
-        });
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      const confirmExternalTransactionSpy = jest.fn();
+      const getRegularTransactionsSpy = jest.fn().mockImplementation(() => {
+        return [createTransactionMeta(TransactionStatus.confirmed)];
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
+            confirmExternalTransaction: confirmExternalTransactionSpy,
+            getTransactions: getRegularTransactionsSpy,
           },
         },
-      });
-      const updateTransaction = {
-        ...pendingStx,
-        statusMetadata: {
-          ...pendingStx.statusMetadata,
-          minedHash: '',
-        },
-        status: SmartTransactionStatuses.SUCCESS,
-      };
+        async ({ controller }) => {
+          const updateTransaction = {
+            ...pendingStx,
+            statusMetadata: {
+              ...pendingStx.statusMetadata,
+              minedHash: '',
+            },
+            status: SmartTransactionStatuses.SUCCESS,
+          };
 
-      smartTransactionsController.updateSmartTransaction(
-        updateTransaction as SmartTransaction,
-        {
-          networkClientId: NetworkType.mainnet,
+          controller.updateSmartTransaction(
+            updateTransaction as SmartTransaction,
+            {
+              networkClientId: NetworkType.mainnet,
+            },
+          );
+          await flushPromises();
+
+          expect(confirmExternalTransactionSpy).toHaveBeenCalledTimes(1);
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([
+            {
+              ...updateTransaction,
+              confirmed: true,
+            },
+          ]);
         },
       );
-      await flushPromises();
-      expect(
-        smartTransactionsController.confirmExternalTransaction,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet],
-      ).toStrictEqual([
-        {
-          ...updateTransaction,
-          confirmed: true,
-        },
-      ]);
     });
 
     it('does not call the "confirmExternalTransaction" fn if a tx is already confirmed', async () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
       };
-      jest
-        .spyOn(smartTransactionsController, 'getRegularTransactions')
-        .mockImplementation(() => {
-          return [createTransactionMeta(TransactionStatus.confirmed)];
-        });
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      const confirmExternalTransactionSpy = jest.fn();
+      const getRegularTransactionsSpy = jest.fn().mockImplementation(() => {
+        return [createTransactionMeta(TransactionStatus.confirmed)];
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
+            confirmExternalTransaction: confirmExternalTransactionSpy,
+            getTransactions: getRegularTransactionsSpy,
           },
         },
-      });
-      const updateTransaction = {
-        ...pendingStx,
-        status: SmartTransactionStatuses.SUCCESS,
-        statusMetadata: {
-          ...pendingStx.statusMetadata,
-          minedHash: txHash,
-        },
-      };
+        async ({ controller }) => {
+          const updateTransaction = {
+            ...pendingStx,
+            status: SmartTransactionStatuses.SUCCESS,
+            statusMetadata: {
+              ...pendingStx.statusMetadata,
+              minedHash: txHash,
+            },
+          };
 
-      smartTransactionsController.updateSmartTransaction(
-        updateTransaction as SmartTransaction,
-        {
-          networkClientId: NetworkType.mainnet,
+          controller.updateSmartTransaction(
+            updateTransaction as SmartTransaction,
+            {
+              networkClientId: NetworkType.mainnet,
+            },
+          );
+          await flushPromises();
+
+          expect(confirmExternalTransactionSpy).not.toHaveBeenCalled();
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([
+            {
+              ...updateTransaction,
+              confirmed: true,
+            },
+          ]);
         },
       );
-      await flushPromises();
-      expect(
-        smartTransactionsController.confirmExternalTransaction,
-      ).not.toHaveBeenCalled();
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet],
-      ).toStrictEqual([
-        {
-          ...updateTransaction,
-          confirmed: true,
-        },
-      ]);
     });
 
     it('does not call the "confirmExternalTransaction" fn if a tx is already submitted', async () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
       };
-      jest
-        .spyOn(smartTransactionsController, 'getRegularTransactions')
-        .mockImplementation(() => {
-          return [createTransactionMeta(TransactionStatus.submitted)];
-        });
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      const confirmExternalTransactionSpy = jest.fn();
+      const getRegularTransactionsSpy = jest.fn().mockImplementation(() => {
+        return [createTransactionMeta(TransactionStatus.submitted)];
+      });
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
+            confirmExternalTransaction: confirmExternalTransactionSpy,
+            getTransactions: getRegularTransactionsSpy,
           },
         },
-      });
-      const updateTransaction = {
-        ...pendingStx,
-        status: SmartTransactionStatuses.SUCCESS,
-        statusMetadata: {
-          ...pendingStx.statusMetadata,
-          minedHash: txHash,
-        },
-      };
+        async ({ controller }) => {
+          const updateTransaction = {
+            ...pendingStx,
+            status: SmartTransactionStatuses.SUCCESS,
+            statusMetadata: {
+              ...pendingStx.statusMetadata,
+              minedHash: txHash,
+            },
+          };
 
-      smartTransactionsController.updateSmartTransaction(
-        updateTransaction as SmartTransaction,
-        {
-          networkClientId: NetworkType.mainnet,
+          controller.updateSmartTransaction(
+            updateTransaction as SmartTransaction,
+            {
+              networkClientId: NetworkType.mainnet,
+            },
+          );
+          await flushPromises();
+
+          expect(confirmExternalTransactionSpy).not.toHaveBeenCalled();
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).toStrictEqual([
+            {
+              ...updateTransaction,
+              confirmed: true,
+            },
+          ]);
         },
       );
-      await flushPromises();
-      expect(
-        smartTransactionsController.confirmExternalTransaction,
-      ).not.toHaveBeenCalled();
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet],
-      ).toStrictEqual([
-        {
-          ...updateTransaction,
-          confirmed: true,
-        },
-      ]);
     });
   });
 
   describe('cancelSmartTransaction', () => {
     it('sends POST call to Transactions API', async () => {
-      const apiCall = nock(API_BASE_URL)
-        .post(`/networks/${ethereumChainIdDec}/cancel`)
-        .reply(200, { message: 'successful' });
-      await smartTransactionsController.cancelSmartTransaction('uuid1');
-      expect(apiCall.isDone()).toBe(true);
-    });
-  });
+      await withController(async ({ controller }) => {
+        const apiCall = nock(API_BASE_URL)
+          .post(`/networks/${ethereumChainIdDec}/cancel`)
+          .reply(200, { message: 'successful' });
 
-  describe('setStatusRefreshInterval', () => {
-    it('sets refresh interval if different', () => {
-      smartTransactionsController.setStatusRefreshInterval(100);
-      expect(smartTransactionsController.config.interval).toBe(100);
-    });
+        await controller.cancelSmartTransaction('uuid1');
 
-    it('does not set refresh interval if they are the same', () => {
-      const configureSpy = jest.spyOn(smartTransactionsController, 'configure');
-      smartTransactionsController.setStatusRefreshInterval(DEFAULT_INTERVAL);
-      expect(configureSpy).toHaveBeenCalledTimes(0);
+        expect(apiCall.isDone()).toBe(true);
+      });
     });
   });
 
   describe('getTransactions', () => {
     beforeEach(() => {
-      // eslint-disable-next-line jest/prefer-spy-on
-      smartTransactionsController.checkPoll = jest.fn(() => ({}));
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => ({}));
     });
 
-    it('retrieves smart transactions by addressFrom and status', () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
+    it('retrieves smart transactions by addressFrom and status', async () => {
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
       const pendingStx = {
         ...createStateAfterPending()[0],
         history: testHistory,
@@ -1204,95 +1243,143 @@ describe('SmartTransactionsController', () => {
           from: addressFrom,
         },
       };
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [pendingStx] as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      const pendingStxs = smartTransactionsController.getTransactions({
-        addressFrom,
-        status: SmartTransactionStatuses.PENDING,
-      });
-      expect(pendingStxs).toStrictEqual([pendingStx]);
+        ({ controller }) => {
+          const pendingStxs = controller.getTransactions({
+            addressFrom,
+            status: SmartTransactionStatuses.PENDING,
+          });
+
+          expect(pendingStxs).toStrictEqual([pendingStx]);
+        },
+      );
     });
 
-    it('returns empty array if there are no smart transactions', () => {
-      const transactions = smartTransactionsController.getTransactions({
-        addressFrom,
-        status: SmartTransactionStatuses.PENDING,
+    it('returns empty array if there are no smart transactions', async () => {
+      await withController(({ controller }) => {
+        const transactions = controller.getTransactions({
+          addressFrom,
+          status: SmartTransactionStatuses.PENDING,
+        });
+
+        expect(transactions).toStrictEqual([]);
       });
-      expect(transactions).toStrictEqual([]);
     });
   });
 
   describe('getSmartTransactionByMinedTxHash', () => {
-    it('retrieves a smart transaction by a mined tx hash', () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
-      const successfulSmartTransaction = createStateAfterSuccess()[0];
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [
-              successfulSmartTransaction,
-            ] as SmartTransaction[],
+    it('retrieves a smart transaction by a mined tx hash', async () => {
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
+      const [successfulSmartTransaction] = createStateAfterSuccess();
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    successfulSmartTransaction,
+                  ] as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      const smartTransaction =
-        smartTransactionsController.getSmartTransactionByMinedTxHash(
-          successfulSmartTransaction.statusMetadata.minedHash,
-        );
-      expect(smartTransaction).toStrictEqual(successfulSmartTransaction);
+        ({ controller }) => {
+          const smartTransaction = controller.getSmartTransactionByMinedTxHash(
+            successfulSmartTransaction.statusMetadata.minedHash,
+          );
+
+          expect(smartTransaction).toStrictEqual(successfulSmartTransaction);
+        },
+      );
     });
 
-    it('returns undefined if there is no smart transaction found by tx hash', () => {
-      const { smartTransactionsState } = smartTransactionsController.state;
-      const successfulSmartTransaction = createStateAfterSuccess()[0];
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [
-              successfulSmartTransaction,
-            ] as SmartTransaction[],
+    it('returns undefined if there is no smart transaction found by tx hash', async () => {
+      const { smartTransactionsState } =
+        getDefaultSmartTransactionsControllerState();
+      const [successfulSmartTransaction] = createStateAfterSuccess();
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    successfulSmartTransaction,
+                  ] as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      const smartTransaction =
-        smartTransactionsController.getSmartTransactionByMinedTxHash(
-          'nonStxTxHash',
-        );
-      expect(smartTransaction).toBeUndefined();
+        ({ controller }) => {
+          const smartTransaction =
+            controller.getSmartTransactionByMinedTxHash('nonStxTxHash');
+
+          expect(smartTransaction).toBeUndefined();
+        },
+      );
     });
   });
 
   describe('isNewSmartTransaction', () => {
-    it('returns true if it is a new STX', () => {
-      const actual =
-        smartTransactionsController.isNewSmartTransaction('newUuid');
-      expect(actual).toBe(true);
+    beforeEach(() => {
+      jest
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
+        .mockImplementation(() => ({}));
     });
 
-    it('returns false if an STX already exist', () => {
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsController.state.smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: createStateAfterPending() as SmartTransaction[],
+    it('returns true if it is a new STX', async () => {
+      await withController(({ controller }) => {
+        const actual = controller.isNewSmartTransaction('newUuid');
+
+        expect(actual).toBe(true);
+      });
+    });
+
+    it('returns false if an STX already exist', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]:
+                    createStateAfterPending() as SmartTransaction[],
+                },
+              },
+            },
           },
         },
-      });
-      const actual = smartTransactionsController.isNewSmartTransaction('uuid1');
-      expect(actual).toBe(false);
+        ({ controller }) => {
+          const actual = controller.isNewSmartTransaction('uuid1');
+          expect(actual).toBe(false);
+        },
+      );
     });
   });
 
   describe('startPollingByNetworkClientId', () => {
     let clock: sinon.SinonFakeTimers;
+
     beforeEach(() => {
       clock = sinon.useFakeTimers();
     });
@@ -1304,231 +1391,472 @@ describe('SmartTransactionsController', () => {
     it('starts and stops calling smart transactions batch status api endpoint with the correct chainId at the polling interval', async () => {
       // mock this to a noop because it causes an extra fetch call to the API upon state changes
       jest
-        .spyOn(smartTransactionsController, 'checkPoll')
+        .spyOn(SmartTransactionsController.prototype, 'checkPoll')
         .mockImplementation(() => undefined);
-
-      // pending transactions in state are required to test polling
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...defaultState.smartTransactionsState,
-          smartTransactions: {
-            [ChainId.mainnet]: [
-              {
-                uuid: 'uuid1',
-                status: 'pending',
-                cancellable: true,
-                chainId: ChainId.mainnet,
+      await withController(
+        {
+          options: {
+            // pending transactions in state are required to test polling
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    {
+                      uuid: 'uuid1',
+                      status: 'pending',
+                      cancellable: true,
+                      chainId: ChainId.mainnet,
+                    },
+                  ],
+                  [ChainId.sepolia]: [
+                    {
+                      uuid: 'uuid2',
+                      status: 'pending',
+                      cancellable: true,
+                      chainId: ChainId.sepolia,
+                    },
+                  ],
+                },
               },
-            ],
-            [ChainId.sepolia]: [
-              {
-                uuid: 'uuid2',
-                status: 'pending',
-                cancellable: true,
-                chainId: ChainId.sepolia,
-              },
-            ],
+            },
           },
         },
-      });
+        async ({ controller }) => {
+          const handleFetchSpy = jest.spyOn(utils, 'handleFetch');
+          const mainnetPollingToken = controller.startPollingByNetworkClientId(
+            NetworkType.mainnet,
+          );
 
-      const handleFetchSpy = jest.spyOn(utils, 'handleFetch');
+          await advanceTime({ clock, duration: 0 });
 
-      const mainnetPollingToken =
-        smartTransactionsController.startPollingByNetworkClientId(
-          NetworkType.mainnet,
-        );
+          const fetchHeaders = {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Client-Id': 'default',
+            },
+          };
 
-      await advanceTime({ clock, duration: 0 });
+          expect(handleFetchSpy).toHaveBeenNthCalledWith(
+            1,
+            `${API_BASE_URL}/networks/${convertHexToDecimal(
+              ChainId.mainnet,
+            )}/batchStatus?uuids=uuid1`,
+            fetchHeaders,
+          );
 
-      const fetchHeaders = {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Client-Id': 'default',
+          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+
+          expect(handleFetchSpy).toHaveBeenNthCalledWith(
+            2,
+            `${API_BASE_URL}/networks/${convertHexToDecimal(
+              ChainId.mainnet,
+            )}/batchStatus?uuids=uuid1`,
+            fetchHeaders,
+          );
+
+          controller.startPollingByNetworkClientId(NetworkType.sepolia);
+          await advanceTime({ clock, duration: 0 });
+
+          expect(handleFetchSpy).toHaveBeenNthCalledWith(
+            3,
+            `${API_BASE_URL}/networks/${convertHexToDecimal(
+              ChainId.sepolia,
+            )}/batchStatus?uuids=uuid2`,
+            fetchHeaders,
+          );
+
+          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+
+          expect(handleFetchSpy).toHaveBeenNthCalledWith(
+            5,
+            `${API_BASE_URL}/networks/${convertHexToDecimal(
+              ChainId.sepolia,
+            )}/batchStatus?uuids=uuid2`,
+            fetchHeaders,
+          );
+
+          // stop the mainnet polling
+          controller.stopPollingByPollingToken(mainnetPollingToken);
+
+          // cycle two polling intervals
+          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+
+          await advanceTime({ clock, duration: DEFAULT_INTERVAL });
+
+          // check that the mainnet polling has stopped while the sepolia polling continues
+          expect(handleFetchSpy).toHaveBeenNthCalledWith(
+            6,
+            `${API_BASE_URL}/networks/${convertHexToDecimal(
+              ChainId.sepolia,
+            )}/batchStatus?uuids=uuid2`,
+            fetchHeaders,
+          );
+
+          expect(handleFetchSpy).toHaveBeenNthCalledWith(
+            7,
+            `${API_BASE_URL}/networks/${convertHexToDecimal(
+              ChainId.sepolia,
+            )}/batchStatus?uuids=uuid2`,
+            fetchHeaders,
+          );
         },
-      };
-
-      expect(handleFetchSpy).toHaveBeenNthCalledWith(
-        1,
-        `${API_BASE_URL}/networks/${convertHexToDecimal(
-          ChainId.mainnet,
-        )}/batchStatus?uuids=uuid1`,
-        fetchHeaders,
       );
-
-      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
-
-      expect(handleFetchSpy).toHaveBeenNthCalledWith(
-        2,
-        `${API_BASE_URL}/networks/${convertHexToDecimal(
-          ChainId.mainnet,
-        )}/batchStatus?uuids=uuid1`,
-        fetchHeaders,
-      );
-
-      smartTransactionsController.startPollingByNetworkClientId(
-        NetworkType.sepolia,
-      );
-      await advanceTime({ clock, duration: 0 });
-
-      expect(handleFetchSpy).toHaveBeenNthCalledWith(
-        3,
-        `${API_BASE_URL}/networks/${convertHexToDecimal(
-          ChainId.sepolia,
-        )}/batchStatus?uuids=uuid2`,
-        fetchHeaders,
-      );
-
-      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
-
-      expect(handleFetchSpy).toHaveBeenNthCalledWith(
-        5,
-        `${API_BASE_URL}/networks/${convertHexToDecimal(
-          ChainId.sepolia,
-        )}/batchStatus?uuids=uuid2`,
-        fetchHeaders,
-      );
-
-      // stop the mainnet polling
-      smartTransactionsController.stopPollingByPollingToken(
-        mainnetPollingToken,
-      );
-
-      // cycle two polling intervals
-      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
-
-      await advanceTime({ clock, duration: DEFAULT_INTERVAL });
-
-      // check that the mainnet polling has stopped while the sepolia polling continues
-      expect(handleFetchSpy).toHaveBeenNthCalledWith(
-        6,
-        `${API_BASE_URL}/networks/${convertHexToDecimal(
-          ChainId.sepolia,
-        )}/batchStatus?uuids=uuid2`,
-        fetchHeaders,
-      );
-
-      expect(handleFetchSpy).toHaveBeenNthCalledWith(
-        7,
-        `${API_BASE_URL}/networks/${convertHexToDecimal(
-          ChainId.sepolia,
-        )}/batchStatus?uuids=uuid2`,
-        fetchHeaders,
-      );
-
-      // cleanup
-      smartTransactionsController.update(defaultState);
-
-      smartTransactionsController.stopAllPolling();
     });
   });
 
   describe('wipeSmartTransactions', () => {
-    beforeEach(() => {
-      const newSmartTransactions = {
-        [ChainId.mainnet]: [
-          { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
-          { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
-          { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
-        ],
-        [ChainId.sepolia]: [
-          { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
-          { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
-          { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
-        ],
-      };
-      const { smartTransactionsState } = smartTransactionsController.state;
-      smartTransactionsController.update({
-        smartTransactionsState: {
-          ...smartTransactionsState,
-          smartTransactions: newSmartTransactions,
+    it('does not modify state if no address is provided', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
+                    { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
+                  ],
+                  [ChainId.sepolia]: [
+                    { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
+                    { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
+                  ],
+                },
+              },
+            },
+          },
         },
-      });
-    });
+        ({ controller }) => {
+          const prevState = {
+            ...controller.state,
+          };
 
-    it('does not modify state if no address is provided', () => {
-      const prevState = {
-        ...smartTransactionsController.state,
-      };
-      smartTransactionsController.wipeSmartTransactions({ address: '' });
-      expect(smartTransactionsController.state).toStrictEqual(prevState);
-    });
+          controller.wipeSmartTransactions({ address: '' });
 
-    it('removes transactions from all chains saved in the smartTransactionsState if ignoreNetwork is true', () => {
-      const address = '0x123';
-      smartTransactionsController.wipeSmartTransactions({
-        address,
-        ignoreNetwork: true,
-      });
-      const { smartTransactions } =
-        smartTransactionsController.state.smartTransactionsState;
-      Object.keys(smartTransactions).forEach((chainId) => {
-        const chainIdHex: Hex = chainId as Hex;
-        expect(
-          smartTransactionsController.state.smartTransactionsState
-            .smartTransactions[chainIdHex],
-        ).not.toContainEqual({ txParams: { from: address } });
-      });
-    });
-
-    it('removes transactions only from the current chainId if ignoreNetwork is false', () => {
-      const address = '0x123';
-      smartTransactionsController.wipeSmartTransactions({
-        address,
-        ignoreNetwork: false,
-      });
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[smartTransactionsController.config.chainId],
-      ).not.toContainEqual({ txParams: { from: address } });
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.sepolia],
-      ).toContainEqual(
-        expect.objectContaining({
-          txParams: expect.objectContaining({ from: address }),
-        }),
+          expect(controller.state).toStrictEqual(prevState);
+        },
       );
     });
 
-    it('removes transactions from the current chainId (even if it is not in supportedChainIds) if ignoreNetwork is false', () => {
-      const address = '0x123';
-      smartTransactionsController.config.supportedChainIds = [ChainId.mainnet];
-      smartTransactionsController.config.chainId = ChainId.sepolia;
-      smartTransactionsController.wipeSmartTransactions({
-        address,
-        ignoreNetwork: false,
-      });
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[smartTransactionsController.config.chainId],
-      ).not.toContainEqual({ txParams: { from: address } });
-      expect(
-        smartTransactionsController.state.smartTransactionsState
-          .smartTransactions[ChainId.mainnet],
-      ).toContainEqual(
-        expect.objectContaining({
-          txParams: expect.objectContaining({ from: address }),
-        }),
+    it('removes transactions from all chains saved in the smartTransactionsState if ignoreNetwork is true', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
+                    { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
+                  ],
+                  [ChainId.sepolia]: [
+                    { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
+                    { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          const address = '0x123';
+
+          controller.wipeSmartTransactions({
+            address,
+            ignoreNetwork: true,
+          });
+
+          const {
+            smartTransactionsState: { smartTransactions },
+          } = controller.state;
+          Object.keys(smartTransactions).forEach((chainId) => {
+            const chainIdHex: Hex = chainId as Hex;
+            expect(
+              controller.state.smartTransactionsState.smartTransactions[
+                chainIdHex
+              ],
+            ).not.toContainEqual({ txParams: { from: address } });
+          });
+        },
       );
     });
 
-    it('removes transactions from all chains (even if they are not in supportedChainIds) if ignoreNetwork is true', () => {
-      const address = '0x123';
-      smartTransactionsController.config.supportedChainIds = [];
-      smartTransactionsController.wipeSmartTransactions({
-        address,
-        ignoreNetwork: true,
-      });
-      const { smartTransactions } =
-        smartTransactionsController.state.smartTransactionsState;
-      Object.keys(smartTransactions).forEach((chainId) => {
-        const chainIdHex: Hex = chainId as Hex;
-        expect(
-          smartTransactionsController.state.smartTransactionsState
-            .smartTransactions[chainIdHex],
-        ).not.toContainEqual({ txParams: { from: address } });
-      });
+    it('removes transactions only from the current chainId if ignoreNetwork is false', async () => {
+      await withController(
+        {
+          options: {
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
+                    { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
+                  ],
+                  [ChainId.sepolia]: [
+                    { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
+                    { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          const address = '0x123';
+          controller.wipeSmartTransactions({
+            address,
+            ignoreNetwork: false,
+          });
+
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).not.toContainEqual({ txParams: { from: address } });
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.sepolia
+            ],
+          ).toContainEqual(
+            expect.objectContaining({
+              txParams: expect.objectContaining({ from: address }),
+            }),
+          );
+        },
+      );
+    });
+
+    it('removes transactions from the current chainId (even if it is not in supportedChainIds) if ignoreNetwork is false', async () => {
+      await withController(
+        {
+          options: {
+            supportedChainIds: [ChainId.sepolia],
+            chainId: ChainId.mainnet,
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
+                    { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
+                  ],
+                  [ChainId.sepolia]: [
+                    { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
+                    { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          const address = '0x123';
+
+          controller.wipeSmartTransactions({
+            address,
+            ignoreNetwork: false,
+          });
+
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.mainnet
+            ],
+          ).not.toContainEqual({ txParams: { from: address } });
+          expect(
+            controller.state.smartTransactionsState.smartTransactions[
+              ChainId.sepolia
+            ],
+          ).toContainEqual(
+            expect.objectContaining({
+              txParams: expect.objectContaining({ from: address }),
+            }),
+          );
+        },
+      );
+    });
+
+    it('removes transactions from all chains (even if they are not in supportedChainIds) if ignoreNetwork is true', async () => {
+      await withController(
+        {
+          options: {
+            supportedChainIds: [],
+            state: {
+              smartTransactionsState: {
+                ...getDefaultSmartTransactionsControllerState()
+                  .smartTransactionsState,
+                smartTransactions: {
+                  [ChainId.mainnet]: [
+                    { uuid: 'some-uuid-1', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-2', txParams: { from: '0x456' } },
+                    { uuid: 'some-uuid-3', txParams: { from: '0x123' } },
+                  ],
+                  [ChainId.sepolia]: [
+                    { uuid: 'some-uuid-4', txParams: { from: '0x123' } },
+                    { uuid: 'some-uuid-5', txParams: { from: '0x789' } },
+                    { uuid: 'some-uuid-6', txParams: { from: '0x123' } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+        ({ controller }) => {
+          const address = '0x123';
+
+          controller.wipeSmartTransactions({
+            address,
+            ignoreNetwork: true,
+          });
+
+          const {
+            smartTransactionsState: { smartTransactions },
+          } = controller.state;
+          Object.keys(smartTransactions).forEach((chainId) => {
+            const chainIdHex: Hex = chainId as Hex;
+            expect(
+              controller.state.smartTransactionsState.smartTransactions[
+                chainIdHex
+              ],
+            ).not.toContainEqual({ txParams: { from: address } });
+          });
+        },
+      );
     });
   });
 });
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+  triggerNetworStateChange,
+}: {
+  controller: SmartTransactionsController;
+  triggerNetworStateChange: (state: NetworkState) => void;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = {
+  options?: Partial<
+    ConstructorParameters<typeof SmartTransactionsController>[0]
+  >;
+};
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Builds a controller based on the given options, and calls the given function
+ * with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the controller options; the function will be called
+ * with the built controller.
+ * @returns Whatever the callback returns.
+ */
+async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const { options } = rest;
+  const controllerMessenger = new ControllerMessenger<
+    SmartTransactionsControllerActions | AllowedActions,
+    SmartTransactionsControllerEvents | AllowedEvents
+  >();
+  controllerMessenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    jest.fn().mockImplementation((networkClientId) => {
+      switch (networkClientId) {
+        case NetworkType.mainnet:
+          return {
+            configuration: {
+              chainId: ChainId.mainnet,
+            },
+            provider: getFakeProvider(),
+          };
+        case NetworkType.sepolia:
+          return {
+            configuration: {
+              chainId: ChainId.sepolia,
+            },
+            provider: getFakeProvider(),
+          };
+        default:
+          throw new Error('Invalid network client id');
+      }
+    }),
+  );
+
+  const messenger = controllerMessenger.getRestricted({
+    name: 'SmartTransactionsController',
+    allowedActions: ['NetworkController:getNetworkClientById'],
+    allowedEvents: ['NetworkController:stateChange'],
+  });
+
+  const controller = new SmartTransactionsController({
+    messenger,
+    getNonceLock: jest.fn().mockResolvedValue({
+      nextNonce: 'nextNonce',
+      releaseLock: jest.fn(),
+    }),
+    confirmExternalTransaction: jest.fn(),
+    getTransactions: jest.fn(),
+    trackMetaMetricsEvent: trackMetaMetricsEventSpy,
+    getMetaMetricsProps: jest.fn(async () => {
+      return Promise.resolve({
+        accountHardwareType: 'Ledger Hardware',
+        accountType: 'hardware',
+        deviceModel: 'ledger',
+      });
+    }),
+    ...options,
+  });
+
+  function triggerNetworStateChange(state: NetworkState) {
+    controllerMessenger.publish('NetworkController:stateChange', state, []);
+  }
+
+  triggerNetworStateChange({
+    selectedNetworkClientId: NetworkType.mainnet,
+    networkConfigurations: {
+      id: {
+        id: 'id',
+        rpcUrl: 'string',
+        chainId: ChainId.mainnet,
+        ticker: 'string',
+      },
+    },
+    networksMetadata: {
+      id: {
+        EIPS: {
+          1155: true,
+        },
+        status: NetworkStatus.Available,
+      },
+    },
+  });
+
+  try {
+    return await fn({
+      controller,
+      triggerNetworStateChange,
+    });
+  } finally {
+    controller.stop();
+    controller.stopAllPolling();
+  }
+}
