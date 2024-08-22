@@ -136,6 +136,7 @@ export class TypedMessageManager extends AbstractMessageManager<
       version,
     };
     if (req) {
+      messageParams.requestId = req.id;
       messageParams.origin = req.origin;
     }
     const messageData: TypedMessage = {

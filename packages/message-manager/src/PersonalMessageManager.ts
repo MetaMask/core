@@ -92,6 +92,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
   ): Promise<string> {
     validateSignMessageData(messageParams);
     if (req) {
+      messageParams.requestId = req.id;
       messageParams.origin = req.origin;
     }
     messageParams.data = normalizeMessageData(messageParams.data);

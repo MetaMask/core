@@ -121,6 +121,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     req?: OriginalRequest,
   ): Promise<string> {
     if (req) {
+      messageParams.requestId = req.id;
       messageParams.origin = req.origin;
     }
     const messageId = random();

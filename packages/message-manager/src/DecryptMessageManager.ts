@@ -130,6 +130,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
     req?: OriginalRequest,
   ) {
     if (req) {
+      messageParams.requestId = req.id;
       messageParams.origin = req.origin;
     }
     messageParams.data = normalizeMessageData(messageParams.data);

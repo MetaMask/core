@@ -13,6 +13,7 @@ import { EventEmitter } from 'events';
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface OriginalRequest {
+  id?: number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
 }
@@ -49,6 +50,7 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property requestId? - Original request id
  * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 // This interface was created before this ESLint rule was added.
@@ -57,6 +59,7 @@ export interface AbstractMessage {
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  requestId?: number;
   deferSetAsSigned?: boolean;
 }
 
