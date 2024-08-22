@@ -259,7 +259,7 @@ describe('transation', () => {
         ...USER_OPERATION_METADATA_MOCK,
         swapsMetadata: {
           approvalTxId: 'testTxId',
-          approvalTxParams: { test: 'value' },
+          approvalTx: { test: 'value' },
           destinationTokenAddress: '0x2',
           destinationTokenDecimals: '3',
           destinationTokenSymbol: 'TEST',
@@ -275,7 +275,7 @@ describe('transation', () => {
       expect(transactionMetadata).toStrictEqual(
         expect.objectContaining({
           approvalTxId: 'testTxId',
-          approvalTxParams: { test: 'value' },
+          approvalTx: { test: 'value' },
           destinationTokenAddress: '0x2',
           destinationTokenDecimals: '3',
           destinationTokenSymbol: 'TEST',
