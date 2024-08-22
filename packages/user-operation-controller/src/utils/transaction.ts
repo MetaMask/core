@@ -105,8 +105,8 @@ export function getTransactionMetadata(
   delete txParams.gasPrice;
 
   const swaps = {
+    approvalTx: swapsMetadata?.approvalTx ?? undefined,
     approvalTxId: swapsMetadata?.approvalTxId ?? undefined,
-    approvalTxParams: swapsMetadata?.approvalTxParams ?? undefined,
     destinationTokenAddress:
       swapsMetadata?.destinationTokenAddress ?? undefined,
     destinationTokenAmount: swapsMetadata?.destinationTokenAmount ?? undefined,

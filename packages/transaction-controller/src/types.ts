@@ -43,6 +43,20 @@ export type TransactionMeta = TransactionMetaBase &
  */
 type TransactionMetaBase = {
   /**
+   * Approval to be ran immediately before the transaction created with `txParams`.
+   */
+  approvalTx?: {
+    data?: TransactionParams;
+    params?: {
+      requireApproval?: boolean;
+      type?: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  };
+
+  /**
    * ID of the transaction that approved the swap token transfer.
    */
   approvalTxId?: string;
@@ -397,17 +411,6 @@ type TransactionMetaBase = {
    * Underlying Transaction object.
    */
   txParams: TransactionParams;
-
-  approvalTxParams?: {
-    data?: TransactionParams;
-    params?: {
-      requireApproval?: boolean;
-      type?: TransactionType;
-      swaps?: {
-        meta?: Partial<TransactionMeta>;
-      };
-    };
-  };
 
   /**
    * Transaction receipt.

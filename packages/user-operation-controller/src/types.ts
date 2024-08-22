@@ -338,7 +338,7 @@ export type UserOperationReceipt = {
 /** Information specific to user operations created from swap transactions. */
 export type SwapsMetadata = {
   /** Transaction data for approval to be ran immediately before the swap transaction */
-  approvalTxParams?: {
+  approvalTx?: {
     data: TransactionParams;
     params?: {
       requireApproval?: boolean;

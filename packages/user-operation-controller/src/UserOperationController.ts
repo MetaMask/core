@@ -141,12 +141,7 @@ export type AddUserOperationRequest = {
 };
 
 export type AddUserOperationSwapOptions = {
-  approvalTxId?: string;
-  destinationTokenAddress?: string;
-  destinationTokenAmount?: string;
-  destinationTokenDecimals?: number;
-  destinationTokenSymbol?: string;
-  approvalTxParams?: {
+  approvalTx?: {
     data: TransactionParams;
     params?: {
       requireApproval: boolean;
@@ -156,6 +151,11 @@ export type AddUserOperationSwapOptions = {
       };
     };
   };
+  approvalTxId?: string;
+  destinationTokenAddress?: string;
+  destinationTokenAmount?: string;
+  destinationTokenDecimals?: number;
+  destinationTokenSymbol?: string;
   estimatedBaseFee?: string;
   sourceTokenAddress?: string;
   sourceTokenAmount?: string;
@@ -456,8 +456,8 @@ export class UserOperationController extends BaseController<
       status: UserOperationStatus.Unapproved,
       swapsMetadata: swaps
         ? {
+            approvalTx: swaps.approvalTx ?? null,
             approvalTxId: swaps.approvalTxId ?? null,
-            approvalTxParams: swaps.approvalTxParams ?? null,
             destinationTokenAddress: swaps.destinationTokenAddress ?? null,
             destinationTokenAmount: swaps.destinationTokenAmount ?? null,
             destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
