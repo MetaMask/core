@@ -41,7 +41,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^6.0.3",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/utils": "^9.1.0"
   },

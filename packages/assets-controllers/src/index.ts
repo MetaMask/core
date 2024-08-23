@@ -109,6 +109,7 @@ export type {
   TokenRatesControllerMessenger,
   TokenRatesControllerState,
   TokenRatesControllerStateChangeEvent,
+  MarketDataDetails,
 } from './TokenRatesController';
 export {
   getDefaultTokenRatesControllerState,
