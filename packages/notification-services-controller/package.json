@@ -46,7 +46,7 @@
     "@metamask/base-controller": "^6.0.3",
     "@metamask/controller-utils": "^11.0.2",
     "bignumber.js": "^4.1.0",
-    "contentful": "^10.3.6",
+    "contentful": "^10.15.0",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
     "uuid": "^8.3.2"
