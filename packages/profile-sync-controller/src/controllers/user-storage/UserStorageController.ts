@@ -281,6 +281,10 @@ export default class UserStorageController extends BaseController<
       const internalAccountsList =
         await this.#accounts.getInternalAccountsList();
 
+      console.log('saveInternalAccountsListToUserStorage', {
+        internalAccountsList,
+      });
+
       if (!internalAccountsList) {
         return;
       }
@@ -640,7 +644,10 @@ export default class UserStorageController extends BaseController<
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
 
+      console.log({ userStorageAccountsList });
+
       if (!userStorageAccountsList || !userStorageAccountsList.length) {
+        console.log('no user storage accounts list');
         await this.#accounts.saveInternalAccountsListToUserStorage();
         await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
         return;
@@ -656,6 +663,8 @@ export default class UserStorageController extends BaseController<
 
       const hasMoreInternalAccountsThanUserStorageAccounts =
         internalAccountsList.length > userStorageAccountsList.length;
+
+      console.log({ hasMoreInternalAccountsThanUserStorageAccounts });
 
       // We don't want to remove existing accounts for a user
       // so we only add new accounts if the user has more accounts than the internal accounts list
@@ -683,6 +692,9 @@ export default class UserStorageController extends BaseController<
         );
 
         if (!userStorageAccount) {
+          await this.#accounts.saveInternalAccountToUserStorage(
+            internalAccount.address,
+          );
           continue;
         }
 
