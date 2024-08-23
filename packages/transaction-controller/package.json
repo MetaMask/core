@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "35.1.1",
+  "version": "35.2.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -35,6 +35,7 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
