@@ -3,7 +3,12 @@ import type { TypeFeatureAnnouncement } from './type-feature-announcement';
 
 export type FeatureAnnouncementRawNotificationData = Omit<
   TypeFeatureAnnouncement['fields'],
-  'image' | 'longDescription' | 'extensionLink' | 'link' | 'action'
+  | 'image'
+  | 'longDescription'
+  | 'extensionLink'
+  | 'portfolioLink'
+  | 'externalLink'
+  | 'mobileLink'
 > & {
   longDescription: string;
   image: {
