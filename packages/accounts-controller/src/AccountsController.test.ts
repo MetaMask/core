@@ -1833,6 +1833,97 @@ describe('AccountsController', () => {
         'Unknown keyring unknown',
       );
     });
+
+    it.each([
+      {
+        lastSelectedForAccount1: 1111,
+        lastSelectedForAccount2: 9999,
+        expectedSelectedId: 'mock-id2',
+      },
+      {
+        lastSelectedForAccount1: undefined,
+        lastSelectedForAccount2: 9999,
+        expectedSelectedId: 'mock-id2',
+      },
+      {
+        lastSelectedForAccount1: 1111,
+        lastSelectedForAccount2: undefined,
+        expectedSelectedId: 'mock-id',
+      },
+      {
+        lastSelectedForAccount1: 1111,
+        lastSelectedForAccount2: 0,
+        expectedSelectedId: 'mock-id',
+      },
+    ])(
+      'handle missing selected account. Account 1 lastSelected $lastSelectedForAccount1, Account 2 lastSelected $lastSelectedForAccount2. Expected selected account: $expectedSelectedId',
+      async ({
+        lastSelectedForAccount1,
+        lastSelectedForAccount2,
+        expectedSelectedId,
+      }) => {
+        const messenger = buildMessenger();
+        const mockExistingAccount1 = createExpectedInternalAccount({
+          id: 'mock-id',
+          name: 'Account 1',
+          address: '0x123',
+          keyringType: KeyringTypes.hd,
+        });
+        mockExistingAccount1.metadata.lastSelected = lastSelectedForAccount1;
+        const mockExistingAccount2 = createExpectedInternalAccount({
+          id: 'mock-id2',
+          name: 'Account 2',
+          address: '0x456',
+          keyringType: KeyringTypes.hd,
+        });
+        mockExistingAccount2.metadata.lastSelected = lastSelectedForAccount2;
+
+        mockUUID
+          .mockReturnValueOnce('mock-id') // call to check if its a new account
+          .mockReturnValueOnce('mock-id2'); // call to check if its a new account
+
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringsByType',
+          mockGetKeyringByType.mockReturnValueOnce([
+            {
+              type: KeyringTypes.snap,
+              listAccounts: async () => [mockSnapAccount2],
+            },
+          ]),
+        );
+
+        // first account will be normal, second will be a snap account
+        messenger.registerActionHandler(
+          'KeyringController:getAccounts',
+          mockGetAccounts.mockResolvedValue(['0x1234', mockAddress1]),
+        );
+        messenger.registerActionHandler(
+          'KeyringController:getKeyringForAccount',
+          mockGetKeyringForAccount
+            .mockResolvedValueOnce({ type: KeyringTypes.snap })
+            .mockResolvedValueOnce({ type: KeyringTypes.hd }),
+        );
+
+        const { accountsController } = setupAccountsController({
+          initialState: {
+            internalAccounts: {
+              accounts: {
+                [mockExistingAccount1.id]: mockExistingAccount1,
+                [mockExistingAccount2.id]: mockExistingAccount2,
+              },
+              selectedAccount: 'unknown',
+            },
+          },
+          messenger,
+        });
+
+        await accountsController.updateAccounts();
+
+        const selectedAccount = accountsController.getSelectedAccount();
+
+        expect(selectedAccount.id).toStrictEqual(expectedSelectedId);
+      },
+    );
   });
 
   describe('loadBackup', () => {

@@ -1060,15 +1060,6 @@ describe('PhishingController', () => {
           name: ListNames.MetaMask,
           version: 0,
         },
-        {
-          allowlist: [],
-          blocklist: [],
-          fuzzylist: [],
-          tolerance: 0,
-          lastUpdated: 1,
-          name: ListNames.Phishfort,
-          version: 0,
-        },
       ]);
     });
 
@@ -1126,15 +1117,6 @@ describe('PhishingController', () => {
           version: 0,
           lastUpdated: 2,
           name: ListNames.MetaMask,
-        },
-        {
-          blocklist: [],
-          allowlist: [],
-          fuzzylist: [],
-          tolerance: 0,
-          version: 0,
-          lastUpdated: 1,
-          name: ListNames.Phishfort,
         },
       ]);
     });

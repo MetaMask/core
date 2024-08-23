@@ -1,8 +1,8 @@
 import type {
-  GasPriceValue,
   FeeMarketEIP1559Values,
-} from '../TransactionController';
-import type { TransactionParams } from '../types';
+  GasPriceValue,
+  TransactionParams,
+} from '../types';
 import * as util from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
@@ -118,67 +118,6 @@ describe('utils', () => {
         [MAX_PRIORITY_FEE_PER_GAS]: PASS,
       };
       expect(() => util.validateGasValues(gasValues)).not.toThrow(TypeError);
-    });
-  });
-
-  describe('isFeeMarketEIP1559Values', () => {
-    it('should detect if isFeeMarketEIP1559Values', () => {
-      const gasValues = {
-        [MAX_PRIORITY_FEE_PER_GAS]: PASS,
-        [MAX_FEE_PER_GAS]: FAIL,
-      };
-      expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(true);
-      expect(util.isGasPriceValue(gasValues)).toBe(false);
-    });
-  });
-
-  describe('isGasPriceValue', () => {
-    it('should detect if isGasPriceValue', () => {
-      const gasValues: GasPriceValue = {
-        [GAS_PRICE]: PASS,
-      };
-      expect(util.isGasPriceValue(gasValues)).toBe(true);
-      expect(util.isFeeMarketEIP1559Values(gasValues)).toBe(false);
-    });
-  });
-
-  describe('getIncreasedPriceHex', () => {
-    it('should get increased price from number as hex', () => {
-      expect(util.getIncreasedPriceHex(1358778842, 1.1)).toBe('0x5916a6d6');
-    });
-  });
-
-  describe('getIncreasedPriceFromExisting', () => {
-    it('should get increased price from hex as hex', () => {
-      expect(util.getIncreasedPriceFromExisting('0x50fd51da', 1.1)).toBe(
-        '0x5916a6d6',
-      );
-    });
-  });
-
-  describe('validateMinimumIncrease', () => {
-    it('should throw if increase does not meet minimum requirement', () => {
-      expect(() =>
-        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
-      ).toThrow(Error);
-
-      expect(() =>
-        util.validateMinimumIncrease('0x50fd51da', '0x5916a6d6'),
-      ).toThrow(
-        'The proposed value: 1358778842 should meet or exceed the minimum value: 1494656726',
-      );
-    });
-
-    it('should not throw if increase meets minimum requirement', () => {
-      expect(() =>
-        util.validateMinimumIncrease('0x5916a6d6', '0x5916a6d6'),
-      ).not.toThrow(Error);
-    });
-
-    it('should not throw if increase exceeds minimum requirement', () => {
-      expect(() =>
-        util.validateMinimumIncrease('0x7162a5ca', '0x5916a6d6'),
-      ).not.toThrow(Error);
     });
   });
 
