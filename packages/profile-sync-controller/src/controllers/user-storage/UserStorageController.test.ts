@@ -420,7 +420,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         {
           HashedKey: 'HASHED_KEY',
           Data: encryption.encryptString(
-            JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_FULL),
+            JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL),
             MOCK_STORAGE_KEY,
           ),
         },
@@ -508,7 +508,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   it('creates internal accounts if user storage has more accounts', async () => {
     const mockUserStorageAccountsResponse = {
       status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_FULL.map((account) => ({
+      body: MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.map((account) => ({
         HashedKey: 'HASHED_KEY',
         Data: encryption.encryptString(
           JSON.stringify(account),
@@ -547,7 +547,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
-      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_FULL.length -
+      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
   });
@@ -555,20 +555,25 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   it('does not create internal accounts if user storage has less accounts', async () => {
     const mockUserStorageAccountsResponse = {
       status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.ONE.map((account) => ({
-        HashedKey: 'HASHED_KEY',
-        Data: encryption.encryptString(
-          JSON.stringify(account),
-          MOCK_STORAGE_KEY,
-        ),
-      })),
+      body: MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.slice(0, 1).map(
+        (account) => ({
+          HashedKey: 'HASHED_KEY',
+          Data: encryption.encryptString(
+            JSON.stringify(account),
+            MOCK_STORAGE_KEY,
+          ),
+        }),
+      ),
     };
 
     const arrangeMocksForAccounts = () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
-            accountsList: MOCK_INTERNAL_ACCOUNTS.ALL as InternalAccount[],
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ALL.slice(
+              0,
+              2,
+            ) as InternalAccount[],
           },
         }),
         mockAPI: {
@@ -577,6 +582,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               mockUserStorageAccountsResponse,
             ),
+
+          mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
+            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[1].address}`,
+          ),
         },
       };
     };
@@ -590,6 +599,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await controller.syncInternalAccountsWithUserStorage();
 
     mockAPI.mockEndpointGetUserStorage.done();
+    mockAPI.mockEndpointUpsertUserStorageAccount2.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
 

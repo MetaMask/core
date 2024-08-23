@@ -110,7 +110,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
 };
 
 export const MOCK_USER_STORAGE_ACCOUNTS = {
-  SAME_AS_INTERNAL_FULL: mapInternalAccountsListToUserStorageAccountsList(
+  SAME_AS_INTERNAL_ALL: mapInternalAccountsListToUserStorageAccountsList(
     MOCK_INTERNAL_ACCOUNTS.ALL as InternalAccount[],
   ),
   ONE: mapInternalAccountsListToUserStorageAccountsList(

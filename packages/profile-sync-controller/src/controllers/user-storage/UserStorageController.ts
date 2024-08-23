@@ -780,6 +780,13 @@ export default class UserStorageController extends BaseController<
    * @param address - The address of the internal account to save
    */
   async saveInternalAccountToUserStorage(address: string): Promise<void> {
-    await this.#accounts.saveInternalAccountToUserStorage(address);
+    try {
+      await this.#accounts.saveInternalAccountToUserStorage(address);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
+      throw new Error(
+        `${controllerName} - failed to save account to user storage - ${errorMessage}`,
+      );
+    }
   }
 }
