@@ -467,7 +467,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
-            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ALL.slice(
+              0,
+              2,
+            ) as InternalAccount[],
           },
         }),
         mockAPI: {
@@ -476,8 +479,11 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               mockUserStorageAccountsResponse,
             ),
-          mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+          mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
+            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[0].address}`,
+          ),
+          mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
+            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[1].address}`,
           ),
         },
       };
@@ -491,10 +497,12 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
 
     await controller.syncInternalAccountsWithUserStorage();
     mockAPI.mockEndpointGetUserStorage.done();
-    mockAPI.mockEndpointUpsertUserStorage.done();
+    mockAPI.mockEndpointUpsertUserStorageAccount1.done();
+    mockAPI.mockEndpointUpsertUserStorageAccount2.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
-    expect(mockAPI.mockEndpointUpsertUserStorage.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointUpsertUserStorageAccount1.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointUpsertUserStorageAccount2.isDone()).toBe(true);
   });
 
   it('creates internal accounts if user storage has more accounts', async () => {
