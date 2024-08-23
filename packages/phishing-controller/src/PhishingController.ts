@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
@@ -227,12 +231,27 @@ export type TestOrigin = {
   handler: PhishingController['test'];
 };
 
-export type PhishingControllerActions = MaybeUpdateState | TestOrigin;
+export type PhishingControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  PhishingControllerState
+>;
+
+export type PhishingControllerActions =
+  | PhishingControllerGetStateAction
+  | MaybeUpdateState
+  | TestOrigin;
+
+export type PhishingControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  PhishingControllerState
+>;
+
+export type PhishingControllerEvents = PhishingControllerStateChangeEvent;
 
 export type PhishingControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   PhishingControllerActions,
-  never,
+  PhishingControllerEvents,
   never,
   never
 >;
