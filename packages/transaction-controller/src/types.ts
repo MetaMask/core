@@ -1336,3 +1336,18 @@ export type TraceCallback = <ReturnType>(
    */
   fn?: (context?: TraceContext) => ReturnType,
 ) => Promise<ReturnType>;
+
+/** Gas fee properties for a legacy transaction. */
+export type GasPriceValue = {
+  /** Price per gas for legacy transactions. */
+  gasPrice: string;
+};
+
+/** Gas fee properties for an EIP-1559 transaction. */
+export type FeeMarketEIP1559Values = {
+  /** Maximum amount to pay per gas. */
+  maxFeePerGas: string;
+
+  /** Maximum amount per gas to give to the validator as an incentive. */
+  maxPriorityFeePerGas: string;
+};

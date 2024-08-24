@@ -128,6 +128,13 @@ module.exports = defineConfig({
         // "changelog:validate" scripts.
         expectCorrectWorkspaceChangelogScripts(workspace);
 
+        // All non-root packages must have a valid "since-latest-release" script.
+        expectWorkspaceField(
+          workspace,
+          'scripts.since-latest-release',
+          '../../scripts/since-latest-release.sh',
+        );
+
         // All non-root packages must have the same "test" script.
         expectWorkspaceField(
           workspace,
