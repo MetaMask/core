@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
+- Move composable-controller utility types to base-controller ([#4581](https://github.com/MetaMask/core/pull/4581))
+
 ## [8.0.0]
 
 ### Changed
