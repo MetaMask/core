@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.2.0]
+
+### Added
+
+- Add tracing infrastructure ([#4575](https://github.com/MetaMask/core/pull/4575))
+  - Add optional `trace` callback to constructor.
+  - Add optional `traceContext` option to `addTransaction` method.
+  - Add initial tracing of transaction lifecycle.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^6.0.3` ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `@metamask/network-controller` from `^20.1.0` to `^20.2.0` ([#4618](https://github.com/MetaMask/core/pull/4618))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.2` to `^4.1.3` ([#4607](https://github.com/MetaMask/core/pull/4607))
+
+### Removed
+
+- Remove validation of `gasValues` passed to `speedUpTransaction` and `stopTransaction` methods ([#4617](https://github.com/MetaMask/core/pull/4617))
+
 ## [35.1.1]
 
 ### Changed
@@ -959,7 +978,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...HEAD
+[35.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.1...@metamask/transaction-controller@35.2.0
 [35.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.0...@metamask/transaction-controller@35.1.1
 [35.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.0.1...@metamask/transaction-controller@35.1.0
 [35.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.0.0...@metamask/transaction-controller@35.0.1

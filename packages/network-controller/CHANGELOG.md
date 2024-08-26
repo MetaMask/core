@@ -52,6 +52,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `trackMetaMetricsEvent` option from the NetworkController constructor ([#4268](https://github.com/MetaMask/core/pull/4286))
   - Previously, this was used in `upsertNetworkConfiguration` to create a MetaMetrics event when a new network was added. This can now be achieved by subscribing to the `NetworkController:networkAdded` event and creating the event inside of the event handler.
 
+## [20.2.0]
+
+### Changed
+
+- `upsertNetworkConfiguration` now accepts an optional id property on the NetworkConfiguration param. It allows a network configuration to have its rpcUrl updated in place when an id is specified, but only if that new rpcUrl does not already exist on a different network configuration. ([#4614](https://github.com/MetaMask/core/pull/4614))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.1.3` ([#4607](https://github.com/MetaMask/core/pull/4607))
+- Update TypeScript to 5.2.2 ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- `removeNetworkConfiguration` now throws an error if you attempt to remove the selected network ([#4566](https://github.com/MetaMask/core/pull/4566))
+
 ## [20.1.0]
 
 ### Added
@@ -585,7 +597,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...HEAD
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...@metamask/network-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.3...@metamask/network-controller@19.0.0

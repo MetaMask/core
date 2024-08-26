@@ -35,13 +35,14 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/address-book-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/address-book-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^6.0.3",
     "@metamask/controller-utils": "^11.0.2",
     "@metamask/utils": "^9.1.0"
   },
