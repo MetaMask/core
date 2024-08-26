@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^6.0.3",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/controller-utils": "^11.1.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
