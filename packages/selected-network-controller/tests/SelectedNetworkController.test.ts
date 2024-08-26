@@ -1,7 +1,8 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type {
-  ProviderProxy,
-  BlockTrackerProxy,
+import {
+  type ProviderProxy,
+  type BlockTrackerProxy,
+  getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 
@@ -302,16 +303,10 @@ describe('SelectedNetworkController', () => {
         messenger.publish(
           'NetworkController:stateChange',
           {
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'goerli',
-            networkConfigurationsByChainId: {},
-            networksMetadata: {},
           },
-          [
-            {
-              op: 'remove',
-              path: ['networkConfigurations', 'test-network-client-id'],
-            },
-          ],
+          [],
         );
         expect(controller.state.domains).toStrictEqual({});
       });
@@ -331,16 +326,10 @@ describe('SelectedNetworkController', () => {
         messenger.publish(
           'NetworkController:stateChange',
           {
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'goerli',
-            networkConfigurationsByChainId: {},
-            networksMetadata: {},
           },
-          [
-            {
-              op: 'remove',
-              path: ['networkConfigurations', 'test-network-client-id'],
-            },
-          ],
+          [],
         );
         expect(controller.state.domains['example.com']).toBe('goerli');
         expect(controller.state.domains['test.com']).toBe('goerli');
