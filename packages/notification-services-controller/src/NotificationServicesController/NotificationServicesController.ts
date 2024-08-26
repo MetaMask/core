@@ -168,6 +168,12 @@ export const defaultState: NotificationServicesControllerState = {
   isCheckingAccountsPresence: false,
 };
 
+export type NotificationServicesControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    NotificationServicesControllerState
+  >;
+
 export type NotificationServicesControllerUpdateMetamaskNotificationsList = {
   type: `${typeof controllerName}:updateMetamaskNotificationsList`;
   handler: NotificationServicesController['updateMetamaskNotificationsList'];
@@ -186,10 +192,10 @@ export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
 
 // Messenger Actions
 export type Actions =
+  | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled
-  | ControllerGetStateAction<'state', NotificationServicesControllerState>;
+  | NotificationServicesControllerSelectIsNotificationServicesEnabled;
 
 // Allowed Actions
 export type AllowedActions =
@@ -210,27 +216,27 @@ export type AllowedActions =
   | NotificationServicesPushControllerUpdateTriggerPushNotifications;
 
 // Events
-export type NotificationServicesControllerChangeEvent =
+export type NotificationServicesControllerStateChangeEvent =
   ControllerStateChangeEvent<
     typeof controllerName,
     NotificationServicesControllerState
   >;
 
-export type MetamaskNotificationsControllerNotificationsListUpdatedEvent = {
+export type NotificationListUpdatedEvent = {
   type: `${typeof controllerName}:notificationsListUpdated`;
   payload: [INotification[]];
 };
 
-export type MetamaskNotificationsControllerMarkNotificationsAsRead = {
+export type MarkNotificationsAsReadEvent = {
   type: `${typeof controllerName}:markNotificationsAsRead`;
   payload: [INotification[]];
 };
 
 // Events
 export type Events =
-  | NotificationServicesControllerChangeEvent
-  | MetamaskNotificationsControllerNotificationsListUpdatedEvent
-  | MetamaskNotificationsControllerMarkNotificationsAsRead;
+  | NotificationServicesControllerStateChangeEvent
+  | NotificationListUpdatedEvent
+  | MarkNotificationsAsReadEvent;
 
 // Allowed Events
 export type AllowedEvents =

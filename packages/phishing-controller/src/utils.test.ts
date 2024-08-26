@@ -124,11 +124,11 @@ describe('applyDiffs', () => {
     const result = applyDiffs(
       testExistingState,
       [exampleAddDiff],
-      ListKeys.PhishfortHotlist,
+      ListKeys.EthPhishingDetectConfig,
     );
     expect(result).toStrictEqual({
       ...testExistingState,
-      name: ListNames.Phishfort,
+      name: ListNames.MetaMask,
     });
   });
 
@@ -142,14 +142,14 @@ describe('applyDiffs', () => {
     const result = applyDiffs(
       testExistingState,
       [
-        { ...exampleAddDiff, timestamp: 1674773009 },
+        { ...exampleAddDiff, timestamp: 1674773005 },
         { ...exampleRemoveDiff, timestamp: 1674773004 },
       ],
-      ListKeys.PhishfortHotlist,
+      ListKeys.EthPhishingDetectConfig,
     );
     expect(result).toStrictEqual({
       ...testExistingState,
-      name: ListNames.Phishfort,
+      name: ListNames.MetaMask,
     });
   });
   // New tests for handling C2 domain blocklist
