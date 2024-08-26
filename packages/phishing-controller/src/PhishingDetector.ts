@@ -1,6 +1,9 @@
 import { distance } from 'fastest-levenshtein';
 
-import type { PhishingDetectorResult } from './types';
+import {
+  PhishingDetectorResultType,
+  type PhishingDetectorResult,
+} from './types';
 import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
@@ -98,10 +101,10 @@ export class PhishingDetector {
 
     if (this.#legacyConfig) {
       let legacyType = result.type;
-      if (legacyType === 'allowlist') {
-        legacyType = 'whitelist';
-      } else if (legacyType === 'blocklist') {
-        legacyType = 'blacklist';
+      if (legacyType === PhishingDetectorResultType.Allowlist) {
+        legacyType = PhishingDetectorResultType.Whitelist;
+      } else if (legacyType === PhishingDetectorResultType.Blocklist) {
+        legacyType = PhishingDetectorResultType.Blacklist;
       }
       return {
         match: result.match,
@@ -119,7 +122,7 @@ export class PhishingDetector {
     } catch (error) {
       return {
         result: false,
-        type: 'all',
+        type: PhishingDetectorResultType.All,
       };
     }
 
@@ -136,7 +139,7 @@ export class PhishingDetector {
           match,
           name,
           result: false,
-          type: 'allowlist',
+          type: PhishingDetectorResultType.Allowlist,
           version: version === undefined ? version : String(version),
         };
       }
@@ -152,7 +155,7 @@ export class PhishingDetector {
           match,
           name,
           result: true,
-          type: 'blocklist',
+          type: PhishingDetectorResultType.Blocklist,
           version: version === undefined ? version : String(version),
         };
       }
@@ -174,7 +177,7 @@ export class PhishingDetector {
             name,
             match,
             result: true,
-            type: 'fuzzy',
+            type: PhishingDetectorResultType.Fuzzy,
             version: version === undefined ? version : String(version),
           };
         }
@@ -200,7 +203,7 @@ export class PhishingDetector {
             name,
             match: cID,
             result: true,
-            type: 'blocklist',
+            type: PhishingDetectorResultType.Blocklist,
             version: version === undefined ? version : String(version),
           };
         }
@@ -208,7 +211,7 @@ export class PhishingDetector {
     }
 
     // matched nothing, PASS
-    return { result: false, type: 'all' };
+    return { result: false, type: PhishingDetectorResultType.All };
   }
 
   /**
@@ -231,20 +234,23 @@ export class PhishingDetector {
           return {
             name,
             result: true,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
             version: version === undefined ? version : String(version),
           };
         }
       } catch (error) {
         return {
           result: false,
-          type: 'c2DomainBlocklist',
+          type: PhishingDetectorResultType.C2DomainBlocklist,
         };
       }
     }
 
     // did not match, PASS
-    return { result: false, type: 'c2DomainBlocklist' };
+    return {
+      result: false,
+      type: PhishingDetectorResultType.C2DomainBlocklist,
+    };
   }
 }
 

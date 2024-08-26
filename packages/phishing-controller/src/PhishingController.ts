@@ -8,7 +8,10 @@ import { safelyExecute } from '@metamask/controller-utils';
 import { toASCII } from 'punycode/';
 
 import { PhishingDetector } from './PhishingDetector';
-import type { PhishingDetectorResult } from './types';
+import {
+  PhishingDetectorResultType,
+  type PhishingDetectorResult,
+} from './types';
 import { applyDiffs, fetchTimeNow } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -416,7 +419,7 @@ export class PhishingController extends BaseController<
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
     if (this.state.whitelist.includes(punycodeOrigin)) {
-      return { result: false, type: 'all' }; // Same as whitelisted match returned by detector.check(...).
+      return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
     return this.#detector.check(punycodeOrigin);
   }
