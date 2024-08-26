@@ -1,4 +1,4 @@
-import { v1 as random } from 'uuid';
+import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
@@ -129,23 +129,24 @@ export class DecryptMessageManager extends AbstractMessageManager<
     messageParams: DecryptMessageParams,
     req?: OriginalRequest,
   ) {
-    if (req) {
-      messageParams.requestId = req.id;
-      messageParams.origin = req.origin;
-    }
-    messageParams.data = normalizeMessageData(messageParams.data);
-    const messageId = random();
-    const messageData: DecryptMessage = {
-      id: messageId,
+    const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
-      status: 'unapproved',
-      time: Date.now(),
-      type: 'eth_decrypt',
-    };
+      req,
+    ) as DecryptMessageParams;
+    updatedMessageParams.data = normalizeMessageData(messageParams.data);
+
+    const messageData = this.createUnapprovedMessage(
+      updatedMessageParams,
+      ApprovalType.EthDecrypt,
+      req,
+    ) as DecryptMessage;
+
+    const messageId = messageData.id;
+
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...messageParams,
-      ...{ metamaskId: messageId },
+      ...updatedMessageParams,
+      metamaskId: messageId,
     });
     return messageId;
   }

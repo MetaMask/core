@@ -1,7 +1,14 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
+import type { ApprovalType } from '@metamask/controller-utils';
 import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
+import { v1 as random } from 'uuid';
+
+import type { DecryptMessageParams } from './DecryptMessageManager';
+import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
+import type { PersonalMessageParams } from './PersonalMessageManager';
+import type { TypedMessageParams } from './TypedMessageManager';
 
 /**
  * @type OriginalRequest
@@ -97,6 +104,15 @@ export interface MessageManagerState<M extends AbstractMessage>
 }
 
 /**
+ * Represents the parameters to pass to the signing method once the signature request is approved.
+ */
+type MessageParams =
+  | DecryptMessageParams
+  | EncryptionPublicKeyParams
+  | PersonalMessageParams
+  | TypedMessageParams;
+
+/**
  * A function for verifying a message, whether it is malicious or not
  */
 export type SecurityProviderRequest = (
@@ -129,6 +145,52 @@ export abstract class AbstractMessageManager<
   private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
   private readonly additionalFinishStatuses: string[];
+
+  /**
+   * Adds request props to the messsage params and returns a new messageParams object.
+   * @param messageParams - The messageParams to add the request props to.
+   * @param req - The original request object.
+   * @returns The messageParams with the request props added.
+   */
+  protected addRequestToMessageParams(
+    messageParams: MessageParams,
+    req?: OriginalRequest,
+  ) {
+    const updatedMessageParams = {
+      ...messageParams,
+    };
+
+    if (req) {
+      updatedMessageParams.requestId = req.id;
+      updatedMessageParams.origin = req.origin;
+    }
+
+    return updatedMessageParams;
+  }
+
+  /**
+   * Creates a new Message with a random id and an 'unapproved' status.
+   * @param messageParams - The messageParams to add the request props to.
+   * @param type - The approval type of the message.
+   * @param req - The original request object.
+   * @returns The new unapproved message for a specified type.
+   */
+  protected createUnapprovedMessage(
+    messageParams: MessageParams,
+    type: ApprovalType,
+    req?: OriginalRequest,
+  ) {
+    const messageId = random();
+
+    return {
+      id: messageId,
+      messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
+      status: 'unapproved',
+      time: Date.now(),
+      type,
+    };
+  }
 
   /**
    * Saves the unapproved messages, and their count to state.
