@@ -174,6 +174,11 @@ export type KeyringControllerSignUserOperationAction = {
   handler: KeyringController['signUserOperation'];
 };
 
+export type KeyringControllerAddNewAccountAction = {
+  type: `${typeof name}:addNewAccount`;
+  handler: KeyringController['addNewAccount'];
+};
+
 export type KeyringControllerStateChangeEvent = {
   type: `${typeof name}:stateChange`;
   payload: [KeyringControllerState, Patch[]];
@@ -212,7 +217,8 @@ export type KeyringControllerActions =
   | KeyringControllerPersistAllKeyringsAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
-  | KeyringControllerSignUserOperationAction;
+  | KeyringControllerSignUserOperationAction
+  | KeyringControllerAddNewAccountAction;
 
 export type KeyringControllerEvents =
   | KeyringControllerStateChangeEvent
@@ -772,10 +778,12 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Create a new primary keychain and wipe any previous keychains.
+   * Create a new vault and primary keyring.
+   *
+   * This only works if keyrings are empty. If there is a pre-existing unlocked vault, calling this will have no effect.
+   * If there is a pre-existing locked vault, it will be replaced.
    *
    * @param password - Password to unlock the new vault.
-   * @returns Promise resolving when the operation ends successfully.
    */
   async createNewVaultAndKeychain(password: string) {
     return this.#persistOrRollback(async () => {
@@ -1096,6 +1104,8 @@ export class KeyringController extends BaseController<
       this.update((state) => {
         state.isUnlocked = false;
         state.keyrings = [];
+        delete state.encryptionKey;
+        delete state.encryptionSalt;
       });
 
       this.messagingSystem.publish(`${name}:lock`);
@@ -1792,6 +1802,11 @@ export class KeyringController extends BaseController<
       `${name}:signUserOperation`,
       this.signUserOperation.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      `${name}:addNewAccount`,
+      this.addNewAccount.bind(this),
+    );
   }
 
   /**
@@ -1874,6 +1889,12 @@ export class KeyringController extends BaseController<
     if (typeof password !== 'string') {
       throw new TypeError(KeyringControllerError.WrongPasswordType);
     }
+
+    this.update((state) => {
+      delete state.encryptionKey;
+      delete state.encryptionSalt;
+    });
+
     this.#password = password;
 
     await this.#clearKeyrings();

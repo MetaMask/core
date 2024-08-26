@@ -1,6 +1,6 @@
 {
   "name": "@metamask/eth-json-rpc-provider",
-  "version": "4.0.0",
+  "version": "4.1.3",
   "description": "Create an Ethereum provider using a JSON-RPC engine or middleware",
   "keywords": [
     "MetaMask",
@@ -40,16 +40,17 @@
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn lint:dependencies",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!CHANGELOG.md' '**/*.yml' '!.yarnrc.yml' --ignore-path .gitignore --no-error-on-unmatched-pattern",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/json-rpc-engine": "^9.0.0",
-    "@metamask/rpc-errors": "^6.2.1",
+    "@metamask/json-rpc-engine": "^9.0.2",
+    "@metamask/rpc-errors": "^6.3.1",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^8.3.0",
+    "@metamask/utils": "^9.1.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -64,7 +65,7 @@
     "jest-it-up": "^2.0.2",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
-    "typescript": "~4.9.5"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"

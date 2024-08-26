@@ -1,6 +1,7 @@
 import { SiweMessage } from 'siwe';
 
 import { ValidationError } from '../errors';
+import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   SIWE_LOGIN_URL,
   authenticate,
@@ -83,7 +84,7 @@ export class SIWEJwtBearerAuth implements IBaseAuth {
   // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
   async #getAuthSession(): Promise<LoginResponse | null> {
     const auth = await this.#options.storage.getLoginResponse();
-    if (!auth) {
+    if (!validateLoginResponse(auth)) {
       return null;
     }
 

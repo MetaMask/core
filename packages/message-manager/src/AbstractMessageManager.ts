@@ -204,7 +204,7 @@ export abstract class AbstractMessageManager<
   /**
    * EventEmitter instance used to listen to specific message events
    */
-  hub = new EventEmitter();
+  hub: EventEmitter = new EventEmitter();
 
   /**
    * Name of this controller used during composition

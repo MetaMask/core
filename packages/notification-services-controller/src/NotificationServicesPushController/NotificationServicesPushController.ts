@@ -213,7 +213,7 @@ export default class NotificationServicesPushController extends BaseController<
         return;
       }
 
-      this.#pushListenerUnsubscribe = await listenToPushNotifications({
+      this.#pushListenerUnsubscribe ??= await listenToPushNotifications({
         env: this.#env,
         listenToPushReceived: async (n) => {
           this.messagingSystem.publish(
@@ -230,7 +230,7 @@ export default class NotificationServicesPushController extends BaseController<
             );
           }
 
-          this.#config.onPushNotificationClicked(e);
+          this.#config.onPushNotificationClicked(e, n);
         },
       });
 

@@ -24,6 +24,7 @@ import {
   ERC1155,
   ApprovalType,
   NFT_API_BASE_URL,
+  NFT_API_VERSION,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-api';
 import type {
@@ -43,8 +44,19 @@ import { Mutex } from 'async-mutex';
 import BN from 'bn.js';
 import { v4 as random } from 'uuid';
 
-import type { AssetsContractController } from './AssetsContractController';
-import { compareNftMetadata, getFormattedIpfsUrl } from './assetsUtil';
+import type {
+  AssetsContractControllerGetERC1155BalanceOfAction,
+  AssetsContractControllerGetERC1155TokenURIAction,
+  AssetsContractControllerGetERC721AssetNameAction,
+  AssetsContractControllerGetERC721AssetSymbolAction,
+  AssetsContractControllerGetERC721OwnerOfAction,
+  AssetsContractControllerGetERC721TokenURIAction,
+} from './AssetsContractController';
+import {
+  compareNftMetadata,
+  getFormattedIpfsUrl,
+  hasNewCollectionFields,
+} from './assetsUtil';
 import { Source } from './constants';
 import type {
   ApiNftContract,
@@ -52,6 +64,8 @@ import type {
   Collection,
   Attributes,
   LastSale,
+  GetCollectionsResponse,
+  TopBid,
 } from './NftDetectionController';
 
 type NFTStandardType = 'ERC721' | 'ERC1155';
@@ -163,9 +177,10 @@ export type NftMetadata = {
   tokenURI?: string | null;
   collection?: Collection;
   address?: string;
-  attributes?: Attributes;
+  attributes?: Attributes[];
   lastSale?: LastSale;
   rarityRank?: string;
+  topBid?: TopBid;
 };
 
 /**
@@ -222,7 +237,13 @@ export type AllowedActions =
   | AddApprovalRequest
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
-  | NetworkControllerGetNetworkClientByIdAction;
+  | NetworkControllerGetNetworkClientByIdAction
+  | AssetsContractControllerGetERC721AssetNameAction
+  | AssetsContractControllerGetERC721AssetSymbolAction
+  | AssetsContractControllerGetERC721TokenURIAction
+  | AssetsContractControllerGetERC721OwnerOfAction
+  | AssetsContractControllerGetERC1155BalanceOfAction
+  | AssetsContractControllerGetERC1155TokenURIAction;
 
 export type AllowedEvents =
   | PreferencesControllerStateChangeEvent
@@ -280,18 +301,6 @@ export class NftController extends BaseController<
 
   #isIpfsGatewayEnabled: boolean;
 
-  readonly #getERC721AssetName: AssetsContractController['getERC721AssetName'];
-
-  readonly #getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
-
-  readonly #getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
-
-  readonly #getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
-
-  readonly #getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
-
-  readonly #getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
-
   readonly #onNftAdded?: (data: {
     address: string;
     symbol: string | undefined;
@@ -309,12 +318,6 @@ export class NftController extends BaseController<
    * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
    * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
    * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
-   * @param options.getERC721AssetName - Gets the name of the asset at the given address.
-   * @param options.getERC721AssetSymbol - Gets the symbol of the asset at the given address.
-   * @param options.getERC721TokenURI - Gets the URI of the ERC721 token at the given address, with the given ID.
-   * @param options.getERC721OwnerOf - Get the owner of a ERC-721 NFT.
-   * @param options.getERC1155BalanceOf - Gets balance of a ERC-1155 NFT.
-   * @param options.getERC1155TokenURI - Gets the URI of the ERC1155 token at the given address, with the given ID.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
    * for tracking the NFT added event.
    * @param options.messenger - The controller messenger.
@@ -326,12 +329,6 @@ export class NftController extends BaseController<
     openSeaEnabled = false,
     useIpfsSubdomains = true,
     isIpfsGatewayEnabled = true,
-    getERC721AssetName,
-    getERC721AssetSymbol,
-    getERC721TokenURI,
-    getERC721OwnerOf,
-    getERC1155BalanceOf,
-    getERC1155TokenURI,
     onNftAdded,
     messenger,
     state = {},
@@ -341,12 +338,6 @@ export class NftController extends BaseController<
     openSeaEnabled?: boolean;
     useIpfsSubdomains?: boolean;
     isIpfsGatewayEnabled?: boolean;
-    getERC721AssetName: AssetsContractController['getERC721AssetName'];
-    getERC721AssetSymbol: AssetsContractController['getERC721AssetSymbol'];
-    getERC721TokenURI: AssetsContractController['getERC721TokenURI'];
-    getERC721OwnerOf: AssetsContractController['getERC721OwnerOf'];
-    getERC1155BalanceOf: AssetsContractController['getERC1155BalanceOf'];
-    getERC1155TokenURI: AssetsContractController['getERC1155TokenURI'];
     onNftAdded?: (data: {
       address: string;
       symbol: string | undefined;
@@ -375,13 +366,6 @@ export class NftController extends BaseController<
     this.#openSeaEnabled = openSeaEnabled;
     this.#useIpfsSubdomains = useIpfsSubdomains;
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
-
-    this.#getERC721AssetName = getERC721AssetName;
-    this.#getERC721AssetSymbol = getERC721AssetSymbol;
-    this.#getERC721TokenURI = getERC721TokenURI;
-    this.#getERC721OwnerOf = getERC721OwnerOf;
-    this.#getERC1155BalanceOf = getERC1155BalanceOf;
-    this.#getERC1155TokenURI = getERC1155TokenURI;
     this.#onNftAdded = onNftAdded;
 
     this.messagingSystem.subscribe(
@@ -512,6 +496,12 @@ export class NftController extends BaseController<
     });
   }
 
+  #getNftCollectionApi(): string {
+    // False negative.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    return `${NFT_API_BASE_URL}/collections`;
+  }
+
   /**
    * Request individual NFT information from NFT API.
    *
@@ -532,12 +522,29 @@ export class NftController extends BaseController<
       includeAttributes: 'true',
       includeLastSale: 'true',
     }).toString();
+
+    // First fetch token information
     const nftInformation: ReservoirResponse | undefined =
       await fetchWithErrorHandling({
         url: `${this.getNftApi()}?${urlParams}`,
         options: {
           headers: {
-            Version: '1',
+            Version: NFT_API_VERSION,
+          },
+        },
+      });
+    // Params for getCollections API call
+    const getCollectionParams = new URLSearchParams({
+      chainId: '1',
+      id: `${nftInformation?.tokens[0]?.token?.collection?.id as string}`,
+    }).toString();
+    // Fetch collection information using collectionId
+    const collectionInformation: GetCollectionsResponse | undefined =
+      await fetchWithErrorHandling({
+        url: `${NFT_API_BASE_URL as string}/collections?${getCollectionParams}`,
+        options: {
+          headers: {
+            Version: NFT_API_VERSION,
           },
         },
       });
@@ -585,7 +592,20 @@ export class NftController extends BaseController<
       },
       rarityRank && { rarityRank },
       rarity && { rarity },
-      collection && { collection },
+      (collection || collectionInformation) && {
+        collection: {
+          ...(collection || {}),
+          creator:
+            collection?.creator ||
+            collectionInformation?.collections[0].creator,
+          openseaVerificationStatus:
+            collectionInformation?.collections[0].openseaVerificationStatus,
+          contractDeployedAt:
+            collectionInformation?.collections[0].contractDeployedAt,
+          ownerCount: collectionInformation?.collections[0].ownerCount,
+          topBid: collectionInformation?.collections[0].topBid,
+        },
+      },
     );
 
     return nftMetadata;
@@ -638,7 +658,7 @@ export class NftController extends BaseController<
     }
 
     if (hasIpfsTokenURI) {
-      tokenURI = getFormattedIpfsUrl(
+      tokenURI = await getFormattedIpfsUrl(
         this.#ipfsGateway,
         tokenURI,
         this.#useIpfsSubdomains,
@@ -697,7 +717,8 @@ export class NftController extends BaseController<
   ): Promise<[string, string]> {
     // try ERC721 uri
     try {
-      const uri = await this.#getERC721TokenURI(
+      const uri = await this.messagingSystem.call(
+        'AssetsContractController:getERC721TokenURI',
         contractAddress,
         tokenId,
         networkClientId,
@@ -709,7 +730,8 @@ export class NftController extends BaseController<
 
     // try ERC1155 uri
     try {
-      const tokenURI = await this.#getERC1155TokenURI(
+      const tokenURI = await this.messagingSystem.call(
+        'AssetsContractController:getERC1155TokenURI',
         contractAddress,
         tokenId,
         networkClientId,
@@ -794,8 +816,16 @@ export class NftController extends BaseController<
       Pick<ApiNftContract, 'collection'>
   > {
     const [name, symbol] = await Promise.all([
-      this.#getERC721AssetName(contractAddress, networkClientId),
-      this.#getERC721AssetSymbol(contractAddress, networkClientId),
+      this.messagingSystem.call(
+        'AssetsContractController:getERC721AssetName',
+        contractAddress,
+        networkClientId,
+      ),
+      this.messagingSystem.call(
+        'AssetsContractController:getERC721AssetSymbol',
+        contractAddress,
+        networkClientId,
+      ),
     ]);
 
     return {
@@ -920,7 +950,13 @@ export class NftController extends BaseController<
           existingEntry,
         );
 
-        if (!differentMetadata && existingEntry.isCurrentlyOwned) {
+        const hasNewFields = hasNewCollectionFields(nftMetadata, existingEntry);
+
+        if (
+          !differentMetadata &&
+          existingEntry.isCurrentlyOwned &&
+          !hasNewFields
+        ) {
           return;
         }
 
@@ -1369,7 +1405,8 @@ export class NftController extends BaseController<
   ): Promise<boolean> {
     // Checks the ownership for ERC-721.
     try {
-      const owner = await this.#getERC721OwnerOf(
+      const owner = await this.messagingSystem.call(
+        'AssetsContractController:getERC721OwnerOf',
         nftAddress,
         tokenId,
         networkClientId,
@@ -1382,7 +1419,8 @@ export class NftController extends BaseController<
 
     // Checks the ownership for ERC-1155.
     try {
-      const balance = await this.#getERC1155BalanceOf(
+      const balance = await this.messagingSystem.call(
+        'AssetsContractController:getERC1155BalanceOf',
         ownerAddress,
         nftAddress,
         tokenId,
@@ -1939,6 +1977,34 @@ export class NftController extends BaseController<
     });
 
     return true;
+  }
+
+  /**
+   * Fetches NFT Collection Metadata from the NFT API.
+   *
+   * @param contractAddresses - The contract addresses of the NFTs.
+   * @param chainId - The chain ID of the network where the NFT is located.
+   * @returns NFT collections metadata.
+   */
+  async getNFTContractInfo(
+    contractAddresses: string[],
+    chainId: Hex,
+  ): Promise<{
+    collections: Collection[];
+  }> {
+    const url = new URL(this.#getNftCollectionApi());
+
+    url.searchParams.append('chainId', chainId);
+
+    for (const address of contractAddresses) {
+      url.searchParams.append('contract', address);
+    }
+
+    return await handleFetch(url, {
+      headers: {
+        Version: NFT_API_VERSION,
+      },
+    });
   }
 
   async _requestApproval(suggestedNftMeta: SuggestedNftMeta) {

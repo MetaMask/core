@@ -27,14 +27,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (req, res, next, end) =>
-        await implementation(req, res, next, end, {
-          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-        }),
-    );
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
+        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+      });
+    });
 
     const response = await engine.handle({
       jsonrpc: '2.0',
@@ -42,8 +42,6 @@ describe('revokePermissions RPC method', () => {
       method: 'wallet_revokePermissions',
       params: [
         {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           snap_dialog: {},
         },
       ],
@@ -62,14 +60,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (req, res, next, end) =>
-        await implementation(req, res, next, end, {
-          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-        }),
-    );
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
+        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+      });
+    });
 
     const req: JsonRpcRequest<Record<string, Json>> = {
       jsonrpc: '2.0',
@@ -85,7 +83,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -99,14 +97,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (req, res, next, end) =>
-        await implementation(req, res, next, end, {
-          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-        }),
-    );
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
+        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+      });
+    });
 
     const req: JsonRpcRequest<[Record<string, Json>]> = {
       jsonrpc: '2.0',
@@ -122,7 +120,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -136,14 +134,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (req, res, next, end) =>
-        await implementation(req, res, next, end, {
-          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-        }),
-    );
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
+        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+      });
+    });
 
     const req: JsonRpcRequest<[]> = {
       jsonrpc: '2.0',
@@ -158,7 +156,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);
@@ -172,14 +170,14 @@ describe('revokePermissions RPC method', () => {
     const mockRevokePermissionsForOrigin = jest.fn();
 
     const engine = new JsonRpcEngine();
-    engine.push<RevokePermissionArgs, null>(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (req, res, next, end) =>
-        await implementation(req, res, next, end, {
-          revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
-        }),
-    );
+    engine.push<RevokePermissionArgs, null>((req, res, next, end) => {
+      // We intentionally do not await this promise; JsonRpcEngine won't await
+      // middleware anyway.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      implementation(req, res, next, end, {
+        revokePermissionsForOrigin: mockRevokePermissionsForOrigin,
+      });
+    });
 
     const req: JsonRpcRequest<Json[]> = {
       jsonrpc: '2.0',
@@ -195,7 +193,7 @@ describe('revokePermissions RPC method', () => {
       .serialize();
     delete expectedError.stack;
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // ESLint is confused; this signature is async.
     // eslint-disable-next-line @typescript-eslint/await-thenable
     const response = await engine.handle(req);
     assertIsJsonRpcFailure(response);

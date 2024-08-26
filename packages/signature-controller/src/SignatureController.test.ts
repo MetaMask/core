@@ -12,7 +12,6 @@ import {
   PersonalMessageManager,
   TypedMessageManager,
 } from '@metamask/message-manager';
-import { EthereumProviderError } from '@metamask/rpc-errors';
 
 import type {
   SignatureControllerMessenger,
@@ -368,18 +367,23 @@ describe('SignatureController', () => {
     it('throws if approval rejected', async () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
+        .mockRejectedValueOnce({
+          message: 'User rejected the request.',
+          data: {
+            source: 'MetaMask',
+          },
+        }); // ApprovalController:addRequest
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
+      const error: any = await getError<Error>(
         async () =>
           await signatureController.newUnsignedPersonalMessage(
             messageParamsMock,
             requestMock,
           ),
       );
-      expect(error instanceof EthereumProviderError).toBe(true);
       expect(error.message).toBe('User rejected the request.');
+      expect(error.data).toStrictEqual({ source: 'MetaMask' });
     });
 
     it('throws if cannot get signature', async () => {
@@ -521,10 +525,13 @@ describe('SignatureController', () => {
     it('throws if approval rejected', async () => {
       messengerMock.call
         .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
+        .mockRejectedValueOnce({
+          message: 'User rejected the request.',
+          data: { source: 'Metamask' },
+        }); // ApprovalController:addRequest
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
+      const error: any = await getError<Error>(
         async () =>
           await signatureController.newUnsignedTypedMessage(
             messageParamsMock,
@@ -533,8 +540,8 @@ describe('SignatureController', () => {
             { parseJsonData: true },
           ),
       );
-      expect(error instanceof EthereumProviderError).toBe(true);
       expect(error.message).toBe('User rejected the request.');
+      expect(error.data).toStrictEqual({ source: 'Metamask' });
     });
 
     it('throws if cannot get signature', async () => {

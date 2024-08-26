@@ -6,7 +6,6 @@ import {
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 import BN from 'bn.js';
-import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
 import type { AbstractTokenPricesService } from './token-prices-service';
@@ -46,6 +45,22 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
     return value;
   }, 0);
   return differentValues > 0;
+}
+
+/**
+ * Checks whether the existing nft object has all the keys of the new incoming nft metadata object
+ * @param newNftMetadata - New nft metadata object
+ * @param nft - Existing nft object to compare with
+ * @returns Whether the existing nft object has all the new keys from the new Nft metadata object
+ */
+export function hasNewCollectionFields(
+  newNftMetadata: NftMetadata,
+  nft: Nft,
+): boolean {
+  const keysNewNftMetadata = Object.keys(newNftMetadata.collection ?? {});
+  const keysExistingNft = new Set(Object.keys(nft.collection ?? {}));
+
+  return keysNewNftMetadata.some((key) => !keysExistingNft.has(key));
 }
 
 const aggregatorNameByKey: Record<string, string> = {
@@ -217,10 +232,10 @@ export function removeIpfsProtocolPrefix(ipfsUrl: string) {
  * @returns IFPS content identifier (cid) and sub path as string.
  * @throws Will throw if the url passed is not ipfs.
  */
-export function getIpfsCIDv1AndPath(ipfsUrl: string): {
+export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   cid: string;
   path?: string;
-} {
+}> {
   const url = removeIpfsProtocolPrefix(ipfsUrl);
 
   // check if there is a path
@@ -229,6 +244,7 @@ export function getIpfsCIDv1AndPath(ipfsUrl: string): {
   const cid = index !== -1 ? url.substring(0, index) : url;
   const path = index !== -1 ? url.substring(index) : undefined;
 
+  const { CID } = await import('multiformats');
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains
   return {
@@ -245,14 +261,14 @@ export function getIpfsCIDv1AndPath(ipfsUrl: string): {
  * @param subdomainSupported - Boolean indicating whether the URL should be formatted with subdomains or not.
  * @returns A formatted URL, with the user's preferred IPFS gateway and format (subdomain or not), pointing to an asset hosted on IPFS.
  */
-export function getFormattedIpfsUrl(
+export async function getFormattedIpfsUrl(
   ipfsGateway: string,
   ipfsUrl: string,
   subdomainSupported: boolean,
-): string {
+): Promise<string> {
   const { host, protocol, origin } = new URL(addUrlProtocolPrefix(ipfsGateway));
   if (subdomainSupported) {
-    const { cid, path } = getIpfsCIDv1AndPath(ipfsUrl);
+    const { cid, path } = await getIpfsCIDv1AndPath(ipfsUrl);
     return `${protocol}//${cid}.ipfs.${host}${path ?? ''}`;
   }
   const cidAndPath = removeIpfsProtocolPrefix(ipfsUrl);

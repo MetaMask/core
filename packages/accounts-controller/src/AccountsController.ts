@@ -106,6 +106,11 @@ export type AccountsControllerGetAccountAction = {
   handler: AccountsController['getAccount'];
 };
 
+export type AccountsControllerUpdateAccountMetadataAction = {
+  type: `${typeof controllerName}:updateAccountMetadata`;
+  handler: AccountsController['updateAccountMetadata'];
+};
+
 export type AllowedActions =
   | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
@@ -122,7 +127,8 @@ export type AccountsControllerActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerGetNextAvailableAccountNameAction
   | AccountsControllerGetAccountAction
-  | AccountsControllerGetSelectedMultichainAccountAction;
+  | AccountsControllerGetSelectedMultichainAccountAction
+  | AccountsControllerUpdateAccountMetadataAction;
 
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -406,8 +412,6 @@ export class AccountsController extends BaseController<
    * @throws An error if an account with the same name already exists.
    */
   setAccountName(accountId: string, accountName: string): void {
-    const account = this.getAccountExpect(accountId);
-
     if (
       this.listMultichainAccounts().find(
         (internalAccount) =>
@@ -418,11 +422,30 @@ export class AccountsController extends BaseController<
       throw new Error('Account name already exists');
     }
 
+    this.updateAccountMetadata(accountId, { name: accountName });
+  }
+
+  /**
+   * Updates the metadata of the account with the given ID.
+   * Use {@link setAccountName} if you only need to update the name of the account.
+   *
+   * @param accountId - The ID of the account for which the metadata will be updated.
+   * @param metadata - The new metadata for the account.
+   */
+  updateAccountMetadata(
+    accountId: string,
+    metadata: Partial<InternalAccount['metadata']>,
+  ): void {
+    const account = this.getAccountExpect(accountId);
+
     this.update((currentState: Draft<AccountsControllerState>) => {
       const internalAccount = {
         ...account,
-        metadata: { ...account.metadata, name: accountName },
+        metadata: { ...account.metadata, ...metadata },
       };
+      // Do not remove this comment - This error is flaky: Comment out or restore the `ts-expect-error` directive below as needed.
+      // See: https://github.com/MetaMask/utils/issues/168
+      // // @ts-expect-error Known issue - `Json` causes recursive error in immer `Draft`/`WritableDraft` types
       currentState.internalAccounts.accounts[accountId] = internalAccount;
     });
   }
@@ -481,6 +504,28 @@ export class AccountsController extends BaseController<
 
     this.update((currentState: Draft<AccountsControllerState>) => {
       currentState.internalAccounts.accounts = accounts;
+
+      if (
+        !currentState.internalAccounts.accounts[
+          currentState.internalAccounts.selectedAccount
+        ]
+      ) {
+        const lastSelectedAccount = this.#getLastSelectedAccount(
+          Object.values(accounts),
+        );
+
+        if (lastSelectedAccount) {
+          currentState.internalAccounts.selectedAccount =
+            lastSelectedAccount.id;
+          currentState.internalAccounts.accounts[
+            lastSelectedAccount.id
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
+          this.#publishAccountChangeEvent(lastSelectedAccount);
+        } else {
+          // It will be undefined if there are no accounts
+          currentState.internalAccounts.selectedAccount = '';
+        }
+      }
     });
   }
 
@@ -744,30 +789,20 @@ export class AccountsController extends BaseController<
             this.state.internalAccounts.selectedAccount
           ]
         ) {
-          // if currently selected account is undefined and there are no accounts
-          // it mean the keyring was reinitialized.
-          if (existingAccounts.length === 0) {
+          const lastSelectedAccount =
+            this.#getLastSelectedAccount(existingAccounts);
+
+          if (lastSelectedAccount) {
+            currentState.internalAccounts.selectedAccount =
+              lastSelectedAccount.id;
+            currentState.internalAccounts.accounts[
+              lastSelectedAccount.id
+            ].metadata.lastSelected = this.#getLastSelectedIndex();
+            this.#publishAccountChangeEvent(lastSelectedAccount);
+          } else {
+            // It will be undefined if there are no accounts
             currentState.internalAccounts.selectedAccount = '';
-            return;
           }
-
-          // at this point, we know that `existingAccounts.length` is > 0, so
-          // `accountToSelect` won't be `undefined`!
-          const [accountToSelect] = existingAccounts.sort(
-            (accountA, accountB) => {
-              // sort by lastSelected descending
-              return (
-                (accountB.metadata.lastSelected ?? 0) -
-                (accountA.metadata.lastSelected ?? 0)
-              );
-            },
-          );
-          currentState.internalAccounts.selectedAccount = accountToSelect.id;
-          currentState.internalAccounts.accounts[
-            accountToSelect.id
-          ].metadata.lastSelected = this.#getLastSelectedIndex();
-
-          this.#publishAccountChangeEvent(accountToSelect);
         }
       });
     }
@@ -836,19 +871,15 @@ export class AccountsController extends BaseController<
   #getLastSelectedAccount(
     accounts: InternalAccount[],
   ): InternalAccount | undefined {
-    return accounts.reduce((prevAccount, currentAccount) => {
-      if (
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        currentAccount.metadata.lastSelected! >
-        // When the account is added, lastSelected will be set
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        prevAccount.metadata.lastSelected!
-      ) {
-        return currentAccount;
-      }
-      return prevAccount;
-    }, accounts[0]);
+    const [accountToSelect] = accounts.sort((accountA, accountB) => {
+      // sort by lastSelected descending
+      return (
+        (accountB.metadata.lastSelected ?? 0) -
+        (accountA.metadata.lastSelected ?? 0)
+      );
+    });
+
+    return accountToSelect;
   }
 
   /**
@@ -890,6 +921,8 @@ export class AccountsController extends BaseController<
 
     const index = Math.max(
       keyringAccounts.length + 1,
+      // ESLint is confused; this is a number.
+      // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
       lastDefaultIndexUsedForKeyringType + 1,
     );
 
@@ -1088,6 +1121,11 @@ export class AccountsController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `AccountsController:getAccount`,
       this.getAccount.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `AccountsController:updateAccountMetadata`,
+      this.updateAccountMetadata.bind(this),
     );
   }
 }

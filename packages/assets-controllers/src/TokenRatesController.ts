@@ -65,7 +65,7 @@ export type ContractExchangeRates = {
   [address: string]: number | undefined;
 };
 
-type MarketDataDetails = {
+export type MarketDataDetails = {
   tokenAddress: `0x${string}`;
   currency: string;
   allTimeHigh: number;
