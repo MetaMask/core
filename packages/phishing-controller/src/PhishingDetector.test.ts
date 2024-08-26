@@ -670,6 +670,38 @@ describe('PhishingDetector', () => {
         );
       });
 
+      it('fails when the URL is invalid', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: ['allowed-by-first.com'],
+              blocklist: [],
+              fuzzylist: [],
+              name: 'first',
+              tolerance: 2,
+              version: 1,
+            },
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              name: 'second',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector }) => {
+            const invalidUrl = 'not-a-valid-url';
+
+            const { result, type, name } = detector.check(invalidUrl);
+
+            expect(result).toBe(false);
+            expect(type).toBe('all');
+            expect(name).toBeUndefined();
+          },
+        );
+      });
+
       it('allows a domain when it is in the second allowlist (and not blocked by the first blocklist)', async () => {
         await withPhishingDetector(
           [

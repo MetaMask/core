@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^6.0.3",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/controller-utils": "^11.1.0",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",
