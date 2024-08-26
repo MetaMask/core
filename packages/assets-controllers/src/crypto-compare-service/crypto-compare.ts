@@ -4,7 +4,10 @@ import { handleFetch } from '@metamask/controller-utils';
  * A map from native currency symbol to CryptoCompare identifier.
  * This is only needed when the values don't match.
  */
-const nativeSymbolOverrides = new Map([['MNT', 'MANTLE']]);
+const nativeSymbolOverrides = new Map([
+  ['MNT', 'MANTLE'],
+  ['OMNI', 'OMNINET'],
+]);
 
 const CRYPTO_COMPARE_DOMAIN = 'https://min-api.cryptocompare.com';
 
