@@ -521,11 +521,7 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (
-      !stalelistResponse ||
-      !hotlistDiffsResponse ||
-      !c2DomainBlocklistResponse
-    ) {
+    if (!stalelistResponse || !hotlistDiffsResponse) {
       return;
     }
 
@@ -544,7 +540,9 @@ export class PhishingController extends BaseController<
     const metamaskListState: PhishingListState = {
       ...eth_phishing_detect_config,
       ...partialState,
-      c2DomainBlocklist: c2DomainBlocklistResponse.recentlyAdded,
+      c2DomainBlocklist: c2DomainBlocklistResponse
+        ? c2DomainBlocklistResponse.recentlyAdded
+        : [],
       name: phishingListKeyNameMap.eth_phishing_detect_config,
     };
     // Correctly shaping eth-phishing-detect state by applying hotlist diffs to the stalelist.
