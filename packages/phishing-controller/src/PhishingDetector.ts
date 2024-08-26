@@ -113,7 +113,15 @@ export class PhishingDetector {
   }
 
   #check(url: string): PhishingDetectorResult {
-    const domain = new URL(url).hostname;
+    let domain;
+    try {
+      domain = new URL(url).hostname;
+    } catch (error) {
+      return {
+        result: false,
+        type: 'all',
+      };
+    }
 
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
