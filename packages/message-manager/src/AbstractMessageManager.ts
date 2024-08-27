@@ -106,7 +106,7 @@ export interface MessageManagerState<M extends AbstractMessage>
 /**
  * Represents the parameters to pass to the signing method once the signature request is approved.
  */
-type MessageParams =
+export type MessageParams =
   | DecryptMessageParams
   | EncryptionPublicKeyParams
   | PersonalMessageParams

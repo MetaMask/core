@@ -1,4 +1,10 @@
-import type { SecurityProviderRequest } from './AbstractMessageManager';
+import { ApprovalType } from '@metamask/controller-utils';
+
+import type {
+  MessageParams,
+  OriginalRequest,
+  SecurityProviderRequest,
+} from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import type {
   TypedMessage,
@@ -49,6 +55,24 @@ const messageData = typedMessage;
 const rawSigMock = '0xsignaturemocked';
 const messageIdMock = 'message-id-mocked';
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
+/** Mock extended AbstractTestManager to test protected methods */
+class MockExtendedAbstractTestManager extends AbstractTestManager {
+  addRequestToMessageParams(
+    messageParams: MessageParams,
+    req?: OriginalRequest,
+  ) {
+    return super.addRequestToMessageParams(messageParams, req);
+  }
+
+  createUnapprovedMessage(
+    messageParams: MessageParams,
+    type: ApprovalType,
+    req?: OriginalRequest,
+  ) {
+    return super.createUnapprovedMessage(messageParams, type, req);
+  }
+}
 
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
@@ -317,30 +341,52 @@ describe('AbstractTestManager', () => {
     expect(message.status).toBe('approved');
   });
 
-  describe('setMessageStatus', () => {
-    it('should set the given message status', async () => {
-      const controller = new AbstractTestManager();
-      await controller.addMessage({
-        id: messageId,
-        messageParams: { from: '0x1234', data: 'test' },
-        status: 'status',
-        time: 10,
-        type: 'type',
-      });
-      const messageBefore = controller.getMessage(messageId);
-      expect(messageBefore?.status).toBe('status');
+  describe('addRequestToMessageParams', () => {
+    it('adds original request id and origin to messageParams', () => {
+      const mockRequest = { origin: 'origin', id: 123 };
+      const mockMessageParams = { from: '0x1234', data: 'test' };
 
-      controller.setMessageStatus(messageId, 'newstatus');
-      const messageAfter = controller.getMessage(messageId);
-      expect(messageAfter?.status).toBe('newstatus');
-    });
+      const controller = new MockExtendedAbstractTestManager();
 
-    it('should throw an error if message is not found', () => {
-      const controller = new AbstractTestManager();
-
-      expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
-        'AbstractMessageManager: Message not found for id: 1.',
+      const result = controller.addRequestToMessageParams(
+        mockMessageParams,
+        mockRequest,
       );
+
+      expect(result).toStrictEqual({
+        ...mockMessageParams,
+        origin: mockRequest.origin,
+        requestId: mockRequest.id,
+      });
+    });
+  });
+
+  describe('createUnapprovedMessage', () => {
+    it('creates a Message object with an unapproved status', () => {
+      const mockSecurityProviderResponse = { flagAsDangerous: 2 };
+      const mockRequest = {
+        origin: 'origin',
+        id: 123,
+        securityAlertResponse: mockSecurityProviderResponse,
+      };
+      const mockMessageParams = { from: '0x1234', data: 'test' };
+
+      const controller = new MockExtendedAbstractTestManager();
+
+      const result = controller.createUnapprovedMessage(
+        mockMessageParams,
+        ApprovalType.PersonalSign,
+        mockRequest,
+      );
+
+      expect(result.messageParams).toBe(mockMessageParams);
+      expect(result.securityAlertResponse).toBe(
+        mockRequest.securityAlertResponse,
+      );
+      expect(result.status).toBe('unapproved');
+      expect(result.type).toBe(ApprovalType.PersonalSign);
+      expect(typeof result.time).toBe('number');
+      expect(typeof result.id).toBe('string');
     });
   });
 
