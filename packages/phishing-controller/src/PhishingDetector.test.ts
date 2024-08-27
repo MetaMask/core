@@ -3,6 +3,7 @@ import {
   type PhishingDetectorOptions,
 } from './PhishingDetector';
 import { formatHostnameToUrl } from './tests/utils';
+import { PhishingDetectorResultType } from './types';
 
 describe('PhishingDetector', () => {
   describe('constructor', () => {
@@ -221,7 +222,7 @@ describe('PhishingDetector', () => {
           );
 
           expect(result).toBe(false);
-          expect(type).toBe('all');
+          expect(type).toBe(PhishingDetectorResultType.All);
         });
       });
 
@@ -251,7 +252,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
       });
@@ -442,7 +443,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
       });
@@ -537,7 +538,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
       });
@@ -696,7 +697,7 @@ describe('PhishingDetector', () => {
             const { result, type, name } = detector.check(invalidUrl);
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
             expect(name).toBeUndefined();
           },
         );
@@ -1006,7 +1007,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
 
