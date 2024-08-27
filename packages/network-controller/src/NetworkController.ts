@@ -2401,7 +2401,7 @@ export class NetworkController extends BaseController<
 
     this.#networkConfigurationsByNetworkClientId =
       buildNetworkConfigurationsByNetworkClientId(
-        this.state.networkConfigurationsByChainId,
+        state.networkConfigurationsByChainId,
       );
   }
 
