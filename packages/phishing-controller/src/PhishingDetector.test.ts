@@ -1158,7 +1158,7 @@ describe('PhishingDetector', () => {
           );
           expect(result).toStrictEqual({
             result: false,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
           });
         },
       );
@@ -1185,7 +1185,7 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'test-config',
             result: true,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
             version: '1',
           });
         },
@@ -1212,7 +1212,7 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'test-config',
             result: true,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
             version: undefined,
           });
         },
@@ -1237,7 +1237,7 @@ describe('PhishingDetector', () => {
           const result = detector.isMaliciousRequestDomain('#$@(%&@#$(%');
           expect(result).toStrictEqual({
             result: false,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
           });
         },
       );
@@ -1264,7 +1264,7 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'test-config',
             result: true,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
             version: '1',
           });
         },
@@ -1289,7 +1289,7 @@ describe('PhishingDetector', () => {
           );
           expect(result).toStrictEqual({
             result: false,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
           });
         },
       );
@@ -1324,7 +1324,7 @@ describe('PhishingDetector', () => {
           expect(result).toStrictEqual({
             name: 'first-config',
             result: true,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
             version: '1',
           });
         },
@@ -1355,7 +1355,7 @@ describe('PhishingDetector', () => {
           );
           expect(result).toStrictEqual({
             result: false,
-            type: 'c2DomainBlocklist',
+            type: PhishingDetectorResultType.C2DomainBlocklist,
           });
         },
       );

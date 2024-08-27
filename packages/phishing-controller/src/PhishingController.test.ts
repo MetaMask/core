@@ -15,6 +15,7 @@ import {
   C2_DOMAIN_BLOCKLIST_ENDPOINT,
 } from './PhishingController';
 import { formatHostnameToUrl } from './tests/utils';
+import { PhishingDetectorResultType } from './types';
 
 const controllerName = 'PhishingController';
 
@@ -234,7 +235,7 @@ describe('PhishingController', () => {
         ),
       ).toMatchObject({
         result: false,
-        type: 'all',
+        type: PhishingDetectorResultType.All,
       });
 
       expect(
@@ -243,7 +244,7 @@ describe('PhishingController', () => {
         ),
       ).toMatchObject({
         result: false,
-        type: 'all',
+        type: PhishingDetectorResultType.All,
       });
 
       clock.tick(1000 * 10);
@@ -255,7 +256,7 @@ describe('PhishingController', () => {
         ),
       ).toMatchObject({
         result: true,
-        type: 'blocklist',
+        type: PhishingDetectorResultType.Blocklist,
       });
 
       expect(
@@ -264,7 +265,7 @@ describe('PhishingController', () => {
         ),
       ).toMatchObject({
         result: false,
-        type: 'allowlist',
+        type: PhishingDetectorResultType.Allowlist,
       });
 
       expect(nockScope.isDone()).toBe(true);
@@ -509,7 +510,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('metamask.io'))).toMatchObject({
       result: false,
-      type: 'allowlist',
+      type: PhishingDetectorResultType.Allowlist,
       name: ListNames.MetaMask,
     });
   });
@@ -543,7 +544,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('i❤.ws'))).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -576,7 +577,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('xn--i-7iq.ws'))).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -617,7 +618,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('etnerscan.io'))).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -661,7 +662,7 @@ describe('PhishingController', () => {
       controller.test(formatHostnameToUrl('myetherẉalletṭ.com')),
     ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -705,7 +706,7 @@ describe('PhishingController', () => {
       controller.test(formatHostnameToUrl('xn--myetherallet-4k5fwn.com')),
     ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -759,7 +760,7 @@ describe('PhishingController', () => {
       ),
     ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -797,7 +798,7 @@ describe('PhishingController', () => {
       ),
     ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -838,7 +839,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('opensea.io'))).toMatchObject({
       result: false,
-      type: 'allowlist',
+      type: PhishingDetectorResultType.Allowlist,
       name: ListNames.MetaMask,
     });
   });
@@ -880,7 +881,7 @@ describe('PhishingController', () => {
     await controller.updateStalelist();
     expect(controller.test(formatHostnameToUrl('ohpensea.io'))).toMatchObject({
       result: true,
-      type: 'fuzzy',
+      type: PhishingDetectorResultType.Fuzzy,
       name: ListNames.MetaMask,
     });
   });
@@ -917,7 +918,7 @@ describe('PhishingController', () => {
       ),
     ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -965,7 +966,7 @@ describe('PhishingController', () => {
     controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -1014,7 +1015,7 @@ describe('PhishingController', () => {
     controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -1062,7 +1063,7 @@ describe('PhishingController', () => {
     controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -1110,7 +1111,7 @@ describe('PhishingController', () => {
     controller.bypass(formatHostnameToUrl(unsafeDomain));
     expect(controller.test(formatHostnameToUrl(unsafeDomain))).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -1872,7 +1873,7 @@ describe('PhishingController', () => {
       const result = controller.isBlockedRequest('https://example.com');
       expect(result).toMatchObject({
         result: false,
-        type: 'c2DomainBlocklist',
+        type: PhishingDetectorResultType.C2DomainBlocklist,
       });
     });
 
@@ -1917,7 +1918,7 @@ describe('PhishingController', () => {
       expect(result).toMatchObject({
         name: ListNames.MetaMask,
         result: true,
-        type: 'c2DomainBlocklist',
+        type: PhishingDetectorResultType.C2DomainBlocklist,
       });
     });
 
@@ -1957,7 +1958,7 @@ describe('PhishingController', () => {
       const result = controller.isBlockedRequest('https://example.com');
       expect(result).toMatchObject({
         result: false,
-        type: 'c2DomainBlocklist',
+        type: PhishingDetectorResultType.C2DomainBlocklist,
       });
     });
 
@@ -1997,7 +1998,7 @@ describe('PhishingController', () => {
       const result = controller.isBlockedRequest('#$@(%&@#$(%');
       expect(result).toMatchObject({
         result: false,
-        type: 'c2DomainBlocklist',
+        type: PhishingDetectorResultType.C2DomainBlocklist,
       });
     });
   });
