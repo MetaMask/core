@@ -17,6 +17,21 @@ class AbstractTestManager extends AbstractMessageManager<
   TypedMessageParams,
   TypedMessageParamsMetamask
 > {
+  addRequestToMessageParams(
+    messageParams: MessageParams,
+    req?: OriginalRequest,
+  ) {
+    return super.addRequestToMessageParams(messageParams, req);
+  }
+
+  createUnapprovedMessage(
+    messageParams: MessageParams,
+    type: ApprovalType,
+    req?: OriginalRequest,
+  ) {
+    return super.createUnapprovedMessage(messageParams, type, req);
+  }
+
   prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,
   ): Promise<TypedMessageParams> {
@@ -63,24 +78,6 @@ const mockRequest = {
   securityAlertResponse: mockSecurityProviderResponse,
 };
 const mockMessageParams = { from, data: 'test' };
-
-/** Mock extended AbstractTestManager to test protected methods */
-class MockExtendedAbstractTestManager extends AbstractTestManager {
-  addRequestToMessageParams(
-    messageParams: MessageParams,
-    req?: OriginalRequest,
-  ) {
-    return super.addRequestToMessageParams(messageParams, req);
-  }
-
-  createUnapprovedMessage(
-    messageParams: MessageParams,
-    type: ApprovalType,
-    req?: OriginalRequest,
-  ) {
-    return super.createUnapprovedMessage(messageParams, type, req);
-  }
-}
 
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
@@ -351,7 +348,7 @@ describe('AbstractTestManager', () => {
 
   describe('addRequestToMessageParams', () => {
     it('adds original request id and origin to messageParams', () => {
-      const controller = new MockExtendedAbstractTestManager();
+      const controller = new AbstractTestManager();
 
       const result = controller.addRequestToMessageParams(
         mockMessageParams,
@@ -368,7 +365,7 @@ describe('AbstractTestManager', () => {
 
   describe('createUnapprovedMessage', () => {
     it('creates a Message object with an unapproved status', () => {
-      const controller = new MockExtendedAbstractTestManager();
+      const controller = new AbstractTestManager();
 
       const result = controller.createUnapprovedMessage(
         mockMessageParams,
