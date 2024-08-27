@@ -116,6 +116,32 @@ export class PhishingDetector {
   }
 
   #check(url: string): PhishingDetectorResult {
+    const ipfsCidMatch = url.match(ipfsCidRegex());
+
+    // Check for IPFS CID related blocklist entries
+    if (ipfsCidMatch !== null) {
+      // there is a cID string somewhere
+      // Determine if any of the entries are ipfs cids
+      // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
+      const cID = ipfsCidMatch[0];
+      for (const { blocklist, name, version } of this.#configs) {
+        const blocklistMatch = blocklist
+          .filter((entries) => entries.length === 1)
+          .find((entries) => {
+            return entries[0] === cID;
+          });
+        if (blocklistMatch) {
+          return {
+            name,
+            match: cID,
+            result: true,
+            type: PhishingDetectorResultType.Blocklist,
+            version: version === undefined ? version : String(version),
+          };
+        }
+      }
+    }
+
     let domain;
     try {
       domain = new URL(url).hostname;
@@ -178,32 +204,6 @@ export class PhishingDetector {
             match,
             result: true,
             type: PhishingDetectorResultType.Fuzzy,
-            version: version === undefined ? version : String(version),
-          };
-        }
-      }
-    }
-
-    const ipfsCidMatch = url.match(ipfsCidRegex());
-
-    // Check for IPFS CID related blocklist entries
-    if (ipfsCidMatch !== null) {
-      // there is a cID string somewhere
-      // Determine if any of the entries are ipfs cids
-      // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
-      const cID = ipfsCidMatch[0];
-      for (const { blocklist, name, version } of this.#configs) {
-        const blocklistMatch = blocklist
-          .filter((entries) => entries.length === 1)
-          .find((entries) => {
-            return entries[0] === cID;
-          });
-        if (blocklistMatch) {
-          return {
-            name,
-            match: cID,
-            result: true,
-            type: PhishingDetectorResultType.Blocklist,
             version: version === undefined ? version : String(version),
           };
         }
