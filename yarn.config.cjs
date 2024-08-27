@@ -399,6 +399,11 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
 function expectWorkspaceArrayField(workspace, fieldName, expectedValue) {
   let fieldValue = get(workspace.manifest, fieldName);
 
+  if (fieldValue === undefined || fieldValue === null) {
+    workspace.error(`Missing required field "${fieldName}".`);
+    return;
+  }
+
   if (!Array.isArray(fieldValue)) {
     fieldValue = [];
   }
