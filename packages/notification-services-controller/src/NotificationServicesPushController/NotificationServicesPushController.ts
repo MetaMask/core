@@ -69,15 +69,18 @@ export type NotificationServicesPushControllerPushNotificationClickedEvent = {
   payload: [Types.INotification];
 };
 
-export type AllowedEvents =
+export type Events =
+  | NotificationServicesPushControllerStateChangeEvent
   | NotificationServicesPushControllerOnNewNotificationEvent
-  | NotificationServicesPushControllerPushNotificationClicked;
+  | NotificationServicesPushControllerPushNotificationClickedEvent;
+
+export type AllowedEvents = never;
 
 export type NotificationServicesPushControllerMessenger =
   RestrictedControllerMessenger<
     typeof controllerName,
     Actions | AllowedActions,
-    AllowedEvents,
+    Events | AllowedEvents,
     AllowedActions['type'],
     AllowedEvents['type']
   >;
