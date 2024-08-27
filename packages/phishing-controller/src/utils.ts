@@ -18,6 +18,16 @@ const DEFAULT_TOLERANCE = 3;
 export const fetchTimeNow = (): number => Math.round(Date.now() / 1000);
 
 /**
+ * Rounds a Unix timestamp down to the nearest minute.
+ *
+ * @param unixTimestamp - The Unix timestamp to be rounded.
+ * @returns The rounded Unix timestamp.
+ */
+export function roundToNearestMinute(unixTimestamp: number): number {
+  return Math.floor(unixTimestamp / 60) * 60;
+}
+
+/**
  * Split a string into two pieces, using the first period as the delimiter.
  *
  * @param stringToSplit - The string to split.

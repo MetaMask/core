@@ -8,6 +8,7 @@ import {
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
+  roundToNearestMinute,
   sha256Hash,
   validateConfig,
 } from './utils';
@@ -363,5 +364,55 @@ describe('sha256Hash', () => {
       '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
     const hash = sha256Hash(hostname);
     expect(hash).toBe(expectedHash);
+  });
+});
+
+describe('roundToNearestMinute', () => {
+  it('should round down to the nearest minute for a typical Unix timestamp with seconds', () => {
+    const timestamp = 1622548192; // Represents some time with extra seconds
+    const expected = 1622548140; // Expected result after rounding down to the nearest minute
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should return the same timestamp if it is already rounded to the nearest minute', () => {
+    const timestamp = 1622548140; // Represents a time already at the exact minute
+    const expected = 1622548140;
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should handle Unix timestamp 0 correctly', () => {
+    const timestamp = 0; // Edge case: the start of Unix time
+    const expected = 0;
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should correctly round down for timestamps very close to the next minute', () => {
+    const timestamp = 1622548199; // One second before the next minute
+    const expected = 1622548140; // Should still round down to the previous minute
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should handle very large Unix timestamps correctly', () => {
+    const timestamp = 1893456000; // A far future Unix timestamp
+    const expected = 1893456000; // Expected result after rounding down (already rounded)
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should handle very small Unix timestamps (close to zero)', () => {
+    const timestamp = 59; // 59 seconds past the Unix epoch
+    const expected = 0; // Should round down to the start of Unix time
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should handle timestamps exactly at the boundary of a minute', () => {
+    const timestamp = 1622548200; // Exact boundary of a minute
+    const expected = 1622548200; // Should return the same timestamp
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+
+  it('should handle negative Unix timestamps (dates before 1970)', () => {
+    const timestamp = -1622548192; // Represents a time before Unix epoch
+    const expected = -1622548200; // Expected result after rounding down to the nearest minute
+    expect(roundToNearestMinute(timestamp)).toBe(expected);
   });
 });

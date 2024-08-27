@@ -12,7 +12,7 @@ import {
   PhishingDetectorResultType,
   type PhishingDetectorResult,
 } from './types';
-import { applyDiffs, fetchTimeNow } from './utils';
+import { applyDiffs, fetchTimeNow, roundToNearestMinute } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -585,7 +585,9 @@ export class PhishingController extends BaseController<
 
       const c2DomainBlocklistPromise =
         this.#queryConfig<C2DomainBlocklistResponse>(
-          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${lastDiffTimestamp}`,
+          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
+            lastDiffTimestamp,
+          )}`,
         );
 
       [hotlistResponse, c2DomainBlocklistResponse] = await Promise.all([
