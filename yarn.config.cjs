@@ -397,18 +397,17 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
  * @param {unknown} expectedValue - The value that should be contained in the array.
  */
 function expectWorkspaceArrayField(workspace, fieldName, expectedValue) {
-  const fieldValue = get(workspace.manifest, fieldName);
+  let fieldValue = get(workspace.manifest, fieldName);
 
   if (!Array.isArray(fieldValue)) {
-    workspace.error(`Field "${fieldName}" is not an array.`);
-    return;
+    fieldValue = [];
   }
 
   if (!fieldValue.includes(expectedValue)) {
-    workspace.error(
-      `Field "${fieldName}" does not contain the expected value "${expectedValue}".`,
-    );
+    fieldValue.push(expectedValue);
   }
+
+  workspace.set(fieldName, fieldValue);
 }
 
 /**
