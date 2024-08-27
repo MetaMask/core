@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.1.0]
+
+### Added
+
+- Add default snap dialog to ApprovalType ([#4630](https://github.com/MetaMask/core/pull/4630))
+
 ## [11.0.2]
 
 ### Changed
@@ -362,7 +368,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.2...@metamask/controller-utils@11.1.0
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.1...@metamask/controller-utils@11.0.2
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
