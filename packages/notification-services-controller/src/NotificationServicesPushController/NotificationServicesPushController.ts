@@ -1,6 +1,7 @@
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -22,6 +23,12 @@ export type NotificationServicesPushControllerState = {
   fcmToken: string;
 };
 
+export type NotificationServicesPushControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    NotificationServicesPushControllerState
+  >;
+
 export type NotificationServicesPushControllerEnablePushNotificationsAction = {
   type: `${typeof controllerName}:enablePushNotifications`;
   handler: NotificationServicesPushController['enablePushNotifications'];
@@ -38,13 +45,19 @@ export type NotificationServicesPushControllerUpdateTriggerPushNotificationsActi
   };
 
 export type Actions =
+  | NotificationServicesPushControllerGetStateAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
-  | ControllerGetStateAction<'state', NotificationServicesPushControllerState>;
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction;
 
 export type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerToken;
+
+export type NotificationServicesPushControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    NotificationServicesPushControllerState
+  >;
 
 export type NotificationServicesPushControllerOnNewNotificationEvent = {
   type: `${typeof controllerName}:onNewNotifications`;
