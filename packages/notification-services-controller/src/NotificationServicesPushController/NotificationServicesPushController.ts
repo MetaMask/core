@@ -64,7 +64,7 @@ export type NotificationServicesPushControllerOnNewNotificationEvent = {
   payload: [Types.INotification];
 };
 
-export type NotificationServicesPushControllerPushNotificationClicked = {
+export type NotificationServicesPushControllerPushNotificationClickedEvent = {
   type: `${typeof controllerName}:pushNotificationClicked`;
   payload: [Types.INotification];
 };
