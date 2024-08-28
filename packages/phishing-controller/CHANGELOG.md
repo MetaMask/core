@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Uncategorized
 
 - **BREAKING:** Feat: add allowlist to c2 domain detection ([#4464](https://github.com/MetaMask/core/pull/4644))
-- Feat: Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist ([#4526](https://github.com/MetaMask/core/pull/4526))
+- **BREAKING:** Feat: Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist ([#4526](https://github.com/MetaMask/core/pull/4526))
 
 ### Added
 
