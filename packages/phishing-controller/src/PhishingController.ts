@@ -742,3 +742,5 @@ export class PhishingController extends BaseController<
 }
 
 export default PhishingController;
+
+export type { PhishingDetectorResult };
