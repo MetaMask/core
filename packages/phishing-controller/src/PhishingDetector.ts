@@ -116,7 +116,6 @@ export class PhishingDetector {
   }
 
   #check(url: string): PhishingDetectorResult {
-    console.log('Checking URL', url);
     const ipfsCidMatch = url.match(ipfsCidRegex());
 
     // Check for IPFS CID related blocklist entries
@@ -153,8 +152,6 @@ export class PhishingDetector {
         type: PhishingDetectorResultType.All,
       };
     }
-
-    console.log('Checking domain', domain);
 
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
