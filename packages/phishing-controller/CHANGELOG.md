@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.0]
+
+### Added
+
+- Add allowlist functionality to the C2 domain detection system ([#4464](https://github.com/MetaMask/core/pull/4644))
+- Add `PhishingController` functionality for blocking client-side C2 requests by managing a hashed C2 request blocklist ([#4526](https://github.com/MetaMask/core/pull/4526))
+  - Add `requestBlocklist` type to `ListTypes`.
+  - Add `isBlockedRequest` method to `PhishingController`.
+  - Add `isMaliciousRequestDomain` method to `PhishingDetector`.
+  - Add handling of `requestBlocklist` in `PhishingDetector` configuration.
+  - Add logic to update and check `requestBlocklist` when updating a stale list.
+  - Add `sha256Hash` function to generate SHA-256 hash of a domain.
+- Define and export new types: `PhishingControllerGetStateAction`, `PhishingControllerStateChangeEvent`, `PhishingControllerEvents` ([#4633](https://github.com/MetaMask/core/pull/4633))
+
+### Changed
+
+- **BREAKING:** Add `@noble/hashes` `^1.4.0` as dependency ([#4526](https://github.com/MetaMask/core/pull/4526))
+- **BREAKING:**: Add `ethereum-cryptography` `^2.1.2` as dependency ([#4526](https://github.com/MetaMask/core/pull/4526))
+- **BREAKING:** `PhishingControllerMessenger` must allow internal events defined in the `PhishingControllerEvents` type ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Widen `PhishingControllerActions` to include the `PhishingController:getState` action ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^6.0.3` ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.1.0` ([#4639](https://github.com/MetaMask/core/pull/4639))
+
 ## [11.0.0]
 
 ### Changed
@@ -228,7 +251,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...HEAD
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@11.0.0...@metamask/phishing-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.0...@metamask/phishing-controller@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.0.0...@metamask/phishing-controller@10.1.0
