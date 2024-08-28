@@ -23,6 +23,7 @@ export const CLIENT_SIDE_DETECION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
 export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 
+export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 1 * 60; // 15 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
 
@@ -187,6 +188,7 @@ const metadata = {
   whitelist: { persist: true, anonymous: false },
   hotlistLastFetched: { persist: true, anonymous: false },
   stalelistLastFetched: { persist: true, anonymous: false },
+  c2DomainBlocklistLastFetched: { persist: true, anonymous: false },
 };
 
 /**
@@ -199,6 +201,7 @@ const getDefaultState = (): PhishingControllerState => {
     whitelist: [],
     hotlistLastFetched: 0,
     stalelistLastFetched: 0,
+    c2DomainBlocklistLastFetched: 0,
   };
 };
 
@@ -214,6 +217,7 @@ export type PhishingControllerState = {
   whitelist: string[];
   hotlistLastFetched: number;
   stalelistLastFetched: number;
+  c2DomainBlocklistLastFetched: number;
 };
 
 /**
@@ -222,10 +226,12 @@ export type PhishingControllerState = {
  * Phishing controller options
  * @property stalelistRefreshInterval - Polling interval used to fetch stale list.
  * @property hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+ * @property c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
  */
 export type PhishingControllerOptions = {
   stalelistRefreshInterval?: number;
   hotlistRefreshInterval?: number;
+  c2DomainBlocklistRefreshInterval?: number;
   messenger: PhishingControllerMessenger;
   state?: Partial<PhishingControllerState>;
 };
@@ -281,9 +287,13 @@ export class PhishingController extends BaseController<
 
   #hotlistRefreshInterval: number;
 
+  #c2DomainBlocklistRefreshInterval: number;
+
   #inProgressHotlistUpdate?: Promise<void>;
 
   #inProgressStalelistUpdate?: Promise<void>;
+
+  #isProgressC2DomainBlocklistUpdate?: Promise<void>;
 
   /**
    * Construct a Phishing Controller.
@@ -291,12 +301,14 @@ export class PhishingController extends BaseController<
    * @param config - Initial options used to configure this controller.
    * @param config.stalelistRefreshInterval - Polling interval used to fetch stale list.
    * @param config.hotlistRefreshInterval - Polling interval used to fetch hotlist diff list.
+   * @param config.c2DomainBlocklistRefreshInterval - Polling interval used to fetch c2 domain blocklist.
    * @param config.messenger - The controller restricted messenger.
    * @param config.state - Initial state to set on this controller.
    */
   constructor({
     stalelistRefreshInterval = STALELIST_REFRESH_INTERVAL,
     hotlistRefreshInterval = HOTLIST_REFRESH_INTERVAL,
+    c2DomainBlocklistRefreshInterval = C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL,
     messenger,
     state = {},
   }: PhishingControllerOptions) {
@@ -312,6 +324,7 @@ export class PhishingController extends BaseController<
 
     this.#stalelistRefreshInterval = stalelistRefreshInterval;
     this.#hotlistRefreshInterval = hotlistRefreshInterval;
+    this.#c2DomainBlocklistRefreshInterval = c2DomainBlocklistRefreshInterval;
     this.#registerMessageHandlers();
 
     this.updatePhishingDetector();
@@ -363,6 +376,17 @@ export class PhishingController extends BaseController<
   }
 
   /**
+   * Set the interval at which the C2 domain blocklist will be refetched.
+   * Fetching will only occur on the next call to test/bypass.
+   * For immediate update to the phishing list, call {@link updateHotlist} directly.
+   *
+   * @param interval - the new interval, in ms.
+   */
+  setC2DomainBlocklistRefreshInterval(interval: number) {
+    this.#c2DomainBlocklistRefreshInterval = interval;
+  }
+
+  /**
    * Determine if an update to the stalelist configuration is needed.
    *
    * @returns Whether an update is needed
@@ -387,6 +411,18 @@ export class PhishingController extends BaseController<
   }
 
   /**
+   * Determine if an update to the C2 domain blocklist is needed.
+   *
+   * @returns Whether an update is needed
+   */
+  isC2DomainBlocklistOutOfDate() {
+    return (
+      fetchTimeNow() - this.state.c2DomainBlocklistLastFetched >=
+      this.#c2DomainBlocklistRefreshInterval
+    );
+  }
+
+  /**
    * Conditionally update the phishing configuration.
    *
    * If the stalelist configuration is out of date, this function will call `updateStalelist`
@@ -403,6 +439,10 @@ export class PhishingController extends BaseController<
     const hotlistOutOfDate = this.isHotlistOutOfDate();
     if (hotlistOutOfDate) {
       await this.updateHotlist();
+    }
+    const c2DomainBlocklistOutOfDate = this.isC2DomainBlocklistOutOfDate();
+    if (c2DomainBlocklistOutOfDate) {
+      await this.updateC2DomainBlocklist();
     }
   }
 
@@ -454,6 +494,26 @@ export class PhishingController extends BaseController<
     this.update((draftState) => {
       draftState.whitelist.push(punycodeOrigin);
     });
+  }
+
+  /**
+   * Update the C2 domain blocklist.
+   *
+   * If an update is in progress, no additional update will be made. Instead this will wait until
+   * the in-progress update has finished.
+   */
+  async updateC2DomainBlocklist() {
+    if (this.#isProgressC2DomainBlocklistUpdate) {
+      await this.#isProgressC2DomainBlocklistUpdate;
+      return;
+    }
+
+    try {
+      this.#isProgressC2DomainBlocklistUpdate = this.#updateC2DomainBlocklist();
+      await this.#isProgressC2DomainBlocklistUpdate;
+    } finally {
+      this.#isProgressC2DomainBlocklistUpdate = undefined;
+    }
   }
 
   /**
@@ -532,6 +592,7 @@ export class PhishingController extends BaseController<
       this.update((draftState) => {
         draftState.stalelistLastFetched = timeNow;
         draftState.hotlistLastFetched = timeNow;
+        draftState.c2DomainBlocklistLastFetched = timeNow;
       });
     }
 
@@ -575,25 +636,12 @@ export class PhishingController extends BaseController<
     const lastDiffTimestamp = Math.max(
       ...this.state.phishingLists.map(({ lastUpdated }) => lastUpdated),
     );
-    let hotlistResponse: DataResultWrapper<Hotlist> | null = null;
-    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
+    let hotlistResponse: DataResultWrapper<Hotlist> | null;
 
     try {
-      const hotlistPromise = this.#queryConfig<DataResultWrapper<Hotlist>>(
+      hotlistResponse = await this.#queryConfig<DataResultWrapper<Hotlist>>(
         `${METAMASK_HOTLIST_DIFF_URL}/${lastDiffTimestamp}`,
       );
-
-      const c2DomainBlocklistPromise =
-        this.#queryConfig<C2DomainBlocklistResponse>(
-          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
-            lastDiffTimestamp,
-          )}`,
-        );
-
-      [hotlistResponse, c2DomainBlocklistResponse] = await Promise.all([
-        hotlistPromise,
-        c2DomainBlocklistPromise,
-      ]);
     } finally {
       // Set `hotlistLastFetched` even for failed requests to prevent server from being overwhelmed with
       // traffic after a network disruption.
@@ -602,19 +650,63 @@ export class PhishingController extends BaseController<
       });
     }
 
-    if (!hotlistResponse?.data && !c2DomainBlocklistResponse) {
+    if (!hotlistResponse?.data) {
       return;
     }
-    const hotlist = hotlistResponse?.data || [];
-    const recentlyAddedC2Domains =
-      c2DomainBlocklistResponse?.recentlyAdded || [];
-    const recentlyRemovedC2Domains =
-      c2DomainBlocklistResponse?.recentlyRemoved || [];
-
+    const hotlist = hotlistResponse.data;
     const newPhishingLists = this.state.phishingLists.map((phishingList) => {
       const updatedList = applyDiffs(
         phishingList,
         hotlist,
+        phishingListNameKeyMap[phishingList.name],
+        [],
+        [],
+      );
+
+      return updatedList;
+    });
+
+    this.update((draftState) => {
+      draftState.phishingLists = newPhishingLists;
+    });
+    this.updatePhishingDetector();
+  }
+
+  /**
+   * Update the C2 domain blocklist.
+   *
+   * This should only be called from the `updateC2DomainBlocklist` function, which is a wrapper around
+   * this function that prevents redundant configuration updates.
+   */
+  async #updateC2DomainBlocklist() {
+    let c2DomainBlocklistResponse: C2DomainBlocklistResponse | null = null;
+
+    try {
+      c2DomainBlocklistResponse =
+        await this.#queryConfig<C2DomainBlocklistResponse>(
+          `${C2_DOMAIN_BLOCKLIST_URL}?timestamp=${roundToNearestMinute(
+            this.state.c2DomainBlocklistLastFetched,
+          )}`,
+        );
+    } finally {
+      // Set `c2DomainBlocklistLastFetched` even for failed requests to prevent server from being overwhelmed with
+      // traffic after a network disruption.
+      this.update((draftState) => {
+        draftState.c2DomainBlocklistLastFetched = fetchTimeNow();
+      });
+    }
+
+    if (!c2DomainBlocklistResponse) {
+      return;
+    }
+
+    const recentlyAddedC2Domains = c2DomainBlocklistResponse.recentlyAdded;
+    const recentlyRemovedC2Domains = c2DomainBlocklistResponse.recentlyRemoved;
+
+    const newPhishingLists = this.state.phishingLists.map((phishingList) => {
+      const updatedList = applyDiffs(
+        phishingList,
+        [],
         phishingListNameKeyMap[phishingList.name],
         recentlyAddedC2Domains,
         recentlyRemovedC2Domains,
