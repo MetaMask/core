@@ -1331,6 +1331,88 @@ describe('PhishingDetector', () => {
       );
     });
 
+    it('should return allowlist if URL is in the allowlist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://example.com',
+          );
+          expect(result).toStrictEqual({
+            match: 'example.com',
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return allowlist if URL is in the allowlist without a version', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'first-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://example.com',
+          );
+          expect(result).toStrictEqual({
+            match: 'example.com',
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
+    it('should correctly normalize the hostname by removing the trailing dot', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'first-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousRequestDomain(
+            'https://example.com.', // URL with trailing dot
+          );
+          expect(result).toStrictEqual({
+            match: 'example.com', // Expectation is that the trailing dot is removed
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
     it('should return false with type "c2DomainBlocklist" if no configs have a valid c2DomainBlocklist', async () => {
       await withPhishingDetector(
         [

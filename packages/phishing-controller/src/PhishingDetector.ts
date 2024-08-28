@@ -116,6 +116,7 @@ export class PhishingDetector {
   }
 
   #check(url: string): PhishingDetectorResult {
+    console.log('Checking URL', url);
     const ipfsCidMatch = url.match(ipfsCidRegex());
 
     // Check for IPFS CID related blocklist entries
@@ -146,11 +147,14 @@ export class PhishingDetector {
     try {
       domain = new URL(url).hostname;
     } catch (error) {
+      console.error('Error parsing URL', error);
       return {
         result: false,
         type: PhishingDetectorResultType.All,
       };
     }
+
+    console.log('Checking domain', domain);
 
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
@@ -223,29 +227,48 @@ export class PhishingDetector {
    * @returns An object indicating if the URL is blocked and relevant metadata.
    */
   isMaliciousRequestDomain(urlString: string): PhishingDetectorResult {
-    for (const { c2DomainBlocklist, name, version } of this.#configs) {
-      try {
-        const url = new URL(urlString);
+    let hostname;
+    try {
+      hostname = new URL(urlString).hostname;
+    } catch (error) {
+      return {
+        result: false,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      };
+    }
 
-        const hash = sha256Hash(url.hostname.toLowerCase());
-        const blocked = c2DomainBlocklist?.includes(hash) ?? false;
+    const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
 
-        if (blocked) {
-          return {
-            name,
-            result: true,
-            type: PhishingDetectorResultType.C2DomainBlocklist,
-            version: version === undefined ? version : String(version),
-          };
-        }
-      } catch (error) {
+    const source = domainToParts(fqdn);
+
+    for (const { allowlist, name, version } of this.#configs) {
+      // if source matches allowlist hostname (or subdomain thereof), PASS
+      const allowlistMatch = matchPartsAgainstList(source, allowlist);
+      if (allowlistMatch) {
+        const match = domainPartsToDomain(allowlistMatch);
         return {
+          match,
+          name,
           result: false,
-          type: PhishingDetectorResultType.C2DomainBlocklist,
+          type: PhishingDetectorResultType.Allowlist,
+          version: version === undefined ? version : String(version),
         };
       }
     }
 
+    for (const { c2DomainBlocklist, name, version } of this.#configs) {
+      const hash = sha256Hash(hostname.toLowerCase());
+      const blocked = c2DomainBlocklist?.includes(hash) ?? false;
+
+      if (blocked) {
+        return {
+          name,
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
     // did not match, PASS
     return {
       result: false,
