@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Uncategorized
 
-- **BREAKING:** Feat: Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist ([#4526](https://github.com/MetaMask/core/pull/4526))
+- **BREAKING:** Feat: Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist 
+([#4526](https://github.com/MetaMask/core/pull/4526))
 - Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
 - Fix controllers with missing or incorrect messenger action/event types ([#4633](https://github.com/MetaMask/core/pull/4633))
 - Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
