@@ -56,6 +56,10 @@ export const defaultState: UserStorageControllerState = {
   isProfileSyncingUpdateLoading: false,
 };
 
+// TODO: fix external types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type NativeCrypto = any;
+
 const metadata: StateMetadata<UserStorageControllerState> = {
   isProfileSyncingEnabled: {
     persist: true,
@@ -207,10 +211,13 @@ export default class UserStorageController extends BaseController<
 
   getMetaMetricsState: () => boolean;
 
+  #nativeCrypto: NativeCrypto | undefined;
+
   constructor(params: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
     getMetaMetricsState: () => boolean;
+    nativeCrypto?: NativeCrypto;
   }) {
     super({
       messenger: params.messenger,
@@ -222,6 +229,7 @@ export default class UserStorageController extends BaseController<
     this.getMetaMetricsState = params.getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
+    this.#nativeCrypto = params.nativeCrypto;
   }
 
   /**

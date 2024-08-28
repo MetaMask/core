@@ -1,10 +1,10 @@
 import { gcm } from '@noble/ciphers/aes';
 import { randomBytes } from '@noble/ciphers/webcrypto';
-import { pbkdf2Async } from '@noble/hashes/pbkdf2';
-import { scrypt, scryptAsync } from '@noble/hashes/scrypt';
+import { scrypt } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
+import type { NativeCrypto } from '../UserStorageController';
 import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
 import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
 
@@ -66,21 +66,25 @@ const SCRYPT_r = 8; // Block size parameter
 // eslint-disable-next-line @typescript-eslint/naming-convention
 const SCRYPT_p = 1; // Parallelization parameter
 
-// PBKDF2 settings
-// see: https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2
-const PBKDF2_ITERATIONS = 900_000;
-
 class EncryptorDecryptor {
-  encryptString(plaintext: string, password: string): string {
+  encryptString(
+    plaintext: string,
+    password: string,
+    nativeCrypto?: NativeCrypto,
+  ): string {
     try {
-      return this.#encryptStringV1(plaintext, password);
+      return this.#encryptStringV1(plaintext, password, nativeCrypto);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
     }
   }
 
-  decryptString(encryptedDataStr: string, password: string): string {
+  decryptString(
+    encryptedDataStr: string,
+    password: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any,
+  ): string {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
       if (encryptedData.v === '1') {
@@ -97,13 +101,21 @@ class EncryptorDecryptor {
     }
   }
 
-  #encryptStringV1(plaintext: string, password: string): string {
-    const { key, salt } = this.#getOrGenerateScryptKey(password, {
-      N: SCRYPT_N,
-      r: SCRYPT_r,
-      p: SCRYPT_p,
-      dkLen: ALGORITHM_KEY_SIZE,
-    });
+  #encryptStringV1(
+    plaintext: string,
+    password: string,
+    nativeCrypto?: NativeCrypto,
+  ): string {
+    const { key, salt } = this.#getOrGenerateScryptKey(
+      password,
+      {
+        N: SCRYPT_N,
+        r: SCRYPT_r,
+        p: SCRYPT_p,
+        dkLen: ALGORITHM_KEY_SIZE,
+      },
+      nativeCrypto,
+    );
 
     // Encrypt and prepend salt.
     const plaintextRaw = utf8ToBytes(plaintext);
@@ -162,75 +174,6 @@ class EncryptorDecryptor {
     return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
   }
 
-  async encryptStringScriptAsync(
-    plaintext: string,
-    password: string,
-  ): Promise<string> {
-    const { key, salt } = await this.#getOrGenerateScryptKeyAsync(password, {
-      N: SCRYPT_N,
-      r: SCRYPT_r,
-      p: SCRYPT_p,
-      dkLen: ALGORITHM_KEY_SIZE,
-    });
-
-    // Encrypt and prepend salt.
-    const plaintextRaw = utf8ToBytes(plaintext);
-    const ciphertextAndNonceAndSalt = concatBytes(
-      salt,
-      this.#encrypt(plaintextRaw, key),
-    );
-
-    // Convert to Base64
-    const encryptedData = byteArrayToBase64(ciphertextAndNonceAndSalt);
-
-    const encryptedPayload: EncryptedPayload = {
-      v: '1',
-      t: 'scrypt',
-      d: encryptedData,
-      o: {
-        N: SCRYPT_N,
-        r: SCRYPT_r,
-        p: SCRYPT_p,
-        dkLen: ALGORITHM_KEY_SIZE,
-      },
-      saltLen: SCRYPT_SALT_SIZE,
-    };
-
-    return JSON.stringify(encryptedPayload);
-  }
-
-  async encryptStringPBKDF2Async(plaintext: string, password: string) {
-    const { key, salt } = await this.#getOrGeneratePBKDF2KeyAsync(password, {
-      i: PBKDF2_ITERATIONS,
-      dkLen: ALGORITHM_KEY_SIZE,
-    });
-
-    // Encrypt and prepend salt.
-    const plaintextRaw = utf8ToBytes(plaintext);
-    const ciphertextAndNonceAndSalt = concatBytes(
-      salt,
-      this.#encrypt(plaintextRaw, key),
-    );
-
-    // Convert to Base64
-    const encryptedData = byteArrayToBase64(ciphertextAndNonceAndSalt);
-
-    const encryptedPayload: EncryptedPayload = {
-      v: '1',
-      t: 'scrypt',
-      d: encryptedData,
-      o: {
-        N: SCRYPT_N,
-        r: SCRYPT_r,
-        p: SCRYPT_p,
-        dkLen: ALGORITHM_KEY_SIZE,
-      },
-      saltLen: SCRYPT_SALT_SIZE,
-    };
-
-    return JSON.stringify(encryptedPayload);
-  }
-
   #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
     const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
 
@@ -256,6 +199,7 @@ class EncryptorDecryptor {
     password: string,
     o: EncryptedScryptPayload['o'],
     salt?: Uint8Array,
+    nativeCrypto?: NativeCrypto,
   ) {
     const hashedPassword = createSHA256Hash(password);
     const cachedKey = salt
@@ -270,6 +214,26 @@ class EncryptorDecryptor {
     }
 
     const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
+
+    if (nativeCrypto) {
+      console.log('NativeCrypto::START - scrypt', Date.now());
+      const newKey = nativeCrypto.scrypt(
+        password,
+        newSalt,
+        o.N,
+        o.r,
+        o.p,
+        o.dkLen,
+      );
+      setCachedKey(hashedPassword, newSalt, newKey);
+      console.log('NativeCrypto::END - scrypt', Date.now());
+
+      return {
+        key: newKey,
+        salt: newSalt,
+      };
+    }
+
     const newKey = scrypt(password, newSalt, {
       N: o.N,
       r: o.r,
@@ -283,71 +247,10 @@ class EncryptorDecryptor {
       salt: newSalt,
     };
   }
-
-  async #getOrGenerateScryptKeyAsync(
-    password: string,
-    o: EncryptedScryptPayload['o'],
-    salt?: Uint8Array,
-  ) {
-    const hashedPassword = createSHA256Hash(password);
-    const cachedKey = salt
-      ? getCachedKeyBySalt(hashedPassword, salt)
-      : getAnyCachedKey(hashedPassword);
-
-    if (cachedKey) {
-      return {
-        key: cachedKey.key,
-        salt: cachedKey.salt,
-      };
-    }
-
-    const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
-    const newKey = await scryptAsync(password, newSalt, {
-      N: o.N,
-      r: o.r,
-      p: o.p,
-      dkLen: o.dkLen,
-    });
-    setCachedKey(hashedPassword, newSalt, newKey);
-
-    return {
-      key: newKey,
-      salt: newSalt,
-    };
-  }
-
-  async #getOrGeneratePBKDF2KeyAsync(
-    password: string,
-    o: EncryptedPBKDF2Payload['o'],
-    salt?: Uint8Array,
-  ) {
-    const hashedPassword = createSHA256Hash(password);
-    const cachedKey = salt
-      ? getCachedKeyBySalt(hashedPassword, salt)
-      : getAnyCachedKey(hashedPassword);
-
-    if (cachedKey) {
-      return {
-        key: cachedKey.key,
-        salt: cachedKey.salt,
-      };
-    }
-
-    const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
-    const newKey = await pbkdf2Async(sha256, password, newSalt, {
-      c: o.i, // iterations
-      dkLen: o.dkLen, // key length
-    });
-    setCachedKey(hashedPassword, newSalt, newKey);
-
-    return {
-      key: newKey,
-      salt: newSalt,
-    };
-  }
 }
 
 const encryption = new EncryptorDecryptor();
+
 export default encryption;
 
 /**
@@ -359,36 +262,3 @@ export function createSHA256Hash(data: string): string {
   const hashedData = sha256(data);
   return bytesToHex(hashedData);
 }
-
-// --- TESTING, THESE SHOULD APPEAR IN CONSOLE WHEN THIS FILE IS LOADED ---
-const MOCK_STORAGE_KEY_SIGNATURE = 'mockStorageKey';
-const MOCK_STORAGE_KEY = createSHA256Hash(MOCK_STORAGE_KEY_SIGNATURE);
-const MOCK_STORAGE_DATA = JSON.stringify({ hello: 'world' });
-
-// Test Script
-const testScript = async () => {
-  const start = Date.now();
-  await encryption.encryptStringScriptAsync(
-    MOCK_STORAGE_DATA,
-    MOCK_STORAGE_KEY,
-  );
-  const end = Date.now();
-  console.log(`SCRYPT TIME: ${end - start}ms`);
-};
-
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-testScript();
-
-// Test PBKDF2
-const testPBKDF2 = async () => {
-  const start = Date.now();
-  await encryption.encryptStringPBKDF2Async(
-    MOCK_STORAGE_DATA,
-    MOCK_STORAGE_KEY,
-  );
-  const end = Date.now();
-  console.log(`PBKDF2 TIME: ${end - start}ms`);
-};
-
-// eslint-disable-next-line @typescript-eslint/no-floating-promises
-testPBKDF2();

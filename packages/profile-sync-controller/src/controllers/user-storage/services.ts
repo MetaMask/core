@@ -24,6 +24,8 @@ export type UserStorageOptions = {
   path: UserStoragePath;
   bearerToken: string;
   storageKey: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  nativeCrypto?: any;
 };
 
 /**
@@ -89,7 +91,11 @@ export async function upsertUserStorage(
 ): Promise<void> {
   const { bearerToken, path, storageKey } = opts;
 
-  const encryptedData = encryption.encryptString(data, opts.storageKey);
+  const encryptedData = encryption.encryptString(
+    data,
+    opts.storageKey,
+    opts.nativeCrypto,
+  );
   const encryptedPath = createEntryPath(path, storageKey);
   const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
 
