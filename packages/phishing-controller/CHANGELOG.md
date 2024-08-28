@@ -9,20 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.0.0]
 
-### Added 
+### Added
+
 - Define and export new types: `PhishingControllerGetStateAction`, `PhishingControllerStateChangeEvent`, `PhishingControllerEvents` ([#4633](https://github.com/MetaMask/core/pull/4633))
--  add allowlist to c2 domain detection ([#4464](https://github.com/MetaMask/core/pull/4644))
--  add Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist 
-([#4526](https://github.com/MetaMask/core/pull/4526))
-  - add requestBlocklist type to ListTypes.
-  - add isBlockedRequest method to PhishingController.
-  - add Logic to update and check requestBlocklist in #updateStalelist.
-  - add isMaliciousRequestDomain method to PhishingDetector.
-  - add Handling of requestBlocklist in PhishingDetector configuration.
-  - add sha256 and toHex imports from ethereum-cryptography.
-  - add sha256Hash function to generate SHA-256 hash of a domain.
+- add allowlist to c2 domain detection ([#4464](https://github.com/MetaMask/core/pull/4644))
+- add Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist
+  ([#4526](https://github.com/MetaMask/core/pull/4526))
+- add requestBlocklist type to ListTypes.
+- add isBlockedRequest method to PhishingController.
+- add Logic to update and check requestBlocklist in #updateStalelist.
+- add isMaliciousRequestDomain method to PhishingDetector.
+- add Handling of requestBlocklist in PhishingDetector configuration.
+- add sha256 and toHex imports from ethereum-cryptography.
+- add sha256Hash function to generate SHA-256 hash of a domain.
 
 ### Changed
+
 - **BREAKING:** Added @noble/hashes dependency version ^1.4.0.
 - **BREAKING:**: Added ethereum-cryptography dependency version ^2.1.2.
 - **BREAKING:** `PhishingControllerMessenger` must allow internal events defined in the `PhishingControllerEvents` type ([#4633](https://github.com/MetaMask/core/pull/4633))
