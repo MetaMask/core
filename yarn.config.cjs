@@ -396,23 +396,25 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
  * @param {string} fieldName - The field to check.
  * @param {unknown} expectedValue - The value that should be contained in the array.
  */
-function expectWorkspaceArrayField(workspace, fieldName, expectedValue) {
+function expectWorkspaceArrayField(
+  workspace,
+  fieldName,
+  expectedValue = undefined,
+) {
   let fieldValue = get(workspace.manifest, fieldName);
 
-  if (fieldValue === undefined || fieldValue === null) {
+  if (expectedValue) {
+    if (!Array.isArray(fieldValue)) {
+      fieldValue = [];
+    }
+
+    if (!fieldValue.includes(expectedValue)) {
+      fieldValue.push(expectedValue);
+      workspace.set(fieldName, fieldValue);
+    }
+  } else if (fieldValue === undefined || fieldValue === null) {
     workspace.error(`Missing required field "${fieldName}".`);
-    return;
   }
-
-  if (!Array.isArray(fieldValue)) {
-    fieldValue = [];
-  }
-
-  if (!fieldValue.includes(expectedValue)) {
-    fieldValue.push(expectedValue);
-  }
-
-  workspace.set(fieldName, fieldValue);
 }
 
 /**
