@@ -477,7 +477,7 @@ export class PhishingController extends BaseController<
   isBlockedRequest(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
 
-    return this.#detector.isMaliciousRequestDomain(punycodeOrigin);
+    return this.#detector.isMaliciousC2Domain(punycodeOrigin);
   }
 
   /**

@@ -222,7 +222,7 @@ export class PhishingDetector {
    * @param urlString - The URL to check.
    * @returns An object indicating if the URL is blocked and relevant metadata.
    */
-  isMaliciousRequestDomain(urlString: string): PhishingDetectorResult {
+  isMaliciousC2Domain(urlString: string): PhishingDetectorResult {
     let hostname;
     try {
       hostname = new URL(urlString).hostname;
