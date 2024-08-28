@@ -92,16 +92,12 @@ export class PersonalMessageManager extends AbstractMessageManager<
     validateSignMessageData(messageParams);
 
     const ethereumSignInData = detectSIWE(messageParams);
-    const updatedMessageParams = this.addRequestToMessageParams(
-      messageParams,
-      req,
-    ) as PersonalMessageParams;
 
-    updatedMessageParams.data = normalizeMessageData(messageParams.data);
-    updatedMessageParams.siwe = ethereumSignInData;
+    messageParams.data = normalizeMessageData(messageParams.data);
+    messageParams.siwe = ethereumSignInData;
 
     const messageData = this.createUnapprovedMessage(
-      updatedMessageParams,
+      messageParams,
       ApprovalType.PersonalSign,
       req,
     ) as PersonalMessage;
@@ -109,7 +105,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
     const messageId = messageData.id;
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...updatedMessageParams,
+      ...messageParams,
       metamaskId: messageId,
     });
     return messageId;

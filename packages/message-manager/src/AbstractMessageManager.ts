@@ -5,11 +5,6 @@ import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
 import { v1 as random } from 'uuid';
 
-import type { DecryptMessageParams } from './DecryptMessageManager';
-import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
-import type { PersonalMessageParams } from './PersonalMessageManager';
-import type { TypedMessageParams } from './TypedMessageManager';
-
 /**
  * @type OriginalRequest
  *
@@ -104,15 +99,6 @@ export interface MessageManagerState<M extends AbstractMessage>
 }
 
 /**
- * Represents the parameters to pass to the signing method once the signature request is approved.
- */
-export type MessageParams =
-  | DecryptMessageParams
-  | EncryptionPublicKeyParams
-  | PersonalMessageParams
-  | TypedMessageParams;
-
-/**
  * A function for verifying a message, whether it is malicious or not
  */
 export type SecurityProviderRequest = (
@@ -153,7 +139,7 @@ export abstract class AbstractMessageManager<
    * @returns The messageParams with the request props added.
    */
   protected addRequestToMessageParams(
-    messageParams: MessageParams,
+    messageParams: AbstractMessageParams,
     req?: OriginalRequest,
   ) {
     const updatedMessageParams = {
@@ -176,7 +162,7 @@ export abstract class AbstractMessageManager<
    * @returns The new unapproved message for a specified type.
    */
   protected createUnapprovedMessage(
-    messageParams: MessageParams,
+    messageParams: AbstractMessageParams,
     type: ApprovalType,
     req?: OriginalRequest,
   ) {

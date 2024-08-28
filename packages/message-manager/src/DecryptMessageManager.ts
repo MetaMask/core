@@ -129,14 +129,10 @@ export class DecryptMessageManager extends AbstractMessageManager<
     messageParams: DecryptMessageParams,
     req?: OriginalRequest,
   ) {
-    const updatedMessageParams = this.addRequestToMessageParams(
-      messageParams,
-      req,
-    ) as DecryptMessageParams;
-    updatedMessageParams.data = normalizeMessageData(messageParams.data);
+    messageParams.data = normalizeMessageData(messageParams.data);
 
     const messageData = this.createUnapprovedMessage(
-      updatedMessageParams,
+      messageParams,
       ApprovalType.EthDecrypt,
       req,
     ) as DecryptMessage;
@@ -145,7 +141,7 @@ export class DecryptMessageManager extends AbstractMessageManager<
 
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...updatedMessageParams,
+      ...messageParams,
       metamaskId: messageId,
     });
     return messageId;

@@ -129,13 +129,8 @@ export class TypedMessageManager extends AbstractMessageManager<
       messageParams.data = JSON.stringify(messageParams.data);
     }
 
-    const updatedMessageParams = this.addRequestToMessageParams(
-      messageParams,
-      req,
-    ) as TypedMessageParams;
-
     const messageData = this.createUnapprovedMessage(
-      updatedMessageParams,
+      messageParams,
       ApprovalType.EthSignTypedData,
       req,
     ) as TypedMessage;
@@ -144,10 +139,6 @@ export class TypedMessageManager extends AbstractMessageManager<
 
     await this.addMessage(messageData);
 
-    /**
-     * This intentionally splays messageParams rather than updatedMessageParams. I'm unsure if this
-     * is exactly what we want, but I am preserving existing logic.
-     */
     this.hub.emit(`unapprovedMessage`, {
       ...messageParams,
       metamaskId: messageId,

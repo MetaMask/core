@@ -120,13 +120,8 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     messageParams: EncryptionPublicKeyParams,
     req?: OriginalRequest,
   ): Promise<string> {
-    const updatedMessageParams = this.addRequestToMessageParams(
-      messageParams,
-      req,
-    ) as EncryptionPublicKeyParams;
-
     const messageData = this.createUnapprovedMessage(
-      updatedMessageParams,
+      messageParams,
       ApprovalType.EthGetEncryptionPublicKey,
       req,
     ) as EncryptionPublicKey;
@@ -135,7 +130,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
 
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...updatedMessageParams,
+      ...messageParams,
       metamaskId: messageId,
     });
     return messageId;
