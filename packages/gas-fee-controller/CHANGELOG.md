@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 191.0.0 ([#4639](https://github.com/MetaMask/core.git/pull/4639))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core.git/pull/1390))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core.git/pull/4625))
-- Release 185.0.0 ([#4618](https://github.com/MetaMask/core.git/pull/4618))
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core.git/pull/4584))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core.git/pull/4576))
-
 ## [19.0.1]
 
 ### Changed
@@ -332,38 +323,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@19.0.1...HEAD
-[19.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@19.0.0...@metamask/gas-fee-controller@19.0.1
-[19.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@18.0.0...@metamask/gas-fee-controller@19.0.0
-[18.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@17.0.0...@metamask/gas-fee-controller@18.0.0
-[17.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@16.0.0...@metamask/gas-fee-controller@17.0.0
-[16.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@15.1.2...@metamask/gas-fee-controller@16.0.0
-[15.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@15.1.1...@metamask/gas-fee-controller@15.1.2
-[15.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@15.1.0...@metamask/gas-fee-controller@15.1.1
-[15.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@15.0.0...@metamask/gas-fee-controller@15.1.0
-[15.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@14.0.1...@metamask/gas-fee-controller@15.0.0
-[14.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@14.0.0...@metamask/gas-fee-controller@14.0.1
-[14.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@13.0.2...@metamask/gas-fee-controller@14.0.0
-[13.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@13.0.1...@metamask/gas-fee-controller@13.0.2
-[13.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@13.0.0...@metamask/gas-fee-controller@13.0.1
-[13.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@12.0.0...@metamask/gas-fee-controller@13.0.0
-[12.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@11.0.0...@metamask/gas-fee-controller@12.0.0
-[11.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@10.0.1...@metamask/gas-fee-controller@11.0.0
-[10.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@10.0.0...@metamask/gas-fee-controller@10.0.1
-[10.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@9.0.0...@metamask/gas-fee-controller@10.0.0
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@8.0.0...@metamask/gas-fee-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@7.0.1...@metamask/gas-fee-controller@8.0.0
-[7.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@7.0.0...@metamask/gas-fee-controller@7.0.1
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@6.1.2...@metamask/gas-fee-controller@7.0.0
-[6.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@6.1.1...@metamask/gas-fee-controller@6.1.2
-[6.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@6.1.0...@metamask/gas-fee-controller@6.1.1
-[6.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@6.0.1...@metamask/gas-fee-controller@6.1.0
-[6.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@6.0.0...@metamask/gas-fee-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@5.0.0...@metamask/gas-fee-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@4.0.1...@metamask/gas-fee-controller@5.0.0
-[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@4.0.0...@metamask/gas-fee-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@3.0.0...@metamask/gas-fee-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@2.0.1...@metamask/gas-fee-controller@3.0.0
-[2.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@2.0.0...@metamask/gas-fee-controller@2.0.1
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/gas-fee-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@19.0.1...HEAD
+[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@19.0.0...@metamask/gas-fee-controller@19.0.1
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@18.0.0...@metamask/gas-fee-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@17.0.0...@metamask/gas-fee-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@16.0.0...@metamask/gas-fee-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.2...@metamask/gas-fee-controller@16.0.0
+[15.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.1...@metamask/gas-fee-controller@15.1.2
+[15.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.0...@metamask/gas-fee-controller@15.1.1
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.0.0...@metamask/gas-fee-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.1...@metamask/gas-fee-controller@15.0.0
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@14.0.0...@metamask/gas-fee-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.2...@metamask/gas-fee-controller@14.0.0
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.1...@metamask/gas-fee-controller@13.0.2
+[13.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@13.0.0...@metamask/gas-fee-controller@13.0.1
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@12.0.0...@metamask/gas-fee-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@11.0.0...@metamask/gas-fee-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.1...@metamask/gas-fee-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@10.0.0...@metamask/gas-fee-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@9.0.0...@metamask/gas-fee-controller@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@8.0.0...@metamask/gas-fee-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.1...@metamask/gas-fee-controller@8.0.0
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@7.0.0...@metamask/gas-fee-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.2...@metamask/gas-fee-controller@7.0.0
+[6.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.1...@metamask/gas-fee-controller@6.1.2
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.1.0...@metamask/gas-fee-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.1...@metamask/gas-fee-controller@6.1.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@6.0.0...@metamask/gas-fee-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@5.0.0...@metamask/gas-fee-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.1...@metamask/gas-fee-controller@5.0.0
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@4.0.0...@metamask/gas-fee-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@3.0.0...@metamask/gas-fee-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@2.0.1...@metamask/gas-fee-controller@3.0.0
+[2.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@2.0.0...@metamask/gas-fee-controller@2.0.1
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@1.0.0...@metamask/gas-fee-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/gas-fee-controller@1.0.0
