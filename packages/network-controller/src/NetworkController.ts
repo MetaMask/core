@@ -23,10 +23,10 @@ import { isStrictHexString, hasProperty, isPlainObject } from '@metamask/utils';
 import { strict as assert } from 'assert';
 import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
+import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { inspect } from 'util';
 import { v4 as uuidV4 } from 'uuid';
-import { createSelector } from 'reselect';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
 import type {
