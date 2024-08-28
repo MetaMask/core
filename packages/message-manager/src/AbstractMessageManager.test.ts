@@ -1,7 +1,6 @@
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
-  MessageParams,
   OriginalRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
