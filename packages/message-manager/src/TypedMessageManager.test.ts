@@ -144,6 +144,7 @@ describe('TypedMessageManager', () => {
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.messageParams.origin).toBe(originalRequest.origin);
     expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
