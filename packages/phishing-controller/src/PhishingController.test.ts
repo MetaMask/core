@@ -293,7 +293,6 @@ describe('PhishingController', () => {
       const controller = getPhishingController({
         hotlistRefreshInterval: 10,
         stalelistRefreshInterval: 50,
-        c2DomainBlocklistRefreshInterval: 15,
       });
       clock.tick(1000 * 10);
       expect(controller.isHotlistOutOfDate()).toBe(true);
