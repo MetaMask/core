@@ -1,6 +1,6 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type {
+import {
   BlockTrackerProxy,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -8,6 +8,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
   ProviderProxy,
+  selectAvailableNetworkClientIds,
 } from '@metamask/network-controller';
 import type {
   PermissionControllerStateChange,
@@ -191,15 +192,11 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      ({ selectedNetworkClientId, networkConfigurationsByChainId }) => {
+      (availableNetworkClientIds) => {
         // if a network is updated or removed, update the networkClientId for all domains
         // that were using it to the selected network client id
-        const availableNetworkClientIds = Object.values(
-          networkConfigurationsByChainId,
-        ).flatMap((networkConfiguration) =>
-          networkConfiguration.rpcEndpoints.map(
-            (rpcEndpoint) => rpcEndpoint.networkClientId,
-          ),
+        const { selectedNetworkClientId } = this.messagingSystem.call(
+          'NetworkController:getState',
         );
         Object.entries(this.state.domains).forEach(
           ([domain, networkClientIdForDomain]) => {
@@ -209,6 +206,7 @@ export class SelectedNetworkController extends BaseController<
           },
         );
       },
+      selectAvailableNetworkClientIds,
     );
 
     onPreferencesStateChange(({ useRequestQueue }) => {

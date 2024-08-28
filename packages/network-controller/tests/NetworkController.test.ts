@@ -29,13 +29,21 @@ import type {
   AutoManagedBuiltInNetworkClientRegistry,
   AutoManagedCustomNetworkClientRegistry,
   NetworkClientId,
+  NetworkConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
   NetworkControllerOptions,
   NetworkControllerStateChangeEvent,
   NetworkState,
 } from '../src/NetworkController';
-import { NetworkController, RpcEndpointType } from '../src/NetworkController';
+import {
+  getAvailableNetworkClientIds,
+  getDefaultNetworkControllerState,
+  getNetworkConfigurations,
+  NetworkController,
+  RpcEndpointType,
+  selectAvailableNetworkClientIds,
+} from '../src/NetworkController';
 import type { NetworkClientConfiguration, Provider } from '../src/types';
 import { NetworkClientType } from '../src/types';
 import {
@@ -12757,6 +12765,71 @@ describe('NetworkController', () => {
         },
       );
     });
+  });
+});
+
+describe('getNetworkConfigurations', () => {
+  it('returns network configurations available in the state', () => {
+    const state = getDefaultNetworkControllerState();
+
+    expect(getNetworkConfigurations(state)).toStrictEqual(
+      Object.values(state.networkConfigurationsByChainId),
+    );
+  });
+});
+
+describe('getAvailableNetworkClientIds', () => {
+  it('returns network client ids available in the state', () => {
+    const networkConfigurations = [
+      {
+        rpcEndpoints: [
+          {
+            networkClientId: 'foo',
+          },
+        ],
+      },
+      {
+        rpcEndpoints: [
+          {
+            networkClientId: 'bar',
+          },
+        ],
+      },
+    ] as NetworkConfiguration[];
+
+    expect(getAvailableNetworkClientIds(networkConfigurations)).toStrictEqual([
+      'foo',
+      'bar',
+    ]);
+  });
+});
+
+describe('selectAvailableNetworkClientIds', () => {
+  it('selects all network client ids available in the state', () => {
+    const state = {
+      ...getDefaultNetworkControllerState(),
+      networkConfigurationsByChainId: {
+        '0x12': {
+          rpcEndpoints: [
+            {
+              networkClientId: 'foo',
+            },
+          ],
+        } as NetworkConfiguration,
+        '0x34': {
+          rpcEndpoints: [
+            {
+              networkClientId: 'bar',
+            },
+          ],
+        } as NetworkConfiguration,
+      },
+    };
+
+    expect(selectAvailableNetworkClientIds(state)).toStrictEqual([
+      'foo',
+      'bar',
+    ]);
   });
 });
 

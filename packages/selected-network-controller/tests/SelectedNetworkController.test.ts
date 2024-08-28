@@ -2,6 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   type ProviderProxy,
   type BlockTrackerProxy,
+  type NetworkState,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
@@ -294,25 +295,29 @@ describe('SelectedNetworkController', () => {
   describe('NetworkController:stateChange', () => {
     describe('when a networkClient is deleted from the network controller state', () => {
       it('does not update state when useRequestQueuePreference is false', () => {
-        const { controller, messenger } = setup({
+        const { controller, messenger, mockNetworkControllerGetState } = setup({
           state: {
             domains: {},
           },
         });
+        const mockNetworkControllerStateUpdate: NetworkState = {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: 'goerli',
+        };
+        mockNetworkControllerGetState.mockReturnValueOnce(
+          mockNetworkControllerStateUpdate,
+        );
 
         messenger.publish(
           'NetworkController:stateChange',
-          {
-            ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: 'goerli',
-          },
+          mockNetworkControllerStateUpdate,
           [],
         );
         expect(controller.state.domains).toStrictEqual({});
       });
 
       it('updates the networkClientId for domains which were previously set to the deleted networkClientId when useRequestQueuePreference is true', () => {
-        const { controller, messenger } = setup({
+        const { controller, messenger, mockNetworkControllerGetState } = setup({
           state: {
             domains: {
               metamask: 'goerli',
@@ -322,13 +327,17 @@ describe('SelectedNetworkController', () => {
           },
           useRequestQueuePreference: true,
         });
+        const mockNetworkControllerStateUpdate: NetworkState = {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: 'goerli',
+        };
+        mockNetworkControllerGetState.mockReturnValueOnce(
+          mockNetworkControllerStateUpdate,
+        );
 
         messenger.publish(
           'NetworkController:stateChange',
-          {
-            ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: 'goerli',
-          },
+          mockNetworkControllerStateUpdate,
           [],
         );
         expect(controller.state.domains['example.com']).toBe('goerli');
