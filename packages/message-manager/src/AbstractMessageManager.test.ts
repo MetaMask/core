@@ -384,6 +384,38 @@ describe('AbstractTestManager', () => {
     });
   });
 
+  describe('setMessageStatus', () => {
+    it('updates the status of a message', async () => {
+      jest.mock('events', () => ({
+        emit: jest.fn(),
+      }));
+
+      const controller = new AbstractTestManager();
+      await controller.addMessage({
+        id: messageId,
+        messageParams: { ...mockMessageParams },
+        status: 'status',
+        time: 10,
+        type: 'type',
+      });
+      const messageBefore = controller.getMessage(messageId);
+      expect(messageBefore?.status).toBe('status');
+
+      controller.setMessageStatus(messageId, 'newstatus');
+
+      const messageAfter = controller.getMessage(messageId);
+      expect(messageAfter?.status).toBe('newstatus');
+    });
+
+    it('throws an error if the message is not found', async () => {
+      const controller = new AbstractTestManager();
+
+      expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
+        'AbstractMessageManager: Message not found for id: 1.',
+      );
+    });
+  });
+
   describe('setMessageStatusAndResult', () => {
     it('emits updateBadge once', async () => {
       jest.mock('events', () => ({
