@@ -1,6 +1,6 @@
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import {
+import type {
   BlockTrackerProxy,
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
@@ -8,8 +8,8 @@ import {
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
   ProviderProxy,
-  selectAvailableNetworkClientIds,
 } from '@metamask/network-controller';
+import { selectAvailableNetworkClientIds } from '@metamask/network-controller';
 import type {
   PermissionControllerStateChange,
   GetSubjects as PermissionControllerGetSubjectsAction,
