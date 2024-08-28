@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.0]
 
-### Uncategorized
+### Added
 
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Move composable-controller utility types to base-controller ([#4581](https://github.com/MetaMask/core/pull/4581))
-- BaseControllerV2 metadata is required for all the properties ([#4612](https://github.com/MetaMask/core/pull/4612))
+- Migrate from `@metamask/composable-controller@8.0.0` into `@metamask/base-controller`: types `LegacyControllerStateConstraint`, `RestrictedControllerMessengerConstraint` and type guard functions `isBaseController`, `isBaseControllerV1`  ([#4581](https://github.com/MetaMask/core/pull/4581))
+- Add and export types `ControllerInstance`, `BaseControllerInstance`, `StateDeriverConstraint`, `StateMetadataConstraint`, `StatePropertyMetadataConstraint`, `BaseControllerV1Instance`, `ConfigConstraintV1`, `StateConstraintV1` ([#4581](https://github.com/MetaMask/core/pull/4581))
+
+### Fixed
+
+- **BREAKING:** Fix `StateMetadata` type so that it requires associated metadata for all optional and non-optional top-level state properties ([#4612](https://github.com/MetaMask/core/pull/4612))
+  - Fixes issue of runtime error being thrown during `BaseController` instantiation due to missing metadata for optional state properties.
 
 ## [6.0.3]
 

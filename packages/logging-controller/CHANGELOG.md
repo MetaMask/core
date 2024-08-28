@@ -9,19 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [6.0.0]
 
-### Uncategorized
+### Added
 
-- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
-- Fix controllers with missing or incorrect messenger action/event types ([#4633](https://github.com/MetaMask/core/pull/4633))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
-- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
-- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
-- Release 179.0.0 ([#4544](https://github.com/MetaMask/core/pull/4544))
-- Upgrade to TypeScript v5.0 and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
-- Release/172.0.0 ([#4517](https://github.com/MetaMask/core/pull/4517))
-- Enable `resetMocks` Jest configuration option ([#4417](https://github.com/MetaMask/core/pull/4417))
-- Restore ESLint warnings as errors (ignoring them for now) ([#4382](https://github.com/MetaMask/core/pull/4382))
+- Define and export new types: `LoggingControllerGetStateAction`, `LoggingControllerStateChangeEvent`, `LoggingControllerEvents` ([#4633](https://github.com/MetaMask/core/pull/4633))
+
+### Changed
+
+- **BREAKING:** `LoggingControllerMessenger` must allow internal events defined in the `LoggingControllerEvents` type ([#4633](https://github.com/MetaMask/core/pull/4633))
+- `LoggingControllerActions` is widened to include the `LoggingController:getState` action ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^7.0.0` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544), [#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `typescript` from `~4.9.5` to `~5.2.2` and set `module{,Resolution}` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
 
 ## [5.0.0]
 
