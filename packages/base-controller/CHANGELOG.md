@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Migrate from `@metamask/composable-controller@8.0.0` into `@metamask/base-controller`: types `LegacyControllerStateConstraint`, `RestrictedControllerMessengerConstraint` and type guard functions `isBaseController`, `isBaseControllerV1`  ([#4581](https://github.com/MetaMask/core/pull/4581))
+- Migrate from `@metamask/composable-controller@8.0.0` into `@metamask/base-controller`: types `LegacyControllerStateConstraint`, `RestrictedControllerMessengerConstraint` and type guard functions `isBaseController`, `isBaseControllerV1` ([#4581](https://github.com/MetaMask/core/pull/4581))
 - Add and export types `ControllerInstance`, `BaseControllerInstance`, `StateDeriverConstraint`, `StateMetadataConstraint`, `StatePropertyMetadataConstraint`, `BaseControllerV1Instance`, `ConfigConstraintV1`, `StateConstraintV1` ([#4581](https://github.com/MetaMask/core/pull/4581))
 
 ### Fixed
