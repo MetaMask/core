@@ -50,6 +50,7 @@ export type CaipAccountAddress = Infer<typeof CaipAccountAddressStruct>;
 export enum KnownCaipNamespace {
   /** EIP-155 compatible chains. */
   Eip155 = 'eip155',
+  Wallet = 'wallet',
 }
 
 /**
