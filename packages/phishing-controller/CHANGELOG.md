@@ -12,10 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Uncategorized
 
 - Feat: Block Client Side C2 Requests by Managing a hashed C2 Request Blocklist ([#4526](https://github.com/MetaMask/core/pull/4526))
-- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
-- Fix controllers with missing or incorrect messenger action/event types ([#4633](https://github.com/MetaMask/core/pull/4633))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
+
+### Added
+
+- Define and export new types: `PhishingControllerGetStateAction`, `PhishingControllerStateChangeEvent`, `PhishingControllerEvents` ([#4633](https://github.com/MetaMask/core/pull/4633))
+
+### Changed
+
+- **BREAKING:** `PhishingControllerMessenger` must allow internal events defined in the `PhishingControllerEvents` type ([#4633](https://github.com/MetaMask/core/pull/4633))
+- `PhishingControllerActions` is widened to include the `PhishingController:getState` action ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^6.0.3` ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.1.0` ([#4639](https://github.com/MetaMask/core/pull/4639))
 
 ## [11.0.0]
 
