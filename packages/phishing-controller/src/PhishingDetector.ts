@@ -146,7 +146,6 @@ export class PhishingDetector {
     try {
       domain = new URL(url).hostname;
     } catch (error) {
-      console.error('Error parsing URL', error);
       return {
         result: false,
         type: PhishingDetectorResultType.All,
