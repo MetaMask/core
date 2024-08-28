@@ -1,6 +1,7 @@
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
+  AbstractMessageParams,
   OriginalRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
@@ -17,14 +18,14 @@ class AbstractTestManager extends AbstractMessageManager<
   TypedMessageParamsMetamask
 > {
   addRequestToMessageParams(
-    messageParams: MessageParams,
+    messageParams: AbstractMessageParams,
     req?: OriginalRequest,
   ) {
     return super.addRequestToMessageParams(messageParams, req);
   }
 
   createUnapprovedMessage(
-    messageParams: MessageParams,
+    messageParams: AbstractMessageParams,
     type: ApprovalType,
     req?: OriginalRequest,
   ) {
