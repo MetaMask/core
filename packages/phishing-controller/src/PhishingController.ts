@@ -427,7 +427,7 @@ export class PhishingController extends BaseController<
    *
    * If the stalelist configuration is out of date, this function will call `updateStalelist`
    * to update the configuration. This will automatically grab the hotlist,
-   * so it isn't necessary to continue on to download the hotlist.
+   * so it isn't necessary to continue on to download the hotlist and the c2 domain blocklist.
    *
    */
   async maybeUpdateState() {
