@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(notification-services-push-controller): Add missing messenger action/events ([#4641](https://github.com/MetaMask/core.git/pull/4641))
+- Release 191.0.0 ([#4639](https://github.com/MetaMask/core.git/pull/4639))
+- Fix controllers with missing or incorrect messenger action/event types ([#4633](https://github.com/MetaMask/core.git/pull/4633))
+- Replace yarn resolutions entry for `axios` security patch with version bump ([#4637](https://github.com/MetaMask/core.git/pull/4637))
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core.git/pull/1390))
+- Release 188.0.0 ([#4625](https://github.com/MetaMask/core.git/pull/4625))
+- fix: add notification on push notification click callback ([#4613](https://github.com/MetaMask/core.git/pull/4613))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core.git/pull/4584))
+
 ## [0.2.1]
 
 ### Added
@@ -68,9 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.1...HEAD
-[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.0...@metamask/notification-services-controller@0.2.1
-[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.2...@metamask/notification-services-controller@0.2.0
-[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.1...@metamask/notification-services-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.1.0...@metamask/notification-services-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/notification-services-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.2.1...HEAD
+[0.2.1]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.2.0...@metamask/notification-services-controller@0.2.1
+[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.1.2...@metamask/notification-services-controller@0.2.0
+[0.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.1.1...@metamask/notification-services-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/notification-services-controller@0.1.0...@metamask/notification-services-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/notification-services-controller@0.1.0
