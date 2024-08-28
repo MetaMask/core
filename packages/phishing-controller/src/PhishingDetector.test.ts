@@ -1335,10 +1335,12 @@ describe('PhishingDetector', () => {
       await withPhishingDetector(
         [
           {
-            allowlist: ['example.com'],
+            allowlist: ['develop.d3bkcslj57l47p.amplifyapp.com'],
             blocklist: [],
             fuzzylist: [],
-            c2DomainBlocklist: [],
+            c2DomainBlocklist: [
+              '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455',
+            ],
             name: 'first-config',
             version: 1,
             tolerance: 2,
@@ -1346,10 +1348,10 @@ describe('PhishingDetector', () => {
         ],
         async ({ detector }) => {
           const result = detector.isMaliciousRequestDomain(
-            'https://example.com',
+            'https://develop.d3bkcslj57l47p.amplifyapp.com',
           );
           expect(result).toStrictEqual({
-            match: 'example.com',
+            match: 'develop.d3bkcslj57l47p.amplifyapp.com',
             name: 'first-config',
             result: false,
             type: PhishingDetectorResultType.Allowlist,
