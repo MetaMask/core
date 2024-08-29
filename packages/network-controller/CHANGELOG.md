@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
-- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
-- deps(network-controller): @metamask/eth-block-tracker@^9.0.3->^10.0.0 ([#4424](https://github.com/MetaMask/core/pull/4424))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
-
 ## [20.2.0]
 
 ### Changed

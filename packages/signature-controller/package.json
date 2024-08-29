@@ -44,7 +44,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.0",
     "@metamask/controller-utils": "^11.1.0",
-    "@metamask/message-manager": "^10.0.3",
+    "@metamask/message-manager": "^10.1.0",
     "@metamask/utils": "^9.1.0",
     "lodash": "^4.17.21"
   },
