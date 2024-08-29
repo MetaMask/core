@@ -12,7 +12,12 @@ import {
   PhishingDetectorResultType,
   type PhishingDetectorResult,
 } from './types';
-import { applyDiffs, fetchTimeNow, roundToNearestMinute } from './utils';
+import {
+  applyDiffs,
+  fetchTimeNow,
+  getHostnameFromUrl,
+  roundToNearestMinute,
+} from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
   'https://phishing-detection.api.cx.metamask.io';
@@ -458,8 +463,8 @@ export class PhishingController extends BaseController<
    */
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
-    const { hostname } = new URL(punycodeOrigin);
-    if (this.state.whitelist.includes(hostname)) {
+    const hostname = getHostnameFromUrl(punycodeOrigin);
+    if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
     return this.#detector.check(punycodeOrigin);
@@ -477,8 +482,8 @@ export class PhishingController extends BaseController<
    */
   isBlockedRequest(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
-    const { hostname } = new URL(punycodeOrigin);
-    if (this.state.whitelist.includes(hostname)) {
+    const hostname = getHostnameFromUrl(punycodeOrigin);
+    if (this.state.whitelist.includes(hostname || punycodeOrigin)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
     return this.#detector.isMaliciousC2Domain(punycodeOrigin);
@@ -491,12 +496,13 @@ export class PhishingController extends BaseController<
    */
   bypass(origin: string) {
     const punycodeOrigin = toASCII(origin);
+    const hostname = getHostnameFromUrl(punycodeOrigin);
     const { whitelist } = this.state;
-    if (whitelist.includes(punycodeOrigin)) {
+    if (whitelist.includes(hostname || punycodeOrigin)) {
       return;
     }
     this.update((draftState) => {
-      draftState.whitelist.push(punycodeOrigin);
+      draftState.whitelist.push(hostname || punycodeOrigin);
     });
   }
 
