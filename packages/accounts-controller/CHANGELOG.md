@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
+
 ## [18.1.0]
 
 ### Added
