@@ -69,36 +69,6 @@ describe('PhishingController', () => {
   it('should return false if the hostname is in the whitelist', async () => {
     const whitelistedHostname = 'example.com';
 
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_STALELIST_FILE)
-      .reply(200, {
-        data: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [whitelistedHostname],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
-          tolerance: 0,
-          version: 0,
-          lastUpdated: 1,
-        },
-      })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-      .reply(200, { data: [] });
-
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-      .reply(200, {
-        recentlyAdded: [],
-        recentlyRemoved: [],
-        lastFetchedAt: 1,
-      });
-
     const controller = getPhishingController();
     controller.bypass(formatHostnameToUrl(whitelistedHostname));
     const result = controller.test(whitelistedHostname);
@@ -111,39 +81,8 @@ describe('PhishingController', () => {
   it('should return false if the URL is in the whitelist', async () => {
     const whitelistedHostname = 'example.com';
 
-    nock(PHISHING_CONFIG_BASE_URL)
-      .get(METAMASK_STALELIST_FILE)
-      .reply(200, {
-        data: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          eth_phishing_detect_config: {
-            allowlist: [whitelistedHostname],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          // eslint-disable-next-line @typescript-eslint/naming-convention
-          phishfort_hotlist: {
-            blocklist: [],
-          },
-          tolerance: 0,
-          version: 0,
-          lastUpdated: 1,
-        },
-      })
-      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
-      .reply(200, { data: [] });
-
-    nock(CLIENT_SIDE_DETECION_BASE_URL)
-      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
-      .reply(200, {
-        recentlyAdded: [],
-        recentlyRemoved: [],
-        lastFetchedAt: 1,
-      });
-
     const controller = getPhishingController();
     controller.bypass(formatHostnameToUrl(whitelistedHostname));
-    await controller.updateStalelist();
     const result = controller.test(`https://${whitelistedHostname}/path`);
 
     expect(result).toMatchObject({
@@ -2400,6 +2339,7 @@ describe('PhishingController', () => {
       const hostname = getHostnameFromUrl(origin);
 
       // Call the bypass function
+      controller.bypass(origin);
       controller.bypass(origin);
 
       // Verify that the whitelist has not changed
