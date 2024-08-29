@@ -2412,6 +2412,7 @@ describe('TransactionController', () => {
                 time: 123456789,
                 txParams: {
                   from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
                 },
               },
             ],
@@ -2448,6 +2449,7 @@ describe('TransactionController', () => {
                 time: 123456789,
                 txParams: {
                   from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
                 },
               },
             ],
@@ -2494,6 +2496,7 @@ describe('TransactionController', () => {
                 txParams: {
                   from: ACCOUNT_MOCK,
                   nonce: mockNonce,
+                  gasPrice: '0x1',
                 },
               },
             ],
@@ -2537,6 +2540,7 @@ describe('TransactionController', () => {
                 txParams: {
                   from: ACCOUNT_MOCK,
                   nonce: mockNonce,
+                  gasPrice: '0x1',
                 },
               },
             ],
@@ -2727,6 +2731,7 @@ describe('TransactionController', () => {
                 time: 123456789,
                 txParams: {
                   from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
                 },
               },
             ],
@@ -2763,6 +2768,7 @@ describe('TransactionController', () => {
                 time: 123456789,
                 txParams: {
                   from: ACCOUNT_MOCK,
+                  gasPrice: '0x1',
                 },
               },
             ],

@@ -78,6 +78,10 @@ import type {
   SimulationData,
   GasFeeEstimates,
   GasFeeFlowResponse,
+  TraceCallback,
+  TraceContext,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -101,6 +105,7 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
+import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -108,14 +113,10 @@ import {
 } from './utils/swaps';
 import { determineTransactionType } from './utils/transaction-type';
 import {
-  getIncreasedPriceFromExisting,
   normalizeTransactionParams,
   isEIP1559Transaction,
-  isFeeMarketEIP1559Values,
-  isGasPriceValue,
   validateGasValues,
   validateIfTransactionUnapproved,
-  validateMinimumIncrease,
   normalizeTxError,
   normalizeGasFeeValues,
 } from './utils/utils';
@@ -158,21 +159,6 @@ export const HARDFORK = Hardfork.London;
 export interface Result {
   result: Promise<string>;
   transactionMeta: TransactionMeta;
-}
-
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface GasPriceValue {
-  gasPrice: string;
-}
-
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface FeeMarketEIP1559Values {
-  maxFeePerGas: string;
-  maxPriorityFeePerGas: string;
 }
 
 /**
@@ -313,6 +299,7 @@ export type TransactionControllerOptions = {
   ) => Promise<TypedTransaction>;
   state?: Partial<TransactionControllerState>;
   testGasFeeFlows?: boolean;
+  trace?: TraceCallback;
   transactionHistoryLimit: number;
   hooks: {
     afterSign?: (
@@ -634,6 +621,8 @@ export class TransactionController extends BaseController<
 
   private readonly signAbortCallbacks: Map<string, () => void> = new Map();
 
+  #trace: TraceCallback;
+
   #transactionHistoryLimit: number;
 
   #isSimulationEnabled: () => boolean;
@@ -743,6 +732,7 @@ export class TransactionController extends BaseController<
    * @param options.sign - Function used to sign transactions.
    * @param options.state - Initial state to set on this controller.
    * @param options.testGasFeeFlows - Whether to use the test gas fee flow.
+   * @param options.trace - Callback to generate trace information.
    * @param options.transactionHistoryLimit - Transaction history limit.
    * @param options.hooks - The controller hooks.
    */
@@ -770,6 +760,7 @@ export class TransactionController extends BaseController<
     sign,
     state,
     testGasFeeFlows,
+    trace,
     transactionHistoryLimit = 40,
     hooks,
   }: TransactionControllerOptions) {
@@ -807,6 +798,7 @@ export class TransactionController extends BaseController<
     this.#transactionHistoryLimit = transactionHistoryLimit;
     this.sign = sign;
     this.#testGasFeeFlows = testGasFeeFlows === true;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.afterSign = hooks?.afterSign ?? (() => true);
     this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
@@ -976,6 +968,7 @@ export class TransactionController extends BaseController<
    * @param opts.swaps.hasApproveTx - Whether the transaction has an approval transaction.
    * @param opts.swaps.meta - Metadata for swap transaction.
    * @param opts.networkClientId - The id of the network client for this transaction.
+   * @param opts.traceContext - The parent context for any new traces.
    * @returns Object containing a promise resolving to the transaction hash if approved.
    */
   async addTransaction(
@@ -989,6 +982,7 @@ export class TransactionController extends BaseController<
       securityAlertResponse,
       sendFlowHistory,
       swaps = {},
+      traceContext,
       type,
       networkClientId: requestNetworkClientId,
     }: {
@@ -1003,6 +997,7 @@ export class TransactionController extends BaseController<
         hasApproveTx?: boolean;
         meta?: Partial<TransactionMeta>;
       };
+      traceContext?: unknown;
       type?: TransactionType;
       networkClientId?: NetworkClientId;
     } = {},
@@ -1074,7 +1069,13 @@ export class TransactionController extends BaseController<
           networkClientId,
         };
 
-    await this.updateGasProperties(addedTransactionMeta);
+    await this.#trace(
+      { name: 'Estimate Gas Properties', parentContext: traceContext },
+      (context) =>
+        this.updateGasProperties(addedTransactionMeta, {
+          traceContext: context,
+        }),
+    );
 
     // Checks if a transaction already exists with a given actionId
     if (!existingTransactionMeta) {
@@ -1110,7 +1111,9 @@ export class TransactionController extends BaseController<
       this.addMetadata(addedTransactionMeta);
 
       if (requireApproval !== false) {
-        this.#updateSimulationData(addedTransactionMeta).catch((error) => {
+        this.#updateSimulationData(addedTransactionMeta, {
+          traceContext,
+        }).catch((error) => {
           log('Error while updating simulation data', error);
           throw error;
         });
@@ -1129,6 +1132,7 @@ export class TransactionController extends BaseController<
         isExisting: Boolean(existingTransactionMeta),
         requireApproval,
         actionId,
+        traceContext,
       }),
       transactionMeta: addedTransactionMeta,
     };
@@ -1187,160 +1191,31 @@ export class TransactionController extends BaseController<
       actionId,
     }: { estimatedBaseFee?: string; actionId?: string } = {},
   ) {
-    // If transaction is found for same action id, do not create a cancel transaction.
-    if (this.getTransactionWithActionId(actionId)) {
-      return;
-    }
-
-    if (gasValues) {
-      // Not good practice to reassign a parameter but temporarily avoiding a larger refactor.
-      gasValues = normalizeGasFeeValues(gasValues);
-      validateGasValues(gasValues);
-    }
-
-    log('Creating cancel transaction', transactionId, gasValues);
-
-    const transactionMeta = this.getTransaction(transactionId);
-    if (!transactionMeta) {
-      return;
-    }
-
-    if (!this.sign) {
-      throw new Error('No sign method defined.');
-    }
-
-    // gasPrice (legacy non EIP1559)
-    const minGasPrice = getIncreasedPriceFromExisting(
-      transactionMeta.txParams.gasPrice,
-      CANCEL_RATE,
-    );
-
-    const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
-
-    const newGasPrice =
-      (gasPriceFromValues &&
-        validateMinimumIncrease(gasPriceFromValues, minGasPrice)) ||
-      minGasPrice;
-
-    // maxFeePerGas (EIP1559)
-    const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
-    const minMaxFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxFeePerGas,
-      CANCEL_RATE,
-    );
-    const maxFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
-    const newMaxFeePerGas =
-      (maxFeePerGasValues &&
-        validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
-      (existingMaxFeePerGas && minMaxFeePerGas);
-
-    // maxPriorityFeePerGas (EIP1559)
-    const existingMaxPriorityFeePerGas =
-      transactionMeta.txParams?.maxPriorityFeePerGas;
-    const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxPriorityFeePerGas,
-      CANCEL_RATE,
-    );
-    const maxPriorityFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
-    const newMaxPriorityFeePerGas =
-      (maxPriorityFeePerGasValues &&
-        validateMinimumIncrease(
-          maxPriorityFeePerGasValues,
-          minMaxPriorityFeePerGas,
-        )) ||
-      (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
-
-    const newTxParams: TransactionParams =
-      newMaxFeePerGas && newMaxPriorityFeePerGas
-        ? {
-            from: transactionMeta.txParams.from,
-            gasLimit: transactionMeta.txParams.gas,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: TransactionEnvelopeType.feeMarket,
-            nonce: transactionMeta.txParams.nonce,
-            to: transactionMeta.txParams.from,
-            value: '0x0',
-          }
-        : {
-            from: transactionMeta.txParams.from,
-            gasLimit: transactionMeta.txParams.gas,
-            gasPrice: newGasPrice,
-            nonce: transactionMeta.txParams.nonce,
-            to: transactionMeta.txParams.from,
-            value: '0x0',
-          };
-
-    const unsignedEthTx = this.prepareUnsignedEthTx(
-      transactionMeta.chainId,
-      newTxParams,
-    );
-
-    const signedTx = await this.sign(
-      unsignedEthTx,
-      transactionMeta.txParams.from,
-    );
-
-    const rawTx = bufferToHex(signedTx.serialize());
-
-    const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
-
-    const oldFee = newTxParams.maxFeePerGas
-      ? transactionMeta.txParams.maxFeePerGas
-      : transactionMeta.txParams.gasPrice;
-
-    log('Submitting cancel transaction', {
-      oldFee,
-      newFee,
-      txParams: newTxParams,
-    });
-
-    const ethQuery = this.#multichainTrackingHelper.getEthQuery({
-      networkClientId: transactionMeta.networkClientId,
-      chainId: transactionMeta.chainId,
-    });
-    const hash = await this.publishTransactionForRetry(
-      ethQuery,
-      rawTx,
-      transactionMeta,
-    );
-
-    const cancelTransactionMeta = {
+    return await this.#retryTransaction({
       actionId,
-      chainId: transactionMeta.chainId,
-      networkClientId: transactionMeta.networkClientId,
       estimatedBaseFee,
-      hash,
-      id: random(),
-      originalGasEstimate: transactionMeta.txParams.gas,
-      status: TransactionStatus.submitted as const,
-      time: Date.now(),
-      type: TransactionType.cancel as const,
-      txParams: newTxParams,
-    };
+      gasValues,
+      label: 'cancel',
+      rate: CANCEL_RATE,
+      transactionId,
+      transactionType: TransactionType.cancel,
+      prepareTransactionParams: (txParams) => {
+        delete txParams.data;
+        txParams.to = txParams.from;
+        txParams.value = '0x0';
+      },
+      afterSubmit: (newTransactionMeta) => {
+        this.messagingSystem.publish(
+          `${controllerName}:transactionFinished`,
+          newTransactionMeta,
+        );
 
-    this.addMetadata(cancelTransactionMeta);
-
-    // stopTransaction has no approval request, so we assume the user has already approved the transaction
-    this.messagingSystem.publish(`${controllerName}:transactionApproved`, {
-      transactionMeta: cancelTransactionMeta,
-      actionId,
+        this.#internalEvents.emit(
+          `${newTransactionMeta.id}:finished`,
+          newTransactionMeta,
+        );
+      },
     });
-    this.messagingSystem.publish(`${controllerName}:transactionSubmitted`, {
-      transactionMeta: cancelTransactionMeta,
-      actionId,
-    });
-
-    this.messagingSystem.publish(
-      `${controllerName}:transactionFinished`,
-      cancelTransactionMeta,
-    );
-    this.#internalEvents.emit(
-      `${transactionMeta.id}:finished`,
-      cancelTransactionMeta,
-    );
   }
 
   /**
@@ -1360,7 +1235,45 @@ export class TransactionController extends BaseController<
       estimatedBaseFee,
     }: { actionId?: string; estimatedBaseFee?: string } = {},
   ) {
-    // If transaction is found for same action id, do not create a new speed up transaction.
+    return await this.#retryTransaction({
+      actionId,
+      estimatedBaseFee,
+      gasValues,
+      label: 'speed up',
+      rate: SPEED_UP_RATE,
+      transactionId,
+      transactionType: TransactionType.retry,
+      afterSubmit: (newTransactionMeta) => {
+        this.messagingSystem.publish(
+          `${controllerName}:speedupTransactionAdded`,
+          newTransactionMeta,
+        );
+      },
+    });
+  }
+
+  async #retryTransaction({
+    actionId,
+    afterSubmit,
+    estimatedBaseFee,
+    gasValues,
+    label,
+    prepareTransactionParams,
+    rate,
+    transactionId,
+    transactionType,
+  }: {
+    actionId?: string;
+    afterSubmit?: (transactionMeta: TransactionMeta) => void;
+    estimatedBaseFee?: string;
+    gasValues?: GasPriceValue | FeeMarketEIP1559Values;
+    label: string;
+    prepareTransactionParams?: (txParams: TransactionParams) => void;
+    rate: number;
+    transactionId: string;
+    transactionType: TransactionType;
+  }) {
+    // If transaction is found for same action id, do not create a new transaction.
     if (this.getTransactionWithActionId(actionId)) {
       return;
     }
@@ -1371,7 +1284,7 @@ export class TransactionController extends BaseController<
       validateGasValues(gasValues);
     }
 
-    log('Creating speed up transaction', transactionId, gasValues);
+    log(`Creating ${label} transaction`, transactionId, gasValues);
 
     const transactionMeta = this.getTransaction(transactionId);
     /* istanbul ignore next */
@@ -1384,67 +1297,18 @@ export class TransactionController extends BaseController<
       throw new Error('No sign method defined.');
     }
 
-    // gasPrice (legacy non EIP1559)
-    const minGasPrice = getIncreasedPriceFromExisting(
-      transactionMeta.txParams.gasPrice,
-      SPEED_UP_RATE,
-    );
+    const newTxParams: TransactionParams =
+      getTransactionParamsWithIncreasedGasFee(
+        transactionMeta.txParams,
+        rate,
+        gasValues,
+      );
 
-    const gasPriceFromValues = isGasPriceValue(gasValues) && gasValues.gasPrice;
-
-    const newGasPrice =
-      (gasPriceFromValues &&
-        validateMinimumIncrease(gasPriceFromValues, minGasPrice)) ||
-      minGasPrice;
-
-    // maxFeePerGas (EIP1559)
-    const existingMaxFeePerGas = transactionMeta.txParams?.maxFeePerGas;
-    const minMaxFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxFeePerGas,
-      SPEED_UP_RATE,
-    );
-    const maxFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxFeePerGas;
-    const newMaxFeePerGas =
-      (maxFeePerGasValues &&
-        validateMinimumIncrease(maxFeePerGasValues, minMaxFeePerGas)) ||
-      (existingMaxFeePerGas && minMaxFeePerGas);
-
-    // maxPriorityFeePerGas (EIP1559)
-    const existingMaxPriorityFeePerGas =
-      transactionMeta.txParams?.maxPriorityFeePerGas;
-    const minMaxPriorityFeePerGas = getIncreasedPriceFromExisting(
-      existingMaxPriorityFeePerGas,
-      SPEED_UP_RATE,
-    );
-    const maxPriorityFeePerGasValues =
-      isFeeMarketEIP1559Values(gasValues) && gasValues.maxPriorityFeePerGas;
-    const newMaxPriorityFeePerGas =
-      (maxPriorityFeePerGasValues &&
-        validateMinimumIncrease(
-          maxPriorityFeePerGasValues,
-          minMaxPriorityFeePerGas,
-        )) ||
-      (existingMaxPriorityFeePerGas && minMaxPriorityFeePerGas);
-
-    const txParams: TransactionParams =
-      newMaxFeePerGas && newMaxPriorityFeePerGas
-        ? {
-            ...transactionMeta.txParams,
-            gasLimit: transactionMeta.txParams.gas,
-            maxFeePerGas: newMaxFeePerGas,
-            maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            type: TransactionEnvelopeType.feeMarket,
-          }
-        : {
-            ...transactionMeta.txParams,
-            gasLimit: transactionMeta.txParams.gas,
-            gasPrice: newGasPrice,
-          };
+    prepareTransactionParams?.(newTxParams);
 
     const unsignedEthTx = this.prepareUnsignedEthTx(
       transactionMeta.chainId,
-      txParams,
+      newTxParams,
     );
 
     const signedTx = await this.sign(
@@ -1456,27 +1320,32 @@ export class TransactionController extends BaseController<
       transactionMeta,
       signedTx,
     );
+
     const rawTx = bufferToHex(signedTx.serialize());
+    const newFee = newTxParams.maxFeePerGas ?? newTxParams.gasPrice;
 
-    const newFee = txParams.maxFeePerGas ?? txParams.gasPrice;
-
-    const oldFee = txParams.maxFeePerGas
+    const oldFee = newTxParams.maxFeePerGas
       ? transactionMetaWithRsv.txParams.maxFeePerGas
       : transactionMetaWithRsv.txParams.gasPrice;
 
-    log('Submitting speed up transaction', { oldFee, newFee, txParams });
+    log(`Submitting ${label} transaction`, {
+      oldFee,
+      newFee,
+      txParams: newTxParams,
+    });
 
     const ethQuery = this.#multichainTrackingHelper.getEthQuery({
       networkClientId: transactionMeta.networkClientId,
       chainId: transactionMeta.chainId,
     });
+
     const hash = await this.publishTransactionForRetry(
       ethQuery,
       rawTx,
       transactionMeta,
     );
 
-    const baseTransactionMeta = {
+    const newTransactionMeta = {
       ...transactionMetaWithRsv,
       estimatedBaseFee,
       id: random(),
@@ -1484,27 +1353,10 @@ export class TransactionController extends BaseController<
       hash,
       actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
-      type: TransactionType.retry as const,
+      type: transactionType,
+      txParams: newTxParams,
       originalType: transactionMeta.type,
     };
-
-    const newTransactionMeta =
-      newMaxFeePerGas && newMaxPriorityFeePerGas
-        ? {
-            ...baseTransactionMeta,
-            txParams: {
-              ...transactionMeta.txParams,
-              maxFeePerGas: newMaxFeePerGas,
-              maxPriorityFeePerGas: newMaxPriorityFeePerGas,
-            },
-          }
-        : {
-            ...baseTransactionMeta,
-            txParams: {
-              ...transactionMeta.txParams,
-              gasPrice: newGasPrice,
-            },
-          };
 
     this.addMetadata(newTransactionMeta);
 
@@ -1519,10 +1371,7 @@ export class TransactionController extends BaseController<
       actionId,
     });
 
-    this.messagingSystem.publish(
-      `${controllerName}:speedupTransactionAdded`,
-      newTransactionMeta,
-    );
+    afterSubmit?.(newTransactionMeta);
   }
 
   /**
@@ -2442,7 +2291,10 @@ export class TransactionController extends BaseController<
     });
   }
 
-  private async updateGasProperties(transactionMeta: TransactionMeta) {
+  private async updateGasProperties(
+    transactionMeta: TransactionMeta,
+    { traceContext }: { traceContext?: TraceContext } = {},
+  ) {
     const isEIP1559Compatible =
       transactionMeta.txParams.type !== TransactionEnvelopeType.legacy &&
       (await this.getEIP1559Compatibility(transactionMeta.networkClientId));
@@ -2461,27 +2313,40 @@ export class TransactionController extends BaseController<
       chainId,
     });
 
-    await updateGas({
-      ethQuery,
-      chainId,
-      isCustomNetwork,
-      txMeta: transactionMeta,
-    });
+    await this.#trace(
+      { name: 'Update Gas', parentContext: traceContext },
+      async () => {
+        await updateGas({
+          ethQuery,
+          chainId,
+          isCustomNetwork,
+          txMeta: transactionMeta,
+        });
+      },
+    );
 
-    await updateGasFees({
-      eip1559: isEIP1559Compatible,
-      ethQuery,
-      gasFeeFlows: this.gasFeeFlows,
-      getGasFeeEstimates: this.getGasFeeEstimates,
-      getSavedGasFees: this.getSavedGasFees.bind(this),
-      txMeta: transactionMeta,
-    });
+    await this.#trace(
+      { name: 'Update Gas Fees', parentContext: traceContext },
+      async () =>
+        await updateGasFees({
+          eip1559: isEIP1559Compatible,
+          ethQuery,
+          gasFeeFlows: this.gasFeeFlows,
+          getGasFeeEstimates: this.getGasFeeEstimates,
+          getSavedGasFees: this.getSavedGasFees.bind(this),
+          txMeta: transactionMeta,
+        }),
+    );
 
-    await updateTransactionLayer1GasFee({
-      layer1GasFeeFlows: this.layer1GasFeeFlows,
-      provider,
-      transactionMeta,
-    });
+    await this.#trace(
+      { name: 'Update Layer 1 Gas Fees', parentContext: traceContext },
+      async () =>
+        await updateTransactionLayer1GasFee({
+          layer1GasFeeFlows: this.layer1GasFeeFlows,
+          provider,
+          transactionMeta,
+        }),
+    );
   }
 
   private onBootCleanup() {
@@ -2513,11 +2378,13 @@ export class TransactionController extends BaseController<
       requireApproval,
       shouldShowRequest = true,
       actionId,
+      traceContext,
     }: {
       isExisting?: boolean;
       requireApproval?: boolean | undefined;
       shouldShowRequest?: boolean;
       actionId?: string;
+      traceContext?: TraceContext;
     },
   ): Promise<string> {
     const transactionId = transactionMeta.id;
@@ -2530,9 +2397,15 @@ export class TransactionController extends BaseController<
     if (meta && !isExisting && !isCompleted) {
       try {
         if (requireApproval !== false) {
-          const acceptResult = await this.requestApproval(transactionMeta, {
-            shouldShowRequest,
-          });
+          const acceptResult = await this.#trace(
+            { name: 'Await Approval', parentContext: traceContext },
+            (context) =>
+              this.requestApproval(transactionMeta, {
+                shouldShowRequest,
+                traceContext: context,
+              }),
+          );
+
           resultCallbacks = acceptResult.resultCallbacks;
 
           const approvalValue = acceptResult.value as
@@ -2560,7 +2433,10 @@ export class TransactionController extends BaseController<
           this.isTransactionCompleted(transactionId);
 
         if (!isTxCompleted) {
-          const approvalResult = await this.approveTransaction(transactionId);
+          const approvalResult = await this.approveTransaction(
+            transactionId,
+            traceContext,
+          );
           if (
             approvalResult === ApprovalState.SkippedViaBeforePublishHook &&
             resultCallbacks
@@ -2627,8 +2503,12 @@ export class TransactionController extends BaseController<
    * A `<tx.id>:finished` hub event is fired after success or failure.
    *
    * @param transactionId - The ID of the transaction to approve.
+   * @param traceContext - The parent context for any new traces.
    */
-  private async approveTransaction(transactionId: string) {
+  private async approveTransaction(
+    transactionId: string,
+    traceContext?: unknown,
+  ) {
     const cleanupTasks = new Array<() => void>();
     cleanupTasks.push(await this.mutex.acquire());
 
@@ -2690,9 +2570,9 @@ export class TransactionController extends BaseController<
 
       this.onTransactionStatusChange(transactionMeta);
 
-      const rawTx = await this.signTransaction(
-        transactionMeta,
-        transactionMeta.txParams,
+      const rawTx = await this.#trace(
+        { name: 'Sign', parentContext: traceContext },
+        () => this.signTransaction(transactionMeta, transactionMeta.txParams),
       );
 
       if (!this.beforePublish(transactionMeta)) {
@@ -2727,14 +2607,21 @@ export class TransactionController extends BaseController<
 
       log('Publishing transaction', transactionMeta.txParams);
 
-      let { transactionHash: hash } = await this.publish(
-        transactionMeta,
-        rawTx,
-      );
+      let hash: string | undefined;
 
-      if (hash === undefined) {
-        hash = await this.publishTransaction(ethQuery, rawTx);
-      }
+      await this.#trace(
+        { name: 'Publish', parentContext: traceContext },
+        async () => {
+          ({ transactionHash: hash } = await this.publish(
+            transactionMeta,
+            rawTx,
+          ));
+
+          if (hash === undefined) {
+            hash = await this.publishTransaction(ethQuery, rawTx);
+          }
+        },
+      );
 
       log('Publish successful', hash);
 
@@ -2904,12 +2791,21 @@ export class TransactionController extends BaseController<
 
   private async requestApproval(
     txMeta: TransactionMeta,
-    { shouldShowRequest }: { shouldShowRequest: boolean },
+    {
+      shouldShowRequest,
+      traceContext,
+    }: { shouldShowRequest: boolean; traceContext?: TraceContext },
   ): Promise<AddResult> {
     const id = this.getApprovalId(txMeta);
     const { origin } = txMeta;
     const type = ApprovalType.Transaction;
     const requestData = { txId: txMeta.id };
+
+    await this.#trace({
+      name: 'Notification Display',
+      id,
+      parentContext: traceContext,
+    });
 
     return (await this.messagingSystem.call(
       'ApprovalController:addRequest',
@@ -3724,7 +3620,10 @@ export class TransactionController extends BaseController<
     }
   }
 
-  async #updateSimulationData(transactionMeta: TransactionMeta) {
+  async #updateSimulationData(
+    transactionMeta: TransactionMeta,
+    { traceContext }: { traceContext?: TraceContext } = {},
+  ) {
     const { id: transactionId, chainId, txParams } = transactionMeta;
     const { from, to, value, data } = txParams;
 
@@ -3744,13 +3643,17 @@ export class TransactionController extends BaseController<
         },
       );
 
-      simulationData = await getSimulationData({
-        chainId,
-        from: from as Hex,
-        to: to as Hex,
-        value: value as Hex,
-        data: data as Hex,
-      });
+      simulationData = await this.#trace(
+        { name: 'Simulate', parentContext: traceContext },
+        () =>
+          getSimulationData({
+            chainId,
+            from: from as Hex,
+            to: to as Hex,
+            value: value as Hex,
+            data: data as Hex,
+          }),
+      );
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);

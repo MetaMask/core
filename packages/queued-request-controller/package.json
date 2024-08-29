@@ -35,14 +35,15 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/queued-request-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/queued-request-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/base-controller": "^6.0.3",
+    "@metamask/controller-utils": "^11.1.0",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/swappable-obj-proxy": "^2.2.0",
@@ -50,7 +51,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^20.1.0",
+    "@metamask/network-controller": "^20.2.0",
     "@metamask/selected-network-controller": "^17.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
