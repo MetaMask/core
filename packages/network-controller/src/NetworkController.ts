@@ -1558,6 +1558,11 @@ export class NetworkController extends BaseController<
       });
     });
 
+    this.#networkConfigurationsByNetworkClientId =
+      buildNetworkConfigurationsByNetworkClientId(
+        this.state.networkConfigurationsByChainId,
+      );
+
     this.messagingSystem.publish(
       `${controllerName}:networkAdded`,
       newNetworkConfiguration,
@@ -1838,6 +1843,11 @@ export class NetworkController extends BaseController<
       });
     }
 
+    this.#networkConfigurationsByNetworkClientId =
+      buildNetworkConfigurationsByNetworkClientId(
+        this.state.networkConfigurationsByChainId,
+      );
+
     this.#unregisterNetworkClientsAsNeeded({
       networkClientOperations,
       autoManagedNetworkClientRegistry,
@@ -1896,6 +1906,11 @@ export class NetworkController extends BaseController<
         existingNetworkConfiguration,
       });
     });
+
+    this.#networkConfigurationsByNetworkClientId =
+      buildNetworkConfigurationsByNetworkClientId(
+        this.state.networkConfigurationsByChainId,
+      );
   }
 
   /**
@@ -2398,11 +2413,6 @@ export class NetworkController extends BaseController<
       state.networkConfigurationsByChainId[args.networkFields.chainId] =
         args.networkConfigurationToPersist;
     }
-
-    this.#networkConfigurationsByNetworkClientId =
-      buildNetworkConfigurationsByNetworkClientId(
-        state.networkConfigurationsByChainId,
-      );
   }
 
   /**
