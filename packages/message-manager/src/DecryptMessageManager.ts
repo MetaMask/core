@@ -132,14 +132,14 @@ export class DecryptMessageManager extends AbstractMessageManager<
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
       req,
-    ) as DecryptMessageParams;
+    ) satisfies DecryptMessageParams;
     messageParams.data = normalizeMessageData(messageParams.data);
 
     const messageData = this.createUnapprovedMessage(
       updatedMessageParams,
       ApprovalType.EthDecrypt,
       req,
-    ) as DecryptMessage;
+    ) satisfies DecryptMessage;
 
     const messageId = messageData.id;
 

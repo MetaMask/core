@@ -138,10 +138,9 @@ export abstract class AbstractMessageManager<
    * @param req - The original request object.
    * @returns The messageParams with the request props added.
    */
-  protected addRequestToMessageParams(
-    messageParams: AbstractMessageParams,
-    req?: OriginalRequest,
-  ) {
+  protected addRequestToMessageParams<
+    MessageParams extends AbstractMessageParams,
+  >(messageParams: MessageParams, req?: OriginalRequest) {
     const updatedMessageParams = {
       ...messageParams,
     };
@@ -161,11 +160,9 @@ export abstract class AbstractMessageManager<
    * @param req - The original request object.
    * @returns The new unapproved message for a specified type.
    */
-  protected createUnapprovedMessage(
-    messageParams: AbstractMessageParams,
-    type: ApprovalType,
-    req?: OriginalRequest,
-  ) {
+  protected createUnapprovedMessage<
+    MessageParams extends AbstractMessageParams,
+  >(messageParams: MessageParams, type: ApprovalType, req?: OriginalRequest) {
     const messageId = random();
 
     return {

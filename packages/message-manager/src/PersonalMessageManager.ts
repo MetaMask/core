@@ -95,7 +95,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
       req,
-    ) as PersonalMessageParams;
+    ) satisfies PersonalMessageParams;
 
     updatedMessageParams.data = normalizeMessageData(messageParams.data);
     updatedMessageParams.siwe = ethereumSignInData;
@@ -104,7 +104,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
       updatedMessageParams,
       ApprovalType.PersonalSign,
       req,
-    ) as PersonalMessage;
+    ) satisfies PersonalMessage;
 
     const messageId = messageData.id;
     await this.addMessage(messageData);

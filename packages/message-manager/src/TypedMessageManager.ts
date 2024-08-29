@@ -132,13 +132,13 @@ export class TypedMessageManager extends AbstractMessageManager<
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
       req,
-    ) as TypedMessageParams;
+    ) satisfies TypedMessageParams;
 
     const messageData = this.createUnapprovedMessage(
       updatedMessageParams,
       ApprovalType.EthSignTypedData,
       req,
-    ) as TypedMessage;
+    ) satisfies TypedMessage;
 
     const messageId = messageData.id;
 

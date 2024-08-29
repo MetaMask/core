@@ -123,13 +123,13 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
       req,
-    ) as EncryptionPublicKeyParams;
+    ) satisfies EncryptionPublicKeyParams;
 
     const messageData = this.createUnapprovedMessage(
       updatedMessageParams,
       ApprovalType.EthGetEncryptionPublicKey,
       req,
-    ) as EncryptionPublicKey;
+    ) satisfies EncryptionPublicKey;
 
     const messageId = messageData.id;
 
