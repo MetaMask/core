@@ -17,15 +17,15 @@ class AbstractTestManager extends AbstractMessageManager<
   TypedMessageParams,
   TypedMessageParamsMetamask
 > {
-  addRequestToMessageParams(
-    messageParams: AbstractMessageParams,
+  addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
+    messageParams: MessageParams,
     req?: OriginalRequest,
   ) {
     return super.addRequestToMessageParams(messageParams, req);
   }
 
-  createUnapprovedMessage(
-    messageParams: AbstractMessageParams,
+  createUnapprovedMessage<MessageParams extends AbstractMessageParams>(
+    messageParams: MessageParams,
     type: ApprovalType,
     req?: OriginalRequest,
   ) {
