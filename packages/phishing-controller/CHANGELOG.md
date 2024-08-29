@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add use hostname to check against allowlist ([#4645](https://github.com/MetaMask/core/pull/4645))
+- Add `getHostnameFromUrl` utility function to standardize hostname extraction from URLs ([#4645](https://github.com/MetaMask/core/pull/4645))
+
+### Fixed
+
+- Update `test`, `isBlockedRequest`, and `bypass` methods to use the hostname for allowlist checks instead of the full origin ([#4645](https://github.com/MetaMask/core/pull/4645))
+  - The previous approach of using the full origin had limitations in dealing with subdomains or variations in the URL structure, which could lead to inconsistent results or false negatives.
 
 ## [12.0.0]
 
