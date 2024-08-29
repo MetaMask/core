@@ -458,7 +458,8 @@ export class PhishingController extends BaseController<
    */
   test(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
-    if (this.state.whitelist.includes(punycodeOrigin)) {
+    const { hostname } = new URL(punycodeOrigin);
+    if (this.state.whitelist.includes(hostname)) {
       return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
     }
     return this.#detector.check(punycodeOrigin);
@@ -476,7 +477,10 @@ export class PhishingController extends BaseController<
    */
   isBlockedRequest(origin: string): PhishingDetectorResult {
     const punycodeOrigin = toASCII(origin);
-
+    const { hostname } = new URL(punycodeOrigin);
+    if (this.state.whitelist.includes(hostname)) {
+      return { result: false, type: PhishingDetectorResultType.All }; // Same as whitelisted match returned by detector.check(...).
+    }
     return this.#detector.isMaliciousC2Domain(punycodeOrigin);
   }
 
