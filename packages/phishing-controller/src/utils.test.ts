@@ -5,6 +5,7 @@ import {
   applyDiffs,
   domainToParts,
   fetchTimeNow,
+  getHostnameFromUrl,
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
@@ -414,5 +415,69 @@ describe('roundToNearestMinute', () => {
     const timestamp = -1622548192; // Represents a time before Unix epoch
     const expected = -1622548200; // Expected result after rounding down to the nearest minute
     expect(roundToNearestMinute(timestamp)).toBe(expected);
+  });
+});
+
+describe('getHostname', () => {
+  it('should extract the hostname from a valid URL', () => {
+    const url = 'https://www.example.com/path?query=string';
+    const expectedHostname = 'www.example.com';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+
+  it('should handle URLs with subdomains correctly', () => {
+    const url = 'https://subdomain.example.com/path';
+    const expectedHostname = 'subdomain.example.com';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+
+  it('should return null for an invalid URL', () => {
+    const url = 'invalid-url';
+    expect(getHostnameFromUrl(url)).toBeNull();
+  });
+
+  it('should return null for a hostname', () => {
+    const url = 'www.example.com';
+    expect(getHostnameFromUrl(url)).toBeNull();
+  });
+
+  it('should return null for an empty input', () => {
+    const url = '';
+    expect(getHostnameFromUrl(url)).toBeNull();
+  });
+
+  it('should handle URLs with unusual ports correctly', () => {
+    const url = 'http://localhost:3000';
+    const expectedHostname = 'localhost';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+
+  it('should handle URLs with IP addresses', () => {
+    const url = 'http://192.168.1.1';
+    const expectedHostname = '192.168.1.1';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+
+  it('should handle URLs with protocols other than HTTP/HTTPS', () => {
+    const url = 'ftp://example.com/resource';
+    const expectedHostname = 'example.com';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+
+  it('should return null for a URL missing a protocol', () => {
+    const url = 'www.example.com';
+    expect(getHostnameFromUrl(url)).toBeNull();
+  });
+
+  it('should return the correct hostname for URLs with complex query strings', () => {
+    const url = 'https://www.example.com/path?query=string&another=param';
+    const expectedHostname = 'www.example.com';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+
+  it('should handle URLs with fragments correctly', () => {
+    const url = 'https://www.example.com/path#section';
+    const expectedHostname = 'www.example.com';
+    expect(getHostnameFromUrl(url)).toBe(expectedHostname);
   });
 });

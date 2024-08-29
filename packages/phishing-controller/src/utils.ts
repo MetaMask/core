@@ -260,3 +260,19 @@ export const sha256Hash = (hostname: string): string => {
   const hashBuffer = sha256(new TextEncoder().encode(hostname.toLowerCase()));
   return bytesToHex(hashBuffer);
 };
+
+/**
+ * Extracts the hostname from a URL.
+ *
+ * @param url - The URL to extract the hostname from.
+ * @returns The hostname extracted from the URL, or null if the URL is invalid.
+ */
+export const getHostnameFromUrl = (url: string): string | null => {
+  let hostname;
+  try {
+    hostname = new URL(url).hostname;
+  } catch (error) {
+    return null;
+  }
+  return hostname;
+};
