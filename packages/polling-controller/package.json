@@ -42,7 +42,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.3",
+    "@metamask/base-controller": "^7.0.0",
     "@metamask/controller-utils": "^11.1.0",
     "@metamask/utils": "^9.1.0",
     "@types/uuid": "^8.3.0",

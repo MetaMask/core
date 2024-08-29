@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.3]
+
 ### Uncategorized
 
 - Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
@@ -223,7 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.3...HEAD
+[7.0.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.2...@metamask/approval-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.1...@metamask/approval-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.0...@metamask/approval-controller@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.2...@metamask/approval-controller@7.0.0
