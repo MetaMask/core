@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.0.0]
+
+### Added
+
+- Add elements to the `AssetsContractController` class: ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - Add class field `messagingSystem`.
+  - Add getters for `ipfsGateway` and `chainId`. As corresponding setters have not been defined, these properties are not externally mutable.
+- Add and export the `AssetsContractControllerMessenger` type ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - `AssetsContractControllerMessenger` must allow the external actions `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getSelectedNetworkClient`, `NetworkController:getState`.
+  - `AssetsContractControllerMessenger` must allow the external events `PreferencesController:stateChange`, `NetworkController:networkDidChange`.
+- Add and export new types: `AssetsContractControllerActions`, `AssetsContractControllerEvents`, `AssetsContractControllerGetERC20StandardAction`, `AssetsContractControllerGetERC721StandardAction`, `AssetsContractControllerGetERC1155StandardAction`, `AssetsContractControllerGetERC20BalanceOfAction`, `AssetsContractControllerGetERC20TokenDecimalsAction`, `AssetsContractControllerGetERC20TokenNameAction`, `AssetsContractControllerGetERC721NftTokenIdAction`, `AssetsContractControllerGetERC721TokenURIAction`, `AssetsContractControllerGetERC721AssetNameAction`, `AssetsContractControllerGetERC721AssetSymbolAction`, `AssetsContractControllerGetERC721OwnerOfAction`, `AssetsContractControllerGetERC1155TokenURIAction`, `AssetsContractControllerGetERC1155BalanceOfAction`, `AssetsContractControllerTransferSingleERC1155Action`, `AssetsContractControllerGetTokenStandardAndDetailsAction`, `AssetsContractControllerGetBalancesInSingleCallAction` ([#4397](https://github.com/MetaMask/core/pull/4397))
+- Add a new `setProvider` method to `AssetsContractController` ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - Replaces the removed `provider` setter method, and widens the `provider` function parameter type from `Provider` to `Provider | undefined`.
+- Export `TokenBalancesControllerState` type ([#4535](https://github.com/MetaMask/core/pull/4535))
+  - This was defined but not exported in v34.0.0.
+- Add `getNFTContractInfo` method to the `NFTController` for fetching NFT Collection Metadata from the NFT API ([#4524](https://github.com/MetaMask/core/pull/4524))
+
+### Changed
+
+- **BREAKING:** Add required constructor option `messenger` to the `AssetsContractController` class ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** `TokenBalancesControllerMessenger` must allow the `AssetsContractController:getERC20BalanceOf` action in addition to its previous allowed actions ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** `NftControllerMessenger` must allow the following actions in addition to its previous allowed actions: `AssetsContractController:getERC721AssetName`, `AssetsContractController:getERC721AssetSymbol`, `AssetsContractController:getERC721TokenURI`, `AssetsContractController:getERC721OwnerOf`, `AssetsContractController:getERC1155BalanceOf`, `AssetsContractController:getERC1155TokenURI` ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** The type of `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` is narrowed from `Record<Hex, string>` to the const-asserted literal properties of the `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` object ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - The index signature is restricted to the union of the enum keys of `SupportedTokenDetectionNetworks`.
+  - The property value type is restricted to the type union of the addresses defined in the object.
+  - The object type is constrained by `Record<Hex, string>` using the `satisfies` keyword.
+- **BREAKING:** Convert the `BalanceMap` type from an `interface` into a type alias ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - Type aliases have an index signature of `string` by default, and are compatible with the `StateConstraint` type defined in the `@metamask/base-controller` package.
+- **BREAKING:** `getIpfsCIDv1AndPath`, `getFormattedIpfsUrl` are now async functions ([#3645](https://github.com/MetaMask/core/pull/3645))
+- **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/preferences-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
+- Add `immer` `^9.0.6` as a new dependency ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/abi-utils` from `^2.0.2` to `^2.0.3` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+- Bump `multiformats` from `^9.5.2` to `^13.1.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/polling-controller` from `^9.0.0` to `^9.0.1` ([#4548](https://github.com/MetaMask/core/pull/4548))
+
+### Removed
+
+- **BREAKING:** Remove elements from the `AssetsContractController` class: ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - **BREAKING:** `AssetsContractController` no longer inherits from `BaseControllerV1`.
+  - **BREAKING:** Remove constructor option callbacks `onPreferencesStateChange`, `onNetworkDidChange`, `getNetworkClientById`, and replace with corresponding messenger actions and events.
+  - **BREAKING:** Remove class fields: `name`, `config` (along with its properties `provider`, `ipfsGateway`, `chainId`).
+  - **BREAKING:** Remove methods: `getProvider`, `getChainId`.
+    - Use the getters `provider` and `chainId` instead.
+  - **BREAKING:** Remove the `provider` setter method.
+    - Use the `setProvider` method instead.
+- **BREAKING:** Remove the `getERC20BalanceOf` constructor option callback from the `TokenBalancesControllerOptions` type and the `TokenBalancesController` constructor ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - The messenger is expected to allow `AssetsContractController:getERC20BalanceOf` messenger action so that it can be used instead.
+- **BREAKING:** Remove `NftController` constructor option callbacks: `getERC721AssetName`, `getERC721AssetSymbol`, `getERC721TokenURI`, `getERC721OwnerOf`, `getERC1155BalanceOf`, `getERC1155TokenURI` ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - These are accessed through the messenger instead.
+- **BREAKING:** Remove the `AssetsContractConfig` type ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** Remove export for `MISSING_PROVIDER_ERROR` ([#4397](https://github.com/MetaMask/core/pull/4397))
+
+### Fixed
+
+- **BREAKING:** Convert the `getERC721NftTokenId` method of the `AssetsContractController` into an async function. ([#4397](https://github.com/MetaMask/core/pull/4397))
+
 ## [36.0.0]
 
 ### Added
@@ -1013,7 +1074,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...HEAD
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@35.0.0...@metamask/assets-controllers@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...@metamask/assets-controllers@35.0.0
 [34.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@33.0.0...@metamask/assets-controllers@34.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "179.0.0",
+  "version": "192.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -24,7 +24,7 @@
     "lint": "yarn lint:eslint && yarn lint:misc --check && yarn constraints && yarn lint:dependencies",
     "lint:dependencies": "depcheck && yarn dedupe --check",
     "lint:dependencies:fix": "depcheck && yarn dedupe",
-    "lint:eslint": "eslint . --cache --ext js,ts",
+    "lint:eslint": "eslint . --cache --ext js,cjs,mjs,ts",
     "lint:fix": "yarn lint:eslint --fix && yarn lint:misc --write && yarn constraints --fix && yarn lint:dependencies:fix",
     "lint:misc": "prettier '**/*.json' '**/*.md' '!**/CHANGELOG.old.md' '**/*.yml' '!.yarnrc.yml' '!merged-packages/**' --ignore-path .gitignore",
     "prepack": "./scripts/prepack.sh",
@@ -43,7 +43,10 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
-    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch"
+    "elliptic@6.5.4": "^6.5.7",
+    "fast-xml-parser@^4.3.4": "^4.4.1",
+    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch",
+    "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
     "@babel/core": "^7.23.5",
@@ -55,14 +58,17 @@
     "@metamask/eslint-config-jest": "^12.1.0",
     "@metamask/eslint-config-nodejs": "^12.1.0",
     "@metamask/eslint-config-typescript": "^12.1.0",
-    "@metamask/eth-block-tracker": "^9.0.3",
-    "@metamask/eth-json-rpc-provider": "^4.1.1",
+    "@metamask/eth-block-tracker": "^10.0.0",
+    "@metamask/eth-json-rpc-provider": "^4.1.3",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/utils": "^9.1.0",
     "@types/jest": "^27.4.1",
+    "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
+    "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
+    "@yarnpkg/types": "^4.0.0",
     "babel-jest": "^27.5.1",
     "depcheck": "^1.4.7",
     "eslint": "^8.44.0",
@@ -79,14 +85,16 @@
     "isomorphic-fetch": "^3.0.0",
     "jest": "^27.5.1",
     "jest-silent-reporter": "^0.5.0",
+    "lodash": "^4.17.21",
     "nock": "^13.3.1",
     "prettier": "^2.7.1",
     "prettier-plugin-packagejson": "^2.4.5",
     "rimraf": "^5.0.5",
+    "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
     "tsup": "^8.0.2",
-    "typescript": "~5.0.4",
+    "typescript": "~5.2.2",
     "yargs": "^17.7.2"
   },
   "packageManager": "yarn@4.2.2",

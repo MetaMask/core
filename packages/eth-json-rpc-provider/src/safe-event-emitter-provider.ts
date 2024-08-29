@@ -31,18 +31,19 @@ export function convertEip1193RequestToJsonRpcRequest<
 >(
   eip1193Request: Eip1193Request<Params>,
 ): JsonRpcRequest<Params | Record<never, never>> {
-  const {
-    id = uuidV4(),
-    jsonrpc = '2.0',
-    method,
-    params = {},
-  } = eip1193Request;
-  return {
-    id,
-    jsonrpc,
-    method,
-    params,
-  };
+  const { id = uuidV4(), jsonrpc = '2.0', method, params } = eip1193Request;
+  return params
+    ? {
+        id,
+        jsonrpc,
+        method,
+        params,
+      }
+    : {
+        id,
+        jsonrpc,
+        method,
+      };
 }
 
 /**

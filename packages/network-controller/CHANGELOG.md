@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.2.0]
+
+### Changed
+
+- `upsertNetworkConfiguration` now accepts an optional id property on the NetworkConfiguration param. It allows a network configuration to have its rpcUrl updated in place when an id is specified, but only if that new rpcUrl does not already exist on a different network configuration. ([#4614](https://github.com/MetaMask/core/pull/4614))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.1.3` ([#4607](https://github.com/MetaMask/core/pull/4607))
+- Update TypeScript to 5.2.2 ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- `removeNetworkConfiguration` now throws an error if you attempt to remove the selected network ([#4566](https://github.com/MetaMask/core/pull/4566))
+
+## [20.1.0]
+
+### Added
+
+- Newly export the following types: `AutoManagedNetworkClient`, `InfuraNetworkClientConfiguration`, `CustomNetworkClientConfiguration` ([#3645](https://github.com/MetaMask/core/pull/3645))
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.0` to `^4.1.2` ([#4519](https://github.com/MetaMask/core/pull/4519), [#4548](https://github.com/MetaMask/core/pull/4548))
+- Bump `@metamask/json-rpc-engine` from `^9.0.0` to `^9.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/rpc-errors` from `^6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
 ## [20.0.0]
 
 ### Added
@@ -524,7 +552,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...HEAD
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...@metamask/network-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.3...@metamask/network-controller@19.0.0
 [18.1.3]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.2...@metamask/network-controller@18.1.3
