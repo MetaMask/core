@@ -12,10 +12,9 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "yarn run build:source && yarn run build:types",
+    "build": "yarn ts-bridge --project tsconfig.build.json --verbose",
     "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
-    "build:source": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build",
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "build:watch": "yarn run build --watch",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
@@ -45,7 +44,6 @@
   "resolutions": {
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
-    "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch",
     "ws@7.4.6": "^7.5.10"
   },
   "devDependencies": {
@@ -62,6 +60,7 @@
     "@metamask/eth-json-rpc-provider": "^4.1.3",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/utils": "^9.1.0",
+    "@ts-bridge/cli": "^0.4.2",
     "@types/jest": "^27.4.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",
@@ -93,7 +92,6 @@
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
     "ts-node": "^10.9.1",
-    "tsup": "^8.0.2",
     "typescript": "~5.2.2",
     "yargs": "^17.7.2"
   },
@@ -106,8 +104,7 @@
       "@lavamoat/preinstall-always-fail": false,
       "@keystonehq/bc-ur-registry-eth>hdkey>secp256k1": true,
       "babel-runtime>core-js": false,
-      "simple-git-hooks": false,
-      "tsup>esbuild": true
+      "simple-git-hooks": false
     }
   }
 }

@@ -101,7 +101,7 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.build',
-          'tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean',
+          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
         );
 
         // All non-root packages must have the same "build:docs" script.
@@ -379,8 +379,10 @@ async function workspaceFileExists(workspace, path) {
 function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
   const fieldValue = get(workspace.manifest, fieldName);
 
-  if (expectedValue) {
+  if (expectedValue !== undefined && expectedValue !== null) {
     workspace.set(fieldName, expectedValue);
+  } else if (expectedValue === null) {
+    workspace.unset(fieldName);
   } else if (fieldValue === undefined || fieldValue === null) {
     workspace.error(`Missing required field "${fieldName}".`);
   }
@@ -488,20 +490,23 @@ async function expectWorkspaceLicense(workspace) {
 function expectCorrectWorkspaceExports(workspace) {
   // All non-root packages must provide the location of the ESM-compatible
   // JavaScript entrypoint and its matching type declaration file.
-  expectWorkspaceField(workspace, 'exports["."].import', './dist/index.mjs');
   expectWorkspaceField(
     workspace,
-    'exports["."].types',
-    './dist/types/index.d.ts',
+    'exports["."].import.types',
+    './dist/index.d.mts',
   );
-  // TODO: This was copied from the module template: enable when ready
-  // expectWorkspaceField(workspace, 'module', './dist/index.mjs');
+  expectWorkspaceField(workspace, 'exports["."].import.default', './dist/index.mjs');
 
   // All non-root package must provide the location of the CommonJS-compatible
   // entrypoint and its matching type declaration file.
-  expectWorkspaceField(workspace, 'exports["."].require', './dist/index.js');
-  expectWorkspaceField(workspace, 'main', './dist/index.js');
-  expectWorkspaceField(workspace, 'types', './dist/types/index.d.ts');
+  expectWorkspaceField(workspace, 'exports["."].require.types', './dist/index.d.cts');
+  expectWorkspaceField(workspace, 'exports["."].require.default', './dist/index.cjs');
+  expectWorkspaceField(workspace, 'main', './dist/index.cjs');
+  expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
+
+  // Types should not be set in the export object directly, but rather in the
+  // `import` and `require` subfields.
+  expectWorkspaceField(workspace, 'exports["."].types', null);
 
   // All non-root packages must export a `package.json` file.
   expectWorkspaceField(
