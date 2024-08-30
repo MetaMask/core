@@ -495,12 +495,24 @@ function expectCorrectWorkspaceExports(workspace) {
     'exports["."].import.types',
     './dist/index.d.mts',
   );
-  expectWorkspaceField(workspace, 'exports["."].import.default', './dist/index.mjs');
+  expectWorkspaceField(
+    workspace,
+    'exports["."].import.default',
+    './dist/index.mjs',
+  );
 
   // All non-root package must provide the location of the CommonJS-compatible
   // entrypoint and its matching type declaration file.
-  expectWorkspaceField(workspace, 'exports["."].require.types', './dist/index.d.cts');
-  expectWorkspaceField(workspace, 'exports["."].require.default', './dist/index.cjs');
+  expectWorkspaceField(
+    workspace,
+    'exports["."].require.types',
+    './dist/index.d.cts',
+  );
+  expectWorkspaceField(
+    workspace,
+    'exports["."].require.default',
+    './dist/index.cjs',
+  );
   expectWorkspaceField(workspace, 'main', './dist/index.cjs');
   expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
 
