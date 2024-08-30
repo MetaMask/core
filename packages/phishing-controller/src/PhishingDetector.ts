@@ -1,24 +1,32 @@
 import { distance } from 'fastest-levenshtein';
 
 import {
+  PhishingDetectorResultType,
+  type PhishingDetectorResult,
+} from './types';
+import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
   domainToParts,
   getDefaultPhishingDetectorConfig,
   matchPartsAgainstList,
   processConfigs,
+  sha256Hash,
 } from './utils';
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
   blacklist?: string[];
+  c2DomainBlocklist?: string[];
 } & FuzzyTolerance;
 
 export type PhishingDetectorList = {
   allowlist?: string[];
   blocklist?: string[];
+  c2DomainBlocklist?: string[];
   name?: string;
   version?: string | number;
+  tolerance?: number;
 } & FuzzyTolerance;
 
 export type FuzzyTolerance =
@@ -40,46 +48,9 @@ export type PhishingDetectorConfiguration = {
   version?: number | string;
   allowlist: string[][];
   blocklist: string[][];
+  c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
-};
-
-/**
- * Represents the result of checking a domain.
- */
-export type PhishingDetectorResult = {
-  /**
-   * The name of the configuration object in which the domain was found within
-   * an allowlist, blocklist, or fuzzylist.
-   */
-  name?: string;
-  /**
-   * The version associated with the configuration object in which the domain
-   * was found within an allowlist, blocklist, or fuzzylist.
-   */
-  version?: string;
-  /**
-   * Whether the domain is regarded as allowed (true) or not (false).
-   */
-  result: boolean;
-  /**
-   * A normalized version of the domain, which is only constructed if the domain
-   * is found within a list.
-   */
-  match?: string;
-  /**
-   * Which type of list in which the domain was found.
-   *
-   * - "allowlist" means that the domain was found in the allowlist.
-   * - "blocklist" means that the domain was found in the blocklist.
-   * - "fuzzy" means that the domain was found in the fuzzylist.
-   * - "blacklist" means that the domain was found in a blacklist of a legacy
-   * configuration object.
-   * - "whitelist" means that the domain was found in a whitelist of a legacy
-   * configuration object.
-   * - "all" means that the domain was not found in any list.
-   */
-  type: 'all' | 'fuzzy' | 'blocklist' | 'allowlist' | 'blacklist' | 'whitelist';
 };
 
 export class PhishingDetector {
@@ -108,6 +79,7 @@ export class PhishingDetector {
         getDefaultPhishingDetectorConfig({
           allowlist: opts.whitelist,
           blocklist: opts.blacklist,
+          c2DomainBlocklist: opts.c2DomainBlocklist,
           fuzzylist: opts.fuzzylist,
           tolerance: opts.tolerance,
         }),
@@ -129,10 +101,10 @@ export class PhishingDetector {
 
     if (this.#legacyConfig) {
       let legacyType = result.type;
-      if (legacyType === 'allowlist') {
-        legacyType = 'whitelist';
-      } else if (legacyType === 'blocklist') {
-        legacyType = 'blacklist';
+      if (legacyType === PhishingDetectorResultType.Allowlist) {
+        legacyType = PhishingDetectorResultType.Whitelist;
+      } else if (legacyType === PhishingDetectorResultType.Blocklist) {
+        legacyType = PhishingDetectorResultType.Blacklist;
       }
       return {
         match: result.match,
@@ -144,7 +116,41 @@ export class PhishingDetector {
   }
 
   #check(url: string): PhishingDetectorResult {
-    const domain = new URL(url).hostname;
+    const ipfsCidMatch = url.match(ipfsCidRegex());
+
+    // Check for IPFS CID related blocklist entries
+    if (ipfsCidMatch !== null) {
+      // there is a cID string somewhere
+      // Determine if any of the entries are ipfs cids
+      // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
+      const cID = ipfsCidMatch[0];
+      for (const { blocklist, name, version } of this.#configs) {
+        const blocklistMatch = blocklist
+          .filter((entries) => entries.length === 1)
+          .find((entries) => {
+            return entries[0] === cID;
+          });
+        if (blocklistMatch) {
+          return {
+            name,
+            match: cID,
+            result: true,
+            type: PhishingDetectorResultType.Blocklist,
+            version: version === undefined ? version : String(version),
+          };
+        }
+      }
+    }
+
+    let domain;
+    try {
+      domain = new URL(url).hostname;
+    } catch (error) {
+      return {
+        result: false,
+        type: PhishingDetectorResultType.All,
+      };
+    }
 
     const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
 
@@ -159,7 +165,7 @@ export class PhishingDetector {
           match,
           name,
           result: false,
-          type: 'allowlist',
+          type: PhishingDetectorResultType.Allowlist,
           version: version === undefined ? version : String(version),
         };
       }
@@ -175,7 +181,7 @@ export class PhishingDetector {
           match,
           name,
           result: true,
-          type: 'blocklist',
+          type: PhishingDetectorResultType.Blocklist,
           version: version === undefined ? version : String(version),
         };
       }
@@ -197,33 +203,7 @@ export class PhishingDetector {
             name,
             match,
             result: true,
-            type: 'fuzzy',
-            version: version === undefined ? version : String(version),
-          };
-        }
-      }
-    }
-
-    const ipfsCidMatch = url.match(ipfsCidRegex());
-
-    // Check for IPFS CID related blocklist entries
-    if (ipfsCidMatch !== null) {
-      // there is a cID string somewhere
-      // Determine if any of the entries are ipfs cids
-      // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
-      const cID = ipfsCidMatch[0];
-      for (const { blocklist, name, version } of this.#configs) {
-        const blocklistMatch = blocklist
-          .filter((entries) => entries.length === 1)
-          .find((entries) => {
-            return entries[0] === cID;
-          });
-        if (blocklistMatch) {
-          return {
-            name,
-            match: cID,
-            result: true,
-            type: 'blocklist',
+            type: PhishingDetectorResultType.Fuzzy,
             version: version === undefined ? version : String(version),
           };
         }
@@ -231,7 +211,65 @@ export class PhishingDetector {
     }
 
     // matched nothing, PASS
-    return { result: false, type: 'all' };
+    return { result: false, type: PhishingDetectorResultType.All };
+  }
+
+  /**
+   * Checks if a URL is blocked against the hashed request blocklist.
+   * This is done by hashing the URL's hostname and checking it against the hashed request blocklist.
+   *
+   *
+   * @param urlString - The URL to check.
+   * @returns An object indicating if the URL is blocked and relevant metadata.
+   */
+  isMaliciousC2Domain(urlString: string): PhishingDetectorResult {
+    let hostname;
+    try {
+      hostname = new URL(urlString).hostname;
+    } catch (error) {
+      return {
+        result: false,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      };
+    }
+
+    const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
+
+    const source = domainToParts(fqdn);
+
+    for (const { allowlist, name, version } of this.#configs) {
+      // if source matches allowlist hostname (or subdomain thereof), PASS
+      const allowlistMatch = matchPartsAgainstList(source, allowlist);
+      if (allowlistMatch) {
+        const match = domainPartsToDomain(allowlistMatch);
+        return {
+          match,
+          name,
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+
+    for (const { c2DomainBlocklist, name, version } of this.#configs) {
+      const hash = sha256Hash(hostname.toLowerCase());
+      const blocked = c2DomainBlocklist?.includes(hash) ?? false;
+
+      if (blocked) {
+        return {
+          name,
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+    // did not match, PASS
+    return {
+      result: false,
+      type: PhishingDetectorResultType.C2DomainBlocklist,
+    };
   }
 }
 

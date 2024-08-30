@@ -168,6 +168,12 @@ export const defaultState: NotificationServicesControllerState = {
   isCheckingAccountsPresence: false,
 };
 
+export type NotificationServicesControllerGetStateAction =
+  ControllerGetStateAction<
+    typeof controllerName,
+    NotificationServicesControllerState
+  >;
+
 export type NotificationServicesControllerUpdateMetamaskNotificationsList = {
   type: `${typeof controllerName}:updateMetamaskNotificationsList`;
   handler: NotificationServicesController['updateMetamaskNotificationsList'];
@@ -186,10 +192,10 @@ export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
 
 // Messenger Actions
 export type Actions =
+  | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled
-  | ControllerGetStateAction<'state', NotificationServicesControllerState>;
+  | NotificationServicesControllerSelectIsNotificationServicesEnabled;
 
 // Allowed Actions
 export type AllowedActions =
