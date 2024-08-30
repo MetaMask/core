@@ -1,5 +1,5 @@
-import type { Infer } from '@metamask/superstruct';
 import { is, pattern, string } from '@metamask/superstruct';
+import type { Infer, Struct } from '@metamask/superstruct';
 
 export const CAIP_CHAIN_ID_REGEX =
   /^(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32})$/u;
@@ -16,7 +16,10 @@ export const CAIP_ACCOUNT_ADDRESS_REGEX = /^[-.%a-zA-Z0-9]{1,128}$/u;
 /**
  * A CAIP-2 chain ID, i.e., a human-readable namespace and reference.
  */
-export const CaipChainIdStruct = pattern(string(), CAIP_CHAIN_ID_REGEX);
+export const CaipChainIdStruct = pattern(
+  string(),
+  CAIP_CHAIN_ID_REGEX,
+) as Struct<CaipChainId, null>;
 export type CaipChainId = `${string}:${string}`;
 
 /**
@@ -34,7 +37,10 @@ export type CaipReference = Infer<typeof CaipReferenceStruct>;
 /**
  * A CAIP-10 account ID, i.e., a human-readable namespace, reference, and account address.
  */
-export const CaipAccountIdStruct = pattern(string(), CAIP_ACCOUNT_ID_REGEX);
+export const CaipAccountIdStruct = pattern(
+  string(),
+  CAIP_ACCOUNT_ID_REGEX,
+) as Struct<CaipAccountId, null>;
 export type CaipAccountId = `${string}:${string}:${string}`;
 
 /**
