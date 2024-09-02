@@ -22,12 +22,64 @@
       "require": "./dist/index.js",
       "types": "./dist/types/index.d.ts"
     },
+    "./notification-services": {
+      "import": "./dist/NotificationServicesController/index.mjs",
+      "require": "./dist/NotificationServicesController/index.js",
+      "types": "./dist/types/NotificationServicesController/index.d.ts"
+    },
+    "./notification-services/types": {
+      "import": "./dist/NotificationServicesController/types/index.mjs",
+      "require": "./dist/NotificationServicesController/types/index.js",
+      "types": "./dist/types/NotificationServicesController/types/index.d.ts"
+    },
+    "./notification-services/processors": {
+      "import": "./dist/NotificationServicesController/processors/index.mjs",
+      "require": "./dist/NotificationServicesController/processors/index.js",
+      "types": "./dist/types/NotificationServicesController/processors/index.d.ts"
+    },
+    "./notification-services/constants": {
+      "import": "./dist/NotificationServicesController/constants/index.mjs",
+      "require": "./dist/NotificationServicesController/constants/index.js",
+      "types": "./dist/types/NotificationServicesController/constants/index.d.ts"
+    },
+    "./notification-services/ui": {
+      "import": "./dist/NotificationServicesController/ui/index.mjs",
+      "require": "./dist/NotificationServicesController/ui/index.js",
+      "types": "./dist/types/NotificationServicesController/ui/index.d.ts"
+    },
+    "./notification-services/mocks": {
+      "import": "./dist/NotificationServicesController/__fixtures__/index.mjs",
+      "require": "./dist/NotificationServicesController/__fixtures__/index.js",
+      "types": "./dist/types/NotificationServicesController/__fixtures__/index.d.ts"
+    },
+    "./push-services": {
+      "import": "./dist/NotificationServicesPushController/index.mjs",
+      "require": "./dist/NotificationServicesPushController/index.js",
+      "types": "./dist/types/NotificationServicesPushController/index.d.ts"
+    },
+    "./push-services/types": {
+      "import": "./dist/NotificationServicesPushController/types/index.mjs",
+      "require": "./dist/NotificationServicesPushController/types/index.js",
+      "types": "./dist/types/NotificationServicesPushController/types/index.d.ts"
+    },
+    "./push-services/utils": {
+      "import": "./dist/NotificationServicesPushController/utils/index.mjs",
+      "require": "./dist/NotificationServicesPushController/utils/index.js",
+      "types": "./dist/types/NotificationServicesPushController/utils/index.d.ts"
+    },
+    "./push-services/mocks": {
+      "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",
+      "require": "./dist/NotificationServicesPushController/__fixtures__/index.js",
+      "types": "./dist/types/NotificationServicesPushController/__fixtures__/index.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "files": [
-    "dist/"
+    "dist/",
+    "notification-services/",
+    "push-services/"
   ],
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
