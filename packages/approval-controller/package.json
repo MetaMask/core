@@ -1,6 +1,6 @@
 {
   "name": "@metamask/approval-controller",
-  "version": "7.0.2",
+  "version": "7.0.3",
   "description": "Manages requests that require user approval",
   "keywords": [
     "MetaMask",
@@ -42,7 +42,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.3",
+    "@metamask/base-controller": "^7.0.0",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",
     "nanoid": "^3.1.31"
