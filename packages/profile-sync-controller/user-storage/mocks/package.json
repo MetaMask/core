@@ -1,0 +1,9 @@
+{
+  "name": "@metamask/profile-sync-controller",
+  "version": "1.0.0",
+  "description": "",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "../../dist/controllers/user-storage/__fixtures__/index.js",
+  "types": "../../dist/types/controllers/user-storage/__fixtures__/index.d.ts"
+}

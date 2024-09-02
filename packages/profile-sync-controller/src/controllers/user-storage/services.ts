@@ -1,6 +1,6 @@
 import log from 'loglevel';
 
-import { Env, getEnvUrls } from '../../sdk';
+import { Env, getEnvUrls } from '../../sdk/env';
 import encryption from './encryption';
 import type {
   UserStoragePathWithFeatureAndKey,
