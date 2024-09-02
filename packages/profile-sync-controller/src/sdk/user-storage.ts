@@ -1,5 +1,9 @@
-import type { UserStoragePath } from '../controllers/user-storage/schema';
+import type {
+  UserStoragePathWithFeatureAndKey,
+  UserStoragePathWithFeatureOnly,
+} from '../controllers/user-storage/schema';
 import { createEntryPath } from '../controllers/user-storage/schema';
+import type { GetUserStorageAllFeatureEntriesResponse } from '../controllers/user-storage/services';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import encryption, { createSHA256Hash } from './encryption';
 import type { Env } from './env';
@@ -41,12 +45,21 @@ export class UserStorage {
     this.options = options;
   }
 
-  async setItem(path: UserStoragePath, value: string): Promise<void> {
+  async setItem(
+    path: UserStoragePathWithFeatureAndKey,
+    value: string,
+  ): Promise<void> {
     await this.#upsertUserStorage(path, value);
   }
 
-  async getItem(path: UserStoragePath): Promise<string> {
+  async getItem(path: UserStoragePathWithFeatureAndKey): Promise<string> {
     return this.#getUserStorage(path);
+  }
+
+  async getAllFeatureItems(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<string[] | null> {
+    return this.#getUserStorageAllFeatureEntries(path);
   }
 
   async getStorageKey(): Promise<string> {
@@ -64,7 +77,10 @@ export class UserStorage {
     return hashedStorageKeySignature;
   }
 
-  async #upsertUserStorage(path: UserStoragePath, data: string): Promise<void> {
+  async #upsertUserStorage(
+    path: UserStoragePathWithFeatureAndKey,
+    data: string,
+  ): Promise<void> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
@@ -101,7 +117,9 @@ export class UserStorage {
     }
   }
 
-  async #getUserStorage(path: UserStoragePath): Promise<string> {
+  async #getUserStorage(
+    path: UserStoragePathWithFeatureAndKey,
+  ): Promise<string> {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
@@ -131,6 +149,64 @@ export class UserStorage {
 
       const { Data: encryptedData } = await response.json();
       return encryption.decryptString(encryptedData, storageKey);
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #getUserStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<string[] | null> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(`feature not found for path '${path}'.`);
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      const userStorage: GetUserStorageAllFeatureEntriesResponse | null =
+        await response.json();
+
+      if (!Array.isArray(userStorage)) {
+        return null;
+      }
+
+      const decryptedData = userStorage.flatMap((entry) => {
+        if (!entry.Data) {
+          return [];
+        }
+
+        return encryption.decryptString(entry.Data, storageKey);
+      });
+
+      return decryptedData;
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
