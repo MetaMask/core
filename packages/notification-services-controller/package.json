@@ -43,10 +43,10 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^6.0.3",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/base-controller": "^7.0.0",
+    "@metamask/controller-utils": "^11.1.0",
     "bignumber.js": "^4.1.0",
-    "contentful": "^10.3.6",
+    "contentful": "^10.15.0",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
     "uuid": "^8.3.2"
@@ -54,7 +54,7 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.1.2",
+    "@metamask/keyring-controller": "^17.2.0",
     "@metamask/profile-sync-controller": "^0.2.1",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",

@@ -1,3 +1,4 @@
+// @ts-check
 // This file is used to define, among other configuration, rules that Yarn will
 // execute when you run `yarn constraints`. These rules primarily check the
 // manifests of each package in the monorepo to ensure they follow a standard
@@ -14,7 +15,7 @@ const { inspect } = require('util');
 /**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
- * @typedef {import('@yarnpkg/types').Yarn} Yarn
+ * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Workspace} Workspace
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Dependency} Dependency
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.DependencyType} DependencyType
@@ -166,7 +167,7 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         // The list of files included in all non-root packages must only include
         // files generated during the build process.
-        expectWorkspaceField(workspace, 'files', ['dist/']);
+        expectWorkspaceArrayField(workspace, 'files', 'dist/');
       } else {
         // The root package must specify an empty set of published files. (This
         // is required in order to be able to import anything in
@@ -349,7 +350,7 @@ async function getWorkspaceFile(workspace, path) {
  *
  * @param {Workspace} workspace - The workspace.
  * @param {string} path - The path to the file, relative to the workspace root.
- * @returns {boolean} True if the file exists, false otherwise.
+ * @returns {Promise<boolean>} True if the file exists, false otherwise.
  */
 async function workspaceFileExists(workspace, path) {
   try {
@@ -380,6 +381,37 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
 
   if (expectedValue) {
     workspace.set(fieldName, expectedValue);
+  } else if (fieldValue === undefined || fieldValue === null) {
+    workspace.error(`Missing required field "${fieldName}".`);
+  }
+}
+
+/**
+ * Expect that the workspace has the given field, and that it is an array-like
+ * property containing the specified value. If the field is not present, is not
+ * an array, or does not contain the value, this will log an error, and cause
+ * the constraint to fail.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ * @param {string} fieldName - The field to check.
+ * @param {unknown} expectedValue - The value that should be contained in the array.
+ */
+function expectWorkspaceArrayField(
+  workspace,
+  fieldName,
+  expectedValue = undefined,
+) {
+  let fieldValue = get(workspace.manifest, fieldName);
+
+  if (expectedValue) {
+    if (!Array.isArray(fieldValue)) {
+      fieldValue = [];
+    }
+
+    if (!fieldValue.includes(expectedValue)) {
+      fieldValue.push(expectedValue);
+      workspace.set(fieldName, fieldValue);
+    }
   } else if (fieldValue === undefined || fieldValue === null) {
     workspace.error(`Missing required field "${fieldName}".`);
   }
@@ -487,8 +519,12 @@ function expectCorrectWorkspaceExports(workspace) {
  * @param {Workspace} workspace - The workspace to check.
  */
 function expectCorrectWorkspaceChangelogScripts(workspace) {
+  /**
+   * @type {Record<string, { expectedStartString: string, script: string, match: RegExpMatchArray | null }>}
+   */
   const scripts = ['update', 'validate'].reduce((obj, variant) => {
     const expectedStartString = `../../scripts/${variant}-changelog.sh ${workspace.manifest.name}`;
+    /** @type {string} */
     const script = workspace.manifest.scripts[`changelog:${variant}`] ?? '';
     const match = script.match(new RegExp(`^${expectedStartString}(.*)$`, 'u'));
     return { ...obj, [variant]: { expectedStartString, script, match } };
@@ -583,7 +619,7 @@ function expectUpToDateWorkspacePeerDependencies(Yarn, workspace) {
  * `dependencies` and `devDependencies`.
  *
  * @param {Workspace} workspace - The workspace to check.
- * @param {Map<string, Dependency>} dependenciesByIdentAndType - Map of
+ * @param {Map<string, Map<DependencyType, Dependency>>} dependenciesByIdentAndType - Map of
  * dependency ident to dependency type and dependency.
  */
 function expectDependenciesNotInBothProdAndDev(
@@ -621,7 +657,7 @@ function expectDependenciesNotInBothProdAndDev(
  *
  * @param {Yarn} Yarn - The Yarn "global".
  * @param {Workspace} workspace - The workspace to check.
- * @param {Map<string, Dependency>} dependenciesByIdentAndType - Map of
+ * @param {Map<string, Map<DependencyType, Dependency>>} dependenciesByIdentAndType - Map of
  * dependency ident to dependency type and dependency.
  */
 function expectControllerDependenciesListedAsPeerDependencies(

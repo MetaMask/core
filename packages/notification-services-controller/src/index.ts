@@ -1,2 +1,2 @@
 export * as NotificationServicesController from './NotificationServicesController';
-export * as NotificationsServicesPushController from './NotificationServicesPushController';
+export * as NotificationServicesPushController from './NotificationServicesPushController';
