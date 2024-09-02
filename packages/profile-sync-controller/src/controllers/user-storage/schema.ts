@@ -28,12 +28,9 @@ type UserStorageFeatureAndKey = {
 };
 
 export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
-export type UserStoragePathWithFeatureAndKey =
-  | {
-      [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
-    }[UserStoragePathWithFeatureOnly];
-
-export const f = (path: UserStoragePathWithFeatureAndKey) => path;
+export type UserStoragePathWithFeatureAndKey = {
+  [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
+}[UserStoragePathWithFeatureOnly];
 
 export const getFeatureAndKeyFromPath = (
   path: UserStoragePathWithFeatureAndKey,

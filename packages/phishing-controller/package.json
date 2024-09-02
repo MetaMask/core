@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "11.0.0",
+  "version": "12.0.1",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -42,10 +42,12 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.3",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/base-controller": "^7.0.0",
+    "@metamask/controller-utils": "^11.1.0",
+    "@noble/hashes": "^1.4.0",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
+    "ethereum-cryptography": "^2.1.2",
     "fastest-levenshtein": "^1.0.16",
     "punycode": "^2.1.1"
   },

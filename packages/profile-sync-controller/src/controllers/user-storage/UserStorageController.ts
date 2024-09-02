@@ -4,6 +4,7 @@ import type {
   AccountsControllerGetAccountByAddressAction,
 } from '@metamask/accounts-controller';
 import type {
+  ControllerGetStateAction,
   ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   StateMetadata,
@@ -111,7 +112,13 @@ type ActionsObj = CreateActionsObj<
   | 'syncInternalAccountsWithUserStorage'
   | 'saveInternalAccountToUserStorage'
 >;
-export type Actions = ActionsObj[keyof ActionsObj];
+export type UserStorageControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Actions =
+  | ActionsObj[keyof ActionsObj]
+  | UserStorageControllerGetStateAction;
 export type UserStorageControllerPerformGetStorage =
   ActionsObj['performGetStorage'];
 export type UserStorageControllerPerformGetStorageAllFeatureEntries =
@@ -127,6 +134,12 @@ export type UserStorageControllerSyncInternalAccountsWithUserStorage =
   ActionsObj['syncInternalAccountsWithUserStorage'];
 export type UserStorageControllerSaveInternalAccountToUserStorage =
   ActionsObj['saveInternalAccountToUserStorage'];
+
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Events = UserStorageControllerStateChangeEvent;
 
 // Allowed Actions
 export type AllowedActions =
@@ -174,7 +187,7 @@ export type AllowedEvents =
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   Actions | AllowedActions,
-  AllowedEvents,
+  Events | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;
@@ -326,11 +339,15 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe('KeyringController:unlock', async () => {
-        this.#isUnlocked = true;
+      this.messagingSystem.subscribe(
+        'KeyringController:unlock',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async () => {
+          this.#isUnlocked = true;
 
-        await this.syncInternalAccountsWithUserStorage();
-      });
+          await this.syncInternalAccountsWithUserStorage();
+        },
+      );
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
