@@ -2969,7 +2969,7 @@ __metadata:
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
-    typescript: "npm:~5.0.4"
+    typescript: "npm:~5.2.2"
   languageName: unknown
   linkType: soft
 
