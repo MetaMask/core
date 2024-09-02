@@ -33,6 +33,7 @@ export type {
 } from './NetworkController';
 export {
   getDefaultNetworkControllerState,
+  selectAvailableNetworkClientIds,
   knownKeysOf,
   NetworkController,
   RpcEndpointType,

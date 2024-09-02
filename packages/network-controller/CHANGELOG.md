@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `removeNetwork`, which replaces `removeNetworkConfiguration` and can be used to remove existing network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `getDefaultNetworkControllerState` function, which replaces `defaultState` and matches patterns in other controllers ([#4268](https://github.com/MetaMask/core/pull/4286))
 - Add `RpcEndpointType`, `AddNetworkFields`, and `UpdateNetworkFields` types ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `getNetworkConfigurations`, `getAvailableNetworkClientIds` and `selectAvailableNetworkClientIds` selectors ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - These new selectors can be applied to messenger event subscriptions
 
 ### Changed
 

@@ -23,6 +23,7 @@ import { isStrictHexString, hasProperty, isPlainObject } from '@metamask/utils';
 import { strict as assert } from 'assert';
 import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
+import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
 import { inspect } from 'util';
 import { v4 as uuidV4 } from 'uuid';
@@ -556,6 +557,39 @@ export function getDefaultNetworkControllerState(): NetworkState {
 }
 
 /**
+ * Get a list of all network configurations.
+ *
+ * @param state - NetworkController state
+ * @returns A list of all available network configurations
+ */
+export function getNetworkConfigurations(
+  state: NetworkState,
+): NetworkConfiguration[] {
+  return Object.values(state.networkConfigurationsByChainId);
+}
+
+/**
+ * Get a list of all available client IDs from a list of
+ * network configurations
+ * @param networkConfigurations - The array of network configurations
+ * @returns A list of all available client IDs
+ */
+export function getAvailableNetworkClientIds(
+  networkConfigurations: NetworkConfiguration[],
+): string[] {
+  return networkConfigurations.flatMap((networkConfiguration) =>
+    networkConfiguration.rpcEndpoints.map(
+      (rpcEndpoint) => rpcEndpoint.networkClientId,
+    ),
+  );
+}
+
+export const selectAvailableNetworkClientIds = createSelector(
+  [getNetworkConfigurations],
+  getAvailableNetworkClientIds,
+);
+
+/**
  * The collection of auto-managed network clients that map to Infura networks.
  */
 export type AutoManagedBuiltInNetworkClientRegistry = Record<
@@ -706,13 +740,7 @@ function validateNetworkControllerState(state: NetworkState) {
   const networkConfigurationEntries = Object.entries(
     state.networkConfigurationsByChainId,
   );
-  const networkClientIds = Object.values(
-    state.networkConfigurationsByChainId,
-  ).flatMap((networkConfiguration) =>
-    networkConfiguration.rpcEndpoints.map(
-      (rpcEndpoint) => rpcEndpoint.networkClientId,
-    ),
-  );
+  const networkClientIds = selectAvailableNetworkClientIds(state);
 
   if (networkConfigurationEntries.length === 0) {
     throw new Error(
