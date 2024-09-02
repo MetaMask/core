@@ -4,6 +4,7 @@ import {
   MOCK_STORAGE_KEY,
   handleMockUserStorageGet,
   handleMockUserStoragePut,
+  handleMockUserStorageGetAllFeatureEntries,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -72,6 +73,20 @@ describe('User Storage', () => {
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
+  });
+
+  it('gets all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockGetAll = handleMockUserStorageGetAllFeatureEntries();
+
+    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
+      'notifications',
+    );
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(responseAllFeatureEntries).toStrictEqual([data]);
   });
 
   it('user storage: failed to set key', async () => {

@@ -14,6 +14,10 @@ const MOCK_STORAGE_URL = STORAGE_URL(
   Env.DEV,
   'notifications/notificationSettings',
 );
+const MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES = STORAGE_URL(
+  Env.DEV,
+  'notifications',
+);
 
 export const MOCK_STORAGE_KEY = 'MOCK_STORAGE_KEY';
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -34,6 +38,18 @@ export const handleMockUserStorageGet = (mockReply?: MockReply) => {
   const mockEndpoint = nock(MOCK_STORAGE_URL)
     .persist()
     .get(/.*/u)
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const handleMockUserStorageGetAllFeatureEntries = (
+  mockReply?: MockReply,
+) => {
+  const reply = mockReply ?? { status: 200, body: [MOCK_STORAGE_RESPONSE] };
+  const mockEndpoint = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    .persist()
+    .get('')
     .reply(reply.status, reply.body);
 
   return mockEndpoint;
