@@ -1,8 +1,15 @@
 import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -74,7 +81,13 @@ type ActionsObj = CreateActionsObj<
   | 'enableProfileSyncing'
   | 'disableProfileSyncing'
 >;
-export type Actions = ActionsObj[keyof ActionsObj];
+export type UserStorageControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Actions =
+  | ActionsObj[keyof ActionsObj]
+  | UserStorageControllerGetStateAction;
 export type UserStorageControllerPerformGetStorage =
   ActionsObj['performGetStorage'];
 export type UserStorageControllerPerformSetStorage =
@@ -85,8 +98,16 @@ export type UserStorageControllerEnableProfileSyncing =
 export type UserStorageControllerDisableProfileSyncing =
   ActionsObj['disableProfileSyncing'];
 
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserStorageControllerState
+>;
+export type Events = UserStorageControllerStateChangeEvent;
+
 // Allowed Actions
 export type AllowedActions =
+  // Keyring Requests
+  | KeyringControllerGetStateAction
   // Snap Requests
   | HandleSnapRequest
   // Auth Requests
@@ -99,13 +120,17 @@ export type AllowedActions =
   | NotificationServicesControllerDisableNotificationServices
   | NotificationServicesControllerSelectIsNotificationServicesEnabled;
 
+export type AllowedEvents =
+  | KeyringControllerLockEvent
+  | KeyringControllerUnlockEvent;
+
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   Actions | AllowedActions,
-  never,
+  Events | AllowedEvents,
   AllowedActions['type'],
-  never
+  AllowedEvents['type']
 >;
 
 /**
@@ -161,6 +186,25 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #isUnlocked = false;
+
+  #keyringController = {
+    setupLockedStateSubscriptions: () => {
+      const { isUnlocked } = this.messagingSystem.call(
+        'KeyringController:getState',
+      );
+      this.#isUnlocked = isUnlocked;
+
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
+
+      this.messagingSystem.subscribe('KeyringController:lock', () => {
+        this.#isUnlocked = false;
+      });
+    },
+  };
+
   getMetaMetricsState: () => boolean;
 
   constructor(params: {
@@ -176,6 +220,7 @@ export default class UserStorageController extends BaseController<
     });
 
     this.getMetaMetricsState = params.getMetaMetricsState;
+    this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
   }
 
@@ -260,7 +305,7 @@ export default class UserStorageController extends BaseController<
       const isMetaMetricsParticipation = this.getMetaMetricsState();
 
       if (!isMetaMetricsParticipation) {
-        this.messagingSystem.call('AuthenticationController:performSignOut');
+        await this.#auth.signOut();
       }
 
       this.#setIsProfileSyncingUpdateLoading(false);
@@ -387,6 +432,12 @@ export default class UserStorageController extends BaseController<
   async #snapSignMessage(message: `metamask:${string}`): Promise<string> {
     if (this.#_snapSignMessageCache[message]) {
       return this.#_snapSignMessageCache[message];
+    }
+
+    if (!this.#isUnlocked) {
+      throw new Error(
+        '#snapSignMessage - unable to call snap, wallet is locked',
+      );
     }
 
     const result = (await this.messagingSystem.call(

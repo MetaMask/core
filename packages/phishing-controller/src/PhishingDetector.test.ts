@@ -3,6 +3,7 @@ import {
   type PhishingDetectorOptions,
 } from './PhishingDetector';
 import { formatHostnameToUrl } from './tests/utils';
+import { PhishingDetectorResultType } from './types';
 
 describe('PhishingDetector', () => {
   describe('constructor', () => {
@@ -221,7 +222,7 @@ describe('PhishingDetector', () => {
           );
 
           expect(result).toBe(false);
-          expect(type).toBe('all');
+          expect(type).toBe(PhishingDetectorResultType.All);
         });
       });
 
@@ -251,7 +252,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
       });
@@ -442,7 +443,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
       });
@@ -537,7 +538,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
       });
@@ -666,6 +667,38 @@ describe('PhishingDetector', () => {
             expect(result).toBe(false);
             expect(type).toBe('allowlist');
             expect(name).toBe('first');
+          },
+        );
+      });
+
+      it('fails when the URL is invalid', async () => {
+        await withPhishingDetector(
+          [
+            {
+              allowlist: ['allowed-by-first.com'],
+              blocklist: [],
+              fuzzylist: [],
+              name: 'first',
+              tolerance: 2,
+              version: 1,
+            },
+            {
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
+              name: 'second',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector }) => {
+            const invalidUrl = 'not-a-valid-url';
+
+            const { result, type, name } = detector.check(invalidUrl);
+
+            expect(result).toBe(false);
+            expect(type).toBe(PhishingDetectorResultType.All);
+            expect(name).toBeUndefined();
           },
         );
       });
@@ -974,7 +1007,7 @@ describe('PhishingDetector', () => {
             );
 
             expect(result).toBe(false);
-            expect(type).toBe('all');
+            expect(type).toBe(PhishingDetectorResultType.All);
           },
         );
 
@@ -1103,6 +1136,321 @@ describe('PhishingDetector', () => {
           },
         );
       });
+    });
+  });
+
+  describe('isMaliciousC2Domain', () => {
+    it('should return false if c2DomainBlocklist is not defined or empty', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+          });
+        },
+      );
+    });
+
+    it('check the hash against c2DomainBlocklist, returning the correct result', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('check the hash against c2DomainBlocklist, returning the correct result without a version', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'test-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
+    it('should return false if URL is invalid', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('#$@(%&@#$(%');
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+          });
+        },
+      );
+    });
+
+    it('should return true if URL is in the c2DomainBlocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return false if URL is not in the c2DomainBlocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: ['hash-other.com'],
+            name: 'test-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+          });
+        },
+      );
+    });
+
+    it('should check all configs and return the result from the first matching config', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'second-config',
+            version: 2,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            name: 'first-config',
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return allowlist if URL is in the allowlist with something on the blocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            match: 'example.com',
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return allowlist if URL is in the allowlist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            match: 'example.com',
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return allowlist if URL is in the allowlist without a version', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'first-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            match: 'example.com',
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
+    it('should correctly normalize the hostname by removing the trailing dot', async () => {
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [],
+            name: 'first-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain(
+            'https://example.com.', // URL with trailing dot
+          );
+          expect(result).toStrictEqual({
+            match: 'example.com', // Expectation is that the trailing dot is removed
+            name: 'first-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
+    it('should return false with type "c2DomainBlocklist" if no configs have a valid c2DomainBlocklist', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            name: 'first-config',
+            version: 1,
+            tolerance: 2,
+          },
+          {
+            blocklist: [],
+            fuzzylist: [],
+            name: 'second-config',
+            version: 2,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain('https://example.com');
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+          });
+        },
+      );
     });
   });
 });

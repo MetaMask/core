@@ -1,11 +1,37 @@
-import type { Json } from '@metamask/utils';
+import type { Json, PublicInterface } from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
+import type {
+  BaseControllerV1Instance,
+  StateConstraint as StateConstraintV1,
+} from './BaseControllerV1';
 import type { ActionConstraint, EventConstraint } from './ControllerMessenger';
-import type { RestrictedControllerMessenger } from './RestrictedControllerMessenger';
+import type {
+  RestrictedControllerMessenger,
+  RestrictedControllerMessengerConstraint,
+} from './RestrictedControllerMessenger';
 
 enablePatches();
+
+/**
+ * Determines if the given controller is an instance of `BaseController`
+ *
+ * @param controller - Controller instance to check
+ * @returns True if the controller is an instance of `BaseController`
+ */
+export function isBaseController(
+  controller: ControllerInstance,
+): controller is BaseControllerInstance {
+  return (
+    'name' in controller &&
+    typeof controller.name === 'string' &&
+    'state' in controller &&
+    typeof controller.state === 'object' &&
+    'metadata' in controller &&
+    typeof controller.metadata === 'object'
+  );
+}
 
 /**
  * A type that constrains the state of all controllers.
@@ -13,6 +39,14 @@ enablePatches();
  * In other words, the narrowest supertype encompassing all controller state.
  */
 export type StateConstraint = Record<string, Json>;
+
+/**
+ * A universal supertype for the controller state object, encompassing both `BaseControllerV1` and `BaseControllerV2` state.
+ */
+// TODO: Remove once BaseControllerV2 migrations are completed for all controllers.
+export type LegacyControllerStateConstraint =
+  | StateConstraintV1
+  | StateConstraint;
 
 /**
  * A state change listener.
@@ -51,7 +85,7 @@ export type StateDeriver<T extends Json> = (value: T) => Json;
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export type StateMetadata<T extends StateConstraint> = {
-  [P in keyof T]: StatePropertyMetadata<T[P]>;
+  [P in keyof T]-?: StatePropertyMetadata<T[P]>;
 };
 
 /**
@@ -71,6 +105,55 @@ export type StatePropertyMetadata<T extends Json> = {
   persist: boolean | StateDeriver<T>;
   anonymous: boolean | StateDeriver<T>;
 };
+
+/**
+ * A universal supertype of `StateDeriver` types.
+ * This type can be assigned to any `StateDeriver` type.
+ */
+export type StateDeriverConstraint = (value: never) => Json;
+
+/**
+ * A universal supertype of `StatePropertyMetadata` types.
+ * This type can be assigned to any `StatePropertyMetadata` type.
+ */
+export type StatePropertyMetadataConstraint = {
+  [P in 'anonymous' | 'persist']: boolean | StateDeriverConstraint;
+};
+
+/**
+ * A universal supertype of `StateMetadata` types.
+ * This type can be assigned to any `StateMetadata` type.
+ */
+export type StateMetadataConstraint = Record<
+  string,
+  StatePropertyMetadataConstraint
+>;
+
+/**
+ * The widest subtype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`).
+ * Any `BaseController` subclass instance can be assigned to this type.
+ */
+export type BaseControllerInstance = Omit<
+  PublicInterface<
+    BaseController<
+      string,
+      StateConstraint,
+      RestrictedControllerMessengerConstraint
+    >
+  >,
+  'metadata'
+> & {
+  metadata: StateMetadataConstraint;
+};
+
+/**
+ * A widest subtype of all controller instances that inherit from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
+ * Any `BaseController` or `BaseControllerV1` subclass instance can be assigned to this type.
+ */
+// TODO: Remove once BaseControllerV2 migrations are completed for all controllers.
+export type ControllerInstance =
+  | BaseControllerV1Instance
+  | BaseControllerInstance;
 
 export type ControllerGetStateAction<
   ControllerName extends string,

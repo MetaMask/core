@@ -11,6 +11,7 @@ export type {
   AccountsControllerGetAccountByAddressAction,
   AccountsControllerGetAccountAction,
   AccountsControllerGetNextAvailableAccountNameAction,
+  AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,

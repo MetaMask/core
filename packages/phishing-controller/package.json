@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "10.1.1",
+  "version": "12.0.1",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "MetaMask",
@@ -35,16 +35,19 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/phishing-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/phishing-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/base-controller": "^7.0.0",
+    "@metamask/controller-utils": "^11.1.0",
+    "@noble/hashes": "^1.4.0",
     "@types/punycode": "^2.1.0",
     "eth-phishing-detect": "^1.2.0",
+    "ethereum-cryptography": "^2.1.2",
     "fastest-levenshtein": "^1.0.16",
     "punycode": "^2.1.1"
   },
@@ -58,7 +61,7 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.0.4"
+    "typescript": "~5.2.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
