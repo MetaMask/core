@@ -401,6 +401,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
@@ -411,6 +414,30 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await expect(
       controller.syncInternalAccountsWithUserStorage(),
     ).rejects.toThrow(expect.any(Error));
+  });
+
+  it('returns void if account syncing feature flag is disabled', async () => {
+    const arrangeMocks = () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            mockEndpointGetUserStorageAllFeatureEntries('accounts'),
+        },
+      };
+    };
+
+    const { messengerMocks, mockAPI } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      env: {
+        isAccountSyncingEnabled: false,
+      },
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+    expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(false);
   });
 
   it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
@@ -447,6 +474,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
     });
 
@@ -492,6 +522,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     const { messengerMocks, mockAPI } = arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
     });
 
@@ -537,6 +570,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
     });
 
@@ -593,6 +629,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
     });
 
@@ -640,6 +679,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -677,6 +719,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -715,6 +760,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -765,6 +813,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -805,6 +856,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -842,6 +896,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -892,6 +949,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -932,6 +992,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -974,6 +1037,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -1019,6 +1085,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
         getMetaMetricsState: () => true,
       });
 
@@ -1045,6 +1114,9 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     const { messengerMocks } = arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
       state: {
         isProfileSyncingEnabled: false,
@@ -1060,6 +1132,32 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     ).rejects.toThrow(expect.any(Error));
   });
 
+  it('returns void if account syncing feature flag is disabled', async () => {
+    const arrangeMocks = () => {
+      return {
+        messengerMocks: mockUserStorageMessenger(),
+        mockAPI: mockEndpointUpsertUserStorage(
+          `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+        ),
+      };
+    };
+
+    const { messengerMocks, mockAPI } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: false,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.saveInternalAccountToUserStorage(
+      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+    );
+
+    expect(mockAPI.isDone()).toBe(false);
+  });
+
   it('saves an internal account to user storage', async () => {
     const arrangeMocks = () => {
       return {
@@ -1073,6 +1171,9 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     const { messengerMocks, mockAPI } = arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
     });
 
@@ -1097,6 +1198,9 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     const { messengerMocks } = arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
       getMetaMetricsState: () => true,
     });
 

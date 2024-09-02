@@ -233,6 +233,9 @@ export default class UserStorageController extends BaseController<
   };
 
   #accounts = {
+    // This is replaced with the actual value in the constructor
+    // We will remove this once the feature will be released
+    isAccountSyncingEnabled: false,
     setIsUserStorageAccountSyncingInProgress: async (
       isUserStorageAccountSyncingInProgress: boolean,
     ) => {
@@ -293,10 +296,6 @@ export default class UserStorageController extends BaseController<
     saveInternalAccountsListToUserStorage: async () => {
       const internalAccountsList =
         await this.#accounts.getInternalAccountsList();
-
-      console.log('saveInternalAccountsListToUserStorage', {
-        internalAccountsList,
-      });
 
       if (!internalAccountsList) {
         return;
@@ -360,6 +359,9 @@ export default class UserStorageController extends BaseController<
   constructor(params: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
+    env?: {
+      isAccountSyncingEnabled?: boolean;
+    };
     getMetaMetricsState: () => boolean;
   }) {
     super({
@@ -368,6 +370,10 @@ export default class UserStorageController extends BaseController<
       name: controllerName,
       state: { ...defaultState, ...params.state },
     });
+
+    this.#accounts.isAccountSyncingEnabled = Boolean(
+      params.env?.isAccountSyncingEnabled,
+    );
 
     this.getMetaMetricsState = params.getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
@@ -653,6 +659,10 @@ export default class UserStorageController extends BaseController<
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
   async syncInternalAccountsWithUserStorage(): Promise<void> {
+    if (!this.#accounts.isAccountSyncingEnabled) {
+      return;
+    }
+
     try {
       this.#assertProfileSyncingEnabled();
 
@@ -661,10 +671,7 @@ export default class UserStorageController extends BaseController<
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
 
-      console.log({ userStorageAccountsList });
-
       if (!userStorageAccountsList || !userStorageAccountsList.length) {
-        console.log('no user storage accounts list');
         await this.#accounts.saveInternalAccountsListToUserStorage();
         await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
         return;
@@ -680,8 +687,6 @@ export default class UserStorageController extends BaseController<
 
       const hasMoreInternalAccountsThanUserStorageAccounts =
         internalAccountsList.length > userStorageAccountsList.length;
-
-      console.log({ hasMoreInternalAccountsThanUserStorageAccounts });
 
       // We don't want to remove existing accounts for a user
       // so we only add new accounts if the user has more accounts than the internal accounts list
@@ -797,6 +802,10 @@ export default class UserStorageController extends BaseController<
    * @param address - The address of the internal account to save
    */
   async saveInternalAccountToUserStorage(address: string): Promise<void> {
+    if (!this.#accounts.isAccountSyncingEnabled) {
+      return;
+    }
+
     try {
       await this.#accounts.saveInternalAccountToUserStorage(address);
     } catch (e) {
