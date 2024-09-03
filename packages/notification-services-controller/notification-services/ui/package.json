@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "../../dist/NotificationServicesController/ui/index.js",
+  "types": "../../dist/types/NotificationServicesController/ui/index.d.ts"
+}
