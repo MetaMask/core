@@ -19,9 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added and exported the following types: `SmartTransactionsControllerMessenger`, `SmartTransactionsControllerState`, `SmartTransactionsControllerGetStateAction`, `SmartTransactionsControllerActions`, `SmartTransactionsControllerStateChangeEvent`, `SmartTransactionsControllerSmartTransactionEvent`, and `SmartTransactionsControllerEvents`.
 
 ## [12.0.1]
+### Changed
+- Remove logic for ensuring uniqueness of smart transactions ([#404](https://github.com/MetaMask/smart-transactions-controller/pull/404))
+  - This issue has been resolved in production.
+
 ### Fixed
 - Fix issue where this.ethQuery is sometimes unexpectedly undefined ([#405](https://github.com/MetaMask/smart-transactions-controller/pull/405))
-- Remove code that is no longer needed to ensure unique smart transactions ([#404](https://github.com/MetaMask/smart-transactions-controller/pull/404))
 
 ## [12.0.0]
 ### Changed
