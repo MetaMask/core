@@ -13,7 +13,9 @@ import {
 import nock from 'nock';
 import * as sinon from 'sinon';
 
-import { API_BASE_URL } from './constants';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
 import SmartTransactionsController, {
   DEFAULT_INTERVAL,
   getDefaultSmartTransactionsControllerState,
@@ -279,7 +281,7 @@ const createStateAfterSuccess = () => {
 };
 
 const createSuccessLivenessApiResponse = () => ({
-  lastBlock: 123456,
+  smartTransactions: true,
 });
 
 const testHistory = [
@@ -830,8 +832,8 @@ describe('SmartTransactionsController', () => {
     it('fetches a liveness for Smart Transactions API', async () => {
       await withController(async ({ controller }) => {
         const successLivenessApiResponse = createSuccessLivenessApiResponse();
-        nock(API_BASE_URL)
-          .get(`/networks/${ethereumChainIdDec}/health`)
+        nock(SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec])
+          .get(`/network`)
           .reply(200, successLivenessApiResponse);
 
         const liveness = await controller.fetchLiveness();
@@ -842,8 +844,8 @@ describe('SmartTransactionsController', () => {
 
     it('fetches liveness and sets in feesByChainId state for the Smart Transactions API for the chainId of the networkClientId passed in', async () => {
       await withController(async ({ controller }) => {
-        nock(API_BASE_URL)
-          .get(`/networks/${sepoliaChainIdDec}/health`)
+        nock(SENTINEL_API_BASE_URL_MAP[sepoliaChainIdDec])
+          .get(`/network`)
           .replyWithError('random error');
 
         expect(

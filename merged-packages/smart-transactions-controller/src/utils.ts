@@ -6,7 +6,7 @@ import jsonDiffer from 'fast-json-patch';
 import _ from 'lodash';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-import { API_BASE_URL } from './constants';
+import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
 import type { SmartTransaction, SmartTransactionsStatus } from './types';
 import {
   APIType,
@@ -52,7 +52,7 @@ export function getAPIRequestURL(apiType: APIType, chainId: string): string {
     }
 
     case APIType.LIVENESS: {
-      return `${API_BASE_URL}/networks/${chainIdDec}/health`;
+      return `${SENTINEL_API_BASE_URL_MAP[chainIdDec]}/network`;
     }
 
     default: {

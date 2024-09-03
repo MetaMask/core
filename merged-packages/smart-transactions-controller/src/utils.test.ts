@@ -2,7 +2,7 @@ import { ChainId } from '@metamask/controller-utils';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-import { API_BASE_URL } from './constants';
+import { API_BASE_URL, SENTINEL_API_BASE_URL_MAP } from './constants';
 import {
   SmartTransactionMinedTx,
   APIType,
@@ -72,7 +72,7 @@ describe('src/utils.js', () => {
 
     it('returns a URL for smart transactions API liveness', () => {
       expect(utils.getAPIRequestURL(APIType.LIVENESS, ChainId.mainnet)).toBe(
-        `${API_BASE_URL}/networks/${ethereumChainIdDec}/health`,
+        `${SENTINEL_API_BASE_URL_MAP[ethereumChainIdDec]}/network`,
       );
     });
   });

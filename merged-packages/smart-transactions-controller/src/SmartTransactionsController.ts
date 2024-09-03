@@ -947,7 +947,7 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
       const response = await this.#fetch(
         getAPIRequestURL(APIType.LIVENESS, chainId),
       );
-      liveness = Boolean(response.lastBlock);
+      liveness = Boolean(response.smartTransactions);
     } catch (error) {
       console.log('"fetchLiveness" API call failed');
     }
