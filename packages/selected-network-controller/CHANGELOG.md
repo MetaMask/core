@@ -7,17 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [17.1.0]
-
-### Uncategorized
-
-- Group network configurations by chain ([#4286](https://github.com/MetaMask/core/pull/4286))
-- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
-- Release 185.0.0 ([#4618](https://github.com/MetaMask/core/pull/4618))
+## [18.0.0]
 
 ### Changed
 
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.1.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), ([#4651](https://github.com/MetaMask/core/pull/4651)))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
 - Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
 
 ## [17.0.0]
@@ -266,8 +261,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@17.1.0...HEAD
-[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@17.0.0...@metamask/selected-network-controller@17.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.0...HEAD
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@17.0.0...@metamask/selected-network-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@16.0.0...@metamask/selected-network-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.2...@metamask/selected-network-controller@16.0.0
 [15.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.1...@metamask/selected-network-controller@15.0.2
