@@ -3,7 +3,12 @@ import type { TypeFeatureAnnouncement } from './type-feature-announcement';
 
 export type FeatureAnnouncementRawNotificationData = Omit<
   TypeFeatureAnnouncement['fields'],
-  'image' | 'longDescription' | 'extensionLink' | 'link' | 'action'
+  | 'image'
+  | 'longDescription'
+  | 'extensionLink'
+  | 'portfolioLink'
+  | 'externalLink'
+  | 'mobileLink'
 > & {
   longDescription: string;
   image: {
@@ -12,22 +17,28 @@ export type FeatureAnnouncementRawNotificationData = Omit<
     url: string;
   };
 
-  // Portfolio Links
-  link?: {
-    linkText: string;
-    linkUrl: string;
-    isExternal: boolean;
+  // External Link
+  externalLink?: {
+    externalLinkText: string;
+    externalLinkUrl: string;
   };
-  action?: {
-    actionText: string;
-    actionUrl: string;
-    isExternal: boolean;
+
+  // Portfolio Link
+  portfolioLink?: {
+    portfolioLinkText: string;
+    portfolioLinkUrl: string;
   };
 
   // Extension Link
   extensionLink?: {
     extensionLinkText: string;
     extensionLinkRoute: string;
+  };
+
+  // Mobile Link
+  mobileLink?: {
+    mobileLinkText: string;
+    mobileLinkUrl: string;
   };
 };
 
