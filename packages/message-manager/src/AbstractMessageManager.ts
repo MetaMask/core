@@ -1,7 +1,9 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
+import type { ApprovalType } from '@metamask/controller-utils';
 import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
+import { v1 as random } from 'uuid';
 
 /**
  * @type OriginalRequest
@@ -13,6 +15,7 @@ import { EventEmitter } from 'events';
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface OriginalRequest {
+  id?: number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
 }
@@ -49,6 +52,7 @@ export interface AbstractMessage {
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property requestId? - Original request id
  * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 // This interface was created before this ESLint rule was added.
@@ -57,6 +61,7 @@ export interface AbstractMessage {
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  requestId?: number;
   deferSetAsSigned?: boolean;
 }
 
@@ -126,6 +131,49 @@ export abstract class AbstractMessageManager<
   private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
   private readonly additionalFinishStatuses: string[];
+
+  /**
+   * Adds request props to the messsage params and returns a new messageParams object.
+   * @param messageParams - The messageParams to add the request props to.
+   * @param req - The original request object.
+   * @returns The messageParams with the request props added.
+   */
+  protected addRequestToMessageParams<
+    MessageParams extends AbstractMessageParams,
+  >(messageParams: MessageParams, req?: OriginalRequest) {
+    const updatedMessageParams = {
+      ...messageParams,
+    };
+
+    if (req) {
+      updatedMessageParams.requestId = req.id;
+      updatedMessageParams.origin = req.origin;
+    }
+
+    return updatedMessageParams;
+  }
+
+  /**
+   * Creates a new Message with a random id and an 'unapproved' status.
+   * @param messageParams - The messageParams to add the request props to.
+   * @param type - The approval type of the message.
+   * @param req - The original request object.
+   * @returns The new unapproved message for a specified type.
+   */
+  protected createUnapprovedMessage<
+    MessageParams extends AbstractMessageParams,
+  >(messageParams: MessageParams, type: ApprovalType, req?: OriginalRequest) {
+    const messageId = random();
+
+    return {
+      id: messageId,
+      messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
+      status: 'unapproved',
+      time: Date.now(),
+      type,
+    };
+  }
 
   /**
    * Saves the unapproved messages, and their count to state.
