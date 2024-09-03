@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Remove `config` from required constructor options of `AddressBookController` ([#4392](https://github.com/MetaMask/core/pull/4392))
 - **BREAKING:** Remove `AddressBookConfig` type ([#4392](https://github.com/MetaMask/core/pull/4392))
 
-
 ## [5.0.0]
 
 ### Changed
