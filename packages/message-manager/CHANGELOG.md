@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [10.1.0]
 
+### Added
+
+- Add protected methods `addRequestToMessageParams`, `createUnapprovedMessage` to `AbstractMessageManager`
+
+### Changed
+
+- Add `requestId` property to the `messageParams` object to reference metric event fragments created from the `createRPCMethodTrackingMiddleware` in the client ([#4636](https://github.com/MetaMask/core/pull/4636))
+  - Add optional property `requestId` to `AbstractMessageParams` type
+  - Add optional property `id` to `OriginalRequest` type
+
 ## [10.0.3]
 
 ### Changed
