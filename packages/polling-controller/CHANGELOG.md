@@ -7,17 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.0.2]
-
-### Uncategorized
-
-- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
-- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
-- Release 185.0.0 ([#4618](https://github.com/MetaMask/core/pull/4618))
+## [10.0.0]
 
 ### Changed
 
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.1.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
 - Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
 
 ## [9.0.1]
@@ -173,8 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.2...HEAD
-[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.1...@metamask/polling-controller@9.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.1...@metamask/polling-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.0...@metamask/polling-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@8.0.0...@metamask/polling-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@7.0.0...@metamask/polling-controller@8.0.0
