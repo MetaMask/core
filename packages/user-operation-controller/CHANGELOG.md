@@ -7,20 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [14.0.2]
-
-### Uncategorized
-
-- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
-- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
-- Release 190.0.0 ([#4631](https://github.com/MetaMask/core/pull/4631))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
-- Release 185.0.0 ([#4618](https://github.com/MetaMask/core/pull/4618))
-- Release 183.0.0 ([#4601](https://github.com/MetaMask/core/pull/4601))
-- Release/181.0.0 ([#4562](https://github.com/MetaMask/core/pull/4562))
+## [15.0.0]
 
 ### Changed
 
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.1.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), ([#4651](https://github.com/MetaMask/core/pull/4651)))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.1.0` ([#4639](https://github.com/MetaMask/core/pull/4639))
+- Bump `@metamask/polling-controller` from `^9.0.1` to `^9.0.2` ([#4651](https://github.com/MetaMask/core/pull/4651))
 - Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
 
 ## [14.0.1]
@@ -219,8 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.2...HEAD
-[14.0.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.1...@metamask/user-operation-controller@14.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.1...@metamask/user-operation-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.0...@metamask/user-operation-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@13.0.0...@metamask/user-operation-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@12.0.1...@metamask/user-operation-controller@13.0.0
