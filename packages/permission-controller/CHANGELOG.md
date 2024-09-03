@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.1]
+
+### Uncategorized
+
+- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
+- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Bump `typescript` from `~5.0.4` to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+
 ## [11.0.0]
 
 ### Changed
@@ -264,7 +275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.0...@metamask/permission-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.1...@metamask/permission-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.0...@metamask/permission-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.1...@metamask/permission-controller@10.0.0

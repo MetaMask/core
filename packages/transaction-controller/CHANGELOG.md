@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [35.2.1]
+
+### Uncategorized
+
+- Group network configurations by chain ([#4286](https://github.com/MetaMask/core/pull/4286))
+- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
+
 ## [35.2.0]
 
 ### Added
@@ -978,7 +986,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.1...HEAD
+[35.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...@metamask/transaction-controller@35.2.1
 [35.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.1...@metamask/transaction-controller@35.2.0
 [35.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.0...@metamask/transaction-controller@35.1.1
 [35.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.0.1...@metamask/transaction-controller@35.1.0

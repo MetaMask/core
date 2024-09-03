@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
+### Uncategorized
+
+- Group network configurations by chain ([#4286](https://github.com/MetaMask/core/pull/4286))
+- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Release 191.0.0 ([#4639](https://github.com/MetaMask/core/pull/4639))
+- deps(network-controller): @metamask/eth-block-tracker@^9.0.3->^10.0.0 ([#4424](https://github.com/MetaMask/core/pull/4424))
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
+- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
+
 ### Added
 
 - **BREAKING:** Add `networkConfigurationsByChainId` to `NetworkState` (type: `Record<Hex, NetworkConfiguration>`) ([#4268](https://github.com/MetaMask/core/pull/4286))
@@ -599,7 +610,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...@metamask/network-controller@21.0.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...@metamask/network-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0

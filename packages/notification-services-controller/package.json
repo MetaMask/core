@@ -71,7 +71,7 @@
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.1.0",
+    "@metamask/controller-utils": "^11.2.0",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.15.0",
     "firebase": "^10.11.0",
