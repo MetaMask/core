@@ -34,6 +34,7 @@ import type {
   ProxyWithAccessibleTarget,
 } from './create-auto-managed-network-client';
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
+import { updateNetworkConfigurationLastUpdatedAt } from './last-updated-at-network-configuration';
 import { projectLogger, createModuleLogger } from './logger';
 import { NetworkClientType } from './types';
 import type {
@@ -203,6 +204,11 @@ export type NetworkConfiguration = {
    * interact with the chain.
    */
   rpcEndpoints: RpcEndpoint[];
+  /**
+   * Profile Sync - Network Sync field.
+   * Allows comparison of local network state with state to sync.
+   */
+  lastUpdatedAt?: number;
 };
 
 /**
@@ -2438,6 +2444,9 @@ export class NetworkController extends BaseController<
     }
 
     if (mode === 'add' || mode === 'update') {
+      updateNetworkConfigurationLastUpdatedAt(
+        args.networkConfigurationToPersist,
+      );
       state.networkConfigurationsByChainId[args.networkFields.chainId] =
         args.networkConfigurationToPersist;
     }

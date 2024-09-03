@@ -25,6 +25,7 @@ import { NetworkStatus } from '../src/constants';
 import * as createAutoManagedNetworkClientModule from '../src/create-auto-managed-network-client';
 import type { NetworkClient } from '../src/create-network-client';
 import { createNetworkClient } from '../src/create-network-client';
+import * as LastUpdatedAtNetworkConfigurationModule from '../src/last-updated-at-network-configuration';
 import type {
   AutoManagedBuiltInNetworkClientRegistry,
   AutoManagedCustomNetworkClientRegistry,
@@ -139,6 +140,13 @@ describe('NetworkController', () => {
       uuidCounter += 1;
       return uuid;
     });
+
+    jest
+      .spyOn(
+        LastUpdatedAtNetworkConfigurationModule,
+        'updateNetworkConfigurationLastUpdatedAt',
+      )
+      .mockImplementation((n) => n);
   });
 
   afterEach(() => {
