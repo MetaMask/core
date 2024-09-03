@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+### Changed
+- **BREAKING:** Updated `SmartTransactionsController` to inherit from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#397](https://github.com/MetaMask/smart-transactions-controller/pull/397)).
+  - The constructor for `SmartTransactionsController` now accepts a single options object instead of three separate arguments, with configuration options merged into this object.
+  - `SmartTransactionsController` now requires a `messenger` option (with the corresponding type `SmartTransactionsControllerMessenger` now available).
+  - The constructor no longer accepts `onNetworkStateChange`; instead, it subscribes to `NetworkController:stateChange`.
+  - The `getNetworkClientById` argument has been removed from the constructor and is now accessed through the messenger.
+  - The controller no longer subscribes to its own events; this is now managed via the messenger.
+  - Event emission is no longer handled by `EventEmitter`; the messenger is now used for emitting events.
+  - The `SmartTransactionsControllerConfig` type has been removed and replaced with `SmartTransactionsControllerOptions`.
+  - Added and exported the following types: `SmartTransactionsControllerMessenger`, `SmartTransactionsControllerState`, `SmartTransactionsControllerGetStateAction`, `SmartTransactionsControllerActions`, `SmartTransactionsControllerStateChangeEvent`, `SmartTransactionsControllerSmartTransactionEvent`, and `SmartTransactionsControllerEvents`.
+
 ## [12.0.1]
 ### Fixed
 - Fix issue where this.ethQuery is sometimes unexpectedly undefined ([#405](https://github.com/MetaMask/smart-transactions-controller/pull/405))
@@ -330,7 +342,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.1...v13.0.0
 [12.0.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.0...v12.0.1
 [12.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v11.0.0...v12.0.0
 [11.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v10.2.0...v11.0.0
