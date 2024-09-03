@@ -4,7 +4,7 @@ import type { InternalAccount } from '@metamask/keyring-api';
 import {
   type NetworkClientId,
   type NetworkClientConfiguration,
-  defaultState as defaultnetworkControllerState,
+  getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import * as sinon from 'sinon';
@@ -618,7 +618,7 @@ async function withController<ReturnValue>(
   );
 
   const mockNetworkState = jest.fn().mockReturnValue({
-    ...defaultnetworkControllerState,
+    ...getDefaultNetworkControllerState(),
     chainId: initialChainId,
   });
   messenger.registerActionHandler(

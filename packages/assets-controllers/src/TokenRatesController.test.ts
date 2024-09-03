@@ -13,7 +13,7 @@ import type {
   NetworkClientId,
   NetworkState,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import assert from 'assert';
@@ -47,8 +47,6 @@ const defaultSelectedAccount = createMockInternalAccount({
   address: defaultSelectedAddress,
 });
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
-
-const defaultSelectedNetworkClientId = 'AAAA-BBBB-CCCC-DDDD';
 
 type MainControllerMessenger = ControllerMessenger<
   AllowedActions | AddApprovalRequest,
@@ -638,8 +636,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
@@ -666,8 +664,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
@@ -720,8 +718,8 @@ describe('TokenRatesController', () => {
             await controller.start();
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -774,8 +772,8 @@ describe('TokenRatesController', () => {
             await controller.start();
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -802,8 +800,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -831,8 +829,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -858,8 +856,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -911,8 +909,8 @@ describe('TokenRatesController', () => {
           async ({ controller, triggerNetworkStateChange }) => {
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -964,8 +962,8 @@ describe('TokenRatesController', () => {
           async ({ controller, triggerNetworkStateChange }) => {
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -2327,7 +2325,7 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'NetworkController:getState',
     networkStateMock.mockReturnValue({
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       ...mockNetworkState,
     }),
   );
@@ -2445,7 +2443,7 @@ async function callUpdateExchangeRatesMethod({
     // As with many BaseControllerV1-based controllers, runtime config
     // modification is allowed by the API but not supported in practice.
     triggerNetworkStateChange({
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       selectedNetworkClientId,
     });
   }
