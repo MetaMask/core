@@ -46,7 +46,7 @@
     "@metamask/base-controller": "^7.0.0",
     "@metamask/controller-utils": "^11.2.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/polling-controller": "^9.0.2",
+    "@metamask/polling-controller": "^10.0.0",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^9.1.0",
@@ -58,10 +58,10 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.0.3",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/gas-fee-controller": "^19.0.2",
+    "@metamask/gas-fee-controller": "^20.0.0",
     "@metamask/keyring-controller": "^17.2.0",
     "@metamask/network-controller": "^21.0.0",
-    "@metamask/transaction-controller": "^35.2.1",
+    "@metamask/transaction-controller": "^36.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -72,10 +72,10 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0",
-    "@metamask/gas-fee-controller": "^19.0.0",
+    "@metamask/gas-fee-controller": "^20.0.0",
     "@metamask/keyring-controller": "^17.0.0",
     "@metamask/network-controller": "^21.0.0",
-    "@metamask/transaction-controller": "^35.0.0"
+    "@metamask/transaction-controller": "^36.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
