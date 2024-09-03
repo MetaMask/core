@@ -27,21 +27,6 @@
       "require": "./dist/NotificationServicesController/index.js",
       "types": "./dist/types/NotificationServicesController/index.d.ts"
     },
-    "./notification-services/types": {
-      "import": "./dist/NotificationServicesController/types/index.mjs",
-      "require": "./dist/NotificationServicesController/types/index.js",
-      "types": "./dist/types/NotificationServicesController/types/index.d.ts"
-    },
-    "./notification-services/processors": {
-      "import": "./dist/NotificationServicesController/processors/index.mjs",
-      "require": "./dist/NotificationServicesController/processors/index.js",
-      "types": "./dist/types/NotificationServicesController/processors/index.d.ts"
-    },
-    "./notification-services/constants": {
-      "import": "./dist/NotificationServicesController/constants/index.mjs",
-      "require": "./dist/NotificationServicesController/constants/index.js",
-      "types": "./dist/types/NotificationServicesController/constants/index.d.ts"
-    },
     "./notification-services/ui": {
       "import": "./dist/NotificationServicesController/ui/index.mjs",
       "require": "./dist/NotificationServicesController/ui/index.js",
@@ -56,16 +41,6 @@
       "import": "./dist/NotificationServicesPushController/index.mjs",
       "require": "./dist/NotificationServicesPushController/index.js",
       "types": "./dist/types/NotificationServicesPushController/index.d.ts"
-    },
-    "./push-services/types": {
-      "import": "./dist/NotificationServicesPushController/types/index.mjs",
-      "require": "./dist/NotificationServicesPushController/types/index.js",
-      "types": "./dist/types/NotificationServicesPushController/types/index.d.ts"
-    },
-    "./push-services/utils": {
-      "import": "./dist/NotificationServicesPushController/utils/index.mjs",
-      "require": "./dist/NotificationServicesPushController/utils/index.js",
-      "types": "./dist/types/NotificationServicesPushController/utils/index.d.ts"
     },
     "./push-services/mocks": {
       "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",

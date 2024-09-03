@@ -1,9 +1,0 @@
-{
-  "name": "@metamask/notification-services-controller",
-  "version": "1.0.0",
-  "description": "",
-  "license": "MIT",
-  "sideEffects": false,
-  "main": "../../dist/NotificationServicesController/processors/index.js",
-  "types": "../../dist/types/NotificationServicesController/processors/index.d.ts"
-}

@@ -1,9 +1,0 @@
-{
-  "name": "@metamask/notification-services-controller",
-  "version": "1.0.0",
-  "description": "",
-  "license": "MIT",
-  "sideEffects": false,
-  "main": "../../dist/NotificationServicesPushController/utils/index.js",
-  "types": "../../dist/types/NotificationServicesPushController/utils/index.d.ts"
-}
