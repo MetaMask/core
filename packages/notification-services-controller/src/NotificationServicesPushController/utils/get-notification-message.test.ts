@@ -1,8 +1,5 @@
-import { Mocks, Processors } from '../../NotificationServicesController';
-import type { TranslationKeys } from './get-notification-message';
-import { createOnChainPushNotificationMessage } from './get-notification-message';
-
-const {
+import { Processors } from '../../NotificationServicesController';
+import {
   createMockNotificationERC1155Received,
   createMockNotificationERC1155Sent,
   createMockNotificationERC20Received,
@@ -18,7 +15,9 @@ const {
   createMockNotificationMetaMaskSwapsCompleted,
   createMockNotificationRocketPoolStakeCompleted,
   createMockNotificationRocketPoolUnStakeCompleted,
-} = Mocks;
+} from '../../NotificationServicesController/__fixtures__';
+import type { TranslationKeys } from './get-notification-message';
+import { createOnChainPushNotificationMessage } from './get-notification-message';
 
 const mockTranslations: TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => 'Funds sent',
