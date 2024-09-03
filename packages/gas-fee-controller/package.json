@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gas-fee-controller",
-  "version": "19.0.2",
+  "version": "20.0.0",
   "description": "Periodically calculates gas fee estimates based on various gas limits as well as other data displayed on transaction confirm screens",
   "keywords": [
     "MetaMask",
