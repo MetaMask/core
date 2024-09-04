@@ -213,6 +213,27 @@ export default class NotificationServicesPushController extends BaseController<
       return;
     }
 
+    this.#pushListenerUnsubscribe ??= await listenToPushNotifications({
+      env: this.#env,
+      listenToPushReceived: async (n) => {
+        this.messagingSystem.publish(
+          'NotificationServicesPushController:onNewNotifications',
+          n,
+        );
+        await this.#config.onPushNotificationReceived(n);
+      },
+      listenToPushClicked: (e, n) => {
+        if (n) {
+          this.messagingSystem.publish(
+            'NotificationServicesPushController:pushNotificationClicked',
+            n,
+          );
+        }
+
+        this.#config.onPushNotificationClicked(e, n);
+      },
+    });
+
     const bearerToken = await this.#getAndAssertBearerToken();
 
     try {
@@ -228,27 +249,6 @@ export default class NotificationServicesPushController extends BaseController<
       if (!regToken) {
         return;
       }
-
-      this.#pushListenerUnsubscribe ??= await listenToPushNotifications({
-        env: this.#env,
-        listenToPushReceived: async (n) => {
-          this.messagingSystem.publish(
-            'NotificationServicesPushController:onNewNotifications',
-            n,
-          );
-          await this.#config.onPushNotificationReceived(n);
-        },
-        listenToPushClicked: (e, n) => {
-          if (n) {
-            this.messagingSystem.publish(
-              'NotificationServicesPushController:pushNotificationClicked',
-              n,
-            );
-          }
-
-          this.#config.onPushNotificationClicked(e, n);
-        },
-      });
 
       // Update state
       this.update((state) => {
@@ -287,9 +287,8 @@ export default class NotificationServicesPushController extends BaseController<
         regToken: this.state.fcmToken,
       });
     } catch (error) {
-      const errorMessage = `Failed to disable push notifications: ${
-        error as string
-      }`;
+      const errorMessage = `Failed to disable push notifications: ${error as string
+        }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
     }
@@ -342,9 +341,8 @@ export default class NotificationServicesPushController extends BaseController<
         });
       }
     } catch (error) {
-      const errorMessage = `Failed to update triggers for push notifications: ${
-        error as string
-      }`;
+      const errorMessage = `Failed to update triggers for push notifications: ${error as string
+        }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
     }
