@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Added
+
+- Migrate from `@metamask/composable-controller@8.0.0` into `@metamask/base-controller`: types `LegacyControllerStateConstraint`, `RestrictedControllerMessengerConstraint` and type guard functions `isBaseController`, `isBaseControllerV1` ([#4581](https://github.com/MetaMask/core/pull/4581))
+- Add and export types `ControllerInstance`, `BaseControllerInstance`, `StateDeriverConstraint`, `StateMetadataConstraint`, `StatePropertyMetadataConstraint`, `BaseControllerV1Instance`, `ConfigConstraintV1`, `StateConstraintV1` ([#4581](https://github.com/MetaMask/core/pull/4581))
+
+### Fixed
+
+- **BREAKING:** Fix `StateMetadata` type so that it requires associated metadata for all optional and non-optional top-level state properties ([#4612](https://github.com/MetaMask/core/pull/4612))
+  - Fixes issue of runtime error being thrown during `BaseController` instantiation due to missing metadata for optional state properties.
+
+## [6.0.3]
+
+### Changed
+
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
 ## [6.0.2]
 
 ### Changed
@@ -227,7 +245,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/base-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.3...@metamask/base-controller@7.0.0
+[6.0.3]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.2...@metamask/base-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.1...@metamask/base-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/base-controller@6.0.0...@metamask/base-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/base-controller@5.0.2...@metamask/base-controller@6.0.0

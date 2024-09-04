@@ -35,13 +35,14 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/chain-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/chain-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
+    "@metamask/base-controller": "^7.0.0",
     "@metamask/chain-api": "^0.1.0",
     "@metamask/keyring-api": "^8.1.0",
     "@metamask/snaps-controllers": "^9.3.1",

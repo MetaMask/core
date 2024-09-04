@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "13.0.1",
+  "version": "14.0.0",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "MetaMask",
@@ -35,6 +35,7 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/ens-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ens-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
@@ -42,14 +43,14 @@
   },
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/base-controller": "^6.0.2",
-    "@metamask/controller-utils": "^11.0.2",
+    "@metamask/base-controller": "^7.0.0",
+    "@metamask/controller-utils": "^11.2.0",
     "@metamask/utils": "^9.1.0",
     "punycode": "^2.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^20.1.0",
+    "@metamask/network-controller": "^21.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -59,7 +60,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^20.0.0"
+    "@metamask/network-controller": "^21.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

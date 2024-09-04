@@ -5,11 +5,11 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
-import type {
-  NetworkController,
-  NetworkState,
+import {
+  type NetworkController,
+  type NetworkState,
+  getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
 
 import type {
   ExtractAvailableAction,
@@ -98,7 +98,7 @@ function getRestrictedMessenger(
   getNetworkClientByIdMock?: NetworkController['getNetworkClientById'],
 ) {
   const mockNetworkState = jest.fn<NetworkState, []>().mockReturnValue({
-    ...defaultNetworkState,
+    ...getDefaultNetworkControllerState(),
     selectedNetworkClientId: InfuraNetworkType.mainnet,
   });
 
@@ -213,7 +213,7 @@ describe('EnsController', () => {
       },
       onNetworkDidChange: (listener) => {
         listener({
-          ...defaultNetworkState,
+          ...getDefaultNetworkControllerState(),
           selectedNetworkClientId: InfuraNetworkType.mainnet,
         });
       },
@@ -520,7 +520,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -543,7 +543,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
           });
         },
@@ -565,7 +565,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -585,7 +585,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -604,7 +604,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -626,7 +626,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -648,7 +648,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -672,7 +672,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },
@@ -695,7 +695,7 @@ describe('EnsController', () => {
         messenger: ensControllerMessenger,
         onNetworkDidChange: (listener) => {
           listener({
-            ...defaultNetworkState,
+            ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: InfuraNetworkType.mainnet,
           });
         },

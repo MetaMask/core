@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "13.0.1",
+  "version": "13.0.2",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
@@ -35,18 +35,19 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/preferences-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/preferences-controller",
     "publish:preview": "yarn npm publish --tag preview",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.2",
-    "@metamask/controller-utils": "^11.0.2"
+    "@metamask/base-controller": "^7.0.0",
+    "@metamask/controller-utils": "^11.2.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.1.2",
+    "@metamask/keyring-controller": "^17.2.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.3` to `^7.0.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+
+## [18.1.0]
+
+### Added
+
+- Export `AccountsControllerUpdateAccountMetadataAction` action ([#4590](https://github.com/MetaMask/core/pull/4590))
+- Add new method `updateAccountMetadata` ([#4568](https://github.com/MetaMask/core/pull/4568))
+
+### Changed
+
+- Bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+
+### Fixed
+
+- Handle undefined `selectedAccount` in `updateAccounts` ([#4623](https://github.com/MetaMask/core/pull/4623))
+- Fix `AccountsControllerUpdateAccountMetadataAction` action type name ([#4590](https://github.com/MetaMask/core/pull/4590))
+
 ## [18.0.0]
 
 ### Changed
@@ -261,7 +283,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.1.1...HEAD
+[18.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.1.0...@metamask/accounts-controller@18.1.1
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.0.0...@metamask/accounts-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.2.0...@metamask/accounts-controller@18.0.0
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.1...@metamask/accounts-controller@17.2.0
 [17.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@17.1.0...@metamask/accounts-controller@17.1.1

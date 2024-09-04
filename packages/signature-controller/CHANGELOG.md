@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peerDependency `@metamask/logging-controller` from `^5.0.0` to `^6.0.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/message-manager` from `^10.0.2` to `^10.0.3` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [18.1.0]
+
+### Changed
+
+- Throw exact error provided by client on rejection ([#4610](https://github.com/MetaMask/core/pull/4610))
+- Upgrade TypeScript version to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Upgrade TypeScript version to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+
+### Removed
+
+- Remove `@metamask/rpc-errors` dependency ([#4610](https://github.com/MetaMask/core/pull/4610))
+
 ## [18.0.1]
 
 ### Changed
@@ -283,7 +304,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...@metamask/signature-controller@19.0.0
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.0...@metamask/signature-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@17.0.0...@metamask/signature-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@16.0.0...@metamask/signature-controller@17.0.0

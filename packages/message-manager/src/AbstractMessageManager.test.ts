@@ -1,4 +1,10 @@
-import type { SecurityProviderRequest } from './AbstractMessageManager';
+import { ApprovalType } from '@metamask/controller-utils';
+
+import type {
+  AbstractMessageParams,
+  OriginalRequest,
+  SecurityProviderRequest,
+} from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import type {
   TypedMessage,
@@ -11,6 +17,21 @@ class AbstractTestManager extends AbstractMessageManager<
   TypedMessageParams,
   TypedMessageParamsMetamask
 > {
+  addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
+    messageParams: MessageParams,
+    req?: OriginalRequest,
+  ) {
+    return super.addRequestToMessageParams(messageParams, req);
+  }
+
+  createUnapprovedMessage<MessageParams extends AbstractMessageParams>(
+    messageParams: MessageParams,
+    type: ApprovalType,
+    req?: OriginalRequest,
+  ) {
+    return super.createUnapprovedMessage(messageParams, type, req);
+  }
+
   prepMessageForSigning(
     messageParams: TypedMessageParamsMetamask,
   ): Promise<TypedMessageParams> {
@@ -49,6 +70,14 @@ const messageData = typedMessage;
 const rawSigMock = '0xsignaturemocked';
 const messageIdMock = 'message-id-mocked';
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
+
+const mockSecurityProviderResponse = { flagAsDangerous: 2 };
+const mockRequest = {
+  origin: 'example.com',
+  id: 123,
+  securityAlertResponse: mockSecurityProviderResponse,
+};
+const mockMessageParams = { from, data: 'test' };
 
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
@@ -317,12 +346,54 @@ describe('AbstractTestManager', () => {
     expect(message.status).toBe('approved');
   });
 
+  describe('addRequestToMessageParams', () => {
+    it('adds original request id and origin to messageParams', () => {
+      const controller = new AbstractTestManager();
+
+      const result = controller.addRequestToMessageParams(
+        mockMessageParams,
+        mockRequest,
+      );
+
+      expect(result).toStrictEqual({
+        ...mockMessageParams,
+        origin: mockRequest.origin,
+        requestId: mockRequest.id,
+      });
+    });
+  });
+
+  describe('createUnapprovedMessage', () => {
+    it('creates a Message object with an unapproved status', () => {
+      const controller = new AbstractTestManager();
+
+      const result = controller.createUnapprovedMessage(
+        mockMessageParams,
+        ApprovalType.PersonalSign,
+        mockRequest,
+      );
+
+      expect(result.messageParams).toBe(mockMessageParams);
+      expect(result.securityAlertResponse).toBe(
+        mockRequest.securityAlertResponse,
+      );
+      expect(result.status).toBe('unapproved');
+      expect(result.type).toBe(ApprovalType.PersonalSign);
+      expect(typeof result.time).toBe('number');
+      expect(typeof result.id).toBe('string');
+    });
+  });
+
   describe('setMessageStatus', () => {
-    it('should set the given message status', async () => {
+    it('updates the status of a message', async () => {
+      jest.mock('events', () => ({
+        emit: jest.fn(),
+      }));
+
       const controller = new AbstractTestManager();
       await controller.addMessage({
         id: messageId,
-        messageParams: { from: '0x1234', data: 'test' },
+        messageParams: { ...mockMessageParams },
         status: 'status',
         time: 10,
         type: 'type',
@@ -331,11 +402,12 @@ describe('AbstractTestManager', () => {
       expect(messageBefore?.status).toBe('status');
 
       controller.setMessageStatus(messageId, 'newstatus');
+
       const messageAfter = controller.getMessage(messageId);
       expect(messageAfter?.status).toBe('newstatus');
     });
 
-    it('should throw an error if message is not found', () => {
+    it('throws an error if the message is not found', async () => {
       const controller = new AbstractTestManager();
 
       expect(() => controller.setMessageStatus(messageId, 'newstatus')).toThrow(
@@ -353,7 +425,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager();
       await controller.addMessage({
         id: messageId,
-        messageParams: { from: '0x1234', data: 'test' },
+        messageParams: { ...mockMessageParams },
         status: 'status',
         time: 10,
         type: 'type',
@@ -374,7 +446,7 @@ describe('AbstractTestManager', () => {
       const controller = new AbstractTestManager();
       await controller.addMessage({
         id: messageId,
-        messageParams: { from: '0x1234', data: 'test' },
+        messageParams: { ...mockMessageParams },
         status: 'status',
         time: 10,
         type: 'type',

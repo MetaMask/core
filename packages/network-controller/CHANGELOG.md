@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.0.0]
+
+### Added
+
+- **BREAKING:** Add `networkConfigurationsByChainId` to `NetworkState` (type: `Record<Hex, NetworkConfiguration>`) ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - This property replaces `networkConfigurations`, and, as its name implies, organizes network configurations by chain ID rather than network client ID.
+  - If no initial state or this property is not included in initial state, the default value of this property will now include configurations for known Infura networks (Mainnet, Goerli, Sepolia, Linea Goerli, Linea Sepolia, and Linea Mainnet) by default.
+- Add `getNetworkConfigurationByChainId` method, `NetworkController:getNetworkConfigurationByChainId` messenger action, and `NetworkControllerGetNetworkConfigurationByNetworkClientId` type ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `addNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to add new network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - It's worth noting that this method now publishes a `NetworkController:networkAdded` event instead of calling a `trackMetaMetricsEvent` callback. It is expected that you will subscribe to this event and create a MetaMetrics event yourself.
+- Add `updateNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to recreate the network clients for an existing chain based on an updated configuration ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - Note that it is not possible to remove the RPC endpoint from a network configuration that is currently represented by the globally selected network client. To prevent an error, you'll need to detect when such a removal is occurring and pass the `replacementSelectedRpcEndpointIndex` to `updateNetwork`. It will then switch to the designated RPC endpoint's network client on your behalf.
+- Add `removeNetwork`, which replaces `removeNetworkConfiguration` and can be used to remove existing network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `getDefaultNetworkControllerState` function, which replaces `defaultState` and matches patterns in other controllers ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `RpcEndpointType`, `AddNetworkFields`, and `UpdateNetworkFields` types ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `getNetworkConfigurations`, `getAvailableNetworkClientIds` and `selectAvailableNetworkClientIds` selectors ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - These new selectors can be applied to messenger event subscriptions
+
+### Changed
+
+- **BREAKING:** Replace `NetworkConfiguration` type with a new definition ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - A network configuration no longer represents a single RPC endpoint but rather a collection of RPC endpoints that can all be used to interface with a single chain.
+  - The only property that has brought over to this type unchanged is `chainId`.
+  - `ticker` has been renamed to `nativeCurrency`.
+  - `nickname` has been renamed to `name`.
+  - `rpcEndpoints` has been added. This is an an array of objects, where each object has properties `name` (optional), `networkClientId` (optional), `type`, and `url`.
+  - `defaultRpcEndpointIndex` has been added. This must point to an entry in `rpcEndpoints`.
+  - The block explorer URL is no longer located in `rpcPrefs` and is no longer restricted to one: `blockExplorerUrls` has been added along with a corresponding property `defaultBlockExplorerUrlIndex`, which must point to an entry in `blockExplorerUrls`.
+  - `id` has been removed. Previously, this represented the ID of the network client associated with the network configuration. Since network clients are now created from RPC endpoints, the equivalent to this is the `networkClientId` property on an `RpcEndpoint`.
+- **BREAKING:** The network controller messenger must now allow the action `NetworkController:getNetworkConfigurationByChainId` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** The network controller messenger must now allow the event `NetworkController:networkAdded` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** The `NetworkController` constructor will now throw if the initial state provided is invalid ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - `networkConfigurationsByChainId` cannot be empty.
+  - The `chainId` of a network configuration in `networkConfigurationsByChainId` must match the chain ID it is filed under.
+  - The `defaultRpcEndpointIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `rpcEndpoints`.
+  - The `defaultBlockExplorerUrlIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `blockExplorerUrls`.
+  - `selectedNetworkClientId` must match the `networkClientId` of an RPC endpoint in `networkConfigurationsByChainId`.
+- **BREAKING:** Update `getNetworkConfigurationByNetworkClientId` so that when given an Infura network name (that is, a value from `InfuraNetworkType`), it will return a masked version of the RPC endpoint URL for the associated Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - If you want the unmasked version, you'll need the `url` property from the network _client_ configuration, which you can get by calling `getNetworkClientById` and then accessing the `configuration` property off of the network client.
+- **BREAKING:** Update `loadBackup` to take and update `networkConfigurationsByChainId` instead of `networkConfigurations` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/eth-block-tracker` from `^9.0.3` to `^10.0.0` ([#4424](https://github.com/MetaMask/core/pull/4424))
+- Bump `@metamask/eth-json-rpc-middleware` from `^12.1.1` to `^13.0.0` ([#4424](https://github.com/MetaMask/core/pull/4424))
+
+### Removed
+
+- **BREAKING:** Remove `networkConfigurations` from `NetworkState`, which has been replaced with `networkConfigurationsByChainId` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** Remove `upsertNetworkConfiguration` and `removeNetworkConfiguration`, which have been replaced with `addNetwork`, `updateNetwork`, and `removeNetwork` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** Remove `defaultState` variable, which has been replaced with a `getDefaultNetworkControllerState` function ([#4268](https://github.com/MetaMask/core/pull/4286))
+- **BREAKING:** Remove `trackMetaMetricsEvent` option from the NetworkController constructor ([#4268](https://github.com/MetaMask/core/pull/4286))
+  - Previously, this was used in `upsertNetworkConfiguration` to create a MetaMetrics event when a new network was added. This can now be achieved by subscribing to the `NetworkController:networkAdded` event and creating the event inside of the event handler.
+
+## [20.2.0]
+
+### Changed
+
+- `upsertNetworkConfiguration` now accepts an optional id property on the NetworkConfiguration param. It allows a network configuration to have its rpcUrl updated in place when an id is specified, but only if that new rpcUrl does not already exist on a different network configuration. ([#4614](https://github.com/MetaMask/core/pull/4614))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.1.3` ([#4607](https://github.com/MetaMask/core/pull/4607))
+- Update TypeScript to 5.2.2 ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- `removeNetworkConfiguration` now throws an error if you attempt to remove the selected network ([#4566](https://github.com/MetaMask/core/pull/4566))
+
 ## [20.1.0]
 
 ### Added
@@ -540,7 +605,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.0...HEAD
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...@metamask/network-controller@21.0.0
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...@metamask/network-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.3...@metamask/network-controller@19.0.0

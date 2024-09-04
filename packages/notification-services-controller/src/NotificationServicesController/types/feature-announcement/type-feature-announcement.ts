@@ -1,9 +1,10 @@
 import type { Entry, EntryFieldTypes } from 'contentful';
 
 import type {
+  TypeExternalLinkFields,
   TypeExtensionLinkFields,
-  TypeLinkFields,
-  TypeActionFields,
+  TypePortfolioLinkFields,
+  TypeMobileLinkFields,
 } from './type-links';
 
 export type ImageFields = {
@@ -35,12 +36,15 @@ export type TypeFeatureAnnouncementFields = {
     image: EntryFieldTypes.EntryLink<ImageFields>;
     longDescription: EntryFieldTypes.RichText;
 
-    // Portfolio Links - TODO, cleanup portfolio links
-    link?: EntryFieldTypes.EntryLink<TypeLinkFields>;
-    action?: EntryFieldTypes.EntryLink<TypeActionFields>;
-
+    // External Link
+    externalLink?: EntryFieldTypes.EntryLink<TypeExternalLinkFields>;
+    // Portfolio Link
+    portfolioLink?: EntryFieldTypes.EntryLink<TypePortfolioLinkFields>;
     // Extension Link
     extensionLink?: EntryFieldTypes.EntryLink<TypeExtensionLinkFields>;
+    // Mobile Link
+    mobileLink?: EntryFieldTypes.EntryLink<TypeMobileLinkFields>;
+
     clients?: EntryFieldTypes.Text<'extension' | 'mobile' | 'portfolio'>;
   };
   contentTypeId: 'productAnnouncement';
