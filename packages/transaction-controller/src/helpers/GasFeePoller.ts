@@ -123,7 +123,11 @@ export class GasFeePoller {
   }
 
   async #onTimeout() {
-    await this.#updateUnapprovedTransactions();
+    try {
+      await this.#updateUnapprovedTransactions();
+    } catch (error) {
+      log('Update failed', error);
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
@@ -144,7 +148,7 @@ export class GasFeePoller {
 
     log('Retrieved gas fee controller data', gasFeeControllerDataByChainId);
 
-    await Promise.all(
+    await Promise.allSettled(
       unapprovedTransactions.flatMap((tx) => {
         const { chainId } = tx;
 
@@ -152,7 +156,12 @@ export class GasFeePoller {
           chainId,
         ) as GasFeeState;
 
-        return this.#updateUnapprovedTransaction(tx, gasFeeControllerData);
+        return this.#updateUnapprovedTransaction(
+          tx,
+          gasFeeControllerData,
+        ).catch((error) => {
+          log('Failed to update transaction', tx.id, error);
+        });
       }),
     );
   }

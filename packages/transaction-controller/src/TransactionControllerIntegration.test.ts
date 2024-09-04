@@ -286,7 +286,7 @@ describe('TransactionController Integration', () => {
     });
 
     // eslint-disable-next-line jest/no-disabled-tests
-    it('should submit all approved transactions in state', async () => {
+    it('should fail all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
@@ -396,10 +396,10 @@ describe('TransactionController Integration', () => {
 
       expect(transactionController.state.transactions).toMatchObject([
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
       ]);
       transactionController.destroy();

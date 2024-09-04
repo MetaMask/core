@@ -282,7 +282,7 @@ export type TransactionControllerOptions = {
   ) => Promise<GasFeeState>;
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
-  getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  getPermittedAccounts?: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   incomingTransactions?: IncomingTransactionOptions;
   isMultichainEnabled: boolean;
@@ -306,7 +306,6 @@ export type TransactionControllerOptions = {
       transactionMeta: TransactionMeta,
       signedTx: TypedTransaction,
     ) => boolean;
-    beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
@@ -600,7 +599,9 @@ export class TransactionController extends BaseController<
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  private readonly getPermittedAccounts?: (
+    origin?: string,
+  ) => Promise<string[]>;
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -632,10 +633,6 @@ export class TransactionController extends BaseController<
   private readonly afterSign: (
     transactionMeta: TransactionMeta,
     signedTx: TypedTransaction,
-  ) => boolean;
-
-  private readonly beforeApproveOnInit: (
-    transactionMeta: TransactionMeta,
   ) => boolean;
 
   private readonly beforeCheckPendingTransaction: (
@@ -801,7 +798,6 @@ export class TransactionController extends BaseController<
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.afterSign = hooks?.afterSign ?? (() => true);
-    this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
     this.beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
@@ -1023,7 +1019,7 @@ export class TransactionController extends BaseController<
 
     validateTxParams(txParams, isEIP1559Compatible);
 
-    if (origin) {
+    if (origin && this.getPermittedAccounts) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
         this.#getSelectedAccount().address,
@@ -2012,30 +2008,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Creates approvals for all unapproved transactions persisted.
-   */
-  initApprovals() {
-    const chainId = this.getChainId();
-    const unapprovedTxs = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId &&
-        !transaction.isUserOperation,
-    );
-
-    for (const txMeta of unapprovedTxs) {
-      this.processApproval(txMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
-  }
-
-  /**
    * Search transaction metadata for matching entries.
    *
    * @param opts - Options bag.
@@ -2350,24 +2322,23 @@ export class TransactionController extends BaseController<
   }
 
   private onBootCleanup() {
-    this.submitApprovedTransactions();
+    this.clearUnapprovedTransactions();
+    this.failApprovedTransactions();
   }
 
   /**
    * Force submit approved transactions for all chains.
    */
-  private submitApprovedTransactions() {
+  private failApprovedTransactions() {
     const approvedTransactions = this.state.transactions.filter(
       (transaction) => transaction.status === TransactionStatus.approved,
     );
 
     for (const transactionMeta of approvedTransactions) {
-      if (this.beforeApproveOnInit(transactionMeta)) {
-        this.approveTransaction(transactionMeta.id).catch((error) => {
-          /* istanbul ignore next */
-          console.error('Error while submitting persisted transaction', error);
-        });
-      }
+      this.failTransaction(
+        transactionMeta,
+        new Error('Transaction approved at startup'),
+      );
     }
   }
 
@@ -3334,6 +3305,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getLocalTransactions: () => this.state.transactions,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
