@@ -432,6 +432,50 @@ describe('wallet', () => {
       const promise = pify(engine.handle).call(engine, payload);
       await expect(promise).rejects.toThrow('Invalid input.');
     });
+
+    it('should not throw if verifyingContract is undefined', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV3 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV3 }),
+      );
+
+      const message = {
+        types: {
+          EIP712Domain: [
+            { name: 'name', type: 'string' },
+            { name: 'version', type: 'string' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'verifyingContract', type: 'address' },
+          ],
+        },
+        primaryType: 'EIP712Domain',
+        message: {},
+      };
+
+      const stringifiedMessage = JSON.stringify(message);
+
+      const payload = {
+        method: 'eth_signTypedData_v3',
+        params: [testAddresses[0], stringifiedMessage], // Assuming testAddresses[0] is a valid address from your setup
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      const result = await promise;
+      expect(result).toStrictEqual({
+        id: undefined,
+        jsonrpc: undefined,
+        result:
+          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      });
+    });
   });
 
   describe('signTypedDataV4', () => {
@@ -523,6 +567,35 @@ describe('wallet', () => {
 
       const promise = pify(engine.handle).call(engine, payload);
       await expect(promise).rejects.toThrow('Invalid input.');
+    });
+
+    it('should not throw if request is permit with undefined value for verifyingContract address', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+      );
+
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [testAddresses[0], JSON.stringify(getMsgParams())],
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      const result = await promise;
+      expect(result).toStrictEqual({
+        id: undefined,
+        jsonrpc: undefined,
+        result:
+          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      });
     });
   });
 

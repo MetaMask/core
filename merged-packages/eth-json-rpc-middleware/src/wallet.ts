@@ -463,10 +463,8 @@ WalletMiddlewareOptions): JsonRpcMiddleware<any, Block> {
  * @param data - The data passed in typedSign request.
  */
 function validateVerifyingContract(data: string) {
-  const {
-    domain: { verifyingContract },
-  } = parseTypedMessage(data);
-  if (!isValidHexAddress(verifyingContract)) {
+  const { domain: { verifyingContract } = {} } = parseTypedMessage(data);
+  if (verifyingContract && !isValidHexAddress(verifyingContract)) {
     throw rpcErrors.invalidInput();
   }
 }
