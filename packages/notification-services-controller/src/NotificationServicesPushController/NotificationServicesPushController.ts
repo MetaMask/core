@@ -287,8 +287,9 @@ export default class NotificationServicesPushController extends BaseController<
         regToken: this.state.fcmToken,
       });
     } catch (error) {
-      const errorMessage = `Failed to disable push notifications: ${error as string
-        }`;
+      const errorMessage = `Failed to disable push notifications: ${
+        error as string
+      }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
     }
@@ -341,8 +342,9 @@ export default class NotificationServicesPushController extends BaseController<
         });
       }
     } catch (error) {
-      const errorMessage = `Failed to update triggers for push notifications: ${error as string
-        }`;
+      const errorMessage = `Failed to update triggers for push notifications: ${
+        error as string
+      }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
     }
