@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-controller",
-  "version": "11.0.0",
+  "version": "11.0.1",
   "description": "Mediates access to JSON-RPC methods, used to interact with pieces of the MetaMask stack, via middleware for json-rpc-engine",
   "keywords": [
     "MetaMask",
@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.1.0",
+    "@metamask/controller-utils": "^11.2.0",
     "@metamask/json-rpc-engine": "^9.0.2",
     "@metamask/rpc-errors": "^6.3.1",
     "@metamask/utils": "^9.1.0",

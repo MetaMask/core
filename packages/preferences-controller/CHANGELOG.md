@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
 ## [13.0.1]
 
 ### Changed
@@ -256,7 +264,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.2...HEAD
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...@metamask/preferences-controller@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.0...@metamask/preferences-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@12.0.0...@metamask/preferences-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...@metamask/preferences-controller@12.0.0
