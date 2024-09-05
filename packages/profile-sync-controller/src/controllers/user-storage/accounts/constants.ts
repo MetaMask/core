@@ -3,6 +3,7 @@ export const USER_STORAGE_VERSION = '1';
 // Force cast. We don't really care about the type here since we treat it as a unique symbol
 export const USER_STORAGE_VERSION_KEY: unique symbol = 'v' as never;
 
+// We need this in order to know if an account is a default account or not when we do account syncing
 export const LOCALIZED_DEFAULT_ACCOUNT_NAMES = [
   'Account',
   'መለያ',
