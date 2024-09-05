@@ -2,6 +2,7 @@ import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -33,7 +34,6 @@ export type NotificationServicesPushControllerEnablePushNotificationsAction = {
   type: `${typeof controllerName}:enablePushNotifications`;
   handler: NotificationServicesPushController['enablePushNotifications'];
 };
-
 export type NotificationServicesPushControllerDisablePushNotificationsAction = {
   type: `${typeof controllerName}:disablePushNotifications`;
   handler: NotificationServicesPushController['disablePushNotifications'];
@@ -43,12 +43,17 @@ export type NotificationServicesPushControllerUpdateTriggerPushNotificationsActi
     type: `${typeof controllerName}:updateTriggerPushNotifications`;
     handler: NotificationServicesPushController['updateTriggerPushNotifications'];
   };
+export type NotificationServicesPushControllerSubscribeToNotificationsAction = {
+  type: `${typeof controllerName}:subscribeToPushNotifications`;
+  handler: NotificationServicesPushController['subscribeToPushNotifications'];
+};
 
 export type Actions =
   | NotificationServicesPushControllerGetStateAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction;
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
+  | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 export type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerToken;
@@ -88,7 +93,7 @@ export type NotificationServicesPushControllerMessenger =
 export const defaultState: NotificationServicesPushControllerState = {
   fcmToken: '',
 };
-const metadata = {
+const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   fcmToken: {
     persist: true,
     anonymous: true,
@@ -182,6 +187,10 @@ export default class NotificationServicesPushController extends BaseController<
       'NotificationServicesPushController:updateTriggerPushNotifications',
       this.updateTriggerPushNotifications.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      'NotificationServicesPushController:subscribeToPushNotifications',
+      this.subscribeToPushNotifications.bind(this),
+    );
   }
 
   async #getAndAssertBearerToken() {
@@ -198,6 +207,40 @@ export default class NotificationServicesPushController extends BaseController<
     return bearerToken;
   }
 
+  async subscribeToPushNotifications() {
+    // Subscribe to push notifications.
+    console.log('CORE - subscribeToPushNotifications.start', {
+      fcmToken: this.state.fcmToken,
+      fcmTokenLen: this.state.fcmToken?.length,
+    });
+    try {
+      this.#pushListenerUnsubscribe = await listenToPushNotifications({
+        env: this.#env,
+        listenToPushReceived: async (n) => {
+          this.messagingSystem.publish(
+            'NotificationServicesPushController:onNewNotifications',
+            n,
+          );
+          await this.#config.onPushNotificationReceived(n);
+        },
+        listenToPushClicked: (e, n) => {
+          if (n) {
+            this.messagingSystem.publish(
+              'NotificationServicesPushController:pushNotificationClicked',
+              n,
+            );
+          }
+
+          this.#config.onPushNotificationClicked(e, n);
+        },
+      });
+    } catch (e) {
+      console.error('subscribeToPushNotifications', e);
+      // Do nothing, we are silently failing if push notification registration fails
+    }
+    console.log('CORE - subscribeToPushNotifications.end');
+  }
+
   /**
    * Enables push notifications for the application.
    *
@@ -209,55 +252,46 @@ export default class NotificationServicesPushController extends BaseController<
    * @param UUIDs - An array of UUIDs to enable push notifications for.
    */
   async enablePushNotifications(UUIDs: string[]) {
+    console.log('CORE - enablePushNotifications.start');
     if (!this.#config.isPushEnabled) {
       return;
     }
 
-    this.#pushListenerUnsubscribe ??= await listenToPushNotifications({
-      env: this.#env,
-      listenToPushReceived: async (n) => {
-        this.messagingSystem.publish(
-          'NotificationServicesPushController:onNewNotifications',
-          n,
-        );
-        await this.#config.onPushNotificationReceived(n);
-      },
-      listenToPushClicked: (e, n) => {
-        if (n) {
-          this.messagingSystem.publish(
-            'NotificationServicesPushController:pushNotificationClicked',
-            n,
-          );
-        }
-
-        this.#config.onPushNotificationClicked(e, n);
-      },
-    });
-
-    const bearerToken = await this.#getAndAssertBearerToken();
-
+    // Handle creating new reg token (if available)
+    console.log('CORE - enablePushNotifications.createRegToken.start');
     try {
-      // Activate Push Notifications
-      const regToken = await activatePushNotifications({
-        bearerToken,
-        triggers: UUIDs,
-        env: this.#env,
-        createRegToken,
-        platform: this.#config.platform,
-      });
+      const bearerToken = await this.#getAndAssertBearerToken().catch(
+        () => null,
+      );
 
-      if (!regToken) {
-        return;
+      // If there is a bearer token, lets try to refresh/create new reg token
+      if (bearerToken) {
+        console.log(
+          'CORE - enablePushNotifications.createRegToken.hasRegTokenSoCreate',
+        );
+
+        // Activate Push Notifications
+        const regToken = await activatePushNotifications({
+          bearerToken,
+          triggers: UUIDs,
+          env: this.#env,
+          createRegToken,
+          platform: this.#config.platform,
+        }).catch(() => null);
+
+        if (regToken) {
+          this.update((state) => {
+            state.fcmToken = regToken;
+          });
+        }
       }
-
-      // Update state
-      this.update((state) => {
-        state.fcmToken = regToken;
-      });
-    } catch (error) {
-      log.error('Failed to enable push notifications:', error);
-      throw new Error('Failed to enable push notifications');
+    } catch {
+      // Do nothing, we are silently failing
     }
+    console.log('CORE - enablePushNotifications.createRegToken.end');
+    // created a new reg token, so removing old listener
+    // this.#pushListenerUnsubscribe?.();
+    await this.subscribeToPushNotifications();
   }
 
   /**
@@ -287,8 +321,9 @@ export default class NotificationServicesPushController extends BaseController<
         regToken: this.state.fcmToken,
       });
     } catch (error) {
-      const errorMessage = `Failed to disable push notifications: ${error as string
-        }`;
+      const errorMessage = `Failed to disable push notifications: ${
+        error as string
+      }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
     }
@@ -341,8 +376,9 @@ export default class NotificationServicesPushController extends BaseController<
         });
       }
     } catch (error) {
-      const errorMessage = `Failed to update triggers for push notifications: ${error as string
-        }`;
+      const errorMessage = `Failed to update triggers for push notifications: ${
+        error as string
+      }`;
       log.error(errorMessage);
       throw new Error(errorMessage);
     }
