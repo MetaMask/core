@@ -7,6 +7,7 @@ import type {
   UserStoragePathWithFeatureOnly,
 } from './schema';
 import { createEntryPath } from './schema';
+import type { NativeScrypt } from './UserStorageController';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
 
@@ -37,16 +38,12 @@ export type UserStorageBaseOptions = {
 
 export type UserStorageOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureAndKey;
-  // TODO: Replace "any" with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nativeScryptCrypto?: any;
+  nativeScryptCrypto?: NativeScrypt;
 };
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
-  // TODO: Replace "any" with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  nativeScryptCrypto?: any;
+  nativeScryptCrypto?: NativeScrypt;
 };
 
 /**

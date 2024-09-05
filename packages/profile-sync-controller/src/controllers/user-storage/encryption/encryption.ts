@@ -4,6 +4,7 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
+import type { NativeScrypt } from '../UserStorageController';
 import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
 import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
 
@@ -47,9 +48,7 @@ class EncryptorDecryptor {
   async encryptString(
     plaintext: string,
     password: string,
-    // TODO: Replace "any" with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nativeScryptCrypto?: any,
+    nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
       return await this.#encryptStringV1(
@@ -66,9 +65,7 @@ class EncryptorDecryptor {
   async decryptString(
     encryptedDataStr: string,
     password: string,
-    // TODO: Replace "any" with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nativeScryptCrypto?: any,
+    nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
@@ -93,9 +90,7 @@ class EncryptorDecryptor {
   async #encryptStringV1(
     plaintext: string,
     password: string,
-    // TODO: Replace "any" with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nativeScryptCrypto?: any,
+    nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     const { key, salt } = await this.#getOrGenerateScryptKey(
       password,
@@ -138,9 +133,7 @@ class EncryptorDecryptor {
   async #decryptStringV1(
     data: EncryptedPayload,
     password: string,
-    // TODO: Replace "any" with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nativeScryptCrypto?: any,
+    nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
     const { o, d: base64CiphertextAndNonceAndSalt, saltLen } = data;
 
@@ -198,9 +191,7 @@ class EncryptorDecryptor {
     password: string,
     o: EncryptedPayload['o'],
     salt?: Uint8Array,
-    // TODO: Replace "any" with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nativeScryptCrypto?: any,
+    nativeScryptCrypto?: NativeScrypt,
   ) {
     const hashedPassword = createSHA256Hash(password);
     const cachedKey = salt

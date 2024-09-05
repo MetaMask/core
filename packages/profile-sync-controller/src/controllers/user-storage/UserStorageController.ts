@@ -44,6 +44,15 @@ export declare type NotificationServicesControllerSelectIsNotificationServicesEn
     handler: () => boolean;
   };
 
+export declare type NativeScrypt = (
+  passwd: string,
+  salt: Uint8Array,
+  N: number,
+  r: number,
+  p: number,
+  size: number,
+) => Promise<Uint8Array>;
+
 const controllerName = 'UserStorageController';
 
 // State
@@ -215,9 +224,7 @@ export default class UserStorageController extends BaseController<
     },
   };
 
-  // TODO: Replace "any" with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #nativeScryptCrypto: any | undefined = undefined;
+  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
 
   getMetaMetricsState: () => boolean;
 
@@ -230,9 +237,7 @@ export default class UserStorageController extends BaseController<
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
     getMetaMetricsState: () => boolean;
-    // TODO: Replace "any" with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nativeScryptCrypto?: any;
+    nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
       messenger,
