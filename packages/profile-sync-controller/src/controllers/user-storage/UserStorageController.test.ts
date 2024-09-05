@@ -1304,26 +1304,28 @@ function mockUserStorageMessenger(options?: {
   });
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
-    const [actionType, params] = args;
+    // Creates the correct typed call params for mocks
+    type CallParams = {
+      [K in AllowedActions['type']]: [
+        K,
+        ...Parameters<Extract<AllowedActions, { type: K }>['handler']>,
+      ];
+    }[AllowedActions['type']];
+
+    const [actionType, params] = args as unknown as CallParams;
+
     if (actionType === 'SnapController:handleRequest') {
-      if (
-        (params as Exclude<typeof params, string | number>)?.request.method ===
-        'getPublicKey'
-      ) {
+      if (params.request.method === 'getPublicKey') {
         return mockSnapGetPublicKey();
       }
 
-      if (
-        (params as Exclude<typeof params, string | number>)?.request.method ===
-        'signMessage'
-      ) {
+      if (params.request.method === 'signMessage') {
         return mockSnapSignMessage();
       }
 
       throw new Error(
         `MOCK_FAIL - unsupported SnapController:handleRequest call: ${
-          (params as Exclude<typeof params, string | number>)?.request
-            .method as string
+          params.request.method as string
         }`,
       );
     }
