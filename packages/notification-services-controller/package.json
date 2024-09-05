@@ -87,7 +87,7 @@
     "contentful": "^10.15.0",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
-    "jest-environment-jsdom": "^27.5.1",
+    "jest-environment-jsdom": "^29.7.0",
     "nock": "^13.3.1",
     "ts-jest": "^29.1.1",
     "typedoc": "^0.24.8",

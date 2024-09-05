@@ -1,4 +1,4 @@
-const NodeEnvironment = require('jest-environment-node');
+const NodeEnvironment = require('jest-environment-node').TestEnvironment;
 
 /**
  * KeyringController depends on @noble/hashes, which as of 1.3.2 relies on the
