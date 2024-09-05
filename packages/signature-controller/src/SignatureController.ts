@@ -283,13 +283,14 @@ export class SignatureController extends BaseController<
    *
    * @param messageParams - The params of the message to sign & return to the Dapp.
    * @param req - The original request, containing the origin.
-   * @param traceContext - The parent context for any new traces.
+   * @param options - An options bag for the method.
+   * @param options.traceContext - The parent context for any new traces.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedPersonalMessage(
     messageParams: PersonalMessageParams,
     req: OriginalRequest,
-    traceContext?: TraceContext,
+    options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#personalMessageManager,
@@ -303,7 +304,7 @@ export class SignatureController extends BaseController<
       req,
       undefined,
       undefined,
-      traceContext,
+      options.traceContext,
     );
   }
 
@@ -315,7 +316,8 @@ export class SignatureController extends BaseController<
    * @param version - The version indicating the format of the typed data.
    * @param signingOpts - An options bag for signing.
    * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
-   * @param traceContext - The parent context for any new traces.
+   * @param options - An options bag for the method.
+   * @param options.traceContext - The parent context for any new traces.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedTypedMessage(
@@ -323,7 +325,7 @@ export class SignatureController extends BaseController<
     req: OriginalRequest,
     version: string,
     signingOpts: TypedMessageSigningOptions,
-    traceContext?: TraceContext,
+    options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     const signTypeForLogger = this.#getSignTypeForLogger(version);
     return this.#newUnsignedAbstractMessage(
@@ -338,7 +340,7 @@ export class SignatureController extends BaseController<
       req,
       version,
       signingOpts,
-      traceContext,
+      options.traceContext,
     );
   }
 
