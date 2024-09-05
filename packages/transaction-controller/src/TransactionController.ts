@@ -21,6 +21,7 @@ import {
   convertHexToDecimal,
   isInfuraNetworkType,
 } from '@metamask/controller-utils';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -78,8 +79,6 @@ import type {
   SimulationData,
   GasFeeEstimates,
   GasFeeFlowResponse,
-  TraceCallback,
-  TraceContext,
   GasPriceValue,
   FeeMarketEIP1559Values,
 } from './types';
