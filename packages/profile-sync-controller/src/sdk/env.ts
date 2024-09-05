@@ -74,7 +74,7 @@ export function getOidcClientId(env: Env, platform: Platform): string {
       [Platform.PORTFOLIO]: '35e1cd62-49c5-4be8-8b6e-a5212f2d2cfb',
       [Platform.MOBILE]: '75fa62a3-9ca0-4b91-9fe5-76bec86b0257',
       [Platform.EXTENSION]: '1132f10a-b4e5-4390-a5f2-d9c6022db564',
-      [Platform.INFURA]: '', // unset
+      [Platform.INFURA]: 'fdde9417-e193-4d23-9943-a8346b18d097',
     },
   };
 
