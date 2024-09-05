@@ -68,16 +68,11 @@ export type UserStorageControllerState = {
    * Loading state for the profile syncing update
    */
   isProfileSyncingUpdateLoading: boolean;
-  /**
-   * Loading state for the account syncing update
-   */
-  isUserStorageAccountSyncingInProgress: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
   isProfileSyncingEnabled: true,
   isProfileSyncingUpdateLoading: false,
-  isUserStorageAccountSyncingInProgress: false,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
@@ -86,10 +81,6 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     anonymous: true,
   },
   isProfileSyncingUpdateLoading: {
-    persist: false,
-    anonymous: false,
-  },
-  isUserStorageAccountSyncingInProgress: {
     persist: false,
     anonymous: false,
   },
@@ -236,25 +227,6 @@ export default class UserStorageController extends BaseController<
     // This is replaced with the actual value in the constructor
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
-    setIsUserStorageAccountSyncingInProgress: async (
-      isUserStorageAccountSyncingInProgress: boolean,
-    ) => {
-      // Publish event
-      const eventToPublish = isUserStorageAccountSyncingInProgress
-        ? 'UserStorageController:accountSyncingInProgress'
-        : 'UserStorageController:accountSyncingComplete';
-
-      this.messagingSystem.publish(
-        eventToPublish,
-        isUserStorageAccountSyncingInProgress,
-      );
-
-      // Update state
-      this.update((state) => {
-        state.isUserStorageAccountSyncingInProgress =
-          isUserStorageAccountSyncingInProgress;
-      });
-    },
     getInternalAccountByAddress: async (address: string) => {
       return this.messagingSystem.call(
         'AccountsController:getAccountByAddress',
@@ -666,14 +638,11 @@ export default class UserStorageController extends BaseController<
     try {
       this.#assertProfileSyncingEnabled();
 
-      await this.#accounts.setIsUserStorageAccountSyncingInProgress(true);
-
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
 
       if (!userStorageAccountsList || !userStorageAccountsList.length) {
         await this.#accounts.saveInternalAccountsListToUserStorage();
-        await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
         return;
       }
 
@@ -785,11 +754,7 @@ export default class UserStorageController extends BaseController<
           continue;
         }
       }
-
-      await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
     } catch (e) {
-      await this.#accounts.setIsUserStorageAccountSyncingInProgress(false);
-
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
         `${controllerName} - failed to sync user storage accounts list - ${errorMessage}`,

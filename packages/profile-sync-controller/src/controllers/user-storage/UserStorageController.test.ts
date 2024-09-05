@@ -82,7 +82,6 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -158,7 +157,6 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -234,7 +232,6 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -331,7 +328,6 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -376,7 +372,6 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -407,7 +402,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
@@ -1121,7 +1115,6 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       state: {
         isProfileSyncingEnabled: false,
         isProfileSyncingUpdateLoading: false,
-        isUserStorageAccountSyncingInProgress: false,
       },
     });
 
