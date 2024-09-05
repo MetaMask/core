@@ -10,6 +10,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import type {
   KeyringControllerSignMessageAction,
   KeyringControllerSignPersonalMessageAction,
@@ -43,8 +44,6 @@ import {
 import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
-
-import type { TraceCallback, TraceContext } from './types';
 
 const controllerName = 'SignatureController';
 
