@@ -28,38 +28,13 @@ const getPasswordCache = (hashedPassword: string) => {
  * @param salt - provide salt to receive cached key
  * @returns cached key
  */
-
-const passwordCacheMemo: Map<string, Map<string, Uint8Array>> = new Map();
-
-/**
- * Returns a given memoized/cached derived key from a hashed password and salt
- *
- * @param hashedPassword - hashed password for cache lookup
- * @returns cached key
- */
-function getPasswordCacheMemo(hashedPassword: string): Map<string, Uint8Array> {
-  if (!passwordCacheMemo.has(hashedPassword)) {
-    passwordCacheMemo.set(hashedPassword, getPasswordCache(hashedPassword));
-  }
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return passwordCacheMemo.get(hashedPassword)!;
-}
-
-/**
- * Returns a given cached derived key from a hashed password and salt
- *
- * @param hashedPassword - hashed password for cache lookup
- * @param salt - provide salt to receive cached key
- * @returns cached key or undefined
- */
 export function getCachedKeyBySalt(
   hashedPassword: string,
   salt: Uint8Array,
 ): CachedEntry | undefined {
-  const cache = getPasswordCacheMemo(hashedPassword);
+  const cache = getPasswordCache(hashedPassword);
   const base64Salt = byteArrayToBase64(salt);
   const cachedKey = cache.get(base64Salt);
-
   if (!cachedKey) {
     return undefined;
   }
