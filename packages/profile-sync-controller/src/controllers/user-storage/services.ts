@@ -44,6 +44,9 @@ export type UserStorageOptions = UserStorageBaseOptions & {
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
+  // TODO: Replace "any" with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  nativeScryptCrypto?: any;
 };
 
 /**
@@ -108,7 +111,7 @@ export async function getUserStorageAllFeatureEntries(
   opts: UserStorageAllFeatureEntriesOptions,
 ): Promise<string[] | null> {
   try {
-    const { bearerToken, path } = opts;
+    const { bearerToken, path, nativeScryptCrypto } = opts;
     const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
     const userStorageResponse = await fetch(url.toString(), {
@@ -139,7 +142,11 @@ export async function getUserStorageAllFeatureEntries(
         return [];
       }
 
-      return encryption.decryptString(entry.Data, opts.storageKey);
+      return encryption.decryptString(
+        entry.Data,
+        opts.storageKey,
+        nativeScryptCrypto,
+      );
     });
 
     return Promise.all(decryptedData);

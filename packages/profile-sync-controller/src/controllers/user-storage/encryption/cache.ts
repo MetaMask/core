@@ -36,11 +36,8 @@ const passwordCacheMemo: Map<string, Map<string, Uint8Array>> = new Map();
  * @param hashedPassword
  */
 function getPasswordCacheMemo(hashedPassword: string): Map<string, Uint8Array> {
-  console.log('getPasswordCacheMemo >> START');
   if (!passwordCacheMemo.has(hashedPassword)) {
-    console.log('passwordCacheMemo not found >> START');
     passwordCacheMemo.set(hashedPassword, getPasswordCache(hashedPassword));
-    console.log('passwordCacheMemo not found >> END');
   }
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return passwordCacheMemo.get(hashedPassword)!;

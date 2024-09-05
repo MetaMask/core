@@ -369,6 +369,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -393,6 +394,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;

@@ -105,7 +105,7 @@ class EncryptorDecryptor {
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
       },
-      undefined,
+      randomBytes(SCRYPT_SALT_SIZE),
       nativeScryptCrypto,
     );
 
@@ -215,17 +215,18 @@ class EncryptorDecryptor {
     }
 
     const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
+
     let newKey: Uint8Array;
-    console.log('scryptAsync >> START');
 
     if (nativeScryptCrypto) {
-      console.log('nativeScryptCrypto >> USED');
-      newKey = await nativeScryptCrypto(password, newSalt, {
-        N: o.N,
-        r: o.r,
-        p: o.p,
-        dkLen: o.dkLen,
-      });
+      newKey = await nativeScryptCrypto(
+        password,
+        newSalt,
+        o.N,
+        o.r,
+        o.p,
+        o.dkLen,
+      );
     } else {
       newKey = await scryptAsync(password, newSalt, {
         N: o.N,
@@ -234,8 +235,6 @@ class EncryptorDecryptor {
         dkLen: o.dkLen,
       });
     }
-
-    console.log('scryptAsync >> END');
     setCachedKey(hashedPassword, newSalt, newKey);
 
     return {
