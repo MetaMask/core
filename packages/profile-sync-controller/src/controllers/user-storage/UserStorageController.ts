@@ -215,23 +215,36 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  // TODO: Replace "any" with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  #nativeScryptCrypto: any | undefined = undefined;
+
   getMetaMetricsState: () => boolean;
 
-  constructor(params: {
+  constructor({
+    messenger,
+    state,
+    getMetaMetricsState,
+    nativeScryptCrypto,
+  }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
     getMetaMetricsState: () => boolean;
+    // TODO: Replace "any" with type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    nativeScryptCrypto?: any;
   }) {
     super({
-      messenger: params.messenger,
+      messenger,
       metadata,
       name: controllerName,
-      state: { ...defaultState, ...params.state },
+      state: { ...defaultState, ...state },
     });
 
-    this.getMetaMetricsState = params.getMetaMetricsState;
+    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
+    this.#nativeScryptCrypto = nativeScryptCrypto;
   }
 
   /**
@@ -406,6 +419,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 

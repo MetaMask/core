@@ -37,6 +37,9 @@ export type UserStorageBaseOptions = {
 
 export type UserStorageOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureAndKey;
+  // TODO: Replace "any" with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  nativeScryptCrypto?: any;
 };
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
@@ -53,7 +56,7 @@ export async function getUserStorage(
   opts: UserStorageOptions,
 ): Promise<string | null> {
   try {
-    const { bearerToken, path, storageKey } = opts;
+    const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
     const encryptedPath = createEntryPath(path, storageKey);
     const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
@@ -82,9 +85,10 @@ export async function getUserStorage(
       return null;
     }
 
-    const decryptedData = encryption.decryptString(
+    const decryptedData = await encryption.decryptString(
       encryptedData,
       opts.storageKey,
+      nativeScryptCrypto,
     );
 
     return decryptedData;
@@ -138,7 +142,7 @@ export async function getUserStorageAllFeatureEntries(
       return encryption.decryptString(entry.Data, opts.storageKey);
     });
 
-    return decryptedData;
+    return Promise.all(decryptedData);
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
@@ -155,9 +159,13 @@ export async function upsertUserStorage(
   data: string,
   opts: UserStorageOptions,
 ): Promise<void> {
-  const { bearerToken, path, storageKey } = opts;
+  const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
-  const encryptedData = encryption.encryptString(data, opts.storageKey);
+  const encryptedData = await encryption.encryptString(
+    data,
+    opts.storageKey,
+    nativeScryptCrypto,
+  );
   const encryptedPath = createEntryPath(path, storageKey);
   const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
 

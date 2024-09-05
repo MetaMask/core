@@ -418,6 +418,7 @@ export function toggleUserStorageTriggerStatus(
   enabled: boolean,
 ): UserStorage {
   if (userStorage?.[address]?.[chainId]?.[uuid]) {
+    console.log('toggleUserStorageTriggerStatus writting on storage');
     userStorage[address][chainId][uuid].e = enabled;
   }
 
