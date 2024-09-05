@@ -113,7 +113,6 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 export type SignatureControllerOptions = {
   getAllState: () => unknown;
   getCurrentChainId: () => Hex;
-  isEthSignEnabled: () => boolean;
   messenger: SignatureControllerMessenger;
   securityProviderRequest?: (
     // TODO: Replace `any` with type
