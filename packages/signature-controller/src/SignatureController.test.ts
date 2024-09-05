@@ -13,10 +13,7 @@ import {
   TypedMessageManager,
 } from '@metamask/message-manager';
 
-import type {
-  SignatureControllerMessenger,
-  SignatureControllerOptions,
-} from './SignatureController';
+import type { SignatureControllerMessenger } from './SignatureController';
 import { SignatureController } from './SignatureController';
 
 jest.mock('@metamask/message-manager', () => ({
@@ -86,15 +83,24 @@ const requestMock = {
   origin: 'http://test2.com',
 } as OriginalRequest;
 
-const createMessengerMock = () =>
-  ({
-    registerActionHandler: jest.fn(),
-    registerInitialEventPayload: jest.fn(),
-    publish: jest.fn(),
-    call: jest.fn(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any as jest.Mocked<SignatureControllerMessenger>);
+const createMessengerMock = () => ({
+  registerActionHandler: jest.fn<
+    ReturnType<SignatureControllerMessenger['registerActionHandler']>,
+    Parameters<SignatureControllerMessenger['registerActionHandler']>
+  >(),
+  registerInitialEventPayload: jest.fn<
+    ReturnType<SignatureControllerMessenger['registerInitialEventPayload']>,
+    Parameters<SignatureControllerMessenger['registerInitialEventPayload']>
+  >(),
+  publish: jest.fn<
+    ReturnType<SignatureControllerMessenger['publish']>,
+    Parameters<SignatureControllerMessenger['publish']>
+  >(),
+  call: jest.fn<
+    ReturnType<SignatureControllerMessenger['call']>,
+    Parameters<SignatureControllerMessenger['call']>
+  >(),
+});
 
 const addUnapprovedMessageMock = jest.fn();
 const waitForFinishStatusMock = jest.fn();
@@ -188,12 +194,13 @@ describe('SignatureController', () => {
     isEthSignEnabledMock.mockReturnValue(true);
 
     signatureController = new SignatureController({
+      // @ts-expect-error Passing mock instance
       messenger: messengerMock,
       getAllState: getAllStateMock,
       securityProviderRequest: securityProviderRequestMock,
       isEthSignEnabled: isEthSignEnabledMock,
       getCurrentChainId: getCurrentChainIdMock,
-    } as SignatureControllerOptions);
+    });
   });
 
   describe('unapprovedPersonalMessagesCount', () => {
