@@ -3449,8 +3449,10 @@ __metadata:
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
+    "@metamask/accounts-controller": "npm:^18.1.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.0"
+    "@metamask/keyring-api": "npm:^8.1.0"
     "@metamask/keyring-controller": "npm:^17.2.0"
     "@metamask/snaps-controllers": "npm:^9.3.1"
     "@metamask/snaps-sdk": "npm:^6.1.1"
@@ -3471,7 +3473,8 @@ __metadata:
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
   peerDependencies:
-    "@metamask/keyring-controller": ^17.0.0
+    "@metamask/accounts-controller": ^18.1.1
+    "@metamask/keyring-controller": ^17.2.0
     "@metamask/snaps-controllers": ^9.3.0
   languageName: unknown
   linkType: soft
