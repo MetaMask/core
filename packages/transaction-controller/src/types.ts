@@ -1300,6 +1300,7 @@ export type SimulationData = {
   tokenBalanceChanges: SimulationTokenBalanceChange[];
 };
 
+// Trace types later will be imported from '@metamask/controller-utils'
 /** A context in which to execute a trace, in order to generate nested timings. */
 export type TraceContext = unknown;
 

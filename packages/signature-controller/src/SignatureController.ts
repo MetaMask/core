@@ -44,6 +44,8 @@ import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { cloneDeep } from 'lodash';
 
+import type { TraceCallback, TraceContext } from './types';
+
 const controllerName = 'SignatureController';
 
 const stateMetadata = {
@@ -109,9 +111,10 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type SignatureControllerOptions = {
-  messenger: SignatureControllerMessenger;
-  isEthSignEnabled: () => boolean;
   getAllState: () => unknown;
+  getCurrentChainId: () => Hex;
+  isEthSignEnabled: () => boolean;
+  messenger: SignatureControllerMessenger;
   securityProviderRequest?: (
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -120,7 +123,7 @@ export type SignatureControllerOptions = {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
-  getCurrentChainId: () => Hex;
+  trace?: TraceCallback;
 };
 
 /**
@@ -141,6 +144,8 @@ export class SignatureController extends BaseController<
 
   #typedMessageManager: TypedMessageManager;
 
+  #trace: TraceCallback;
+
   /**
    * Construct a Sign controller.
    *
@@ -149,12 +154,14 @@ export class SignatureController extends BaseController<
    * @param options.getAllState - Callback to retrieve all user state.
    * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
    * @param options.getCurrentChainId - A function for retrieving the current chainId.
+   * @param options.trace - Callback to generate trace information.
    */
   constructor({
-    messenger,
     getAllState,
-    securityProviderRequest,
     getCurrentChainId,
+    messenger,
+    securityProviderRequest,
+    trace,
   }: SignatureControllerOptions) {
     super({
       name: controllerName,
@@ -178,6 +185,7 @@ export class SignatureController extends BaseController<
       undefined,
       getCurrentChainId,
     );
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.#handleMessageManagerEvents(
       this.#personalMessageManager,
@@ -276,11 +284,13 @@ export class SignatureController extends BaseController<
    *
    * @param messageParams - The params of the message to sign & return to the Dapp.
    * @param req - The original request, containing the origin.
+   * @param traceContext - The parent context for any new traces.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedPersonalMessage(
     messageParams: PersonalMessageParams,
     req: OriginalRequest,
+    traceContext?: TraceContext,
   ): Promise<string> {
     return this.#newUnsignedAbstractMessage(
       this.#personalMessageManager,
@@ -292,6 +302,9 @@ export class SignatureController extends BaseController<
       this.#signPersonalMessage.bind(this),
       messageParams,
       req,
+      undefined,
+      undefined,
+      traceContext,
     );
   }
 
@@ -303,6 +316,7 @@ export class SignatureController extends BaseController<
    * @param version - The version indicating the format of the typed data.
    * @param signingOpts - An options bag for signing.
    * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
+   * @param traceContext - The parent context for any new traces.
    * @returns Promise resolving to the raw data of the signature request.
    */
   async newUnsignedTypedMessage(
@@ -310,6 +324,7 @@ export class SignatureController extends BaseController<
     req: OriginalRequest,
     version: string,
     signingOpts: TypedMessageSigningOptions,
+    traceContext?: TraceContext,
   ): Promise<string> {
     const signTypeForLogger = this.#getSignTypeForLogger(version);
     return this.#newUnsignedAbstractMessage(
@@ -324,6 +339,7 @@ export class SignatureController extends BaseController<
       req,
       version,
       signingOpts,
+      traceContext,
     );
   }
 
@@ -397,6 +413,7 @@ export class SignatureController extends BaseController<
     req: OriginalRequest,
     version?: string,
     signingOpts?: SO,
+    traceContext?: TraceContext,
   ) {
     let resultCallbacks: AcceptResultCallbacks | undefined;
     try {
@@ -425,9 +442,12 @@ export class SignatureController extends BaseController<
           messageParamsWithId,
         );
 
-        const acceptResult = await this.#requestApproval(
-          messageParamsWithId,
-          approvalType,
+        const acceptResult = await this.#trace(
+          { name: 'Await Approval', parentContext: traceContext },
+          (context) =>
+            this.#requestApproval(messageParamsWithId, approvalType, {
+              traceContext: context,
+            }),
         );
 
         resultCallbacks = acceptResult.resultCallbacks;
@@ -445,7 +465,10 @@ export class SignatureController extends BaseController<
 
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/await-thenable
-      await signMessage(messageParamsWithId, signingOpts);
+
+      await this.#trace({ name: 'Sign', parentContext: traceContext }, () =>
+        signMessage(messageParamsWithId, signingOpts),
+      );
 
       const signatureResult = await signaturePromise;
 
@@ -807,6 +830,7 @@ export class SignatureController extends BaseController<
   async #requestApproval(
     msgParams: AbstractMessageParamsMetamask,
     type: ApprovalType,
+    { traceContext }: { traceContext?: TraceContext },
   ): Promise<AddResult> {
     const id = msgParams.metamaskId as string;
     const origin = msgParams.origin || ORIGIN_METAMASK;
@@ -814,6 +838,13 @@ export class SignatureController extends BaseController<
     // We are explicitly cloning the message params here to prevent the mutation errors on development mode
     // Because sending it through the messaging system will make the object read only
     const clonedMsgParams = cloneDeep(msgParams);
+
+    await this.#trace({
+      name: 'Notification Display',
+      id,
+      parentContext: traceContext,
+    });
+
     return (await this.messagingSystem.call(
       'ApprovalController:addRequest',
       {
