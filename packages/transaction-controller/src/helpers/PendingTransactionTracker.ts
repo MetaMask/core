@@ -63,8 +63,6 @@ export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #approveTransaction: (transactionId: string) => Promise<void>;
-
   #blockTracker: BlockTracker;
 
   #droppedBlockCountByHash: Map<string, number>;
@@ -92,7 +90,6 @@ export class PendingTransactionTracker {
   #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
   constructor({
-    approveTransaction,
     blockTracker,
     getChainId,
     getEthQuery,
@@ -102,7 +99,6 @@ export class PendingTransactionTracker {
     publishTransaction,
     hooks,
   }: {
-    approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
@@ -119,7 +115,6 @@ export class PendingTransactionTracker {
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
-    this.#approveTransaction = approveTransaction;
     this.#blockTracker = blockTracker;
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
@@ -252,11 +247,13 @@ export class PendingTransactionTracker {
       } catch (error: any) {
         /* istanbul ignore next */
         const errorMessage =
-          error.value?.message?.toLowerCase() || error.message.toLowerCase();
+          error.value?.message?.toLowerCase() ||
+          error.message?.toLowerCase() ||
+          String(error);
 
         if (this.#isKnownTransactionError(errorMessage)) {
           log('Ignoring known transaction error', errorMessage);
-          return;
+          continue;
         }
 
         this.#warnTransaction(
@@ -288,14 +285,8 @@ export class PendingTransactionTracker {
       return;
     }
 
-    if (!rawTx?.length) {
-      log('Approving transaction as no raw value');
-      await this.#approveTransaction(txMeta.id);
-      return;
-    }
-
     const ethQuery = this.#getEthQuery(txMeta.networkClientId);
-    await this.#publishTransaction(ethQuery, rawTx);
+    await this.#publishTransaction(ethQuery, rawTx as string);
 
     const retryCount = (txMeta.retryCount ?? 0) + 1;
 
