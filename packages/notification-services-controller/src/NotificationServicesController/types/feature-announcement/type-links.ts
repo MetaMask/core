@@ -1,4 +1,15 @@
-// Extension Links
+// Generic External Link
+// We use this to show a link than will open an external web page
+export type TypeExternalLinkFields = {
+  fields: {
+    externalLinkText: string;
+    externalLinkUrl: string;
+  };
+  contentTypeId: 'externalLink';
+};
+
+// Extension Link
+// We use this to show a link than will open an extension tab
 export type TypeExtensionLinkFields = {
   fields: {
     extensionLinkText: string;
@@ -7,23 +18,22 @@ export type TypeExtensionLinkFields = {
   contentTypeId: 'extensionLink';
 };
 
-// Portfolio Links - TODO clean up portfolio links (we don't need 2 different versions)
-export type TypeLinkFields = {
+// Portfolio Link
+// We use this to show a link than will open a portfolio page
+export type TypePortfolioLinkFields = {
   fields: {
-    linkText: string;
-    linkUrl: string;
-    isExternal: boolean;
+    portfolioLinkText: string;
+    portfolioLinkUrl: string;
   };
-  contentTypeId: 'link';
+  contentTypeId: 'portfolioLink';
 };
 
-export type TypeActionFields = {
+// Mobile Link
+// We use this to show a link than will open an application page
+export type TypeMobileLinkFields = {
   fields: {
-    actionText: string;
-    actionUrl: string;
-    isExternal: boolean;
+    mobileLinkText: string;
+    mobileLinkUrl: string;
   };
-  contentTypeId: 'action';
+  contentTypeId: 'mobileLink';
 };
-
-// Mobile Links - TODO unsupported

@@ -9,6 +9,7 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderProxy,
 } from '@metamask/network-controller';
+import { selectAvailableNetworkClientIds } from '@metamask/network-controller';
 import type {
   PermissionControllerStateChange,
   GetSubjects as PermissionControllerGetSubjectsAction,
@@ -191,24 +192,21 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      ({ selectedNetworkClientId }, patches) => {
-        patches.forEach(({ op, path }) => {
-          // if a network is removed, update the networkClientId for all domains that were using it to the selected network
-          if (op === 'remove' && path[0] === 'networkConfigurations') {
-            const removedNetworkClientId = path[1] as NetworkClientId;
-            Object.entries(this.state.domains).forEach(
-              ([domain, networkClientIdForDomain]) => {
-                if (networkClientIdForDomain === removedNetworkClientId) {
-                  this.setNetworkClientIdForDomain(
-                    domain,
-                    selectedNetworkClientId,
-                  );
-                }
-              },
-            );
-          }
-        });
+      (availableNetworkClientIds) => {
+        // if a network is updated or removed, update the networkClientId for all domains
+        // that were using it to the selected network client id
+        const { selectedNetworkClientId } = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+        Object.entries(this.state.domains).forEach(
+          ([domain, networkClientIdForDomain]) => {
+            if (!availableNetworkClientIds.includes(networkClientIdForDomain)) {
+              this.setNetworkClientIdForDomain(domain, selectedNetworkClientId);
+            }
+          },
+        );
       },
+      selectAvailableNetworkClientIds,
     );
 
     onPreferencesStateChange(({ useRequestQueue }) => {

@@ -140,7 +140,7 @@ describe('DecryptMessageManager', () => {
     const messageStatus = 'unapproved';
     const messageType = 'eth_decrypt';
     const messageParams = { from: fromMock, data: dataMock };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = { id: 111, origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
@@ -151,6 +151,7 @@ describe('DecryptMessageManager', () => {
       throw new Error('"message" is falsy');
     }
     expect(message.messageParams.from).toBe(messageParams.from);
+    expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
