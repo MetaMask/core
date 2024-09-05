@@ -7,19 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [0.3.0]
 
-- feat(NOTIFY-1001): add granular account syncing ([#4629](https://github.com/MetaMask/core/pull/4629))
-- feat: added infura OIDC identifier ([#4654](https://github.com/MetaMask/core/pull/4654))
-- refactor(notifications): cleanup notification subpath exports ([#4650](https://github.com/MetaMask/core/pull/4650))
-- refactor: reuse user storage encryption in profile sync SDK ([#4649](https://github.com/MetaMask/core/pull/4649))
-- refactor: add multiple file exports for notifications controllers ([#4604](https://github.com/MetaMask/core/pull/4604))
-- feat(NOTIFY-998): add logic around the new get all feature entries endpoint ([#4626](https://github.com/MetaMask/core/pull/4626))
-- Release 193.0.0 ([#4643](https://github.com/MetaMask/core/pull/4643))
-- Fix controllers with missing or incorrect messenger action/event types ([#4633](https://github.com/MetaMask/core/pull/4633))
-- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
-- Release 188.0.0 ([#4625](https://github.com/MetaMask/core/pull/4625))
+### Added
+
+- add granular account syncing ([#4629](https://github.com/MetaMask/core/pull/4629))
+  - add accounts user storage schema
+  - add method `saveInternalAccountToUserStorage` to `UserStorageController`
+  - add method `syncInternalAccountsWithUserStorage` to `UserStorageController`
+  - add `@metamask/accounts-controller` dev dependency
+  - add `@metamask/keyring-api` dev dependency
+- add infura OIDC identifier ([#4654](https://github.com/MetaMask/core/pull/4654))
+- define and export new types: `AuthenticationControllerGetStateAction`, `AuthenticationControllerStateChangeEvent`, `Events` ([#4633](https://github.com/MetaMask/core/pull/4633))
+- SDK and controller support for `GET /api/v1/userstorage/:feature` endpoint ([#4626](https://github.com/MetaMask/core/pull/4626))
+  - add method `performGetStorageAllFeatureEntries` to `UserStorageController`
+  - add `ALLOW_ARBITRARY_KEYS` to `USER_STORAGE_SCHEMA` to allow wildcard/getAll for entries for a feature
+- add subpath exports to `@metamask/profile-sync-controller` ([#4604](https://github.com/MetaMask/core/pull/4604))
+  - add `@metamask/profile-sync-controller/sdk` export
+  - add `@metamask/profile-sync-controller/user-storage` export
+  - add `@metamask/profile-sync-controller/auth` export
+
+### Changed
+
 - Bump `typescript` from `~5.1.6` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Fix controllers with missing or incorrect messenger action/event types ([#4633](https://github.com/MetaMask/core/pull/4633))
+- **BREAKING:** `AuthenticationControllerMessenger` must allow internal events defined in the `Events` type ([#4633](https://github.com/MetaMask/core/pull/4633))
+- `AuthenticationControllerActions` is widened to include the `AuthenticationController:getState` action ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Replaced `@metamask/profile-sync-controller/sdk` to use the same encryption file as `UserStorageController` ([#4649](https://github.com/MetaMask/core/pull/4649))
+
+### Fixed
+- update subpath exports internal `package.json` files to resolve `jest-haste-map` errors ([#4650](https://github.com/MetaMask/core/pull/4650))
 
 ## [0.2.1]
 
@@ -109,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.3.0...HEAD
+[0.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...@metamask/profile-sync-controller@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.4...@metamask/profile-sync-controller@0.2.0
 [0.1.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.1.3...@metamask/profile-sync-controller@0.1.4
