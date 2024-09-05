@@ -342,6 +342,7 @@ export default class UserStorageController extends BaseController<
   constructor({
     messenger,
     state,
+    env,
     getMetaMetricsState,
     nativeScryptCrypto,
   }: {
@@ -361,7 +362,7 @@ export default class UserStorageController extends BaseController<
     });
 
     this.#accounts.isAccountSyncingEnabled = Boolean(
-      params.env?.isAccountSyncingEnabled,
+      env?.isAccountSyncingEnabled,
     );
 
     this.getMetaMetricsState = getMetaMetricsState;

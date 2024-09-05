@@ -31,6 +31,8 @@ export const getMockUserStorageEndpoint = (
 
 const MOCK_GET_USER_STORAGE_RESPONSE = (): GetUserStorageResponse => ({
   HashedKey: 'HASHED_KEY',
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore-next-line
   Data: MOCK_ENCRYPTED_STORAGE_DATA(),
 });
 
@@ -38,6 +40,8 @@ const MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE =
   (): GetUserStorageAllFeatureEntriesResponse => [
     {
       HashedKey: 'HASHED_KEY',
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore-next-line
       Data: MOCK_ENCRYPTED_STORAGE_DATA(),
     },
   ];

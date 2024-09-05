@@ -206,7 +206,9 @@ export class UserStorage {
         return encryption.decryptString(entry.Data, storageKey);
       });
 
-      return decryptedData;
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return decryptedData as any;
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
