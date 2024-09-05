@@ -32,8 +32,10 @@ const getPasswordCache = (hashedPassword: string) => {
 const passwordCacheMemo: Map<string, Map<string, Uint8Array>> = new Map();
 
 /**
+ * Returns a given memoized/cached derived key from a hashed password and salt
  *
- * @param hashedPassword
+ * @param hashedPassword - hashed password for cache lookup
+ * @returns cached key
  */
 function getPasswordCacheMemo(hashedPassword: string): Map<string, Uint8Array> {
   if (!passwordCacheMemo.has(hashedPassword)) {
@@ -44,9 +46,11 @@ function getPasswordCacheMemo(hashedPassword: string): Map<string, Uint8Array> {
 }
 
 /**
+ * Returns a given cached derived key from a hashed password and salt
  *
- * @param hashedPassword
- * @param salt
+ * @param hashedPassword - hashed password for cache lookup
+ * @param salt - provide salt to receive cached key
+ * @returns cached key or undefined
  */
 export function getCachedKeyBySalt(
   hashedPassword: string,
