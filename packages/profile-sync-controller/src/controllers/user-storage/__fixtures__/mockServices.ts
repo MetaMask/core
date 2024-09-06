@@ -15,11 +15,11 @@ type MockReply = {
   body?: nock.Body;
 };
 
-export const mockEndpointGetUserStorageAllFeatureEntries = (
+export const mockEndpointGetUserStorageAllFeatureEntries = async (
   path: UserStoragePathWithFeatureOnly = 'notifications',
   mockReply?: MockReply,
 ) => {
-  const mockResponse = getMockUserStorageAllFeatureEntriesResponse(path);
+  const mockResponse = await getMockUserStorageAllFeatureEntriesResponse(path);
   const reply = mockReply ?? {
     status: 200,
     body: mockResponse.response,
@@ -32,11 +32,11 @@ export const mockEndpointGetUserStorageAllFeatureEntries = (
   return mockEndpoint;
 };
 
-export const mockEndpointGetUserStorage = (
+export const mockEndpointGetUserStorage = async (
   path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
   mockReply?: MockReply,
 ) => {
-  const mockResponse = getMockUserStorageGetResponse(path);
+  const mockResponse = await getMockUserStorageGetResponse(path);
   const reply = mockReply ?? {
     status: 200,
     body: mockResponse.response,

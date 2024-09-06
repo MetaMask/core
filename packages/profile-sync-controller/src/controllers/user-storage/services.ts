@@ -7,6 +7,7 @@ import type {
   UserStoragePathWithFeatureOnly,
 } from './schema';
 import { createEntryPath } from './schema';
+import type { NativeScrypt } from './UserStorageController';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
 
@@ -37,10 +38,12 @@ export type UserStorageBaseOptions = {
 
 export type UserStorageOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureAndKey;
+  nativeScryptCrypto?: NativeScrypt;
 };
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
+  nativeScryptCrypto?: NativeScrypt;
 };
 
 /**
@@ -53,7 +56,7 @@ export async function getUserStorage(
   opts: UserStorageOptions,
 ): Promise<string | null> {
   try {
-    const { bearerToken, path, storageKey } = opts;
+    const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
     const encryptedPath = createEntryPath(path, storageKey);
     const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
@@ -82,9 +85,10 @@ export async function getUserStorage(
       return null;
     }
 
-    const decryptedData = encryption.decryptString(
+    const decryptedData = await encryption.decryptString(
       encryptedData,
       opts.storageKey,
+      nativeScryptCrypto,
     );
 
     return decryptedData;
@@ -104,7 +108,7 @@ export async function getUserStorageAllFeatureEntries(
   opts: UserStorageAllFeatureEntriesOptions,
 ): Promise<string[] | null> {
   try {
-    const { bearerToken, path } = opts;
+    const { bearerToken, path, nativeScryptCrypto } = opts;
     const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
     const userStorageResponse = await fetch(url.toString(), {
@@ -135,10 +139,16 @@ export async function getUserStorageAllFeatureEntries(
         return [];
       }
 
-      return encryption.decryptString(entry.Data, opts.storageKey);
+      return encryption.decryptString(
+        entry.Data,
+        opts.storageKey,
+        nativeScryptCrypto,
+      );
     });
 
-    return decryptedData;
+    return (await Promise.allSettled(decryptedData))
+      .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
+      .filter((d): d is string => d !== undefined);
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
@@ -155,9 +165,13 @@ export async function upsertUserStorage(
   data: string,
   opts: UserStorageOptions,
 ): Promise<void> {
-  const { bearerToken, path, storageKey } = opts;
+  const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
-  const encryptedData = encryption.encryptString(data, opts.storageKey);
+  const encryptedData = await encryption.encryptString(
+    data,
+    opts.storageKey,
+    nativeScryptCrypto,
+  );
   const encryptedPath = createEntryPath(path, storageKey);
   const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
 
