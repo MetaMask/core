@@ -56,6 +56,15 @@ export declare type NotificationServicesControllerSelectIsNotificationServicesEn
     handler: () => boolean;
   };
 
+export declare type NativeScrypt = (
+  passwd: string,
+  salt: Uint8Array,
+  N: number,
+  r: number,
+  p: number,
+  size: number,
+) => Promise<Uint8Array>;
+
 const controllerName = 'UserStorageController';
 
 // State
@@ -335,9 +344,17 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+
   getMetaMetricsState: () => boolean;
 
-  constructor(params: {
+  constructor({
+    messenger,
+    state,
+    env,
+    getMetaMetricsState,
+    nativeScryptCrypto,
+  }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
     env?: {
@@ -345,24 +362,25 @@ export default class UserStorageController extends BaseController<
       accountSyncingMaxSyncInterval?: number;
     };
     getMetaMetricsState: () => boolean;
+    nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
-      messenger: params.messenger,
+      messenger,
       metadata,
       name: controllerName,
-      state: { ...defaultState, ...params.state },
+      state: { ...defaultState, ...state },
     });
 
     this.#accounts.isAccountSyncingEnabled = Boolean(
-      params.env?.isAccountSyncingEnabled,
+      env?.isAccountSyncingEnabled,
     );
     this.#accounts.maxSyncInterval =
-      params.env?.accountSyncingMaxSyncInterval ??
-      this.#accounts.maxSyncInterval;
+      env?.accountSyncingMaxSyncInterval ?? this.#accounts.maxSyncInterval;
 
-    this.getMetaMetricsState = params.getMetaMetricsState;
+    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
+    this.#nativeScryptCrypto = nativeScryptCrypto;
   }
 
   /**
@@ -497,6 +515,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -521,6 +540,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -547,6 +567,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 

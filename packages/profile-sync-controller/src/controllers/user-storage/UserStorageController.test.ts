@@ -24,6 +24,10 @@ import {
 } from './__fixtures__/mockStorage';
 import encryption from './encryption/encryption';
 import type {
+  GetUserStorageAllFeatureEntriesResponse,
+  GetUserStorageResponse,
+} from './services';
+import type {
   AllowedActions,
   AllowedEvents,
   NotificationServicesControllerDisableNotificationServices,
@@ -53,15 +57,15 @@ describe('user-storage/user-storage-controller - constructor() tests', () => {
 });
 
 describe('user-storage/user-storage-controller - performGetStorage() tests', () => {
-  const arrangeMocks = () => {
+  const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointGetUserStorage(),
+      mockAPI: await mockEndpointGetUserStorage(),
     };
   };
 
   it('returns users notification storage', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks();
+    const { messengerMocks, mockAPI } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -75,7 +79,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
   });
 
   it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -113,7 +117,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
         messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
       ) => void,
     ) => {
-      const { messengerMocks } = arrangeMocks();
+      const { messengerMocks } = await arrangeMocks();
       arrangeFailureCase(messengerMocks);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
@@ -128,15 +132,15 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
 });
 
 describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntries() tests', () => {
-  const arrangeMocks = () => {
+  const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
-      mockAPI: mockEndpointGetUserStorageAllFeatureEntries(),
+      mockAPI: await mockEndpointGetUserStorageAllFeatureEntries(),
     };
   };
 
   it('returns users notification storage', async () => {
-    const { messengerMocks, mockAPI } = arrangeMocks();
+    const { messengerMocks, mockAPI } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -150,7 +154,7 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
   });
 
   it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -188,7 +192,7 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
         messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
       ) => void,
     ) => {
-      const { messengerMocks } = arrangeMocks();
+      const { messengerMocks } = await arrangeMocks();
       arrangeFailureCase(messengerMocks);
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
@@ -303,14 +307,14 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 });
 
 describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
-  const arrangeMocks = () => {
+  const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
   };
 
   it('should return a storage key', async () => {
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -321,7 +325,7 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
   });
 
   it('rejects if UserStorage is not enabled', async () => {
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -336,14 +340,14 @@ describe('user-storage/user-storage-controller - getStorageKey() tests', () => {
 });
 
 describe('user-storage/user-storage-controller - disableProfileSyncing() tests', () => {
-  const arrangeMocks = () => {
+  const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
   };
 
   it('should disable user storage / profile syncing when called', async () => {
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -356,14 +360,14 @@ describe('user-storage/user-storage-controller - disableProfileSyncing() tests',
 });
 
 describe('user-storage/user-storage-controller - enableProfileSyncing() tests', () => {
-  const arrangeMocks = () => {
+  const arrangeMocks = async () => {
     return {
       messengerMocks: mockUserStorageMessenger(),
     };
   };
 
   it('should enable user storage / profile syncing', async () => {
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     messengerMocks.mockAuthIsSignedIn.mockReturnValue(false); // mock that auth is not enabled
 
     const controller = new UserStorageController({
@@ -385,14 +389,14 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
 
 describe('user-storage/user-storage-controller - syncInternalAccountsWithUserStorage() tests', () => {
   it('rejects if UserStorage is not enabled', async () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointGetUserStorage(),
       };
     };
 
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -411,17 +415,17 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: {
           mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries('accounts'),
+            await mockEndpointGetUserStorageAllFeatureEntries('accounts'),
         },
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocks();
+    const { messengerMocks, mockAPI } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -440,7 +444,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       body: [],
     };
 
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -448,11 +452,12 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           },
         }),
         mockAPI: {
-          mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries(
+          mockEndpointGetUserStorage: (
+            await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
               mockUserStorageAccountsResponse,
-            ).persist(),
+            )
+          ).persist(),
           mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
             `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
           ).persist(),
@@ -460,7 +465,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -482,7 +487,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       body: [],
     };
 
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -490,11 +495,12 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           },
         }),
         mockAPI: {
-          mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries(
+          mockEndpointGetUserStorage: (
+            await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
               mockUserStorageAccountsResponse,
-            ).persist(),
+            )
+          ).persist(),
           mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
             `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
           ).persist(),
@@ -502,7 +508,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       getMetaMetricsState: () => true,
@@ -524,20 +530,16 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
-    const mockUserStorageAccountsResponse = {
-      status: 200,
-      body: [
-        {
-          HashedKey: 'HASHED_KEY',
-          Data: encryption.encryptString(
-            JSON.stringify(MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL),
-            MOCK_STORAGE_KEY,
-          ),
-        },
-      ],
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
     };
 
-    const arrangeMocksForAccounts = () => {
+    const arrangeMocksForAccounts = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -546,15 +548,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         }),
         mockAPI: {
           mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries(
+            await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
-              mockUserStorageAccountsResponse,
+              await mockUserStorageAccountsResponse(),
             ),
         },
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -576,7 +578,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       body: [],
     };
 
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -588,7 +590,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         }),
         mockAPI: {
           mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries(
+            await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
               mockUserStorageAccountsResponse,
             ),
@@ -602,7 +604,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocks();
+    const { messengerMocks, mockAPI } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -622,18 +624,16 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   it('creates internal accounts if user storage has more accounts', async () => {
-    const mockUserStorageAccountsResponse = {
-      status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.map((account) => ({
-        HashedKey: 'HASHED_KEY',
-        Data: encryption.encryptString(
-          JSON.stringify(account),
-          MOCK_STORAGE_KEY,
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
         ),
-      })),
+      };
     };
 
-    const arrangeMocksForAccounts = () => {
+    const arrangeMocksForAccounts = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -642,15 +642,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         }),
         mockAPI: {
           mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries(
+            await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
-              mockUserStorageAccountsResponse,
+              await mockUserStorageAccountsResponse(),
             ),
         },
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -672,20 +672,16 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   it('does not create internal accounts if user storage has less accounts', async () => {
-    const mockUserStorageAccountsResponse = {
-      status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.slice(0, 1).map(
-        (account) => ({
-          HashedKey: 'HASHED_KEY',
-          Data: encryption.encryptString(
-            JSON.stringify(account),
-            MOCK_STORAGE_KEY,
-          ),
-        }),
-      ),
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.slice(0, 1),
+        ),
+      };
     };
 
-    const arrangeMocksForAccounts = () => {
+    const arrangeMocksForAccounts = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -697,9 +693,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         }),
         mockAPI: {
           mockEndpointGetUserStorage:
-            mockEndpointGetUserStorageAllFeatureEntries(
+            await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
-              mockUserStorageAccountsResponse,
+              await mockUserStorageAccountsResponse(),
             ),
 
           mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
@@ -709,7 +705,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -729,19 +725,17 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   describe('User storage name is a default name', () => {
-    const mockUserStorageAccountsResponse = {
-      status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.ONE_DEFAULT_NAME.map((account) => ({
-        HashedKey: 'HASHED_KEY',
-        Data: encryption.encryptString(
-          JSON.stringify(account),
-          MOCK_STORAGE_KEY,
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.ONE_DEFAULT_NAME,
         ),
-      })),
+      };
     };
 
     it('does not update the internal account name if both user storage and internal accounts have default names', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -751,15 +745,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
           },
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -778,7 +772,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('does not update the internal account name if the internal account name is custom without last updated', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -788,9 +782,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
             mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
               `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED[0].address}`,
@@ -799,7 +793,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -819,7 +813,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('does not update the internal account name if the internal account name is custom with last updated', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -829,9 +823,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
             mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
               `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED[0].address}`,
@@ -840,7 +834,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -861,21 +855,17 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   describe('User storage name is a custom name without last updated', () => {
-    const mockUserStorageAccountsResponse = {
-      status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED.map(
-        (account) => ({
-          HashedKey: 'HASHED_KEY',
-          Data: encryption.encryptString(
-            JSON.stringify(account),
-            MOCK_STORAGE_KEY,
-          ),
-        }),
-      ),
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED,
+        ),
+      };
     };
 
     it('updates the internal account name if the internal account name is a default name', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -885,15 +875,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
           },
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -918,7 +908,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('does not update internal account name if both user storage and internal accounts have custom names without last updated', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -928,15 +918,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
           },
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -955,7 +945,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('does not update the internal account name if the internal account name is custom with last updated', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -965,9 +955,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
             mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
               `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED[0].address}`,
@@ -976,7 +966,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -997,21 +987,17 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
   });
 
   describe('User storage name is a custom name with last updated', () => {
-    const mockUserStorageAccountsResponse = {
-      status: 200,
-      body: MOCK_USER_STORAGE_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED.map(
-        (account) => ({
-          HashedKey: 'HASHED_KEY',
-          Data: encryption.encryptString(
-            JSON.stringify(account),
-            MOCK_STORAGE_KEY,
-          ),
-        }),
-      ),
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED,
+        ),
+      };
     };
 
     it('updates the internal account name if the internal account name is a default name', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -1021,15 +1007,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
           },
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -1054,7 +1040,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('updates the internal account name and last updated if the internal account name is a custom name without last updated', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -1064,15 +1050,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
           },
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -1099,7 +1085,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('updates the internal account name and last updated if the user storage account is more recent', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
+        const mockGetEntriesResponse = await mockUserStorageAccountsResponse();
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -1109,15 +1096,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                mockGetEntriesResponse,
               ),
           },
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -1144,7 +1131,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     });
 
     it('does not update the internal account if the user storage account is less recent', async () => {
-      const arrangeMocksForAccounts = () => {
+      const arrangeMocksForAccounts = async () => {
         return {
           messengerMocks: mockUserStorageMessenger({
             accounts: {
@@ -1154,9 +1141,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           }),
           mockAPI: {
             mockEndpointGetUserStorage:
-              mockEndpointGetUserStorageAllFeatureEntries(
+              await mockEndpointGetUserStorageAllFeatureEntries(
                 'accounts',
-                mockUserStorageAccountsResponse,
+                await mockUserStorageAccountsResponse(),
               ),
             mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
               `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT[0].address}`,
@@ -1165,7 +1152,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         };
       };
 
-      const { messengerMocks, mockAPI } = arrangeMocksForAccounts();
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -1188,13 +1175,13 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
 
 describe('user-storage/user-storage-controller - saveInternalAccountToUserStorage() tests', () => {
   it('rejects if UserStorage is not enabled', async () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
       };
     };
 
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -1215,7 +1202,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointUpsertUserStorage(
@@ -1224,7 +1211,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocks();
+    const { messengerMocks, mockAPI } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -1241,7 +1228,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
   });
 
   it('saves an internal account to user storage', async () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointUpsertUserStorage(
@@ -1250,7 +1237,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       };
     };
 
-    const { messengerMocks, mockAPI } = arrangeMocks();
+    const { messengerMocks, mockAPI } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -1267,7 +1254,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
   });
 
   it('rejects if api call fails', async () => {
-    const arrangeMocks = () => {
+    const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointUpsertUserStorage(
@@ -1277,7 +1264,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       };
     };
 
-    const { messengerMocks } = arrangeMocks();
+    const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
       env: {
@@ -1497,4 +1484,32 @@ function mockUserStorageMessenger(options?: {
     mockAccountsGetAccountByAddress,
     mockAccountsListAccounts,
   };
+}
+
+/**
+ * Test Utility - creates a realistic mock user-storage entry
+ * @param data - data to encrypt
+ * @returns user storage entry
+ */
+async function createMockUserStorageEntry(
+  data: unknown,
+): Promise<GetUserStorageResponse> {
+  return {
+    HashedKey: 'HASHED_KEY',
+    Data: await encryption.encryptString(
+      JSON.stringify(data),
+      MOCK_STORAGE_KEY,
+    ),
+  };
+}
+
+/**
+ * Test Utility - creates a realistic mock user-storage get-all entry
+ * @param data - data array to encrypt
+ * @returns user storage entry
+ */
+async function createMockUserStorageEntries(
+  data: unknown[],
+): Promise<GetUserStorageAllFeatureEntriesResponse> {
+  return await Promise.all(data.map((d) => createMockUserStorageEntry(d)));
 }
