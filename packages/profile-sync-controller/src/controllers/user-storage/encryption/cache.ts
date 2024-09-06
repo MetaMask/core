@@ -65,9 +65,9 @@ export function getAnyCachedKey(
   if (!cachedEntry) {
     return undefined;
   }
+
   const base64Salt = cachedEntry[0];
   const bytesSalt = base64ToByteArray(base64Salt);
-
   return {
     salt: bytesSalt,
     base64Salt,

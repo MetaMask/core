@@ -29,40 +29,37 @@ export const getMockUserStorageEndpoint = (
   )}`;
 };
 
-const MOCK_GET_USER_STORAGE_RESPONSE = (): GetUserStorageResponse => ({
-  HashedKey: 'HASHED_KEY',
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore-next-line
-  Data: MOCK_ENCRYPTED_STORAGE_DATA(),
-});
+const MOCK_GET_USER_STORAGE_RESPONSE =
+  async (): Promise<GetUserStorageResponse> => ({
+    HashedKey: 'HASHED_KEY',
+    Data: await MOCK_ENCRYPTED_STORAGE_DATA(),
+  });
 
 const MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE =
-  (): GetUserStorageAllFeatureEntriesResponse => [
+  async (): Promise<GetUserStorageAllFeatureEntriesResponse> => [
     {
       HashedKey: 'HASHED_KEY',
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore-next-line
-      Data: MOCK_ENCRYPTED_STORAGE_DATA(),
+      Data: await MOCK_ENCRYPTED_STORAGE_DATA(),
     },
   ];
 
-export const getMockUserStorageGetResponse = (
+export const getMockUserStorageGetResponse = async (
   path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
-    response: MOCK_GET_USER_STORAGE_RESPONSE(),
+    response: await MOCK_GET_USER_STORAGE_RESPONSE(),
   } satisfies MockResponse;
 };
 
-export const getMockUserStorageAllFeatureEntriesResponse = (
+export const getMockUserStorageAllFeatureEntriesResponse = async (
   path: UserStoragePathWithFeatureOnly = 'notifications',
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
-    response: MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE(),
+    response: await MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE(),
   } satisfies MockResponse;
 };
 

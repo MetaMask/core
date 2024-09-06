@@ -146,7 +146,9 @@ export async function getUserStorageAllFeatureEntries(
       );
     });
 
-    return Promise.all(decryptedData);
+    return (await Promise.allSettled(decryptedData))
+      .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
+      .filter((d): d is string => d !== undefined);
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
