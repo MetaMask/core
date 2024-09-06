@@ -1,6 +1,6 @@
 {
   "name": "@metamask/address-book-controller",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Manages a list of recipient addresses associated with nicknames",
   "keywords": [
     "MetaMask",
@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.1.0",
+    "@metamask/controller-utils": "^11.2.0",
     "@metamask/utils": "^9.1.0"
   },
   "devDependencies": {
