@@ -236,6 +236,15 @@ export default class UserStorageController extends BaseController<
     // This is replaced with the actual value in the constructor
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
+    // This is replaced with the actual value in the constructor
+    maxSyncInterval: 1000 * 60,
+    lastSyncedAt: 0,
+    shouldSync: () => {
+      return (
+        Date.now() - this.#accounts.lastSyncedAt >
+        this.#accounts.maxSyncInterval
+      );
+    },
     getInternalAccountByAddress: async (address: string) => {
       return this.messagingSystem.call(
         'AccountsController:getAccountByAddress',
@@ -350,6 +359,7 @@ export default class UserStorageController extends BaseController<
     state?: UserStorageControllerState;
     env?: {
       isAccountSyncingEnabled?: boolean;
+      accountSyncingMaxSyncInterval?: number;
     };
     getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
@@ -364,6 +374,8 @@ export default class UserStorageController extends BaseController<
     this.#accounts.isAccountSyncingEnabled = Boolean(
       env?.isAccountSyncingEnabled,
     );
+    this.#accounts.maxSyncInterval =
+      env?.accountSyncingMaxSyncInterval ?? this.#accounts.maxSyncInterval;
 
     this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
@@ -656,6 +668,12 @@ export default class UserStorageController extends BaseController<
     if (!this.#accounts.isAccountSyncingEnabled) {
       return;
     }
+
+    if (!this.#accounts.shouldSync()) {
+      return;
+    }
+
+    this.#accounts.lastSyncedAt = Date.now();
 
     try {
       this.#assertProfileSyncingEnabled();
