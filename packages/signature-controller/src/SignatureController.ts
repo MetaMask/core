@@ -447,6 +447,7 @@ export class SignatureController extends BaseController<
           (context) =>
             this.#requestApproval(messageParamsWithId, approvalType, {
               traceContext: context,
+              actionId: req?.id?.toString(),
             }),
         );
 
@@ -830,7 +831,10 @@ export class SignatureController extends BaseController<
   async #requestApproval(
     msgParams: AbstractMessageParamsMetamask,
     type: ApprovalType,
-    { traceContext }: { traceContext?: TraceContext },
+    {
+      traceContext,
+      actionId,
+    }: { traceContext?: TraceContext; actionId?: string },
   ): Promise<AddResult> {
     const id = msgParams.metamaskId as string;
     const origin = msgParams.origin || ORIGIN_METAMASK;
@@ -841,7 +845,7 @@ export class SignatureController extends BaseController<
 
     await this.#trace({
       name: 'Notification Display',
-      id,
+      id: actionId,
       parentContext: traceContext,
     });
 
