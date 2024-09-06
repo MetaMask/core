@@ -438,6 +438,97 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(false);
   });
 
+  it('returns void if syncing has recently been performed', async () => {
+    const mockUserStorageAccountsResponse = {
+      status: 404,
+      body: [],
+    };
+
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage: (
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              mockUserStorageAccountsResponse,
+            )
+          ).persist(),
+          mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
+            `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+          ).persist(),
+        },
+      };
+    };
+
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      env: {
+        isAccountSyncingEnabled: true,
+      },
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(messengerMocks.mockAccountsListAccounts).toHaveBeenCalledTimes(1);
+  });
+
+  it('syncs again if syncing has not recently been performed', async () => {
+    const maxSyncInterval = 1000;
+    const mockUserStorageAccountsResponse = {
+      status: 404,
+      body: [],
+    };
+
+    const arrangeMocks = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage: (
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              mockUserStorageAccountsResponse,
+            )
+          ).persist(),
+          mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
+            `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+          ).persist(),
+        },
+      };
+    };
+
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      env: {
+        isAccountSyncingEnabled: true,
+        accountSyncingMaxSyncInterval: maxSyncInterval,
+      },
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    jest
+      .spyOn(global.Date, 'now')
+      .mockImplementationOnce(() => Date.now() + maxSyncInterval);
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(messengerMocks.mockAccountsListAccounts).toHaveBeenCalledTimes(2);
+  });
+
   it('throws if AccountsController:listAccounts fails or returns an empty list', async () => {
     const mockUserStorageAccountsResponse = async () => {
       return {
@@ -1270,6 +1361,12 @@ function mockUserStorageMessenger(options?: {
 
   const mockKeyringAddNewAccount = jest.fn().mockResolvedValue('0x123');
 
+  const mockAccountsListAccounts = jest
+    .fn()
+    .mockResolvedValue(
+      options?.accounts?.accountsList ?? MOCK_INTERNAL_ACCOUNTS.ALL,
+    );
+
   const mockAccountsUpdateAccountMetadata = jest.fn().mockResolvedValue(true);
 
   const mockAccountsGetAccountByAddress = jest.fn().mockResolvedValue({
@@ -1351,10 +1448,7 @@ function mockUserStorageMessenger(options?: {
     }
 
     if (actionType === 'AccountsController:listAccounts') {
-      if (options?.accounts?.accountsList) {
-        return options.accounts.accountsList;
-      }
-      return MOCK_INTERNAL_ACCOUNTS.ALL;
+      return mockAccountsListAccounts();
     }
 
     if (actionType === 'AccountsController:updateAccountMetadata') {
@@ -1388,6 +1482,7 @@ function mockUserStorageMessenger(options?: {
     mockKeyringAddNewAccount,
     mockAccountsUpdateAccountMetadata,
     mockAccountsGetAccountByAddress,
+    mockAccountsListAccounts,
   };
 }
 
