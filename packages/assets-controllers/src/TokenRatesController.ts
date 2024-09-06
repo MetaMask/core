@@ -745,6 +745,12 @@ export class TokenRatesController extends StaticIntervalPollingController<
       return {};
     }
 
+    // Converts the price in the fallback currency to the native currency
+    const convertFallbackToNative = (value: number | undefined) =>
+      value !== undefined && value !== null
+        ? value * fallbackCurrencyToNativeCurrencyConversionRate
+        : undefined;
+
     const updatedContractExchangeRates = Object.entries(
       contractExchangeInformations,
     ).reduce((acc, [tokenAddress, token]) => {
@@ -752,9 +758,15 @@ export class TokenRatesController extends StaticIntervalPollingController<
         ...acc,
         [tokenAddress]: {
           ...token,
-          price: token.price
-            ? token.price * fallbackCurrencyToNativeCurrencyConversionRate
-            : undefined,
+          currency: nativeCurrency,
+          price: convertFallbackToNative(token.price),
+          marketCap: convertFallbackToNative(token.marketCap),
+          allTimeHigh: convertFallbackToNative(token.allTimeHigh),
+          allTimeLow: convertFallbackToNative(token.allTimeLow),
+          totalVolume: convertFallbackToNative(token.totalVolume),
+          high1d: convertFallbackToNative(token.high1d),
+          low1d: convertFallbackToNative(token.low1d),
+          dilutedMarketCap: convertFallbackToNative(token.dilutedMarketCap),
         },
       };
       return acc;

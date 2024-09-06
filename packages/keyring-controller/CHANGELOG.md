@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.2.0]
+
+### Added
+
+- Add `KeyringController:addNewAccount` messenger action ([#4565](https://github.com/MetaMask/core/pull/4565))
+  - Add and export `KeyringControllerAddNewAccountAction` type.
+  - Widen `KeyringControllerActions` to include `KeyringControllerAddNewAccountAction` type.
+  - `KeyringControllerMessenger` must allow `KeyringControllerAddNewAccountAction` type.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/keyring-api` from `^8.0.1` to `^8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+- Bump `@metamask/message-manager` from `^10.0.2` to `^10.0.3` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
 ## [17.1.2]
 
 ### Changed
@@ -517,7 +533,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.0...HEAD
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.2...@metamask/keyring-controller@17.2.0
 [17.1.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.1...@metamask/keyring-controller@17.1.2
 [17.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.0...@metamask/keyring-controller@17.1.1
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...@metamask/keyring-controller@17.1.0

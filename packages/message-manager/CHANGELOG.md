@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.0]
+
+### Added
+
+- Add protected methods `addRequestToMessageParams`, `createUnapprovedMessage` to `AbstractMessageManager`
+
+### Changed
+
+- Add `requestId` property to the `messageParams` object to reference metric event fragments created from the `createRPCMethodTrackingMiddleware` in the client ([#4636](https://github.com/MetaMask/core/pull/4636))
+  - Add optional property `requestId` to `AbstractMessageParams` type
+  - Add optional property `id` to `OriginalRequest` type
+- Bump `@metamask/controller-utils` from `^11.1.0` to `^11.2.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
 ## [10.0.2]
 
 ### Changed
@@ -275,7 +295,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.0...HEAD
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.3...@metamask/message-manager@10.1.0
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.2...@metamask/message-manager@10.0.3
 [10.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.1...@metamask/message-manager@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.0...@metamask/message-manager@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@9.0.0...@metamask/message-manager@10.0.0

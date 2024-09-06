@@ -1,4 +1,6 @@
 import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
   RestrictedControllerMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
@@ -81,7 +83,13 @@ type ActionsObj = CreateActionsObj<
   | 'getSessionProfile'
   | 'isSignedIn'
 >;
-export type Actions = ActionsObj[keyof ActionsObj];
+export type Actions =
+  | ActionsObj[keyof ActionsObj]
+  | AuthenticationControllerGetStateAction;
+export type AuthenticationControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AuthenticationControllerState
+>;
 export type AuthenticationControllerPerformSignIn = ActionsObj['performSignIn'];
 export type AuthenticationControllerPerformSignOut =
   ActionsObj['performSignOut'];
@@ -90,6 +98,14 @@ export type AuthenticationControllerGetBearerToken =
 export type AuthenticationControllerGetSessionProfile =
   ActionsObj['getSessionProfile'];
 export type AuthenticationControllerIsSignedIn = ActionsObj['isSignedIn'];
+
+export type AuthenticationControllerStateChangeEvent =
+  ControllerStateChangeEvent<
+    typeof controllerName,
+    AuthenticationControllerState
+  >;
+
+export type Events = AuthenticationControllerStateChangeEvent;
 
 // Allowed Actions
 export type AllowedActions =
@@ -104,7 +120,7 @@ export type AllowedEvents =
 export type AuthenticationControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
   Actions | AllowedActions,
-  AllowedEvents,
+  Events | AllowedEvents,
   AllowedActions['type'],
   AllowedEvents['type']
 >;

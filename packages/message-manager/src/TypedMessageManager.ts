@@ -1,4 +1,4 @@
-import { v1 as random } from 'uuid';
+import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
@@ -129,25 +129,31 @@ export class TypedMessageManager extends AbstractMessageManager<
       messageParams.data = JSON.stringify(messageParams.data);
     }
 
-    const messageId = random();
-    const messageParamsMetamask = {
+    const updatedMessageParams = this.addRequestToMessageParams(
+      messageParams,
+      req,
+    ) satisfies TypedMessageParams;
+
+    const messageData = this.createUnapprovedMessage(
+      updatedMessageParams,
+      ApprovalType.EthSignTypedData,
+      req,
+    ) satisfies TypedMessage;
+
+    const messageId = messageData.id;
+
+    await this.addMessage(messageData);
+
+    /**
+     * This intentionally splays messageParams rather than updatedMessageParams. I'm unsure if this
+     * is exactly what we want, but I am preserving existing logic.
+     */
+    this.hub.emit(`unapprovedMessage`, {
       ...messageParams,
       metamaskId: messageId,
       version,
-    };
-    if (req) {
-      messageParams.origin = req.origin;
-    }
-    const messageData: TypedMessage = {
-      id: messageId,
-      messageParams,
-      securityAlertResponse: req?.securityAlertResponse,
-      status: 'unapproved',
-      time: Date.now(),
-      type: 'eth_signTypedData',
-    };
-    await this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, messageParamsMetamask);
+    });
+
     return messageId;
   }
 

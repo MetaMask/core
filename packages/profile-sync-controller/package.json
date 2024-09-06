@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -22,12 +22,39 @@
       "require": "./dist/index.js",
       "types": "./dist/types/index.d.ts"
     },
+    "./sdk": {
+      "import": "./dist/sdk/index.mjs",
+      "require": "./dist/sdk/index.js",
+      "types": "./dist/types/sdk/index.d.ts"
+    },
+    "./auth": {
+      "import": "./dist/controllers/authentication/index.mjs",
+      "require": "./dist/controllers/authentication/index.js",
+      "types": "./dist/types/controllers/authentication/index.d.ts"
+    },
+    "./auth/mocks": {
+      "import": "./dist/controllers/authentication/__fixtures__/index.mjs",
+      "require": "./dist/controllers/authentication/__fixtures__/index.js",
+      "types": "./dist/types/controllers/authentication/__fixtures__/index.d.ts"
+    },
+    "./user-storage": {
+      "import": "./dist/controllers/user-storage/index.mjs",
+      "require": "./dist/controllers/user-storage/index.js",
+      "types": "./dist/types/controllers/user-storage/index.d.ts"
+    },
+    "./user-storage/mocks": {
+      "import": "./dist/controllers/user-storage/__fixtures__/index.mjs",
+      "require": "./dist/controllers/user-storage/__fixtures__/index.js",
+      "types": "./dist/types/controllers/user-storage/__fixtures__/index.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "files": [
-    "dist/"
+    "dist/",
+    "auth/",
+    "user-storage/"
   ],
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
@@ -42,7 +69,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^6.0.3",
+    "@metamask/base-controller": "^7.0.0",
     "@metamask/snaps-sdk": "^6.1.1",
     "@metamask/snaps-utils": "^7.8.1",
     "@noble/ciphers": "^0.5.2",
@@ -53,8 +80,10 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
+    "@metamask/accounts-controller": "^18.1.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.1.2",
+    "@metamask/keyring-api": "^8.1.0",
+    "@metamask/keyring-controller": "^17.2.0",
     "@metamask/snaps-controllers": "^9.3.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -68,7 +97,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^17.0.0",
+    "@metamask/accounts-controller": "^18.1.1",
+    "@metamask/keyring-controller": "^17.2.0",
     "@metamask/snaps-controllers": "^9.3.0"
   },
   "engines": {

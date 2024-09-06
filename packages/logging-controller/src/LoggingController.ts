@@ -1,4 +1,8 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { v1 as random } from 'uuid';
 
@@ -36,16 +40,24 @@ export type AddLog = {
   handler: LoggingController['add'];
 };
 
-/**
- * Currently only an alias, but the idea here is if future actions are needed
- * this can transition easily into a union type.
- */
-export type LoggingControllerActions = AddLog;
+export type LoggingControllerGetStateAction = ControllerGetStateAction<
+  typeof name,
+  LoggingControllerState
+>;
+
+export type LoggingControllerActions = LoggingControllerGetStateAction | AddLog;
+
+export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof name,
+  LoggingControllerState
+>;
+
+export type LoggingControllerEvents = LoggingControllerStateChangeEvent;
 
 export type LoggingControllerMessenger = RestrictedControllerMessenger<
   typeof name,
   LoggingControllerActions,
-  never,
+  LoggingControllerEvents,
   never,
   never
 >;
