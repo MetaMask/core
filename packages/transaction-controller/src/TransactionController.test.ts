@@ -546,12 +546,15 @@ describe('TransactionController', () => {
    * messenger.
    * @param args.messengerOptions.addTransactionApprovalRequest - Options to mock
    * the `ApprovalController:addRequest` action call for transactions.
+   * @param args.updateToInitialState - Whether to apply the controller state after instantiation via the `update` method.
+   * This is required if unapproved transactions are included since they are cleared during instantiation.
    * @returns The new TransactionController instance.
    */
   function setupController({
     options: givenOptions = {},
     network = MOCK_NETWORK,
     messengerOptions = {},
+    updateToInitialState = false,
   }: {
     options?: Partial<ConstructorParameters<typeof TransactionController>[0]>;
     network?: MockNetwork;
@@ -560,6 +563,7 @@ describe('TransactionController', () => {
         typeof mockAddTransactionApprovalRequest
       >[1];
     };
+    updateToInitialState?: boolean;
   } = {}) {
     const unrestrictedMessenger: UnrestrictedControllerMessenger =
       new ControllerMessenger();
@@ -608,6 +612,13 @@ describe('TransactionController', () => {
       ...otherOptions,
       messenger: restrictedMessenger,
     });
+
+    const state = givenOptions?.state;
+
+    if (updateToInitialState && state) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (controller as any).update(() => state);
+    }
 
     return {
       controller,
@@ -871,18 +882,6 @@ describe('TransactionController', () => {
       );
     });
 
-    it('checks pending transactions', () => {
-      expect(
-        pendingTransactionTrackerMock.startIfPendingTransactions,
-      ).toHaveBeenCalledTimes(0);
-
-      setupController();
-
-      expect(
-        pendingTransactionTrackerMock.startIfPendingTransactions,
-      ).toHaveBeenCalledTimes(1);
-    });
-
     describe('nonce tracker', () => {
       it('uses external pending transactions', async () => {
         const nonceTrackerMock = jest
@@ -931,66 +930,6 @@ describe('TransactionController', () => {
           // This is undefined for the base nonceTracker
           undefined,
         );
-      });
-    });
-
-    describe('onBootCleanup', () => {
-      afterEach(() => {
-        updateGasMock.mockReset();
-        updateGasFeesMock.mockReset();
-      });
-
-      it('submits approved transactions for all chains', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          status: TransactionStatus.approved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-        const mockedTransactions = [
-          {
-            id: '123',
-            history: [{ ...mockTransactionMeta, id: '123' }],
-            chainId: toHex(5),
-            ...mockTransactionMeta,
-          },
-          {
-            id: '456',
-            history: [{ ...mockTransactionMeta, id: '456' }],
-            chainId: toHex(1),
-            ...mockTransactionMeta,
-          },
-          {
-            id: '789',
-            history: [{ ...mockTransactionMeta, id: '789' }],
-            chainId: toHex(16),
-            ...mockTransactionMeta,
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const { controller } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-          },
-        });
-
-        await flushPromises();
-
-        const { transactions } = controller.state;
-
-        expect(transactions[0].status).toBe(TransactionStatus.submitted);
-        expect(transactions[1].status).toBe(TransactionStatus.submitted);
-        expect(transactions[2].status).toBe(TransactionStatus.submitted);
       });
     });
   });
@@ -3165,6 +3104,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
       messenger.subscribe(
         'TransactionController:transactionDropped',
@@ -3839,6 +3779,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
 
       const gas = '0xgas';
@@ -3904,6 +3845,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
 
       controller.updateTransactionGasFees(transactionId, {
@@ -3948,6 +3890,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
       expect(() =>
         controller.updatePreviousGasParams(transactionId, {
@@ -3978,6 +3921,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
 
       const gasLimit = '0xgasLimit';
@@ -4116,6 +4060,7 @@ describe('TransactionController', () => {
               ] as TransactionMeta[],
             },
           },
+          updateToInitialState: true,
         });
 
         firePendingTransactionTrackerEvent('transaction-confirmed', confirmed);
@@ -4464,7 +4409,6 @@ describe('TransactionController', () => {
         options: {
           hooks: {
             afterSign: () => false,
-            beforeApproveOnInit: () => false,
             beforePublish: () => false,
             getAdditionalSignArguments: () => [metadataMock],
           },
@@ -4506,7 +4450,6 @@ describe('TransactionController', () => {
         options: {
           hooks: {
             afterSign: () => false,
-            beforeApproveOnInit: () => false,
             beforePublish: () => false,
             getAdditionalSignArguments: () => [metadataMock],
           },
@@ -4720,6 +4663,7 @@ describe('TransactionController', () => {
             ],
           },
         },
+        updateToInitialState: true,
       });
       expect(controller.state.transactions[0]).toBeDefined();
 
@@ -4815,6 +4759,7 @@ describe('TransactionController', () => {
                 transactions: [transactionMeta],
               },
             },
+            updateToInitialState: true,
           });
 
           controller.updateCustodialTransaction(transactionId, {
@@ -4846,6 +4791,7 @@ describe('TransactionController', () => {
                 transactions: [transactionMeta],
               },
             },
+            updateToInitialState: true,
           });
           messenger.subscribe(
             'TransactionController:transactionFinished',
@@ -4878,6 +4824,7 @@ describe('TransactionController', () => {
               transactions: [transactionMeta],
             },
           },
+          updateToInitialState: true,
         });
 
         controller.updateCustodialTransaction(transactionId, {
@@ -4915,6 +4862,7 @@ describe('TransactionController', () => {
               transactions: [nonCustodialTransaction],
             },
           },
+          updateToInitialState: true,
         });
 
         expect(() =>
@@ -4932,6 +4880,7 @@ describe('TransactionController', () => {
               transactions: [transactionMeta],
             },
           },
+          updateToInitialState: true,
         });
 
         expect(() =>
@@ -4950,6 +4899,7 @@ describe('TransactionController', () => {
               transactions: [transactionMeta],
             },
           },
+          updateToInitialState: true,
         });
 
         controller.updateCustodialTransaction(transactionId, {});
@@ -4958,156 +4908,6 @@ describe('TransactionController', () => {
 
         expect(updatedTransaction.status).toStrictEqual(transactionMeta.status);
         expect(updatedTransaction.hash).toStrictEqual(transactionMeta.hash);
-      });
-    });
-
-    describe('initApprovals', () => {
-      it('creates approvals for all unapproved transaction', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          chainId: toHex(5),
-          status: TransactionStatus.unapproved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-
-        const mockedTransactions = [
-          {
-            id: '123',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '123' }],
-          },
-          {
-            id: '1234',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '1234' }],
-          },
-          {
-            id: '12345',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '12345' }],
-            isUserOperation: true,
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const { controller, messenger } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-          },
-        });
-        jest.spyOn(messenger, 'call');
-
-        controller.initApprovals();
-        await flushPromises();
-
-        expect(messenger.call).toHaveBeenCalledTimes(2);
-        expect(messenger.call).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
-            expectsResult: true,
-            id: '123',
-            origin: 'metamask',
-            requestData: { txId: '123' },
-            type: 'transaction',
-          },
-          false,
-        );
-        expect(messenger.call).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
-            expectsResult: true,
-            id: '1234',
-            origin: 'metamask',
-            requestData: { txId: '1234' },
-            type: 'transaction',
-          },
-          false,
-        );
-      });
-
-      it('catches error without code property in error object while creating approval', async () => {
-        const mockTransactionMeta = {
-          from: ACCOUNT_MOCK,
-          chainId: toHex(5),
-          status: TransactionStatus.unapproved,
-          txParams: {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-        };
-
-        const mockedTransactions = [
-          {
-            id: '123',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '123' }],
-          },
-          {
-            id: '1234',
-            ...mockTransactionMeta,
-            history: [{ ...mockTransactionMeta, id: '1234' }],
-          },
-        ];
-
-        const mockedControllerState = {
-          transactions: mockedTransactions,
-          methodData: {},
-          lastFetchedBlockNumbers: {},
-        };
-
-        const mockedErrorMessage = 'mocked error';
-
-        const { controller, messenger } = setupController({
-          options: {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            state: mockedControllerState as any,
-          },
-        });
-        // Expect both calls to throw error, one with code property to check if it is handled
-        jest
-          .spyOn(messenger, 'call')
-          .mockImplementationOnce(() => {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
-            throw { message: mockedErrorMessage };
-          })
-          .mockImplementationOnce(() => {
-            // eslint-disable-next-line @typescript-eslint/no-throw-literal
-            throw {
-              message: mockedErrorMessage,
-              code: errorCodes.provider.userRejectedRequest,
-            };
-          });
-        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
-
-        controller.initApprovals();
-
-        await flushPromises();
-
-        expect(consoleSpy).toHaveBeenCalledTimes(1);
-        expect(consoleSpy).toHaveBeenCalledWith(
-          'Error during persisted transaction approval',
-          new Error(mockedErrorMessage),
-        );
-        expect(messenger.call).toHaveBeenCalledTimes(2);
-      });
-
-      it('does not create any approval when there is no unapproved transaction', async () => {
-        const { controller, messenger } = setupController();
-        jest.spyOn(messenger, 'call');
-        controller.initApprovals();
-        await flushPromises();
-        expect(messenger.call).not.toHaveBeenCalled();
       });
     });
 
@@ -5141,6 +4941,7 @@ describe('TransactionController', () => {
           options: {
             state: { transactions },
           },
+          updateToInitialState: true,
         });
 
         expect(
@@ -5219,6 +5020,7 @@ describe('TransactionController', () => {
           options: {
             state: { transactions },
           },
+          updateToInitialState: true,
         });
 
         expect(
@@ -5258,6 +5060,7 @@ describe('TransactionController', () => {
           options: {
             state: { transactions },
           },
+          updateToInitialState: true,
         });
 
         expect(
@@ -5299,6 +5102,7 @@ describe('TransactionController', () => {
           options: {
             state: { transactions },
           },
+          updateToInitialState: true,
         });
 
         expect(
@@ -5478,6 +5282,7 @@ describe('TransactionController', () => {
             transactions: [transactionMeta],
           },
         },
+        updateToInitialState: true,
       });
 
       const updatedTransaction = await controller.updateEditableParams(
@@ -5495,6 +5300,7 @@ describe('TransactionController', () => {
             transactions: [transactionMeta],
           },
         },
+        updateToInitialState: true,
       });
 
       const updatedTransaction = await controller.updateEditableParams(
@@ -5554,6 +5360,7 @@ describe('TransactionController', () => {
               ],
             },
           },
+          updateToInitialState: true,
         });
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);

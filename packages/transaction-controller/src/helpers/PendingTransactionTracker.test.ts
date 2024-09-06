@@ -1008,50 +1008,6 @@ describe('PendingTransactionTracker', () => {
           expect(options.publishTransaction).toHaveBeenCalledTimes(0);
         });
       });
-
-      describe('approves transaction', () => {
-        it('if no raw transaction', async () => {
-          const getTransactions = jest.fn().mockReturnValue(
-            freeze(
-              [
-                {
-                  ...TRANSACTION_SUBMITTED_MOCK,
-                  rawTx: undefined,
-                },
-              ],
-              true,
-            ),
-          );
-
-          pendingTransactionTracker = new PendingTransactionTracker({
-            ...options,
-            getTransactions,
-          });
-
-          queryMock.mockResolvedValueOnce(undefined);
-          queryMock.mockResolvedValueOnce('0x1');
-
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
-          getTransactions.mockReturnValue(
-            freeze(
-              [
-                {
-                  ...TRANSACTION_SUBMITTED_MOCK,
-                  rawTx: undefined,
-                  firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
-                },
-              ],
-              true,
-            ),
-          );
-          await onLatestBlock('0x124');
-
-          expect(options.approveTransaction).toHaveBeenCalledTimes(1);
-          expect(options.approveTransaction).toHaveBeenCalledWith(
-            TRANSACTION_SUBMITTED_MOCK.id,
-          );
-        });
-      });
     });
   });
 
