@@ -31,7 +31,7 @@ describe('User Storage', () => {
     const { userStorage } = arrangeUserStorage(auth);
 
     const mockPut = handleMockUserStoragePut();
-    const mockGet = handleMockUserStorageGet();
+    const mockGet = await handleMockUserStorageGet();
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
@@ -59,7 +59,7 @@ describe('User Storage', () => {
     const { userStorage } = arrangeUserStorage(auth);
 
     const mockPut = handleMockUserStoragePut();
-    const mockGet = handleMockUserStorageGet();
+    const mockGet = await handleMockUserStorageGet();
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
@@ -79,7 +79,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    const mockGetAll = handleMockUserStorageGetAllFeatureEntries();
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries();
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
@@ -111,7 +111,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    handleMockUserStorageGet({
+    await handleMockUserStorageGet({
       status: 401,
       body: {
         message: 'failed to get storage entry',
@@ -128,7 +128,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    handleMockUserStorageGet({
+    await handleMockUserStorageGet({
       status: 404,
       body: {
         message: 'key not found',
