@@ -155,6 +155,11 @@ export type AccountsControllerAccountRemovedEvent = {
   payload: [AccountId];
 };
 
+export type AccountsControllerAccountRenamedEvent = {
+  type: `${typeof controllerName}:accountRenamed`;
+  payload: [InternalAccount];
+};
+
 export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
 
 export type AccountsControllerEvents =
@@ -162,7 +167,8 @@ export type AccountsControllerEvents =
   | AccountsControllerSelectedAccountChangeEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent;
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountRenamedEvent;
 
 export type AccountsControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -423,6 +429,10 @@ export class AccountsController extends BaseController<
     }
 
     this.updateAccountMetadata(accountId, { name: accountName });
+
+    const account = this.getAccountExpect(accountId);
+
+    this.messagingSystem.publish('AccountsController:accountRenamed', account);
   }
 
   /**
