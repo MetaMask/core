@@ -96,7 +96,6 @@ export async function listenToPushNotificationsReceived(
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (payload: MessagePayload) => {
       try {
-        console.log('PUSH RECEIVED', payload);
         const data: Types.UnprocessedOnChainRawNotification | undefined =
           payload?.data?.data ? JSON.parse(payload?.data?.data) : undefined;
 
@@ -109,10 +108,6 @@ export async function listenToPushNotificationsReceived(
         await handler(notification);
       } catch (error) {
         // Do Nothing, cannot parse a bad notification
-        console.error('Unable to send push notification', {
-          notification: payload?.data?.data,
-          error,
-        });
         log.error('Unable to send push notification:', {
           notification: payload?.data?.data,
           error,

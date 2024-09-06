@@ -208,11 +208,11 @@ export default class NotificationServicesPushController extends BaseController<
   }
 
   async subscribeToPushNotifications() {
-    // Subscribe to push notifications.
-    console.log('CORE - subscribeToPushNotifications.start', {
-      fcmToken: this.state.fcmToken,
-      fcmTokenLen: this.state.fcmToken?.length,
-    });
+    if (this.#pushListenerUnsubscribe) {
+      this.#pushListenerUnsubscribe();
+      this.#pushListenerUnsubscribe = undefined;
+    }
+
     try {
       this.#pushListenerUnsubscribe = await listenToPushNotifications({
         env: this.#env,
@@ -235,10 +235,8 @@ export default class NotificationServicesPushController extends BaseController<
         },
       });
     } catch (e) {
-      console.error('subscribeToPushNotifications', e);
       // Do nothing, we are silently failing if push notification registration fails
     }
-    console.log('CORE - subscribeToPushNotifications.end');
   }
 
   /**
@@ -252,13 +250,11 @@ export default class NotificationServicesPushController extends BaseController<
    * @param UUIDs - An array of UUIDs to enable push notifications for.
    */
   async enablePushNotifications(UUIDs: string[]) {
-    console.log('CORE - enablePushNotifications.start');
     if (!this.#config.isPushEnabled) {
       return;
     }
 
     // Handle creating new reg token (if available)
-    console.log('CORE - enablePushNotifications.createRegToken.start');
     try {
       const bearerToken = await this.#getAndAssertBearerToken().catch(
         () => null,
@@ -266,10 +262,6 @@ export default class NotificationServicesPushController extends BaseController<
 
       // If there is a bearer token, lets try to refresh/create new reg token
       if (bearerToken) {
-        console.log(
-          'CORE - enablePushNotifications.createRegToken.hasRegTokenSoCreate',
-        );
-
         // Activate Push Notifications
         const regToken = await activatePushNotifications({
           bearerToken,
@@ -288,9 +280,8 @@ export default class NotificationServicesPushController extends BaseController<
     } catch {
       // Do nothing, we are silently failing
     }
-    console.log('CORE - enablePushNotifications.createRegToken.end');
-    // created a new reg token, so removing old listener
-    // this.#pushListenerUnsubscribe?.();
+
+    // New token created, (re)subscribe to push notifications
     await this.subscribeToPushNotifications();
   }
 
