@@ -2392,7 +2392,7 @@ describe('AccountsController', () => {
   });
 
   describe('setAccountName', () => {
-    it('set the name of an existing account', () => {
+    it('sets the name of an existing account', () => {
       const { accountsController } = setupAccountsController({
         initialState: {
           internalAccounts: {
@@ -2421,12 +2421,33 @@ describe('AccountsController', () => {
           },
         },
       });
+
       accountsController.setAccountName(mockAccount.id, 'new name');
 
       expect(
         accountsController.getAccountExpect(mockAccount.id).metadata
           .nameLastUpdatedAt,
       ).toBe(expectedTimestamp);
+    });
+
+    it('publishes the accountRenamed event', () => {
+      const { accountsController, messenger } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      const messengerSpy = jest.spyOn(messenger, 'publish');
+
+      accountsController.setAccountName(mockAccount.id, 'new name');
+
+      expect(messengerSpy).toHaveBeenCalledWith(
+        'AccountsController:accountRenamed',
+        accountsController.getAccountExpect(mockAccount.id),
+      );
     });
 
     it('throw an error if the account name already exists', () => {
