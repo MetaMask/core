@@ -6,5 +6,4 @@ export type {
   PhishingDetectorOptions,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-export { PhishingDetectorResult } from './types';
 export { PhishingDetector } from './PhishingDetector';
