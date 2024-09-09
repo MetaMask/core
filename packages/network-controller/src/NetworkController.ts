@@ -447,6 +447,11 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
   handler: NetworkController['findNetworkClientIdByChainId'];
 };
 
+export type NetworkControllerGetDefaultNetworkClientIdForChainIdAction = {
+  type: `NetworkController:getDefaultNetworkClientIdForChainId`;
+  handler: NetworkController['getDefaultNetworkClientIdForChainId'];
+};
+
 /**
  * Change the currently selected network to the given built-in network type.
  *
@@ -480,6 +485,7 @@ export type NetworkControllerActions =
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetEIP1559CompatibilityAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetDefaultNetworkClientIdForChainIdAction
   | NetworkControllerSetActiveNetworkAction
   | NetworkControllerSetProviderTypeAction
   | NetworkControllerGetNetworkConfigurationByChainId
@@ -569,6 +575,14 @@ export function getNetworkConfigurations(
 }
 
 /**
+ *
+ * @param state
+ */
+export function getChainIds(state: NetworkState): Hex[] {
+  return Object.keys(state.networkConfigurationsByChainId) as Hex[];
+}
+
+/**
  * Get a list of all available client IDs from a list of
  * network configurations
  * @param networkConfigurations - The array of network configurations
@@ -587,6 +601,11 @@ export function getAvailableNetworkClientIds(
 export const selectAvailableNetworkClientIds = createSelector(
   [getNetworkConfigurations],
   getAvailableNetworkClientIds,
+);
+
+export const selectAvailableChainIds = createSelector(
+  [getChainIds],
+  (chainId) => chainId,
 );
 
 /**
@@ -1994,6 +2013,18 @@ export class NetworkController extends BaseController<
       throw new Error("Couldn't find networkClientId for chainId");
     }
     return networkClientEntry[0];
+  }
+
+  // Can the above method be rewritten to do the same thing?
+  getDefaultNetworkClientIdForChainId(chainId: Hex): NetworkClientId {
+    const networkConfiguration =
+      this.state.networkConfigurationsByChainId[chainId];
+    if (networkConfiguration === undefined) {
+      throw new Error("Couldn't find networkClientId for chainId");
+    }
+    const { defaultRpcEndpointIndex, rpcEndpoints } = networkConfiguration;
+
+    return rpcEndpoints[defaultRpcEndpointIndex].networkClientId;
   }
 
   /**

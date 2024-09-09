@@ -27,6 +27,7 @@ export type {
   NetworkControllerSetProviderTypeAction,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetDefaultNetworkClientIdForChainIdAction,
   NetworkControllerActions,
   NetworkControllerMessenger,
   NetworkControllerOptions,
@@ -34,6 +35,7 @@ export type {
 export {
   getDefaultNetworkControllerState,
   selectAvailableNetworkClientIds,
+  selectAvailableChainIds,
   knownKeysOf,
   NetworkController,
   RpcEndpointType,
