@@ -1281,16 +1281,10 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
   });
 
   it('saves an internal account to user storage when the AccountsController:accountRenamed event is fired', async () => {
-    const arrangeMocks = async () => {
-      return {
-        messengerMocks: mockUserStorageMessenger(),
-      };
-    };
-
-    const { messengerMocks } = await arrangeMocks();
+    const { baseMessenger, messenger } = mockUserStorageMessenger();
 
     const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      messenger,
       env: {
         isAccountSyncingEnabled: true,
       },
@@ -1301,7 +1295,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       .spyOn(controller, 'saveInternalAccountToUserStorage')
       .mockImplementation();
 
-    messengerMocks.baseMessenger.publish(
+    baseMessenger.publish(
       'AccountsController:accountRenamed',
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
@@ -1312,16 +1306,10 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
   });
 
   it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
-    const arrangeMocks = async () => {
-      return {
-        messengerMocks: mockUserStorageMessenger(),
-      };
-    };
-
-    const { messengerMocks } = await arrangeMocks();
+    const { baseMessenger, messenger } = mockUserStorageMessenger();
 
     const controller = new UserStorageController({
-      messenger: messengerMocks.messenger,
+      messenger,
       env: {
         isAccountSyncingEnabled: true,
       },
@@ -1332,7 +1320,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       .spyOn(controller, 'saveInternalAccountToUserStorage')
       .mockImplementation();
 
-    messengerMocks.baseMessenger.publish(
+    baseMessenger.publish(
       'AccountsController:accountAdded',
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
