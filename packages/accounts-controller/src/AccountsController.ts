@@ -420,7 +420,10 @@ export class AccountsController extends BaseController<
   setAccountName(accountId: string, accountName: string): void {
     // This will check for name uniqueness and fire the `accountRenamed` event
     // if the account has been renamed.
-    this.updateAccountMetadata(accountId, { name: accountName });
+    this.updateAccountMetadata(accountId, {
+      name: accountName,
+      nameLastUpdatedAt: Date.now(),
+    });
   }
 
   /**
@@ -636,6 +639,11 @@ export class AccountsController extends BaseController<
 
       const id = getUUIDFromAddressOfNormalAccount(address);
 
+      const nameLastUpdatedAt = this.#populateExistingMetadata(
+        id,
+        'nameLastUpdatedAt',
+      );
+
       internalAccounts.push({
         id,
         address,
@@ -651,6 +659,7 @@ export class AccountsController extends BaseController<
         type: EthAccountType.Eoa,
         metadata: {
           name: this.#populateExistingMetadata(id, 'name') ?? '',
+          ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
           importTime:
             this.#populateExistingMetadata(id, 'importTime') ?? Date.now(),
           lastSelected: this.#populateExistingMetadata(id, 'lastSelected') ?? 0,

@@ -71,6 +71,7 @@ const mockAccount: InternalAccount = {
     keyring: { type: KeyringTypes.hd },
     importTime: 1691565967600,
     lastSelected: 1691565967656,
+    nameLastUpdatedAt: 1691565967656,
   },
 };
 
@@ -164,6 +165,7 @@ class MockNormalAccountUUID {
  * @param props.type - Account Type to create
  * @param props.importTime - The import time of the account.
  * @param props.lastSelected - The last selected time of the account.
+ * @param props.nameLastUpdatedAt - The last updated time of the account name.
  * @returns The `InternalAccount` object created from the normal account properties.
  */
 function createExpectedInternalAccount({
@@ -176,6 +178,7 @@ function createExpectedInternalAccount({
   type = EthAccountType.Eoa,
   importTime,
   lastSelected,
+  nameLastUpdatedAt,
 }: {
   id: string;
   name: string;
@@ -186,6 +189,7 @@ function createExpectedInternalAccount({
   type?: InternalAccountType;
   importTime?: number;
   lastSelected?: number;
+  nameLastUpdatedAt?: number;
 }): InternalAccount {
   const accountTypeToMethods = {
     [`${EthAccountType.Eoa}`]: [...Object.values(ETH_EOA_METHODS)],
@@ -211,6 +215,7 @@ function createExpectedInternalAccount({
       keyring: { type: keyringType },
       importTime: importTime || expect.any(Number),
       lastSelected: lastSelected || expect.any(Number),
+      ...(nameLastUpdatedAt && { nameLastUpdatedAt }),
     },
   } as InternalAccount;
 
@@ -2401,6 +2406,28 @@ describe('AccountsController', () => {
       expect(
         accountsController.getAccountExpect(mockAccount.id).metadata.name,
       ).toBe('new name');
+    });
+
+    it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
+      const expectedTimestamp = Number(new Date('2024-01-02'));
+
+      jest.spyOn(Date, 'now').mockImplementationOnce(() => expectedTimestamp);
+
+      const { accountsController } = setupAccountsController({
+        initialState: {
+          internalAccounts: {
+            accounts: { [mockAccount.id]: mockAccount },
+            selectedAccount: mockAccount.id,
+          },
+        },
+      });
+
+      accountsController.setAccountName(mockAccount.id, 'new name');
+
+      expect(
+        accountsController.getAccountExpect(mockAccount.id).metadata
+          .nameLastUpdatedAt,
+      ).toBe(expectedTimestamp);
     });
 
     it('publishes the accountRenamed event', () => {
