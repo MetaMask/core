@@ -5,6 +5,6 @@ export type {
   FuzzyTolerance,
   PhishingDetectorOptions,
   PhishingDetectorConfiguration,
-  PhishingDetectorResult,
 } from './PhishingDetector';
+export { PhishingDetectorResult } from './types';
 export { PhishingDetector } from './PhishingDetector';
