@@ -109,7 +109,7 @@ describe('TypedMessageManager', () => {
       data: messageData,
       from: fromMock,
     };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = { id: 111, origin: 'origin' };
 
     await expect(
       controller.addUnapprovedMessage(messageParams, originalRequest, version),
@@ -126,6 +126,7 @@ describe('TypedMessageManager', () => {
       from: fromMock,
     };
     const originalRequest = {
+      id: 111,
       origin: 'origin',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -143,6 +144,8 @@ describe('TypedMessageManager', () => {
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.messageParams.origin).toBe(originalRequest.origin);
+    expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
@@ -160,7 +163,7 @@ describe('TypedMessageManager', () => {
       data: messageData,
       from: fromMock,
     };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = { id: 111, origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
@@ -173,6 +176,7 @@ describe('TypedMessageManager', () => {
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
@@ -188,7 +192,7 @@ describe('TypedMessageManager', () => {
       data: messageData,
       from: fromMock,
     };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = { id: 111, origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
@@ -201,6 +205,7 @@ describe('TypedMessageManager', () => {
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);

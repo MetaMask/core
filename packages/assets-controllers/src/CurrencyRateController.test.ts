@@ -478,4 +478,35 @@ describe('CurrencyRateController', () => {
 
     controller.destroy();
   });
+
+  it('should not update state on unexpected / transient errors', async () => {
+    const cryptoCompareHost = 'https://min-api.cryptocompare.com';
+    nock(cryptoCompareHost)
+      .get('/data/price?fsym=ETH&tsyms=XYZ')
+      .reply(500) // HTTP 500 transient error
+      .persist();
+
+    const state = {
+      currentCurrency: 'xyz',
+      currencyRates: {
+        ETH: {
+          conversionDate: 123,
+          conversionRate: 123,
+          usdConversionRate: 123,
+        },
+      },
+    };
+    const messenger = getRestrictedMessenger();
+    const controller = new CurrencyRateController({ messenger, state });
+
+    // Error should still be thrown
+    await expect(controller.updateExchangeRate('ETH')).rejects.toThrow(
+      `Fetch failed with status '500' for request 'https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=XYZ'`,
+    );
+
+    // But state should not be changed
+    expect(controller.state).toStrictEqual(state);
+
+    controller.destroy();
+  });
 });

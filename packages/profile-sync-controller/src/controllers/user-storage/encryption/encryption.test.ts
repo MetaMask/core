@@ -5,20 +5,23 @@ describe('encryption tests', () => {
   const DATA1 = 'Hello World';
   const DATA2 = JSON.stringify({ foo: 'bar' });
 
-  it('should encrypt and decrypt data', () => {
-    const actEncryptDecrypt = (data: string) => {
-      const encryptedString = encryption.encryptString(data, PASSWORD);
-      const decryptString = encryption.decryptString(encryptedString, PASSWORD);
+  it('should encrypt and decrypt data', async () => {
+    const actEncryptDecrypt = async (data: string) => {
+      const encryptedString = await encryption.encryptString(data, PASSWORD);
+      const decryptString = await encryption.decryptString(
+        encryptedString,
+        PASSWORD,
+      );
       return decryptString;
     };
 
-    expect(actEncryptDecrypt(DATA1)).toBe(DATA1);
-    expect(actEncryptDecrypt(DATA2)).toBe(DATA2);
+    expect(await actEncryptDecrypt(DATA1)).toBe(DATA1);
+    expect(await actEncryptDecrypt(DATA2)).toBe(DATA2);
   });
 
-  it('should decrypt some existing data', () => {
+  it('should decrypt some existing data', async () => {
     const encryptedData = `{"v":"1","t":"scrypt","d":"WNEp1QXUZsxCfW9b27uzZ18CtsMvKP6+cqLq8NLAItXeYcFcUjtKprfvedHxf5JN9Q7pe50qnA==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}`;
-    const result = encryption.decryptString(encryptedData, PASSWORD);
+    const result = await encryption.decryptString(encryptedData, PASSWORD);
     expect(result).toBe(DATA1);
   });
 

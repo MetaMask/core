@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.0.0]
+
+### Added
+
+- Export `MarketDataDetails` type ([#4622](https://github.com/MetaMask/core/pull/4622))
+
+### Changed
+
+- **BREAKING:** Narrow `TokensController` constructor option `provider` by removing `undefined` from its type signature ([#4567](https://github.com/MetaMask/core/pull/4567))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/polling-controller` from `^9.0.1` to `^10.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- Fix `RatesController` `setCryptocurrencyList` method, which was not using the correct field when updating internal state ([#4572](https://github.com/MetaMask/core/pull/4572))
+- Fetch correct price for the $OMNI native currency ([#4570](https://github.com/MetaMask/core/pull/4570))
+- Add public `name` property to `AssetsContractController` ([#4564](https://github.com/MetaMask/core/pull/4564))
+
 ## [37.0.0]
 
 ### Added
@@ -1074,7 +1096,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...HEAD
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@35.0.0...@metamask/assets-controllers@36.0.0
 [35.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...@metamask/assets-controllers@35.0.0

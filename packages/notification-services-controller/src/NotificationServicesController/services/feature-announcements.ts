@@ -8,7 +8,12 @@ import type {
   ImageFields,
   TypeFeatureAnnouncement,
 } from '../types/feature-announcement/type-feature-announcement';
-import type { TypeExtensionLinkFields } from '../types/feature-announcement/type-links';
+import type {
+  TypeExternalLinkFields,
+  TypePortfolioLinkFields,
+  TypeExtensionLinkFields,
+  TypeMobileLinkFields,
+} from '../types/feature-announcement/type-links';
 import type { INotification } from '../types/notification/notification';
 
 const DEFAULT_SPACE_ID = ':space_id';
@@ -55,8 +60,13 @@ const fetchFeatureAnnouncementNotifications = async (
   }
 
   const findIncludedItem = (sysId: string) => {
-    const typedData: EntryCollection<ImageFields | TypeExtensionLinkFields> =
-      data;
+    const typedData: EntryCollection<
+      | ImageFields
+      | TypeExtensionLinkFields
+      | TypePortfolioLinkFields
+      | TypeMobileLinkFields
+      | TypeExternalLinkFields
+    > = data;
     const item =
       typedData?.includes?.Entry?.find((i: Entry) => i?.sys?.id === sysId) ||
       typedData?.includes?.Asset?.find((i: Asset) => i?.sys?.id === sysId);
@@ -71,10 +81,25 @@ const fetchFeatureAnnouncementNotifications = async (
         ? (findIncludedItem(fields.image.sys.id) as ImageFields['fields'])
         : undefined;
 
+      const externalLinkFields = fields.externalLink
+        ? (findIncludedItem(
+            fields.externalLink.sys.id,
+          ) as TypeExternalLinkFields['fields'])
+        : undefined;
+      const portfolioLinkFields = fields.portfolioLink
+        ? (findIncludedItem(
+            fields.portfolioLink.sys.id,
+          ) as TypePortfolioLinkFields['fields'])
+        : undefined;
       const extensionLinkFields = fields.extensionLink
         ? (findIncludedItem(
             fields.extensionLink.sys.id,
           ) as TypeExtensionLinkFields['fields'])
+        : undefined;
+      const mobileLinkFields = fields.mobileLink
+        ? (findIncludedItem(
+            fields.mobileLink.sys.id,
+          ) as TypeMobileLinkFields['fields'])
         : undefined;
 
       const notification: FeatureAnnouncementRawNotification = {
@@ -91,9 +116,21 @@ const fetchFeatureAnnouncementNotifications = async (
             description: imageFields?.description,
             url: imageFields?.file?.url ?? '',
           },
+          externalLink: externalLinkFields && {
+            externalLinkText: externalLinkFields?.externalLinkText,
+            externalLinkUrl: externalLinkFields?.externalLinkUrl,
+          },
+          portfolioLink: portfolioLinkFields && {
+            portfolioLinkText: portfolioLinkFields?.portfolioLinkText,
+            portfolioLinkUrl: portfolioLinkFields?.portfolioLinkUrl,
+          },
           extensionLink: extensionLinkFields && {
             extensionLinkText: extensionLinkFields?.extensionLinkText,
             extensionLinkRoute: extensionLinkFields?.extensionLinkRoute,
+          },
+          mobileLink: mobileLinkFields && {
+            mobileLinkText: mobileLinkFields?.mobileLinkText,
+            mobileLinkUrl: mobileLinkFields?.mobileLinkUrl,
           },
         },
       };

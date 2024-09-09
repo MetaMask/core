@@ -13,7 +13,7 @@ import type {
   NetworkClientId,
   NetworkState,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import assert from 'assert';
@@ -47,8 +47,6 @@ const defaultSelectedAccount = createMockInternalAccount({
   address: defaultSelectedAddress,
 });
 const mockTokenAddress = '0x0000000000000000000000000000000000000010';
-
-const defaultSelectedNetworkClientId = 'AAAA-BBBB-CCCC-DDDD';
 
 type MainControllerMessenger = ControllerMessenger<
   AllowedActions | AddApprovalRequest,
@@ -638,8 +636,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
@@ -666,8 +664,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
@@ -720,8 +718,8 @@ describe('TokenRatesController', () => {
             await controller.start();
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -774,8 +772,8 @@ describe('TokenRatesController', () => {
             await controller.start();
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -802,8 +800,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -831,8 +829,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -858,8 +856,8 @@ describe('TokenRatesController', () => {
               .spyOn(controller, 'updateExchangeRates')
               .mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
@@ -911,8 +909,8 @@ describe('TokenRatesController', () => {
           async ({ controller, triggerNetworkStateChange }) => {
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -964,8 +962,8 @@ describe('TokenRatesController', () => {
           async ({ controller, triggerNetworkStateChange }) => {
             jest.spyOn(controller, 'updateExchangeRates').mockResolvedValue();
             triggerNetworkStateChange({
-              ...defaultNetworkState,
-              selectedNetworkClientId: defaultSelectedNetworkClientId,
+              ...getDefaultNetworkControllerState(),
+              selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
             expect(controller.state.marketData).toStrictEqual({});
@@ -1328,10 +1326,11 @@ describe('TokenRatesController', () => {
         });
 
         describe('when the native currency is not supported', () => {
+          const fallbackRate = 0.5;
           it('returns the exchange rates using ETH as a fallback currency', async () => {
             nock('https://min-api.cryptocompare.com')
               .get('/data/price?fsym=ETH&tsyms=LOL')
-              .reply(200, { LOL: 0.5 });
+              .reply(200, { LOL: fallbackRate });
             const tokenPricesService = buildMockTokenPricesService({
               fetchTokenPrices: fetchTokenPricesWithIncreasingPriceForEachToken,
               validateCurrencySupported(currency: unknown): currency is string {
@@ -1383,47 +1382,47 @@ describe('TokenRatesController', () => {
                     // token price in LOL = (token price in ETH) * (ETH value in LOL)
                     '0x02': {
                       tokenAddress: '0x02',
-                      currency: 'ETH',
+                      currency: 'LOL',
                       pricePercentChange1d: 0,
                       priceChange1d: 0,
-                      allTimeHigh: 4000,
-                      allTimeLow: 900,
+                      allTimeHigh: 4000 * fallbackRate,
+                      allTimeLow: 900 * fallbackRate,
                       circulatingSupply: 2000,
-                      dilutedMarketCap: 100,
-                      high1d: 200,
-                      low1d: 100,
-                      marketCap: 1000,
+                      dilutedMarketCap: 100 * fallbackRate,
+                      high1d: 200 * fallbackRate,
+                      low1d: 100 * fallbackRate,
+                      marketCap: 1000 * fallbackRate,
                       marketCapPercentChange1d: 100,
-                      price: 0.0005,
+                      price: (1 / 1000) * fallbackRate,
                       pricePercentChange14d: 100,
                       pricePercentChange1h: 1,
                       pricePercentChange1y: 200,
                       pricePercentChange200d: 300,
                       pricePercentChange30d: 200,
                       pricePercentChange7d: 100,
-                      totalVolume: 100,
+                      totalVolume: 100 * fallbackRate,
                     },
                     '0x03': {
                       tokenAddress: '0x03',
-                      currency: 'ETH',
+                      currency: 'LOL',
                       pricePercentChange1d: 0,
                       priceChange1d: 0,
-                      allTimeHigh: 4000,
-                      allTimeLow: 900,
+                      allTimeHigh: 4000 * fallbackRate,
+                      allTimeLow: 900 * fallbackRate,
                       circulatingSupply: 2000,
-                      dilutedMarketCap: 100,
-                      high1d: 200,
-                      low1d: 100,
-                      marketCap: 1000,
+                      dilutedMarketCap: 100 * fallbackRate,
+                      high1d: 200 * fallbackRate,
+                      low1d: 100 * fallbackRate,
+                      marketCap: 1000 * fallbackRate,
                       marketCapPercentChange1d: 100,
-                      price: 0.001,
+                      price: (2 / 1000) * fallbackRate,
                       pricePercentChange14d: 100,
                       pricePercentChange1h: 1,
                       pricePercentChange1y: 200,
                       pricePercentChange200d: 300,
                       pricePercentChange30d: 200,
                       pricePercentChange7d: 100,
-                      totalVolume: 100,
+                      totalVolume: 100 * fallbackRate,
                     },
                   },
                 });
@@ -1983,14 +1982,28 @@ describe('TokenRatesController', () => {
             "marketData": Object {
               "0x89": Object {
                 "0x0000000000000000000000000000000000000001": Object {
-                  "currency": "ETH",
+                  "allTimeHigh": undefined,
+                  "allTimeLow": undefined,
+                  "currency": "UNSUPPORTED",
+                  "dilutedMarketCap": undefined,
+                  "high1d": undefined,
+                  "low1d": undefined,
+                  "marketCap": undefined,
                   "price": 0.0005,
                   "tokenAddress": "0x0000000000000000000000000000000000000001",
+                  "totalVolume": undefined,
                 },
                 "0x0000000000000000000000000000000000000002": Object {
-                  "currency": "ETH",
+                  "allTimeHigh": undefined,
+                  "allTimeLow": undefined,
+                  "currency": "UNSUPPORTED",
+                  "dilutedMarketCap": undefined,
+                  "high1d": undefined,
+                  "low1d": undefined,
+                  "marketCap": undefined,
                   "price": 0.001,
                   "tokenAddress": "0x0000000000000000000000000000000000000002",
+                  "totalVolume": undefined,
                 },
               },
             },
@@ -2327,7 +2340,7 @@ async function withController<ReturnValue>(
   controllerMessenger.registerActionHandler(
     'NetworkController:getState',
     networkStateMock.mockReturnValue({
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       ...mockNetworkState,
     }),
   );
@@ -2445,7 +2458,7 @@ async function callUpdateExchangeRatesMethod({
     // As with many BaseControllerV1-based controllers, runtime config
     // modification is allowed by the API but not supported in practice.
     triggerNetworkStateChange({
-      ...defaultNetworkState,
+      ...getDefaultNetworkControllerState(),
       selectedNetworkClientId,
     });
   }
