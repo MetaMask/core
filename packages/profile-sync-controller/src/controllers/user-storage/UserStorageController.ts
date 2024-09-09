@@ -2,6 +2,8 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -181,7 +183,9 @@ export type AllowedEvents =
   | UserStorageControllerAccountSyncingInProgress
   | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRenamedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -243,6 +247,23 @@ export default class UserStorageController extends BaseController<
       return (
         Date.now() - this.#accounts.lastSyncedAt >
         this.#accounts.maxSyncInterval
+      );
+    },
+    setupAccountSyncingSubscriptions: () => {
+      this.messagingSystem.subscribe(
+        'AccountsController:accountAdded',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          await this.saveInternalAccountToUserStorage(account.address);
+        },
+      );
+
+      this.messagingSystem.subscribe(
+        'AccountsController:accountRenamed',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          await this.saveInternalAccountToUserStorage(account.address);
+        },
       );
     },
     getInternalAccountByAddress: async (address: string) => {
@@ -328,15 +349,9 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe(
-        'KeyringController:unlock',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async () => {
-          this.#isUnlocked = true;
-
-          await this.syncInternalAccountsWithUserStorage();
-        },
-      );
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
@@ -381,6 +396,7 @@ export default class UserStorageController extends BaseController<
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
+    this.#accounts.setupAccountSyncingSubscriptions();
   }
 
   /**
@@ -812,6 +828,8 @@ export default class UserStorageController extends BaseController<
     }
 
     try {
+      this.#assertProfileSyncingEnabled();
+
       await this.#accounts.saveInternalAccountToUserStorage(address);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
