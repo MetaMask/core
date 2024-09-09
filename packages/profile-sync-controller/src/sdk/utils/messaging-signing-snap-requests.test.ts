@@ -8,6 +8,7 @@ import {
   connectSnap,
   getSnap,
   getSnaps,
+  isSnapConnected,
 } from './messaging-signing-snap-requests';
 
 /**
@@ -30,6 +31,38 @@ describe('getSnaps() tests', () => {
     await getSnaps(mockProvider);
 
     expect(mockRequest).toHaveBeenCalled();
+  });
+});
+
+describe('isSnapConnected() tests', () => {
+  it('return true if snap is connected', async () => {
+    const { mockProvider, mockRequest } = arrangeMockProvider();
+    const mockSnap: Snap = { id: SNAP_ORIGIN } as MockVariable;
+    mockRequest.mockResolvedValue({ [SNAP_ORIGIN]: mockSnap });
+
+    const isConnected = await isSnapConnected(mockProvider);
+    expect(mockRequest).toHaveBeenCalled();
+    expect(isConnected).toBe(true);
+  });
+
+  it('return false if snap is NOT connected', async () => {
+    const { mockProvider, mockRequest } = arrangeMockProvider();
+
+    const mockSnap: Snap = { id: 'A differentSnap' } as MockVariable;
+    mockRequest.mockResolvedValue({ diffSnap: mockSnap });
+
+    const isConnected = await isSnapConnected(mockProvider);
+    expect(mockRequest).toHaveBeenCalled();
+    expect(isConnected).toBe(false);
+  });
+
+  it('return false if an error is thrown when making provider request', async () => {
+    const { mockProvider, mockRequest } = arrangeMockProvider();
+    mockRequest.mockRejectedValue(new Error('MOCK ERROR'));
+
+    const isConnected = await isSnapConnected(mockProvider);
+    expect(mockRequest).toHaveBeenCalled();
+    expect(isConnected).toBe(false);
   });
 });
 
