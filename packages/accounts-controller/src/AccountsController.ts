@@ -419,7 +419,7 @@ export class AccountsController extends BaseController<
    */
   setAccountName(accountId: string, accountName: string): void {
     // This will check for name uniqueness and fire the `accountRenamed` event
-    // if the account has been renamed
+    // if the account has been renamed.
     this.updateAccountMetadata(accountId, { name: accountName });
   }
 
