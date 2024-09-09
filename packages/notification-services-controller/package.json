@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.2.1",
+  "version": "0.4.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -22,12 +22,39 @@
       "require": "./dist/index.js",
       "types": "./dist/types/index.d.ts"
     },
+    "./notification-services": {
+      "import": "./dist/NotificationServicesController/index.mjs",
+      "require": "./dist/NotificationServicesController/index.js",
+      "types": "./dist/types/NotificationServicesController/index.d.ts"
+    },
+    "./notification-services/ui": {
+      "import": "./dist/NotificationServicesController/ui/index.mjs",
+      "require": "./dist/NotificationServicesController/ui/index.js",
+      "types": "./dist/types/NotificationServicesController/ui/index.d.ts"
+    },
+    "./notification-services/mocks": {
+      "import": "./dist/NotificationServicesController/__fixtures__/index.mjs",
+      "require": "./dist/NotificationServicesController/__fixtures__/index.js",
+      "types": "./dist/types/NotificationServicesController/__fixtures__/index.d.ts"
+    },
+    "./push-services": {
+      "import": "./dist/NotificationServicesPushController/index.mjs",
+      "require": "./dist/NotificationServicesPushController/index.js",
+      "types": "./dist/types/NotificationServicesPushController/index.d.ts"
+    },
+    "./push-services/mocks": {
+      "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",
+      "require": "./dist/NotificationServicesPushController/__fixtures__/index.js",
+      "types": "./dist/types/NotificationServicesPushController/__fixtures__/index.d.ts"
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.js",
   "types": "./dist/types/index.d.ts",
   "files": [
-    "dist/"
+    "dist/",
+    "notification-services/",
+    "push-services/"
   ],
   "scripts": {
     "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
@@ -44,7 +71,7 @@
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
     "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.1.0",
+    "@metamask/controller-utils": "^11.2.0",
     "bignumber.js": "^4.1.0",
     "contentful": "^10.15.0",
     "firebase": "^10.11.0",
@@ -55,7 +82,7 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/profile-sync-controller": "^0.2.1",
+    "@metamask/profile-sync-controller": "^0.4.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "deepmerge": "^4.2.2",
@@ -69,7 +96,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^0.2.1"
+    "@metamask/profile-sync-controller": "^0.4.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

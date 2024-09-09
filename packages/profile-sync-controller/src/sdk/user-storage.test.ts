@@ -4,6 +4,7 @@ import {
   MOCK_STORAGE_KEY,
   handleMockUserStorageGet,
   handleMockUserStoragePut,
+  handleMockUserStorageGetAllFeatureEntries,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -30,7 +31,7 @@ describe('User Storage', () => {
     const { userStorage } = arrangeUserStorage(auth);
 
     const mockPut = handleMockUserStoragePut();
-    const mockGet = handleMockUserStorageGet();
+    const mockGet = await handleMockUserStorageGet();
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
@@ -58,7 +59,7 @@ describe('User Storage', () => {
     const { userStorage } = arrangeUserStorage(auth);
 
     const mockPut = handleMockUserStoragePut();
-    const mockGet = handleMockUserStorageGet();
+    const mockGet = await handleMockUserStorageGet();
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
@@ -72,6 +73,20 @@ describe('User Storage', () => {
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
+  });
+
+  it('gets all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockGetAll = await handleMockUserStorageGetAllFeatureEntries();
+
+    const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
+    const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
+      'notifications',
+    );
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(responseAllFeatureEntries).toStrictEqual([data]);
   });
 
   it('user storage: failed to set key', async () => {
@@ -96,7 +111,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    handleMockUserStorageGet({
+    await handleMockUserStorageGet({
       status: 401,
       body: {
         message: 'failed to get storage entry',
@@ -113,7 +128,7 @@ describe('User Storage', () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
-    handleMockUserStorageGet({
+    await handleMockUserStorageGet({
       status: 404,
       body: {
         message: 'key not found',

@@ -14,26 +14,49 @@ const MOCK_STORAGE_URL = STORAGE_URL(
   Env.DEV,
   'notifications/notificationSettings',
 );
+const MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES = STORAGE_URL(
+  Env.DEV,
+  'notifications',
+);
 
 export const MOCK_STORAGE_KEY = 'MOCK_STORAGE_KEY';
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export const MOCK_NOTIFICATIONS_DATA = { is_compact: false };
-export const MOCK_NOTIFICATIONS_DATA_ENCRYPTED = encryption.encryptString(
-  JSON.stringify(MOCK_NOTIFICATIONS_DATA),
-  MOCK_STORAGE_KEY,
-);
+export const MOCK_NOTIFICATIONS_DATA_ENCRYPTED = async () =>
+  await encryption.encryptString(
+    JSON.stringify(MOCK_NOTIFICATIONS_DATA),
+    MOCK_STORAGE_KEY,
+  );
 
-export const MOCK_STORAGE_RESPONSE = {
+export const MOCK_STORAGE_RESPONSE = async () => ({
   HashedKey: '8485d2c14c333ebca415140a276adaf546619b0efc204586b73a5d400a18a5e2',
-  Data: MOCK_NOTIFICATIONS_DATA_ENCRYPTED,
-};
+  Data: await MOCK_NOTIFICATIONS_DATA_ENCRYPTED(),
+});
 
-export const handleMockUserStorageGet = (mockReply?: MockReply) => {
-  const reply = mockReply ?? { status: 200, body: MOCK_STORAGE_RESPONSE };
+export const handleMockUserStorageGet = async (mockReply?: MockReply) => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: await MOCK_STORAGE_RESPONSE(),
+  };
   const mockEndpoint = nock(MOCK_STORAGE_URL)
     .persist()
     .get(/.*/u)
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const handleMockUserStorageGetAllFeatureEntries = async (
+  mockReply?: MockReply,
+) => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: [await MOCK_STORAGE_RESPONSE()],
+  };
+  const mockEndpoint = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    .persist()
+    .get('')
     .reply(reply.status, reply.body);
 
   return mockEndpoint;

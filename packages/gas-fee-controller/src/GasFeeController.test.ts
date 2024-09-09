@@ -16,6 +16,10 @@ import type {
 import type { Hex } from '@metamask/utils';
 import * as sinon from 'sinon';
 
+import {
+  buildCustomNetworkConfiguration,
+  buildCustomRpcEndpoint,
+} from '../../network-controller/tests/helpers';
 import determineGasFeeCalculations from './determineGasFeeCalculations';
 import {
   fetchGasEstimates,
@@ -76,7 +80,6 @@ const setupNetworkController = async ({
     messenger: restrictedMessenger,
     state,
     infuraProjectId: '123',
-    trackMetaMetricsEvent: jest.fn(),
   });
 
   if (initializeProvider) {
@@ -338,13 +341,15 @@ describe('GasFeeController', () => {
             legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
             EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
             networkControllerState: {
-              networkConfigurations: {
-                'AAAA-BBBB-CCCC-DDDD': {
-                  id: 'AAAA-BBBB-CCCC-DDDD',
+              networkConfigurationsByChainId: {
+                [toHex(1337)]: buildCustomNetworkConfiguration({
                   chainId: toHex(1337),
-                  rpcUrl: 'http://some/url',
-                  ticker: 'TEST',
-                },
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                    }),
+                  ],
+                }),
               },
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             },
@@ -404,13 +409,15 @@ describe('GasFeeController', () => {
             legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
             EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
             networkControllerState: {
-              networkConfigurations: {
-                'AAAA-BBBB-CCCC-DDDD': {
-                  id: 'AAAA-BBBB-CCCC-DDDD',
+              networkConfigurationsByChainId: {
+                [toHex(1337)]: buildCustomNetworkConfiguration({
                   chainId: toHex(1337),
-                  rpcUrl: 'http://some/url',
-                  ticker: 'TEST',
-                },
+                  rpcEndpoints: [
+                    buildCustomRpcEndpoint({
+                      networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                    }),
+                  ],
+                }),
               },
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             },
@@ -759,13 +766,15 @@ describe('GasFeeController', () => {
           legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
           EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
           networkControllerState: {
-            networkConfigurations: {
-              'AAAA-BBBB-CCCC-DDDD': {
-                id: 'AAAA-BBBB-CCCC-DDDD',
+            networkConfigurationsByChainId: {
+              [toHex(1337)]: buildCustomNetworkConfiguration({
                 chainId: toHex(1337),
-                rpcUrl: 'http://some/url',
-                ticker: 'TEST',
-              },
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                  }),
+                ],
+              }),
             },
             selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
           },
@@ -917,13 +926,15 @@ describe('GasFeeController', () => {
           legacyAPIEndpoint: 'https://some-legacy-endpoint/<chain_id>',
           EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
           networkControllerState: {
-            networkConfigurations: {
-              'AAAA-BBBB-CCCC-DDDD': {
-                id: 'AAAA-BBBB-CCCC-DDDD',
+            networkConfigurationsByChainId: {
+              [toHex(1337)]: buildCustomNetworkConfiguration({
                 chainId: toHex(1337),
-                rpcUrl: 'http://some/url',
-                ticker: 'TEST',
-              },
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-BBBB-CCCC-DDDD',
+                  }),
+                ],
+              }),
             },
             selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
           },
