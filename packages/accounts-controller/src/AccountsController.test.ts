@@ -2411,7 +2411,7 @@ describe('AccountsController', () => {
     it('sets the nameLastUpdatedAt timestamp when setting the name of an existing account', () => {
       const expectedTimestamp = Number(new Date('2024-01-02'));
 
-      jest.spyOn(Date, 'now').mockImplementation(() => expectedTimestamp);
+      jest.spyOn(Date, 'now').mockImplementationOnce(() => expectedTimestamp);
 
       const { accountsController } = setupAccountsController({
         initialState: {
@@ -2427,8 +2427,6 @@ describe('AccountsController', () => {
         accountsController.getAccountExpect(mockAccount.id).metadata
           .nameLastUpdatedAt,
       ).toBe(expectedTimestamp);
-
-      jest.spyOn(Date, 'now').mockRestore();
     });
 
     it('throw an error if the account name already exists', () => {
