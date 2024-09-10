@@ -184,6 +184,7 @@ export class SelectedNetworkController extends BaseController<
       },
     );
 
+    // TODO also monitor the defaultRpcEndpoint for a chainId changing
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
       (availableChainIds) => {
@@ -361,6 +362,7 @@ export class SelectedNetworkController extends BaseController<
         this.#domainHasPermissions(domain)
       ) {
         const chainId = this.getChainIdForDomain(domain);
+        // fix this
         networkClient = this.messagingSystem.call(
           'NetworkController:getNetworkClientById',
           chainId,
