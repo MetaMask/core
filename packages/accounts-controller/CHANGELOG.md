@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.2.0]
 
-### Uncategorized
+### Added
 
-- chore: export `AccountsControllerAccountRenamedEvent` type ([#4664](https://github.com/MetaMask/core/pull/4664))
-- feat(NOTIFY-1016): add `nameLastUpdatedAt` timestamp when setting account name ([#4589](https://github.com/MetaMask/core/pull/4589))
-- refactor: move logic from `setAccountName` to `updateAccountMetadata` ([#4663](https://github.com/MetaMask/core/pull/4663))
-- feat: add `accountRenamed` event to `AccountsController` ([#4660](https://github.com/MetaMask/core/pull/4660))
+- Export `AccountsControllerAccountRenamedEvent` type ([#4664](https://github.com/MetaMask/core/pull/4664))
+- Set `nameLastUpdatedAt` metadata when updating account name ([#4589](https://github.com/MetaMask/core/pull/4589))
+- Move logic from `setAccountName` to `updateAccountMetadata` ([#4663](https://github.com/MetaMask/core/pull/4663))
+- Add new event `accountRenamed` ([#4660](https://github.com/MetaMask/core/pull/4660))
 
 ## [18.1.1]
 
