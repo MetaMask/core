@@ -31,7 +31,7 @@ export type Notification = {
   message: string;
 };
 
-export type NotificationArgs = {
+export type NotificationOptions = {
   message: string;
   title?: string;
   detailedView?: string;
@@ -124,7 +124,7 @@ export class NotificationController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:show` as const,
-      (origin: string, args: NotificationArgs) => this.show(origin, args),
+      (origin: string, args: NotificationOptions) => this.show(origin, args),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -154,7 +154,7 @@ export class NotificationController extends BaseController<
    * @param args.footerLink.href - Footer href
    * @param args.footerLink.text - Link text
    */
-  show(origin: string, args: NotificationArgs) {
+  show(origin: string, args: NotificationOptions) {
     const id = nanoid();
     const { message, ...expandedView } = args;
     const notification = {
