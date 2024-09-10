@@ -73,7 +73,6 @@
     "@metamask/base-controller": "^7.0.0",
     "@metamask/controller-utils": "^11.2.0",
     "bignumber.js": "^4.1.0",
-    "contentful": "^10.15.0",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
     "uuid": "^8.3.2"
@@ -85,6 +84,7 @@
     "@metamask/profile-sync-controller": "^0.4.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
+    "contentful": "^10.15.0",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
