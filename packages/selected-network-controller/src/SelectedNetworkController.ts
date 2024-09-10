@@ -10,7 +10,6 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { selectAvailableChainIds } from '@metamask/network-controller';
 import type {
   PermissionControllerStateChange,
   GetSubjects as PermissionControllerGetSubjectsAction,
@@ -155,7 +154,7 @@ export class SelectedNetworkController extends BaseController<
     this.#domainProxyMap = domainProxyMap;
     this.#registerMessageHandlers();
 
-    const selectedChainId = this.#getSelectedChainId();
+    let selectedChainId = this.#getSelectedChainId();
     // this is fetching all the dapp permissions from the PermissionsController and looking for any domains that are not in domains state in this controller. Then we take any missing domains and add them to state here, setting it with the globally selected chainId (fetched from the NetworkController)
     this.messagingSystem
       .call('PermissionController:getSubjectNames')
@@ -165,7 +164,7 @@ export class SelectedNetworkController extends BaseController<
     this.messagingSystem.subscribe(
       'PermissionController:stateChange',
       (_, patches) => {
-        const selectedChainId = this.#getSelectedChainId();
+        selectedChainId = this.#getSelectedChainId();
         patches.forEach(({ op, path }) => {
           const isChangingSubject =
             path[0] === 'subjects' && path[1] !== undefined;
@@ -184,22 +183,36 @@ export class SelectedNetworkController extends BaseController<
       },
     );
 
-    // TODO also monitor the defaultRpcEndpoint for a chainId changing
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      (availableChainIds) => {
-        // if a network is updated or removed, update the chainId for all domains
-        // that were using it to the selected network client id
-        const selectedChainId = this.#getSelectedChainId();
-        Object.entries(this.state.domains).forEach(
-          ([domain, chainIdForDomain]) => {
-            if (!availableChainIds.includes(chainIdForDomain)) {
-              this.setChainIdForDomain(domain, selectedChainId);
-            }
-          },
+      ({ networkConfigurationsByChainId }, patches) => {
+        const patch = patches.find(
+          ({ op, path }) =>
+            (op === 'replace' || op === 'remove') &&
+            path[0] === 'networkConfigurationsByChainId',
         );
+
+        if (patch) {
+          selectedChainId = this.#getSelectedChainId();
+          Object.entries(this.state.domains).forEach(
+            ([domain, chainIdForDomain]) => {
+              if (
+                patch.op === 'remove' &&
+                !networkConfigurationsByChainId[chainIdForDomain]
+              ) {
+                // If the network was removed, fall back to the globally selected network
+                this.setChainIdForDomain(domain, selectedChainId);
+              } else if (
+                patch.op === 'replace' &&
+                chainIdForDomain === patch.path[1]
+              ) {
+                // If the network was updated, redirect to the network's default endpoint
+                this.setChainIdForDomain(domain, chainIdForDomain);
+              }
+            },
+          );
+        }
       },
-      selectAvailableChainIds,
     );
 
     onPreferencesStateChange(({ useRequestQueue }) => {
@@ -242,9 +255,13 @@ export class SelectedNetworkController extends BaseController<
   }
 
   #setChainIdForDomain(domain: Domain, chainId: Hex) {
+    const networkClientId = this.messagingSystem.call(
+      'NetworkController:getDefaultNetworkClientIdForChainId',
+      chainId,
+    );
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
-      chainId,
+      networkClientId,
     );
     const networkProxy = this.getProviderAndBlockTracker(domain);
     networkProxy.provider.setTarget(networkClient.provider);
@@ -362,10 +379,13 @@ export class SelectedNetworkController extends BaseController<
         this.#domainHasPermissions(domain)
       ) {
         const chainId = this.getChainIdForDomain(domain);
-        // fix this
+        const networkClientId = this.messagingSystem.call(
+          'NetworkController:getDefaultNetworkClientIdForChainId',
+          chainId,
+        );
         networkClient = this.messagingSystem.call(
           'NetworkController:getNetworkClientById',
-          chainId,
+          networkClientId,
         );
       } else {
         networkClient = this.messagingSystem.call(
