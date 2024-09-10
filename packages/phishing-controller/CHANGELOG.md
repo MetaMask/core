@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.2]
+
+### Fixed
+
+- Export `PhishingDetectorResultType` enum type ([#4674](https://github.com/MetaMask/core/pull/4674))
+- Export `PhishingDetector` type ([#4553](https://github.com/MetaMask/core/pull/4553))
+
 ## [12.0.1]
 
 ### Added
@@ -262,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...HEAD
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@11.0.0...@metamask/phishing-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@11.0.0
