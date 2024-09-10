@@ -92,7 +92,6 @@
     "rimraf": "^5.0.5",
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
-    "ts-jest": "^29.1.1",
     "ts-node": "^10.9.1",
     "tsup": "^8.0.2",
     "typescript": "~5.2.2",
