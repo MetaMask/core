@@ -31,6 +31,14 @@ export type Notification = {
   message: string;
 };
 
+export type NotificationArgs = {
+  message: string;
+  title?: string;
+  detailedView?: string;
+  footerLink?: { href: string; text: string };
+};
+
+
 const name = 'NotificationController';
 
 export type NotificationControllerStateChange = ControllerStateChangeEvent<
@@ -117,7 +125,7 @@ export class NotificationController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:show` as const,
-      (origin: string, message: string) => this.show(origin, message),
+      (origin: string, args: NotificationArgs) => this.show(origin, args),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -139,16 +147,24 @@ export class NotificationController extends BaseController<
    * Shows a notification.
    *
    * @param origin - The origin trying to send a notification
-   * @param message - A message to show on the notification
+   * @param args - Notification args object
+   * @param args.message - The notification message
+   * @param args.title - The title to show in an expanded view
+   * @param args.detailedView - A interface id for snap content
+   * @param args.footerLink - Footer object
+   * @param args.footerLink.href - Footer href
+   * @param args.footerLink.text - Link text
    */
-  show(origin: string, message: string) {
+  show(origin: string, args: NotificationArgs) {
     const id = nanoid();
+    const { message, ...expandedView } = args;
     const notification = {
       id,
       origin,
       createdDate: Date.now(),
       readDate: null,
       message,
+      expandedView: Object.keys(expandedView).length > 0 ? expandedView : null,
     };
     this.update((state) => {
       state.notifications[id] = notification;
