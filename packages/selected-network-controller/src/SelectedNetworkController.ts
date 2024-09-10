@@ -16,7 +16,10 @@ import type {
   HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { Hex } from '@metamask/utils';
 import type { Patch } from 'immer';
+
+import { getAvailableNetworkClientIds } from '../../network-controller/src/NetworkController';
 
 export const controllerName = 'SelectedNetworkController';
 
@@ -192,21 +195,44 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      (availableNetworkClientIds) => {
-        // if a network is updated or removed, update the networkClientId for all domains
-        // that were using it to the selected network client id
-        const { selectedNetworkClientId } = this.messagingSystem.call(
-          'NetworkController:getState',
+      (
+        { selectedNetworkClientId, networkConfigurationsByChainId },
+        patches,
+      ) => {
+        const patch = patches.find(
+          ({ op, path }) =>
+            (op === 'replace' || op === 'remove') &&
+            path[0] === 'networkConfigurationsByChainId',
         );
-        Object.entries(this.state.domains).forEach(
-          ([domain, networkClientIdForDomain]) => {
-            if (!availableNetworkClientIds.includes(networkClientIdForDomain)) {
-              this.setNetworkClientIdForDomain(domain, selectedNetworkClientId);
-            }
-          },
-        );
+
+        if (patch) {
+          const availableNetworkClientIds = getAvailableNetworkClientIds(
+            Object.values(networkConfigurationsByChainId),
+          );
+
+          Object.entries(this.state.domains).forEach(
+            ([domain, networkClientIdForDomain]) => {
+              if (
+                !availableNetworkClientIds.includes(networkClientIdForDomain)
+              ) {
+                let newNetworkClientId;
+                if (patch.op === 'remove') {
+                  // If the network was removed, fall back to the globally selected network
+                  newNetworkClientId = selectedNetworkClientId;
+                } else {
+                  // If the network was updated, fall back to the network's default endpoint
+                  const chainId = patch.path[1] as Hex;
+                  const network = networkConfigurationsByChainId[chainId];
+                  ({ networkClientId: newNetworkClientId } =
+                    network.rpcEndpoints[network.defaultRpcEndpointIndex]);
+                }
+
+                this.setNetworkClientIdForDomain(domain, newNetworkClientId);
+              }
+            },
+          );
+        }
       },
-      selectAvailableNetworkClientIds,
     );
 
     onPreferencesStateChange(({ useRequestQueue }) => {
