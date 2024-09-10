@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat(NOTIFY-1046): attach account sync upwards sync to `AccountsController` events ([#4665](https://github.com/MetaMask/core/pull/4665))
-- feat: added utility function to check if snap is connected ([#4668](https://github.com/MetaMask/core/pull/4668))
-
 ## [0.4.0]
 
 ### Added

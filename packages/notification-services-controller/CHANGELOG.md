@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: move contentful as a dev dependency ([#4673](https://github.com/MetaMask/core/pull/4673))
-- fix: update polygon symbol from MATIC to POL ([#4672](https://github.com/MetaMask/core/pull/4672))
-
 ## [0.4.1]
 
 ### Fixed
