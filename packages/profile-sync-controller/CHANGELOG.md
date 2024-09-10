@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - add isSnapConnected method to the Authentication SDK ([#4668](https://github.com/MetaMask/core/pull/4668))
 - add `accountAdded` and `accountRenamed` events when triggering account syncing ([#4665](https://github.com/MetaMask/core/pull/4665))
+- prevent accounts controller events being used when sync is in progress ([#4675](https://github.com/MetaMask/core/pull/4675))
+  - add `isAccountSyncingInProgress` to `UserStorageController`
+  - add `isAccountSyncingInProgress` checks to abort processing `accountAdded` and `accountRenamed` events.
+
+### Removed
+
+- account sync throttling ([#4675](https://github.com/MetaMask/core/pull/4675))
+  - remove `maxSyncInterval`; `lastSyncedAt`; `shouldSync` from `UserStorageController`
 
 ## [0.4.0]
 
