@@ -58,11 +58,11 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
-    "@types/jest": "^27.4.1",
+    "@types/jest": "^29.5.11",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
+    "jest": "^29.7.0",
     "jest-it-up": "^2.0.2",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^29.1.1",
     "typedoc": "^0.24.8",
     "typescript": "~5.2.2"
   },
