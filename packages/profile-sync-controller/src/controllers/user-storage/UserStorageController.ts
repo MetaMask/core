@@ -801,15 +801,13 @@ export default class UserStorageController extends BaseController<
           continue;
         }
       }
-
-      this.#accounts.isAccountSyncingInProgress = false;
     } catch (e) {
-      this.#accounts.isAccountSyncingInProgress = false;
-
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
         `${controllerName} - failed to sync user storage accounts list - ${errorMessage}`,
       );
+    } finally {
+      this.#accounts.isAccountSyncingInProgress = false;
     }
   }
 
