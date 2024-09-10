@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - move contentful as a dev dependency ([#4673](https://github.com/MetaMask/core/pull/4673))
 - update polygon symbol from MATIC to POL ([#4672](https://github.com/MetaMask/core/pull/4672))
-- Bump `@metamask/profile-sync-controller` from `^0.4.0` to `^0.5.0`
+- Bump `@metamask/profile-sync-controller` from `^0.4.0` to `^0.5.0` ([#4678](https://github.com/MetaMask/core/pull/4678))
 
 ## [0.4.1]
 
