@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [0.5.0]
 
-- feat(NOTIFY-1046): attach account sync upwards sync to `AccountsController` events ([#4665](https://github.com/MetaMask/core/pull/4665))
-- feat: added utility function to check if snap is connected ([#4668](https://github.com/MetaMask/core/pull/4668))
+### Added
+
+- add isSnapConnected method to the Authentication SDK ([#4668](https://github.com/MetaMask/core/pull/4668))
+- add `accountAdded` and `accountRenamed` events when triggering account syncing ([#4665](https://github.com/MetaMask/core/pull/4665))
 
 ## [0.4.0]
 
@@ -139,7 +141,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...@metamask/profile-sync-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.3.0...@metamask/profile-sync-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...@metamask/profile-sync-controller@0.2.1
