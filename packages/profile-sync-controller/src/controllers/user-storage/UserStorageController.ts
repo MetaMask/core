@@ -2,6 +2,8 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -55,6 +57,15 @@ export declare type NotificationServicesControllerSelectIsNotificationServicesEn
     type: `NotificationServicesController:selectIsNotificationServicesEnabled`;
     handler: () => boolean;
   };
+
+export declare type NativeScrypt = (
+  passwd: string,
+  salt: Uint8Array,
+  N: number,
+  r: number,
+  p: number,
+  size: number,
+) => Promise<Uint8Array>;
 
 const controllerName = 'UserStorageController';
 
@@ -172,7 +183,9 @@ export type AllowedEvents =
   | UserStorageControllerAccountSyncingInProgress
   | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRenamedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -227,6 +240,32 @@ export default class UserStorageController extends BaseController<
     // This is replaced with the actual value in the constructor
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
+    // This is replaced with the actual value in the constructor
+    maxSyncInterval: 1000 * 60,
+    lastSyncedAt: 0,
+    shouldSync: () => {
+      return (
+        Date.now() - this.#accounts.lastSyncedAt >
+        this.#accounts.maxSyncInterval
+      );
+    },
+    setupAccountSyncingSubscriptions: () => {
+      this.messagingSystem.subscribe(
+        'AccountsController:accountAdded',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          await this.saveInternalAccountToUserStorage(account.address);
+        },
+      );
+
+      this.messagingSystem.subscribe(
+        'AccountsController:accountRenamed',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          await this.saveInternalAccountToUserStorage(account.address);
+        },
+      );
+    },
     getInternalAccountByAddress: async (address: string) => {
       return this.messagingSystem.call(
         'AccountsController:getAccountByAddress',
@@ -310,15 +349,9 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe(
-        'KeyringController:unlock',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async () => {
-          this.#isUnlocked = true;
-
-          await this.syncInternalAccountsWithUserStorage();
-        },
-      );
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
@@ -326,30 +359,44 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+
   getMetaMetricsState: () => boolean;
 
-  constructor(params: {
+  constructor({
+    messenger,
+    state,
+    env,
+    getMetaMetricsState,
+    nativeScryptCrypto,
+  }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
     env?: {
       isAccountSyncingEnabled?: boolean;
+      accountSyncingMaxSyncInterval?: number;
     };
     getMetaMetricsState: () => boolean;
+    nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
-      messenger: params.messenger,
+      messenger,
       metadata,
       name: controllerName,
-      state: { ...defaultState, ...params.state },
+      state: { ...defaultState, ...state },
     });
 
     this.#accounts.isAccountSyncingEnabled = Boolean(
-      params.env?.isAccountSyncingEnabled,
+      env?.isAccountSyncingEnabled,
     );
+    this.#accounts.maxSyncInterval =
+      env?.accountSyncingMaxSyncInterval ?? this.#accounts.maxSyncInterval;
 
-    this.getMetaMetricsState = params.getMetaMetricsState;
+    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
+    this.#nativeScryptCrypto = nativeScryptCrypto;
+    this.#accounts.setupAccountSyncingSubscriptions();
   }
 
   /**
@@ -484,6 +531,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -508,6 +556,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -534,6 +583,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 
@@ -634,6 +684,12 @@ export default class UserStorageController extends BaseController<
     if (!this.#accounts.isAccountSyncingEnabled) {
       return;
     }
+
+    if (!this.#accounts.shouldSync()) {
+      return;
+    }
+
+    this.#accounts.lastSyncedAt = Date.now();
 
     try {
       this.#assertProfileSyncingEnabled();
@@ -772,6 +828,8 @@ export default class UserStorageController extends BaseController<
     }
 
     try {
+      this.#assertProfileSyncingEnabled();
+
       await this.#accounts.saveInternalAccountToUserStorage(address);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);

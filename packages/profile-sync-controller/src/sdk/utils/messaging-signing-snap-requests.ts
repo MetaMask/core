@@ -46,6 +46,27 @@ export async function getSnaps(
 }
 
 /**
+ * Check if snap is connected
+ *
+ * @param provider - MetaMask Wallet Provider
+ * @returns if snap is connected
+ */
+export async function isSnapConnected(
+  provider: Eip1193Provider,
+): Promise<boolean> {
+  try {
+    const snaps = await getSnaps(provider);
+    if (!snaps) {
+      return false;
+    }
+    return Object.keys(snaps).includes(SNAP_ORIGIN);
+  } catch (e) {
+    console.error('Failed to determine if snap is connected', e);
+    return false;
+  }
+}
+
+/**
  * Will return the message signing snap if installed
  * @param provider - MetaMask Wallet Provider
  */

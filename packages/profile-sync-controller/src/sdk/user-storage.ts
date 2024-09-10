@@ -206,7 +206,9 @@ export class UserStorage {
         return encryption.decryptString(entry.Data, storageKey);
       });
 
-      return decryptedData;
+      return (await Promise.allSettled(decryptedData))
+        .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
+        .filter((d): d is string => d !== undefined);
     } catch (e) {
       if (e instanceof NotFoundError) {
         throw e;
