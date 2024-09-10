@@ -38,7 +38,6 @@ export type NotificationArgs = {
   footerLink?: { href: string; text: string };
 };
 
-
 const name = 'NotificationController';
 
 export type NotificationControllerStateChange = ControllerStateChangeEvent<
