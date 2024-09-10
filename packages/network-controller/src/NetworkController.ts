@@ -973,6 +973,13 @@ export class NetworkController extends BaseController<
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
     );
+
+    this.messagingSystem.registerActionHandler(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:getDefaultNetworkClientIdForChainId`,
+      this.getDefaultNetworkClientIdForChainId.bind(this),
+    );
   }
 
   /**
