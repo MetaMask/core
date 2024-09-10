@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [0.5.0]
 
-- refactor: move contentful as a dev dependency ([#4673](https://github.com/MetaMask/core/pull/4673))
-- fix: update polygon symbol from MATIC to POL ([#4672](https://github.com/MetaMask/core/pull/4672))
+### Changed
+
+- move contentful as a dev dependency ([#4673](https://github.com/MetaMask/core/pull/4673))
+- update polygon symbol from MATIC to POL ([#4672](https://github.com/MetaMask/core/pull/4672))
+- Bump `@metamask/profile-sync-controller` from `^0.4.0` to `^0.5.0`
 
 ## [0.4.1]
 
@@ -120,7 +123,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.4.1...@metamask/notification-services-controller@0.5.0
 [0.4.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.4.0...@metamask/notification-services-controller@0.4.1
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.3.0...@metamask/notification-services-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.2.1...@metamask/notification-services-controller@0.3.0
