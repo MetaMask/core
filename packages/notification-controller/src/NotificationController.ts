@@ -124,7 +124,8 @@ export class NotificationController extends BaseController<
 
     this.messagingSystem.registerActionHandler(
       `${name}:show` as const,
-      (origin: string, args: NotificationOptions) => this.show(origin, args),
+      (origin: string, options: NotificationOptions) =>
+        this.show(origin, options),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -146,17 +147,16 @@ export class NotificationController extends BaseController<
    * Shows a notification.
    *
    * @param origin - The origin trying to send a notification
-   * @param args - Notification args object
-   * @param args.message - The notification message
-   * @param args.title - The title to show in an expanded view
-   * @param args.detailedView - A interface id for snap content
-   * @param args.footerLink - Footer object
-   * @param args.footerLink.href - Footer href
-   * @param args.footerLink.text - Link text
+   * @param options - Notification args object
+   * @param options.title - The title to show in an expanded view
+   * @param options.detailedView - A interface id for snap content
+   * @param options.footerLink - Footer object
+   * @param options.footerLink.href - Footer href
+   * @param options.footerLink.text - Link text
    */
-  show(origin: string, args: NotificationOptions) {
+  show(origin: string, options: NotificationOptions) {
     const id = nanoid();
-    const { message, ...expandedView } = args;
+    const { message, ...expandedView } = options;
     const notification = {
       id,
       origin,
