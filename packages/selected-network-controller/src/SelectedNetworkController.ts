@@ -9,13 +9,13 @@ import type {
   NetworkControllerStateChangeEvent,
   ProviderProxy,
 } from '@metamask/network-controller';
-import { selectAvailableNetworkClientIds } from '@metamask/network-controller';
 import type {
   PermissionControllerStateChange,
   GetSubjects as PermissionControllerGetSubjectsAction,
   HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { Hex } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 export const controllerName = 'SelectedNetworkController';
@@ -192,21 +192,58 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      (availableNetworkClientIds) => {
-        // if a network is updated or removed, update the networkClientId for all domains
-        // that were using it to the selected network client id
-        const { selectedNetworkClientId } = this.messagingSystem.call(
-          'NetworkController:getState',
-        );
-        Object.entries(this.state.domains).forEach(
-          ([domain, networkClientIdForDomain]) => {
-            if (!availableNetworkClientIds.includes(networkClientIdForDomain)) {
-              this.setNetworkClientIdForDomain(domain, selectedNetworkClientId);
-            }
-          },
-        );
+      (
+        { selectedNetworkClientId, networkConfigurationsByChainId },
+        patches,
+          
+      ) => {
+        // Only need to trigger if a network was updated or removed
+        if (
+          patches.some(
+            ({ op, path }) =>
+              (op === 'replace' || op === 'remove') &&
+              path[0] === 'networkConfigurationsByChainId',
+          )
+        ) {
+
+          const networkClientIdToChainId = Object.values(
+            networkConfigurationsByChainId,
+          ).reduce((acc, network) => {
+            network.rpcEndpoints.forEach(
+              ({ networkClientId }) => (acc[networkClientId] = network.chainId),
+            );
+            return acc;
+          }, {} as Record<string, Hex>);
+
+          Object.entries(this.state.domains).forEach(
+            ([domain, networkClientIdForDomain]) => {
+              const chainId =
+                networkClientIdToChainId[networkClientIdForDomain];
+              if (!chainId) {
+                // TODO: This is appropriate if the whole network/chain was deleted. But if just the
+                // default endpoint was deleted, we'd rather redirect to the new default for that chain.
+                // But we don't have sufficient info to distinguish these cases, since all we see is
+                // a deleted network client id. We can't know what chain it was on without the old state.
+                this.setNetworkClientIdForDomain(
+                  domain,
+                  selectedNetworkClientId,
+                );
+              } else {
+                const network = networkConfigurationsByChainId[chainId];
+                const { networkClientId: defaultNetworkClientId } =
+                  network.rpcEndpoints[network.defaultRpcEndpointIndex];
+
+                if (networkClientIdForDomain !== defaultNetworkClientId) {
+                  this.setNetworkClientIdForDomain(
+                    domain,
+                    defaultNetworkClientId,
+                  );
+                }
+              }
+            },
+          );
+        }
       },
-      selectAvailableNetworkClientIds,
     );
 
     onPreferencesStateChange(({ useRequestQueue }) => {
