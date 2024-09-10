@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `AccountsControllerAccountRenamedEvent` type ([#4664](https://github.com/MetaMask/core/pull/4664))
-- Set `nameLastUpdatedAt` metadata when updating account name ([#4589](https://github.com/MetaMask/core/pull/4589))
-- Move logic from `setAccountName` to `updateAccountMetadata` ([#4663](https://github.com/MetaMask/core/pull/4663))
-- Add new event `accountRenamed` ([#4660](https://github.com/MetaMask/core/pull/4660))
+- Add event `AccountsController:accountRenamed` and export corresponding event type `AccountsControllerAccountRenamedEvent` ([#4664](https://github.com/MetaMask/core/pull/4664)), ([#4660](https://github.com/MetaMask/core/pull/4660))
+- Add new `nameLastUpdatedAt` timestamp to account's metadata ([#4589](https://github.com/MetaMask/core/pull/4589))
+
+### Changed
+
+- Consolidate `setAccountName` logic in `updateAccountMetadata` ([#4663](https://github.com/MetaMask/core/pull/4663))
+  - Moved the logic for checking account name uniqueness and triggering the `accountRenamed` event from`setAccountName` to `updateAccountMetadata`. The `setAccountName` method now calls`updateAccountMetadata` to handle these tasks.
 
 ## [18.1.1]
 
