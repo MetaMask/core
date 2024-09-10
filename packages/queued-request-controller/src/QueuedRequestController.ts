@@ -9,13 +9,14 @@ import type {
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
 import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerGetChainIdForDomainAction,
   SelectedNetworkControllerStateChangeEvent,
 } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
+import { NetworkControllerGetDefaultNetworkClientIdForChainIdAction } from '@metamask/network-controller';
 
 export const controllerName = 'QueuedRequestController';
 
@@ -65,7 +66,8 @@ export type QueuedRequestControllerActions =
 export type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerSetActiveNetworkAction
-  | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
+  | SelectedNetworkControllerGetChainIdForDomainAction
+  | NetworkControllerGetDefaultNetworkClientIdForChainIdAction;
 
 export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
 
@@ -286,10 +288,15 @@ export class QueuedRequestController extends BaseController<
     if (!this.#originOfCurrentBatch) {
       throw new Error('Current batch origin must be initialized first');
     }
-    const originNetworkClientId = this.messagingSystem.call(
-      'SelectedNetworkController:getNetworkClientIdForDomain',
+    const originChainId = this.messagingSystem.call(
+      'SelectedNetworkController:getChainIdForDomain',
       this.#originOfCurrentBatch,
     );
+    const originNetworkClientId = this.messagingSystem.call(
+      'NetworkController:getDefaultNetworkClientIdForChainId',
+      originChainId,
+    );
+
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
@@ -304,7 +311,7 @@ export class QueuedRequestController extends BaseController<
 
     this.messagingSystem.publish(
       'QueuedRequestController:networkSwitched',
-      originNetworkClientId,
+      originNetworkClientId as string,
     );
   }
 

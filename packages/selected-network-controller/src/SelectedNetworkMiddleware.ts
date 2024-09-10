@@ -1,11 +1,12 @@
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { NetworkClientId } from '@metamask/network-controller';
-import type { Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
+import type { Hex, Json, JsonRpcParams, JsonRpcRequest } from '@metamask/utils';
 
 import type { SelectedNetworkControllerMessenger } from './SelectedNetworkController';
 import { SelectedNetworkControllerActionTypes } from './SelectedNetworkController';
 
 export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
+  chainId?: Hex;
   networkClientId?: NetworkClientId;
   origin?: string;
 };
@@ -13,10 +14,16 @@ export type SelectedNetworkMiddlewareJsonRpcRequest = JsonRpcRequest & {
 export const createSelectedNetworkMiddleware = (
   messenger: SelectedNetworkControllerMessenger,
 ): JsonRpcMiddleware<JsonRpcParams, Json> => {
-  const getNetworkClientIdForDomain = (origin: string) =>
+  const getChainIdForDomain = (origin: string) =>
     messenger.call(
-      SelectedNetworkControllerActionTypes.getNetworkClientIdForDomain,
+      SelectedNetworkControllerActionTypes.getChainIdForDomain,
       origin,
+    );
+
+  const getDefaultNetworkClientIdForChainId = (chainId: Hex) =>
+    messenger.call(
+      'NetworkController:getDefaultNetworkClientIdForChainId',
+      chainId,
     );
 
   return (req: SelectedNetworkMiddlewareJsonRpcRequest, _, next) => {
@@ -24,7 +31,8 @@ export const createSelectedNetworkMiddleware = (
       throw new Error("Request object is lacking an 'origin'");
     }
 
-    req.networkClientId = getNetworkClientIdForDomain(req.origin);
+    req.chainId = getChainIdForDomain(req.origin);
+    req.networkClientId = getDefaultNetworkClientIdForChainId(req.chainId);
     return next();
   };
 };
