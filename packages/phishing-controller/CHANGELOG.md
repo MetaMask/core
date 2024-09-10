@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Export phishing detector result type ([#4674](https://github.com/MetaMask/core/pull/4674))
+- Add PhishingDetector to export ([#4553](https://github.com/MetaMask/core/pull/4553))
+- Release 194.0.0 ([#4651](https://github.com/MetaMask/core/pull/4651))
+
 ## [12.0.1]
 
 ### Added
