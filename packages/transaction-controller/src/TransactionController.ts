@@ -2349,9 +2349,6 @@ export class TransactionController extends BaseController<
     this.failIncompleteTransactions();
   }
 
-  /**
-   * Force submit approved transactions for all chains.
-   */
   private failIncompleteTransactions() {
     const incompleteTransactions = this.state.transactions.filter(
       (transaction) =>
