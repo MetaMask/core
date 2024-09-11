@@ -388,7 +388,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
 });
 
 describe('user-storage/user-storage-controller - syncInternalAccountsWithUserStorage() tests', () => {
-  it('rejects if UserStorage is not enabled', async () => {
+  it('returns void if UserStorage is not enabled', async () => {
     const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
@@ -409,9 +409,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       },
     });
 
-    await expect(
-      controller.syncInternalAccountsWithUserStorage(),
-    ).rejects.toThrow(expect.any(Error));
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
@@ -1083,7 +1083,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
 });
 
 describe('user-storage/user-storage-controller - saveInternalAccountToUserStorage() tests', () => {
-  it('rejects if UserStorage is not enabled', async () => {
+  it('returns void if UserStorage is not enabled', async () => {
     const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
@@ -1103,11 +1103,13 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       },
     });
 
-    await expect(
-      controller.saveInternalAccountToUserStorage(
-        MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
-      ),
-    ).rejects.toThrow(expect.any(Error));
+    await controller.saveInternalAccountToUserStorage(
+      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+    );
+
+    expect(
+      messengerMocks.mockAccountsGetAccountByAddress,
+    ).not.toHaveBeenCalled();
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
