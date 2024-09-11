@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "36.0.0",
+  "version": "36.1.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "MetaMask",
@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
-    "@metamask/accounts-controller": "^18.1.1",
+    "@metamask/accounts-controller": "^18.2.0",
     "@metamask/approval-controller": "^7.0.3",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.3",
