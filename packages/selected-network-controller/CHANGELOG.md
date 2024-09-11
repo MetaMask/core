@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- selected network controller: redirect domains to default endpoint ([#4679](https://github.com/MetaMask/core/pull/4679))
+
 ## [18.0.0]
 
 ### Changed

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: scaffolding - update storage schema ([#4684](https://github.com/MetaMask/core/pull/4684))
+- Release 200.0.0 ([#4680](https://github.com/MetaMask/core/pull/4680))
+
 ## [0.5.0]
 
 ### Added
