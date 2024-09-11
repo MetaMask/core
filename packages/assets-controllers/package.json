@@ -50,7 +50,7 @@
     "@metamask/abi-utils": "^2.0.3",
     "@metamask/base-controller": "^7.0.0",
     "@metamask/contract-metadata": "^2.4.0",
-    "@metamask/controller-utils": "^11.2.0",
+    "@metamask/controller-utils": "^11.3.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/polling-controller": "^10.0.0",

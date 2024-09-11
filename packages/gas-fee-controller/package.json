@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.2.0",
+    "@metamask/controller-utils": "^11.3.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
     "@metamask/polling-controller": "^10.0.0",
