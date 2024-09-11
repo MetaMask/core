@@ -1,5 +1,5 @@
 /* eslint-disable */
-const JSDOMEnvironment = require('jest-environment-jsdom');
+const JSDOMEnvironment = require('jest-environment-jsdom').TestEnvironment;
 
 // Custom test environment copied from https://github.com/jsdom/jsdom/issues/2524
 // in order to add TextEncoder to jsdom. TextEncoder is expected by @noble/hashes.

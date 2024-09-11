@@ -1,5 +1,5 @@
 /* eslint-disable */
-const JSDOMEnvironment = require('jest-environment-jsdom');
+const JSDOMEnvironment = require('jest-environment-jsdom').TestEnvironment;
 
 /**
  * ProfileSync SDK & Controllers depends on @noble/hashes, which as of 1.3.2 relies on the

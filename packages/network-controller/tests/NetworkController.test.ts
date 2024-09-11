@@ -355,12 +355,12 @@ describe('NetworkController', () => {
           Object {
             "networkConfigurationsByChainId": Object {
               "0x1": Object {
-                "blockExplorerUrls": Array [],
+                "blockExplorerUrls": [],
                 "chainId": "0x1",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Mainnet",
                 "nativeCurrency": "ETH",
-                "rpcEndpoints": Array [
+                "rpcEndpoints": [
                   Object {
                     "networkClientId": "mainnet",
                     "type": "infura",
@@ -369,12 +369,12 @@ describe('NetworkController', () => {
                 ],
               },
               "0x5": Object {
-                "blockExplorerUrls": Array [],
+                "blockExplorerUrls": [],
                 "chainId": "0x5",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Goerli",
                 "nativeCurrency": "GoerliETH",
-                "rpcEndpoints": Array [
+                "rpcEndpoints": [
                   Object {
                     "networkClientId": "goerli",
                     "type": "infura",
@@ -383,12 +383,12 @@ describe('NetworkController', () => {
                 ],
               },
               "0xaa36a7": Object {
-                "blockExplorerUrls": Array [],
+                "blockExplorerUrls": [],
                 "chainId": "0xaa36a7",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Sepolia",
                 "nativeCurrency": "SepoliaETH",
-                "rpcEndpoints": Array [
+                "rpcEndpoints": [
                   Object {
                     "networkClientId": "sepolia",
                     "type": "infura",
@@ -397,12 +397,12 @@ describe('NetworkController', () => {
                 ],
               },
               "0xe704": Object {
-                "blockExplorerUrls": Array [],
+                "blockExplorerUrls": [],
                 "chainId": "0xe704",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Linea Goerli",
                 "nativeCurrency": "LineaETH",
-                "rpcEndpoints": Array [
+                "rpcEndpoints": [
                   Object {
                     "networkClientId": "linea-goerli",
                     "type": "infura",
@@ -411,12 +411,12 @@ describe('NetworkController', () => {
                 ],
               },
               "0xe705": Object {
-                "blockExplorerUrls": Array [],
+                "blockExplorerUrls": [],
                 "chainId": "0xe705",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Linea Sepolia",
                 "nativeCurrency": "LineaETH",
-                "rpcEndpoints": Array [
+                "rpcEndpoints": [
                   Object {
                     "networkClientId": "linea-sepolia",
                     "type": "infura",
@@ -425,12 +425,12 @@ describe('NetworkController', () => {
                 ],
               },
               "0xe708": Object {
-                "blockExplorerUrls": Array [],
+                "blockExplorerUrls": [],
                 "chainId": "0xe708",
                 "defaultRpcEndpointIndex": 0,
                 "name": "Linea Mainnet",
                 "nativeCurrency": "ETH",
-                "rpcEndpoints": Array [
+                "rpcEndpoints": [
                   Object {
                     "networkClientId": "linea-mainnet",
                     "type": "infura",
@@ -482,7 +482,7 @@ describe('NetworkController', () => {
             Object {
               "networkConfigurationsByChainId": Object {
                 "0x5": Object {
-                  "blockExplorerUrls": Array [
+                  "blockExplorerUrls": [
                     "https://block.explorer",
                   ],
                   "chainId": "0x5",
@@ -490,7 +490,7 @@ describe('NetworkController', () => {
                   "defaultRpcEndpointIndex": 0,
                   "name": "Goerli",
                   "nativeCurrency": "GoerliETH",
-                  "rpcEndpoints": Array [
+                  "rpcEndpoints": [
                     Object {
                       "name": "Goerli",
                       "networkClientId": "goerli",
