@@ -84,6 +84,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^8.1.0",
     "@metamask/keyring-controller": "^17.2.0",
+    "@metamask/network-controller": "^21.0.0",
     "@metamask/snaps-controllers": "^9.3.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
