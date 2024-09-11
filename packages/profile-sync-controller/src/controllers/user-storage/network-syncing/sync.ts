@@ -8,10 +8,7 @@ export const updateNetwork = async (
   network: NetworkConfiguration,
   opts: UserStorageBaseOptions,
 ) => {
-  return await upsertRemoteNetwork(
-    { v: '1', ...network, deleted: false },
-    opts,
-  );
+  return await upsertRemoteNetwork({ v: '1', ...network, d: false }, opts);
 };
 
 export const addNetwork = updateNetwork;
@@ -21,7 +18,7 @@ export const deleteNetwork = async (
   opts: UserStorageBaseOptions,
 ) => {
   // we are soft deleting, as we need to consider devices that have not yet synced
-  return await upsertRemoteNetwork({ v: '1', ...network, deleted: true }, opts);
+  return await upsertRemoteNetwork({ v: '1', ...network, d: true }, opts);
 };
 
 export const batchUpdateNetworks = async (
