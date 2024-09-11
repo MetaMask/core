@@ -58,7 +58,7 @@ describe('NotificationController', () => {
       unrestricted.call('NotificationController:show', origin, {
         message,
         title: 'title',
-        detailedView: '1',
+        interfaceId: '1',
       }),
     ).toBeUndefined();
     const notifications = Object.values(controller.state.notifications);
@@ -77,7 +77,7 @@ describe('NotificationController', () => {
       message,
       origin,
       readDate: null,
-      expandedView: { title: 'title', detailedView: '1' },
+      expandedView: { title: 'title', interfaceId: '1' },
     });
   });
 

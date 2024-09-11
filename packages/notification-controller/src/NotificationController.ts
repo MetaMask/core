@@ -31,10 +31,17 @@ export type Notification = {
   message: string;
 };
 
+/**
+ * @typedef NotificationOptions - Notification data to be used to display in the UI
+ * @property message - The notification message
+ * @property title - The notification's title displayed in expanded view
+ * @property interfaceId - The interface id of the content to be displayed in expanded view
+ * @property footerLink - An object holding link information to be used in the expanded view
+ */
 export type NotificationOptions = {
   message: string;
   title?: string;
-  detailedView?: string;
+  interfaceId?: string;
   footerLink?: { href: string; text: string };
 };
 
@@ -149,7 +156,7 @@ export class NotificationController extends BaseController<
    * @param origin - The origin trying to send a notification
    * @param options - Notification args object
    * @param options.title - The title to show in an expanded view
-   * @param options.detailedView - A interface id for snap content
+   * @param options.interfaceId - A interface id for snap content
    * @param options.footerLink - Footer object
    * @param options.footerLink.href - Footer href
    * @param options.footerLink.text - Link text
