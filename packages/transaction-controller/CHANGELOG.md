@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [36.1.0]
+
+### Added
+
+- Add missing `TransactionControllerOptions` type in package-level export ([#4683](https://github.com/MetaMask/core/pull/4683))
+
 ## [36.0.0]
 
 ### Changed
@@ -987,7 +993,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.1.0...HEAD
+[36.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.0.0...@metamask/transaction-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...@metamask/transaction-controller@36.0.0
 [35.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.1...@metamask/transaction-controller@35.2.0
 [35.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.0...@metamask/transaction-controller@35.1.1
