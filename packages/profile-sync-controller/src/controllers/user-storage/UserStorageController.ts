@@ -266,6 +266,17 @@ export default class UserStorageController extends BaseController<
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
+    canSync: () => {
+      try {
+        this.#assertProfileSyncingEnabled();
+
+        return (
+          this.#accounts.isAccountSyncingEnabled && this.#auth.isAuthEnabled()
+        );
+      } catch {
+        return false;
+      }
+    },
     setupAccountSyncingSubscriptions: () => {
       this.messagingSystem.subscribe(
         'AccountsController:accountAdded',
@@ -718,13 +729,11 @@ export default class UserStorageController extends BaseController<
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
   async syncInternalAccountsWithUserStorage(): Promise<void> {
-    if (!this.#accounts.isAccountSyncingEnabled) {
+    if (!this.#accounts.canSync()) {
       return;
     }
 
     try {
-      this.#assertProfileSyncingEnabled();
-
       this.#accounts.isAccountSyncingInProgress = true;
 
       const userStorageAccountsList =
@@ -858,7 +867,7 @@ export default class UserStorageController extends BaseController<
    * @param address - The address of the internal account to save
    */
   async saveInternalAccountToUserStorage(address: string): Promise<void> {
-    if (!this.#accounts.isAccountSyncingEnabled) {
+    if (!this.#accounts.canSync()) {
       return;
     }
 
