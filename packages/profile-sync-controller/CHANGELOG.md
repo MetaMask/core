@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0]
+
+### Added
+
+- add isSnapConnected method to the Authentication SDK ([#4668](https://github.com/MetaMask/core/pull/4668))
+- add `accountAdded` and `accountRenamed` events when triggering account syncing ([#4665](https://github.com/MetaMask/core/pull/4665))
+- prevent accounts controller events being used when sync is in progress ([#4675](https://github.com/MetaMask/core/pull/4675))
+  - add `isAccountSyncingInProgress` to `UserStorageController`
+  - add `isAccountSyncingInProgress` checks to abort processing `accountAdded` and `accountRenamed` events.
+
+### Removed
+
+- account sync throttling ([#4675](https://github.com/MetaMask/core/pull/4675))
+  - remove `maxSyncInterval`; `lastSyncedAt`; `shouldSync` from `UserStorageController`
+
 ## [0.4.0]
 
 ### Added
@@ -134,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...HEAD
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...@metamask/profile-sync-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.3.0...@metamask/profile-sync-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.0...@metamask/profile-sync-controller@0.2.1

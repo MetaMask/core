@@ -22,6 +22,7 @@ export type {
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerMessenger,
+  TransactionControllerOptions,
 } from './TransactionController';
 export {
   HARDFORK,
