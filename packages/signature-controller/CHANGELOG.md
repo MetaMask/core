@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [19.1.0]
 
-### Uncategorized
+### Changed
 
-- feat: Add initial tracing to `SignatureController` ([#4655](https://github.com/MetaMask/core/pull/4655))
-- Release 194.0.0 ([#4651](https://github.com/MetaMask/core/pull/4651))
+- Add tracing infrastructure ([#4575](https://github.com/MetaMask/core/pull/4575))
+  - Add optional `trace` callback to constructor.
+  - Add optional `traceContext` option to `newUnsignedPersonalMessage` and `newUnsignedTypedMessage` methods.
+  - Add initial tracing of signature lifecycle.
 
 ## [19.0.0]
 

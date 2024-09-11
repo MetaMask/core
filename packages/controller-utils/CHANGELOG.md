@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.3.0]
 
-### Uncategorized
+### Added
 
-- feat: Add initial tracing to `SignatureController` ([#4655](https://github.com/MetaMask/core/pull/4655))
+- Add export of tracing types ([#4655](https://github.com/MetaMask/core/pull/4655))
 
 ## [11.2.0]
 
