@@ -34,16 +34,15 @@ export type GetUserStorageAllFeatureEntriesResponse = {
 export type UserStorageBaseOptions = {
   bearerToken: string;
   storageKey: string;
+  nativeScryptCrypto?: NativeScrypt;
 };
 
 export type UserStorageOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureAndKey;
-  nativeScryptCrypto?: NativeScrypt;
 };
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
-  nativeScryptCrypto?: NativeScrypt;
 };
 
 /**

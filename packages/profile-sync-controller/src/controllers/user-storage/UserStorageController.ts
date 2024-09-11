@@ -2,6 +2,8 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
   AccountsControllerGetAccountByAddressAction,
+  AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -181,7 +183,9 @@ export type AllowedEvents =
   | UserStorageControllerAccountSyncingInProgress
   | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRenamedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -236,13 +240,28 @@ export default class UserStorageController extends BaseController<
     // This is replaced with the actual value in the constructor
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
-    // This is replaced with the actual value in the constructor
-    maxSyncInterval: 1000 * 60,
-    lastSyncedAt: 0,
-    shouldSync: () => {
-      return (
-        Date.now() - this.#accounts.lastSyncedAt >
-        this.#accounts.maxSyncInterval
+    isAccountSyncingInProgress: false,
+    setupAccountSyncingSubscriptions: () => {
+      this.messagingSystem.subscribe(
+        'AccountsController:accountAdded',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          if (this.#accounts.isAccountSyncingInProgress) {
+            return;
+          }
+          await this.saveInternalAccountToUserStorage(account.address);
+        },
+      );
+
+      this.messagingSystem.subscribe(
+        'AccountsController:accountRenamed',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          if (this.#accounts.isAccountSyncingInProgress) {
+            return;
+          }
+          await this.saveInternalAccountToUserStorage(account.address);
+        },
       );
     },
     getInternalAccountByAddress: async (address: string) => {
@@ -328,15 +347,9 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe(
-        'KeyringController:unlock',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async () => {
-          this.#isUnlocked = true;
-
-          await this.syncInternalAccountsWithUserStorage();
-        },
-      );
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
@@ -359,7 +372,6 @@ export default class UserStorageController extends BaseController<
     state?: UserStorageControllerState;
     env?: {
       isAccountSyncingEnabled?: boolean;
-      accountSyncingMaxSyncInterval?: number;
     };
     getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
@@ -374,13 +386,12 @@ export default class UserStorageController extends BaseController<
     this.#accounts.isAccountSyncingEnabled = Boolean(
       env?.isAccountSyncingEnabled,
     );
-    this.#accounts.maxSyncInterval =
-      env?.accountSyncingMaxSyncInterval ?? this.#accounts.maxSyncInterval;
 
     this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
+    this.#accounts.setupAccountSyncingSubscriptions();
   }
 
   /**
@@ -669,14 +680,10 @@ export default class UserStorageController extends BaseController<
       return;
     }
 
-    if (!this.#accounts.shouldSync()) {
-      return;
-    }
-
-    this.#accounts.lastSyncedAt = Date.now();
-
     try {
       this.#assertProfileSyncingEnabled();
+
+      this.#accounts.isAccountSyncingInProgress = true;
 
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
@@ -799,6 +806,8 @@ export default class UserStorageController extends BaseController<
       throw new Error(
         `${controllerName} - failed to sync user storage accounts list - ${errorMessage}`,
       );
+    } finally {
+      this.#accounts.isAccountSyncingInProgress = false;
     }
   }
 
@@ -812,6 +821,8 @@ export default class UserStorageController extends BaseController<
     }
 
     try {
+      this.#assertProfileSyncingEnabled();
+
       await this.#accounts.saveInternalAccountToUserStorage(address);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
