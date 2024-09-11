@@ -19,6 +19,7 @@ import type {
   KeyringControllerUnlockEvent,
   KeyringControllerAddNewAccountAction,
 } from '@metamask/keyring-controller';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -35,6 +36,7 @@ import {
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
 import { createSHA256Hash } from './encryption';
+import { startNetworkSyncing } from './network-syncing/controller-integration';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
@@ -44,6 +46,27 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
+
+// TODO: add external NetworkController event
+// Need to listen for when a network gets added
+type NetworkControllerNetworkAddedEvent = {
+  type: 'NetworkController:networkAdded';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
+// TODO: add external NetworkController event
+// Need to listen for when a network is updated, or the default rpc/block explorer changes
+type NetworkControllerNetworkChangedEvent = {
+  type: 'NetworkController:networkChanged';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
+// TODO: add external NetworkController event
+// Need to listen for when a network gets deleted
+type NetworkControllerNetworkDeletedEvent = {
+  type: 'NetworkController:networkDeleted';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
 
 // TODO: fix external dependencies
 export declare type NotificationServicesControllerDisableNotificationServices =
@@ -137,13 +160,6 @@ export type UserStorageControllerSyncInternalAccountsWithUserStorage =
 export type UserStorageControllerSaveInternalAccountToUserStorage =
   ActionsObj['saveInternalAccountToUserStorage'];
 
-export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  UserStorageControllerState
->;
-export type Events = UserStorageControllerStateChangeEvent;
-
-// Allowed Actions
 export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
@@ -165,7 +181,7 @@ export type AllowedActions =
   | KeyringControllerAddNewAccountAction;
 
 // Messenger events
-export type UserStorageControllerChangeEvent = ControllerStateChangeEvent<
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
@@ -177,15 +193,24 @@ export type UserStorageControllerAccountSyncingComplete = {
   type: `${typeof controllerName}:accountSyncingComplete`;
   payload: [boolean];
 };
+export type Events =
+  | UserStorageControllerStateChangeEvent
+  | UserStorageControllerAccountSyncingInProgress
+  | UserStorageControllerAccountSyncingComplete;
 
 export type AllowedEvents =
-  | UserStorageControllerChangeEvent
+  | UserStorageControllerStateChangeEvent
   | UserStorageControllerAccountSyncingInProgress
   | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
+  // Account Syncing Events
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRenamedEvent;
+  | AccountsControllerAccountRenamedEvent
+  // Network Syncing Events
+  | NetworkControllerNetworkAddedEvent
+  | NetworkControllerNetworkChangedEvent
+  | NetworkControllerNetworkDeletedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -372,6 +397,7 @@ export default class UserStorageController extends BaseController<
     state?: UserStorageControllerState;
     env?: {
       isAccountSyncingEnabled?: boolean;
+      isNetworkSyncingEnabled?: boolean;
     };
     getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
@@ -392,6 +418,22 @@ export default class UserStorageController extends BaseController<
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
     this.#accounts.setupAccountSyncingSubscriptions();
+
+    // Network Syncing
+    if (env?.isNetworkSyncingEnabled) {
+      startNetworkSyncing({
+        messenger,
+        getStorageConfig: async () => {
+          const { storageKey, bearerToken } =
+            await this.#getStorageKeyAndBearerToken();
+          return {
+            storageKey,
+            bearerToken,
+            nativeScryptCrypto: this.#nativeScryptCrypto,
+          };
+        },
+      });
+    }
   }
 
   /**
