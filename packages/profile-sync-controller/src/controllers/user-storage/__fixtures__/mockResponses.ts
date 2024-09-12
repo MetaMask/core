@@ -8,7 +8,11 @@ import type {
   GetUserStorageResponse,
 } from '../services';
 import { USER_STORAGE_ENDPOINT } from '../services';
-import { MOCK_ENCRYPTED_STORAGE_DATA, MOCK_STORAGE_KEY } from './mockStorage';
+import {
+  MOCK_ENCRYPTED_STORAGE_DATA,
+  MOCK_STORAGE_DATA,
+  MOCK_STORAGE_KEY,
+} from './mockStorage';
 
 type MockResponse = {
   url: string;
@@ -29,19 +33,22 @@ export const getMockUserStorageEndpoint = (
   )}`;
 };
 
-const MOCK_GET_USER_STORAGE_RESPONSE =
-  async (): Promise<GetUserStorageResponse> => ({
-    HashedKey: 'HASHED_KEY',
-    Data: await MOCK_ENCRYPTED_STORAGE_DATA(),
-  });
+export const createMockGetStorageResponse = async (
+  data?: string,
+): Promise<GetUserStorageResponse> => ({
+  HashedKey: 'HASHED_KEY',
+  Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
+});
 
-const MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE =
-  async (): Promise<GetUserStorageAllFeatureEntriesResponse> => [
-    {
+export const createMockAllFeatureEntriesResponse = async (
+  dataArr: string[] = [MOCK_STORAGE_DATA],
+): Promise<GetUserStorageAllFeatureEntriesResponse> =>
+  Promise.all(
+    dataArr.map(async (d) => ({
       HashedKey: 'HASHED_KEY',
-      Data: await MOCK_ENCRYPTED_STORAGE_DATA(),
-    },
-  ];
+      Data: await MOCK_ENCRYPTED_STORAGE_DATA(d),
+    })),
+  );
 
 export const getMockUserStorageGetResponse = async (
   path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
@@ -49,17 +56,18 @@ export const getMockUserStorageGetResponse = async (
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
-    response: await MOCK_GET_USER_STORAGE_RESPONSE(),
+    response: await createMockGetStorageResponse(),
   } satisfies MockResponse;
 };
 
 export const getMockUserStorageAllFeatureEntriesResponse = async (
   path: UserStoragePathWithFeatureOnly = 'notifications',
+  dataArr?: string[],
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
-    response: await MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE(),
+    response: await createMockAllFeatureEntriesResponse(dataArr),
   } satisfies MockResponse;
 };
 
