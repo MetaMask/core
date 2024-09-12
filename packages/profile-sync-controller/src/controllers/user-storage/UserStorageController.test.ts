@@ -1,5 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type nock from 'nock';
 
 import encryption, { createSHA256Hash } from '../../shared/encryption';

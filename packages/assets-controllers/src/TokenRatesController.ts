@@ -14,7 +14,7 @@ import {
   FALL_BACK_VS_CURRENCY,
   toHex,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,

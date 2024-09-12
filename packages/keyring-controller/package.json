@@ -55,6 +55,7 @@
     "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/eth-simple-keyring": "^6.0.5",
     "@metamask/keyring-api": "^10.1.0",
+    "@metamask/keyring-internal-api": "^0.0.1",
     "@metamask/message-manager": "^11.0.1",
     "@metamask/utils": "^10.0.0",
     "async-mutex": "^0.5.0",

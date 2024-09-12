@@ -10,14 +10,14 @@ import * as encryptorUtils from '@metamask/browser-passworder';
 import HDKeyring from '@metamask/eth-hd-keyring';
 import { normalize as ethNormalize } from '@metamask/eth-sig-util';
 import SimpleKeyring from '@metamask/eth-simple-keyring';
+import type { KeyringExecutionContext } from '@metamask/keyring-api';
 import type {
   EthBaseTransaction,
   EthBaseUserOperation,
   EthKeyring,
   EthUserOperation,
   EthUserOperationPatch,
-  KeyringExecutionContext,
-} from '@metamask/keyring-api';
+} from '@metamask/keyring-internal-api';
 import type {
   PersonalMessageParams,
   TypedMessageParams,
