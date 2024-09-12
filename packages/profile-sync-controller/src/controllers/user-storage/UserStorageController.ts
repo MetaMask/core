@@ -1,7 +1,6 @@
 import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerGetAccountByAddressAction,
   AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
@@ -176,7 +175,6 @@ export type AllowedActions =
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
   // Account syncing
   | AccountsControllerListAccountsAction
-  | AccountsControllerGetAccountByAddressAction
   | AccountsControllerUpdateAccountMetadataAction
   | KeyringControllerAddNewAccountAction;
 
@@ -298,12 +296,6 @@ export default class UserStorageController extends BaseController<
           }
           await this.saveInternalAccountToUserStorage(account);
         },
-      );
-    },
-    getInternalAccountByAddress: async (address: string) => {
-      return this.messagingSystem.call(
-        'AccountsController:getAccountByAddress',
-        address,
       );
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {

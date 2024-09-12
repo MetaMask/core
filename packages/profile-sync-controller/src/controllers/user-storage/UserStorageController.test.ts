@@ -1274,7 +1274,6 @@ function mockUserStorageMessenger(options?: {
       'NotificationServicesController:selectIsNotificationServicesEnabled',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
-      'AccountsController:getAccountByAddress',
       'KeyringController:addNewAccount',
     ],
     allowedEvents: [
