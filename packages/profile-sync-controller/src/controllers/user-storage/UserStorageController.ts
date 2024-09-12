@@ -420,6 +420,8 @@ export default class UserStorageController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
+    console.log('profile-sync-controller preview package');
+
     this.#accounts.isAccountSyncingEnabled = Boolean(
       env?.isAccountSyncingEnabled,
     );
