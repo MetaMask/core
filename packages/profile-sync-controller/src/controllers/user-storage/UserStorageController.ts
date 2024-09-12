@@ -296,7 +296,6 @@ export default class UserStorageController extends BaseController<
           if (this.#accounts.isAccountSyncingInProgress) {
             return;
           }
-          console.log('Account renamed', account);
           await this.saveInternalAccountToUserStorage(account);
         },
       );
