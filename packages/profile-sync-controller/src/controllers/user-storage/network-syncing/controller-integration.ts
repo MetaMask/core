@@ -2,7 +2,7 @@ import log from 'loglevel';
 
 import type { UserStorageBaseOptions } from '../services';
 import type { UserStorageControllerMessenger } from '../UserStorageController';
-import { addNetwork, deleteNetwork, updateNetwork } from './sync';
+import { addNetwork, deleteNetwork, updateNetwork } from './sync-mutations';
 
 type SetupNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
