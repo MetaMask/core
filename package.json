@@ -43,6 +43,12 @@
     "pre-push": "yarn lint"
   },
   "resolutions": {
+    "@metamask/eth-snap-keyring@npm:^4.3.3": "npm:@metamask-previews/eth-snap-keyring@4.3.2-b9b21be",
+    "@metamask/keyring-api@npm:^8.1.0": "npm:@metamask-previews/keyring-api@8.1.0-b9b21be",
+    "@metamask/keyring-internal-api@npm:0.0.1": "npm:@metamask-previews/keyring-internal-api@0.0.1-b9b21be",
+    "@metamask/keyring-snap-client@npm:0.0.1": "npm:@metamask-previews/keyring-snap-client@0.0.1-b9b21be",
+    "@metamask/keyring-snap-sdk@npm:0.0.1": "npm:@metamask-previews/keyring-snap-sdk@0.0.1-b9b21be",
+    "@metamask/keyring-utils@npm:0.0.1": "npm:@metamask-previews/keyring-utils@0.0.1-b9b21be",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "tsup@^8.0.2": "patch:tsup@npm%3A8.0.2#./.yarn/patches/tsup-npm-8.0.2-86e40f68a7.patch",

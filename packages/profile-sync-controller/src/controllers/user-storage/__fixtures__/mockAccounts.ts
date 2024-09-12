@@ -1,4 +1,4 @@
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from '../accounts/constants';
 import { mapInternalAccountToUserStorageAccount } from '../accounts/user-storage';

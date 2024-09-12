@@ -71,6 +71,7 @@
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^20.0.0",
     "@metamask/keyring-api": "^8.1.0",
+    "@metamask/keyring-internal-api": "npm:@metamask-previews/keyring-internal-api@0.0.1-b9b21be",
     "@metamask/network-controller": "^21.0.0",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^27.4.1",
