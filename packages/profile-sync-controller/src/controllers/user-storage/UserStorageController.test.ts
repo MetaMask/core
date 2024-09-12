@@ -1104,7 +1104,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     });
 
     await controller.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
     expect(
@@ -1132,7 +1132,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     });
 
     await controller.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
     expect(mockAPI.isDone()).toBe(false);
@@ -1158,7 +1158,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     });
 
     await controller.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
     expect(mockAPI.isDone()).toBe(true);
@@ -1186,7 +1186,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
 
     await expect(
       controller.saveInternalAccountToUserStorage(
-        MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
       ),
     ).rejects.toThrow(expect.any(Error));
   });
@@ -1212,7 +1212,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     );
 
     expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0],
     );
   });
 
@@ -1237,7 +1237,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     );
 
     expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0],
     );
   });
 });

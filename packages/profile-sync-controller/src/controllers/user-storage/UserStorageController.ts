@@ -285,7 +285,7 @@ export default class UserStorageController extends BaseController<
           if (this.#accounts.isAccountSyncingInProgress) {
             return;
           }
-          await this.saveInternalAccountToUserStorage(account.address);
+          await this.saveInternalAccountToUserStorage(account);
         },
       );
 
@@ -296,7 +296,8 @@ export default class UserStorageController extends BaseController<
           if (this.#accounts.isAccountSyncingInProgress) {
             return;
           }
-          await this.saveInternalAccountToUserStorage(account.address);
+          console.log('Account renamed', account);
+          await this.saveInternalAccountToUserStorage(account);
         },
       );
     },
@@ -320,21 +321,15 @@ export default class UserStorageController extends BaseController<
         null
       );
     },
-    saveInternalAccountToUserStorage: async (address: string) => {
-      const internalAccount = await this.#accounts.getInternalAccountByAddress(
-        address,
-      );
-
-      if (!internalAccount) {
-        return;
-      }
-
+    saveInternalAccountToUserStorage: async (
+      internalAccount: InternalAccount,
+    ) => {
       // Map the internal account to the user storage account schema
       const mappedAccount =
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `accounts.${address}`,
+        `accounts.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -782,7 +777,7 @@ export default class UserStorageController extends BaseController<
 
         if (!userStorageAccount) {
           await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
+            internalAccount,
           );
           continue;
         }
@@ -812,7 +807,7 @@ export default class UserStorageController extends BaseController<
         // Internal account has custom name but user storage account has default name
         if (isUserStorageAccountNameDefault) {
           await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
+            internalAccount,
           );
           continue;
         }
@@ -829,7 +824,7 @@ export default class UserStorageController extends BaseController<
 
             if (isInternalAccountNameNewer) {
               await this.#accounts.saveInternalAccountToUserStorage(
-                internalAccount.address,
+                internalAccount,
               );
               continue;
             }
@@ -847,7 +842,7 @@ export default class UserStorageController extends BaseController<
           continue;
         } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
           await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
+            internalAccount,
           );
           continue;
         }
@@ -864,17 +859,17 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Saves an individual internal account to the user storage.
-   * @param address - The address of the internal account to save
+   * @param internalAccount - The internal account to save
    */
-  async saveInternalAccountToUserStorage(address: string): Promise<void> {
+  async saveInternalAccountToUserStorage(
+    internalAccount: InternalAccount,
+  ): Promise<void> {
     if (!this.#accounts.canSync()) {
       return;
     }
 
     try {
-      this.#assertProfileSyncingEnabled();
-
-      await this.#accounts.saveInternalAccountToUserStorage(address);
+      await this.#accounts.saveInternalAccountToUserStorage(internalAccount);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
