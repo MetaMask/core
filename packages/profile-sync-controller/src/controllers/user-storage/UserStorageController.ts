@@ -493,6 +493,7 @@ export default class UserStorageController extends BaseController<
 
     this.#env.isAccountSyncingEnabled = Boolean(env?.isAccountSyncingEnabled);
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
+    this.#config = config;
 
     this.#accounts.maxNumberOfAccountsToAdd =
       config?.accountSyncing?.maxNumberOfAccountsToAdd ?? 100;
