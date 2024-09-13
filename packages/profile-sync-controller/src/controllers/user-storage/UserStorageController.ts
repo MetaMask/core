@@ -1,7 +1,6 @@
 import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerGetAccountByAddressAction,
   AccountsControllerAccountRenamedEvent,
   AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
@@ -19,6 +18,7 @@ import type {
   KeyringControllerUnlockEvent,
   KeyringControllerAddNewAccountAction,
 } from '@metamask/keyring-controller';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -35,6 +35,7 @@ import {
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
 import { createSHA256Hash } from './encryption';
+import { startNetworkSyncing } from './network-syncing/controller-integration';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
@@ -44,6 +45,27 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
+
+// TODO: add external NetworkController event
+// Need to listen for when a network gets added
+type NetworkControllerNetworkAddedEvent = {
+  type: 'NetworkController:networkAdded';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
+// TODO: add external NetworkController event
+// Need to listen for when a network is updated, or the default rpc/block explorer changes
+type NetworkControllerNetworkChangedEvent = {
+  type: 'NetworkController:networkChanged';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
+// TODO: add external NetworkController event
+// Need to listen for when a network gets deleted
+type NetworkControllerNetworkDeletedEvent = {
+  type: 'NetworkController:networkDeleted';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
 
 // TODO: fix external dependencies
 export declare type NotificationServicesControllerDisableNotificationServices =
@@ -137,13 +159,6 @@ export type UserStorageControllerSyncInternalAccountsWithUserStorage =
 export type UserStorageControllerSaveInternalAccountToUserStorage =
   ActionsObj['saveInternalAccountToUserStorage'];
 
-export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  UserStorageControllerState
->;
-export type Events = UserStorageControllerStateChangeEvent;
-
-// Allowed Actions
 export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
@@ -160,12 +175,11 @@ export type AllowedActions =
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
   // Account syncing
   | AccountsControllerListAccountsAction
-  | AccountsControllerGetAccountByAddressAction
   | AccountsControllerUpdateAccountMetadataAction
   | KeyringControllerAddNewAccountAction;
 
 // Messenger events
-export type UserStorageControllerChangeEvent = ControllerStateChangeEvent<
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
@@ -177,15 +191,24 @@ export type UserStorageControllerAccountSyncingComplete = {
   type: `${typeof controllerName}:accountSyncingComplete`;
   payload: [boolean];
 };
+export type Events =
+  | UserStorageControllerStateChangeEvent
+  | UserStorageControllerAccountSyncingInProgress
+  | UserStorageControllerAccountSyncingComplete;
 
 export type AllowedEvents =
-  | UserStorageControllerChangeEvent
+  | UserStorageControllerStateChangeEvent
   | UserStorageControllerAccountSyncingInProgress
   | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
+  // Account Syncing Events
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRenamedEvent;
+  | AccountsControllerAccountRenamedEvent
+  // Network Syncing Events
+  | NetworkControllerNetworkAddedEvent
+  | NetworkControllerNetworkChangedEvent
+  | NetworkControllerNetworkDeletedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -241,6 +264,17 @@ export default class UserStorageController extends BaseController<
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
+    canSync: () => {
+      try {
+        this.#assertProfileSyncingEnabled();
+
+        return (
+          this.#accounts.isAccountSyncingEnabled && this.#auth.isAuthEnabled()
+        );
+      } catch {
+        return false;
+      }
+    },
     setupAccountSyncingSubscriptions: () => {
       this.messagingSystem.subscribe(
         'AccountsController:accountAdded',
@@ -249,7 +283,7 @@ export default class UserStorageController extends BaseController<
           if (this.#accounts.isAccountSyncingInProgress) {
             return;
           }
-          await this.saveInternalAccountToUserStorage(account.address);
+          await this.saveInternalAccountToUserStorage(account);
         },
       );
 
@@ -260,14 +294,8 @@ export default class UserStorageController extends BaseController<
           if (this.#accounts.isAccountSyncingInProgress) {
             return;
           }
-          await this.saveInternalAccountToUserStorage(account.address);
+          await this.saveInternalAccountToUserStorage(account);
         },
-      );
-    },
-    getInternalAccountByAddress: async (address: string) => {
-      return this.messagingSystem.call(
-        'AccountsController:getAccountByAddress',
-        address,
       );
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
@@ -284,21 +312,15 @@ export default class UserStorageController extends BaseController<
         null
       );
     },
-    saveInternalAccountToUserStorage: async (address: string) => {
-      const internalAccount = await this.#accounts.getInternalAccountByAddress(
-        address,
-      );
-
-      if (!internalAccount) {
-        return;
-      }
-
+    saveInternalAccountToUserStorage: async (
+      internalAccount: InternalAccount,
+    ) => {
       // Map the internal account to the user storage account schema
       const mappedAccount =
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `accounts.${address}`,
+        `accounts.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -372,6 +394,7 @@ export default class UserStorageController extends BaseController<
     state?: UserStorageControllerState;
     env?: {
       isAccountSyncingEnabled?: boolean;
+      isNetworkSyncingEnabled?: boolean;
     };
     getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
@@ -392,6 +415,22 @@ export default class UserStorageController extends BaseController<
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
     this.#accounts.setupAccountSyncingSubscriptions();
+
+    // Network Syncing
+    if (env?.isNetworkSyncingEnabled) {
+      startNetworkSyncing({
+        messenger,
+        getStorageConfig: async () => {
+          const { storageKey, bearerToken } =
+            await this.#getStorageKeyAndBearerToken();
+          return {
+            storageKey,
+            bearerToken,
+            nativeScryptCrypto: this.#nativeScryptCrypto,
+          };
+        },
+      });
+    }
   }
 
   /**
@@ -676,13 +715,11 @@ export default class UserStorageController extends BaseController<
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
   async syncInternalAccountsWithUserStorage(): Promise<void> {
-    if (!this.#accounts.isAccountSyncingEnabled) {
+    if (!this.#accounts.canSync()) {
       return;
     }
 
     try {
-      this.#assertProfileSyncingEnabled();
-
       this.#accounts.isAccountSyncingInProgress = true;
 
       const userStorageAccountsList =
@@ -731,7 +768,7 @@ export default class UserStorageController extends BaseController<
 
         if (!userStorageAccount) {
           await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
+            internalAccount,
           );
           continue;
         }
@@ -761,7 +798,7 @@ export default class UserStorageController extends BaseController<
         // Internal account has custom name but user storage account has default name
         if (isUserStorageAccountNameDefault) {
           await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
+            internalAccount,
           );
           continue;
         }
@@ -778,7 +815,7 @@ export default class UserStorageController extends BaseController<
 
             if (isInternalAccountNameNewer) {
               await this.#accounts.saveInternalAccountToUserStorage(
-                internalAccount.address,
+                internalAccount,
               );
               continue;
             }
@@ -796,7 +833,7 @@ export default class UserStorageController extends BaseController<
           continue;
         } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
           await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
+            internalAccount,
           );
           continue;
         }
@@ -813,17 +850,17 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Saves an individual internal account to the user storage.
-   * @param address - The address of the internal account to save
+   * @param internalAccount - The internal account to save
    */
-  async saveInternalAccountToUserStorage(address: string): Promise<void> {
-    if (!this.#accounts.isAccountSyncingEnabled) {
+  async saveInternalAccountToUserStorage(
+    internalAccount: InternalAccount,
+  ): Promise<void> {
+    if (!this.#accounts.canSync()) {
       return;
     }
 
     try {
-      this.#assertProfileSyncingEnabled();
-
-      await this.#accounts.saveInternalAccountToUserStorage(address);
+      await this.#accounts.saveInternalAccountToUserStorage(internalAccount);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
