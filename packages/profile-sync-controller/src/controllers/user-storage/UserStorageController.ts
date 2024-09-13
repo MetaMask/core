@@ -19,7 +19,11 @@ import {
   type KeyringControllerAddNewAccountAction,
   KeyringTypes,
 } from '@metamask/keyring-controller';
-import type { NetworkConfiguration } from '@metamask/network-controller';
+import type {
+  NetworkConfiguration,
+  NetworkController,
+  NetworkControllerGetStateAction,
+} from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSHA256Hash } from '../../shared/encryption';
@@ -43,7 +47,10 @@ import {
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
-import { startNetworkSyncing } from './network-syncing/controller-integration';
+import {
+  performMainNetworkSync,
+  startNetworkSyncing,
+} from './network-syncing/controller-integration';
 import {
   batchDeleteUserStorage,
   batchUpsertUserStorage,
@@ -54,25 +61,31 @@ import {
   upsertUserStorage,
 } from './services';
 
-// TODO: add external NetworkController event
-// Need to listen for when a network gets added
+// TODO - replace shimmed interface with actual interfaces once merged
+// Waiting on #4698
 type NetworkControllerNetworkAddedEvent = {
   type: 'NetworkController:networkAdded';
   payload: [networkConfiguration: NetworkConfiguration];
 };
-
-// TODO: add external NetworkController event
-// Need to listen for when a network is updated, or the default rpc/block explorer changes
-type NetworkControllerNetworkChangedEvent = {
-  type: 'NetworkController:networkChanged';
+type NetworkControllerNetworkUpdatedEvent = {
+  type: 'NetworkController:networkUpdated';
   payload: [networkConfiguration: NetworkConfiguration];
 };
-
-// TODO: add external NetworkController event
-// Need to listen for when a network gets deleted
-type NetworkControllerNetworkDeletedEvent = {
-  type: 'NetworkController:networkDeleted';
+type NetworkControllerNetworkRemovedEvent = {
+  type: 'NetworkController:networkRemoved';
   payload: [networkConfiguration: NetworkConfiguration];
+};
+type NetworkControllerAddNetworkAction = {
+  type: 'NetworkController:addNetwork';
+  handler: NetworkController['addNetwork'];
+};
+type NetworkControllerUpdateNetworkAction = {
+  type: 'NetworkController:updateNetwork';
+  handler: NetworkController['updateNetwork'];
+};
+type NetworkControllerRemoveNetworkAction = {
+  type: 'NetworkController:removeNetwork';
+  handler: NetworkController['removeNetwork'];
 };
 
 // TODO: fix external dependencies
@@ -216,10 +229,15 @@ export type AllowedActions =
   // Metamask Notifications
   | NotificationServicesControllerDisableNotificationServices
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
-  // Account syncing
+  // Account Syncing
   | AccountsControllerListAccountsAction
   | AccountsControllerUpdateAccountMetadataAction
-  | KeyringControllerAddNewAccountAction;
+  | KeyringControllerAddNewAccountAction
+  // Network Syncing
+  | NetworkControllerGetStateAction
+  | NetworkControllerAddNetworkAction
+  | NetworkControllerUpdateNetworkAction
+  | NetworkControllerRemoveNetworkAction;
 
 // Messenger events
 export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -250,8 +268,8 @@ export type AllowedEvents =
   | AccountsControllerAccountRenamedEvent
   // Network Syncing Events
   | NetworkControllerNetworkAddedEvent
-  | NetworkControllerNetworkChangedEvent
-  | NetworkControllerNetworkDeletedEvent;
+  | NetworkControllerNetworkUpdatedEvent
+  | NetworkControllerNetworkRemovedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -275,6 +293,13 @@ export default class UserStorageController extends BaseController<
   UserStorageControllerState,
   UserStorageControllerMessenger
 > {
+  // This is replaced with the actual value in the constructor
+  // We will remove this once the feature will be released
+  #env = {
+    isAccountSyncingEnabled: false,
+    isNetworkSyncingEnabled: false,
+  };
+
   #auth = {
     getBearerToken: async () => {
       return await this.messagingSystem.call(
@@ -303,27 +328,13 @@ export default class UserStorageController extends BaseController<
   };
 
   #accounts = {
-    // This is replaced with the actual value in the constructor
-    isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
     maxNumberOfAccountsToAdd: 0,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
 
-        if (this.#accounts.isAccountSyncingInProgress) {
-          return false;
-        }
-
-        if (!this.#accounts.isAccountSyncingEnabled) {
-          return false;
-        }
-
-        if (!this.#auth.isAuthEnabled()) {
-          return false;
-        }
-
-        return true;
+        return this.#env.isAccountSyncingEnabled && this.#auth.isAuthEnabled();
       } catch {
         return false;
       }
@@ -480,11 +491,8 @@ export default class UserStorageController extends BaseController<
       state: { ...defaultState, ...state },
     });
 
-    this.#config = config;
-
-    this.#accounts.isAccountSyncingEnabled = Boolean(
-      env?.isAccountSyncingEnabled,
-    );
+    this.#env.isAccountSyncingEnabled = Boolean(env?.isAccountSyncingEnabled);
+    this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
 
     this.#accounts.maxNumberOfAccountsToAdd =
       config?.accountSyncing?.maxNumberOfAccountsToAdd ?? 100;
@@ -496,18 +504,10 @@ export default class UserStorageController extends BaseController<
     this.#accounts.setupAccountSyncingSubscriptions();
 
     // Network Syncing
-    if (env?.isNetworkSyncingEnabled) {
+    if (this.#env.isNetworkSyncingEnabled) {
       startNetworkSyncing({
         messenger,
-        getStorageConfig: async () => {
-          const { storageKey, bearerToken } =
-            await this.#getStorageKeyAndBearerToken();
-          return {
-            storageKey,
-            bearerToken,
-            nativeScryptCrypto: this.#nativeScryptCrypto,
-          };
-        },
+        getStorageConfig: this.#getStorageOptions,
       });
     }
   }
@@ -556,6 +556,20 @@ export default class UserStorageController extends BaseController<
       'UserStorageController:saveInternalAccountToUserStorage',
       this.saveInternalAccountToUserStorage.bind(this),
     );
+  }
+
+  async #getStorageOptions() {
+    if (!this.state.isProfileSyncingEnabled) {
+      return null;
+    }
+
+    const { storageKey, bearerToken } =
+      await this.#getStorageKeyAndBearerToken();
+    return {
+      storageKey,
+      bearerToken,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+    };
   }
 
   public async enableProfileSyncing(): Promise<void> {
@@ -1125,5 +1139,16 @@ export default class UserStorageController extends BaseController<
         `${controllerName} - failed to save account to user storage - ${errorMessage}`,
       );
     }
+  }
+
+  async syncNetworks() {
+    if (!this.#env.isNetworkSyncingEnabled) {
+      return;
+    }
+
+    await performMainNetworkSync({
+      messenger: this.messagingSystem,
+      getStorageConfig: this.#getStorageOptions,
+    });
   }
 }
