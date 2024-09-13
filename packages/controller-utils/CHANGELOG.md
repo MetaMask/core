@@ -11,7 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add export of tracing types ([#4655](https://github.com/MetaMask/core/pull/4655))
+- Add types `TraceContext`, `TraceRequest`, `TraceCallback` ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - Migrated from `@metamask/transaction-controller@36.2.0`.
 
 ## [11.2.0]
 
