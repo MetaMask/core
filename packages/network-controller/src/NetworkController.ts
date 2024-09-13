@@ -409,13 +409,23 @@ export type NetworkControllerNetworkAddedEvent = {
   payload: [networkConfiguration: NetworkConfiguration];
 };
 
+/**
+ * `networkRemoved` is published after a network configuration is removed from the
+ * network configuration registry and once the network clients have been removed.
+ */
+export type NetworkControllerNetworkRemovedEvent = {
+  type: 'NetworkController:networkRemoved';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
 export type NetworkControllerEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkWillChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | NetworkControllerInfuraIsBlockedEvent
   | NetworkControllerInfuraIsUnblockedEvent
-  | NetworkControllerNetworkAddedEvent;
+  | NetworkControllerNetworkAddedEvent
+  | NetworkControllerNetworkRemovedEvent;
 
 export type NetworkControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -473,6 +483,16 @@ export type NetworkControllerGetNetworkConfigurationByNetworkClientId = {
   handler: NetworkController['getNetworkConfigurationByNetworkClientId'];
 };
 
+export type NetworkControllerAddNetworkAction = {
+  type: 'NetworkController:addNetwork';
+  handler: NetworkController['addNetwork'];
+};
+
+export type NetworkControllerRemoveNetworkAction = {
+  type: 'NetworkController:removeNetwork';
+  handler: NetworkController['removeNetwork'];
+};
+
 export type NetworkControllerActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetEthQueryAction
@@ -483,7 +503,9 @@ export type NetworkControllerActions =
   | NetworkControllerSetActiveNetworkAction
   | NetworkControllerSetProviderTypeAction
   | NetworkControllerGetNetworkConfigurationByChainId
-  | NetworkControllerGetNetworkConfigurationByNetworkClientId;
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerAddNetworkAction
+  | NetworkControllerRemoveNetworkAction;
 
 export type NetworkControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -953,6 +975,20 @@ export class NetworkController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `${this.name}:getSelectedNetworkClient`,
       this.getSelectedNetworkClient.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:addNetwork`,
+      this.addNetwork.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      // ESLint is mistaken here; `name` is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `${this.name}:removeNetwork`,
+      this.removeNetwork.bind(this),
     );
   }
 
@@ -1939,6 +1975,11 @@ export class NetworkController extends BaseController<
       buildNetworkConfigurationsByNetworkClientId(
         this.state.networkConfigurationsByChainId,
       );
+
+    this.messagingSystem.publish(
+      'NetworkController:networkRemoved',
+      existingNetworkConfiguration,
+    );
   }
 
   /**
