@@ -1417,17 +1417,9 @@ function mockUserStorageMessenger(options?: {
       return mockAccountsUpdateAccountMetadata(args.slice(1));
     }
 
-    if (actionType === 'AccountsController:getAccountByAddress') {
-      return mockAccountsGetAccountByAddress();
-    }
-
-    const exhaustedMessengerMocks = (action: never) => {
-      throw new Error(
-        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
-      );
-    };
-
-    return exhaustedMessengerMocks(actionType);
+    throw new Error(
+      `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
+    );
   });
 
   return {
