@@ -383,7 +383,10 @@ function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
     workspace.set(fieldName, expectedValue);
   } else if (expectedValue === null) {
     workspace.unset(fieldName);
-  } else if (fieldValue === undefined || fieldValue === null) {
+  } else if (
+    expectedValue === undefined &&
+    (fieldValue === undefined || fieldValue === null)
+  ) {
     workspace.error(`Missing required field "${fieldName}".`);
   }
 }
