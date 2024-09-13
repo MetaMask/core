@@ -27,7 +27,7 @@ export const getMockUserStorageEndpoint = (
     return `${USER_STORAGE_ENDPOINT}/${path}`;
   }
 
-  return `${USER_STORAGE_ENDPOINT}${createEntryPath(
+  return `${USER_STORAGE_ENDPOINT}/${createEntryPath(
     path as UserStoragePathWithFeatureAndKey,
     MOCK_STORAGE_KEY,
   )}`;
