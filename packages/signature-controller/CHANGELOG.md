@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add optional `traceContext` option to `newUnsignedPersonalMessage` and `newUnsignedTypedMessage` methods.
   - Add initial tracing of signature lifecycle.
 
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.2.0` to `^11.3.0` ([#4688](https://github.com/MetaMask/core/pull/4688))
+
 ## [19.0.0]
 
 ### Changed
