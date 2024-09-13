@@ -11,7 +11,8 @@ const ALLOW_ARBITRARY_KEYS = 'ALLOW_ARBITRARY_KEYS' as const;
 
 export const USER_STORAGE_SCHEMA = {
   notifications: ['notificationSettings'],
-  accounts: [ALLOW_ARBITRARY_KEYS],
+  accounts: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
+  networks: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;

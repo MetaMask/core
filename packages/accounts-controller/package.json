@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "18.1.1",
+  "version": "18.2.0",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -44,10 +44,10 @@
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
     "@metamask/base-controller": "^7.0.0",
-    "@metamask/eth-snap-keyring": "^4.3.1",
+    "@metamask/eth-snap-keyring": "^4.3.3",
     "@metamask/keyring-api": "^8.1.0",
-    "@metamask/snaps-sdk": "^6.1.1",
-    "@metamask/snaps-utils": "^7.8.1",
+    "@metamask/snaps-sdk": "^6.5.0",
+    "@metamask/snaps-utils": "^8.1.1",
     "@metamask/utils": "^9.1.0",
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
@@ -57,7 +57,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/snaps-controllers": "^9.3.1",
+    "@metamask/snaps-controllers": "^9.7.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "jest": "^27.5.1",
@@ -68,7 +68,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/snaps-controllers": "^9.3.0"
+    "@metamask/snaps-controllers": "^9.7.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
