@@ -1,6 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import BN from 'bn.js';
 
 import { flushPromises } from '../../../tests/helpers';

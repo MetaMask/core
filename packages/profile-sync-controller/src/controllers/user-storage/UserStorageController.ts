@@ -11,13 +11,13 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
   KeyringControllerUnlockEvent,
   KeyringControllerAddNewAccountAction,
 } from '@metamask/keyring-controller';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 

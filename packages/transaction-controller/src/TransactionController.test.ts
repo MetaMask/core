@@ -17,8 +17,8 @@ import {
 import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import EthQuery from '@metamask/eth-query';
 import HttpProvider from '@metamask/ethjs-provider-http';
-import type { InternalAccount } from '@metamask/keyring-api';
 import { EthAccountType } from '@metamask/keyring-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type {
   BlockTracker,
   NetworkClientConfiguration,

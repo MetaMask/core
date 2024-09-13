@@ -13,8 +13,9 @@ import {
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
+import { EthAccountType } from '@metamask/keyring-api';
+import { EthMethod } from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import {
   NetworkController,
   NetworkClientType,

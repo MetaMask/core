@@ -46,6 +46,7 @@
     "@metamask/base-controller": "^7.0.0",
     "@metamask/eth-snap-keyring": "^4.3.3",
     "@metamask/keyring-api": "^8.1.0",
+    "@metamask/keyring-internal-api": "npm:@metamask-previews/keyring-internal-api@0.0.1-b9b21be",
     "@metamask/snaps-sdk": "^6.5.0",
     "@metamask/snaps-utils": "^8.1.1",
     "@metamask/utils": "^9.1.0",
