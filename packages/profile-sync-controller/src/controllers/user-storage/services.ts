@@ -58,7 +58,7 @@ export async function getUserStorage(
     const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
     const encryptedPath = createEntryPath(path, storageKey);
-    const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
+    const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
 
     const userStorageResponse = await fetch(url.toString(), {
       headers: {
@@ -172,7 +172,7 @@ export async function upsertUserStorage(
     nativeScryptCrypto,
   );
   const encryptedPath = createEntryPath(path, storageKey);
-  const url = new URL(`${USER_STORAGE_ENDPOINT}${encryptedPath}`);
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
 
   const res = await fetch(url.toString(), {
     method: 'PUT',

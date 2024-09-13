@@ -93,5 +93,5 @@ export function createEntryPath(
   const { feature, key } = getFeatureAndKeyFromPath(path);
   const hashedKey = createSHA256Hash(key + storageKey);
 
-  return `/${feature}/${hashedKey}`;
+  return `${feature}/${hashedKey}`;
 }
