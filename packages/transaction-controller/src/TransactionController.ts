@@ -305,7 +305,6 @@ export type TransactionControllerOptions = {
       transactionMeta: TransactionMeta,
       signedTx: TypedTransaction,
     ) => boolean;
-    beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
@@ -633,10 +632,6 @@ export class TransactionController extends BaseController<
     signedTx: TypedTransaction,
   ) => boolean;
 
-  private readonly beforeApproveOnInit: (
-    transactionMeta: TransactionMeta,
-  ) => boolean;
-
   private readonly beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
   ) => boolean;
@@ -657,24 +652,48 @@ export class TransactionController extends BaseController<
     error: Error,
     actionId?: string,
   ) {
-    const newTransactionMeta = merge({}, transactionMeta, {
-      error: normalizeTxError(error),
-      status: TransactionStatus.failed as const,
-    });
+    let newTransactionMeta: TransactionMeta;
+
+    try {
+      newTransactionMeta = this.#updateTransactionInternal(
+        {
+          transactionId: transactionMeta.id,
+          note: 'TransactionController#failTransaction - Add error message and set status to failed',
+          skipValidation: true,
+        },
+        (draftTransactionMeta) => {
+          draftTransactionMeta.status = TransactionStatus.failed;
+
+          (
+            draftTransactionMeta as TransactionMeta & {
+              status: TransactionStatus.failed;
+            }
+          ).error = normalizeTxError(error);
+        },
+      );
+    } catch (err: unknown) {
+      log('Failed to mark transaction as failed', err);
+
+      newTransactionMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.failed,
+        error: normalizeTxError(error),
+      };
+    }
+
     this.messagingSystem.publish(`${controllerName}:transactionFailed`, {
       actionId,
       error: error.message,
       transactionMeta: newTransactionMeta,
     });
-    this.updateTransaction(
-      newTransactionMeta,
-      'TransactionController#failTransaction - Add error message and set status to failed',
-    );
+
     this.onTransactionStatusChange(newTransactionMeta);
+
     this.messagingSystem.publish(
       `${controllerName}:transactionFinished`,
       newTransactionMeta,
     );
+
     this.#internalEvents.emit(
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
@@ -800,7 +819,6 @@ export class TransactionController extends BaseController<
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.afterSign = hooks?.afterSign ?? (() => true);
-    this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
     this.beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
@@ -1346,15 +1364,16 @@ export class TransactionController extends BaseController<
 
     const newTransactionMeta = {
       ...transactionMetaWithRsv,
-      estimatedBaseFee,
-      id: random(),
-      time: Date.now(),
-      hash,
       actionId,
+      estimatedBaseFee,
+      hash,
+      id: random(),
       originalGasEstimate: transactionMeta.txParams.gas,
-      type: transactionType,
-      txParams: newTxParams,
       originalType: transactionMeta.type,
+      rawTx,
+      time: Date.now(),
+      txParams: newTxParams,
+      type: transactionType,
     };
 
     this.addMetadata(newTransactionMeta);
@@ -2011,30 +2030,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Creates approvals for all unapproved transactions persisted.
-   */
-  initApprovals() {
-    const chainId = this.getChainId();
-    const unapprovedTxs = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId &&
-        !transaction.isUserOperation,
-    );
-
-    for (const txMeta of unapprovedTxs) {
-      this.processApproval(txMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
-  }
-
-  /**
    * Search transaction metadata for matching entries.
    *
    * @param opts - Options bag.
@@ -2349,24 +2344,23 @@ export class TransactionController extends BaseController<
   }
 
   private onBootCleanup() {
-    this.submitApprovedTransactions();
+    this.clearUnapprovedTransactions();
+    this.failIncompleteTransactions();
   }
 
-  /**
-   * Force submit approved transactions for all chains.
-   */
-  private submitApprovedTransactions() {
-    const approvedTransactions = this.state.transactions.filter(
-      (transaction) => transaction.status === TransactionStatus.approved,
+  private failIncompleteTransactions() {
+    const incompleteTransactions = this.state.transactions.filter(
+      (transaction) =>
+        [TransactionStatus.approved, TransactionStatus.signed].includes(
+          transaction.status,
+        ),
     );
 
-    for (const transactionMeta of approvedTransactions) {
-      if (this.beforeApproveOnInit(transactionMeta)) {
-        this.approveTransaction(transactionMeta.id).catch((error) => {
-          /* istanbul ignore next */
-          console.error('Error while submitting persisted transaction', error);
-        });
-      }
+    for (const transactionMeta of incompleteTransactions) {
+      this.failTransaction(
+        transactionMeta,
+        new Error('Transaction incomplete at startup'),
+      );
     }
   }
 
@@ -3359,9 +3353,6 @@ export class TransactionController extends BaseController<
     const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
 
     const pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: async (transactionId: string) => {
-        await this.approveTransaction(transactionId);
-      },
       blockTracker,
       getChainId,
       getEthQuery: () => ethQuery,
@@ -3527,7 +3518,13 @@ export class TransactionController extends BaseController<
       transactionId,
       note,
       skipHistory,
-    }: { transactionId: string; note?: string; skipHistory?: boolean },
+      skipValidation,
+    }: {
+      transactionId: string;
+      note?: string;
+      skipHistory?: boolean;
+      skipValidation?: boolean;
+    },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
     let updatedTransactionParams: (keyof TransactionParams)[] = [];
@@ -3542,11 +3539,13 @@ export class TransactionController extends BaseController<
       // eslint-disable-next-line n/callback-return
       transactionMeta = callback(transactionMeta) ?? transactionMeta;
 
-      transactionMeta.txParams = normalizeTransactionParams(
-        transactionMeta.txParams,
-      );
+      if (skipValidation !== true) {
+        transactionMeta.txParams = normalizeTransactionParams(
+          transactionMeta.txParams,
+        );
 
-      validateTxParams(transactionMeta.txParams);
+        validateTxParams(transactionMeta.txParams);
+      }
 
       updatedTransactionParams =
         this.#checkIfTransactionParamsUpdated(transactionMeta);
