@@ -16,7 +16,6 @@
     "build:clean": "rimraf dist '**/*.tsbuildinfo' && yarn build",
     "build:docs": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run build:docs",
     "build:types": "tsc --build tsconfig.build.json --verbose",
-    "build:watch": "yarn run build --watch",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-package": "ts-node scripts/create-package",
