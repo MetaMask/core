@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [36.2.0]
 
-### Changed
+### Removed
 
 - Removed trace types from `TransactionController`, instead import them from `@metamask/controller-utils` ([#4655](https://github.com/MetaMask/core/pull/4655))
 
