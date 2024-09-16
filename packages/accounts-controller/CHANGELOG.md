@@ -32,7 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     more tree-shakeable, it also made debugging more difficult for our
     development teams. These chunk files are no longer present.
 
-
 ## [18.2.0]
 
 ### Added

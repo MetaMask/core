@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove unapproved transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
 - Fail approved and signed transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
 
+### Removed
+
+- **BREAKING:** Remove `initApprovals` method ([#4658](https://github.com/MetaMask/core/pull/4658))
+- **BREAKING:** Remove `beforeApproveOnInit` hook ([#4658](https://github.com/MetaMask/core/pull/4658))
+- **BREAKING:** Remove `TraceContext`, `TraceRequest`, and `TraceCallback` types ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - These were moved to `@metamask/controller-utils`.
+
 ### Fixed
 
 - Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
@@ -29,13 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
     development teams. These chunk files are no longer present.
-
-### Removed
-
-- **BREAKING:** Remove `initApprovals` method ([#4658](https://github.com/MetaMask/core/pull/4658))
-- **BREAKING:** Remove `beforeApproveOnInit` hook ([#4658](https://github.com/MetaMask/core/pull/4658))
-- **BREAKING:** Remove `TraceContext`, `TraceRequest`, and `TraceCallback` types ([#4655](https://github.com/MetaMask/core/pull/4655))
-  - These were moved to `@metamask/controller-utils`.
 
 ## [36.1.0]
 

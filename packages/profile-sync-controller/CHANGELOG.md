@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/snaps-utils` from `^7.8.1` to `^8.1.1` ([#4689](https://github.com/MetaMask/core/pull/4689))
 - Bump peer dependency `@metamask/snaps-controllers` from `^9.3.0` to `^9.7.0` ([#4689](https://github.com/MetaMask/core/pull/4689))
 
+### Removed
+
+- **BREAKING:** Remove `getAccountByAddress` action ([#4693](https://github.com/MetaMask/core/pull/4693))
+
 ### Fixed
 
 - Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
@@ -36,10 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     more tree-shakeable, it also made debugging more difficult for our
     development teams. These chunk files are no longer present.
 - Remove extra slash when constructing user storage url ([#4702](https://github.com/MetaMask/core/pull/4702))
-
-### Removed
-
-- **BREAKING:** Remove `getAccountByAddress` action ([#4693](https://github.com/MetaMask/core/pull/4693))
 
 ## [0.5.0]
 
