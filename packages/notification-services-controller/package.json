@@ -101,7 +101,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^0.5.0"
+    "@metamask/profile-sync-controller": "^0.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
