@@ -22,6 +22,7 @@ import {
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
 } from './__fixtures__/mockStorage';
+import * as AccountsUserStorageModule from './accounts/user-storage';
 import encryption from './encryption/encryption';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
@@ -580,6 +581,59 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     );
   });
 
+  it('fires the onAccountAdded callback when adding an account', async () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
+    };
+
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              await mockUserStorageAccountsResponse(),
+            ),
+        },
+      };
+    };
+
+    const onAccountAdded = jest.fn();
+
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      config: {
+        accountSyncing: {
+          onAccountAdded,
+        },
+      },
+      env: {
+        isAccountSyncingEnabled: true,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    mockAPI.mockEndpointGetUserStorage.done();
+
+    expect(onAccountAdded).toHaveBeenCalledTimes(
+      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
+        MOCK_INTERNAL_ACCOUNTS.ONE.length,
+    );
+  });
+
   it('does not create internal accounts if user storage has less accounts', async () => {
     const mockUserStorageAccountsResponse = async () => {
       return {
@@ -893,6 +947,48 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         messengerMocks.mockAccountsUpdateAccountMetadata,
       ).not.toHaveBeenCalled();
     });
+
+    it('fires the onAccountNameUpdated callback when renaming an internal account', async () => {
+      const arrangeMocksForAccounts = async () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage:
+              await mockEndpointGetUserStorageAllFeatureEntries(
+                'accounts',
+                await mockUserStorageAccountsResponse(),
+              ),
+          },
+        };
+      };
+
+      const onAccountNameUpdated = jest.fn();
+
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        config: {
+          accountSyncing: {
+            onAccountNameUpdated,
+          },
+        },
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+
+      expect(onAccountNameUpdated).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('User storage name is a custom name with last updated', () => {
@@ -1090,6 +1186,11 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       };
     };
 
+    const mapInternalAccountToUserStorageAccountMock = jest.spyOn(
+      AccountsUserStorageModule,
+      'mapInternalAccountToUserStorageAccount',
+    );
+
     const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
       messenger: messengerMocks.messenger,
@@ -1107,9 +1208,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
-    expect(
-      messengerMocks.mockAccountsGetAccountByAddress,
-    ).not.toHaveBeenCalled();
+    expect(mapInternalAccountToUserStorageAccountMock).not.toHaveBeenCalled();
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
@@ -1336,10 +1435,6 @@ function mockUserStorageMessenger(options?: {
 
   const mockAccountsUpdateAccountMetadata = jest.fn().mockResolvedValue(true);
 
-  const mockAccountsGetAccountByAddress = jest
-    .fn()
-    .mockResolvedValue(MOCK_INTERNAL_ACCOUNTS.ONE[0]);
-
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     // Creates the correct typed call params for mocks
     type CallParams = {
@@ -1417,17 +1512,9 @@ function mockUserStorageMessenger(options?: {
       return mockAccountsUpdateAccountMetadata(args.slice(1));
     }
 
-    if (actionType === 'AccountsController:getAccountByAddress') {
-      return mockAccountsGetAccountByAddress();
-    }
-
-    const exhaustedMessengerMocks = (action: never) => {
-      throw new Error(
-        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
-      );
-    };
-
-    return exhaustedMessengerMocks(actionType);
+    throw new Error(
+      `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
+    );
   });
 
   return {
@@ -1444,7 +1531,6 @@ function mockUserStorageMessenger(options?: {
     mockAuthPerformSignOut,
     mockKeyringAddNewAccount,
     mockAccountsUpdateAccountMetadata,
-    mockAccountsGetAccountByAddress,
     mockAccountsListAccounts,
   };
 }

@@ -119,6 +119,22 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   },
 };
 
+type ControllerConfig = {
+  accountSyncing?: {
+    /**
+     * Callback that fires when account sync adds an account.
+     * This is used for analytics.
+     */
+    onAccountAdded?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when account sync updates the name of an account.
+     * This is used for analytics.
+     */
+    onAccountNameUpdated?: (profileId: string) => void;
+  };
+};
+
 // Messenger Actions
 type CreateActionsObj<Controller extends keyof UserStorageController> = {
   [K in Controller]: {
@@ -347,6 +363,8 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #config?: ControllerConfig;
+
   #notificationServices = {
     disableNotificationServices: async () => {
       return await this.messagingSystem.call(
@@ -387,11 +405,13 @@ export default class UserStorageController extends BaseController<
     messenger,
     state,
     env,
+    config,
     getMetaMetricsState,
     nativeScryptCrypto,
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
+    config?: ControllerConfig;
     env?: {
       isAccountSyncingEnabled?: boolean;
       isNetworkSyncingEnabled?: boolean;
@@ -405,6 +425,8 @@ export default class UserStorageController extends BaseController<
       name: controllerName,
       state: { ...defaultState, ...state },
     });
+
+    this.#config = config;
 
     this.#accounts.isAccountSyncingEnabled = Boolean(
       env?.isAccountSyncingEnabled,
@@ -722,6 +744,8 @@ export default class UserStorageController extends BaseController<
     try {
       this.#accounts.isAccountSyncingInProgress = true;
 
+      const profileId = await this.#auth.getProfileId();
+
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
 
@@ -752,6 +776,7 @@ export default class UserStorageController extends BaseController<
           length: numberOfAccountsToAdd,
         }).map(async () => {
           await this.messagingSystem.call('KeyringController:addNewAccount');
+          this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         });
 
         await Promise.all(addNewAccountsPromises);
@@ -791,6 +816,8 @@ export default class UserStorageController extends BaseController<
                 name: userStorageAccount.n,
               },
             );
+
+            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
           }
           continue;
         }
@@ -829,6 +856,8 @@ export default class UserStorageController extends BaseController<
               nameLastUpdatedAt: userStorageAccount.nlu,
             },
           );
+
+          this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
 
           continue;
         } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {

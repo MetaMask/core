@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "18.2.0",
+  "version": "18.2.1",
   "description": "Manages internal accounts",
   "keywords": [
     "MetaMask",
@@ -18,19 +18,24 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "files": [
     "dist/"
   ],
   "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/accounts-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
@@ -43,7 +48,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
-    "@metamask/base-controller": "^7.0.0",
+    "@metamask/base-controller": "^7.0.1",
     "@metamask/eth-snap-keyring": "^4.3.3",
     "@metamask/keyring-api": "^8.1.0",
     "@metamask/snaps-sdk": "^6.5.0",
@@ -56,7 +61,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.0",
+    "@metamask/keyring-controller": "^17.2.1",
     "@metamask/snaps-controllers": "^9.7.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
