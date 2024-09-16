@@ -1,6 +1,10 @@
 import { ValidationError } from '../errors';
 import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
-import { MESSAGE_SIGNING_SNAP } from '../utils/messaging-signing-snap-requests';
+import {
+  MESSAGE_SIGNING_SNAP,
+  connectSnap,
+  isSnapConnected,
+} from '../utils/messaging-signing-snap-requests';
 import { validateLoginResponse } from '../utils/validate-login-response';
 import { authenticate, authorizeOIDC, getNonce } from './services';
 import type {
@@ -20,19 +24,21 @@ type JwtBearerAuth_SRP_Options = {
   signing?: AuthSigningOptions;
 };
 
+const getDefaultEIP6963Provider = async () => {
+  const provider = await getMetaMaskProviderEIP6963();
+  if (!provider) {
+    throw new ValidationError('No MetaMask wallet connected');
+  }
+  return provider;
+};
+
 const defaultEIP6963SigningOptions: AuthSigningOptions = {
   getIdentifier: async (): Promise<string> => {
-    const provider = await getMetaMaskProviderEIP6963();
-    if (!provider) {
-      throw new ValidationError('No MetaMask wallet connected');
-    }
+    const provider = await getDefaultEIP6963Provider();
     return await MESSAGE_SIGNING_SNAP.getPublicKey(provider);
   },
   signMessage: async (message: string): Promise<string> => {
-    const provider = await getMetaMaskProviderEIP6963();
-    if (!provider) {
-      throw new ValidationError('No MetaMask wallet connected');
-    }
+    const provider = await getDefaultEIP6963Provider();
     if (!message.startsWith('metamask:')) {
       throw new ValidationError('message must start with "metamask:"');
     }
@@ -83,6 +89,22 @@ export class SRPJwtBearerAuth implements IBaseAuth {
 
   async signMessage(message: string): Promise<string> {
     return await this.#options.signing.signMessage(message);
+  }
+
+  async isSnapConnected(): Promise<boolean> {
+    const provider = await getMetaMaskProviderEIP6963();
+    if (!provider) {
+      return false;
+    }
+
+    const isConnected = await isSnapConnected(provider);
+    return isConnected;
+  }
+
+  async connectSnap(): Promise<string> {
+    const provider = await getDefaultEIP6963Provider();
+    const res = await connectSnap(provider);
+    return res;
   }
 
   // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
