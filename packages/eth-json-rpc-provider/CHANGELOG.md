@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
+- Add way to view pkg changes since latest release ([#1390](https://github.com/MetaMask/core/pull/1390))
+
 ## [4.1.3]
 
 ### Changed

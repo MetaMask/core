@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
+- Release 200.0.0 ([#4680](https://github.com/MetaMask/core/pull/4680))
+- don't update currency rates on transient errors ([#4662](https://github.com/MetaMask/core/pull/4662))
+- fix: fallback conversion rate for token market data ([#4615](https://github.com/MetaMask/core/pull/4615))
+
 ## [38.0.0]
 
 ### Added

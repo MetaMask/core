@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
+- fix: transaction controller startup ([#4658](https://github.com/MetaMask/core/pull/4658))
+- feat: Add initial tracing to `SignatureController` ([#4655](https://github.com/MetaMask/core/pull/4655))
+
 ## [36.1.0]
 
 ### Added

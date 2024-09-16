@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
+- Bump Snaps packages ([#4689](https://github.com/MetaMask/core/pull/4689))
+
 ## [18.2.0]
 
 ### Added

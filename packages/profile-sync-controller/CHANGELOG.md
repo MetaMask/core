@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
+- fix: remove extra slash when constructing user storage url ([#4702](https://github.com/MetaMask/core/pull/4702))
+- feat: network sync - add main sync logic ([#4694](https://github.com/MetaMask/core/pull/4694))
+- Bump Snaps packages ([#4689](https://github.com/MetaMask/core/pull/4689))
+- refactor: use `internalAccount` instead of account address for granular updates ([#4693](https://github.com/MetaMask/core/pull/4693))
+- feat: add a `canSync` check for account syncing ([#4690](https://github.com/MetaMask/core/pull/4690))
+- feat: network-syncing and user storage controller integration ([#4687](https://github.com/MetaMask/core/pull/4687))
+- feat: add network sync mutation logic ([#4685](https://github.com/MetaMask/core/pull/4685))
+- feat: scaffolding - update storage schema ([#4684](https://github.com/MetaMask/core/pull/4684))
+- Release 200.0.0 ([#4680](https://github.com/MetaMask/core/pull/4680))
+
 ## [0.5.0]
 
 ### Added
