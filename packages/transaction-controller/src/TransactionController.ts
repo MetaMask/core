@@ -1381,7 +1381,7 @@ export class TransactionController extends BaseController<
 
     const hash = await this.publishTransactionForRetry(ethQuery, {
       ...newTransactionMeta,
-      origin: ORIGIN_METAMASK,
+      origin: label,
     });
 
     newTransactionMeta.hash = hash;
