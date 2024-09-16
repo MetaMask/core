@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.3]
+
 ### Uncategorized
 
 - Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
@@ -189,7 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.3...HEAD
+[9.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.2...@metamask/json-rpc-engine@9.0.3
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.1...@metamask/json-rpc-engine@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.0...@metamask/json-rpc-engine@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@8.0.2...@metamask/json-rpc-engine@9.0.0

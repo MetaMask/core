@@ -1,6 +1,6 @@
 {
   "name": "@metamask/announcement-controller",
-  "version": "7.0.0",
+  "version": "7.0.1",
   "description": "Manages in-app announcements",
   "keywords": [
     "MetaMask",
@@ -47,7 +47,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.0"
+    "@metamask/base-controller": "^7.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

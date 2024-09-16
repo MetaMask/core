@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.1]
+
 ### Uncategorized
 
 - Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
@@ -185,7 +187,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@8.0.0...@metamask/composable-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@7.0.0...@metamask/composable-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.2...@metamask/composable-controller@7.0.0

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/signature-controller",
-  "version": "19.0.0",
+  "version": "19.0.1",
   "description": "Processes signing requests in order to sign arbitrary and typed data",
   "keywords": [
     "MetaMask",
@@ -47,17 +47,17 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.2.0",
-    "@metamask/message-manager": "^10.1.0",
+    "@metamask/base-controller": "^7.0.1",
+    "@metamask/controller-utils": "^11.3.0",
+    "@metamask/message-manager": "^10.1.1",
     "@metamask/utils": "^9.1.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.0.3",
+    "@metamask/approval-controller": "^7.0.4",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/logging-controller": "^6.0.0",
+    "@metamask/keyring-controller": "^17.2.1",
+    "@metamask/logging-controller": "^6.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

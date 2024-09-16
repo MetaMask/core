@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.3]
+
 ### Uncategorized
 
 - Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
@@ -156,7 +158,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.3...HEAD
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.2...@metamask/json-rpc-middleware-stream@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.1...@metamask/json-rpc-middleware-stream@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.0...@metamask/json-rpc-middleware-stream@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.2...@metamask/json-rpc-middleware-stream@8.0.0
