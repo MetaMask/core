@@ -9,12 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.0.1]
 
-### Uncategorized
+### Fixed
 
-- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
-- Release 200.0.0 ([#4680](https://github.com/MetaMask/core/pull/4680))
-- don't update currency rates on transient errors ([#4662](https://github.com/MetaMask/core/pull/4662))
-- fix: fallback conversion rate for token market data ([#4615](https://github.com/MetaMask/core/pull/4615))
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+- Don't update currency rates on transient errors ([#4662](https://github.com/MetaMask/core/pull/4662))
+  - In `CurrencyRateController` if unexpected errors occur during requests to
+    crypto compare, the conversion rate in state will remain unchanged instead
+    of being set to null.
+- Fix fallback conversion rate for token market data ([#4615](https://github.com/MetaMask/core/pull/4615))
+  - On networks where the native currency is not ETH, token market data is now
+    correctly priced in the native currency.
 
 ## [38.0.0]
 

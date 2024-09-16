@@ -7,20 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.5.1]
+## [0.6.0]
 
-### Uncategorized
+### Added
 
-- Replace `tsup` with `ts-bridge` ([#4648](https://github.com/MetaMask/core/pull/4648))
-- fix: remove extra slash when constructing user storage url ([#4702](https://github.com/MetaMask/core/pull/4702))
-- feat: network sync - add main sync logic ([#4694](https://github.com/MetaMask/core/pull/4694))
-- Bump Snaps packages ([#4689](https://github.com/MetaMask/core/pull/4689))
-- refactor: use `internalAccount` instead of account address for granular updates ([#4693](https://github.com/MetaMask/core/pull/4693))
-- feat: add a `canSync` check for account syncing ([#4690](https://github.com/MetaMask/core/pull/4690))
-- feat: network-syncing and user storage controller integration ([#4687](https://github.com/MetaMask/core/pull/4687))
-- feat: add network sync mutation logic ([#4685](https://github.com/MetaMask/core/pull/4685))
-- feat: scaffolding - update storage schema ([#4684](https://github.com/MetaMask/core/pull/4684))
-- Release 200.0.0 ([#4680](https://github.com/MetaMask/core/pull/4680))
+- Add network synchronisation logic ([#4694](https://github.com/MetaMask/core/pull/4694), [#4687](https://github.com/MetaMask/core/pull/4687), [#4685](https://github.com/MetaMask/core/pull/4685), [#4684](https://github.com/MetaMask/core/pull/4684))
+- Add a `canSync` check for account synchronisation ([#4690](https://github.com/MetaMask/core/pull/4690))
+
+### Changed
+
+- Bump `@metamask/snaps-sdk` from `^6.1.1` to `^6.5.0` ([#4689](https://github.com/MetaMask/core/pull/4689))
+- Bump `@metamask/snaps-utils` from `^7.8.1` to `^8.1.1` ([#4689](https://github.com/MetaMask/core/pull/4689))
+- Bump peer dependency `@metamask/snaps-controllers` from `^9.3.0` to `^9.7.0` ([#4689](https://github.com/MetaMask/core/pull/4689))
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+- Remove extra slash when constructing user storage url ([#4702](https://github.com/MetaMask/core/pull/4702))
+
+### Removed
+
+- **BREAKING:** Remove `getAccountByAddress` action ([#4693](https://github.com/MetaMask/core/pull/4693))
 
 ## [0.5.0]
 
@@ -164,8 +183,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.1...HEAD
-[0.5.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.5.1
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.6.0...HEAD
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...@metamask/profile-sync-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.3.0...@metamask/profile-sync-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0
