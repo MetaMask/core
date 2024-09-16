@@ -28,29 +28,54 @@
       }
     },
     "./sdk": {
-      "import": "./dist/sdk/index.mjs",
-      "require": "./dist/sdk/index.js",
-      "types": "./dist/types/sdk/index.d.ts"
+      "import": {
+        "types": "./dist/sdk/index.d.mts",
+        "default": "./dist/sdk/index.mjs"
+      },
+      "require": {
+        "types": "./dist/sdk/index.d.cts",
+        "default": "./dist/sdk/index.cjs"
+      }
     },
     "./auth": {
-      "import": "./dist/controllers/authentication/index.mjs",
-      "require": "./dist/controllers/authentication/index.js",
-      "types": "./dist/types/controllers/authentication/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/authentication/index.d.mts",
+        "default": "./dist/controllers/authentication/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/authentication/index.d.cts",
+        "default": "./dist/controllers/authentication/index.cjs"
+      }
     },
     "./auth/mocks": {
-      "import": "./dist/controllers/authentication/__fixtures__/index.mjs",
-      "require": "./dist/controllers/authentication/__fixtures__/index.js",
-      "types": "./dist/types/controllers/authentication/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/authentication/__fixtures__/index.d.mts",
+        "default": "./dist/controllers/authentication/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/authentication/__fixtures__/index.d.cts",
+        "default": "./dist/controllers/authentication/__fixtures__/index.cjs"
+      }
     },
     "./user-storage": {
-      "import": "./dist/controllers/user-storage/index.mjs",
-      "require": "./dist/controllers/user-storage/index.js",
-      "types": "./dist/types/controllers/user-storage/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/user-storage/index.d.mts",
+        "default": "./dist/controllers/user-storage/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/user-storage/index.d.cts",
+        "default": "./dist/controllers/user-storage/index.cjs"
+      }
     },
     "./user-storage/mocks": {
-      "import": "./dist/controllers/user-storage/__fixtures__/index.mjs",
-      "require": "./dist/controllers/user-storage/__fixtures__/index.js",
-      "types": "./dist/types/controllers/user-storage/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/user-storage/__fixtures__/index.d.mts",
+        "default": "./dist/controllers/user-storage/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/user-storage/__fixtures__/index.d.cts",
+        "default": "./dist/controllers/user-storage/__fixtures__/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
