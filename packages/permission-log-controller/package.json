@@ -1,6 +1,6 @@
 {
   "name": "@metamask/permission-log-controller",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Controller with middleware for logging requests and responses to restricted and permissions-related methods",
   "keywords": [
     "MetaMask",
@@ -47,8 +47,8 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.0",
-    "@metamask/json-rpc-engine": "^9.0.2",
+    "@metamask/base-controller": "^7.0.1",
+    "@metamask/json-rpc-engine": "^9.0.3",
     "@metamask/utils": "^9.1.0"
   },
   "devDependencies": {
