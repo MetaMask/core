@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0]
+
+### Added
+
+- Add network synchronisation logic ([#4694](https://github.com/MetaMask/core/pull/4694), [#4687](https://github.com/MetaMask/core/pull/4687), [#4685](https://github.com/MetaMask/core/pull/4685), [#4684](https://github.com/MetaMask/core/pull/4684))
+- Add a `canSync` check for account synchronisation ([#4690](https://github.com/MetaMask/core/pull/4690))
+- Add `onAccountAdded` and `onAccountNameUpdated` events to `UserStorageController` ([#4707](https://github.com/MetaMask/core/pull/4707))
+
+### Changed
+
+- Bump `@metamask/snaps-sdk` from `^6.1.1` to `^6.5.0` ([#4689](https://github.com/MetaMask/core/pull/4689))
+- Bump `@metamask/snaps-utils` from `^7.8.1` to `^8.1.1` ([#4689](https://github.com/MetaMask/core/pull/4689))
+- Bump peer dependency `@metamask/snaps-controllers` from `^9.3.0` to `^9.7.0` ([#4689](https://github.com/MetaMask/core/pull/4689))
+
+### Removed
+
+- **BREAKING:** Remove `getAccountByAddress` action ([#4693](https://github.com/MetaMask/core/pull/4693))
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+- Remove extra slash when constructing user storage url ([#4702](https://github.com/MetaMask/core/pull/4702))
+- Await encryption promise ([#4705](https://github.com/MetaMask/core/pull/4705))
+
 ## [0.5.0]
 
 ### Added
@@ -149,7 +185,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.6.0...HEAD
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.6.0
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.4.0...@metamask/profile-sync-controller@0.5.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.3.0...@metamask/profile-sync-controller@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.2.1...@metamask/profile-sync-controller@0.3.0

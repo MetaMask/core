@@ -581,6 +581,59 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     );
   });
 
+  it('fires the onAccountAdded callback when adding an account', async () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
+    };
+
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              await mockUserStorageAccountsResponse(),
+            ),
+        },
+      };
+    };
+
+    const onAccountAdded = jest.fn();
+
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      config: {
+        accountSyncing: {
+          onAccountAdded,
+        },
+      },
+      env: {
+        isAccountSyncingEnabled: true,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    mockAPI.mockEndpointGetUserStorage.done();
+
+    expect(onAccountAdded).toHaveBeenCalledTimes(
+      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
+        MOCK_INTERNAL_ACCOUNTS.ONE.length,
+    );
+  });
+
   it('does not create internal accounts if user storage has less accounts', async () => {
     const mockUserStorageAccountsResponse = async () => {
       return {
@@ -893,6 +946,48 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
       ).not.toHaveBeenCalled();
+    });
+
+    it('fires the onAccountNameUpdated callback when renaming an internal account', async () => {
+      const arrangeMocksForAccounts = async () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage:
+              await mockEndpointGetUserStorageAllFeatureEntries(
+                'accounts',
+                await mockUserStorageAccountsResponse(),
+              ),
+          },
+        };
+      };
+
+      const onAccountNameUpdated = jest.fn();
+
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        config: {
+          accountSyncing: {
+            onAccountNameUpdated,
+          },
+        },
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+
+      expect(onAccountNameUpdated).toHaveBeenCalledTimes(1);
     });
   });
 
