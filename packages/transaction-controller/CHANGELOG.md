@@ -13,13 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove unapproved transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
 - Fail approved and signed transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
+- Remove `TraceContext`, `TraceRequest`, and `TraceCallback` types ([#4655](https://github.com/MetaMask/core/pull/4655))
+   - These were moved to `@metamask/controller-utils`.
 
 ### Removed
 
 - **BREAKING:** Remove `initApprovals` method ([#4658](https://github.com/MetaMask/core/pull/4658))
 - **BREAKING:** Remove `beforeApproveOnInit` hook ([#4658](https://github.com/MetaMask/core/pull/4658))
-- **BREAKING:** Remove `TraceContext`, `TraceRequest`, and `TraceCallback` types ([#4655](https://github.com/MetaMask/core/pull/4655))
-  - These were moved to `@metamask/controller-utils`.
 
 ### Fixed
 
