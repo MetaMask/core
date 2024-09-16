@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add network synchronisation logic ([#4694](https://github.com/MetaMask/core/pull/4694), [#4687](https://github.com/MetaMask/core/pull/4687), [#4685](https://github.com/MetaMask/core/pull/4685), [#4684](https://github.com/MetaMask/core/pull/4684))
 - Add a `canSync` check for account synchronisation ([#4690](https://github.com/MetaMask/core/pull/4690))
+- Add `onAccountAdded` and `onAccountNameUpdated` events to `UserStorageController` ([#4707](https://github.com/MetaMask/core/pull/4707))
 
 ### Changed
 
