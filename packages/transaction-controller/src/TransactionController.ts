@@ -2672,12 +2672,15 @@ export class TransactionController extends BaseController<
   private async publishTransaction(
     ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
+    { skipSubmitHistory }: { skipSubmitHistory?: boolean } = {},
   ): Promise<string> {
     const transactionHash = await query(ethQuery, 'sendRawTransaction', [
       transactionMeta.rawTx,
     ]);
 
-    this.#updateSubmitHistory(transactionMeta, transactionHash);
+    if (skipSubmitHistory !== true) {
+      this.#updateSubmitHistory(transactionMeta, transactionHash);
+    }
 
     return transactionHash;
   }
@@ -3382,7 +3385,10 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId: getChainId(),
         }),
-      publishTransaction: this.publishTransaction.bind(this),
+      publishTransaction: (_ethQuery, transactionMeta) =>
+        this.publishTransaction(_ethQuery, transactionMeta, {
+          skipSubmitHistory: true,
+        }),
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
