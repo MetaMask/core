@@ -12,7 +12,7 @@ type MockReply = {
 // Example mock notifications storage entry (wildcard)
 const MOCK_STORAGE_URL = STORAGE_URL(
   Env.DEV,
-  'notifications/notificationSettings',
+  'notifications/notification_settings',
 );
 const MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES = STORAGE_URL(
   Env.DEV,

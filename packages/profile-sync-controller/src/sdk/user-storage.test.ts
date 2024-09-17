@@ -35,13 +35,13 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications.notificationSettings', data);
+    await userStorage.setItem('notifications.notification_settings', data);
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
     const response = await userStorage.getItem(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
@@ -63,13 +63,13 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications.notificationSettings', data);
+    await userStorage.setItem('notifications.notification_settings', data);
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
     const response = await userStorage.getItem(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
@@ -103,7 +103,7 @@ describe('User Storage', () => {
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     await expect(
-      userStorage.setItem('notifications.notificationSettings', data),
+      userStorage.setItem('notifications.notification_settings', data),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -120,7 +120,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications.notificationSettings'),
+      userStorage.getItem('notifications.notification_settings'),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -137,7 +137,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications.notificationSettings'),
+      userStorage.getItem('notifications.notification_settings'),
     ).rejects.toThrow(NotFoundError);
   });
 
@@ -152,7 +152,7 @@ describe('User Storage', () => {
     handleMockUserStoragePut();
 
     await userStorage.setItem(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       'some fake data',
     );
     expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key
