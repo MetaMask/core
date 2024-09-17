@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: update subpath exports to use new .d.cts definition files. ([#4709](https://github.com/MetaMask/core/pull/4709))
+- refactor: profile-sync-sdk move snap methods to snap auth class ([#4708](https://github.com/MetaMask/core/pull/4708))
+- test: remove unused test ([#4703](https://github.com/MetaMask/core/pull/4703))
+
 ## [0.6.0]
 
 ### Added
