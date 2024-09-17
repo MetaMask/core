@@ -28,29 +28,54 @@
       }
     },
     "./notification-services": {
-      "import": "./dist/NotificationServicesController/index.mjs",
-      "require": "./dist/NotificationServicesController/index.js",
-      "types": "./dist/types/NotificationServicesController/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/index.d.mts",
+        "default": "./dist/NotificationServicesController/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/index.d.cts",
+        "default": "./dist/NotificationServicesController/index.cjs"
+      }
     },
     "./notification-services/ui": {
-      "import": "./dist/NotificationServicesController/ui/index.mjs",
-      "require": "./dist/NotificationServicesController/ui/index.js",
-      "types": "./dist/types/NotificationServicesController/ui/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/ui/index.d.mts",
+        "default": "./dist/NotificationServicesController/ui/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/ui/index.d.cts",
+        "default": "./dist/NotificationServicesController/ui/index.cjs"
+      }
     },
     "./notification-services/mocks": {
-      "import": "./dist/NotificationServicesController/__fixtures__/index.mjs",
-      "require": "./dist/NotificationServicesController/__fixtures__/index.js",
-      "types": "./dist/types/NotificationServicesController/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/__fixtures__/index.d.mts",
+        "default": "./dist/NotificationServicesController/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/__fixtures__/index.d.cts",
+        "default": "./dist/NotificationServicesController/__fixtures__/index.cjs"
+      }
     },
     "./push-services": {
-      "import": "./dist/NotificationServicesPushController/index.mjs",
-      "require": "./dist/NotificationServicesPushController/index.js",
-      "types": "./dist/types/NotificationServicesPushController/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesPushController/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/index.cjs"
+      }
     },
     "./push-services/mocks": {
-      "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",
-      "require": "./dist/NotificationServicesPushController/__fixtures__/index.js",
-      "types": "./dist/types/NotificationServicesPushController/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/__fixtures__/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
