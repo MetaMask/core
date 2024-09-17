@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [0.7.0]
 
-- fix: update profile-sync notification settings path hash ([#4711](https://github.com/MetaMask/core/pull/4711))
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^0.7.0` to `^0.8.0` ([#4712](https://github.com/MetaMask/core/pull/4712))
+
+### Fixed
+
+- **BREAKING** use new profile-sync notification settings path hash ([#4711](https://github.com/MetaMask/core/pull/4711))
+  - changing this path also means the underlying storage hash has changed. But this will align with our existing solutions that are in prod.
 
 ## [0.6.0]
 
@@ -152,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.6.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.7.0...HEAD
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.6.0...@metamask/notification-services-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.1...@metamask/notification-services-controller@0.6.0
 [0.5.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.0...@metamask/notification-services-controller@0.5.1
 [0.5.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.4.1...@metamask/notification-services-controller@0.5.0
