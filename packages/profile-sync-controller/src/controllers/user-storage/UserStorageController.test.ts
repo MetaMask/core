@@ -73,7 +73,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     const result = await controller.performGetStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
     );
     mockAPI.done();
     expect(result).toBe(MOCK_STORAGE_DATA);
@@ -91,7 +91,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     await expect(
-      controller.performGetStorage('notifications.notificationSettings'),
+      controller.performGetStorage('notifications.notification_settings'),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -126,7 +126,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       });
 
       await expect(
-        controller.performGetStorage('notifications.notificationSettings'),
+        controller.performGetStorage('notifications.notification_settings'),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -223,7 +223,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
 
     await controller.performSetStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       'new data',
     );
     expect(mockAPI.isDone()).toBe(true);
@@ -242,7 +242,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
     await expect(
       controller.performSetStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -280,7 +280,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
       await expect(
         controller.performSetStorage(
-          'notifications.notificationSettings',
+          'notifications.notification_settings',
           'new data',
         ),
       ).rejects.toThrow(expect.any(Error));
@@ -290,7 +290,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
   it('rejects if api call fails', async () => {
     const { messengerMocks } = arrangeMocks({
       mockAPI: mockEndpointUpsertUserStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         { status: 500 },
       ),
     });
@@ -300,7 +300,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
     await expect(
       controller.performSetStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));

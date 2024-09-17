@@ -19,7 +19,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
   const actCallGetUserStorage = async () => {
     return await getUserStorage({
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: 'notifications.notificationSettings',
+      path: 'notifications.notification_settings',
       storageKey: MOCK_STORAGE_KEY,
     });
   };
@@ -34,7 +34,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
 
   it('returns null if endpoint does not have entry', async () => {
     const mockGetUserStorage = await mockEndpointGetUserStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       { status: 404 },
     );
     const result = await actCallGetUserStorage();
@@ -45,7 +45,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
 
   it('returns null if endpoint fails', async () => {
     const mockGetUserStorage = await mockEndpointGetUserStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       { status: 500 },
     );
     const result = await actCallGetUserStorage();
@@ -60,7 +60,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
       Data: 'Bad Encrypted Data',
     };
     const mockGetUserStorage = await mockEndpointGetUserStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       {
         status: 200,
         body: badResponseData,
@@ -135,7 +135,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
     const encryptedData = await MOCK_ENCRYPTED_STORAGE_DATA();
     return await upsertUserStorage(encryptedData, {
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: 'notifications.notificationSettings',
+      path: 'notifications.notification_settings',
       storageKey: MOCK_STORAGE_KEY,
     });
   };
@@ -149,7 +149,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
 
   it('throws error if unable to upsert user storage', async () => {
     const mockUpsertUserStorage = mockEndpointUpsertUserStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       {
         status: 500,
       },

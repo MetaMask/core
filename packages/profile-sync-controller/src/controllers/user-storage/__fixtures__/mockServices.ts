@@ -33,7 +33,7 @@ export const mockEndpointGetUserStorageAllFeatureEntries = async (
 };
 
 export const mockEndpointGetUserStorage = async (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
   mockReply?: MockReply,
 ) => {
   const mockResponse = await getMockUserStorageGetResponse(path);
@@ -50,7 +50,7 @@ export const mockEndpointGetUserStorage = async (
 };
 
 export const mockEndpointUpsertUserStorage = (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
   mockReply?: Pick<MockReply, 'status'>,
 ) => {
   const mockResponse = getMockUserStoragePutResponse(path);
