@@ -169,6 +169,8 @@ export class QueuedRequestController extends BaseController<
    */
   #showApprovalRequest: () => void;
 
+  #networkClientIdOfCurrentBatch?: NetworkClientId;
+
   /**
    * Construct a QueuedRequestController.
    *
@@ -376,13 +378,36 @@ export class QueuedRequestController extends BaseController<
     if (this.#originOfCurrentBatch === undefined) {
       this.#originOfCurrentBatch = request.origin;
     }
+    if (this.#networkClientIdOfCurrentBatch === undefined) {
+      this.#networkClientIdOfCurrentBatch = request.networkClientId;
+    }
 
+    const isMultichainRequestToQueue =
+      this.#originOfCurrentBatch === request.origin &&
+      this.#networkClientIdOfCurrentBatch !== request.networkClientId;
+    console.log('this.#originOfCurrentBatch:', this.#originOfCurrentBatch);
+    console.log('request.origin:', request.origin);
+    console.log(
+      'this.state.queuedRequestCount:',
+      this.state.queuedRequestCount,
+    );
+    console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
+
+    console.log(
+      'this.#networkClientIdOfCurrentBatch',
+      this.#networkClientIdOfCurrentBatch,
+    );
+    console.log('request.networkClientId', request.networkClientId);
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
+
+      // TODO Figure out how to queue correctly in multichain
       if (
         this.state.queuedRequestCount > 0 ||
-        this.#originOfCurrentBatch !== request.origin
+        this.#originOfCurrentBatch !== request.origin ||
+        isMultichainRequestToQueue
+        // so should skip
       ) {
         this.#showApprovalRequest();
         await this.#waitForDequeue({
@@ -403,7 +428,12 @@ export class QueuedRequestController extends BaseController<
       return undefined;
     } finally {
       if (this.#processingRequestCount === 0) {
+        console.log(
+          'hitting finally? where originOfCurrentBatch is set to undefined',
+        );
         this.#originOfCurrentBatch = undefined;
+        // TODO ALEX oofff this isn't going to work because batching will get messed up?
+        this.#networkClientIdOfCurrentBatch = undefined;
         if (this.#requestQueue.length > 0) {
           // The next batch is triggered here. We intentionally omit the `await` because we don't
           // want the next batch to block resolution of the current request.
