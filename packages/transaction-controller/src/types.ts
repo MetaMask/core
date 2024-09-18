@@ -629,6 +629,23 @@ export enum TransactionType {
   smart = 'smart',
 
   /**
+   * A transaction that bridges tokens to a different chain through Metamask Brige.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  bridge = 'bridge',
+
+  /**
+   * Similar to the approve type, a bridge approval is a special case of ERC20
+   * approve method that requests an allowance of the token to spend on behalf
+   * of the user for the MetaMask Bridge contract. The first bridge for any token
+   * will have an accompanying bridgeApproval transaction.
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  bridgeApproval = 'bridgeApproval',
+
+  /**
    * A transaction swapping one token for another through MetaMask Swaps.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
