@@ -113,7 +113,7 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/accounts-controller": "^18.2.1",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-api": "^8.1.0",
+    "@metamask/keyring-api": "^8.1.2",
     "@metamask/keyring-controller": "^17.2.1",
     "@metamask/network-controller": "^21.0.1",
     "@metamask/snaps-controllers": "^9.7.0",
