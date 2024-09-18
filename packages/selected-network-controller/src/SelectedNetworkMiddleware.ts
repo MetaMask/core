@@ -23,9 +23,8 @@ export const createSelectedNetworkMiddleware = (
     if (!req.origin) {
       throw new Error("Request object is lacking an 'origin'");
     }
-    req.chainId chainId = getChainIdForDomain(req.origin);
-    req.networkClientId = getChainIdFromNetworkClientId(req.chainId)
-    // req.networkClientId = getNetworkClientIdForDomain(req.origin);
+
+    req.networkClientId = getNetworkClientIdForDomain(req.origin);
     return next();
   };
 };

@@ -68,13 +68,6 @@ export function getPermissionMiddlewareFactory({
     ): Promise<void> => {
       const { method, params } = req;
 
-      // are permissions for this domain origin multichain?
-      // if so 
-      if(permissionOrriginMultichain) {
-        
-      }
-      else {
-
       // Skip registered unrestricted methods.
       if (isUnrestrictedMethod(method)) {
         return next();
@@ -100,8 +93,7 @@ export function getPermissionMiddlewareFactory({
       }
 
       res.result = result;
-      return undefined;|
-    }
+      return undefined;
     };
 
     return createAsyncMiddleware(permissionsMiddleware);
