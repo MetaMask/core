@@ -1,6 +1,6 @@
 {
   "name": "@metamask/composable-controller",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "description": "Consolidates the state from multiple controllers into one",
   "keywords": [
     "MetaMask",
@@ -47,11 +47,11 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.0"
+    "@metamask/base-controller": "^7.0.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^9.0.2",
+    "@metamask/json-rpc-engine": "^9.0.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",

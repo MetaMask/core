@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "0.5.0",
+  "version": "0.8.0",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
@@ -28,29 +28,54 @@
       }
     },
     "./sdk": {
-      "import": "./dist/sdk/index.mjs",
-      "require": "./dist/sdk/index.js",
-      "types": "./dist/types/sdk/index.d.ts"
+      "import": {
+        "types": "./dist/sdk/index.d.mts",
+        "default": "./dist/sdk/index.mjs"
+      },
+      "require": {
+        "types": "./dist/sdk/index.d.cts",
+        "default": "./dist/sdk/index.cjs"
+      }
     },
     "./auth": {
-      "import": "./dist/controllers/authentication/index.mjs",
-      "require": "./dist/controllers/authentication/index.js",
-      "types": "./dist/types/controllers/authentication/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/authentication/index.d.mts",
+        "default": "./dist/controllers/authentication/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/authentication/index.d.cts",
+        "default": "./dist/controllers/authentication/index.cjs"
+      }
     },
     "./auth/mocks": {
-      "import": "./dist/controllers/authentication/__fixtures__/index.mjs",
-      "require": "./dist/controllers/authentication/__fixtures__/index.js",
-      "types": "./dist/types/controllers/authentication/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/authentication/__fixtures__/index.d.mts",
+        "default": "./dist/controllers/authentication/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/authentication/__fixtures__/index.d.cts",
+        "default": "./dist/controllers/authentication/__fixtures__/index.cjs"
+      }
     },
     "./user-storage": {
-      "import": "./dist/controllers/user-storage/index.mjs",
-      "require": "./dist/controllers/user-storage/index.js",
-      "types": "./dist/types/controllers/user-storage/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/user-storage/index.d.mts",
+        "default": "./dist/controllers/user-storage/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/user-storage/index.d.cts",
+        "default": "./dist/controllers/user-storage/index.cjs"
+      }
     },
     "./user-storage/mocks": {
-      "import": "./dist/controllers/user-storage/__fixtures__/index.mjs",
-      "require": "./dist/controllers/user-storage/__fixtures__/index.js",
-      "types": "./dist/types/controllers/user-storage/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/controllers/user-storage/__fixtures__/index.d.mts",
+        "default": "./dist/controllers/user-storage/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/controllers/user-storage/__fixtures__/index.d.cts",
+        "default": "./dist/controllers/user-storage/__fixtures__/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
@@ -59,7 +84,8 @@
   "files": [
     "dist/",
     "auth/",
-    "user-storage/"
+    "user-storage/",
+    "sdk/"
   ],
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
@@ -74,7 +100,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.0",
+    "@metamask/base-controller": "^7.0.1",
     "@metamask/snaps-sdk": "^6.5.0",
     "@metamask/snaps-utils": "^8.1.1",
     "@noble/ciphers": "^0.5.2",
@@ -85,11 +111,11 @@
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
-    "@metamask/accounts-controller": "^18.2.0",
+    "@metamask/accounts-controller": "^18.2.1",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-api": "^8.1.0",
-    "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/network-controller": "^21.0.0",
+    "@metamask/keyring-controller": "^17.2.1",
+    "@metamask/network-controller": "^21.0.1",
     "@metamask/snaps-controllers": "^9.7.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

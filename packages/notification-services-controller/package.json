@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -28,29 +28,54 @@
       }
     },
     "./notification-services": {
-      "import": "./dist/NotificationServicesController/index.mjs",
-      "require": "./dist/NotificationServicesController/index.js",
-      "types": "./dist/types/NotificationServicesController/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/index.d.mts",
+        "default": "./dist/NotificationServicesController/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/index.d.cts",
+        "default": "./dist/NotificationServicesController/index.cjs"
+      }
     },
     "./notification-services/ui": {
-      "import": "./dist/NotificationServicesController/ui/index.mjs",
-      "require": "./dist/NotificationServicesController/ui/index.js",
-      "types": "./dist/types/NotificationServicesController/ui/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/ui/index.d.mts",
+        "default": "./dist/NotificationServicesController/ui/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/ui/index.d.cts",
+        "default": "./dist/NotificationServicesController/ui/index.cjs"
+      }
     },
     "./notification-services/mocks": {
-      "import": "./dist/NotificationServicesController/__fixtures__/index.mjs",
-      "require": "./dist/NotificationServicesController/__fixtures__/index.js",
-      "types": "./dist/types/NotificationServicesController/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/__fixtures__/index.d.mts",
+        "default": "./dist/NotificationServicesController/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/__fixtures__/index.d.cts",
+        "default": "./dist/NotificationServicesController/__fixtures__/index.cjs"
+      }
     },
     "./push-services": {
-      "import": "./dist/NotificationServicesPushController/index.mjs",
-      "require": "./dist/NotificationServicesPushController/index.js",
-      "types": "./dist/types/NotificationServicesPushController/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesPushController/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/index.cjs"
+      }
     },
     "./push-services/mocks": {
-      "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",
-      "require": "./dist/NotificationServicesPushController/__fixtures__/index.js",
-      "types": "./dist/types/NotificationServicesPushController/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/__fixtures__/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
@@ -75,8 +100,8 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.2.0",
+    "@metamask/base-controller": "^7.0.1",
+    "@metamask/controller-utils": "^11.3.0",
     "bignumber.js": "^4.1.0",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
@@ -85,8 +110,8 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/profile-sync-controller": "^0.5.0",
+    "@metamask/keyring-controller": "^17.2.1",
+    "@metamask/profile-sync-controller": "^0.8.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "contentful": "^10.15.0",
@@ -101,7 +126,7 @@
   },
   "peerDependencies": {
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^0.5.0"
+    "@metamask/profile-sync-controller": "^0.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

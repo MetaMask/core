@@ -10,8 +10,6 @@ export type GetSnapsResponse = Record<string, Snap>;
 
 export const SNAP_ORIGIN = 'npm:@metamask/message-signing-snap';
 
-const foundSnap = (snap: Snap) => snap.id === SNAP_ORIGIN;
-
 /**
  * Requests Connection to the Message Signing Snap
  *
@@ -63,22 +61,6 @@ export async function isSnapConnected(
   } catch (e) {
     console.error('Failed to determine if snap is connected', e);
     return false;
-  }
-}
-
-/**
- * Will return the message signing snap if installed
- * @param provider - MetaMask Wallet Provider
- */
-export async function getSnap(
-  provider: Eip1193Provider,
-): Promise<Snap | undefined> {
-  try {
-    const snaps = await getSnaps(provider);
-    return Object.values(snaps ?? {}).find((snap) => foundSnap(snap));
-  } catch (e) {
-    console.error('Failed to obtain installed snap', e);
-    return undefined;
   }
 }
 
