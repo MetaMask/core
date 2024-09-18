@@ -5,6 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
+  NetworkClientId,
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
@@ -94,6 +95,12 @@ type QueuedRequest = {
    * The origin of the queued request.
    */
   origin: string;
+
+  /**
+   * The networkClientId of the queuedRequest.
+   */
+  networkClientId?: NetworkClientId;
+
   /**
    * A callback used to continue processing the request, called when the request is dequeued.
    */
@@ -262,7 +269,7 @@ export class QueuedRequestController extends BaseController<
     // switch network before processing batch
     let networkSwitchError: unknown;
     try {
-      await this.#switchNetworkIfNecessary();
+      await this.#switchNetworkIfNecessary(firstRequest.networkClientId);
     } catch (error: unknown) {
       networkSwitchError = error;
     }
@@ -277,34 +284,39 @@ export class QueuedRequestController extends BaseController<
    * Switch the globally selected network client to match the network
    * client of the current batch.
    *
+   * @param requestNetworkClientId - .
+   *
    * @throws Throws an error if the current selected `networkClientId` or the
    * `networkClientId` on the request are invalid.
    */
-  async #switchNetworkIfNecessary() {
+  async #switchNetworkIfNecessary(requestNetworkClientId?: NetworkClientId) {
     // This branch is unreachable; it's just here for type reasons.
     /* istanbul ignore next */
     if (!this.#originOfCurrentBatch) {
       throw new Error('Current batch origin must be initialized first');
     }
-    const originNetworkClientId = this.messagingSystem.call(
-      'SelectedNetworkController:getNetworkClientIdForDomain',
-      this.#originOfCurrentBatch,
-    );
-    const { selectedNetworkClientId } = this.messagingSystem.call(
-      'NetworkController:getState',
-    );
-    if (originNetworkClientId === selectedNetworkClientId) {
-      return;
+    let networkClientId = requestNetworkClientId;
+    if (!networkClientId) {
+      networkClientId = this.messagingSystem.call(
+        'SelectedNetworkController:getNetworkClientIdForDomain',
+        this.#originOfCurrentBatch,
+      );
+      const { selectedNetworkClientId } = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      if (networkClientId === selectedNetworkClientId) {
+        return;
+      }
     }
 
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
-      originNetworkClientId,
+      networkClientId,
     );
 
     this.messagingSystem.publish(
       'QueuedRequestController:networkSwitched',
-      originNetworkClientId,
+      networkClientId,
     );
   }
 
@@ -317,12 +329,19 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
-  async #waitForDequeue(origin: string): Promise<void> {
+  async #waitForDequeue({
+    origin,
+    networkClientId,
+  }: {
+    origin: string;
+    networkClientId?: NetworkClientId;
+  }): Promise<void> {
     const { promise, reject, resolve } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
     this.#requestQueue.push({
       origin,
+      networkClientId,
       processRequest: (error: unknown) => {
         if (error) {
           reject(error);
@@ -366,11 +385,14 @@ export class QueuedRequestController extends BaseController<
         this.#originOfCurrentBatch !== request.origin
       ) {
         this.#showApprovalRequest();
-        await this.#waitForDequeue(request.origin);
+        await this.#waitForDequeue({
+          origin: request.origin,
+          networkClientId: request.networkClientId,
+        });
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
-        await this.#switchNetworkIfNecessary();
+        await this.#switchNetworkIfNecessary(request.networkClientId);
       }
       this.#processingRequestCount += 1;
       try {
