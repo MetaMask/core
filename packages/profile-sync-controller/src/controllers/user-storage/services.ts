@@ -1,13 +1,13 @@
 import log from 'loglevel';
 
-import { Env, getEnvUrls } from '../../sdk/env';
-import encryption from './encryption';
+import encryption from '../../shared/encryption';
+import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from './schema';
-import { createEntryPath } from './schema';
-import type { NativeScrypt } from './UserStorageController';
+} from '../../shared/storage-schema';
+import { createEntryPath } from '../../shared/storage-schema';
+import type { NativeScrypt } from '../../shared/types/encryption';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
 

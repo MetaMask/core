@@ -1,7 +1,7 @@
 import nock from 'nock';
 
-import encryption from '../encryption';
-import { Env } from '../env';
+import encryption from '../../shared/encryption';
+import { Env } from '../../shared/env';
 import { STORAGE_URL } from '../user-storage';
 
 type MockReply = {

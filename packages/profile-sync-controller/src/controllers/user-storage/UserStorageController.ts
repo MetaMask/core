@@ -25,6 +25,12 @@ import type {
 } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
+import { createSHA256Hash } from '../../shared/encryption';
+import type {
+  UserStoragePathWithFeatureAndKey,
+  UserStoragePathWithFeatureOnly,
+} from '../../shared/storage-schema';
+import type { NativeScrypt } from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
@@ -38,15 +44,10 @@ import {
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
-import { createSHA256Hash } from './encryption';
 import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
-import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-} from './schema';
 import {
   getUserStorage,
   getUserStorageAllFeatureEntries,
@@ -92,15 +93,6 @@ export declare type NotificationServicesControllerSelectIsNotificationServicesEn
     type: `NotificationServicesController:selectIsNotificationServicesEnabled`;
     handler: () => boolean;
   };
-
-export declare type NativeScrypt = (
-  passwd: string,
-  salt: Uint8Array,
-  N: number,
-  r: number,
-  p: number,
-  size: number,
-) => Promise<Uint8Array>;
 
 const controllerName = 'UserStorageController';
 

@@ -2,6 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type nock from 'nock';
 
+import encryption from '../../shared/encryption';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
@@ -23,7 +24,6 @@ import {
   MOCK_STORAGE_KEY_SIGNATURE,
 } from './__fixtures__/mockStorage';
 import * as AccountsUserStorageModule from './accounts/user-storage';
-import encryption from './encryption/encryption';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
