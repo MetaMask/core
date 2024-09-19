@@ -84,7 +84,7 @@ export class UserStorage {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
-      const encryptedData = encryption.encryptString(data, storageKey);
+      const encryptedData = await encryption.encryptString(data, storageKey);
       const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));

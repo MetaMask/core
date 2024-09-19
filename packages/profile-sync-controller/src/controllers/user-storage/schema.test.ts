@@ -12,11 +12,11 @@ describe('user-storage/schema.ts', () => {
     it('should correctly construct user storage url', () => {
       expect(
         createEntryPath(
-          'notifications.notificationSettings',
+          'notifications.notification_settings',
           'dbdc994804e591f7bef6695e525543712358dd5c952bd257560b629887972588',
         ),
       ).toBe(
-        'notifications/2072257b71d53b6cb8e72bab8e801e3d66faa0d5e1b822c88af466127e5e763b',
+        'notifications/94739860a3472f61e0802706abbbbf7c8d843f8ec0ad0bef3964e52fb9b72132',
       );
     });
 
@@ -49,11 +49,11 @@ describe('user-storage/schema.ts', () => {
     });
 
     it('should return feature and key from path', () => {
-      const path = 'notifications.notificationSettings';
+      const path = 'notifications.notification_settings';
       const result = getFeatureAndKeyFromPath(path);
       expect(result).toStrictEqual({
         feature: 'notifications',
-        key: 'notificationSettings',
+        key: 'notification_settings',
       });
     });
 

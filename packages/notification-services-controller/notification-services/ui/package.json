@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../../dist/NotificationServicesController/ui/index.js",
-  "types": "../../dist/types/NotificationServicesController/ui/index.d.ts"
+  "main": "../../dist/NotificationServicesController/ui/index.cjs",
+  "types": "../../dist/NotificationServicesController/ui/index.d.cts"
 }

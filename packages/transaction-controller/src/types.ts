@@ -1314,3 +1314,40 @@ export type FeeMarketEIP1559Values = {
   /** Maximum amount per gas to give to the validator as an incentive. */
   maxPriorityFeePerGas: string;
 };
+
+/**
+ * Data concerning a successfully submitted transaction.
+ * Used for debugging purposes.
+ */
+export type SubmitHistoryEntry = {
+  /** The chain ID of the transaction as a hexadecimal string. */
+  chainId?: Hex;
+
+  /** The hash of the transaction returned from the RPC provider. */
+  hash: string;
+
+  /** True if the entry was generated using the migration and existing transaction metadata. */
+  migration?: boolean;
+
+  /** The type of the network where the transaction was submitted. */
+  networkType?: string;
+
+  /**
+   * The URL of the network the transaction was submitted to.
+   * A single network URL if it was recorded when submitted.
+   * An array of potential network URLs if it cannot be confirmed since the migration was used.
+   */
+  networkUrl?: string | string[];
+
+  /** The origin of the transaction. */
+  origin?: string;
+
+  /** The raw transaction data that was submitted. */
+  rawTransaction: string;
+
+  /** When the transaction was submitted. */
+  time: number;
+
+  /** The transaction parameters that were submitted. */
+  transaction: TransactionParams;
+};
