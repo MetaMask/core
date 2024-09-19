@@ -1,13 +1,12 @@
+import encryption, { createSHA256Hash } from '../shared/encryption';
+import type { Env } from '../shared/env';
+import { getEnvUrls } from '../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../controllers/user-storage/schema';
-import { createEntryPath } from '../controllers/user-storage/schema';
-import type { GetUserStorageAllFeatureEntriesResponse } from '../controllers/user-storage/services';
+} from '../shared/storage-schema';
+import { createEntryPath } from '../shared/storage-schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import encryption, { createSHA256Hash } from './encryption';
-import type { Env } from './env';
-import { getEnvUrls } from './env';
 import { NotFoundError, UserStorageError } from './errors';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
@@ -26,6 +25,13 @@ export type StorageOptions = {
 export type UserStorageOptions = {
   storage?: StorageOptions;
 };
+
+type GetUserStorageAllFeatureEntriesResponse = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  HashedKey: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  Data: string;
+}[];
 
 type ErrorMessage = {
   message: string;

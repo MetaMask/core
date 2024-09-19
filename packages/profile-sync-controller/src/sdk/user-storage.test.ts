@@ -1,3 +1,4 @@
+import { Env } from '../shared/env';
 import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
 import {
   MOCK_NOTIFICATIONS_DATA,
@@ -8,7 +9,6 @@ import {
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import { Env } from './env';
 import { NotFoundError, UserStorageError } from './errors';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';

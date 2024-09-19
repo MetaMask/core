@@ -1,8 +1,8 @@
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../schema';
-import { createEntryPath } from '../schema';
+} from '../../../shared/storage-schema';
+import { createEntryPath } from '../../../shared/storage-schema';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,

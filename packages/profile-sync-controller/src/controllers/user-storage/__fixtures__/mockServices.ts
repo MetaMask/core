@@ -3,7 +3,7 @@ import nock from 'nock';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../schema';
+} from '../../../shared/storage-schema';
 import {
   getMockUserStorageGetResponse,
   getMockUserStoragePutResponse,
