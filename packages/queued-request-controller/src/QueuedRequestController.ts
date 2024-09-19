@@ -286,8 +286,7 @@ export class QueuedRequestController extends BaseController<
    * Switch the globally selected network client to match the network
    * client of the current batch.
    *
-   * @param requestNetworkClientId - .
-   *
+   * @param requestNetworkClientId - the networkClientId of the next request to process.
    * @throws Throws an error if the current selected `networkClientId` or the
    * `networkClientId` on the request are invalid.
    */
@@ -386,19 +385,6 @@ export class QueuedRequestController extends BaseController<
     const isMultichainRequestToQueue =
       this.#originOfCurrentBatch === request.origin &&
       this.#networkClientIdOfCurrentBatch !== request.networkClientId;
-    // console.log('this.#originOfCurrentBatch:', this.#originOfCurrentBatch);
-    // console.log('request.origin:', request.origin);
-    // console.log(
-    //   'this.state.queuedRequestCount:',
-    //   this.state.queuedRequestCount,
-    // );
-    // console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
-
-    // console.log(
-    //   'this.#networkClientIdOfCurrentBatch',
-    //   this.#networkClientIdOfCurrentBatch,
-    // );
-    // console.log('request.networkClientId', request.networkClientId);
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
@@ -426,11 +412,7 @@ export class QueuedRequestController extends BaseController<
       return undefined;
     } finally {
       if (this.#processingRequestCount === 0) {
-        console.log(
-          'hitting finally? where originOfCurrentBatch is set to undefined',
-        );
         this.#originOfCurrentBatch = undefined;
-        // TODO ALEX oofff this isn't going to work because batching will get messed up?
         this.#networkClientIdOfCurrentBatch = undefined;
         if (this.#requestQueue.length > 0) {
           // The next batch is triggered here. We intentionally omit the `await` because we don't
