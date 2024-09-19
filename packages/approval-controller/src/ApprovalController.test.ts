@@ -4,6 +4,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -974,6 +975,67 @@ describe('approval controller', () => {
         approvalController.has({ id: 'foo' }) &&
           approvalController.has({ origin: 'bar.baz' }),
       ).toBe(true);
+    });
+
+    describe('with deleteAfterResult', () => {
+      it('deletes entry after result callback', async () => {
+        const approvalPromise = approvalController.add({
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          type: TYPE,
+          expectsResult: true,
+        });
+
+        const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+          waitForResult: true,
+          deleteAfterResult: true,
+        });
+
+        const { resultCallbacks } = await approvalPromise;
+
+        await flushPromises();
+
+        expect(approvalController.has({ id: ID_MOCK })).toBe(true);
+
+        resultCallbacks?.success(RESULT_MOCK);
+
+        await flushPromises();
+
+        expect(approvalController.has({ id: ID_MOCK })).toBe(false);
+
+        await resultPromise;
+      });
+
+      it.each([false, undefined])(
+        'deletes immediately if waitForResult is %s',
+        async (waitForResult) => {
+          const approvalPromise = approvalController.add({
+            id: ID_MOCK,
+            origin: ORIGIN_MOCK,
+            type: TYPE,
+            expectsResult: true,
+          });
+
+          const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+            waitForResult,
+            deleteAfterResult: true,
+          });
+
+          const { resultCallbacks } = await approvalPromise;
+
+          await flushPromises();
+
+          expect(approvalController.has({ id: ID_MOCK })).toBe(false);
+
+          resultCallbacks?.success(RESULT_MOCK);
+
+          await flushPromises();
+
+          expect(approvalController.has({ id: ID_MOCK })).toBe(false);
+
+          await resultPromise;
+        },
+      );
     });
   });
 
