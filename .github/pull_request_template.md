@@ -15,7 +15,7 @@ Thanks for your contribution! Take a moment to answer these questions so that re
 <!--
 Are there any issues that this pull request is tied to?
 Are there other links that reviewers should consult to understand these changes better?
-Are there client pull requests to adopt any breaking changes?
+Are there client or consumer pull requests to adopt any breaking changes?
 
 For example:
 
@@ -52,4 +52,4 @@ Finally, if you're only making changes to development scripts or tests, you may 
 - [ ] I've updated the test suite for new or updated code as appropriate
 - [ ] I've updated documentation (JSDoc, Markdown, etc.) for new or updated code as appropriate
 - [ ] I've highlighted breaking changes using the "BREAKING" category above as appropriate
-- [ ] I've prepared client pull requests to resolve any breaking changes using preview builds
+- [ ] I've prepared draft pull requests against client and consumer packages to resolve any breaking changes
