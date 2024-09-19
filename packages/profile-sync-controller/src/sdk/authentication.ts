@@ -1,3 +1,4 @@
+import type { Env } from '../shared/env';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
 import {
@@ -6,7 +7,6 @@ import {
 } from './authentication-jwt-bearer/services';
 import type { UserProfile, Pair } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
-import type { Env } from './env';
 import { PairError, UnsupportedAuthTypeError } from './errors';
 
 // Computing the Classes, so we only get back the public methods for the interface.
