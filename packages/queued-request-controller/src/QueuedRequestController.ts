@@ -303,12 +303,13 @@ export class QueuedRequestController extends BaseController<
         'SelectedNetworkController:getNetworkClientIdForDomain',
         this.#originOfCurrentBatch,
       );
-      const { selectedNetworkClientId } = this.messagingSystem.call(
-        'NetworkController:getState',
-      );
-      if (networkClientId === selectedNetworkClientId) {
-        return;
-      }
+    }
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+
+    if (networkClientId === selectedNetworkClientId) {
+      return;
     }
 
     await this.messagingSystem.call(
@@ -385,29 +386,26 @@ export class QueuedRequestController extends BaseController<
     const isMultichainRequestToQueue =
       this.#originOfCurrentBatch === request.origin &&
       this.#networkClientIdOfCurrentBatch !== request.networkClientId;
-    console.log('this.#originOfCurrentBatch:', this.#originOfCurrentBatch);
-    console.log('request.origin:', request.origin);
-    console.log(
-      'this.state.queuedRequestCount:',
-      this.state.queuedRequestCount,
-    );
-    console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
+    // console.log('this.#originOfCurrentBatch:', this.#originOfCurrentBatch);
+    // console.log('request.origin:', request.origin);
+    // console.log(
+    //   'this.state.queuedRequestCount:',
+    //   this.state.queuedRequestCount,
+    // );
+    // console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
 
-    console.log(
-      'this.#networkClientIdOfCurrentBatch',
-      this.#networkClientIdOfCurrentBatch,
-    );
-    console.log('request.networkClientId', request.networkClientId);
+    // console.log(
+    //   'this.#networkClientIdOfCurrentBatch',
+    //   this.#networkClientIdOfCurrentBatch,
+    // );
+    // console.log('request.networkClientId', request.networkClientId);
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
-
-      // TODO Figure out how to queue correctly in multichain
       if (
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
         isMultichainRequestToQueue
-        // so should skip
       ) {
         this.#showApprovalRequest();
         await this.#waitForDequeue({
