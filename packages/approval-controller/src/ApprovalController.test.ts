@@ -1036,6 +1036,32 @@ describe('approval controller', () => {
           await resultPromise;
         },
       );
+
+      it('throws if already accepted', async () => {
+        const approvalPromise = approvalController.add({
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          type: TYPE,
+          expectsResult: true,
+        });
+
+        const resultPromise = approvalController.accept(ID_MOCK, VALUE_MOCK, {
+          waitForResult: true,
+          deleteAfterResult: true,
+        });
+
+        const { resultCallbacks } = await approvalPromise;
+
+        await flushPromises();
+
+        await approvalController.accept(ID_MOCK, VALUE_MOCK);
+
+        resultCallbacks?.success(RESULT_MOCK);
+
+        await expect(resultPromise).rejects.toThrow(
+          `Approval request with id '${ID_MOCK}' not found.`,
+        );
+      });
     });
   });
 
