@@ -33,43 +33,70 @@ export const getMockUserStorageEndpoint = (
   )}`;
 };
 
-export const createMockGetStorageResponse = async (
+/**
+ * Temp
+ * @param data - foo
+ * @returns bar
+ */
+export async function createMockGetStorageResponse(
   data?: string,
-): Promise<GetUserStorageResponse> => ({
-  HashedKey: 'HASHED_KEY',
-  Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
-});
+): Promise<GetUserStorageResponse> {
+  return {
+    HashedKey: 'HASHED_KEY',
+    Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
+  };
+}
 
-export const createMockAllFeatureEntriesResponse = async (
+/**
+ * Temp
+ * @param dataArr - foo
+ * @returns bar
+ */
+export async function createMockAllFeatureEntriesResponse(
   dataArr: string[] = [MOCK_STORAGE_DATA],
-): Promise<GetUserStorageAllFeatureEntriesResponse> =>
-  Promise.all(
-    dataArr.map(async (d) => ({
-      HashedKey: 'HASHED_KEY',
-      Data: await MOCK_ENCRYPTED_STORAGE_DATA(d),
-    })),
+): Promise<GetUserStorageAllFeatureEntriesResponse> {
+  return await Promise.all(
+    dataArr.map(async function (d) {
+      const encryptedData = await MOCK_ENCRYPTED_STORAGE_DATA(d);
+      return {
+        HashedKey: 'HASHED_KEY',
+        Data: encryptedData,
+      };
+    }),
   );
+}
 
-export const getMockUserStorageGetResponse = async (
+/**
+ * Temp
+ * @param path - foo
+ * @returns bar
+ */
+export async function getMockUserStorageGetResponse(
   path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
-) => {
+) {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
     response: await createMockGetStorageResponse(),
   } satisfies MockResponse;
-};
+}
 
-export const getMockUserStorageAllFeatureEntriesResponse = async (
+/**
+ * Temp
+ * @param path - foo
+ * @param dataArr - bar
+ * @returns baz
+ */
+export async function getMockUserStorageAllFeatureEntriesResponse(
   path: UserStoragePathWithFeatureOnly = 'notifications',
   dataArr?: string[],
-) => {
+) {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
     response: await createMockAllFeatureEntriesResponse(dataArr),
   } satisfies MockResponse;
-};
+}
 
 export const getMockUserStoragePutResponse = (
   path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
