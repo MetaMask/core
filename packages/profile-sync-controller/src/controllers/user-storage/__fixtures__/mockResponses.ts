@@ -34,9 +34,9 @@ export const getMockUserStorageEndpoint = (
 };
 
 /**
- * Temp
- * @param data - foo
- * @returns bar
+ * Creates a mock GET user-storage response
+ * @param data - data to encrypt
+ * @returns a realistic GET Response Body
  */
 export async function createMockGetStorageResponse(
   data?: string,
@@ -48,9 +48,9 @@ export async function createMockGetStorageResponse(
 }
 
 /**
- * Temp
- * @param dataArr - foo
- * @returns bar
+ * Creates a mock GET ALL user-storage response
+ * @param dataArr - array of data to encrypt
+ * @returns a realistic GET ALL Response Body
  */
 export async function createMockAllFeatureEntriesResponse(
   dataArr: string[] = [MOCK_STORAGE_DATA],
@@ -67,9 +67,9 @@ export async function createMockAllFeatureEntriesResponse(
 }
 
 /**
- * Temp
- * @param path - foo
- * @returns bar
+ * Creates a mock user-storage api GET request
+ * @param path - path of the GET Url
+ * @returns mock GET API request. Can be used by e2e or unit mock servers
  */
 export async function getMockUserStorageGetResponse(
   path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
@@ -82,10 +82,10 @@ export async function getMockUserStorageGetResponse(
 }
 
 /**
- * Temp
- * @param path - foo
- * @param dataArr - bar
- * @returns baz
+ * Creates a mock user-storage api GET ALL request
+ * @param path - path of the GET url
+ * @param dataArr - data to encrypt
+ * @returns mock GET ALL API request. Can be used by e2e or unit mock servers
  */
 export async function getMockUserStorageAllFeatureEntriesResponse(
   path: UserStoragePathWithFeatureOnly = 'notifications',
