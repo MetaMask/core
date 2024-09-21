@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [0.8.1]
+
+### Changed
+
+- move and organize shared profile sync dependencies ([#4717](https://github.com/MetaMask/core/pull/4717))
+
+### Fixed
 
 - fix: profile-sync-controller mobile compilation issues ([#4721](https://github.com/MetaMask/core/pull/4721))
-- refactor: move and organize shared profile sync dependencies ([#4717](https://github.com/MetaMask/core/pull/4717))
+  - mobile does not support exported async arrow functions, so needed to convert these into normal async functions
 
 ## [0.8.0]
 
@@ -209,7 +215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...HEAD
+[0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.6.0...@metamask/profile-sync-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.6.0
