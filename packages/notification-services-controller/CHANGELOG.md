@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: update UI export from MATIC to POL ([#4720](https://github.com/MetaMask/core/pull/4720))
+
 ## [0.7.0]
 
 ### Changed

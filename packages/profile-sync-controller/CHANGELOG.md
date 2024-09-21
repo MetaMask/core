@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: profile-sync-controller mobile compilation issues ([#4721](https://github.com/MetaMask/core/pull/4721))
+- refactor: move and organize shared profile sync dependencies ([#4717](https://github.com/MetaMask/core/pull/4717))
+
 ## [0.8.0]
 
 ### Fixed
