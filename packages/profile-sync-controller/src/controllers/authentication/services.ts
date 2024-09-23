@@ -1,4 +1,4 @@
-import { Env, Platform, getEnvUrls, getOidcClientId } from '../../sdk/env';
+import { Env, Platform, getEnvUrls, getOidcClientId } from '../../shared/env';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
 

@@ -1,5 +1,5 @@
-import type { Env, Platform } from '../env';
-import { getEnvUrls, getOidcClientId } from '../env';
+import type { Env, Platform } from '../../shared/env';
+import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import {
   NonceRetrievalError,
   PairError,

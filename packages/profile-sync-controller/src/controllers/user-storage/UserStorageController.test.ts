@@ -2,6 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type nock from 'nock';
 
+import encryption from '../../shared/encryption';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
@@ -22,7 +23,7 @@ import {
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
 } from './__fixtures__/mockStorage';
-import encryption from './encryption/encryption';
+import * as AccountsUserStorageModule from './accounts/user-storage';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
@@ -72,7 +73,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     const result = await controller.performGetStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
     );
     mockAPI.done();
     expect(result).toBe(MOCK_STORAGE_DATA);
@@ -90,7 +91,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     await expect(
-      controller.performGetStorage('notifications.notificationSettings'),
+      controller.performGetStorage('notifications.notification_settings'),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -125,7 +126,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       });
 
       await expect(
-        controller.performGetStorage('notifications.notificationSettings'),
+        controller.performGetStorage('notifications.notification_settings'),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -222,7 +223,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
 
     await controller.performSetStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       'new data',
     );
     expect(mockAPI.isDone()).toBe(true);
@@ -241,7 +242,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
     await expect(
       controller.performSetStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -279,7 +280,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
       await expect(
         controller.performSetStorage(
-          'notifications.notificationSettings',
+          'notifications.notification_settings',
           'new data',
         ),
       ).rejects.toThrow(expect.any(Error));
@@ -289,7 +290,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
   it('rejects if api call fails', async () => {
     const { messengerMocks } = arrangeMocks({
       mockAPI: mockEndpointUpsertUserStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         { status: 500 },
       ),
     });
@@ -299,7 +300,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
     await expect(
       controller.performSetStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -388,7 +389,7 @@ describe('user-storage/user-storage-controller - enableProfileSyncing() tests', 
 });
 
 describe('user-storage/user-storage-controller - syncInternalAccountsWithUserStorage() tests', () => {
-  it('rejects if UserStorage is not enabled', async () => {
+  it('returns void if UserStorage is not enabled', async () => {
     const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
@@ -409,9 +410,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       },
     });
 
-    await expect(
-      controller.syncInternalAccountsWithUserStorage(),
-    ).rejects.toThrow(expect.any(Error));
+    await controller.syncInternalAccountsWithUserStorage();
+
+    expect(messengerMocks.mockAccountsListAccounts).not.toHaveBeenCalled();
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
@@ -575,6 +576,59 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
+      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
+        MOCK_INTERNAL_ACCOUNTS.ONE.length,
+    );
+  });
+
+  it('fires the onAccountAdded callback when adding an account', async () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
+    };
+
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              await mockUserStorageAccountsResponse(),
+            ),
+        },
+      };
+    };
+
+    const onAccountAdded = jest.fn();
+
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      config: {
+        accountSyncing: {
+          onAccountAdded,
+        },
+      },
+      env: {
+        isAccountSyncingEnabled: true,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    mockAPI.mockEndpointGetUserStorage.done();
+
+    expect(onAccountAdded).toHaveBeenCalledTimes(
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
@@ -893,6 +947,48 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         messengerMocks.mockAccountsUpdateAccountMetadata,
       ).not.toHaveBeenCalled();
     });
+
+    it('fires the onAccountNameUpdated callback when renaming an internal account', async () => {
+      const arrangeMocksForAccounts = async () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage:
+              await mockEndpointGetUserStorageAllFeatureEntries(
+                'accounts',
+                await mockUserStorageAccountsResponse(),
+              ),
+          },
+        };
+      };
+
+      const onAccountNameUpdated = jest.fn();
+
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        config: {
+          accountSyncing: {
+            onAccountNameUpdated,
+          },
+        },
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+
+      expect(onAccountNameUpdated).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('User storage name is a custom name with last updated', () => {
@@ -1083,12 +1179,17 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
 });
 
 describe('user-storage/user-storage-controller - saveInternalAccountToUserStorage() tests', () => {
-  it('rejects if UserStorage is not enabled', async () => {
+  it('returns void if UserStorage is not enabled', async () => {
     const arrangeMocks = async () => {
       return {
         messengerMocks: mockUserStorageMessenger(),
       };
     };
+
+    const mapInternalAccountToUserStorageAccountMock = jest.spyOn(
+      AccountsUserStorageModule,
+      'mapInternalAccountToUserStorageAccount',
+    );
 
     const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
@@ -1103,11 +1204,11 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       },
     });
 
-    await expect(
-      controller.saveInternalAccountToUserStorage(
-        MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
-      ),
-    ).rejects.toThrow(expect.any(Error));
+    await controller.saveInternalAccountToUserStorage(
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+    );
+
+    expect(mapInternalAccountToUserStorageAccountMock).not.toHaveBeenCalled();
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
@@ -1130,7 +1231,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     });
 
     await controller.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
     expect(mockAPI.isDone()).toBe(false);
@@ -1156,7 +1257,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     });
 
     await controller.saveInternalAccountToUserStorage(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
     expect(mockAPI.isDone()).toBe(true);
@@ -1184,7 +1285,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
 
     await expect(
       controller.saveInternalAccountToUserStorage(
-        MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
       ),
     ).rejects.toThrow(expect.any(Error));
   });
@@ -1210,7 +1311,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     );
 
     expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0],
     );
   });
 
@@ -1235,7 +1336,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     );
 
     expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0].address,
+      MOCK_INTERNAL_ACCOUNTS.ONE[0],
     );
   });
 });
@@ -1272,7 +1373,6 @@ function mockUserStorageMessenger(options?: {
       'NotificationServicesController:selectIsNotificationServicesEnabled',
       'AccountsController:listAccounts',
       'AccountsController:updateAccountMetadata',
-      'AccountsController:getAccountByAddress',
       'KeyringController:addNewAccount',
     ],
     allowedEvents: [
@@ -1334,10 +1434,6 @@ function mockUserStorageMessenger(options?: {
     );
 
   const mockAccountsUpdateAccountMetadata = jest.fn().mockResolvedValue(true);
-
-  const mockAccountsGetAccountByAddress = jest
-    .fn()
-    .mockResolvedValue(MOCK_INTERNAL_ACCOUNTS.ONE[0]);
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     // Creates the correct typed call params for mocks
@@ -1416,17 +1512,9 @@ function mockUserStorageMessenger(options?: {
       return mockAccountsUpdateAccountMetadata(args.slice(1));
     }
 
-    if (actionType === 'AccountsController:getAccountByAddress') {
-      return mockAccountsGetAccountByAddress();
-    }
-
-    const exhaustedMessengerMocks = (action: never) => {
-      throw new Error(
-        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
-      );
-    };
-
-    return exhaustedMessengerMocks(actionType);
+    throw new Error(
+      `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
+    );
   });
 
   return {
@@ -1443,7 +1531,6 @@ function mockUserStorageMessenger(options?: {
     mockAuthPerformSignOut,
     mockKeyringAddNewAccount,
     mockAccountsUpdateAccountMetadata,
-    mockAccountsGetAccountByAddress,
     mockAccountsListAccounts,
   };
 }

@@ -1,3 +1,4 @@
+import { Env, Platform } from '../shared/env';
 import {
   MOCK_ACCESS_JWT,
   MOCK_SRP_LOGIN_RESPONSE,
@@ -7,7 +8,6 @@ import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
 import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
-import { Env, Platform } from './env';
 import {
   NonceRetrievalError,
   PairError,
