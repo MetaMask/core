@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../dist/sdk/index.js",
-  "types": "../dist/types/sdk/index.d.ts"
+  "main": "../dist/sdk/index.cjs",
+  "types": "../dist/sdk/index.d.cts"
 }

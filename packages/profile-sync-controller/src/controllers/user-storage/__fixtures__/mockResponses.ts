@@ -1,8 +1,8 @@
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../schema';
-import { createEntryPath } from '../schema';
+} from '../../../shared/storage-schema';
+import { createEntryPath } from '../../../shared/storage-schema';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
@@ -27,52 +27,89 @@ export const getMockUserStorageEndpoint = (
     return `${USER_STORAGE_ENDPOINT}/${path}`;
   }
 
-  return `${USER_STORAGE_ENDPOINT}${createEntryPath(
+  return `${USER_STORAGE_ENDPOINT}/${createEntryPath(
     path as UserStoragePathWithFeatureAndKey,
     MOCK_STORAGE_KEY,
   )}`;
 };
 
-export const createMockGetStorageResponse = async (
+/**
+ * Creates a mock GET user-storage response
+ * @param data - data to encrypt
+ * @returns a realistic GET Response Body
+ */
+export async function createMockGetStorageResponse(
   data?: string,
-): Promise<GetUserStorageResponse> => ({
-  HashedKey: 'HASHED_KEY',
-  Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
-});
+): Promise<GetUserStorageResponse> {
+  return {
+    HashedKey: 'HASHED_KEY',
+    Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
+  };
+}
 
-export const createMockAllFeatureEntriesResponse = async (
+/**
+ * Creates a mock GET ALL user-storage response
+ * @param dataArr - array of data to encrypt
+ * @returns a realistic GET ALL Response Body
+ */
+export async function createMockAllFeatureEntriesResponse(
   dataArr: string[] = [MOCK_STORAGE_DATA],
-): Promise<GetUserStorageAllFeatureEntriesResponse> =>
-  Promise.all(
-    dataArr.map(async (d) => ({
-      HashedKey: 'HASHED_KEY',
-      Data: await MOCK_ENCRYPTED_STORAGE_DATA(d),
-    })),
+): Promise<GetUserStorageAllFeatureEntriesResponse> {
+  return await Promise.all(
+    dataArr.map(async function (d) {
+      const encryptedData = await MOCK_ENCRYPTED_STORAGE_DATA(d);
+      return {
+        HashedKey: 'HASHED_KEY',
+        Data: encryptedData,
+      };
+    }),
   );
+}
 
-export const getMockUserStorageGetResponse = async (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
-) => {
+/**
+ * Creates a mock user-storage api GET request
+ * @param path - path of the GET Url
+ * @returns mock GET API request. Can be used by e2e or unit mock servers
+ */
+export async function getMockUserStorageGetResponse(
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+) {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
     response: await createMockGetStorageResponse(),
   } satisfies MockResponse;
-};
+}
 
-export const getMockUserStorageAllFeatureEntriesResponse = async (
+/**
+ * Creates a mock user-storage api GET ALL request
+ * @param path - path of the GET url
+ * @param dataArr - data to encrypt
+ * @returns mock GET ALL API request. Can be used by e2e or unit mock servers
+ */
+export async function getMockUserStorageAllFeatureEntriesResponse(
   path: UserStoragePathWithFeatureOnly = 'notifications',
   dataArr?: string[],
-) => {
+) {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
     response: await createMockAllFeatureEntriesResponse(dataArr),
   } satisfies MockResponse;
-};
+}
 
 export const getMockUserStoragePutResponse = (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+) => {
+  return {
+    url: getMockUserStorageEndpoint(path),
+    requestMethod: 'PUT',
+    response: null,
+  } satisfies MockResponse;
+};
+
+export const getMockUserStorageBatchPutResponse = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),

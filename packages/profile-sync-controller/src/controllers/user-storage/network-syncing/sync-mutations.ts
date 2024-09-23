@@ -1,8 +1,6 @@
-import type { NetworkConfiguration } from '@metamask/network-controller';
-
 import type { UserStorageBaseOptions } from '../services';
 import { batchUpsertRemoteNetworks, upsertRemoteNetwork } from './services';
-import type { RemoteNetworkConfiguration } from './types';
+import type { NetworkConfiguration, RemoteNetworkConfiguration } from './types';
 
 export const updateNetwork = async (
   network: NetworkConfiguration,
@@ -18,7 +16,15 @@ export const deleteNetwork = async (
   opts: UserStorageBaseOptions,
 ) => {
   // we are soft deleting, as we need to consider devices that have not yet synced
-  return await upsertRemoteNetwork({ v: '1', ...network, d: true }, opts);
+  return await upsertRemoteNetwork(
+    {
+      v: '1',
+      ...network,
+      d: true,
+      lastUpdatedAt: network.lastUpdatedAt ?? Date.now(), // Ensures that a deleted entry has a date field
+    },
+    opts,
+  );
 };
 
 export const batchUpdateNetworks = async (

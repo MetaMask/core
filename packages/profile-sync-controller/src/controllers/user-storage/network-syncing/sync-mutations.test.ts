@@ -9,7 +9,7 @@ import {
   batchUpdateNetworks,
   deleteNetwork,
   updateNetwork,
-} from './sync';
+} from './sync-mutations';
 
 const storageOpts: UserStorageBaseOptions = {
   bearerToken: 'MOCK_TOKEN',

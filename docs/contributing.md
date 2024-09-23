@@ -60,7 +60,7 @@ If you have a project that depends on a package in this monorepo, you may want t
 
 If you're developing your project locally and want to test changes to a package, you can follow these steps:
 
-1. First, you must build the monorepo. It's recommend to run `yarn build:watch` so that changes to the package you want to change are reflected in your project automatically.
+1. First, you must build the monorepo, by running `yarn build`.
 2. Next, you need to connect the package to your project by overriding the resolution logic in your package manager to replace the published version of the package with the local version.
 
    1. Open `package.json` in the project and locate the dependency entry for the package.
