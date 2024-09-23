@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Paralellization of add detected tokens instead of sequencial ([#4697](https://github.com/MetaMask/core/pull/4697))
-
 ## [38.0.1]
 
 ### Fixed
