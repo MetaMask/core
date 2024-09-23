@@ -46,6 +46,8 @@ export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
 };
 
+export type UserStorageBatchUpsertOptions = UserStorageAllFeatureEntriesOptions;
+
 /**
  * User Storage Service - Get Storage Entry.
  *
@@ -198,7 +200,7 @@ export async function upsertUserStorage(
  */
 export async function batchUpsertUserStorage(
   data: [UserStoragePathWithKeyOnly, string][],
-  opts: UserStorageAllFeatureEntriesOptions,
+  opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
   const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 

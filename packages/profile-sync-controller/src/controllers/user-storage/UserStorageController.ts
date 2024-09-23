@@ -639,7 +639,7 @@ export default class UserStorageController extends BaseController<
 
   /**
    * Allows storage of multiple user data entries for one specific feature. Data stored must be string formatted.
-   * Developers can extend the entry path and entry name through the `schema.ts` file.
+   * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
