@@ -163,7 +163,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.batchSetItems('notifications', []),
+      userStorage.batchSetItems('notifications', [['key', 'value']]),
     ).rejects.toThrow(UserStorageError);
   });
 

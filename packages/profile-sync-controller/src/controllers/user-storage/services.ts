@@ -202,6 +202,10 @@ export async function batchUpsertUserStorage(
   data: [UserStoragePathWithKeyOnly, string][],
   opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
+  if (!data.length) {
+    return;
+  }
+
   const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
   const encryptedData = await Promise.all(

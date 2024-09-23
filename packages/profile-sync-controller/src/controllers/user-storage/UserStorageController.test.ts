@@ -569,8 +569,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
-          mockEndpointBatchUpsertUserStorage:
-            mockEndpointBatchUpsertUserStorage('accounts'),
         },
       };
     };
@@ -587,10 +585,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await controller.syncInternalAccountsWithUserStorage();
 
     mockAPI.mockEndpointGetUserStorage.done();
-    mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
-    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
@@ -621,8 +617,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
-          mockEndpointBatchUpsertUserStorage:
-            mockEndpointBatchUpsertUserStorage('accounts'),
         },
       };
     };
@@ -730,8 +724,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -860,8 +852,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -905,8 +895,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -984,8 +972,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1039,8 +1025,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1084,8 +1068,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1132,8 +1114,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 mockGetEntriesResponse,
               ),
-            mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
