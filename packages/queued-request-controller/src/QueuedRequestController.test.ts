@@ -503,16 +503,17 @@ describe('QueuedRequestController', () => {
     });
 
     it('does not switch networks if a new batch has the same network client', async () => {
+      const networkClientId = 'selectedNetworkClientId';
       const mockSetActiveNetwork = jest.fn();
       const { messenger } = buildControllerMessenger({
         networkControllerGetState: jest.fn().mockReturnValue({
           ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: 'selectedNetworkClientId',
+          selectedNetworkClientId: networkClientId,
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
         selectedNetworkControllerGetNetworkClientIdForDomain: jest
           .fn()
-          .mockImplementation(() => 'selectedNetworkClientId'),
+          .mockImplementation(() => networkClientId),
       });
       const onNetworkSwitched = jest.fn();
       messenger.subscribe(
@@ -534,7 +535,11 @@ describe('QueuedRequestController', () => {
           () => new Promise((resolve) => setTimeout(resolve, 100)),
         );
       const secondRequest = controller.enqueueRequest(
-        { ...buildRequest(), origin: 'https://secondorigin.metamask.io' },
+        {
+          ...buildRequest(),
+          networkClientId,
+          origin: 'https://secondorigin.metamask.io',
+        },
         secondRequestNext,
       );
       // ensure test starts with one request queued up
@@ -546,6 +551,37 @@ describe('QueuedRequestController', () => {
 
       expect(mockSetActiveNetwork).not.toHaveBeenCalled();
       expect(onNetworkSwitched).not.toHaveBeenCalled();
+    });
+
+    it('queues request if a request from the same origin but different networkClientId is being processed', async () => {
+      const controller = buildQueuedRequestController();
+      // Trigger first request
+      const firstRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://example.metamask.io',
+          networkClientId: 'network1',
+        },
+        () => new Promise((resolve) => setTimeout(resolve, 10)),
+      );
+      // ensure first request skips queue
+      expect(controller.state.queuedRequestCount).toBe(0);
+
+      const secondRequestNext = jest.fn();
+      const secondRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://example.metamask.io',
+          networkClientId: 'network2',
+        },
+        secondRequestNext,
+      );
+
+      expect(controller.state.queuedRequestCount).toBe(1);
+      expect(secondRequestNext).not.toHaveBeenCalled();
+
+      await firstRequest;
+      await secondRequest;
     });
 
     describe('when the network switch for a single request fails', () => {
@@ -1083,6 +1119,6 @@ function buildRequest(): QueuedRequestMiddlewareJsonRpcRequest {
     id: 'doesnt matter',
     jsonrpc: '2.0' as const,
     origin: 'example.metamask.io',
-    networkClientId: 'mainnet',
+    networkClientId: 'differentNetworkClientId',
   };
 }
