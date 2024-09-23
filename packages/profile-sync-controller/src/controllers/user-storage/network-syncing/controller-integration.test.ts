@@ -36,23 +36,13 @@ type ExternalEvents = NotNamespacedBy<
 >;
 const getEvents = (): ExternalEvents[] => [
   'NetworkController:networkAdded',
-  'NetworkController:networkChanged',
-  'NetworkController:networkDeleted',
+  'NetworkController:networkUpdated',
+  'NetworkController:networkRemoved',
 ];
 
 const testMatrix = [
   {
-    event: 'NetworkController:networkAdded' as const,
-    arrangeSyncFnMock: () =>
-      jest.spyOn(SyncModule, 'addNetwork').mockResolvedValue(),
-  },
-  {
-    event: 'NetworkController:networkChanged' as const,
-    arrangeSyncFnMock: () =>
-      jest.spyOn(SyncModule, 'updateNetwork').mockResolvedValue(),
-  },
-  {
-    event: 'NetworkController:networkDeleted' as const,
+    event: 'NetworkController:networkRemoved' as const,
     arrangeSyncFnMock: () =>
       jest.spyOn(SyncModule, 'deleteNetwork').mockResolvedValue(),
   },
