@@ -136,6 +136,10 @@ export class UserStorage {
     data: [UserStoragePathWithKeyOnly, string][],
   ): Promise<void> {
     try {
+      if (!data.length) {
+        return;
+      }
+
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
 
