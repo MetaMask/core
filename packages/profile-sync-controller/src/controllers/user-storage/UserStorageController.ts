@@ -25,6 +25,7 @@ import { createSHA256Hash } from '../../shared/encryption';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
+  UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -42,6 +43,7 @@ import {
 } from './accounts/user-storage';
 import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
+  batchUpsertUserStorage,
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
@@ -628,6 +630,32 @@ export default class UserStorageController extends BaseController<
       await this.#getStorageKeyAndBearerToken();
 
     await upsertUserStorage(value, {
+      path,
+      bearerToken,
+      storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+    });
+  }
+
+  /**
+   * Allows storage of multiple user data entries for one specific feature. Data stored must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+
+  public async performBatchSetStorage(
+    path: UserStoragePathWithFeatureOnly,
+    values: [UserStoragePathWithKeyOnly, string][],
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await batchUpsertUserStorage(values, {
       path,
       bearerToken,
       storageKey,
