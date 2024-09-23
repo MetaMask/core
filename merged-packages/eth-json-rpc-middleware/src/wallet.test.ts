@@ -597,6 +597,35 @@ describe('wallet', () => {
           '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
       });
     });
+
+    it('should not throw if request is permit with verifyingContract address equal to "cosmos"', async () => {
+      const { engine } = createTestSetup();
+      const getAccounts = async () => testAddresses.slice();
+      const witnessedMsgParams: TypedMessageParams[] = [];
+      const processTypedMessageV4 = async (msgParams: TypedMessageParams) => {
+        witnessedMsgParams.push(msgParams);
+        // Assume testMsgSig is the expected signature result
+        return testMsgSig;
+      };
+
+      engine.push(
+        createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+      );
+
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [testAddresses[0], JSON.stringify(getMsgParams('cosmos'))],
+      };
+
+      const promise = pify(engine.handle).call(engine, payload);
+      const result = await promise;
+      expect(result).toStrictEqual({
+        id: undefined,
+        jsonrpc: undefined,
+        result:
+          '0x68dc980608bceb5f99f691e62c32caccaee05317309015e9454eba1a14c3cd4505d1dd098b8339801239c9bcaac3c4df95569dcf307108b92f68711379be14d81c',
+      });
+    });
   });
 
   describe('sign', () => {
