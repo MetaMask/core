@@ -585,25 +585,30 @@ describe('QueuedRequestController', () => {
     });
 
     describe('when the network switch for a single request fails', () => {
-      it('throws error', async () => {
-        const switchError = new Error('switch error');
+      let mockSetActiveNetwork: jest.Mock;
+      let controller: QueuedRequestController;
+
+      beforeEach(() => {
+        mockSetActiveNetwork = jest.fn();
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
-          networkControllerSetActiveNetwork: jest
-            .fn()
-            .mockRejectedValue(switchError),
+          networkControllerSetActiveNetwork: mockSetActiveNetwork,
           selectedNetworkControllerGetNetworkClientIdForDomain: jest
             .fn()
             .mockImplementation((_origin) => 'differentNetworkClientId'),
         });
-        const controller = buildQueuedRequestController({
+        controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
           shouldRequestSwitchNetwork: ({ method }) =>
             method === 'method_requiring_network_switch',
         });
+      });
+
+      it('throws error', async () => {
+        mockSetActiveNetwork.mockRejectedValue(new Error('switch error'));
 
         await expect(() =>
           controller.enqueueRequest(
@@ -614,32 +619,14 @@ describe('QueuedRequestController', () => {
             },
             jest.fn(),
           ),
-        ).rejects.toThrow(switchError);
+        ).rejects.toThrow('switch error');
       });
 
       it('correctly processes the next item in the queue', async () => {
-        const switchError = new Error('switch error');
-        const { messenger } = buildControllerMessenger({
-          networkControllerGetState: jest.fn().mockReturnValue({
-            ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: 'selectedNetworkClientId',
-          }),
-          networkControllerSetActiveNetwork: jest
-            .fn()
-            .mockRejectedValue(switchError),
-          selectedNetworkControllerGetNetworkClientIdForDomain: jest
-            .fn()
-            .mockImplementation((origin) =>
-              origin === 'https://firstorigin.metamask.io'
-                ? 'differentNetworkClientId'
-                : 'selectedNetworkClientId',
-            ),
-        });
-        const controller = buildQueuedRequestController({
-          messenger: buildQueuedRequestControllerMessenger(messenger),
-          shouldRequestSwitchNetwork: ({ method }) =>
-            method === 'method_requiring_network_switch',
-        });
+        mockSetActiveNetwork
+          .mockRejectedValueOnce(new Error('switch error'))
+          .mockResolvedValueOnce(undefined);
+
         const firstRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
@@ -648,13 +635,9 @@ describe('QueuedRequestController', () => {
           },
           () => new Promise((resolve) => setTimeout(resolve, 10)),
         );
-        // ensure first request skips queue
         expect(controller.state.queuedRequestCount).toBe(0);
-        const secondRequestNext = jest
-          .fn()
-          .mockImplementation(
-            () => new Promise((resolve) => setTimeout(resolve, 100)),
-          );
+
+        const secondRequestNext = jest.fn().mockResolvedValue(undefined);
         const secondRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
@@ -664,7 +647,7 @@ describe('QueuedRequestController', () => {
           secondRequestNext,
         );
 
-        await expect(firstRequest).rejects.toThrow(switchError);
+        await expect(firstRequest).rejects.toThrow('switch error');
         await secondRequest;
 
         expect(secondRequestNext).toHaveBeenCalled();
@@ -796,6 +779,7 @@ describe('QueuedRequestController', () => {
         expect(thirdRequestNext).toHaveBeenCalled();
       });
     });
+
 
     describe('when a request fails', () => {
       it('throws error', async () => {
