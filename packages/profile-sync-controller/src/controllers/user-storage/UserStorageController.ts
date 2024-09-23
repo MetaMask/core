@@ -793,14 +793,14 @@ export default class UserStorageController extends BaseController<
           userStorageAccountsList.length - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
-        const addNewAccountsPromises = Array.from({
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _ of Array.from({
           length: numberOfAccountsToAdd,
-        }).map(async () => {
+        })) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
-        });
-
-        await Promise.all(addNewAccountsPromises);
+        }
       }
 
       // Second step: compare account names
