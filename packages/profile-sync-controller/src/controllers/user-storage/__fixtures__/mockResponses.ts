@@ -80,3 +80,13 @@ export const getMockUserStoragePutResponse = (
     response: null,
   } satisfies MockResponse;
 };
+
+export const getMockUserStorageBatchPutResponse = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
+) => {
+  return {
+    url: getMockUserStorageEndpoint(path),
+    requestMethod: 'PUT',
+    response: null,
+  } satisfies MockResponse;
+};

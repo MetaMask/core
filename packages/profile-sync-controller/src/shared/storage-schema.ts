@@ -17,8 +17,8 @@ export const USER_STORAGE_SCHEMA = {
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
 
-type UserStorageFeatures = keyof UserStorageSchema;
-type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
+export type UserStorageFeatures = keyof UserStorageSchema;
+export type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
   UserStorageSchema[Feature][0] extends typeof ALLOW_ARBITRARY_KEYS
     ? string
     : UserStorageSchema[Feature][number];
@@ -29,6 +29,9 @@ type UserStorageFeatureAndKey = {
 };
 
 export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
+export type UserStoragePathWithKeyOnly = {
+  [K in UserStorageFeatures]: `${UserStorageFeatureKeys<K>}`;
+}[UserStoragePathWithFeatureOnly];
 export type UserStoragePathWithFeatureAndKey = {
   [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
 }[UserStoragePathWithFeatureOnly];

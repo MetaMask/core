@@ -4,6 +4,7 @@ import { getEnvUrls } from '../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
+  UserStoragePathWithKeyOnly,
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -56,6 +57,13 @@ export class UserStorage {
     value: string,
   ): Promise<void> {
     await this.#upsertUserStorage(path, value);
+  }
+
+  async batchSetItems(
+    path: UserStoragePathWithFeatureOnly,
+    values: [UserStoragePathWithKeyOnly, string][],
+  ) {
+    await this.#batchUpsertUserStorage(path, values);
   }
 
   async getItem(path: UserStoragePathWithFeatureAndKey): Promise<string> {
@@ -119,6 +127,53 @@ export class UserStorage {
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
         `failed to upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchUpsertUserStorage(
+    path: UserStoragePathWithFeatureOnly,
+    data: [UserStoragePathWithKeyOnly, string][],
+  ): Promise<void> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+
+      const encryptedData = await Promise.all(
+        data.map(async (d) => {
+          return [
+            this.#createEntryKey(d[0], storageKey),
+            await encryption.encryptString(d[1], storageKey),
+          ];
+        }),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }

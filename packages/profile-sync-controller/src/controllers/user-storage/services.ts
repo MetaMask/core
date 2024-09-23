@@ -1,10 +1,11 @@
 import log from 'loglevel';
 
-import encryption from '../../shared/encryption';
+import encryption, { createSHA256Hash } from '../../shared/encryption';
 import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
+  UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
@@ -185,5 +186,49 @@ export async function upsertUserStorage(
 
   if (!res.ok) {
     throw new Error('user-storage - unable to upsert data');
+  }
+}
+
+/**
+ * User Storage Service - Set multiple storage entries for one specific feature.
+ * You cannot use this method to set multiple features at once.
+ *
+ * @param data - data to store, in the form of an array of [entryKey, entryValue] pairs
+ * @param opts - storage options
+ */
+export async function batchUpsertUserStorage(
+  data: [UserStoragePathWithKeyOnly, string][],
+  opts: UserStorageAllFeatureEntriesOptions,
+): Promise<void> {
+  const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
+
+  const encryptedData = await Promise.all(
+    data.map(async (d) => {
+      return [
+        createSHA256Hash(d[0] + storageKey),
+        await encryption.encryptString(
+          d[1],
+          opts.storageKey,
+          nativeScryptCrypto,
+        ),
+      ];
+    }),
+  );
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const formattedData = Object.fromEntries(encryptedData);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({ data: formattedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch upsert data');
   }
 }
