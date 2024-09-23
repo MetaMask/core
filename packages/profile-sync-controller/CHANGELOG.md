@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0]
+
+### Added
+
+- add batch PUT endpoint for account syncing ([#4724](https://github.com/MetaMask/core/pull/4724))
+- add batch PUT endpoint support ([#4723](https://github.com/MetaMask/core/pull/4723))
+
 ## [0.8.1]
 
 ### Changed
@@ -215,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...HEAD
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
 [0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.6.0...@metamask/profile-sync-controller@0.7.0
