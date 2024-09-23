@@ -342,17 +342,15 @@ export default class UserStorageController extends BaseController<
         return;
       }
 
-      const userStorageAccountsList = internalAccountsList.map(
-        mapInternalAccountToUserStorageAccount,
-      );
+      const internalAccountsListFormattedForUserStorage =
+        internalAccountsList.map(mapInternalAccountToUserStorageAccount);
 
-      await Promise.all(
-        userStorageAccountsList.map(async (userStorageAccount) => {
-          await this.performSetStorage(
-            `accounts.${userStorageAccount.a}`,
-            JSON.stringify(userStorageAccount),
-          );
-        }),
+      await this.performBatchSetStorage(
+        'accounts',
+        internalAccountsListFormattedForUserStorage.map((account) => [
+          account.a,
+          JSON.stringify(account),
+        ]),
       );
     },
   };
@@ -774,6 +772,9 @@ export default class UserStorageController extends BaseController<
         return;
       }
 
+      // Prepare an array of internal accounts to be saved to the user storage
+      const internalAccountsToBeSavedToUserStorage: InternalAccount[] = [];
+
       // Compare internal accounts list with user storage accounts list
       // First step: compare lengths
       let internalAccountsList = await this.#accounts.getInternalAccountsList();
@@ -812,9 +813,7 @@ export default class UserStorageController extends BaseController<
         );
 
         if (!userStorageAccount) {
-          await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount,
-          );
+          internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
 
@@ -844,9 +843,7 @@ export default class UserStorageController extends BaseController<
 
         // Internal account has custom name but user storage account has default name
         if (isUserStorageAccountNameDefault) {
-          await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount,
-          );
+          internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
 
@@ -861,9 +858,7 @@ export default class UserStorageController extends BaseController<
               userStorageAccount.nlu;
 
             if (isInternalAccountNameNewer) {
-              await this.#accounts.saveInternalAccountToUserStorage(
-                internalAccount,
-              );
+              internalAccountsToBeSavedToUserStorage.push(internalAccount);
               continue;
             }
           }
@@ -881,12 +876,19 @@ export default class UserStorageController extends BaseController<
 
           continue;
         } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
-          await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount,
-          );
+          internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
       }
+
+      // Save the internal accounts list to the user storage
+      await this.performBatchSetStorage(
+        'accounts',
+        internalAccountsToBeSavedToUserStorage.map((account) => [
+          account.address,
+          JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+        ]),
+      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(

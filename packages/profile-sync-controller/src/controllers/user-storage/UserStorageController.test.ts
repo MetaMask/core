@@ -2,7 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type nock from 'nock';
 
-import encryption from '../../shared/encryption';
+import encryption, { createSHA256Hash } from '../../shared/encryption';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
@@ -14,6 +14,7 @@ import {
   MOCK_USER_STORAGE_ACCOUNTS,
 } from './__fixtures__/mockAccounts';
 import {
+  mockEndpointBatchUpsertUserStorage,
   mockEndpointGetUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointUpsertUserStorage,
@@ -504,12 +505,27 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               mockUserStorageAccountsResponse,
             ),
-          mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[0].address}`,
-          ),
-          mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[1].address}`,
-          ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage(
+              'accounts',
+              undefined,
+              async (_uri, requestBody) => {
+                const decryptedBody = await decryptBatchUpsertBody(
+                  requestBody,
+                  MOCK_STORAGE_KEY,
+                );
+
+                const expectedBody = createExpectedAccountSyncBatchUpsertBody(
+                  MOCK_INTERNAL_ACCOUNTS.ALL.slice(0, 2).map((account) => [
+                    account.address,
+                    account as InternalAccount,
+                  ]),
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(decryptedBody).toStrictEqual(expectedBody);
+              },
+            ),
         },
       };
     };
@@ -525,12 +541,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
 
     await controller.syncInternalAccountsWithUserStorage();
     mockAPI.mockEndpointGetUserStorage.done();
-    mockAPI.mockEndpointUpsertUserStorageAccount1.done();
-    mockAPI.mockEndpointUpsertUserStorageAccount2.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
-    expect(mockAPI.mockEndpointUpsertUserStorageAccount1.isDone()).toBe(true);
-    expect(mockAPI.mockEndpointUpsertUserStorageAccount2.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
   });
 
   it('creates internal accounts if user storage has more accounts', async () => {
@@ -556,6 +569,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage('accounts'),
         },
       };
     };
@@ -572,8 +587,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await controller.syncInternalAccountsWithUserStorage();
 
     mockAPI.mockEndpointGetUserStorage.done();
+    mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
@@ -604,6 +621,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage('accounts'),
         },
       };
     };
@@ -660,10 +679,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
-
-          mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[1].address}`,
-          ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage('accounts'),
         },
       };
     };
@@ -680,9 +697,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await controller.syncInternalAccountsWithUserStorage();
 
     mockAPI.mockEndpointGetUserStorage.done();
-    mockAPI.mockEndpointUpsertUserStorageAccount2.done();
+    mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).not.toHaveBeenCalled();
   });
@@ -712,6 +730,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -749,9 +769,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -768,7 +787,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -790,9 +809,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -809,7 +827,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -842,6 +860,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -885,6 +905,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -922,9 +944,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -941,7 +962,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -963,6 +984,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1016,6 +1039,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1059,6 +1084,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1105,6 +1132,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 mockGetEntriesResponse,
               ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1150,9 +1179,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1169,7 +1197,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -1561,4 +1589,49 @@ async function createMockUserStorageEntries(
   data: unknown[],
 ): Promise<GetUserStorageAllFeatureEntriesResponse> {
   return await Promise.all(data.map((d) => createMockUserStorageEntry(d)));
+}
+
+/**
+ * Test Utility - decrypts a realistic batch upsert payload
+ * @param requestBody - nock body
+ * @param storageKey - storage key
+ * @returns decrypted body
+ */
+async function decryptBatchUpsertBody(
+  requestBody: nock.Body,
+  storageKey: string,
+) {
+  if (typeof requestBody === 'string') {
+    return requestBody;
+  }
+  return await Promise.all(
+    Object.entries<string>(requestBody.data).map(
+      async ([entryKey, entryValue]) => {
+        return [
+          entryKey,
+          await encryption.decryptString(entryValue, storageKey),
+        ];
+      },
+    ),
+  );
+}
+
+/**
+ * Test Utility - creates a realistic expected batch upsert payload
+ * @param data - data supposed to be upserted
+ * @param storageKey - storage key
+ * @returns expected body
+ */
+function createExpectedAccountSyncBatchUpsertBody(
+  data: [string, InternalAccount][],
+  storageKey: string,
+) {
+  return data.map(([entryKey, entryValue]) => [
+    createSHA256Hash(String(entryKey) + storageKey),
+    JSON.stringify(
+      AccountsUserStorageModule.mapInternalAccountToUserStorageAccount(
+        entryValue,
+      ),
+    ),
+  ]);
 }
