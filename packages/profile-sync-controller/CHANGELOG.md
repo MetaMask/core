@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(NOTIFY-1140): add batch PUT endpoint for account syncing ([#4724](https://github.com/MetaMask/core/pull/4724))
+- feat(NOTIFY-1128): add batch PUT endpoint support ([#4723](https://github.com/MetaMask/core/pull/4723))
+
 ## [0.8.1]
 
 ### Changed
