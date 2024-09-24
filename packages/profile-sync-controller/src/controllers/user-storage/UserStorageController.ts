@@ -808,15 +808,16 @@ export default class UserStorageController extends BaseController<
         for await (const _ of Array.from({
           length: numberOfAccountsToAdd,
         })) {
+          const expectedAccountsCountAfterAddition =
+            this.#accounts.addedAccountsCount + 1;
           await this.messagingSystem.call('KeyringController:addNewAccount');
+          await waitForExpectedValue(
+            () => this.#accounts.addedAccountsCount,
+            expectedAccountsCountAfterAddition,
+            5000,
+          );
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
-
-        await waitForExpectedValue(
-          () => this.#accounts.addedAccountsCount,
-          numberOfAccountsToAdd,
-          5000,
-        );
       }
 
       // Second step: compare account names
