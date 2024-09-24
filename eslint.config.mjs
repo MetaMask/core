@@ -88,7 +88,9 @@ const config = tseslint.config({
   extends: typescript,
   languageOptions: {
     parserOptions: {
-      project: ['./tsconfig.packages.json'],
+      sourceType: 'module',
+      tsconfigRootDir: import.meta.dirname,
+      project: ['./packages/*/tsconfig.json'],
     },
   },
   rules: {
@@ -127,6 +129,12 @@ const config = tseslint.config({
 {
   files: ['scripts/*.ts'],
   extends: nodejs,
+  languageOptions: {
+    parserOptions: {
+      sourceType: 'module',
+      project: ['./scripts/*/tsconfig.json'],
+    },
+  },
   rules: {
     // All scripts will have shebangs.
     'n/shebang': 'off',
