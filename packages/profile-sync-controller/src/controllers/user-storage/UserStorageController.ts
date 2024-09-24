@@ -296,9 +296,6 @@ export default class UserStorageController extends BaseController<
             this.#accounts.addedAccountsCount += 1;
             return;
           }
-          if (!isEvmAccountType(account.type)) {
-            return;
-          }
 
           await this.saveInternalAccountToUserStorage(account);
         },
@@ -308,10 +305,7 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountRenamed',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (
-            this.#accounts.isAccountSyncingInProgress ||
-            !isEvmAccountType(account.type)
-          ) {
+          if (this.#accounts.isAccountSyncingInProgress) {
             return;
           }
           await this.saveInternalAccountToUserStorage(account);
@@ -923,7 +917,7 @@ export default class UserStorageController extends BaseController<
   async saveInternalAccountToUserStorage(
     internalAccount: InternalAccount,
   ): Promise<void> {
-    if (!this.#accounts.canSync()) {
+    if (!this.#accounts.canSync() || !isEvmAccountType(internalAccount.type)) {
       return;
     }
 
