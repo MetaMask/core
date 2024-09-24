@@ -67,13 +67,44 @@ const config = tseslint.config({
 },
 {
   files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
-  extends: jest,
+  extends: [...jest, ...typescript],
+  languageOptions: {
+    sourceType: 'module',
+  },
+},
+{
+  files: ['*.d.ts'],
+  rules: {
+    '@typescript-eslint/naming-convention': 'warn',
+    'import/unambiguous': 'off',
+  },
+},
+{
+  files: ['scripts/*.ts'],
+  extends: nodejs,
+  languageOptions: {
+    sourceType: 'module',
+    parserOptions: {
+      project: ['./scripts/*/tsconfig.json'],
+    },
+  },
+  rules: {
+    // All scripts will have shebangs.
+    'n/shebang': 'off',
+  },
 },
 {
   // These files are test helpers, not tests. We still use the Jest ESLint
   // config here to ensure that ESLint expects a test-like environment, but
   // various rules meant just to apply to tests have been disabled.
   files: ['**/tests/**/*.{ts,js}', '!*.test.{ts,js}'],
+  languageOptions: {
+    sourceType: 'module',
+    parserOptions: {
+      tsconfigRootDir: import.meta.dirname,
+      project: ['./packages/*/tsconfig.json'],
+    },
+  },
   rules: {
     'jest/no-export': 'off',
     'jest/require-top-level-describe': 'off',
@@ -85,7 +116,7 @@ const config = tseslint.config({
   languageOptions: {
     parserOptions: {
       sourceType: 'script',
-      ecmaVersion: '2020',
+      ecmaVersion: 2020,
     },
   },
 },
@@ -93,8 +124,8 @@ const config = tseslint.config({
   files: ['*.ts'],
   extends: typescript,
   languageOptions: {
+    sourceType: 'module',
     parserOptions: {
-      sourceType: 'module',
       tsconfigRootDir: import.meta.dirname,
       project: ['./packages/*/tsconfig.json'],
     },
@@ -121,29 +152,8 @@ const config = tseslint.config({
   files: ['tests/setupAfterEnv/matchers.ts'],
   languageOptions: {
     parserOptions: {
-      sourceType: 'script',
-    },
-  },
-},
-{
-  files: ['*.d.ts'],
-  rules: {
-    '@typescript-eslint/naming-convention': 'warn',
-    'import/unambiguous': 'off',
-  },
-},
-{
-  files: ['scripts/*.ts'],
-  extends: nodejs,
-  languageOptions: {
-    parserOptions: {
       sourceType: 'module',
-      project: ['./scripts/*/tsconfig.json'],
     },
-  },
-  rules: {
-    // All scripts will have shebangs.
-    'n/shebang': 'off',
   },
 },
 {
