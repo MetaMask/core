@@ -12,11 +12,12 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { type InternalAccount, isEvmAccountType } from '@metamask/keyring-api';
-import type {
-  KeyringControllerGetStateAction,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
-  KeyringControllerAddNewAccountAction,
+import {
+  type KeyringControllerGetStateAction,
+  type KeyringControllerLockEvent,
+  type KeyringControllerUnlockEvent,
+  type KeyringControllerAddNewAccountAction,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
@@ -312,8 +313,20 @@ export default class UserStorageController extends BaseController<
         },
       );
     },
+    doesInternalAccountHaveCorrectKeyringType: (account: InternalAccount) => {
+      return (
+        account.metadata.keyring.type === KeyringTypes.hd ||
+        account.metadata.keyring.type === KeyringTypes.simple
+      );
+    },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
-      return this.messagingSystem.call('AccountsController:listAccounts');
+      const internalAccountsList = await this.messagingSystem.call(
+        'AccountsController:listAccounts',
+      );
+
+      return internalAccountsList?.filter(
+        this.#accounts.doesInternalAccountHaveCorrectKeyringType,
+      );
     },
     getUserStorageAccountsList: async (): Promise<
       UserStorageAccount[] | null
@@ -917,7 +930,11 @@ export default class UserStorageController extends BaseController<
   async saveInternalAccountToUserStorage(
     internalAccount: InternalAccount,
   ): Promise<void> {
-    if (!this.#accounts.canSync() || !isEvmAccountType(internalAccount.type)) {
+    if (
+      !this.#accounts.canSync() ||
+      !isEvmAccountType(internalAccount.type) ||
+      !this.#accounts.doesInternalAccountHaveCorrectKeyringType(internalAccount)
+    ) {
       return;
     }
 
