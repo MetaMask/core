@@ -307,6 +307,9 @@ export class QueuedRequestController extends BaseController<
       'NetworkController:getState',
     );
 
+    console.log('networkClientId', networkClientId);
+    console.log('selectedNetworkClientId', selectedNetworkClientId);
+
     if (networkClientId === selectedNetworkClientId) {
       return;
     }
@@ -385,6 +388,14 @@ export class QueuedRequestController extends BaseController<
     const isMultichainRequestToQueue =
       this.#originOfCurrentBatch === request.origin &&
       this.#networkClientIdOfCurrentBatch !== request.networkClientId;
+
+    // console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
+    console.log('request', request);
+    // console.log('this.#originOfCurrentBatch', this.#originOfCurrentBatch);
+    // console.log(
+    //   'this.#networkClientIdOfCurrentBatch',
+    //   this.#networkClientIdOfCurrentBatch,
+    // );
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
