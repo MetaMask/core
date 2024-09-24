@@ -2891,7 +2891,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^8.1.0, @metamask/keyring-api@npm:^8.1.2":
+"@metamask/keyring-api@npm:^8.1.0":
   version: 8.1.2
   resolution: "@metamask/keyring-api@npm:8.1.2"
   dependencies:
@@ -3277,7 +3277,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^18.2.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
-    "@metamask/keyring-api": "npm:^8.1.2"
+    "@metamask/keyring-api": "npm:^8.1.0"
     "@metamask/keyring-controller": "npm:^17.2.1"
     "@metamask/network-controller": "npm:^21.0.1"
     "@metamask/snaps-controllers": "npm:^9.7.0"
