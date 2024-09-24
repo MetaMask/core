@@ -122,6 +122,7 @@ const config = tseslint.config({
 },
 {
   files: ['scripts/*.ts'],
+  extends: nodejs,
   rules: {
     // All scripts will have shebangs.
     'n/shebang': 'off',
@@ -129,6 +130,7 @@ const config = tseslint.config({
 },
 {
   files: ['**/jest.environment.js'],
+  extends: nodejs,
   rules: {
     // These files run under Node, and thus `require(...)` is expected.
     'n/global-require': 'off',
