@@ -6,5 +6,6 @@ export type {
   SmartTransactionsControllerActions,
   SmartTransactionsControllerStateChangeEvent,
   SmartTransactionsControllerSmartTransactionEvent,
+  SmartTransactionsControllerSmartTransactionConfirmationDoneEvent,
   SmartTransactionsControllerEvents,
 } from './SmartTransactionsController';

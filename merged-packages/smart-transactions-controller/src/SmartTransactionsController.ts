@@ -149,12 +149,18 @@ export type SmartTransactionsControllerSmartTransactionEvent = {
   payload: [SmartTransaction];
 };
 
+export type SmartTransactionsControllerSmartTransactionConfirmationDoneEvent = {
+  type: 'SmartTransactionsController:smartTransactionConfirmationDone';
+  payload: [SmartTransaction];
+};
+
 /**
  * The events that {@link SmartTransactionsController} can emit.
  */
 export type SmartTransactionsControllerEvents =
   | SmartTransactionsControllerStateChangeEvent
-  | SmartTransactionsControllerSmartTransactionEvent;
+  | SmartTransactionsControllerSmartTransactionEvent
+  | SmartTransactionsControllerSmartTransactionConfirmationDoneEvent;
 
 export type AllowedEvents = NetworkControllerStateChangeEvent;
 
@@ -682,6 +688,11 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
         category: MetaMetricsEventCategory.Transactions,
       });
       console.error('confirm error', error);
+    } finally {
+      this.messagingSystem.publish(
+        `SmartTransactionsController:smartTransactionConfirmationDone`,
+        smartTransaction,
+      );
     }
   }
 
