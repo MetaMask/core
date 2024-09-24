@@ -1,5 +1,6 @@
-module.exports = {
-  root: true,
+import typescript from 'typescript-eslint';
+
+const config = typescript.config({
   extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
   ignorePatterns: [
     '!.eslintrc.js',
@@ -38,7 +39,6 @@ module.exports = {
       files: ['*.ts'],
       extends: ['@metamask/eslint-config-typescript'],
       parserOptions: {
-        tsconfigRootDir: __dirname,
         project: ['./tsconfig.packages.json'],
       },
       rules: {
@@ -125,4 +125,6 @@ module.exports = {
       mode: 'typescript',
     },
   },
-};
+});
+
+export default config;
