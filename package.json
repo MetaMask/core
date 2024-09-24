@@ -71,7 +71,7 @@
     "depcheck": "^1.4.7",
     "eslint": "^9.11.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-import-resolver-typescript": "^2.5.0",
+    "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-interactive": "^10.8.0",
     "eslint-plugin-import-x": "^4.3.0",
     "eslint-plugin-jest": "^27.1.5",
