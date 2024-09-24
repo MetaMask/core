@@ -4,7 +4,6 @@ import {
   type NetworkControllerGetStateAction,
   type NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type { SelectedNetworkControllerGetNetworkClientIdForDomainAction } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type {
@@ -70,9 +69,6 @@ describe('QueuedRequestController', () => {
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
-        selectedNetworkControllerGetNetworkClientIdForDomain: jest
-          .fn()
-          .mockImplementation((_origin) => 'differentNetworkClientId'),
       });
       const onNetworkSwitched = jest.fn();
       messenger.subscribe(
@@ -87,7 +83,11 @@ describe('QueuedRequestController', () => {
       });
 
       await controller.enqueueRequest(
-        { ...buildRequest(), method: 'method_requiring_network_switch' },
+        {
+          ...buildRequest(),
+          networkClientId: 'differentNetworkClientId',
+          method: 'method_requiring_network_switch',
+        },
         () => new Promise((resolve) => setTimeout(resolve, 10)),
       );
 
@@ -107,9 +107,6 @@ describe('QueuedRequestController', () => {
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
-        selectedNetworkControllerGetNetworkClientIdForDomain: jest
-          .fn()
-          .mockImplementation((_origin) => 'differentNetworkClientId'),
       });
       const onNetworkSwitched = jest.fn();
       messenger.subscribe(
@@ -139,9 +136,6 @@ describe('QueuedRequestController', () => {
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
-        selectedNetworkControllerGetNetworkClientIdForDomain: jest
-          .fn()
-          .mockImplementation((_origin) => 'selectedNetworkClientId'),
       });
       const onNetworkSwitched = jest.fn();
       messenger.subscribe(
@@ -455,13 +449,6 @@ describe('QueuedRequestController', () => {
           selectedNetworkClientId: 'selectedNetworkClientId',
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
-        selectedNetworkControllerGetNetworkClientIdForDomain: jest
-          .fn()
-          .mockImplementation((origin) =>
-            origin === 'https://secondorigin.metamask.io'
-              ? 'differentNetworkClientId'
-              : 'selectedNetworkClientId',
-          ),
       });
       const onNetworkSwitched = jest.fn();
       messenger.subscribe(
@@ -483,7 +470,11 @@ describe('QueuedRequestController', () => {
           () => new Promise((resolve) => setTimeout(resolve, 100)),
         );
       const secondRequest = controller.enqueueRequest(
-        { ...buildRequest(), origin: 'https://secondorigin.metamask.io' },
+        {
+          ...buildRequest(),
+          networkClientId: 'differentNetworkClientId',
+          origin: 'https://secondorigin.metamask.io',
+        },
         secondRequestNext,
       );
       // ensure test starts with one request queued up
@@ -511,9 +502,6 @@ describe('QueuedRequestController', () => {
           selectedNetworkClientId: networkClientId,
         }),
         networkControllerSetActiveNetwork: mockSetActiveNetwork,
-        selectedNetworkControllerGetNetworkClientIdForDomain: jest
-          .fn()
-          .mockImplementation(() => networkClientId),
       });
       const onNetworkSwitched = jest.fn();
       messenger.subscribe(
@@ -585,35 +573,28 @@ describe('QueuedRequestController', () => {
     });
 
     describe('when the network switch for a single request fails', () => {
-      let mockSetActiveNetwork: jest.Mock;
-      let controller: QueuedRequestController;
-
-      beforeEach(() => {
-        mockSetActiveNetwork = jest.fn();
+      it('throws error', async () => {
+        const switchError = new Error('switch error');
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
-          networkControllerSetActiveNetwork: mockSetActiveNetwork,
-          selectedNetworkControllerGetNetworkClientIdForDomain: jest
+          networkControllerSetActiveNetwork: jest
             .fn()
-            .mockImplementation((_origin) => 'differentNetworkClientId'),
+            .mockRejectedValue(switchError),
         });
-        controller = buildQueuedRequestController({
+        const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
           shouldRequestSwitchNetwork: ({ method }) =>
             method === 'method_requiring_network_switch',
         });
-      });
-
-      it('throws error', async () => {
-        mockSetActiveNetwork.mockRejectedValue(new Error('switch error'));
 
         await expect(() =>
           controller.enqueueRequest(
             {
               ...buildRequest(),
+              networkClientId: 'differentNetworkClientId',
               method: 'method_requiring_network_switch',
               origin: 'https://example.metamask.io',
             },
@@ -623,13 +604,26 @@ describe('QueuedRequestController', () => {
       });
 
       it('correctly processes the next item in the queue', async () => {
-        mockSetActiveNetwork
-          .mockRejectedValueOnce(new Error('switch error'))
-          .mockResolvedValueOnce(undefined);
+        const switchError = new Error('switch error');
+        const { messenger } = buildControllerMessenger({
+          networkControllerGetState: jest.fn().mockReturnValue({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'selectedNetworkClientId',
+          }),
+          networkControllerSetActiveNetwork: jest
+            .fn()
+            .mockRejectedValue(switchError),
+        });
+        const controller = buildQueuedRequestController({
+          messenger: buildQueuedRequestControllerMessenger(messenger),
+          shouldRequestSwitchNetwork: ({ method }) =>
+            method === 'method_requiring_network_switch',
+        });
 
         const firstRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
+            networkClientId: 'differentNetworkClientId',
             method: 'method_requiring_network_switch',
             origin: 'https://firstorigin.metamask.io',
           },
@@ -654,37 +648,26 @@ describe('QueuedRequestController', () => {
       });
     });
 
-    describe.only('when the network switch for a batch fails', () => {
-      let mockSetActiveNetwork: jest.Mock;
-      let controller: QueuedRequestController;
+    describe('when the network switch for a batch fails', () => {
+      it('throws error', async () => {
+        const switchError = new Error('switch error');
 
-      beforeEach(() => {
-        mockSetActiveNetwork = jest.fn();
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: 'selectedNetworkClientId',
           }),
-          networkControllerSetActiveNetwork: mockSetActiveNetwork,
-          selectedNetworkControllerGetNetworkClientIdForDomain: jest
+          networkControllerSetActiveNetwork: jest
             .fn()
-            .mockImplementation((origin) =>
-              origin === 'https://secondorigin.metamask.io'
-                ? 'selectedNetworkClientId'
-                : 'differentNetworkClientId',
-            ),
+            .mockRejectedValue(switchError),
         });
-        controller = buildQueuedRequestController({
+        const controller = buildQueuedRequestController({
           messenger: buildQueuedRequestControllerMessenger(messenger),
           shouldRequestSwitchNetwork: ({ method }) =>
             method === 'method_requiring_network_switch',
         });
-      });
 
-      it.only('throws error', async () => {
-        // const switchError = new Error('switch error');
-        mockSetActiveNetwork.mockRejectedValue(new Error('switch error'));
-
+        // should not switch
         const firstRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
@@ -703,6 +686,7 @@ describe('QueuedRequestController', () => {
         const secondRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
+            networkClientId: 'differentNetworkClientId',
             method: 'method_requiring_network_switch',
             origin: 'https://secondorigin.metamask.io',
           },
@@ -718,11 +702,20 @@ describe('QueuedRequestController', () => {
 
       it('correctly processes the next item in the queue', async () => {
         const switchError = new Error('switch error');
-        mockSetActiveNetwork
-          .mockResolvedValueOnce(undefined)
-          .mockRejectedValueOnce(switchError)
-          .mockResolvedValueOnce(undefined);
-
+        const { messenger } = buildControllerMessenger({
+          networkControllerGetState: jest.fn().mockReturnValue({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'selectedNetworkClientId',
+          }),
+          networkControllerSetActiveNetwork: jest
+            .fn()
+            .mockRejectedValue(switchError),
+        });
+        const controller = buildQueuedRequestController({
+          messenger: buildQueuedRequestControllerMessenger(messenger),
+          shouldRequestSwitchNetwork: ({ method }) =>
+            method === 'method_requiring_network_switch',
+        });
         const firstRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
@@ -741,6 +734,7 @@ describe('QueuedRequestController', () => {
         const secondRequest = controller.enqueueRequest(
           {
             ...buildRequest(),
+            networkClientId: 'differentNetworkClientId',
             method: 'method_requiring_network_switch',
             origin: 'https://secondorigin.metamask.io',
           },
@@ -979,19 +973,15 @@ describe('QueuedRequestController', () => {
  * action.
  * @param options.networkControllerSetActiveNetwork - A handler for the
  * `NetworkController:setActiveNetwork` action.
- * @param options.selectedNetworkControllerGetNetworkClientIdForDomain - A handler for the
- * `SelectedNetworkController:getNetworkClientIdForDomain` action.
  * @returns A controller messenger with QueuedRequestController types, and
  * mocks for all allowed actions.
  */
 function buildControllerMessenger({
   networkControllerGetState,
   networkControllerSetActiveNetwork,
-  selectedNetworkControllerGetNetworkClientIdForDomain,
 }: {
   networkControllerGetState?: NetworkControllerGetStateAction['handler'];
   networkControllerSetActiveNetwork?: NetworkControllerSetActiveNetworkAction['handler'];
-  selectedNetworkControllerGetNetworkClientIdForDomain?: SelectedNetworkControllerGetNetworkClientIdForDomainAction['handler'];
 } = {}): {
   messenger: ControllerMessenger<
     QueuedRequestControllerActions | AllowedActions,
@@ -1002,9 +992,6 @@ function buildControllerMessenger({
   >;
   mockNetworkControllerSetActiveNetwork: jest.Mocked<
     NetworkControllerSetActiveNetworkAction['handler']
-  >;
-  mockSelectedNetworkControllerGetNetworkClientIdForDomain: jest.Mocked<
-    SelectedNetworkControllerGetNetworkClientIdForDomainAction['handler']
   >;
 } {
   const messenger = new ControllerMessenger<
@@ -1028,17 +1015,11 @@ function buildControllerMessenger({
     'NetworkController:setActiveNetwork',
     mockNetworkControllerSetActiveNetwork,
   );
-  const mockSelectedNetworkControllerGetNetworkClientIdForDomain =
-    selectedNetworkControllerGetNetworkClientIdForDomain ?? jest.fn();
-  messenger.registerActionHandler(
-    'SelectedNetworkController:getNetworkClientIdForDomain',
-    mockSelectedNetworkControllerGetNetworkClientIdForDomain,
-  );
+
   return {
     messenger,
     mockNetworkControllerGetState,
     mockNetworkControllerSetActiveNetwork,
-    mockSelectedNetworkControllerGetNetworkClientIdForDomain,
   };
 }
 
@@ -1093,6 +1074,6 @@ function buildRequest(): QueuedRequestMiddlewareJsonRpcRequest {
     id: 'doesnt matter',
     jsonrpc: '2.0' as const,
     origin: 'example.metamask.io',
-    networkClientId: 'differentNetworkClientId',
+    networkClientId: 'selectedNetworkClientId',
   };
 }

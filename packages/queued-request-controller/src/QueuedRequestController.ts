@@ -99,7 +99,7 @@ type QueuedRequest = {
   /**
    * The networkClientId of the queuedRequest.
    */
-  networkClientId?: NetworkClientId;
+  networkClientId: NetworkClientId;
 
   /**
    * A callback used to continue processing the request, called when the request is dequeued.
@@ -290,38 +290,31 @@ export class QueuedRequestController extends BaseController<
    * @throws Throws an error if the current selected `networkClientId` or the
    * `networkClientId` on the request are invalid.
    */
-  async #switchNetworkIfNecessary(requestNetworkClientId?: NetworkClientId) {
+  async #switchNetworkIfNecessary(requestNetworkClientId: NetworkClientId) {
     // This branch is unreachable; it's just here for type reasons.
     /* istanbul ignore next */
     if (!this.#originOfCurrentBatch) {
       throw new Error('Current batch origin must be initialized first');
     }
-    let networkClientId = requestNetworkClientId;
-    if (!networkClientId) {
-      networkClientId = this.messagingSystem.call(
-        'SelectedNetworkController:getNetworkClientIdForDomain',
-        this.#originOfCurrentBatch,
-      );
-    }
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
 
-    console.log('networkClientId', networkClientId);
-    console.log('selectedNetworkClientId', selectedNetworkClientId);
+    // console.log('requestNetworkClientId', requestNetworkClientId);
+    // console.log('selectedNetworkClientId', selectedNetworkClientId);
 
-    if (networkClientId === selectedNetworkClientId) {
+    if (requestNetworkClientId === selectedNetworkClientId) {
       return;
     }
 
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
-      networkClientId,
+      requestNetworkClientId,
     );
 
     this.messagingSystem.publish(
       'QueuedRequestController:networkSwitched',
-      networkClientId,
+      requestNetworkClientId,
     );
   }
 
@@ -339,7 +332,7 @@ export class QueuedRequestController extends BaseController<
     networkClientId,
   }: {
     origin: string;
-    networkClientId?: NetworkClientId;
+    networkClientId: NetworkClientId;
   }): Promise<void> {
     const { promise, reject, resolve } = createDeferredPromise({
       suppressUnhandledRejection: true,
@@ -390,7 +383,7 @@ export class QueuedRequestController extends BaseController<
       this.#networkClientIdOfCurrentBatch !== request.networkClientId;
 
     // console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
-    console.log('request', request);
+    // console.log('request', request);
     // console.log('this.#originOfCurrentBatch', this.#originOfCurrentBatch);
     // console.log(
     //   'this.#networkClientIdOfCurrentBatch',
