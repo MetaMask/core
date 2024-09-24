@@ -229,6 +229,9 @@ export class QueuedRequestController extends BaseController<
     );
   }
 
+  // Note: since we're using queueing for multichain requests to start, this flush could incorrectly flush
+  // multichain requests if the user switches networks on a dapp while multichain request is in the queue.
+  // we intend to remove queueing for multichain requests in the future, so for now we have to live with this.
   #flushQueueForOrigin(flushOrigin: string) {
     this.#requestQueue
       .filter(({ origin }) => origin === flushOrigin)
@@ -287,9 +290,6 @@ export class QueuedRequestController extends BaseController<
    * `networkClientId` on the request are invalid.
    */
   async #switchNetworkIfNecessary(requestNetworkClientId: NetworkClientId) {
-    if (!this.#originOfCurrentBatch) {
-      throw new Error('Current batch origin must be initialized first');
-    }
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );

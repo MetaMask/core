@@ -600,7 +600,7 @@ describe('QueuedRequestController', () => {
             },
             jest.fn(),
           ),
-        ).rejects.toThrow('switch error');
+        ).rejects.toThrow(switchError);
       });
 
       it('correctly processes the next item in the queue', async () => {
