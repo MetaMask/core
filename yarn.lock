@@ -2618,17 +2618,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-simple-keyring@npm:^6.0.3":
-  version: 6.0.3
-  resolution: "@metamask/eth-simple-keyring@npm:6.0.3"
+"@metamask/eth-simple-keyring@npm:^6.0.4":
+  version: 6.0.4
+  resolution: "@metamask/eth-simple-keyring@npm:6.0.4"
   dependencies:
     "@ethereumjs/util": "npm:^8.1.0"
-    "@metamask/eth-sig-util": "npm:^7.0.0"
-    "@metamask/utils": "npm:^9.0.0"
-    deepmerge: "npm:^4.2.2"
+    "@metamask/eth-sig-util": "npm:^7.0.3"
+    "@metamask/utils": "npm:^9.2.1"
     ethereum-cryptography: "npm:^2.1.2"
     randombytes: "npm:^2.1.0"
-  checksum: 10/08a26b201d02706f7487691f8973175bf21f3d160c696535ce457d0c892812071c42ceca7a4d7278703b224ccd2d22f7acfa4362d3dd61eb6da3558fbe38d591
+  checksum: 10/6b714b522a40f712d97144f84342ad66490b785bac5ed959f4a63001f6ac0d8006e4a42dff284aa238aae922aad27b88dc0652c5d188990bdffda42bd05ca62e
   languageName: node
   linkType: hard
 
@@ -2924,7 +2923,7 @@ __metadata:
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/eth-hd-keyring": "npm:^7.0.3"
     "@metamask/eth-sig-util": "npm:^7.0.1"
-    "@metamask/eth-simple-keyring": "npm:^6.0.3"
+    "@metamask/eth-simple-keyring": "npm:^6.0.4"
     "@metamask/keyring-api": "npm:^8.1.2"
     "@metamask/message-manager": "npm:^10.1.1"
     "@metamask/scure-bip39": "npm:^2.1.1"
