@@ -9,10 +9,7 @@ import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerStateChangeEvent,
-} from '@metamask/selected-network-controller';
+import type { SelectedNetworkControllerStateChangeEvent } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
@@ -65,8 +62,7 @@ export type QueuedRequestControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction
-  | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
+  | NetworkControllerSetActiveNetworkAction;
 
 export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
 
@@ -291,17 +287,12 @@ export class QueuedRequestController extends BaseController<
    * `networkClientId` on the request are invalid.
    */
   async #switchNetworkIfNecessary(requestNetworkClientId: NetworkClientId) {
-    // This branch is unreachable; it's just here for type reasons.
-    /* istanbul ignore next */
     if (!this.#originOfCurrentBatch) {
       throw new Error('Current batch origin must be initialized first');
     }
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-
-    // console.log('requestNetworkClientId', requestNetworkClientId);
-    // console.log('selectedNetworkClientId', selectedNetworkClientId);
 
     if (requestNetworkClientId === selectedNetworkClientId) {
       return;
@@ -382,13 +373,6 @@ export class QueuedRequestController extends BaseController<
       this.#originOfCurrentBatch === request.origin &&
       this.#networkClientIdOfCurrentBatch !== request.networkClientId;
 
-    // console.log('isMultichainRequestToQueue', isMultichainRequestToQueue);
-    // console.log('request', request);
-    // console.log('this.#originOfCurrentBatch', this.#originOfCurrentBatch);
-    // console.log(
-    //   'this.#networkClientIdOfCurrentBatch',
-    //   this.#networkClientIdOfCurrentBatch,
-    // );
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
