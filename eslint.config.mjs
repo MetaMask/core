@@ -72,16 +72,20 @@ const config = tseslint.config({
 },
 {
   files: ['*.js', '*.cjs'],
-  parserOptions: {
-    sourceType: 'script',
-    ecmaVersion: '2020',
+  languageOptions: {
+    parserOptions: {
+      sourceType: 'script',
+      ecmaVersion: '2020',
+    },
   },
 },
 {
   files: ['*.ts'],
   extends: typescript,
-  parserOptions: {
-    project: ['./tsconfig.packages.json'],
+  languageOptions: {
+    parserOptions: {
+      project: ['./tsconfig.packages.json'],
+    },
   },
   rules: {
     // Enable rules that are disabled in `@metamask/eslint-config-typescript`
@@ -103,8 +107,10 @@ const config = tseslint.config({
 },
 {
   files: ['tests/setupAfterEnv/matchers.ts'],
-  parserOptions: {
-    sourceType: 'script',
+  languageOptions: {
+    parserOptions: {
+      sourceType: 'script',
+    },
   },
 },
 {
