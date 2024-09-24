@@ -2891,19 +2891,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/keyring-api@npm:^8.1.0":
-  version: 8.1.0
-  resolution: "@metamask/keyring-api@npm:8.1.0"
+"@metamask/keyring-api@npm:^8.1.0, @metamask/keyring-api@npm:^8.1.2":
+  version: 8.1.2
+  resolution: "@metamask/keyring-api@npm:8.1.2"
   dependencies:
-    "@metamask/snaps-sdk": "npm:^6.1.0"
+    "@metamask/snaps-sdk": "npm:^6.5.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/utils": "npm:^9.1.0"
+    "@metamask/utils": "npm:^9.2.1"
     "@types/uuid": "npm:^9.0.8"
     bech32: "npm:^2.0.0"
     uuid: "npm:^9.0.1"
   peerDependencies:
     "@metamask/providers": ">=15 <18"
-  checksum: 10/15711ddaa0007794cc23f9c02f6cfbee85aa1cf79a46468a0398404c295eef1511555ce6bd60a691081d33864d288ea8b309ee9ac9c4d6f277ab22e4d97cb76e
+  checksum: 10/bddb6d8c86f39b9afef0b484b473cfff5e33c99037de6ded2bc5d04d935971bf232237121c0e1297e43f266006f9c8a0cf48aa7d5588a7c4796fc803acdcfd00
   languageName: node
   linkType: hard
 
@@ -3277,7 +3277,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^18.2.1"
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
-    "@metamask/keyring-api": "npm:^8.1.0"
+    "@metamask/keyring-api": "npm:^8.1.2"
     "@metamask/keyring-controller": "npm:^17.2.1"
     "@metamask/network-controller": "npm:^21.0.1"
     "@metamask/snaps-controllers": "npm:^9.7.0"
@@ -3535,16 +3535,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/snaps-sdk@npm:^6.1.0, @metamask/snaps-sdk@npm:^6.4.0, @metamask/snaps-sdk@npm:^6.5.0":
-  version: 6.5.0
-  resolution: "@metamask/snaps-sdk@npm:6.5.0"
+"@metamask/snaps-sdk@npm:^6.1.0, @metamask/snaps-sdk@npm:^6.4.0, @metamask/snaps-sdk@npm:^6.5.0, @metamask/snaps-sdk@npm:^6.5.1":
+  version: 6.5.1
+  resolution: "@metamask/snaps-sdk@npm:6.5.1"
   dependencies:
     "@metamask/key-tree": "npm:^9.1.2"
     "@metamask/providers": "npm:^17.1.2"
     "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^9.2.1"
-  checksum: 10/e3da25d20d6adae2cd4845552fe973d0571303d1b9dffdce5d29202707278afac949293aec4470954620d852f30adebd1e54713f2b07c1c341dab09e908e0368
+  checksum: 10/7831fb2ca61a32ad43e971de9307b221f6bd2f65c84a3286f350cfdd2396166c58db6cd2fac9711654a211c8dc2049e591a79ab720b3f5ad562e434f75e95d32
   languageName: node
   linkType: hard
 

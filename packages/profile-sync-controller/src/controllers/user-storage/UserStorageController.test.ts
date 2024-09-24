@@ -1433,7 +1433,13 @@ function mockUserStorageMessenger(options?: {
       NotificationServicesControllerDisableNotificationServices['handler']
     >().mockResolvedValue();
 
-  const mockKeyringAddNewAccount = jest.fn().mockResolvedValue('0x123');
+  const mockKeyringAddNewAccount = jest.fn(() => {
+    baseMessenger.publish(
+      'AccountsController:accountAdded',
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+    );
+    return MOCK_INTERNAL_ACCOUNTS.ONE[0].address;
+  });
 
   const mockAccountsListAccounts = jest
     .fn()

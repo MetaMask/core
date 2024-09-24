@@ -1,4 +1,4 @@
-import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType, type InternalAccount } from '@metamask/keyring-api';
 
 import { LOCALIZED_DEFAULT_ACCOUNT_NAMES } from '../accounts/constants';
 import { mapInternalAccountToUserStorageAccount } from '../accounts/user-storage';
@@ -28,6 +28,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x123',
       id: '1',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'test',
         nameLastUpdatedAt: 1,
@@ -38,6 +39,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x123',
       id: '1',
+      type: EthAccountType.Eoa,
       metadata: {
         name: `${getMockRandomDefaultAccountName()} 1`,
         nameLastUpdatedAt: 1,
@@ -48,6 +50,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x123',
       id: '1',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'Internal account custom name without nameLastUpdatedAt',
       },
@@ -57,6 +60,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x123',
       id: '1',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'Internal account custom name with nameLastUpdatedAt',
         nameLastUpdatedAt: 1,
@@ -67,6 +71,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x123',
       id: '1',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'Internal account custom name with nameLastUpdatedAt',
         nameLastUpdatedAt: 9999,
@@ -77,6 +82,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x123',
       id: '1',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'test',
         nameLastUpdatedAt: 1,
@@ -85,6 +91,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x456',
       id: '2',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'Account 2',
         nameLastUpdatedAt: 2,
@@ -93,6 +100,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0x789',
       id: '3',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'Účet 2',
         nameLastUpdatedAt: 3,
@@ -101,6 +109,7 @@ export const MOCK_INTERNAL_ACCOUNTS = {
     {
       address: '0xabc',
       id: '4',
+      type: EthAccountType.Eoa,
       metadata: {
         name: 'My Account 4',
         nameLastUpdatedAt: 4,

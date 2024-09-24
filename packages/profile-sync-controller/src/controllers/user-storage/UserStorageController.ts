@@ -11,7 +11,7 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
+import { type InternalAccount, isEvmAccountType } from '@metamask/keyring-api';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -48,6 +48,7 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
+import { waitForExpectedValue } from './utils';
 
 // TODO: add external NetworkController event
 // Need to listen for when a network gets added
@@ -274,6 +275,7 @@ export default class UserStorageController extends BaseController<
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
+    addedAccountsCount: 0,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
@@ -291,8 +293,13 @@ export default class UserStorageController extends BaseController<
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
           if (this.#accounts.isAccountSyncingInProgress) {
+            this.#accounts.addedAccountsCount += 1;
             return;
           }
+          if (!isEvmAccountType(account.type)) {
+            return;
+          }
+
           await this.saveInternalAccountToUserStorage(account);
         },
       );
@@ -301,7 +308,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountRenamed',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
+          if (
+            this.#accounts.isAccountSyncingInProgress ||
+            !isEvmAccountType(account.type)
+          ) {
             return;
           }
           await this.saveInternalAccountToUserStorage(account);
@@ -643,7 +653,6 @@ export default class UserStorageController extends BaseController<
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-
   public async performBatchSetStorage(
     path: UserStoragePathWithFeatureOnly,
     values: [UserStoragePathWithKeyOnly, string][],
@@ -761,6 +770,7 @@ export default class UserStorageController extends BaseController<
 
     try {
       this.#accounts.isAccountSyncingInProgress = true;
+      this.#accounts.addedAccountsCount = 0;
 
       const profileId = await this.#auth.getProfileId();
 
@@ -801,6 +811,12 @@ export default class UserStorageController extends BaseController<
           await this.messagingSystem.call('KeyringController:addNewAccount');
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
+
+        await waitForExpectedValue(
+          () => this.#accounts.addedAccountsCount,
+          numberOfAccountsToAdd,
+          5000,
+        );
       }
 
       // Second step: compare account names
