@@ -5,17 +5,21 @@ import typescript from '@metamask/eslint-config-typescript';
 import tseslint from 'typescript-eslint';
 
 const config = tseslint.config({
-  extends: [...base, ...nodejs],
   ignores: [
-    '!.eslintrc.js',
+    '!.eslint.config.mjs',
     '!jest.config.js',
-    'node_modules',
-    '**/dist',
-    '**/docs',
-    '**/coverage',
-    'merged-packages',
-    'scripts/create-package/package-template',
+    'yarn.lock',
+    '**/*.d.ts',
+    '**/**.map',
+    '**/dist/**',
+    '**/docs/**',
+    '**/coverage/**',
+    'merged-packages/**',
+    'scripts/create-package/package-template/**',
   ],
+},
+{
+  extends: [...base, ...nodejs],
   rules: {
     // Left disabled because various properties throughough this repo are snake_case because the
     // names come from external sources or must comply with standards
