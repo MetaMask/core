@@ -1,8 +1,12 @@
-import typescript from 'typescript-eslint';
+import base from '@metamask/eslint-config';
+import nodejs from '@metamask/eslint-config-nodejs';
+import jest from '@metamask/eslint-config-jest';
+import typescript from '@metamask/eslint-config-typescript';
+import tseslint from 'typescript-eslint';
 
-const config = typescript.config({
-  extends: ['@metamask/eslint-config', '@metamask/eslint-config-nodejs'],
-  ignorePatterns: [
+const config = tseslint.config({
+  extends: [...base, ...nodejs],
+  ignores: [
     '!.eslintrc.js',
     '!jest.config.js',
     'node_modules',
@@ -11,81 +15,6 @@ const config = typescript.config({
     '**/coverage',
     'merged-packages',
     'scripts/create-package/package-template',
-  ],
-  overrides: [
-    {
-      files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
-      extends: ['@metamask/eslint-config-jest'],
-    },
-    {
-      // These files are test helpers, not tests. We still use the Jest ESLint
-      // config here to ensure that ESLint expects a test-like environment, but
-      // various rules meant just to apply to tests have been disabled.
-      files: ['**/tests/**/*.{ts,js}', '!*.test.{ts,js}'],
-      rules: {
-        'jest/no-export': 'off',
-        'jest/require-top-level-describe': 'off',
-        'jest/no-if': 'off',
-      },
-    },
-    {
-      files: ['*.js', '*.cjs'],
-      parserOptions: {
-        sourceType: 'script',
-        ecmaVersion: '2020',
-      },
-    },
-    {
-      files: ['*.ts'],
-      extends: ['@metamask/eslint-config-typescript'],
-      parserOptions: {
-        project: ['./tsconfig.packages.json'],
-      },
-      rules: {
-        // Enable rules that are disabled in `@metamask/eslint-config-typescript`
-        '@typescript-eslint/no-explicit-any': 'error',
-
-        // TODO: auto-fix breaks stuff
-        '@typescript-eslint/promise-function-async': 'off',
-
-        // TODO: re-enable most of these rules
-        '@typescript-eslint/no-unnecessary-type-assertion': 'off',
-        '@typescript-eslint/unbound-method': 'off',
-        '@typescript-eslint/prefer-enum-initializers': 'off',
-        '@typescript-eslint/prefer-nullish-coalescing': 'off',
-        '@typescript-eslint/prefer-optional-chain': 'off',
-        '@typescript-eslint/prefer-reduce-type-parameter': 'off',
-        'no-restricted-syntax': 'off',
-        'no-restricted-globals': 'off',
-      },
-    },
-    {
-      files: ['tests/setupAfterEnv/matchers.ts'],
-      parserOptions: {
-        sourceType: 'script',
-      },
-    },
-    {
-      files: ['*.d.ts'],
-      rules: {
-        '@typescript-eslint/naming-convention': 'warn',
-        'import/unambiguous': 'off',
-      },
-    },
-    {
-      files: ['scripts/*.ts'],
-      rules: {
-        // All scripts will have shebangs.
-        'n/shebang': 'off',
-      },
-    },
-    {
-      files: ['**/jest.environment.js'],
-      rules: {
-        // These files run under Node, and thus `require(...)` is expected.
-        'n/global-require': 'off',
-      },
-    },
   ],
   rules: {
     // Left disabled because various properties throughough this repo are snake_case because the
@@ -124,6 +53,79 @@ const config = typescript.config({
     jsdoc: {
       mode: 'typescript',
     },
+  },
+},
+{
+  files: ['*.test.{ts,js}', '**/tests/**/*.{ts,js}'],
+  extends: jest,
+},
+{
+  // These files are test helpers, not tests. We still use the Jest ESLint
+  // config here to ensure that ESLint expects a test-like environment, but
+  // various rules meant just to apply to tests have been disabled.
+  files: ['**/tests/**/*.{ts,js}', '!*.test.{ts,js}'],
+  rules: {
+    'jest/no-export': 'off',
+    'jest/require-top-level-describe': 'off',
+    'jest/no-if': 'off',
+  },
+},
+{
+  files: ['*.js', '*.cjs'],
+  parserOptions: {
+    sourceType: 'script',
+    ecmaVersion: '2020',
+  },
+},
+{
+  files: ['*.ts'],
+  extends: typescript,
+  parserOptions: {
+    project: ['./tsconfig.packages.json'],
+  },
+  rules: {
+    // Enable rules that are disabled in `@metamask/eslint-config-typescript`
+    '@typescript-eslint/no-explicit-any': 'error',
+
+    // TODO: auto-fix breaks stuff
+    '@typescript-eslint/promise-function-async': 'off',
+
+    // TODO: re-enable most of these rules
+    '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+    '@typescript-eslint/unbound-method': 'off',
+    '@typescript-eslint/prefer-enum-initializers': 'off',
+    '@typescript-eslint/prefer-nullish-coalescing': 'off',
+    '@typescript-eslint/prefer-optional-chain': 'off',
+    '@typescript-eslint/prefer-reduce-type-parameter': 'off',
+    'no-restricted-syntax': 'off',
+    'no-restricted-globals': 'off',
+  },
+},
+{
+  files: ['tests/setupAfterEnv/matchers.ts'],
+  parserOptions: {
+    sourceType: 'script',
+  },
+},
+{
+  files: ['*.d.ts'],
+  rules: {
+    '@typescript-eslint/naming-convention': 'warn',
+    'import/unambiguous': 'off',
+  },
+},
+{
+  files: ['scripts/*.ts'],
+  rules: {
+    // All scripts will have shebangs.
+    'n/shebang': 'off',
+  },
+},
+{
+  files: ['**/jest.environment.js'],
+  rules: {
+    // These files run under Node, and thus `require(...)` is expected.
+    'n/global-require': 'off',
   },
 });
 
