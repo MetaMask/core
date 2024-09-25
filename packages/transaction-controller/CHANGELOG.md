@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: update 'eth-{simple,hd,snap}-keyring' + 'keyring-api' ([#4713](https://github.com/MetaMask/core/pull/4713))
-- feat: align transaction controller with mobile patch ([#4706](https://github.com/MetaMask/core/pull/4706))
-
 ## [37.0.0]
 
 ### Changed
