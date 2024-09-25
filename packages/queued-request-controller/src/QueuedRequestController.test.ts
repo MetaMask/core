@@ -348,6 +348,8 @@ describe('QueuedRequestController', () => {
       expect(controller.state.queuedRequestCount).toBe(0);
     });
 
+    // TODO test processing queued requests on same origin but different network clientId
+
     it('preserves request order within each batch', async () => {
       const controller = buildQueuedRequestController();
       const executionOrder: string[] = [];

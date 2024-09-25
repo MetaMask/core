@@ -260,10 +260,11 @@ export class QueuedRequestController extends BaseController<
   // TODO this needs to be modified for queued requests from the same origin but targeting different networkClientIds
   async #processNextBatch() {
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
-    this.#networkClientIdOfCurrentBatch = firstRequest.origin;
+    this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
     const batch = [firstRequest.processRequest];
     // alternatively we could still batch by origin but switch networks in batches by
     // adding the network clientId to the values in the batch array
+
     while (
       this.#requestQueue[0]?.networkClientId ===
       this.#networkClientIdOfCurrentBatch
