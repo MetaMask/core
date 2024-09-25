@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-controller",
-  "version": "0.1.3",
+  "version": "0.1.2",
   "description": "Manages chain-agnostic providers",
   "keywords": [
     "MetaMask",

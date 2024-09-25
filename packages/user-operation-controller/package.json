@@ -61,12 +61,12 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/approval-controller": "^7.1.0",
+    "@metamask/approval-controller": "^7.0.4",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/gas-fee-controller": "^20.0.1",
-    "@metamask/keyring-controller": "^17.2.2",
+    "@metamask/keyring-controller": "^17.2.1",
     "@metamask/network-controller": "^21.0.1",
-    "@metamask/transaction-controller": "^37.1.0",
+    "@metamask/transaction-controller": "^37.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
