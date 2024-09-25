@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add deleteAfterResult option to approval controller ([#4715](https://github.com/MetaMask/core/pull/4715))
+
 ## [7.0.4]
 
 ### Fixed
