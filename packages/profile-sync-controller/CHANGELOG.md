@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1]
+
+### Changed
+
+- improve account syncing performance ([#4726](https://github.com/MetaMask/core/pull/4726))
+  - check if `isEvmAccountType` before saving an account in user storage in account syncing
+  - check for correct `KeyringType` before saving an account in user storage in account syncing
+  - wait for `AccountsController:accountAdded` event to fire before adding another account in account syncing
+- update 'eth-{simple,hd,snap}-keyring' + 'keyring-api' ([#4713](https://github.com/MetaMask/core/pull/4713))
+
 ## [0.9.0]
 
 ### Added
@@ -222,7 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...HEAD
+[0.9.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...@metamask/profile-sync-controller@0.9.1
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
 [0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0
