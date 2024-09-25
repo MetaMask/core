@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Expand notification args ([#4682](https://github.com/MetaMask/core/pull/4682))
+
 ## [6.0.1]
 
 ### Changed

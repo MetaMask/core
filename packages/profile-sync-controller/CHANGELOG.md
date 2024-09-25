@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- improv: account syncing performance ([#4726](https://github.com/MetaMask/core/pull/4726))
+- chore: update 'eth-{simple,hd,snap}-keyring' + 'keyring-api' ([#4713](https://github.com/MetaMask/core/pull/4713))
+
 ## [0.9.0]
 
 ### Added
