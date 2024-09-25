@@ -261,13 +261,15 @@ export class QueuedRequestController extends BaseController<
   async #processNextBatch() {
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
     this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
+    this.#originOfCurrentBatch = firstRequest.origin;
     const batch = [firstRequest.processRequest];
-    // alternatively we could still batch by origin but switch networks in batches by
-    // adding the network clientId to the values in the batch array
 
+    // alternatively we could still batch by only origin but switch networks in batches by
+    // adding the network clientId to the values in the batch array
     while (
       this.#requestQueue[0]?.networkClientId ===
-      this.#networkClientIdOfCurrentBatch
+        this.#networkClientIdOfCurrentBatch &&
+      this.#requestQueue[0]?.origin === this.#originOfCurrentBatch
     ) {
       const nextEntry = this.#requestQueue.shift() as QueuedRequest;
       batch.push(nextEntry.processRequest);
