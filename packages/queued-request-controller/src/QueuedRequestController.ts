@@ -257,7 +257,6 @@ export class QueuedRequestController extends BaseController<
    * This should be called after a batch of requests has finished processing, if the queue is non-
    * empty.
    */
-  // TODO this needs to be modified for queued requests from the same origin but targeting different networkClientIds
   async #processNextBatch() {
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
     this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
