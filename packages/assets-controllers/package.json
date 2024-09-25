@@ -74,7 +74,7 @@
   },
   "devDependencies": {
     "@metamask/accounts-controller": "^18.2.2",
-    "@metamask/approval-controller": "^7.0.5",
+    "@metamask/approval-controller": "^7.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/keyring-api": "^8.1.3",

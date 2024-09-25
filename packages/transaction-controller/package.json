@@ -70,7 +70,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/accounts-controller": "^18.2.2",
-    "@metamask/approval-controller": "^7.0.5",
+    "@metamask/approval-controller": "^7.1.0",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/eth-json-rpc-provider": "^4.1.4",
     "@metamask/ethjs-provider-http": "^0.3.0",
