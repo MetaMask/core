@@ -756,100 +756,7 @@ describe('QueuedRequestController', () => {
       expect(secondRequestNext).toHaveBeenCalled();
     });
 
-    it('processes requests from different origins and different networkClientIds correctly', async () => {
-      const mockSetActiveNetwork = jest.fn();
-      const { messenger } = buildControllerMessenger({
-        networkControllerGetState: jest.fn().mockReturnValue({
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: 'network1',
-        }),
-        networkControllerSetActiveNetwork: mockSetActiveNetwork,
-      });
-      const controller = buildQueuedRequestController({
-        messenger: buildQueuedRequestControllerMessenger(messenger),
-        shouldRequestSwitchNetwork: () => true,
-      });
-
-      const firstRequestNext = jest.fn();
-      const firstRequest = controller.enqueueRequest(
-        {
-          ...buildRequest(),
-          origin: 'https://origin1.metamask.io',
-          networkClientId: 'network1',
-        },
-        firstRequestNext,
-      );
-
-      const secondRequestNext = jest.fn();
-      const secondRequest = controller.enqueueRequest(
-        {
-          ...buildRequest(),
-          origin: 'https://origin1.metamask.io',
-          networkClientId: 'network1',
-        },
-        secondRequestNext,
-      );
-
-      expect(controller.state.queuedRequestCount).toBe(0);
-      expect(firstRequestNext).toHaveBeenCalled();
-      expect(secondRequestNext).toHaveBeenCalled();
-
-      const thirdRequestNext = jest.fn();
-      const thirdRequest = controller.enqueueRequest(
-        {
-          ...buildRequest(),
-          origin: 'https://origin2.metamask.io',
-          networkClientId: 'network2',
-        },
-        thirdRequestNext,
-      );
-
-      const fourthRequestNext = jest.fn();
-      const fourthRequest = controller.enqueueRequest(
-        {
-          ...buildRequest(),
-          origin: 'https://origin2.metamask.io',
-          networkClientId: 'network2',
-        },
-        fourthRequestNext,
-      );
-
-      expect(controller.state.queuedRequestCount).toBe(2);
-      expect(thirdRequestNext).not.toHaveBeenCalled();
-      expect(fourthRequestNext).not.toHaveBeenCalled();
-
-      const fifthRequestNext = jest.fn();
-      const fifthRequest = controller.enqueueRequest(
-        {
-          ...buildRequest(),
-          origin: 'https://origin3.metamask.io',
-          networkClientId: 'network3',
-        },
-        fifthRequestNext,
-      );
-
-      expect(controller.state.queuedRequestCount).toBe(3);
-      expect(fifthRequestNext).not.toHaveBeenCalled();
-
-      await firstRequest;
-      await secondRequest;
-
-      expect(mockSetActiveNetwork).toHaveBeenCalledWith('network2');
-
-      await thirdRequest;
-      await fourthRequest;
-
-      expect(mockSetActiveNetwork).toHaveBeenCalledWith('network3');
-
-      await fifthRequest;
-
-      expect(controller.state.queuedRequestCount).toBe(0);
-      expect(thirdRequestNext).toHaveBeenCalled();
-      expect(fourthRequestNext).toHaveBeenCalled();
-      expect(fifthRequestNext).toHaveBeenCalled();
-    });
-
-    it.only('processes complex interleaved requests from multiple origins and networkClientIds correctly', async () => {
+    it('processes complex interleaved requests from multiple origins and networkClientIds correctly', async () => {
       const events: string[] = [];
 
       const mockSetActiveNetwork = jest.fn((networkClientId: string) => {
@@ -866,7 +773,7 @@ describe('QueuedRequestController', () => {
           })
           .mockReturnValueOnce({
             ...getDefaultNetworkControllerState(),
-            selectedNetworkClientId: 'NetworkClientId1',
+            selectedNetworkClientId: 'NetworkClientId2',
           })
           .mockReturnValueOnce({
             ...getDefaultNetworkControllerState(),

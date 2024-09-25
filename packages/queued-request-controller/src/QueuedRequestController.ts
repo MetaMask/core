@@ -274,12 +274,10 @@ export class QueuedRequestController extends BaseController<
       const nextEntry = this.#requestQueue.shift() as QueuedRequest;
       batch.push(nextEntry.processRequest);
     }
-    console.log('batch', batch);
     // If globally selected network is different from origin selected network,
     // switch network before processing batch
     let networkSwitchError: unknown;
     try {
-      console.log('switching network', firstRequest.networkClientId);
       await this.#switchNetworkIfNecessary(firstRequest.networkClientId);
     } catch (error: unknown) {
       networkSwitchError = error;
@@ -302,12 +300,6 @@ export class QueuedRequestController extends BaseController<
   async #switchNetworkIfNecessary(requestNetworkClientId: NetworkClientId) {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
-    );
-    console.log(
-      'in switchNetworkIfNecessary, selectedNetworkClientId:',
-      selectedNetworkClientId,
-      'requestNetworkClientId:',
-      requestNetworkClientId,
     );
 
     if (requestNetworkClientId === selectedNetworkClientId) {
@@ -394,7 +386,6 @@ export class QueuedRequestController extends BaseController<
     const isMultichainRequestToQueue =
       this.#originOfCurrentBatch === request.origin &&
       this.#networkClientIdOfCurrentBatch !== request.networkClientId;
-
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
