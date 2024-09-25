@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [37.0.1]
 
-### Uncategorized
+### Added
 
-- chore: update eth-{simple,hd,snap}-keyring + keyring-api ([#4728](https://github.com/MetaMask/core/pull/4728))
-- chore: update 'eth-{simple,hd,snap}-keyring' + 'keyring-api' ([#4713](https://github.com/MetaMask/core/pull/4713))
-- feat: align transaction controller with mobile patch ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Populate `submitHistory` in state when submitting transactions to network ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Export `CHAIN_IDS`, `ETHERSCAN_SUPPORTED_NETWORKS` and `SPEED_UP_RATE` constants ([#4706](https://github.com/MetaMask/core/pull/4706))
+
+### Changed
+
+- Make `getPermittedAccounts` constructor callback optional ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
 
 ## [37.0.0]
 
