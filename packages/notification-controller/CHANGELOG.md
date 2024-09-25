@@ -7,11 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [6.0.2]
+## [7.0.0]
 
-### Uncategorized
+### Changed
 
-- feat: Expand notification args ([#4682](https://github.com/MetaMask/core/pull/4682))
+- **BREAKING**: The `show` function now uses an option bag rather than a single `string` ([#4682](https://github.com/MetaMask/core/pull/4682))
+  - This will be used to persist the extra properties needed to show JSX content in Snap notifications.
 
 ## [6.0.1]
 
@@ -153,8 +154,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@6.0.2...HEAD
-[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@6.0.1...@metamask/notification-controller@6.0.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@6.0.1...@metamask/notification-controller@7.0.0
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@6.0.0...@metamask/notification-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@5.0.2...@metamask/notification-controller@6.0.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/notification-controller@5.0.1...@metamask/notification-controller@5.0.2
