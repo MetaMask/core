@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.2.2]
+
 ### Uncategorized
 
 - chore: update eth-{simple,hd,snap}-keyring + keyring-api ([#4728](https://github.com/MetaMask/core/pull/4728))
@@ -325,7 +327,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.2...HEAD
+[18.2.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.1...@metamask/accounts-controller@18.2.2
 [18.2.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.0...@metamask/accounts-controller@18.2.1
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.1.1...@metamask/accounts-controller@18.2.0
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.1.0...@metamask/accounts-controller@18.1.1

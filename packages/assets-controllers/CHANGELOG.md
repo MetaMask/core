@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.0.2]
+
 ### Uncategorized
 
 - chore: update eth-{simple,hd,snap}-keyring + keyring-api ([#4728](https://github.com/MetaMask/core/pull/4728))
@@ -1127,7 +1129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.2...HEAD
+[38.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...@metamask/assets-controllers@38.0.2
 [38.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...@metamask/assets-controllers@38.0.1
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0

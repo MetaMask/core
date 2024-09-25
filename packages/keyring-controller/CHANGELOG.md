@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.2.2]
+
 ### Uncategorized
 
 - chore: update eth-{simple,hd,snap}-keyring + keyring-api ([#4728](https://github.com/MetaMask/core/pull/4728))
@@ -556,7 +558,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.2...HEAD
+[17.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.1...@metamask/keyring-controller@17.2.2
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.0...@metamask/keyring-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.2...@metamask/keyring-controller@17.2.0
 [17.1.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.1...@metamask/keyring-controller@17.1.2

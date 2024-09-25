@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3]
+
 ### Uncategorized
 
 - chore: update eth-{simple,hd,snap}-keyring + keyring-api ([#4728](https://github.com/MetaMask/core/pull/4728))
@@ -54,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...HEAD
+[0.1.3]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.1...@metamask/chain-controller@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-controller@0.1.0
