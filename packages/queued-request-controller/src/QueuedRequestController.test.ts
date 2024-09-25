@@ -34,6 +34,24 @@ describe('QueuedRequestController', () => {
   });
 
   describe('enqueueRequest', () => {
+    it('throws an error if networkClientId is not provided', async () => {
+      const controller = buildQueuedRequestController();
+      await expect(() =>
+        controller.enqueueRequest(
+          // @ts-expect-error: networkClientId is intentionally not provided
+          {
+            method: 'doesnt matter',
+            id: 'doesnt matter',
+            jsonrpc: '2.0' as const,
+            origin: 'example.metamask.io',
+          },
+          () => new Promise((resolve) => setTimeout(resolve, 10)),
+        ),
+      ).rejects.toThrow(
+        'Error while attempting to enqueue request: networkClientId is required.',
+      );
+    });
+
     it('skips the queue if the queue is empty and no request is being processed', async () => {
       const controller = buildQueuedRequestController();
 
@@ -348,7 +366,78 @@ describe('QueuedRequestController', () => {
       expect(controller.state.queuedRequestCount).toBe(0);
     });
 
-    // TODO test processing queued requests on same origin but different network clientId
+    it('processes queued requests on same origin but different network clientId', async () => {
+      const controller = buildQueuedRequestController();
+      const executionOrder: string[] = [];
+
+      const firstRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://example.metamask.io',
+          networkClientId: 'network1',
+        },
+        async () => {
+          executionOrder.push('Request 1 (network1)');
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        },
+      );
+
+      // Ensure first request skips queue
+      expect(controller.state.queuedRequestCount).toBe(0);
+
+      const secondRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://example.metamask.io',
+          networkClientId: 'network2',
+        },
+        async () => {
+          executionOrder.push('Request 2 (network2)');
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        },
+      );
+
+      const thirdRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://example.metamask.io',
+          networkClientId: 'network1',
+        },
+        async () => {
+          executionOrder.push('Request 3 (network1)');
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        },
+      );
+
+      const fourthRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://example.metamask.io',
+          networkClientId: 'network2',
+        },
+        async () => {
+          executionOrder.push('Request 4 (network2)');
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        },
+      );
+
+      expect(controller.state.queuedRequestCount).toBe(3);
+
+      await Promise.all([
+        firstRequest,
+        secondRequest,
+        thirdRequest,
+        fourthRequest,
+      ]);
+
+      expect(controller.state.queuedRequestCount).toBe(0);
+      expect(executionOrder).toStrictEqual([
+        'Request 1 (network1)',
+        'Request 2 (network2)',
+        'Request 3 (network1)',
+        'Request 4 (network2)',
+      ]);
+    });
 
     it('preserves request order within each batch', async () => {
       const controller = buildQueuedRequestController();

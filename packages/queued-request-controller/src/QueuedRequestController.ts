@@ -371,6 +371,12 @@ export class QueuedRequestController extends BaseController<
     request: QueuedRequestMiddlewareJsonRpcRequest,
     requestNext: () => Promise<void>,
   ): Promise<void> {
+    if (request.networkClientId === undefined) {
+      // This error will occur if selectedNetworkMiddleware does not precede queuedRequestMiddleware in the middleware stack
+      throw new Error(
+        'Error while attempting to enqueue request: networkClientId is required.',
+      );
+    }
     if (this.#originOfCurrentBatch === undefined) {
       this.#originOfCurrentBatch = request.origin;
     }
