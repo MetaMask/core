@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.1]
 
-### Uncategorized
+### Changed
 
-- Release 207.0.0 ([#4730](https://github.com/MetaMask/core/pull/4730))
-- Release 206.0.0 ([#4725](https://github.com/MetaMask/core/pull/4725))
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2`. ([#4731](https://github.com/MetaMask/core/pull/4731))
+- Bump `@metamask/profile-sync-controller` from `^0.9.1` to `^0.9.2`. ([#4731](https://github.com/MetaMask/core/pull/4731))
 
 ## [0.8.0]
 
