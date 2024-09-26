@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.3]
 
-### Uncategorized
+### Fixed
 
-- fix(NOTIFY-1166): only fire callback when account name has changed ([#4735](https://github.com/MetaMask/core/pull/4735))
+- Only fire `onAccountNameUpdated` when account name has changed ([#4735](https://github.com/MetaMask/core/pull/4735))
 
 ## [0.9.2]
 
