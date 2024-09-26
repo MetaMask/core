@@ -129,6 +129,12 @@ export class QueuedRequestController extends BaseController<
   #originOfCurrentBatch: string | undefined;
 
   /**
+   * The networkClientId of the current batch of requests being processed, or `undefined` if there are no
+   * requests currently being processed.
+   */
+  #networkClientIdOfCurrentBatch?: NetworkClientId;
+
+  /**
    * The list of all queued requests, in chronological order.
    */
   #requestQueue: QueuedRequest[] = [];
@@ -164,8 +170,6 @@ export class QueuedRequestController extends BaseController<
    * become visible and focused to the user
    */
   #showApprovalRequest: () => void;
-
-  #networkClientIdOfCurrentBatch?: NetworkClientId;
 
   /**
    * Construct a QueuedRequestController.
@@ -259,8 +263,8 @@ export class QueuedRequestController extends BaseController<
    */
   async #processNextBatch() {
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
-    this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
     this.#originOfCurrentBatch = firstRequest.origin;
+    this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
     const batch = [firstRequest.processRequest];
 
     // alternatively we could still batch by only origin but switch networks in batches by
@@ -382,16 +386,13 @@ export class QueuedRequestController extends BaseController<
       this.#networkClientIdOfCurrentBatch = request.networkClientId;
     }
 
-    const isMultichainRequestToQueue =
-      this.#originOfCurrentBatch === request.origin &&
-      this.#networkClientIdOfCurrentBatch !== request.networkClientId;
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
       if (
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
-        isMultichainRequestToQueue
+        this.#networkClientIdOfCurrentBatch !== request.networkClientId
       ) {
         this.#showApprovalRequest();
         await this.#waitForDequeue({
