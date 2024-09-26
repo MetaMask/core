@@ -896,7 +896,12 @@ export default class UserStorageController extends BaseController<
             },
           );
 
-          this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
+          const areInternalAndUserStorageAccountNamesEqual =
+            internalAccount.metadata.name === userStorageAccount.n;
+
+          if (!areInternalAndUserStorageAccountNamesEqual) {
+            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
+          }
 
           continue;
         } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
