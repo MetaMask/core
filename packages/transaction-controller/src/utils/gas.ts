@@ -60,7 +60,7 @@ export async function estimateGas(
   const gasLimitBN = hexToBN(gasLimitHex);
 
   request.data = data ? add0x(data) : data;
-  request.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
+  request.gas = BNToHex(fractionBN(gasLimitBN, 7, 20));
   request.value = value || '0x0';
 
   let estimatedGas = request.gas;
@@ -96,7 +96,7 @@ export function addGasBuffer(
   multiplier: number,
 ) {
   const estimatedGasBN = hexToBN(estimatedGas);
-  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
+  const maxGasBN = hexToBN(blockGasLimit).muln(0.3);
   const paddedGasBN = estimatedGasBN.muln(multiplier);
 
   if (estimatedGasBN.gt(maxGasBN)) {
