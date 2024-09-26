@@ -1300,43 +1300,6 @@ export type SimulationData = {
   tokenBalanceChanges: SimulationTokenBalanceChange[];
 };
 
-/** A context in which to execute a trace, in order to generate nested timings. */
-export type TraceContext = unknown;
-
-/** Request to trace an operation. */
-export type TraceRequest = {
-  /** Additional data to include in the trace. */
-  data?: Record<string, number | string | boolean>;
-
-  /** Name of the operation. */
-  name: string;
-
-  /**
-   * Unique identifier for the trace.
-   * Required if starting a trace and not providing a callback.
-   */
-  id?: string;
-
-  /** Trace context in which to execute the operation. */
-  parentContext?: TraceContext;
-
-  /** Additional tags to include in the trace to filter results. */
-  tags?: Record<string, number | string | boolean>;
-};
-
-/** Callback that traces the performance of an operation. */
-export type TraceCallback = <ReturnType>(
-  /** Request to trace the performance of an operation. */
-  request: TraceRequest,
-
-  /**
-   * Callback to trace.
-   * Thrown errors will not be caught, but the trace will still be recorded.
-   * @param context - The context in which the operation is running.
-   */
-  fn?: (context?: TraceContext) => ReturnType,
-) => Promise<ReturnType>;
-
 /** Gas fee properties for a legacy transaction. */
 export type GasPriceValue = {
   /** Price per gas for legacy transactions. */
@@ -1350,4 +1313,41 @@ export type FeeMarketEIP1559Values = {
 
   /** Maximum amount per gas to give to the validator as an incentive. */
   maxPriorityFeePerGas: string;
+};
+
+/**
+ * Data concerning a successfully submitted transaction.
+ * Used for debugging purposes.
+ */
+export type SubmitHistoryEntry = {
+  /** The chain ID of the transaction as a hexadecimal string. */
+  chainId?: Hex;
+
+  /** The hash of the transaction returned from the RPC provider. */
+  hash: string;
+
+  /** True if the entry was generated using the migration and existing transaction metadata. */
+  migration?: boolean;
+
+  /** The type of the network where the transaction was submitted. */
+  networkType?: string;
+
+  /**
+   * The URL of the network the transaction was submitted to.
+   * A single network URL if it was recorded when submitted.
+   * An array of potential network URLs if it cannot be confirmed since the migration was used.
+   */
+  networkUrl?: string | string[];
+
+  /** The origin of the transaction. */
+  origin?: string;
+
+  /** The raw transaction data that was submitted. */
+  rawTransaction: string;
+
+  /** When the transaction was submitted. */
+  time: number;
+
+  /** The transaction parameters that were submitted. */
+  transaction: TransactionParams;
 };

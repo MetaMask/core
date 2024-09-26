@@ -50,6 +50,11 @@ export type NotificationServicesPushControllerUpdateTriggerPushNotifications = {
   handler: (UUIDs: string[]) => Promise<void>;
 };
 
+export type NotificationServicesPushControllerSubscribeToNotifications = {
+  type: `NotificationServicesPushController:subscribeToPushNotifications`;
+  handler: () => Promise<void>;
+};
+
 export type NotificationServicesPushControllerOnNewNotification = {
   type: `NotificationServicesPushController:onNewNotifications`;
   payload: [INotification];
@@ -213,7 +218,8 @@ export type AllowedActions =
   // Push Notifications Controller Requests
   | NotificationServicesPushControllerEnablePushNotifications
   | NotificationServicesPushControllerDisablePushNotifications
-  | NotificationServicesPushControllerUpdateTriggerPushNotifications;
+  | NotificationServicesPushControllerUpdateTriggerPushNotifications
+  | NotificationServicesPushControllerSubscribeToNotifications;
 
 // Events
 export type NotificationServicesControllerStateChangeEvent =
@@ -325,19 +331,24 @@ export default class NotificationServicesController extends BaseController<
     getNotificationStorage: async () => {
       return await this.messagingSystem.call(
         'UserStorageController:performGetStorage',
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
       );
     },
     setNotificationStorage: async (state: string) => {
       return await this.messagingSystem.call(
         'UserStorageController:performSetStorage',
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         state,
       );
     },
   };
 
   #pushNotifications = {
+    subscribeToPushNotifications: async () => {
+      await this.messagingSystem.call(
+        'NotificationServicesPushController:subscribeToPushNotifications',
+      );
+    },
     enablePushNotifications: async (UUIDs: string[]) => {
       if (!this.#isPushIntegrated) {
         return;
@@ -399,18 +410,21 @@ export default class NotificationServicesController extends BaseController<
       if (this.#isPushNotificationsSetup) {
         return;
       }
-      if (!this.#isUnlocked) {
-        return;
-      }
 
-      const storage = await this.#getUserStorage();
-      if (!storage) {
-        return;
-      }
+      // If wallet is unlocked, we can create a fresh push subscription
+      // Otherwise we can subscribe to original subscription
+      if (this.#isUnlocked) {
+        const storage = await this.#getUserStorage();
+        if (!storage) {
+          return;
+        }
 
-      const uuids = Utils.getAllUUIDs(storage);
-      await this.#pushNotifications.enablePushNotifications(uuids);
-      this.#isPushNotificationsSetup = true;
+        const uuids = Utils.getAllUUIDs(storage);
+        await this.#pushNotifications.enablePushNotifications(uuids);
+        this.#isPushNotificationsSetup = true;
+      } else {
+        await this.#pushNotifications.subscribeToPushNotifications();
+      }
     },
   };
 

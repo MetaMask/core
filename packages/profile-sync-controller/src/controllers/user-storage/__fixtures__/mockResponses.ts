@@ -1,14 +1,18 @@
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../schema';
-import { createEntryPath } from '../schema';
+} from '../../../shared/storage-schema';
+import { createEntryPath } from '../../../shared/storage-schema';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
 } from '../services';
 import { USER_STORAGE_ENDPOINT } from '../services';
-import { MOCK_ENCRYPTED_STORAGE_DATA, MOCK_STORAGE_KEY } from './mockStorage';
+import {
+  MOCK_ENCRYPTED_STORAGE_DATA,
+  MOCK_STORAGE_DATA,
+  MOCK_STORAGE_KEY,
+} from './mockStorage';
 
 type MockResponse = {
   url: string;
@@ -23,47 +27,89 @@ export const getMockUserStorageEndpoint = (
     return `${USER_STORAGE_ENDPOINT}/${path}`;
   }
 
-  return `${USER_STORAGE_ENDPOINT}${createEntryPath(
+  return `${USER_STORAGE_ENDPOINT}/${createEntryPath(
     path as UserStoragePathWithFeatureAndKey,
     MOCK_STORAGE_KEY,
   )}`;
 };
 
-const MOCK_GET_USER_STORAGE_RESPONSE = (): GetUserStorageResponse => ({
-  HashedKey: 'HASHED_KEY',
-  Data: MOCK_ENCRYPTED_STORAGE_DATA(),
-});
+/**
+ * Creates a mock GET user-storage response
+ * @param data - data to encrypt
+ * @returns a realistic GET Response Body
+ */
+export async function createMockGetStorageResponse(
+  data?: string,
+): Promise<GetUserStorageResponse> {
+  return {
+    HashedKey: 'HASHED_KEY',
+    Data: await MOCK_ENCRYPTED_STORAGE_DATA(data),
+  };
+}
 
-const MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE =
-  (): GetUserStorageAllFeatureEntriesResponse => [
-    {
-      HashedKey: 'HASHED_KEY',
-      Data: MOCK_ENCRYPTED_STORAGE_DATA(),
-    },
-  ];
+/**
+ * Creates a mock GET ALL user-storage response
+ * @param dataArr - array of data to encrypt
+ * @returns a realistic GET ALL Response Body
+ */
+export async function createMockAllFeatureEntriesResponse(
+  dataArr: string[] = [MOCK_STORAGE_DATA],
+): Promise<GetUserStorageAllFeatureEntriesResponse> {
+  return await Promise.all(
+    dataArr.map(async function (d) {
+      const encryptedData = await MOCK_ENCRYPTED_STORAGE_DATA(d);
+      return {
+        HashedKey: 'HASHED_KEY',
+        Data: encryptedData,
+      };
+    }),
+  );
+}
 
-export const getMockUserStorageGetResponse = (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
-) => {
+/**
+ * Creates a mock user-storage api GET request
+ * @param path - path of the GET Url
+ * @returns mock GET API request. Can be used by e2e or unit mock servers
+ */
+export async function getMockUserStorageGetResponse(
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+) {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
-    response: MOCK_GET_USER_STORAGE_RESPONSE(),
+    response: await createMockGetStorageResponse(),
   } satisfies MockResponse;
-};
+}
 
-export const getMockUserStorageAllFeatureEntriesResponse = (
+/**
+ * Creates a mock user-storage api GET ALL request
+ * @param path - path of the GET url
+ * @param dataArr - data to encrypt
+ * @returns mock GET ALL API request. Can be used by e2e or unit mock servers
+ */
+export async function getMockUserStorageAllFeatureEntriesResponse(
   path: UserStoragePathWithFeatureOnly = 'notifications',
-) => {
+  dataArr?: string[],
+) {
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'GET',
-    response: MOCK_GET_USER_STORAGE_ALL_FEATURE_ENTRIES_RESPONSE(),
+    response: await createMockAllFeatureEntriesResponse(dataArr),
   } satisfies MockResponse;
-};
+}
 
 export const getMockUserStoragePutResponse = (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notificationSettings',
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+) => {
+  return {
+    url: getMockUserStorageEndpoint(path),
+    requestMethod: 'PUT',
+    response: null,
+  } satisfies MockResponse;
+};
+
+export const getMockUserStorageBatchPutResponse = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
 ) => {
   return {
     url: getMockUserStorageEndpoint(path),

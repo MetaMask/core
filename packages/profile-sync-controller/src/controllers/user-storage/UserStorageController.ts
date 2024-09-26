@@ -1,7 +1,8 @@
 import type {
   AccountsControllerListAccountsAction,
   AccountsControllerUpdateAccountMetadataAction,
-  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountAddedEvent,
 } from '@metamask/accounts-controller';
 import type {
   ControllerGetStateAction,
@@ -10,15 +11,24 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { InternalAccount } from '@metamask/keyring-api';
-import type {
-  KeyringControllerGetStateAction,
-  KeyringControllerLockEvent,
-  KeyringControllerUnlockEvent,
-  KeyringControllerAddNewAccountAction,
+import { type InternalAccount, isEvmAccountType } from '@metamask/keyring-api';
+import {
+  type KeyringControllerGetStateAction,
+  type KeyringControllerLockEvent,
+  type KeyringControllerUnlockEvent,
+  type KeyringControllerAddNewAccountAction,
+  KeyringTypes,
 } from '@metamask/keyring-controller';
+import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
+import { createSHA256Hash } from '../../shared/encryption';
+import type {
+  UserStoragePathWithFeatureAndKey,
+  UserStoragePathWithFeatureOnly,
+  UserStoragePathWithKeyOnly,
+} from '../../shared/storage-schema';
+import type { NativeScrypt } from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
@@ -32,16 +42,35 @@ import {
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
-import { createSHA256Hash } from './encryption';
-import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-} from './schema';
+import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
+  batchUpsertUserStorage,
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
+import { waitForExpectedValue } from './utils';
+
+// TODO: add external NetworkController event
+// Need to listen for when a network gets added
+type NetworkControllerNetworkAddedEvent = {
+  type: 'NetworkController:networkAdded';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
+// TODO: add external NetworkController event
+// Need to listen for when a network is updated, or the default rpc/block explorer changes
+type NetworkControllerNetworkChangedEvent = {
+  type: 'NetworkController:networkChanged';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
+
+// TODO: add external NetworkController event
+// Need to listen for when a network gets deleted
+type NetworkControllerNetworkDeletedEvent = {
+  type: 'NetworkController:networkDeleted';
+  payload: [networkConfiguration: NetworkConfiguration];
+};
 
 // TODO: fix external dependencies
 export declare type NotificationServicesControllerDisableNotificationServices =
@@ -86,6 +115,22 @@ const metadata: StateMetadata<UserStorageControllerState> = {
   },
 };
 
+type ControllerConfig = {
+  accountSyncing?: {
+    /**
+     * Callback that fires when account sync adds an account.
+     * This is used for analytics.
+     */
+    onAccountAdded?: (profileId: string) => void;
+
+    /**
+     * Callback that fires when account sync updates the name of an account.
+     * This is used for analytics.
+     */
+    onAccountNameUpdated?: (profileId: string) => void;
+  };
+};
+
 // Messenger Actions
 type CreateActionsObj<Controller extends keyof UserStorageController> = {
   [K in Controller]: {
@@ -126,13 +171,6 @@ export type UserStorageControllerSyncInternalAccountsWithUserStorage =
 export type UserStorageControllerSaveInternalAccountToUserStorage =
   ActionsObj['saveInternalAccountToUserStorage'];
 
-export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
-  typeof controllerName,
-  UserStorageControllerState
->;
-export type Events = UserStorageControllerStateChangeEvent;
-
-// Allowed Actions
 export type AllowedActions =
   // Keyring Requests
   | KeyringControllerGetStateAction
@@ -149,12 +187,11 @@ export type AllowedActions =
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
   // Account syncing
   | AccountsControllerListAccountsAction
-  | AccountsControllerGetAccountByAddressAction
   | AccountsControllerUpdateAccountMetadataAction
   | KeyringControllerAddNewAccountAction;
 
 // Messenger events
-export type UserStorageControllerChangeEvent = ControllerStateChangeEvent<
+export type UserStorageControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   UserStorageControllerState
 >;
@@ -166,13 +203,24 @@ export type UserStorageControllerAccountSyncingComplete = {
   type: `${typeof controllerName}:accountSyncingComplete`;
   payload: [boolean];
 };
+export type Events =
+  | UserStorageControllerStateChangeEvent
+  | UserStorageControllerAccountSyncingInProgress
+  | UserStorageControllerAccountSyncingComplete;
 
 export type AllowedEvents =
-  | UserStorageControllerChangeEvent
+  | UserStorageControllerStateChangeEvent
   | UserStorageControllerAccountSyncingInProgress
   | UserStorageControllerAccountSyncingComplete
   | KeyringControllerLockEvent
-  | KeyringControllerUnlockEvent;
+  | KeyringControllerUnlockEvent
+  // Account Syncing Events
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountRenamedEvent
+  // Network Syncing Events
+  | NetworkControllerNetworkAddedEvent
+  | NetworkControllerNetworkChangedEvent
+  | NetworkControllerNetworkDeletedEvent;
 
 // Messenger
 export type UserStorageControllerMessenger = RestrictedControllerMessenger<
@@ -227,14 +275,58 @@ export default class UserStorageController extends BaseController<
     // This is replaced with the actual value in the constructor
     // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
-    getInternalAccountByAddress: async (address: string) => {
-      return this.messagingSystem.call(
-        'AccountsController:getAccountByAddress',
-        address,
+    isAccountSyncingInProgress: false,
+    addedAccountsCount: 0,
+    canSync: () => {
+      try {
+        this.#assertProfileSyncingEnabled();
+
+        return (
+          this.#accounts.isAccountSyncingEnabled && this.#auth.isAuthEnabled()
+        );
+      } catch {
+        return false;
+      }
+    },
+    setupAccountSyncingSubscriptions: () => {
+      this.messagingSystem.subscribe(
+        'AccountsController:accountAdded',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          if (this.#accounts.isAccountSyncingInProgress) {
+            this.#accounts.addedAccountsCount += 1;
+            return;
+          }
+
+          await this.saveInternalAccountToUserStorage(account);
+        },
+      );
+
+      this.messagingSystem.subscribe(
+        'AccountsController:accountRenamed',
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (account) => {
+          if (this.#accounts.isAccountSyncingInProgress) {
+            return;
+          }
+          await this.saveInternalAccountToUserStorage(account);
+        },
+      );
+    },
+    doesInternalAccountHaveCorrectKeyringType: (account: InternalAccount) => {
+      return (
+        account.metadata.keyring.type === KeyringTypes.hd ||
+        account.metadata.keyring.type === KeyringTypes.simple
       );
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
-      return this.messagingSystem.call('AccountsController:listAccounts');
+      const internalAccountsList = await this.messagingSystem.call(
+        'AccountsController:listAccounts',
+      );
+
+      return internalAccountsList?.filter(
+        this.#accounts.doesInternalAccountHaveCorrectKeyringType,
+      );
     },
     getUserStorageAccountsList: async (): Promise<
       UserStorageAccount[] | null
@@ -247,21 +339,15 @@ export default class UserStorageController extends BaseController<
         null
       );
     },
-    saveInternalAccountToUserStorage: async (address: string) => {
-      const internalAccount = await this.#accounts.getInternalAccountByAddress(
-        address,
-      );
-
-      if (!internalAccount) {
-        return;
-      }
-
+    saveInternalAccountToUserStorage: async (
+      internalAccount: InternalAccount,
+    ) => {
       // Map the internal account to the user storage account schema
       const mappedAccount =
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `accounts.${address}`,
+        `accounts.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -273,20 +359,20 @@ export default class UserStorageController extends BaseController<
         return;
       }
 
-      const userStorageAccountsList = internalAccountsList.map(
-        mapInternalAccountToUserStorageAccount,
-      );
+      const internalAccountsListFormattedForUserStorage =
+        internalAccountsList.map(mapInternalAccountToUserStorageAccount);
 
-      await Promise.all(
-        userStorageAccountsList.map(async (userStorageAccount) => {
-          await this.performSetStorage(
-            `accounts.${userStorageAccount.a}`,
-            JSON.stringify(userStorageAccount),
-          );
-        }),
+      await this.performBatchSetStorage(
+        'accounts',
+        internalAccountsListFormattedForUserStorage.map((account) => [
+          account.a,
+          JSON.stringify(account),
+        ]),
       );
     },
   };
+
+  #config?: ControllerConfig;
 
   #notificationServices = {
     disableNotificationServices: async () => {
@@ -310,15 +396,9 @@ export default class UserStorageController extends BaseController<
       );
       this.#isUnlocked = isUnlocked;
 
-      this.messagingSystem.subscribe(
-        'KeyringController:unlock',
-        // eslint-disable-next-line @typescript-eslint/no-misused-promises
-        async () => {
-          this.#isUnlocked = true;
-
-          await this.syncInternalAccountsWithUserStorage();
-        },
-      );
+      this.messagingSystem.subscribe('KeyringController:unlock', () => {
+        this.#isUnlocked = true;
+      });
 
       this.messagingSystem.subscribe('KeyringController:lock', () => {
         this.#isUnlocked = false;
@@ -326,30 +406,62 @@ export default class UserStorageController extends BaseController<
     },
   };
 
+  #nativeScryptCrypto: NativeScrypt | undefined = undefined;
+
   getMetaMetricsState: () => boolean;
 
-  constructor(params: {
+  constructor({
+    messenger,
+    state,
+    env,
+    config,
+    getMetaMetricsState,
+    nativeScryptCrypto,
+  }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
+    config?: ControllerConfig;
     env?: {
       isAccountSyncingEnabled?: boolean;
+      isNetworkSyncingEnabled?: boolean;
     };
     getMetaMetricsState: () => boolean;
+    nativeScryptCrypto?: NativeScrypt;
   }) {
     super({
-      messenger: params.messenger,
+      messenger,
       metadata,
       name: controllerName,
-      state: { ...defaultState, ...params.state },
+      state: { ...defaultState, ...state },
     });
 
+    this.#config = config;
+
     this.#accounts.isAccountSyncingEnabled = Boolean(
-      params.env?.isAccountSyncingEnabled,
+      env?.isAccountSyncingEnabled,
     );
 
-    this.getMetaMetricsState = params.getMetaMetricsState;
+    this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
+    this.#nativeScryptCrypto = nativeScryptCrypto;
+    this.#accounts.setupAccountSyncingSubscriptions();
+
+    // Network Syncing
+    if (env?.isNetworkSyncingEnabled) {
+      startNetworkSyncing({
+        messenger,
+        getStorageConfig: async () => {
+          const { storageKey, bearerToken } =
+            await this.#getStorageKeyAndBearerToken();
+          return {
+            storageKey,
+            bearerToken,
+            nativeScryptCrypto: this.#nativeScryptCrypto,
+          };
+        },
+      });
+    }
   }
 
   /**
@@ -484,6 +596,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -508,6 +621,7 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
 
     return result;
@@ -534,6 +648,32 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
+    });
+  }
+
+  /**
+   * Allows storage of multiple user data entries for one specific feature. Data stored must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchSetStorage(
+    path: UserStoragePathWithFeatureOnly,
+    values: [UserStoragePathWithKeyOnly, string][],
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await batchUpsertUserStorage(values, {
+      path,
+      bearerToken,
+      storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 
@@ -631,12 +771,15 @@ export default class UserStorageController extends BaseController<
    * It will add new accounts to the internal accounts list, update/merge conflicting names and re-upload the results in some cases to the user storage.
    */
   async syncInternalAccountsWithUserStorage(): Promise<void> {
-    if (!this.#accounts.isAccountSyncingEnabled) {
+    if (!this.#accounts.canSync()) {
       return;
     }
 
     try {
-      this.#assertProfileSyncingEnabled();
+      this.#accounts.isAccountSyncingInProgress = true;
+      this.#accounts.addedAccountsCount = 0;
+
+      const profileId = await this.#auth.getProfileId();
 
       const userStorageAccountsList =
         await this.#accounts.getUserStorageAccountsList();
@@ -645,6 +788,9 @@ export default class UserStorageController extends BaseController<
         await this.#accounts.saveInternalAccountsListToUserStorage();
         return;
       }
+
+      // Prepare an array of internal accounts to be saved to the user storage
+      const internalAccountsToBeSavedToUserStorage: InternalAccount[] = [];
 
       // Compare internal accounts list with user storage accounts list
       // First step: compare lengths
@@ -664,13 +810,21 @@ export default class UserStorageController extends BaseController<
           userStorageAccountsList.length - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
-        const addNewAccountsPromises = Array.from({
-          length: numberOfAccountsToAdd,
-        }).map(async () => {
-          await this.messagingSystem.call('KeyringController:addNewAccount');
-        });
 
-        await Promise.all(addNewAccountsPromises);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _ of Array.from({
+          length: numberOfAccountsToAdd,
+        })) {
+          const expectedAccountsCountAfterAddition =
+            this.#accounts.addedAccountsCount + 1;
+          await this.messagingSystem.call('KeyringController:addNewAccount');
+          await waitForExpectedValue(
+            () => this.#accounts.addedAccountsCount,
+            expectedAccountsCountAfterAddition,
+            5000,
+          );
+          this.#config?.accountSyncing?.onAccountAdded?.(profileId);
+        }
       }
 
       // Second step: compare account names
@@ -683,9 +837,7 @@ export default class UserStorageController extends BaseController<
         );
 
         if (!userStorageAccount) {
-          await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
-          );
+          internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
 
@@ -707,15 +859,15 @@ export default class UserStorageController extends BaseController<
                 name: userStorageAccount.n,
               },
             );
+
+            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
           }
           continue;
         }
 
         // Internal account has custom name but user storage account has default name
         if (isUserStorageAccountNameDefault) {
-          await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
-          );
+          internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
 
@@ -730,9 +882,7 @@ export default class UserStorageController extends BaseController<
               userStorageAccount.nlu;
 
             if (isInternalAccountNameNewer) {
-              await this.#accounts.saveInternalAccountToUserStorage(
-                internalAccount.address,
-              );
+              internalAccountsToBeSavedToUserStorage.push(internalAccount);
               continue;
             }
           }
@@ -746,33 +896,55 @@ export default class UserStorageController extends BaseController<
             },
           );
 
+          const areInternalAndUserStorageAccountNamesEqual =
+            internalAccount.metadata.name === userStorageAccount.n;
+
+          if (!areInternalAndUserStorageAccountNamesEqual) {
+            this.#config?.accountSyncing?.onAccountNameUpdated?.(profileId);
+          }
+
           continue;
         } else if (internalAccount.metadata.nameLastUpdatedAt !== undefined) {
-          await this.#accounts.saveInternalAccountToUserStorage(
-            internalAccount.address,
-          );
+          internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
       }
+
+      // Save the internal accounts list to the user storage
+      await this.performBatchSetStorage(
+        'accounts',
+        internalAccountsToBeSavedToUserStorage.map((account) => [
+          account.address,
+          JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+        ]),
+      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
         `${controllerName} - failed to sync user storage accounts list - ${errorMessage}`,
       );
+    } finally {
+      this.#accounts.isAccountSyncingInProgress = false;
     }
   }
 
   /**
    * Saves an individual internal account to the user storage.
-   * @param address - The address of the internal account to save
+   * @param internalAccount - The internal account to save
    */
-  async saveInternalAccountToUserStorage(address: string): Promise<void> {
-    if (!this.#accounts.isAccountSyncingEnabled) {
+  async saveInternalAccountToUserStorage(
+    internalAccount: InternalAccount,
+  ): Promise<void> {
+    if (
+      !this.#accounts.canSync() ||
+      !isEvmAccountType(internalAccount.type) ||
+      !this.#accounts.doesInternalAccountHaveCorrectKeyringType(internalAccount)
+    ) {
       return;
     }
 
     try {
-      await this.#accounts.saveInternalAccountToUserStorage(address);
+      await this.#accounts.saveInternalAccountToUserStorage(internalAccount);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(

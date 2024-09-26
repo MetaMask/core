@@ -512,17 +512,19 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       ? STATIC_MAINNET_TOKEN_LIST
       : tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
 
-    for (const tokensSlice of this.#getSlicesOfTokensToDetect({
+    const tokenDetectionPromises = this.#getSlicesOfTokensToDetect({
       chainId: chainIdAgainstWhichToDetect,
       selectedAddress: addressAgainstWhichToDetect,
-    })) {
-      await this.#addDetectedTokens({
+    }).map((tokensSlice) =>
+      this.#addDetectedTokens({
         tokensSlice,
         selectedAddress: addressAgainstWhichToDetect,
         networkClientId: networkClientIdAgainstWhichToDetect,
         chainId: chainIdAgainstWhichToDetect,
-      });
-    }
+      }),
+    );
+
+    await Promise.all(tokenDetectionPromises);
   }
 
   #getSlicesOfTokensToDetect({

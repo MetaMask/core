@@ -1,9 +1,10 @@
 import { gcm } from '@noble/ciphers/aes';
 import { randomBytes } from '@noble/ciphers/webcrypto';
-import { scrypt } from '@noble/hashes/scrypt';
+import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
+import type { NativeScrypt } from '../types/encryption';
 import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
 import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
 
@@ -44,21 +45,37 @@ const SCRYPT_r = 8; // Block size parameter
 const SCRYPT_p = 1; // Parallelization parameter
 
 class EncryptorDecryptor {
-  encryptString(plaintext: string, password: string): string {
+  async encryptString(
+    plaintext: string,
+    password: string,
+    nativeScryptCrypto?: NativeScrypt,
+  ): Promise<string> {
     try {
-      return this.#encryptStringV1(plaintext, password);
+      return await this.#encryptStringV1(
+        plaintext,
+        password,
+        nativeScryptCrypto,
+      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(`Unable to encrypt string - ${errorMessage}`);
     }
   }
 
-  decryptString(encryptedDataStr: string, password: string): string {
+  async decryptString(
+    encryptedDataStr: string,
+    password: string,
+    nativeScryptCrypto?: NativeScrypt,
+  ): Promise<string> {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
       if (encryptedData.v === '1') {
         if (encryptedData.t === 'scrypt') {
-          return this.#decryptStringV1(encryptedData, password);
+          return await this.#decryptStringV1(
+            encryptedData,
+            password,
+            nativeScryptCrypto,
+          );
         }
       }
       throw new Error(
@@ -70,13 +87,22 @@ class EncryptorDecryptor {
     }
   }
 
-  #encryptStringV1(plaintext: string, password: string): string {
-    const { key, salt } = this.#getOrGenerateScryptKey(password, {
-      N: SCRYPT_N,
-      r: SCRYPT_r,
-      p: SCRYPT_p,
-      dkLen: ALGORITHM_KEY_SIZE,
-    });
+  async #encryptStringV1(
+    plaintext: string,
+    password: string,
+    nativeScryptCrypto?: NativeScrypt,
+  ): Promise<string> {
+    const { key, salt } = await this.#getOrGenerateScryptKey(
+      password,
+      {
+        N: SCRYPT_N,
+        r: SCRYPT_r,
+        p: SCRYPT_p,
+        dkLen: ALGORITHM_KEY_SIZE,
+      },
+      randomBytes(SCRYPT_SALT_SIZE),
+      nativeScryptCrypto,
+    );
 
     // Encrypt and prepend salt.
     const plaintextRaw = utf8ToBytes(plaintext);
@@ -104,7 +130,11 @@ class EncryptorDecryptor {
     return JSON.stringify(encryptedPayload);
   }
 
-  #decryptStringV1(data: EncryptedPayload, password: string): string {
+  async #decryptStringV1(
+    data: EncryptedPayload,
+    password: string,
+    nativeScryptCrypto?: NativeScrypt,
+  ): Promise<string> {
     const { o, d: base64CiphertextAndNonceAndSalt, saltLen } = data;
 
     // Decode the base64.
@@ -120,7 +150,7 @@ class EncryptorDecryptor {
     );
 
     // Derive the key.
-    const { key } = this.#getOrGenerateScryptKey(
+    const { key } = await this.#getOrGenerateScryptKey(
       password,
       {
         N: o.N,
@@ -129,6 +159,7 @@ class EncryptorDecryptor {
         dkLen: o.dkLen,
       },
       salt,
+      nativeScryptCrypto,
     );
 
     // Decrypt and return result.
@@ -156,10 +187,11 @@ class EncryptorDecryptor {
     return gcm(key, nonce).decrypt(ciphertext);
   }
 
-  #getOrGenerateScryptKey(
+  async #getOrGenerateScryptKey(
     password: string,
     o: EncryptedPayload['o'],
     salt?: Uint8Array,
+    nativeScryptCrypto?: NativeScrypt,
   ) {
     const hashedPassword = createSHA256Hash(password);
     const cachedKey = salt
@@ -174,12 +206,26 @@ class EncryptorDecryptor {
     }
 
     const newSalt = salt ?? randomBytes(SCRYPT_SALT_SIZE);
-    const newKey = scrypt(password, newSalt, {
-      N: o.N,
-      r: o.r,
-      p: o.p,
-      dkLen: o.dkLen,
-    });
+
+    let newKey: Uint8Array;
+
+    if (nativeScryptCrypto) {
+      newKey = await nativeScryptCrypto(
+        password,
+        newSalt,
+        o.N,
+        o.r,
+        o.p,
+        o.dkLen,
+      );
+    } else {
+      newKey = await scryptAsync(password, newSalt, {
+        N: o.N,
+        r: o.r,
+        p: o.p,
+        dkLen: o.dkLen,
+      });
+    }
     setCachedKey(hashedPassword, newSalt, newKey);
 
     return {

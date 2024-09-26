@@ -10,14 +10,15 @@ import { createSHA256Hash } from './encryption';
 const ALLOW_ARBITRARY_KEYS = 'ALLOW_ARBITRARY_KEYS' as const;
 
 export const USER_STORAGE_SCHEMA = {
-  notifications: ['notificationSettings'],
-  accounts: [ALLOW_ARBITRARY_KEYS],
+  notifications: ['notification_settings'],
+  accounts: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
+  networks: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
 
-type UserStorageFeatures = keyof UserStorageSchema;
-type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
+export type UserStorageFeatures = keyof UserStorageSchema;
+export type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
   UserStorageSchema[Feature][0] extends typeof ALLOW_ARBITRARY_KEYS
     ? string
     : UserStorageSchema[Feature][number];
@@ -28,6 +29,9 @@ type UserStorageFeatureAndKey = {
 };
 
 export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
+export type UserStoragePathWithKeyOnly = {
+  [K in UserStorageFeatures]: `${UserStorageFeatureKeys<K>}`;
+}[UserStoragePathWithFeatureOnly];
 export type UserStoragePathWithFeatureAndKey = {
   [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
 }[UserStoragePathWithFeatureOnly];
@@ -92,5 +96,5 @@ export function createEntryPath(
   const { feature, key } = getFeatureAndKeyFromPath(path);
   const hashedKey = createSHA256Hash(key + storageKey);
 
-  return `/${feature}/${hashedKey}`;
+  return `${feature}/${hashedKey}`;
 }

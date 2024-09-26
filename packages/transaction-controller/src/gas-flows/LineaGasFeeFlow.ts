@@ -116,8 +116,6 @@ export class LineaGasFeeFlow implements GasFeeFlow {
         to: transactionMeta.txParams.to,
         value: transactionMeta.txParams.value,
         input: transactionMeta.txParams.data,
-        // Required in request but no impact on response.
-        gasPrice: '0x100000000',
       },
     ]);
   }
