@@ -1,6 +1,6 @@
 {
   "name": "@metamask/chain-controller",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Manages chain-agnostic providers",
   "keywords": [
     "MetaMask",
@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
     "@metamask/chain-api": "^0.1.0",
-    "@metamask/keyring-api": "^8.1.0",
+    "@metamask/keyring-api": "^8.1.3",
     "@metamask/snaps-controllers": "^9.7.0",
     "@metamask/snaps-sdk": "^6.5.0",
     "@metamask/snaps-utils": "^8.1.1",

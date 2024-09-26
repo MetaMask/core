@@ -1,4 +1,4 @@
-import { setDifference, setIntersection } from './utils';
+import { setDifference, setIntersection, waitForExpectedValue } from './utils';
 
 describe('utils - setDifference()', () => {
   it('should return the difference between 2 sets', () => {
@@ -25,5 +25,24 @@ describe('utils - setIntersection()', () => {
       setIntersection(setB, setA),
     );
     expect(inBothSetsWithParamsReversed).toStrictEqual([3]);
+  });
+});
+
+describe('utils - waitForExpectedValue()', () => {
+  it('should resolve when the expected value is returned', async () => {
+    const expectedValue = 'expected value';
+    const getter = jest.fn().mockReturnValue(expectedValue);
+
+    const value = await waitForExpectedValue(getter, expectedValue);
+    expect(value).toBe(expectedValue);
+  });
+
+  it('should reject when the timeout is reached', async () => {
+    const expectedValue = 'expected value';
+    const getter = jest.fn().mockReturnValue('wrong value');
+
+    await expect(
+      waitForExpectedValue(getter, expectedValue, 100),
+    ).rejects.toThrow('Timed out waiting for expected value');
   });
 });
