@@ -629,7 +629,7 @@ export enum TransactionType {
   smart = 'smart',
 
   /**
-   * A transaction that bridges tokens to a different chain through Metamask Brige.
+   * A transaction that bridges tokens to a different chain through Metamask Bridge.
    */
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
