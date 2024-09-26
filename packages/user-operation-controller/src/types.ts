@@ -6,21 +6,15 @@ import type {
 import type { Hex } from '@metamask/utils';
 
 /**
- * A complete user operation to be submitted to a bundler.
+ * Common properties in all versions of the user operation.
  * Defined in EIP-4337.
  */
-export type UserOperation = {
+export type UserOperationBase = {
   /** The data to pass to the sender during the main execution call. */
   callData: string;
 
   /** The amount of gas to allocate the main execution call. */
   callGasLimit: string;
-
-  /**
-   * The initCode of the account.
-   * Needed if and only if the account is not yet on-chain and needs to be created.
-   */
-  initCode: string;
 
   /**
    * Maximum fee per gas.
@@ -54,6 +48,30 @@ export type UserOperation = {
 
   /** The amount of gas to allocate for the verification step. */
   verificationGasLimit: string;
+};
+
+/**
+ * A complete user operation to be submitted to a bundler.
+ * Defined in EIP-4337 according to version V0.6.
+ */
+export type UserOperation = UserOperationBase & {
+  /**
+   * The initCode of the account.
+   * Needed if and only if the account is not yet on-chain and needs to be created.
+   */
+  initCode: string;
+};
+
+/**
+ * A complete user operation to be submitted to a bundler.
+ * Defined in EIP-4337 according to version V0.7.
+ */
+export type UserOperationV07 = UserOperationBase & {
+  /** Address of the account factory contract. */
+  factory: string;
+
+  /** Data required for the account factory contract to create a new account. */
+  factoryData: string;
 };
 
 /**
@@ -375,3 +393,8 @@ export type SwapsMetadata = {
   /** Value of the token being swapped. */
   swapTokenValue: string | null;
 };
+
+export enum Version4337 {
+  V06 = 'V0.6',
+  V07 = 'V0.7',
+}

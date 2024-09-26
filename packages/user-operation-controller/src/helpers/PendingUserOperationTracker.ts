@@ -208,7 +208,7 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
     hash: string,
     bundlerUrl: string,
   ): Promise<UserOperationReceipt | undefined> {
-    const bundler = new Bundler(bundlerUrl);
+    const bundler = new Bundler({ url: bundlerUrl });
     return bundler.getUserOperationReceipt(hash);
   }
 

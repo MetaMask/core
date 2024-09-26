@@ -1,7 +1,13 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
 import { createModuleLogger, projectLogger } from '../logger';
-import type { UserOperation, UserOperationReceipt } from '../types';
+import type {
+  UserOperation,
+  UserOperationReceipt,
+  UserOperationV07,
+} from '../types';
+import { Version4337 } from '../types';
+import { toUserOperationV07 } from '../utils/compatability';
 
 const log = createModuleLogger(projectLogger, 'bundler');
 
@@ -29,8 +35,11 @@ export type BundlerEstimateUserOperationGasResponse = {
 export class Bundler {
   #url: string;
 
-  constructor(url: string) {
+  #version: Version4337;
+
+  constructor({ url, version }: { url: string; version?: Version4337 }) {
     this.#url = url;
+    this.#version = version ?? Version4337.V06;
   }
 
   /**
@@ -44,11 +53,17 @@ export class Bundler {
     userOperation: UserOperation,
     entrypoint: string,
   ): Promise<BundlerEstimateUserOperationGasResponse> {
-    log('Estimating gas', { url: this.#url, userOperation, entrypoint });
+    const finalUserOperation = this.#getCompatibleUserOperation(userOperation);
+
+    log('Estimating gas', {
+      url: this.#url,
+      userOperation: finalUserOperation,
+      entrypoint,
+    });
 
     const response: BundlerEstimateUserOperationGasResponse = await this.#query(
       'eth_estimateUserOperationGas',
-      [userOperation, entrypoint],
+      [finalUserOperation, entrypoint],
     );
 
     log('Estimated gas', { response });
@@ -82,14 +97,16 @@ export class Bundler {
     userOperation: UserOperation,
     entrypoint: string,
   ): Promise<string> {
+    const finalUserOperation = this.#getCompatibleUserOperation(userOperation);
+
     log('Sending user operation', {
       url: this.#url,
-      userOperation,
+      userOperation: finalUserOperation,
       entrypoint,
     });
 
     const hash: string = await this.#query('eth_sendUserOperation', [
-      userOperation,
+      finalUserOperation,
       entrypoint,
     ]);
 
@@ -123,5 +140,13 @@ export class Bundler {
     }
 
     return responseJson.result;
+  }
+
+  #getCompatibleUserOperation(
+    userOperation: UserOperation,
+  ): UserOperation | UserOperationV07 {
+    return this.#version === Version4337.V07
+      ? toUserOperationV07(userOperation)
+      : userOperation;
   }
 }

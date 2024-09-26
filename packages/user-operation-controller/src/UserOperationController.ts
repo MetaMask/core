@@ -40,7 +40,7 @@ import type {
   UserOperation,
   UserOperationMetadata,
 } from './types';
-import { UserOperationStatus } from './types';
+import { Version4337, UserOperationStatus } from './types';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -129,6 +129,7 @@ export type UserOperationControllerOptions = {
   interval?: number;
   messenger: UserOperationControllerMessenger;
   state?: Partial<UserOperationControllerState>;
+  version?: Version4337;
 };
 
 export type AddUserOperationRequest = {
@@ -203,6 +204,8 @@ export class UserOperationController extends BaseController<
 
   #pendingUserOperationTracker: PendingUserOperationTracker;
 
+  #version: Version4337;
+
   /**
    * Construct a UserOperationController instance.
    *
@@ -211,12 +214,14 @@ export class UserOperationController extends BaseController<
    * @param options.getGasFeeEstimates - Callback to get gas fee estimates.
    * @param options.messenger - Restricted controller messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
+   * @param options.version - Version of the 4337 specification to use.
    */
   constructor({
     entrypoint,
     getGasFeeEstimates,
     messenger,
     state,
+    version,
   }: UserOperationControllerOptions) {
     super({
       name: controllerName,
@@ -229,6 +234,7 @@ export class UserOperationController extends BaseController<
 
     this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;
+    this.#version = version ?? Version4337.V06;
 
     this.#pendingUserOperationTracker = new PendingUserOperationTracker({
       getUserOperations: () =>
@@ -533,7 +539,7 @@ export class UserOperationController extends BaseController<
 
     metadata.bundlerUrl = bundlerUrl;
 
-    await updateGas(metadata, response, this.#entrypoint);
+    await updateGas(metadata, response, this.#entrypoint, this.#version);
 
     this.#updateMetadata(metadata);
   }
@@ -617,7 +623,10 @@ export class UserOperationController extends BaseController<
 
     log('Submitting user operation', userOperation);
 
-    const bundler = new Bundler(metadata.bundlerUrl as string);
+    const bundler = new Bundler({
+      url: metadata.bundlerUrl as string,
+      version: this.#version,
+    });
 
     const hash = await bundler.sendUserOperation(
       userOperation,

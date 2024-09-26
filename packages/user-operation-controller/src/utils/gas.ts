@@ -8,6 +8,7 @@ import { createModuleLogger, projectLogger } from '../logger';
 import type {
   PrepareUserOperationResponse,
   UserOperationMetadata,
+  Version4337,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'gas');
@@ -22,11 +23,13 @@ const GAS_ESTIMATE_MULTIPLIER = 1.5;
  * @param metadata - The metadata for the user operation.
  * @param prepareResponse - The prepare response from the smart contract account.
  * @param entrypoint - Address of the entrypoint contract.
+ * @param version - The version of the user operation.
  */
 export async function updateGas(
   metadata: UserOperationMetadata,
   prepareResponse: PrepareUserOperationResponse,
   entrypoint: string,
+  version: Version4337,
 ) {
   const { userOperation } = metadata;
 
@@ -54,7 +57,7 @@ export async function updateGas(
     verificationGasLimit: '0xF4240',
   };
 
-  const bundler = new Bundler(metadata.bundlerUrl as string);
+  const bundler = new Bundler({ url: metadata.bundlerUrl as string, version });
   const estimate = await bundler.estimateUserOperationGas(payload, entrypoint);
 
   userOperation.callGasLimit = normalizeGasEstimate(estimate.callGasLimit);
