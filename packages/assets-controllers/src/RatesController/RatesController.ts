@@ -28,7 +28,7 @@ const defaultState = {
   rates: {
     [Cryptocurrency.Btc]: {
       conversionDate: 0,
-      conversionRate: '0',
+      conversionRate: 0,
     },
   },
   cryptocurrencies: [Cryptocurrency.Btc],
@@ -118,7 +118,7 @@ export class RatesController extends BaseController<
       const { fiatCurrency, cryptocurrencies } = this.state;
       const response: Record<
         Cryptocurrency,
-        Record<string, string>
+        Record<string, number>
       > = await this.#fetchMultiExchangeRate(
         fiatCurrency,
         cryptocurrencies,
