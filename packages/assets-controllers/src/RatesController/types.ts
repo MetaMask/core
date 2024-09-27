@@ -20,9 +20,9 @@ import type {
  * The `conversionDate` is a Unix timestamp (number) indicating when the conversion rate was last updated.
  */
 export type Rate = {
-  conversionRate: number;
+  conversionRate: string;
   conversionDate: number;
-  usdConversionRate?: number;
+  usdConversionRate?: string;
 };
 
 /**
