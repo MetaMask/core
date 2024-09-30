@@ -102,7 +102,8 @@ class EncryptorDecryptor {
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
       },
-      randomBytes(SCRYPT_SALT_SIZE),
+      undefined,
+      // randomBytes(SCRYPT_SALT_SIZE),
       nativeScryptCrypto,
     );
     endBenchmark();
@@ -202,6 +203,8 @@ class EncryptorDecryptor {
     const cachedKey = salt
       ? getCachedKeyBySalt(hashedPassword, salt)
       : getAnyCachedKey(hashedPassword);
+
+    // console.log('#getOrGenerateScryptKey cached key?', cachedKey);
 
     if (cachedKey) {
       return {

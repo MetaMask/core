@@ -1,6 +1,7 @@
 import log from 'loglevel';
 
 import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { inspectCache } from '../../shared/encryption/cache';
 import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
@@ -138,37 +139,25 @@ export async function getUserStorageAllFeatureEntries(
 
     const decryptedData: (string | undefined)[] = [];
 
-    for await (const entry of userStorage) {
+    for (const entry of userStorage) {
       if (!entry.Data) {
         continue;
       }
 
-      decryptedData.push(
-        await encryption.decryptString(
-          entry.Data,
-          opts.storageKey,
-          nativeScryptCrypto,
-        ),
-      );
+      try {
+        decryptedData.push(
+          await encryption.decryptString(
+            entry.Data,
+            opts.storageKey,
+            nativeScryptCrypto,
+          ),
+        );
+      } catch (e) {
+        // Do nothing, failed to decrypt
+      }
     }
 
     return decryptedData.filter((d): d is string => d !== undefined);
-
-    // const decryptedData = userStorage?.flatMap((entry) => {
-    //   if (!entry.Data) {
-    //     return [];
-    //   }
-
-    //   return encryption.decryptString(
-    //     entry.Data,
-    //     opts.storageKey,
-    //     nativeScryptCrypto,
-    //   );
-    // });
-
-    // return (await Promise.allSettled(decryptedData))
-    //   .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
-    //   .filter((d): d is string => d !== undefined);
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
@@ -228,26 +217,12 @@ export async function batchUpsertUserStorage(
 
   const encryptedData: string[][] = [];
 
-  for await (const d of data) {
+  for (const d of data) {
     encryptedData.push([
       createSHA256Hash(d[0] + storageKey),
       await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
     ]);
   }
-
-  // const encryptedData = await Promise.all(
-  //   data.map(async (d) => {
-  //     return [
-  //       createSHA256Hash(d[0] + storageKey),
-  //       await encryption.encryptString(
-  //         d[1],
-  //         opts.storageKey,
-  //         nativeScryptCrypto,
-  //       ),
-  //     ];
-  //   }),
-  // );
-
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
   const formattedData = Object.fromEntries(encryptedData);
@@ -265,3 +240,77 @@ export async function batchUpsertUserStorage(
     throw new Error('user-storage - unable to batch upsert data');
   }
 }
+
+const testBatchEncrypt = async (
+  data: [UserStoragePathWithKeyOnly, string][],
+  opts: UserStorageBatchUpsertOptions,
+) => {
+  const encryptedData: string[][] = [];
+  const { storageKey, nativeScryptCrypto } = opts;
+  for (const d of data) {
+    encryptedData.push([
+      createSHA256Hash(d[0] + storageKey),
+      await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
+    ]);
+  }
+
+  console.log({ cachedKeys: inspectCache() });
+
+  return encryptedData;
+};
+
+const testBatchDecrypt = async (
+  data: string[][],
+  opts: UserStorageBatchUpsertOptions,
+) => {
+  const decryptedData: string[] = [];
+  const { nativeScryptCrypto } = opts;
+  for (const d of data) {
+    decryptedData.push(
+      await encryption.decryptString(d[1], opts.storageKey, nativeScryptCrypto),
+    );
+  }
+
+  console.log('done', decryptedData);
+
+  return decryptedData;
+};
+
+const test = async () => {
+  console.log('called');
+  const opts = {
+    path: 'test',
+    bearerToken: '',
+    storageKey: 'password',
+  } as const;
+
+  const encryptedEntries = await testBatchEncrypt(
+    [
+      ['test1', JSON.stringify({ a: 1 })],
+      ['test2', JSON.stringify({ a: 1 })],
+      ['test3', JSON.stringify({ a: 1 })],
+      ['test4', JSON.stringify({ a: 1 })],
+      ['test5', JSON.stringify({ a: 1 })],
+    ],
+    opts,
+  );
+
+  await testBatchDecrypt(encryptedEntries, opts);
+
+  console.log('called again');
+  const encryptedEntries2 = await testBatchEncrypt(
+    [
+      ['test1', JSON.stringify({ a: 1 })],
+      ['test2', JSON.stringify({ a: 1 })],
+      ['test3', JSON.stringify({ a: 1 })],
+      ['test4', JSON.stringify({ a: 1 })],
+      ['test5', JSON.stringify({ a: 1 })],
+    ],
+    opts,
+  );
+
+  await testBatchDecrypt(encryptedEntries2, opts);
+};
+
+// eslint-disable-next-line @typescript-eslint/no-floating-promises
+test();

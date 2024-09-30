@@ -13,6 +13,7 @@ export const USER_STORAGE_SCHEMA = {
   notifications: ['notification_settings'],
   accounts: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
   networks: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
+  test: [ALLOW_ARBITRARY_KEYS],
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;

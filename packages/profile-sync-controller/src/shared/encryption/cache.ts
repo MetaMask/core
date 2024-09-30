@@ -22,6 +22,14 @@ const getPasswordCache = (hashedPassword: string) => {
 };
 
 /**
+ * foo
+ * @returns bar
+ */
+export function inspectCache() {
+  return inMemCachedKDF;
+}
+
+/**
  * Returns a given cached derived key from a hashed password and salt
  *
  * @param hashedPassword - hashed password for cache lookup
