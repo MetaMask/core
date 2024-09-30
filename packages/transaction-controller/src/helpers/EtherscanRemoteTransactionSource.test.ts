@@ -20,6 +20,7 @@ import {
   fetchEtherscanTransactions,
 } from '../utils/etherscan';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import { current } from 'immer';
 
 jest.mock('../utils/etherscan', () => ({
   fetchEtherscanTransactions: jest.fn(),
@@ -27,6 +28,8 @@ jest.mock('../utils/etherscan', () => ({
 }));
 
 jest.mock('uuid');
+
+const API_KEY_MOCK = 'TestApiKey';
 
 describe('EtherscanRemoteTransactionSource', () => {
   let clock: sinon.SinonFakeTimers;
@@ -239,6 +242,56 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('includes API key if chain matches', async () => {
+      fetchEtherscanTransactionsMock.mockResolvedValueOnce(
+        ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+      );
+
+      await new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: {
+          [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
+        },
+      }).fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {
+          currentChainId: CHAIN_IDS.MAINNET,
+        } as any,
+      );
+
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: API_KEY_MOCK,
+        }),
+      );
+    });
+
+    it('does not include API key if chain does not match', async () => {
+      fetchEtherscanTransactionsMock.mockResolvedValueOnce(
+        ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+      );
+
+      await new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: {
+          [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
+        },
+      }).fetchTransactions(
+        // TODO: Replace `any` with type
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {
+          currentChainId: CHAIN_IDS.SEPOLIA,
+        } as any,
+      );
+
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: undefined,
+        }),
+      );
     });
 
     it.each([
