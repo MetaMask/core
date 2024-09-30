@@ -290,7 +290,9 @@ export type TransactionControllerOptions = {
   getNetworkState: () => NetworkState;
   getPermittedAccounts?: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  incomingTransactions?: IncomingTransactionOptions;
+  incomingTransactions?: IncomingTransactionOptions & {
+    etherscanApiKeysByChainId?: Record<Hex, string>;
+  };
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -884,6 +886,7 @@ export class TransactionController extends BaseController<
 
     const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: incomingTransactions.etherscanApiKeysByChainId,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       });
 

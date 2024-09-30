@@ -66,6 +66,7 @@ export interface EtherscanTransactionResponse<
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface EtherscanTransactionRequest {
   address: string;
+  apiKey?: string;
   chainId: Hex;
   fromBlock?: number;
   limit?: number;
@@ -76,6 +77,7 @@ export interface EtherscanTransactionRequest {
  *
  * @param request - Configuration required to fetch transactions.
  * @param request.address - Address to retrieve transactions for.
+ * @param request.apiKey - Etherscan API key to prevent throttling.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching transactions from.
  * @param request.limit - Number of transactions to retrieve.
@@ -83,6 +85,7 @@ export interface EtherscanTransactionRequest {
  */
 export async function fetchEtherscanTransactions({
   address,
+  apiKey,
   chainId,
   fromBlock,
   limit,
@@ -91,6 +94,7 @@ export async function fetchEtherscanTransactions({
 > {
   return await fetchTransactions('txlist', {
     address,
+    apiKey,
     chainId,
     fromBlock,
     limit,
@@ -102,6 +106,7 @@ export async function fetchEtherscanTransactions({
  *
  * @param request - Configuration required to fetch token transactions.
  * @param request.address - Address to retrieve token transactions for.
+ * @param request.apiKey - Etherscan API key to prevent throttling.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching token transactions from.
  * @param request.limit - Number of token transactions to retrieve.
@@ -109,6 +114,7 @@ export async function fetchEtherscanTransactions({
  */
 export async function fetchEtherscanTokenTransactions({
   address,
+  apiKey,
   chainId,
   fromBlock,
   limit,
@@ -117,6 +123,7 @@ export async function fetchEtherscanTokenTransactions({
 > {
   return await fetchTransactions('tokentx', {
     address,
+    apiKey,
     chainId,
     fromBlock,
     limit,
@@ -129,27 +136,30 @@ export async function fetchEtherscanTokenTransactions({
  * @param action - The Etherscan endpoint to use.
  * @param options - Options bag.
  * @param options.address - Address to retrieve transactions for.
+ * @param options.apiKey - Etherscan API key to prevent throttling.
  * @param options.chainId - Current chain ID used to determine subdomain and domain.
  * @param options.fromBlock - Block number to start fetching transactions from.
  * @param options.limit - Number of transactions to retrieve.
  * @returns An object containing the request status and an array of transaction data.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
-async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
+async function fetchTransactions<
+  ResponseData extends EtherscanTransactionMetaBase,
+>(
   action: string,
   {
     address,
+    apiKey,
     chainId,
     fromBlock,
     limit,
   }: {
     address: string;
+    apiKey?: string;
     chainId: Hex;
     fromBlock?: number;
     limit?: number;
   },
-): Promise<EtherscanTransactionResponse<T>> {
+): Promise<EtherscanTransactionResponse<ResponseData>> {
   const urlParams = {
     module: 'account',
     address,
@@ -161,13 +171,14 @@ async function fetchTransactions<T extends EtherscanTransactionMetaBase>(
   const etherscanTxUrl = getEtherscanApiUrl(chainId, {
     ...urlParams,
     action,
+    apikey: apiKey,
   });
 
   log('Sending Etherscan request', etherscanTxUrl);
 
   const response = (await handleFetch(
     etherscanTxUrl,
-  )) as EtherscanTransactionResponse<T>;
+  )) as EtherscanTransactionResponse<ResponseData>;
 
   return response;
 }
