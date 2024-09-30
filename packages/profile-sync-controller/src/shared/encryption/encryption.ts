@@ -4,6 +4,7 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
+import { benchmarkTimeElapsed } from '../../controllers/user-storage/utils';
 import type { NativeScrypt } from '../types/encryption';
 import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
 import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
@@ -92,6 +93,7 @@ class EncryptorDecryptor {
     password: string,
     nativeScryptCrypto?: NativeScrypt,
   ): Promise<string> {
+    const endBenchmark = benchmarkTimeElapsed('encryptStringV1');
     const { key, salt } = await this.#getOrGenerateScryptKey(
       password,
       {
@@ -103,6 +105,7 @@ class EncryptorDecryptor {
       randomBytes(SCRYPT_SALT_SIZE),
       nativeScryptCrypto,
     );
+    endBenchmark();
 
     // Encrypt and prepend salt.
     const plaintextRaw = utf8ToBytes(plaintext);
@@ -150,6 +153,7 @@ class EncryptorDecryptor {
     );
 
     // Derive the key.
+    const endBenchmark = benchmarkTimeElapsed('decryptStringV1');
     const { key } = await this.#getOrGenerateScryptKey(
       password,
       {
@@ -161,6 +165,7 @@ class EncryptorDecryptor {
       salt,
       nativeScryptCrypto,
     );
+    endBenchmark();
 
     // Decrypt and return result.
     return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));

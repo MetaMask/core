@@ -57,3 +57,16 @@ export function waitForExpectedValue<TVariable>(
     }, timeout);
   });
 }
+
+/**
+ * Returns a function that when called, returns the time elapsed since the function was created.
+ * @param benchmarkName - The name of the benchmark
+ * @returns A function that returns the time elapsed since the function was created.
+ */
+export function benchmarkTimeElapsed(benchmarkName: string) {
+  const start = Date.now();
+  return () => {
+    const elapsed = Date.now() - start;
+    console.log(`Benchmark: ${benchmarkName} took ${elapsed / 1000} seconds`);
+  };
+}
