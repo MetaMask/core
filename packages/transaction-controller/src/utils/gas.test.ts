@@ -12,6 +12,7 @@ import {
   updateGas,
   FIXED_GAS,
   DEFAULT_GAS_MULTIPLIER,
+  GAS_ESTIMATE_FALLBACK_MULTIPLIER,
 } from './gas';
 
 jest.mock('@metamask/controller-utils', () => ({
@@ -265,7 +266,9 @@ describe('gas', () => {
 
     describe('on estimate query error', () => {
       it('sets gas to 35% of block gas limit', async () => {
-        const fallbackGas = Math.floor(BLOCK_GAS_LIMIT_MOCK * 0.35);
+        const fallbackGas = Math.floor(
+          BLOCK_GAS_LIMIT_MOCK * GAS_ESTIMATE_FALLBACK_MULTIPLIER,
+        );
 
         mockQuery({
           getBlockByNumberResponse: {
@@ -353,7 +356,9 @@ describe('gas', () => {
     });
 
     it('returns estimated gas as 35% of block gas limit on error', async () => {
-      const fallbackGas = Math.floor(BLOCK_GAS_LIMIT_MOCK * 0.35);
+      const fallbackGas = Math.floor(
+        BLOCK_GAS_LIMIT_MOCK * GAS_ESTIMATE_FALLBACK_MULTIPLIER,
+      );
 
       mockQuery({
         getBlockByNumberResponse: {
