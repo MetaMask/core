@@ -3,9 +3,15 @@ import { randomBytes } from '@noble/ciphers/webcrypto';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
+import logger from 'loglevel';
 
 import type { NativeScrypt } from '../types/encryption';
-import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
+import {
+  getAnyCachedKey,
+  getCachedKeyBySalt,
+  setCachedKey,
+  clearCache,
+} from './cache';
 import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
 
 export type EncryptedPayload = {
@@ -247,3 +253,70 @@ export function createSHA256Hash(data: string): string {
   const hashedData = sha256(data);
   return bytesToHex(hashedData);
 }
+
+const mockData = {
+  v: 1,
+  a: '0x3fB1cB1D6A3b1cB1D6A3b1cB1D6A3b1cB1D6A3b1',
+  id: '3f29b2e4-8c3b-4d6a-9f1c-1a2b3c4d5e6f',
+  n: 'My Mock Account',
+  nlu: Date.now(),
+};
+
+/**
+ * runEncryptionPerfTestWithoutCache
+ * Will attempt encrypting 1, 10, 100, 1000 accounts.
+ * It will not use the cache for the first entry, and then will use the cached keys
+ */
+export async function runEncryptionPerfTestWithoutCache() {
+  const password = 'test-password';
+  const plaintext = JSON.stringify(mockData);
+
+  // const testCases = [1, 10, 100, 1000];
+  const testCases = [1, 10];
+
+  for (const count of testCases) {
+    clearCache();
+    const start = Date.now();
+    for (let i = 0; i < count; i++) {
+      await encryption.encryptString(plaintext, password);
+    }
+    const end = Date.now();
+    logger.info(
+      `runEncryptionPerfTestWithoutCache: Time taken for ${count} accounts to encrypt: ${
+        end - start
+      } ms`,
+    );
+  }
+}
+
+/**
+ * runEncryptionPerfTestWithCache
+ * Will attempt encrypting 1, 10, 100, 1000 accounts.
+ * This will use the cached keys if it exists
+ */
+export async function runEncryptionPerfTestWithCache() {
+  const password = 'test-password';
+  const plaintext = JSON.stringify(mockData);
+
+  // const testCases = [1, 10, 100, 1000];
+  const testCases = [1, 10];
+
+  // Something to populate cache
+  await encryption.encryptString(plaintext, password);
+
+  for (const count of testCases) {
+    const start = Date.now();
+    for (let i = 0; i < count; i++) {
+      await encryption.encryptString(plaintext, password);
+    }
+    const end = Date.now();
+    logger.info(
+      `runEncryptionPerfTestWithCache: Time taken for ${count} accounts to encrypt: ${
+        end - start
+      } ms`,
+    );
+  }
+}
+
+// runEncryptionPerfTestWithoutCache();
+// runEncryptionPerfTestWithCache();
