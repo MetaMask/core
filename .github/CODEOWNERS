@@ -3,15 +3,146 @@
 
 *                                    @MetaMask/engineering
 
-/packages/permission-controller      @MetaMask/snaps-devs
-/packages/notification-controller    @MetaMask/snaps-devs
-/packages/rate-limit-controller      @MetaMask/snaps-devs
+## package /packages/accounts-controller
+/packages/accounts-controller                  @MetaMask/accounts-engineers
+/packages/accounts-controller/package.json     @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+/packages/accounts-controller/changelog.md     @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 
-/packages/approval-controller        @MetaMask/confirmations
-/packages/gas-fee-controller         @MetaMask/confirmations
-/packages/message-manager            @MetaMask/confirmations
-/packages/name-controller            @MetaMask/confirmations
-/packages/signature-controller       @MetaMask/confirmations
-/packages/transaction-controller     @MetaMask/confirmations
+## package /packages/address-book-controller
+/packages/address-book-controller              @MetaMask/confirmations
+/packages/address-book-controller/package.json @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/address-book-controller/changelog.md @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 
-/packages/phishing-controller        @MetaMask/product-safety
+## package /packages/announcement-controller
+/packages/announcement-controller              @MetaMask/wallet-ux
+/packages/announcement-controller/package.json @MetaMask/wallet-ux @MetaMask/wallet-framework-engineers
+/packages/announcement-controller/changelog.md @MetaMask/wallet-ux @MetaMask/wallet-framework-engineers
+
+## package /packages/approval-controller
+/packages/approval-controller               @MetaMask/confirmations
+/packages/approval-controller/package.json  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/approval-controller/changelog.md  @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/assets-controller
+/packages/assets-controller              @MetaMask/metamask-assets
+/packages/assets-controller/package.json @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+/packages/assets-controller/changelog.md @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+
+## package /packages/base-controller
+/packages/base-controller              @MetaMask/wallet-framework-engineers
+
+## package /packages/build-utils
+/packages/build-utils                  @MetaMask/wallet-framework-engineers
+
+## package /packages/chain-controller
+/packages/chain-controller               @MetaMask/accounts-engineers
+/packages/chain-controller/package.json  @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+/packages/chain-controller/changelog.md  @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/composable-controller
+/packages/composable-controller        @MetaMask/wallet-framework-engineers
+
+## package /packages/controller-utils
+/packages/controller-utils             @MetaMask/wallet-framework-engineers
+
+## package /packages/ens-controller
+/packages/ens-controller                    @MetaMask/confirmations
+/packages/ens-controller/package.json       @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/ens-controller/changelog.md       @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/eth-json-rpc-provider
+/packages/eth-json-rpc-provider        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/gas-fee-controller
+/packages/gas-fee-controller                @MetaMask/confirmations
+/packages/gas-fee-controller/package.json   @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/gas-fee-controller/changelog.md   @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/json-rpc-engine
+/packages/json-rpc-engine              @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/json-rpc-middleware-stream
+/packages/json-rpc-middleware-stream   @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/keyring-controller
+/packages/keyring-controller                     @MetaMask/accounts-engineers
+/packages/keyring-controller/package.json        @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+/packages/keyring-controller/changelog.md        @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/logging-controller
+/packages/logging-controller                @MetaMask/confirmations
+/packages/logging-controller/package.json   @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/logging-controller/changelog.md   @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/message-manager
+/packages/message-manager                   @MetaMask/confirmations
+/packages/message-manager/package.json      @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/message-manager/changelog.md      @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/name-controller
+/packages/name-controller                   @MetaMask/confirmations
+/packages/name-controller/package.json      @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/name-controller/changelog.md      @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/network-controller
+/packages/network-controller           @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
+
+## package /packages/notification-controller
+/packages/notification-controller              @MetaMask/notifications
+/packages/notification-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/notification-controller/changelog.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
+
+## package /packages/notification-services-controller
+/packages/notification-services-controller              @MetaMask/notifications
+/packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/notification-services-controller/changelog.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
+
+## package /packages/permission-controller
+/packages/permission-controller        @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/permission-log-controller
+/packages/permission-log-controller    @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
+
+## package /packages/phishing-controller
+/packages/phishing-controller              @MetaMask/product-safety
+/packages/phishing-controller/package.json @MetaMask/product-safety @MetaMask/wallet-framework-engineers
+/packages/phishing-controller/changelog.md @MetaMask/product-safety @MetaMask/wallet-framework-engineers
+
+## package /packages/polling-controller
+/packages/polling-controller           @MetaMask/wallet-framework-engineers
+
+## package /packages/preferences-controller
+/packages/preferences-controller       @MetaMask/wallet-framework-engineers
+
+## package /packages/profile-sync-controller
+/packages/profile-sync-controller              @MetaMask/notifications
+/packages/profile-sync-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/profile-sync-controller/changelog.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
+
+## package /packages/queued-request-controller
+/packages/queued-request-controller               @MetaMask/wallet-api-platform-engineers
+/packages/queued-request-controller/package.json  @MetaMask/wallet-framework-engineers
+/packages/queued-request-controller/changelog.md  @MetaMask/wallet-framework-engineers
+
+## package /packages/rate-limit-controller
+/packages/rate-limit-controller              @MetaMask/snaps-devs
+/packages/rate-limit-controller/package.json @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
+/packages/rate-limit-controller/changelog.md @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
+
+## package /packages/selected-network-controller
+/packages/selected-network-controller  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers @MetaMask/metamask-assets
+
+## package /packages/signature-controller
+/packages/signature-controller              @MetaMask/confirmations
+/packages/signature-controller/package.json @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/signature-controller/changelog.md @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/transaction-controller
+/packages/transaction-controller              @MetaMask/confirmations
+/packages/transaction-controller/package.json @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/transaction-controller/changelog.md @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+
+## package /packages/user-operation-controller
+/packages/user-operation-controller              @MetaMask/confirmations
+/packages/user-operation-controller/package.json @MetaMask/confirmations @MetaMask/wallet-framework-engineers
+/packages/user-operation-controller/changelog.md @MetaMask/confirmations @MetaMask/wallet-framework-engineers
