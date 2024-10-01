@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add reset notifications flow ([#4738](https://github.com/MetaMask/core/pull/4738))
+- Release 209.0.0 ([#4736](https://github.com/MetaMask/core/pull/4736))
+
 ## [0.8.1]
 
 ### Changed
