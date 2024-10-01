@@ -6,8 +6,8 @@ type CachedEntry = {
   key: Uint8Array;
 };
 
-const MAX_PASSWORD_CACHES = 3;
-const MAX_SALT_CACHES = 10;
+const MAX_PASSWORD_CACHES = 100;
+const MAX_SALT_CACHES = 100;
 
 /**
  * In-Memory Caching derived keys based from a given salt and password.
