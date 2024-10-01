@@ -4,8 +4,10 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import { safelyExecute, toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { Json } from '@metamask/utils';
 
 import type { AssetsContractControllerGetERC20BalanceOfAction } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
@@ -36,6 +38,9 @@ type TokenBalancesControllerOptions = {
 /**
  * Represents a mapping of hash token contract addresses to their balances.
  */
+
+// todo need per chain id?
+// todo also need per account?
 type ContractBalances = Record<string, string>;
 
 /**
@@ -92,14 +97,14 @@ export function getDefaultTokenBalancesState(): TokenBalancesControllerState {
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the TokensController
  */
-export class TokenBalancesController extends BaseController<
+export class TokenBalancesController extends StaticIntervalPollingController<
   typeof controllerName,
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
 > {
-  #handle?: ReturnType<typeof setTimeout>;
-
-  #interval: number;
+  async _executePoll(networkClientId: NetworkClientId, _: Json): Promise<void> {
+    await this.updateBalances(networkClientId);
+  }
 
   #tokens: Token[];
 
@@ -132,8 +137,9 @@ export class TokenBalancesController extends BaseController<
       },
     });
 
+    this.setIntervalLength(interval);
+
     this.#disabled = disabled;
-    this.#interval = interval;
     this.#tokens = tokens;
 
     this.messagingSystem.subscribe(
@@ -146,9 +152,11 @@ export class TokenBalancesController extends BaseController<
       },
     );
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.poll();
+    // todo need to call start ???
+
+    // todo: need to retrigger when chain changes?
+    // or does TokensController:stateChange already include that
+    
   }
 
   /**
@@ -170,28 +178,29 @@ export class TokenBalancesController extends BaseController<
    *
    * @param interval - Polling interval used to fetch new token balances.
    */
-  async poll(interval?: number): Promise<void> {
-    if (interval) {
-      this.#interval = interval;
-    }
+  // async poll(interval?: number): Promise<void> {
+  //   if (interval) {
+  //     this.#interval = interval;
+  //   }
 
-    if (this.#handle) {
-      clearTimeout(this.#handle);
-    }
+  //   if (this.#handle) {
+  //     clearTimeout(this.#handle);
+  //   }
 
-    await safelyExecute(() => this.updateBalances());
+  //   await safelyExecute(() => this.updateBalances());
 
-    this.#handle = setTimeout(() => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.poll(this.#interval);
-    }, this.#interval);
-  }
+  //   this.#handle = setTimeout(() => {
+  //     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  //     // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  //     this.poll(this.#interval);
+  //   }, this.#interval);
+  // }
 
   /**
    * Updates balances for all tokens.
+   * @param networkClientId
    */
-  async updateBalances() {
+  async updateBalances(networkClientId: NetworkClientId) {
     if (this.#disabled) {
       return;
     }
@@ -200,24 +209,34 @@ export class TokenBalancesController extends BaseController<
     );
 
     const newContractBalances: ContractBalances = {};
-    for (const token of this.#tokens) {
-      const { address } = token;
-      try {
-        const balance = await this.messagingSystem.call(
-          'AssetsContractController:getERC20BalanceOf',
-          address,
-          selectedInternalAccount.address,
-        );
-        newContractBalances[address] = toHex(balance);
-        token.hasBalanceError = false;
-      } catch (error) {
-        newContractBalances[address] = toHex(0);
-        token.hasBalanceError = true;
-      }
-    }
+
+    await Promise.allSettled(
+      this.#tokens.map(async (token) => {
+        const { address } = token;
+        try {
+          const balance = await this.messagingSystem.call(
+            'AssetsContractController:getERC20BalanceOf',
+            address,
+            selectedInternalAccount.address,
+            networkClientId,
+          );
+          newContractBalances[address] = toHex(balance);
+          token.hasBalanceError = false;
+        } catch (error) {
+          newContractBalances[address] = toHex(0);
+          token.hasBalanceError = true;
+        }
+      }),
+    );
 
     this.update((state) => {
       state.contractBalances = newContractBalances;
+    });
+  }
+
+  reset() {
+    this.update((state) => {
+      state.contractBalances = {};
     });
   }
 }
