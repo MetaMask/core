@@ -3,7 +3,6 @@ import { randomBytes } from '@noble/ciphers/webcrypto';
 import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
-import logger from 'loglevel';
 
 import type { NativeScrypt } from '../types/encryption';
 import {
@@ -266,8 +265,11 @@ const mockData = {
  * runEncryptionPerfTestWithoutCache
  * Will attempt encrypting 1, 10, 100, 1000 accounts.
  * It will not use the cache for the first entry, and then will use the cached keys
+ * @param nativeScript - native scrypt
  */
-export async function runEncryptionPerfTestWithoutCache() {
+export async function runEncryptionPerfTestWithoutCache(
+  nativeScript: NativeScrypt,
+) {
   const password = 'test-password';
   const plaintext = JSON.stringify(mockData);
 
@@ -278,10 +280,10 @@ export async function runEncryptionPerfTestWithoutCache() {
     clearCache();
     const start = Date.now();
     for (let i = 0; i < count; i++) {
-      await encryption.encryptString(plaintext, password);
+      await encryption.encryptString(plaintext, password, nativeScript);
     }
     const end = Date.now();
-    logger.info(
+    console.log(
       `runEncryptionPerfTestWithoutCache: Time taken for ${count} accounts to encrypt: ${
         end - start
       } ms`,
@@ -293,8 +295,11 @@ export async function runEncryptionPerfTestWithoutCache() {
  * runEncryptionPerfTestWithCache
  * Will attempt encrypting 1, 10, 100, 1000 accounts.
  * This will use the cached keys if it exists
+ * @param nativeScript - native scrypt
  */
-export async function runEncryptionPerfTestWithCache() {
+export async function runEncryptionPerfTestWithCache(
+  nativeScript: NativeScrypt,
+) {
   const password = 'test-password';
   const plaintext = JSON.stringify(mockData);
 
@@ -307,10 +312,10 @@ export async function runEncryptionPerfTestWithCache() {
   for (const count of testCases) {
     const start = Date.now();
     for (let i = 0; i < count; i++) {
-      await encryption.encryptString(plaintext, password);
+      await encryption.encryptString(plaintext, password, nativeScript);
     }
     const end = Date.now();
-    logger.info(
+    console.log(
       `runEncryptionPerfTestWithCache: Time taken for ${count} accounts to encrypt: ${
         end - start
       } ms`,
