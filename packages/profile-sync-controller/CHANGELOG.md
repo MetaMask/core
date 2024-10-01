@@ -9,9 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.4]
 
-### Uncategorized
+### Fixed
 
-- fix(NOTIFY-1171): fix account syncing performance ([#4746](https://github.com/MetaMask/core/pull/4746))
+- Account syncing performance issues and bugs ([#4746](https://github.com/MetaMask/core/pull/4746))
+  - Batch `GET` / `PUT` will now encrypt and decrypt sequentially in order to leverage the in-memory cache
+  - `nameLastUpdatedAt` will stop being saved to user storage if account name is a default name
+  - `waitForExpectedValue` has been removed and will stop waiting for `AccountsController:accountAdded` callback
+  - `randomBytes` leftover from sync -> async encryption migration was removed
 
 ## [0.9.3]
 
