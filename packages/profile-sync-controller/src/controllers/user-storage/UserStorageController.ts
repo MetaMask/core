@@ -811,10 +811,7 @@ export default class UserStorageController extends BaseController<
 
         // Create new accounts to match the user storage accounts list
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of Array.from({
-          length: numberOfAccountsToAdd,
-        })) {
+        for (let i = 0; i < numberOfAccountsToAdd; i++) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
 
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
@@ -825,7 +822,7 @@ export default class UserStorageController extends BaseController<
       // Get the internal accounts list again since new accounts might have been added in the previous step
       internalAccountsList = await this.#accounts.getInternalAccountsList();
 
-      for await (const internalAccount of internalAccountsList) {
+      for (const internalAccount of internalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
         );

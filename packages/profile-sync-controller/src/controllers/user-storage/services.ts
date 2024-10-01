@@ -138,18 +138,21 @@ export async function getUserStorageAllFeatureEntries(
 
     const decryptedData: string[] = [];
 
-    for await (const entry of userStorage) {
+    for (const entry of userStorage) {
       if (!entry.Data) {
         continue;
       }
 
-      decryptedData.push(
-        await encryption.decryptString(
+      try {
+        const data = await encryption.decryptString(
           entry.Data,
           opts.storageKey,
           nativeScryptCrypto,
-        ),
-      );
+        );
+        decryptedData.push(data);
+      } catch {
+        // do nothing
+      }
     }
 
     return decryptedData;
@@ -212,7 +215,7 @@ export async function batchUpsertUserStorage(
 
   const encryptedData: string[][] = [];
 
-  for await (const d of data) {
+  for (const d of data) {
     encryptedData.push([
       createSHA256Hash(d[0] + storageKey),
       await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
