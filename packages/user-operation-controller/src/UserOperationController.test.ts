@@ -1308,18 +1308,18 @@ describe('UserOperationController', () => {
     }
   });
 
-  describe('startPollingByNetworkClientId', () => {
+  describe('startPolling', () => {
     it('starts polling in PendingUserOperationTracker', async () => {
       const controller = new UserOperationController(optionsMock);
 
       controller.startPollingByNetworkClientId(NETWORK_CLIENT_ID_MOCK);
 
       expect(
-        pendingUserOperationTrackerMock.startPollingByNetworkClientId,
+        pendingUserOperationTrackerMock.startPolling,
       ).toHaveBeenCalledTimes(1);
-      expect(
-        pendingUserOperationTrackerMock.startPollingByNetworkClientId,
-      ).toHaveBeenCalledWith(NETWORK_CLIENT_ID_MOCK);
+      expect(pendingUserOperationTrackerMock.startPolling).toHaveBeenCalledWith(
+        NETWORK_CLIENT_ID_MOCK,
+      );
     });
   });
 

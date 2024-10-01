@@ -1855,7 +1855,7 @@ describe('TokenDetectionController', () => {
     });
   });
 
-  describe('startPollingByNetworkClientId', () => {
+  describe('startPolling', () => {
     let clock: sinon.SinonFakeTimers;
     beforeEach(() => {
       clock = sinon.useFakeTimers();
@@ -1904,13 +1904,16 @@ describe('TokenDetectionController', () => {
               return Promise.resolve();
             });
 
-          controller.startPollingByNetworkClientId('mainnet', {
+          controller.startPolling({
+            networkClientId: 'mainnet',
             address: '0x1',
           });
-          controller.startPollingByNetworkClientId('sepolia', {
+          controller.startPolling({
+            networkClientId: 'sepolia',
             address: '0xdeadbeef',
           });
-          controller.startPollingByNetworkClientId('goerli', {
+          controller.startPolling({
+            networkClientId: 'goerli',
             address: '0x3',
           });
           await advanceTime({ clock, duration: 0 });
