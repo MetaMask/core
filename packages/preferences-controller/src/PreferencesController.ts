@@ -128,6 +128,7 @@ const metadata = {
   useTokenDetection: { persist: true, anonymous: true },
   smartTransactionsOptInStatus: { persist: true, anonymous: false },
   useTransactionSimulations: { persist: true, anonymous: true },
+  tokenSortConfig: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -199,6 +200,11 @@ export function getDefaultPreferencesState() {
     useTokenDetection: true,
     smartTransactionsOptInStatus: false,
     useTransactionSimulations: true,
+    tokenSortConfig: {
+      key: 'tokenFiatAmount',
+      order: 'dsc',
+      sortCallback: 'stringNumeric',
+    },
   };
 }
 
