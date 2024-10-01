@@ -291,6 +291,7 @@ export type TransactionControllerOptions = {
   getPermittedAccounts?: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
   incomingTransactions?: IncomingTransactionOptions & {
+    /** API keys to be used for Etherscan requests to prevent rate limiting. */
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
   isMultichainEnabled: boolean;

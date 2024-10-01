@@ -77,7 +77,7 @@ export interface EtherscanTransactionRequest {
  *
  * @param request - Configuration required to fetch transactions.
  * @param request.address - Address to retrieve transactions for.
- * @param request.apiKey - Etherscan API key to prevent throttling.
+ * @param request.apiKey - Etherscan API key to prevent rate limiting.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching transactions from.
  * @param request.limit - Number of transactions to retrieve.
@@ -106,7 +106,7 @@ export async function fetchEtherscanTransactions({
  *
  * @param request - Configuration required to fetch token transactions.
  * @param request.address - Address to retrieve token transactions for.
- * @param request.apiKey - Etherscan API key to prevent throttling.
+ * @param request.apiKey - Etherscan API key to prevent rate limiting.
  * @param request.chainId - Current chain ID used to determine subdomain and domain.
  * @param request.fromBlock - Block number to start fetching token transactions from.
  * @param request.limit - Number of token transactions to retrieve.
@@ -136,7 +136,7 @@ export async function fetchEtherscanTokenTransactions({
  * @param action - The Etherscan endpoint to use.
  * @param options - Options bag.
  * @param options.address - Address to retrieve transactions for.
- * @param options.apiKey - Etherscan API key to prevent throttling.
+ * @param options.apiKey - Etherscan API key to prevent rate limiting.
  * @param options.chainId - Current chain ID used to determine subdomain and domain.
  * @param options.fromBlock - Block number to start fetching transactions from.
  * @param options.limit - Number of transactions to retrieve.
