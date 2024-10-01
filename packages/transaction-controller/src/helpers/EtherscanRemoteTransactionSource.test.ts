@@ -15,12 +15,12 @@ import {
   ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
 } from '../../tests/EtherscanMocks';
 import { CHAIN_IDS } from '../constants';
+import type { RemoteTransactionSourceRequest } from '../types';
 import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
 } from '../utils/etherscan';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import { current } from 'immer';
 
 jest.mock('../utils/etherscan', () => ({
   fetchEtherscanTransactions: jest.fn(),
@@ -253,13 +253,9 @@ describe('EtherscanRemoteTransactionSource', () => {
         apiKeysByChainId: {
           [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
         },
-      }).fetchTransactions(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {
-          currentChainId: CHAIN_IDS.MAINNET,
-        } as any,
-      );
+      }).fetchTransactions({
+        currentChainId: CHAIN_IDS.MAINNET,
+      } as unknown as RemoteTransactionSourceRequest);
 
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledWith(
@@ -278,13 +274,9 @@ describe('EtherscanRemoteTransactionSource', () => {
         apiKeysByChainId: {
           [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
         },
-      }).fetchTransactions(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {
-          currentChainId: CHAIN_IDS.SEPOLIA,
-        } as any,
-      );
+      }).fetchTransactions({
+        currentChainId: CHAIN_IDS.SEPOLIA,
+      } as unknown as RemoteTransactionSourceRequest);
 
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledWith(
