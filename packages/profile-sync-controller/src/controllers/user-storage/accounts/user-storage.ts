@@ -51,7 +51,7 @@ export const mapInternalAccountToUserStorageAccount = (
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
     a: address,
     i: id,
-    n: metadata.name,
+    n: name,
     ...(isNameDefaultAccountName(name) ? {} : { nlu: nameLastUpdatedAt }),
   };
 };
