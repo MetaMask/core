@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: remove boot cleanup on network switch ([#4753](https://github.com/MetaMask/core/pull/4753))
+- feat: support Etherscan API keys ([#4748](https://github.com/MetaMask/core/pull/4748))
+
 ### Fixed
 
 - Remove `gasPrice` from requests to `linea_estimateGas` ([#4737](https://github.com/MetaMask/core/pull/4737))
