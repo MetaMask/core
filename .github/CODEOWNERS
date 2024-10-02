@@ -81,8 +81,8 @@
 /packages/message-manager/CHANGELOG.md            @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/name-controller/package.json            @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/wallet-framework-engineers
-/packages/notification-controller/package.json    @MetaMask/notifications @MetaMask/wallet-framework-engineers
-/packages/notification-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/notification-controller/package.json    @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
+/packages/notification-controller/CHANGELOG.md    @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/wallet-framework-engineers
