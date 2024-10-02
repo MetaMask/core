@@ -268,13 +268,13 @@ const mockData = {
  * @param nativeScript - native scrypt
  */
 export async function runEncryptionPerfTestWithoutCache(
-  nativeScript: NativeScrypt,
+  nativeScript?: NativeScrypt,
 ) {
   const password = 'test-password';
   const plaintext = JSON.stringify(mockData);
 
-  // const testCases = [1, 10, 100, 1000];
-  const testCases = [1, 10];
+  const testCases = [1, 10, 100, 1000];
+  // const testCases = [1, 10];
 
   for (const count of testCases) {
     clearCache();
@@ -298,13 +298,13 @@ export async function runEncryptionPerfTestWithoutCache(
  * @param nativeScript - native scrypt
  */
 export async function runEncryptionPerfTestWithCache(
-  nativeScript: NativeScrypt,
+  nativeScript?: NativeScrypt,
 ) {
   const password = 'test-password';
   const plaintext = JSON.stringify(mockData);
 
-  // const testCases = [1, 10, 100, 1000];
-  const testCases = [1, 10];
+  const testCases = [1, 10, 100, 1000];
+  // const testCases = [1, 10];
 
   // Something to populate cache
   await encryption.encryptString(plaintext, password);
