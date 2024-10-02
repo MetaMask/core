@@ -43,6 +43,20 @@ export type TransactionMeta = TransactionMetaBase &
  */
 type TransactionMetaBase = {
   /**
+   * Approval to be ran immediately before the transaction created with `txParams`.
+   */
+  approvalTx?: {
+    data?: TransactionParams;
+    params?: {
+      requireApproval?: boolean;
+      type?: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  };
+
+  /**
    * ID of the transaction that approved the swap token transfer.
    */
   approvalTxId?: string;
@@ -641,6 +655,14 @@ export enum TransactionType {
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   swapAndSend = 'swapAndSend',
+
+  /**
+   * At a contract level, identical to the swapApproval type but requested
+   * during the swap+send flow and only for the amount needed for the trade
+   */
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  swapAndSendApproval = 'swapAndSendApproval',
 
   /**
    * Similar to the approve type, a swap approval is a special case of ERC20

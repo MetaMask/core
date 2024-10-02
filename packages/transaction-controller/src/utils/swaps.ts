@@ -109,6 +109,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
 export const SWAP_TRANSACTION_TYPES = [
   TransactionType.swap,
   TransactionType.swapAndSend,
+  TransactionType.swapAndSendApproval,
   TransactionType.swapApproval,
 ];
 
@@ -191,6 +192,19 @@ export function updateSwapsTransaction(
     messenger.publish('TransactionController:transactionNewSwapAndSend', {
       transactionMeta: updatedTransactionMeta,
     });
+  }
+
+  if (transactionType === TransactionType.swapAndSendApproval) {
+    updatedTransactionMeta = updateSwapApprovalTransaction(
+      transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish(
+      'TransactionController:transactionNewSwapAndSendApproval',
+      {
+        transactionMeta: updatedTransactionMeta,
+      },
+    );
   }
 
   if (transactionType === TransactionType.swap) {
@@ -343,6 +357,7 @@ function updateSwapTransaction(
  *
  * @param transactionMeta - Transaction meta object to update
  * @param propsToUpdate - Properties to update
+ * @param propsToUpdate.approvalTx - The parameters of the approval transaction
  * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
  * @param propsToUpdate.destinationTokenAddress - Address of the token to be received
  * @param propsToUpdate.destinationTokenAmount - The raw amount of the destination token
@@ -362,6 +377,7 @@ function updateSwapTransaction(
 function updateSwapAndSendTransaction(
   transactionMeta: TransactionMeta,
   {
+    approvalTx,
     approvalTxId,
     destinationTokenAddress,
     destinationTokenAmount,
@@ -378,9 +394,13 @@ function updateSwapAndSendTransaction(
     type,
   }: Partial<TransactionMeta>,
 ): TransactionMeta {
-  validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
+  validateIfTransactionUnapproved(
+    transactionMeta,
+    'updateSwapAndSendTransaction',
+  );
 
   let swapTransaction = {
+    approvalTx,
     approvalTxId,
     destinationTokenAddress,
     destinationTokenAmount,

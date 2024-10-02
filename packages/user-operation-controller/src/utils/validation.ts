@@ -67,6 +67,7 @@ export function validateAddUserOperationOptions(
     ),
     swaps: optional(
       object({
+        approvalTx: optional(object()),
         approvalTxId: optional(string()),
         destinationTokenAddress: optional(string()),
         destinationTokenDecimals: optional(number()),

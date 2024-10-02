@@ -141,6 +141,16 @@ export type AddUserOperationRequest = {
 };
 
 export type AddUserOperationSwapOptions = {
+  approvalTx?: {
+    data: TransactionParams;
+    params?: {
+      requireApproval: boolean;
+      type: TransactionType;
+      swaps?: {
+        meta?: Partial<TransactionMeta>;
+      };
+    };
+  };
   approvalTxId?: string;
   destinationTokenAddress?: string;
   destinationTokenAmount?: string;
@@ -446,6 +456,7 @@ export class UserOperationController extends BaseController<
       status: UserOperationStatus.Unapproved,
       swapsMetadata: swaps
         ? {
+            approvalTx: swaps.approvalTx ?? null,
             approvalTxId: swaps.approvalTxId ?? null,
             destinationTokenAddress: swaps.destinationTokenAddress ?? null,
             destinationTokenAmount: swaps.destinationTokenAmount ?? null,
