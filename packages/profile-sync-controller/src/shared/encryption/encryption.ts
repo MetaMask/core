@@ -6,7 +6,12 @@ import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
 import type { NativeScrypt } from '../types/encryption';
 import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
-import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
+import {
+  base64ToByteArray,
+  byteArrayToBase64,
+  bytesToUtf8,
+  stringToByteArray,
+} from './utils';
 
 export type EncryptedPayload = {
   // version
@@ -211,7 +216,7 @@ class EncryptorDecryptor {
 
     if (nativeScryptCrypto) {
       newKey = await nativeScryptCrypto(
-        password,
+        stringToByteArray(password),
         newSalt,
         o.N,
         o.r,
