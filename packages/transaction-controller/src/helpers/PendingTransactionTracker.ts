@@ -81,7 +81,10 @@ export class PendingTransactionTracker {
 
   #getGlobalLock: () => Promise<() => void>;
 
-  #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
+  #publishTransaction: (
+    ethQuery: EthQuery,
+    transactionMeta: TransactionMeta,
+  ) => Promise<string>;
 
   #running: boolean;
 
@@ -105,7 +108,10 @@ export class PendingTransactionTracker {
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: () => boolean;
     getGlobalLock: () => Promise<() => void>;
-    publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
+    publishTransaction: (
+      ethQuery: EthQuery,
+      transactionMeta: TransactionMeta,
+    ) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
@@ -279,14 +285,12 @@ export class PendingTransactionTracker {
       return;
     }
 
-    const { rawTx } = txMeta;
-
     if (!this.#beforePublish(txMeta)) {
       return;
     }
 
     const ethQuery = this.#getEthQuery(txMeta.networkClientId);
-    await this.#publishTransaction(ethQuery, rawTx as string);
+    await this.#publishTransaction(ethQuery, txMeta);
 
     const retryCount = (txMeta.retryCount ?? 0) + 1;
 

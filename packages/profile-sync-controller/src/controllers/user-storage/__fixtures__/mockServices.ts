@@ -3,11 +3,12 @@ import nock from 'nock';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../schema';
+} from '../../../shared/storage-schema';
 import {
   getMockUserStorageGetResponse,
   getMockUserStoragePutResponse,
   getMockUserStorageAllFeatureEntriesResponse,
+  getMockUserStorageBatchPutResponse,
 } from './mockResponses';
 
 type MockReply = {
@@ -52,10 +53,27 @@ export const mockEndpointGetUserStorage = async (
 export const mockEndpointUpsertUserStorage = (
   path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
   mockReply?: Pick<MockReply, 'status'>,
+  expectCallback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
   const mockResponse = getMockUserStoragePutResponse(path);
   const mockEndpoint = nock(mockResponse.url)
     .put('')
-    .reply(mockReply?.status ?? 204);
+    .reply(mockReply?.status ?? 204, async (_, requestBody) => {
+      await expectCallback?.(requestBody);
+    });
+  return mockEndpoint;
+};
+
+export const mockEndpointBatchUpsertUserStorage = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
+  mockReply?: Pick<MockReply, 'status'>,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+) => {
+  const mockResponse = getMockUserStorageBatchPutResponse(path);
+  const mockEndpoint = nock(mockResponse.url)
+    .put('')
+    .reply(mockReply?.status ?? 204, async (uri, requestBody) => {
+      return await callback?.(uri, requestBody);
+    });
   return mockEndpoint;
 };

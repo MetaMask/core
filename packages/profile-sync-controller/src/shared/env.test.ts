@@ -1,4 +1,4 @@
-import type { MockVariable } from './__fixtures__/test-utils';
+import type { MockVariable } from '../sdk/__fixtures__/test-utils';
 import { getEnvUrls, Env, Platform, getOidcClientId } from './env';
 
 describe('getEnvUrls', () => {

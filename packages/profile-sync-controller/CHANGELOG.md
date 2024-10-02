@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.4]
+
+### Fixed
+
+- Account syncing performance issues and bugs ([#4746](https://github.com/MetaMask/core/pull/4746))
+  - Batch `GET` / `PUT` will now encrypt and decrypt sequentially in order to leverage the in-memory cache
+  - `nameLastUpdatedAt` will stop being saved to user storage if account name is a default name
+  - `waitForExpectedValue` has been removed and will stop waiting for `AccountsController:accountAdded` callback
+  - `randomBytes` leftover from sync -> async encryption migration was removed
+
+## [0.9.3]
+
+### Fixed
+
+- Only fire `onAccountNameUpdated` when account name has changed ([#4735](https://github.com/MetaMask/core/pull/4735))
+
+## [0.9.2]
+
+### Changed
+
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
+## [0.9.1]
+
+### Changed
+
+- improve account syncing performance ([#4726](https://github.com/MetaMask/core/pull/4726))
+  - check if `isEvmAccountType` before saving an account in user storage in account syncing
+  - check for correct `KeyringType` before saving an account in user storage in account syncing
+  - wait for `AccountsController:accountAdded` event to fire before adding another account in account syncing
+- update 'eth-{simple,hd,snap}-keyring' + 'keyring-api' ([#4713](https://github.com/MetaMask/core/pull/4713))
+
+## [0.9.0]
+
+### Added
+
+- add batch PUT endpoint for account syncing ([#4724](https://github.com/MetaMask/core/pull/4724))
+- add batch PUT endpoint support ([#4723](https://github.com/MetaMask/core/pull/4723))
+
+## [0.8.1]
+
+### Changed
+
+- move and organize shared profile sync dependencies ([#4717](https://github.com/MetaMask/core/pull/4717))
+
+### Fixed
+
+- fix: profile-sync-controller mobile compilation issues ([#4721](https://github.com/MetaMask/core/pull/4721))
+  - mobile does not support exported async arrow functions, so needed to convert these into normal async functions
+
 ## [0.8.0]
 
 ### Fixed
@@ -204,7 +256,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...HEAD
+[0.9.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.3...@metamask/profile-sync-controller@0.9.4
+[0.9.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.2...@metamask/profile-sync-controller@0.9.3
+[0.9.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...@metamask/profile-sync-controller@0.9.2
+[0.9.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...@metamask/profile-sync-controller@0.9.1
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
+[0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.7.0...@metamask/profile-sync-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.6.0...@metamask/profile-sync-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.5.0...@metamask/profile-sync-controller@0.6.0

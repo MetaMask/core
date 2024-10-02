@@ -1,7 +1,7 @@
 import nock from 'nock';
 
-import encryption from '../encryption';
-import { Env } from '../env';
+import encryption from '../../shared/encryption';
+import { Env } from '../../shared/env';
 import { STORAGE_URL } from '../user-storage';
 
 type MockReply = {
@@ -62,12 +62,17 @@ export const handleMockUserStorageGetAllFeatureEntries = async (
   return mockEndpoint;
 };
 
-export const handleMockUserStoragePut = (mockReply?: MockReply) => {
+export const handleMockUserStoragePut = (
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+) => {
   const reply = mockReply ?? { status: 204 };
   const mockEndpoint = nock(MOCK_STORAGE_URL)
     .persist()
     .put(/.*/u)
-    .reply(reply.status);
+    .reply(reply.status, async (uri, requestBody) => {
+      return await callback?.(uri, requestBody);
+    });
 
   return mockEndpoint;
 };

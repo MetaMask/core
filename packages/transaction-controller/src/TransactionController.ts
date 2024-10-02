@@ -81,6 +81,7 @@ import type {
   GasFeeFlowResponse,
   GasPriceValue,
   FeeMarketEIP1559Values,
+  SubmitHistoryEntry,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -141,9 +142,14 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  submitHistory: {
+    persist: true,
+    anonymous: false,
+  },
 };
 
 export const HARDFORK = Hardfork.London;
+const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * Object with new transaction's meta and a promise resolving to the
@@ -196,6 +202,7 @@ export type TransactionControllerState = {
   transactions: TransactionMeta[];
   methodData: Record<string, MethodData>;
   lastFetchedBlockNumbers: { [key: string]: number };
+  submitHistory: SubmitHistoryEntry[];
 };
 
 /**
@@ -281,9 +288,12 @@ export type TransactionControllerOptions = {
   ) => Promise<GasFeeState>;
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
-  getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  getPermittedAccounts?: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  incomingTransactions?: IncomingTransactionOptions;
+  incomingTransactions?: IncomingTransactionOptions & {
+    /** API keys to be used for Etherscan requests to prevent rate limiting. */
+    etherscanApiKeysByChainId?: Record<Hex, string>;
+  };
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -555,6 +565,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
     methodData: {},
     transactions: [],
     lastFetchedBlockNumbers: {},
+    submitHistory: [],
   };
 }
 
@@ -598,7 +609,9 @@ export class TransactionController extends BaseController<
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  private readonly getPermittedAccounts?: (
+    origin?: string,
+  ) => Promise<string[]>;
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -874,6 +887,7 @@ export class TransactionController extends BaseController<
 
     const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: incomingTransactions.etherscanApiKeysByChainId,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       });
 
@@ -926,7 +940,6 @@ export class TransactionController extends BaseController<
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       this.pendingTransactionTracker.startIfPendingTransactions();
-      this.onBootCleanup();
     });
 
     this.onBootCleanup();
@@ -1040,7 +1053,7 @@ export class TransactionController extends BaseController<
 
     validateTxParams(txParams, isEIP1559Compatible);
 
-    if (origin) {
+    if (origin && this.getPermittedAccounts) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
         this.#getSelectedAccount().address,
@@ -1356,17 +1369,10 @@ export class TransactionController extends BaseController<
       chainId: transactionMeta.chainId,
     });
 
-    const hash = await this.publishTransactionForRetry(
-      ethQuery,
-      rawTx,
-      transactionMeta,
-    );
-
     const newTransactionMeta = {
       ...transactionMetaWithRsv,
       actionId,
       estimatedBaseFee,
-      hash,
       id: random(),
       originalGasEstimate: transactionMeta.txParams.gas,
       originalType: transactionMeta.type,
@@ -1375,6 +1381,13 @@ export class TransactionController extends BaseController<
       txParams: newTxParams,
       type: transactionType,
     };
+
+    const hash = await this.publishTransactionForRetry(ethQuery, {
+      ...newTransactionMeta,
+      origin: label,
+    });
+
+    newTransactionMeta.hash = hash;
 
     this.addMetadata(newTransactionMeta);
 
@@ -2611,7 +2624,10 @@ export class TransactionController extends BaseController<
           ));
 
           if (hash === undefined) {
-            hash = await this.publishTransaction(ethQuery, rawTx);
+            hash = await this.publishTransaction(ethQuery, {
+              ...transactionMeta,
+              rawTx,
+            });
           }
         },
       );
@@ -2658,9 +2674,18 @@ export class TransactionController extends BaseController<
 
   private async publishTransaction(
     ethQuery: EthQuery,
-    rawTransaction: string,
+    transactionMeta: TransactionMeta,
+    { skipSubmitHistory }: { skipSubmitHistory?: boolean } = {},
   ): Promise<string> {
-    return await query(ethQuery, 'sendRawTransaction', [rawTransaction]);
+    const transactionHash = await query(ethQuery, 'sendRawTransaction', [
+      transactionMeta.rawTx,
+    ]);
+
+    if (skipSubmitHistory !== true) {
+      this.#updateSubmitHistory(transactionMeta, transactionHash);
+    }
+
+    return transactionHash;
   }
 
   /**
@@ -3327,6 +3352,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getLocalTransactions: () => this.state.transactions,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
@@ -3362,7 +3388,10 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId: getChainId(),
         }),
-      publishTransaction: this.publishTransaction.bind(this),
+      publishTransaction: (_ethQuery, transactionMeta) =>
+        this.publishTransaction(_ethQuery, transactionMeta, {
+          skipSubmitHistory: true,
+        }),
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
@@ -3468,12 +3497,10 @@ export class TransactionController extends BaseController<
 
   private async publishTransactionForRetry(
     ethQuery: EthQuery,
-    rawTx: string,
     transactionMeta: TransactionMeta,
   ): Promise<string> {
     try {
-      const hash = await this.publishTransaction(ethQuery, rawTx);
-      return hash;
+      return await this.publishTransaction(ethQuery, transactionMeta);
     } catch (error: unknown) {
       if (this.isTransactionAlreadyConfirmedError(error as Error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
@@ -3763,5 +3790,43 @@ export class TransactionController extends BaseController<
 
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #updateSubmitHistory(transactionMeta: TransactionMeta, hash: string): void {
+    const { chainId, networkClientId, origin, rawTx, txParams } =
+      transactionMeta;
+
+    const { networkConfigurationsByChainId } = this.getNetworkState();
+    const networkConfiguration = networkConfigurationsByChainId[chainId as Hex];
+
+    const endpoint = networkConfiguration?.rpcEndpoints.find(
+      (currentEndpoint) => currentEndpoint.networkClientId === networkClientId,
+    );
+
+    const networkUrl = endpoint?.url;
+    const networkType = endpoint?.name ?? networkClientId;
+
+    const submitHistoryEntry: SubmitHistoryEntry = {
+      chainId,
+      hash,
+      networkType,
+      networkUrl,
+      origin,
+      rawTransaction: rawTx as string,
+      time: Date.now(),
+      transaction: txParams,
+    };
+
+    log('Updating submit history', submitHistoryEntry);
+
+    this.update((state) => {
+      const { submitHistory } = state;
+
+      if (submitHistory.length === SUBMIT_HISTORY_LIMIT) {
+        submitHistory.pop();
+      }
+
+      submitHistory.unshift(submitHistoryEntry);
+    });
   }
 }

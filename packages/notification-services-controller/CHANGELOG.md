@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2]
+
+### Added
+
+- Add `resetNotifications` option during the notification creation flow ([#4738](https://github.com/MetaMask/core/pull/4738))
+
+## [0.8.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2`. ([#4731](https://github.com/MetaMask/core/pull/4731))
+- Bump `@metamask/profile-sync-controller` from `^0.9.1` to `^0.9.2`. ([#4731](https://github.com/MetaMask/core/pull/4731))
+
+## [0.8.0]
+
+### Changed
+
+- Update UI export from MATIC to POL ([#4720](https://github.com/MetaMask/core/pull/4720))
+- Bump `@metamask/profile-sync-controller` from `^0.8.0` to `^0.8.1` ([#4722]https://github.com/MetaMask/core/pull/4720)
+
 ## [0.7.0]
 
 ### Changed
@@ -159,7 +179,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.2...HEAD
+[0.8.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.1...@metamask/notification-services-controller@0.8.2
+[0.8.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.0...@metamask/notification-services-controller@0.8.1
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.7.0...@metamask/notification-services-controller@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.6.0...@metamask/notification-services-controller@0.7.0
 [0.6.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.1...@metamask/notification-services-controller@0.6.0
 [0.5.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.5.0...@metamask/notification-services-controller@0.5.1
