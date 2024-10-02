@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.2]
+### Fixed
+- Allow the string "cosmos" in the "verifyingContract" field of EIP-712 signatures ([#333](https://github.com/MetaMask/eth-json-rpc-middleware/pull/333))
+  - This change was made to support Ethermint's EIP-712 implementation, which was broken by validation added in v14.0.0
+
 ## [14.0.1]
 ### Fixed
 - Request validation should not throw if verifyingContract is not defined in typed signature ([#328](https://github.com/MetaMask/eth-json-rpc-middleware/pull/328))
@@ -206,7 +211,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.2...HEAD
+[14.0.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.1...v14.0.2
 [14.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.0...v14.0.1
 [14.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v13.0.0...v14.0.0
 [13.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v12.1.2...v13.0.0
