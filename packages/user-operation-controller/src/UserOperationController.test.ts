@@ -137,7 +137,7 @@ function createBundlerMock() {
  */
 function createPendingUserOperationTrackerMock() {
   return {
-    startPollingByNetworkClientId: jest.fn(),
+    startPolling: jest.fn(),
     setIntervalLength: jest.fn(),
     hub: new EventEmitter(),
   } as unknown as jest.Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker>;
@@ -1318,7 +1318,7 @@ describe('UserOperationController', () => {
         pendingUserOperationTrackerMock.startPolling,
       ).toHaveBeenCalledTimes(1);
       expect(pendingUserOperationTrackerMock.startPolling).toHaveBeenCalledWith(
-        NETWORK_CLIENT_ID_MOCK,
+        { networkClientId: NETWORK_CLIENT_ID_MOCK },
       );
     });
   });
