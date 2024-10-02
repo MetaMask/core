@@ -49,7 +49,6 @@ import {
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
-import { waitForExpectedValue } from './utils';
 
 // TODO: add external NetworkController event
 // Need to listen for when a network gets added
@@ -320,6 +319,7 @@ export default class UserStorageController extends BaseController<
       );
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const internalAccountsList = await this.messagingSystem.call(
         'AccountsController:listAccounts',
       );
@@ -811,18 +811,9 @@ export default class UserStorageController extends BaseController<
 
         // Create new accounts to match the user storage accounts list
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of Array.from({
-          length: numberOfAccountsToAdd,
-        })) {
-          const expectedAccountsCountAfterAddition =
-            this.#accounts.addedAccountsCount + 1;
+        for (let i = 0; i < numberOfAccountsToAdd; i++) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
-          await waitForExpectedValue(
-            () => this.#accounts.addedAccountsCount,
-            expectedAccountsCountAfterAddition,
-            5000,
-          );
+
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
       }
@@ -831,7 +822,7 @@ export default class UserStorageController extends BaseController<
       // Get the internal accounts list again since new accounts might have been added in the previous step
       internalAccountsList = await this.#accounts.getInternalAccountsList();
 
-      for await (const internalAccount of internalAccountsList) {
+      for (const internalAccount of internalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
         );

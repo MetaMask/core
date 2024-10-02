@@ -100,7 +100,7 @@ class EncryptorDecryptor {
         p: SCRYPT_p,
         dkLen: ALGORITHM_KEY_SIZE,
       },
-      randomBytes(SCRYPT_SALT_SIZE),
+      undefined,
       nativeScryptCrypto,
     );
 
