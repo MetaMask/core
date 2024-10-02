@@ -5,7 +5,12 @@ import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
 import type { NativeScrypt } from '../types/encryption';
-import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
+import {
+  getAnyCachedKey,
+  getCachedKeyBySalt,
+  setCachedKey,
+  clearCache,
+} from './cache';
 import { base64ToByteArray, byteArrayToBase64, bytesToUtf8 } from './utils';
 
 export type EncryptedPayload = {
@@ -247,3 +252,104 @@ export function createSHA256Hash(data: string): string {
   const hashedData = sha256(data);
   return bytesToHex(hashedData);
 }
+
+const getRandomEthereumAddress = () => {
+  const chars = '0123456789abcdef';
+  let address = '0x';
+  for (let i = 0; i < 40; i++) {
+    address += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return address;
+};
+
+const getRandomName = () => {
+  const names = [
+    'Quick',
+    'Silent',
+    'Brave',
+    'Clever',
+    'Mighty',
+    'Swift',
+    'Wise',
+    'Bold',
+    'Fierce',
+    'Noble',
+  ];
+  return names[Math.floor(Math.random() * names.length)];
+};
+
+const createMockData = () => ({
+  v: 1,
+  a: getRandomEthereumAddress(),
+  id: '3f29b2e4-8c3b-4d6a-9f1c-1a2b3c4d5e6f',
+  n: getRandomName(),
+  nlu: Date.now(),
+});
+
+// const mockData = JSON.stringify(createMockData());
+const mockDataArray = Array.from({ length: 1000 }, createMockData).map((d) =>
+  JSON.stringify(d),
+);
+
+/**
+ * runEncryptionPerfTestWithoutCache
+ * Will attempt encrypting 1, 10, 100, 1000 accounts.
+ * It will not use the cache for the first entry, and then will use the cached keys
+ * @param nativeScript - native scrypt
+ */
+export async function runEncryptionPerfTestWithoutCache(
+  nativeScript?: NativeScrypt,
+) {
+  const password = 'test-password';
+
+  const testCases = [1, 10, 100, 1000];
+
+  for (const count of testCases) {
+    clearCache();
+    const start = performance.now();
+    for (let i = 0; i < count; i++) {
+      const plaintext = mockDataArray[i % mockDataArray.length];
+      await encryption.encryptString(plaintext, password, nativeScript);
+    }
+    const end = performance.now();
+    console.log(
+      `runEncryptionPerfTestWithoutCache: Time taken for ${count} accounts to encrypt: ${
+        end - start
+      } ms`,
+    );
+  }
+}
+
+/**
+ * runEncryptionPerfTestWithCache
+ * Will attempt encrypting 1, 10, 100, 1000 accounts.
+ * This will use the cached keys if it exists
+ * @param nativeScript - native scrypt
+ */
+export async function runEncryptionPerfTestWithCache(
+  nativeScript?: NativeScrypt,
+) {
+  const password = 'test-password';
+
+  const testCases = [1, 10, 100, 1000];
+
+  // Something to populate cache
+  await encryption.encryptString('warm up cache', password);
+
+  for (const count of testCases) {
+    const start = performance.now();
+    for (let i = 0; i < count; i++) {
+      const plaintext = mockDataArray[i % mockDataArray.length];
+      await encryption.encryptString(plaintext, password, nativeScript);
+    }
+    const end = performance.now();
+    console.log(
+      `runEncryptionPerfTestWithCache: Time taken for ${count} accounts to encrypt: ${
+        end - start
+      } ms`,
+    );
+  }
+}
+
+// runEncryptionPerfTestWithoutCache();
+// runEncryptionPerfTestWithCache();

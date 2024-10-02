@@ -103,3 +103,10 @@ export function setCachedKey(
 
   cache.set(base64Salt, key);
 }
+
+/**
+ * foo
+ */
+export function clearCache() {
+  inMemCachedKDF = {};
+}

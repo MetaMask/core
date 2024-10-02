@@ -169,6 +169,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
   #isDetectionEnabledForNetwork: boolean;
 
+  // OOOH interesting, this is from another controller!
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   readonly #trackMetaMetricsEvent: (options: {
@@ -203,6 +204,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     messenger,
   }: {
     interval?: number;
+    // NOTE - CHECK HOW THIS WORKS
     disabled?: boolean;
     getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
     trackMetaMetricsEvent: (options: {
@@ -467,6 +469,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     this.setIntervalLength(DEFAULT_INTERVAL);
   }
 
+  // THIS IS THE MAIN LOGIC
   /**
    * For each token in the token list provided by the TokenListController, checks the token's balance for the selected account address on the active network.
    * On mainnet, if token detection is disabled in preferences, ERC20 token auto detection will be triggered for each contract address in the legacy token list from the @metamask/contract-metadata repo.
@@ -527,6 +530,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     await Promise.all(tokenDetectionPromises);
   }
 
+  // Batches of 1000 tokens arr.
   #getSlicesOfTokensToDetect({
     chainId,
     selectedAddress,
@@ -572,6 +576,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     return slicesOfTokensToDetect;
   }
 
+  // CALLS ARE MADE HERE
   async #addDetectedTokens({
     tokensSlice,
     selectedAddress,
@@ -584,12 +589,19 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     chainId: Hex;
   }): Promise<void> {
     await safelyExecute(async () => {
+      // OK NICE
+      // Lets see if we can add impl inside this `getBalancesInSingleCall` & retain interface?
+      // Or we can do branching logic?
+      // Interface is `BalanceMap`, either keep same interface or some add some logic - lets see after inspecting API
+      // NOTE - this is from a different controller 👀
       const balances = await this.#getBalancesInSingleCall(
         selectedAddress,
         tokensSlice,
         networkClientId,
       );
 
+      // Mapping to `Token` shape.
+      // We can decide how to handle interface mapping
       const tokensWithBalance: Token[] = [];
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
