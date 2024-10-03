@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix(NOTIFY-1190): key generation bug for react native scrypt ([#4755](https://github.com/MetaMask/core/pull/4755))
+
 ## [0.9.4]
 
 ### Fixed
