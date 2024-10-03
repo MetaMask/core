@@ -1,4 +1,5 @@
 import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
+import type { Json } from '@metamask/utils';
 
 import {
   AbstractPollingControllerBaseMixin,
@@ -21,7 +22,7 @@ import type {
 // eslint-disable-next-line @typescript-eslint/naming-convention
 function StaticIntervalPollingControllerMixin<
   TBase extends Constructor,
-  PollingInput,
+  PollingInput extends Json,
 >(Base: TBase) {
   abstract class StaticIntervalPollingController
     extends AbstractPollingControllerBaseMixin<TBase, PollingInput>(Base)
@@ -80,15 +81,18 @@ function StaticIntervalPollingControllerMixin<
 
 class Empty {}
 
-export const StaticIntervalPollingControllerOnly = <PollingInput>() =>
-  StaticIntervalPollingControllerMixin<typeof Empty, PollingInput>(Empty);
+export const StaticIntervalPollingControllerOnly = <
+  PollingInput extends Json,
+>() => StaticIntervalPollingControllerMixin<typeof Empty, PollingInput>(Empty);
 
-export const StaticIntervalPollingController = <PollingInput>() =>
+export const StaticIntervalPollingController = <PollingInput extends Json>() =>
   StaticIntervalPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,
   );
 
-export const StaticIntervalPollingControllerV1 = <PollingInput>() =>
+export const StaticIntervalPollingControllerV1 = <
+  PollingInput extends Json,
+>() =>
   StaticIntervalPollingControllerMixin<typeof BaseControllerV1, PollingInput>(
     BaseControllerV1,
   );

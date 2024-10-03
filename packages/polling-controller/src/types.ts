@@ -1,6 +1,8 @@
+import type { Json } from '@metamask/utils';
+
 export type PollingTokenSetId = string;
 
-export type IPollingController<PollingInput> = {
+export type IPollingController<PollingInput extends Json> = {
   startPolling(input: PollingInput): string;
 
   stopAllPolling(): void;

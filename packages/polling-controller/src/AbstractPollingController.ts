@@ -1,3 +1,4 @@
+import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
@@ -20,7 +21,7 @@ export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export function AbstractPollingControllerBaseMixin<
   TBase extends Constructor,
-  PollingInput,
+  PollingInput extends Json,
 >(Base: TBase) {
   abstract class AbstractPollingControllerBase
     extends Base
