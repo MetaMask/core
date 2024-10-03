@@ -985,7 +985,7 @@ describe('TokenRatesController', () => {
     });
 
     describe('when polling is active', () => {
-      it('should update exchange rates when selected address changes', async () => {
+      it('should not update exchange rates when selected address changes', async () => {
         const alternateSelectedAddress =
           '0x0000000000000000000000000000000000000002';
         const alternateSelectedAccount = createMockInternalAccount({
@@ -1024,7 +1024,7 @@ describe('TokenRatesController', () => {
               .mockResolvedValue();
             triggerSelectedAccountChange(alternateSelectedAccount);
 
-            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+            expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
           },
         );
       });
