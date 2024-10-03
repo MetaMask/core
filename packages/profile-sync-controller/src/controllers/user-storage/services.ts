@@ -136,21 +136,26 @@ export async function getUserStorageAllFeatureEntries(
       return null;
     }
 
-    const decryptedData = userStorage?.flatMap((entry) => {
+    const decryptedData: string[] = [];
+
+    for (const entry of userStorage) {
       if (!entry.Data) {
-        return [];
+        continue;
       }
 
-      return encryption.decryptString(
-        entry.Data,
-        opts.storageKey,
-        nativeScryptCrypto,
-      );
-    });
+      try {
+        const data = await encryption.decryptString(
+          entry.Data,
+          opts.storageKey,
+          nativeScryptCrypto,
+        );
+        decryptedData.push(data);
+      } catch {
+        // do nothing
+      }
+    }
 
-    return (await Promise.allSettled(decryptedData))
-      .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
-      .filter((d): d is string => d !== undefined);
+    return decryptedData;
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
@@ -202,20 +207,20 @@ export async function batchUpsertUserStorage(
   data: [UserStoragePathWithKeyOnly, string][],
   opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
+  if (!data.length) {
+    return;
+  }
+
   const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
 
-  const encryptedData = await Promise.all(
-    data.map(async (d) => {
-      return [
-        createSHA256Hash(d[0] + storageKey),
-        await encryption.encryptString(
-          d[1],
-          opts.storageKey,
-          nativeScryptCrypto,
-        ),
-      ];
-    }),
-  );
+  const encryptedData: string[][] = [];
+
+  for (const d of data) {
+    encryptedData.push([
+      createSHA256Hash(d[0] + storageKey),
+      await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
+    ]);
+  }
 
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 

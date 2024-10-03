@@ -1,5 +1,5 @@
 export declare type NativeScrypt = (
-  passwd: string,
+  passwd: Uint8Array,
   salt: Uint8Array,
   N: number,
   r: number,
