@@ -940,7 +940,6 @@ export class TransactionController extends BaseController<
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       this.pendingTransactionTracker.startIfPendingTransactions();
-      this.onBootCleanup();
     });
 
     this.onBootCleanup();
