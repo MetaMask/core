@@ -239,3 +239,32 @@ export async function batchUpsertUserStorage(
     throw new Error('user-storage - unable to batch upsert data');
   }
 }
+
+/**
+ * User Storage Service - Delete all storage entries for a specific feature.
+ *
+ * @param opts - User Storage Options
+ */
+export async function deleteUserStorageAllFeatureEntries(
+  opts: UserStorageAllFeatureEntriesOptions,
+): Promise<void> {
+  const { bearerToken, path } = opts;
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const userStorageResponse = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  });
+
+  // Acceptable error - since indicates feature does not exist.
+  if (userStorageResponse.status === 404) {
+    throw new Error('user-storage - feature not found');
+  }
+
+  if (userStorageResponse.status !== 200 || !userStorageResponse.ok) {
+    throw new Error('user-storage - unable to delete data');
+  }
+}
