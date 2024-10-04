@@ -136,7 +136,7 @@ async function getGas(
     log(
       isCustomNetwork
         ? 'Using original estimate as custom network'
-        : 'Using original estimate as simulation failed',
+        : 'Using original fallback estimate as simulation failed',
     );
     return [estimatedGas, simulationFails];
   }
