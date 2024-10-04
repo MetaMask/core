@@ -15,6 +15,7 @@ import {
   ETHERSCAN_TRANSACTION_RESPONSE_ERROR_MOCK,
 } from '../../tests/EtherscanMocks';
 import { CHAIN_IDS } from '../constants';
+import type { RemoteTransactionSourceRequest } from '../types';
 import {
   fetchEtherscanTokenTransactions,
   fetchEtherscanTransactions,
@@ -27,6 +28,8 @@ jest.mock('../utils/etherscan', () => ({
 }));
 
 jest.mock('uuid');
+
+const API_KEY_MOCK = 'TestApiKey';
 
 describe('EtherscanRemoteTransactionSource', () => {
   let clock: sinon.SinonFakeTimers;
@@ -239,6 +242,48 @@ describe('EtherscanRemoteTransactionSource', () => {
 
       expect(fetchEtherscanTokenTransactionsMock).toHaveBeenCalledTimes(0);
       expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('includes API key if chain matches', async () => {
+      fetchEtherscanTransactionsMock.mockResolvedValueOnce(
+        ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+      );
+
+      await new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: {
+          [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
+        },
+      }).fetchTransactions({
+        currentChainId: CHAIN_IDS.MAINNET,
+      } as unknown as RemoteTransactionSourceRequest);
+
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: API_KEY_MOCK,
+        }),
+      );
+    });
+
+    it('does not include API key if chain does not match', async () => {
+      fetchEtherscanTransactionsMock.mockResolvedValueOnce(
+        ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
+      );
+
+      await new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: {
+          [CHAIN_IDS.MAINNET]: API_KEY_MOCK,
+        },
+      }).fetchTransactions({
+        currentChainId: CHAIN_IDS.SEPOLIA,
+      } as unknown as RemoteTransactionSourceRequest);
+
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledTimes(1);
+      expect(fetchEtherscanTransactionsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: undefined,
+        }),
+      );
     });
 
     it.each([

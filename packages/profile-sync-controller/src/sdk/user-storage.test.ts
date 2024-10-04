@@ -9,6 +9,7 @@ import {
   handleMockUserStorageGet,
   handleMockUserStoragePut,
   handleMockUserStorageGetAllFeatureEntries,
+  handleMockUserStorageDeleteAllFeatureEntries,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -130,6 +131,33 @@ describe('User Storage', () => {
 
     await userStorage.batchSetItems('accounts', dataToStore);
     expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('user storage: delete all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockDelete = await handleMockUserStorageDeleteAllFeatureEntries();
+
+    await userStorage.deleteAllFeatureItems('notifications');
+    expect(mockDelete.isDone()).toBe(true);
+  });
+
+  it('user storage: failed to delete all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDeleteAllFeatureEntries({
+      status: 401,
+      body: {
+        message: 'failed to delete all feature entries',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.deleteAllFeatureItems('notifications'),
+    ).rejects.toThrow(UserStorageError);
   });
 
   it('user storage: failed to set key', async () => {
