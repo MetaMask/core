@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.2.0]
 
-### Uncategorized
+### Changed
 
-- feat: fetch token rates across accounts ([#4759](https://github.com/MetaMask/core/pull/4759))
+- Fetch token rates across all accounts instead of just the selected account ([#4759](https://github.com/MetaMask/core/pull/4759))
 
 ## [38.1.0]
 
