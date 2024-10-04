@@ -48,6 +48,18 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
+  create-update-issues:
+    name: Create update issues
+    needs: [is-release, publish-release]
+    if: needs.is-release.outputs.IS_RELEASE == 'true'
+    permissions:
+      issues: write
+    uses: ./.github/workflows/create-update-issues.yaml
+    with:
+      AUTH_APP_ID: ${{ vars.AUTH_APP_ID }}
+    secrets:
+      AUTH_APP_PRIVATE_KEY: ${{ secrets.AUTH_APP_PRIVATE_KEY }}
+
   all-jobs-complete:
     name: All jobs complete
     runs-on: ubuntu-latest
