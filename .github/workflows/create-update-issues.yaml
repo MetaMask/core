@@ -26,7 +26,7 @@ jobs:
       - name: Get release tag
         id: releaseTag
         run: |
-          echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+          echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
         shell: bash
 
       - name: Check released package
@@ -38,23 +38,23 @@ jobs:
             # Extract package name without the leading '@'
             package_name="${tag#@}"
             package_name="${package_name%@*}"
-            echo "package_name=${package_name}" >> $GITHUB_OUTPUT
+            echo "package_name=${package_name}" >> "$GITHUB_OUTPUT"
 
             # Extract version number
             version="${tag##*@}"
-            echo "version=${version}" >> $GITHUB_OUTPUT
+            echo "version=${version}" >> "$GITHUB_OUTPUT"
 
             # Check if version number ends with .0.0
             if [[ $version == *.0.0 ]]; then
               echo "$package_name major update"
-              echo "major_version=true" >> $GITHUB_OUTPUT
+              echo "major_version=true" >> "$GITHUB_OUTPUT"
             else
               echo "$package_name minor update"
-              echo "major_version=false" >> $GITHUB_OUTPUT
+              echo "major_version=false" >> "$GITHUB_OUTPUT"
             fi            
           else
             echo "Monorepo version update"
-            echo "major_version=false" >> $GITHUB_OUTPUT
+            echo "major_version=false" >> "$GITHUB_OUTPUT"
           fi
         shell: bash
 
