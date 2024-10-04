@@ -25,14 +25,16 @@ jobs:
 
       - name: Get release tag
         id: releaseTag
-        run: echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+        run: |
+          echo "tag=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Check released package
         id: releaseCheck
         env:
           tag: ${{ steps.releaseTag.outputs.tag }}
         run: |
-          if [[ ${tag} == @metamask/*  ]] ; then
+          if [[ "${tag}" == @metamask/*  ]] ; then
             # Extract package name without the leading '@'
             package_name="${tag#@}"
             package_name="${package_name%@*}"
@@ -51,9 +53,10 @@ jobs:
               echo "major_version=false" >> $GITHUB_OUTPUT
             fi            
           else
-            echo 'Monorepo version update'
+            echo "Monorepo version update"
             echo "major_version=false" >> $GITHUB_OUTPUT
           fi
+        shell: bash
 
       - name: Generate a token
         id: generate-token
@@ -74,3 +77,4 @@ jobs:
           echo "Creating new issue..."
           gh issue create --title "Update ${package} to version ${version}" --body "Please update ${package} to version ${version}" --repo "MetaMask/metamask-extension"
           gh issue create --title "Update ${package} to version ${version}" --body "Please update ${package} to version ${version}" --repo "MetaMask/metamask-mobile"
+        shell: bash
