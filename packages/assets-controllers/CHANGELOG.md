@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Fetch token rates for all accounts instead of only the selected account ([#4759](https://github.com/MetaMask/core/pull/4759))
+- The `TokenRatesController` now fetches token rates for all accounts, instead of just the selected account ([#4759](https://github.com/MetaMask/core/pull/4759))
 
 ## [38.1.0]
 
