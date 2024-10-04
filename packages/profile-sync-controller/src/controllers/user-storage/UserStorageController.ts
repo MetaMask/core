@@ -45,11 +45,11 @@ import {
 import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
   batchUpsertUserStorage,
+  deleteUserStorageAllFeatureEntries,
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
 } from './services';
-import { waitForExpectedValue } from './utils';
 
 // TODO: add external NetworkController event
 // Need to listen for when a network gets added
@@ -320,6 +320,7 @@ export default class UserStorageController extends BaseController<
       );
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const internalAccountsList = await this.messagingSystem.call(
         'AccountsController:listAccounts',
       );
@@ -678,6 +679,28 @@ export default class UserStorageController extends BaseController<
   }
 
   /**
+   * Allows deletion of all user data entries for a specific feature.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await deleteUserStorageAllFeatureEntries({
+      path,
+      bearerToken,
+      storageKey,
+    });
+  }
+
+  /**
    * Retrieves the storage key, for internal use only!
    *
    * @returns the storage key
@@ -811,18 +834,9 @@ export default class UserStorageController extends BaseController<
 
         // Create new accounts to match the user storage accounts list
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _ of Array.from({
-          length: numberOfAccountsToAdd,
-        })) {
-          const expectedAccountsCountAfterAddition =
-            this.#accounts.addedAccountsCount + 1;
+        for (let i = 0; i < numberOfAccountsToAdd; i++) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
-          await waitForExpectedValue(
-            () => this.#accounts.addedAccountsCount,
-            expectedAccountsCountAfterAddition,
-            5000,
-          );
+
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
       }
@@ -831,7 +845,7 @@ export default class UserStorageController extends BaseController<
       // Get the internal accounts list again since new accounts might have been added in the previous step
       internalAccountsList = await this.#accounts.getInternalAccountsList();
 
-      for await (const internalAccount of internalAccountsList) {
+      for (const internalAccount of internalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
         );
