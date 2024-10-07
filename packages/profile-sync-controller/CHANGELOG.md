@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(NOTIFY-1192): add DELETE endpoint support ([#4758](https://github.com/MetaMask/core/pull/4758))
+
 ## [0.9.5]
 
 ### Fixed
