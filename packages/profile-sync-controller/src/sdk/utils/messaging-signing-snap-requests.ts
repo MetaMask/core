@@ -1,4 +1,4 @@
-import type { Eip1193Provider } from 'ethers';
+import type { Eip1193Provider } from 'ethers/providers';
 
 export type Snap = {
   permissionName: string;
