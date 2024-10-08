@@ -45,6 +45,7 @@ import {
 import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
   batchUpsertUserStorage,
+  deleteUserStorageAllFeatureEntries,
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
@@ -674,6 +675,28 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+    });
+  }
+
+  /**
+   * Allows deletion of all user data entries for a specific feature.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await deleteUserStorageAllFeatureEntries({
+      path,
+      bearerToken,
+      storageKey,
     });
   }
 

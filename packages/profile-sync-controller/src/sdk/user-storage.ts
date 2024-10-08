@@ -76,6 +76,12 @@ export class UserStorage {
     return this.#getUserStorageAllFeatureEntries(path);
   }
 
+  async deleteAllFeatureItems(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    return this.#deleteUserStorageAllFeatureEntries(path);
+  }
+
   async getStorageKey(): Promise<string> {
     const storageKey = await this.options.storage?.getStorageKey();
     if (storageKey) {
@@ -285,6 +291,47 @@ export class UserStorage {
 
       throw new UserStorageError(
         `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(`feature not found for path '${path}'.`);
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
