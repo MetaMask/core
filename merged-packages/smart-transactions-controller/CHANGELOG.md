@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.2.0]
+### Added
+- Add metrics events for Receive and Request ([#429](https://github.com/MetaMask/smart-transactions-controller/pull/429))
+  - Add `ReceiveRequest` variant to `MetaMetricsEvents` enum
+  - Add `Navigation` variant to `MetaMetricsEventCategory` enum
+
 ## [13.1.0]
 ### Changed
 - Emit a new "smartTransactionConfirmationDone" event ([#424](https://github.com/MetaMask/smart-transactions-controller/pull/424))
@@ -350,7 +356,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.2.0...HEAD
+[13.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.1.0...v13.2.0
 [13.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.0.0...v13.1.0
 [13.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.1...v13.0.0
 [12.0.1]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.0...v12.0.1
