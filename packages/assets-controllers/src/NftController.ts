@@ -284,18 +284,13 @@ export class NftController extends BaseController<
 > {
   readonly #mutex = new Mutex();
 
-  /**
-   * Optional API key to use with opensea
-   */
-  openSeaApiKey?: string;
-
   #selectedAccountId: string;
 
   #chainId: Hex;
 
   #ipfsGateway: string;
 
-  #openSeaEnabled: boolean;
+  #displayNftMedia: boolean;
 
   #useIpfsSubdomains: boolean;
 
@@ -315,7 +310,7 @@ export class NftController extends BaseController<
    * @param options - The controller options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.ipfsGateway - The configured IPFS gateway.
-   * @param options.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param options.displayNftMedia - Controls whether the NFT API is used.
    * @param options.useIpfsSubdomains - Controls whether IPFS subdomains are used.
    * @param options.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    * @param options.onNftAdded - Callback that is called when an NFT is added. Currently used pass data
@@ -326,7 +321,7 @@ export class NftController extends BaseController<
   constructor({
     chainId: initialChainId,
     ipfsGateway = IPFS_DEFAULT_GATEWAY_URL,
-    openSeaEnabled = false,
+    displayNftMedia = false,
     useIpfsSubdomains = true,
     isIpfsGatewayEnabled = true,
     onNftAdded,
@@ -335,7 +330,7 @@ export class NftController extends BaseController<
   }: {
     chainId: Hex;
     ipfsGateway?: string;
-    openSeaEnabled?: boolean;
+    displayNftMedia?: boolean;
     useIpfsSubdomains?: boolean;
     isIpfsGatewayEnabled?: boolean;
     onNftAdded?: (data: {
@@ -363,7 +358,7 @@ export class NftController extends BaseController<
     ).id;
     this.#chainId = initialChainId;
     this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
+    this.#displayNftMedia = displayNftMedia;
     this.#useIpfsSubdomains = useIpfsSubdomains;
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
     this.#onNftAdded = onNftAdded;
@@ -409,12 +404,12 @@ export class NftController extends BaseController<
    * Handles the state change of the preference controller.
    * @param preferencesState - The new state of the preference controller.
    * @param preferencesState.ipfsGateway - The configured IPFS gateway.
-   * @param preferencesState.openSeaEnabled - Controls whether the OpenSea API is used.
+   * @param preferencesState.displayNftMedia - Controls whether the NFT API is used.
    * @param preferencesState.isIpfsGatewayEnabled - Controls whether IPFS is enabled or not.
    */
   async #onPreferencesControllerStateChange({
     ipfsGateway,
-    openSeaEnabled,
+    displayNftMedia,
     isIpfsGatewayEnabled,
   }: PreferencesState) {
     const selectedAccount = this.messagingSystem.call(
@@ -422,11 +417,11 @@ export class NftController extends BaseController<
     );
     this.#selectedAccountId = selectedAccount.id;
     this.#ipfsGateway = ipfsGateway;
-    this.#openSeaEnabled = openSeaEnabled;
+    this.#displayNftMedia = displayNftMedia;
     this.#isIpfsGatewayEnabled = isIpfsGatewayEnabled;
 
     const needsUpdateNftMetadata =
-      (isIpfsGatewayEnabled && ipfsGateway !== '') || openSeaEnabled;
+      (isIpfsGatewayEnabled && ipfsGateway !== '') || displayNftMedia;
 
     if (needsUpdateNftMetadata && selectedAccount) {
       await this.#updateNftUpdateForAccount(selectedAccount);
@@ -443,7 +438,7 @@ export class NftController extends BaseController<
 
     const needsUpdateNftMetadata =
       ((this.#isIpfsGatewayEnabled && this.#ipfsGateway !== '') ||
-        this.#openSeaEnabled) &&
+        this.#displayNftMedia) &&
       oldSelectedAccountId !== internalAccount.id;
 
     if (needsUpdateNftMetadata) {
@@ -645,7 +640,7 @@ export class NftController extends BaseController<
       };
     }
 
-    const isDisplayNFTMediaToggleEnabled = this.#openSeaEnabled;
+    const isDisplayNFTMediaToggleEnabled = this.#displayNftMedia;
     if (!hasIpfsTokenURI && !isDisplayNFTMediaToggleEnabled) {
       return {
         image: null,
@@ -782,7 +777,7 @@ export class NftController extends BaseController<
           networkClientId,
         ),
       ),
-      this.#openSeaEnabled && chainId === '0x1'
+      this.#displayNftMedia && chainId === '0x1'
         ? safelyExecute(() =>
             this.#getNftInformationFromApi(contractAddress, tokenId),
           )
@@ -1372,15 +1367,6 @@ export class NftController extends BaseController<
       source: Source.Dapp,
       networkClientId,
     });
-  }
-
-  /**
-   * Sets an OpenSea API key to retrieve NFT information.
-   *
-   * @param openSeaApiKey - OpenSea API key.
-   */
-  setApiKey(openSeaApiKey: string) {
-    this.openSeaApiKey = openSeaApiKey;
   }
 
   /**
