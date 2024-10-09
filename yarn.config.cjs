@@ -714,6 +714,10 @@ function expectControllerDependenciesListedAsPeerDependencies(
   }
 }
 
+const ALLOWED_INCONSISTENT_DEPENDENCIES = Object.entries({
+  '@metamask/rpc-errors': ['^7.0.0'],
+});
+
 /**
  * Filter out dependency ranges which are not to be considered in `expectConsistentDependenciesAndDevDependencies`.
  *
@@ -725,9 +729,6 @@ function getInconsistentDependenciesAndDevDependencies(
   dependencyIdent,
   dependenciesByRange,
 ) {
-  const ALLOWED_INCONSISTENT_DEPENDENCIES = Object.entries({
-    // '@metamask/foo': ['^1.0.0'],
-  });
   for (const [
     allowedPackage,
     ignoredRange,
