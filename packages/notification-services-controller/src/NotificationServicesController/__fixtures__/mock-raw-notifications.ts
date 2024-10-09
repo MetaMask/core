@@ -9,8 +9,8 @@ import type { OnChainRawNotification } from '../types/on-chain-notification/on-c
 export function createMockNotificationEthSent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ETH_SENT,
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    id: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
+    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
@@ -44,8 +44,8 @@ export function createMockNotificationEthSent(): OnChainRawNotification {
 export function createMockNotificationEthReceived(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ETH_RECEIVED,
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    id: '3fa85f64-5717-4562-b3fc-2c963f66afa8',
+    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa8',
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
@@ -79,8 +79,8 @@ export function createMockNotificationEthReceived(): OnChainRawNotification {
 export function createMockNotificationERC20Sent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC20_SENT,
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    id: '3fa85f64-5717-4562-b3fc-2c963f66afa9',
+    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa9',
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
