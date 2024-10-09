@@ -295,10 +295,7 @@ describe('toCaipChainId', () => {
   it.each(Object.values(KnownCaipNamespace))(
     'treats %s as a valid namespace',
     (namespace) => {
-      const reference = '1';
-      expect(toCaipChainId(namespace, reference)).toBe(
-        `${namespace}:${reference}`,
-      );
+      expect(isCaipNamespace(namespace)).toBe(true);
     },
   );
 

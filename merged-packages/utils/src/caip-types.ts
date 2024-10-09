@@ -54,6 +54,8 @@ export type CaipAccountAddress = Infer<typeof CaipAccountAddressStruct>;
 
 /** Known CAIP namespaces. */
 export enum KnownCaipNamespace {
+  /** BIP-122 (Bitcoin) compatible chains. */
+  Bip122 = 'bip122',
   /** EIP-155 compatible chains. */
   Eip155 = 'eip155',
   Wallet = 'wallet',
