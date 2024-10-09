@@ -1,6 +1,7 @@
-import type { NetworkConfiguration } from '@metamask/network-controller';
-
-import type { RemoteNetworkConfiguration } from '../types';
+import type {
+  NetworkConfiguration,
+  RemoteNetworkConfiguration,
+} from '../types';
 
 export const createMockNetworkConfiguration = (
   override?: Partial<NetworkConfiguration>,
@@ -18,7 +19,7 @@ export const createMockNetworkConfiguration = (
 };
 
 export const createMockRemoteNetworkConfiguration = (
-  override?: Partial<NetworkConfiguration>,
+  override?: Partial<RemoteNetworkConfiguration>,
 ): RemoteNetworkConfiguration => {
   return {
     v: '1',

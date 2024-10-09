@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.4]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
 ## [4.1.3]
 
 ### Changed
@@ -144,7 +162,8 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.4...HEAD
+[4.1.4]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.3...@metamask/eth-json-rpc-provider@4.1.4
 [4.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.2...@metamask/eth-json-rpc-provider@4.1.3
 [4.1.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.1...@metamask/eth-json-rpc-provider@4.1.2
 [4.1.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.0...@metamask/eth-json-rpc-provider@4.1.1

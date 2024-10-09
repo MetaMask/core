@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.2.0]
+
+### Changed
+
+- The `TokenRatesController` now fetches token rates for all accounts, instead of just the selected account ([#4759](https://github.com/MetaMask/core/pull/4759))
+
+## [38.1.0]
+
+### Changed
+
+- Parallelization of detected tokens with balance ([#4697](https://github.com/MetaMask/core/pull/4697))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
+## [38.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+- Don't update currency rates on transient errors ([#4662](https://github.com/MetaMask/core/pull/4662))
+  - In `CurrencyRateController` if unexpected errors occur during requests to
+    crypto compare, the conversion rate in state will remain unchanged instead
+    of being set to null.
+- Fix fallback conversion rate for token market data ([#4615](https://github.com/MetaMask/core/pull/4615))
+  - On networks where the native currency is not ETH, token market data is now
+    correctly priced in the native currency.
+
 ## [38.0.0]
 
 ### Added
@@ -1096,7 +1136,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.2.0...HEAD
+[38.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.1.0...@metamask/assets-controllers@38.2.0
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...@metamask/assets-controllers@38.1.0
+[38.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...@metamask/assets-controllers@38.0.1
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@35.0.0...@metamask/assets-controllers@36.0.0

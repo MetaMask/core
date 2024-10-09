@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.1]
+
+### Changed
+
+- Redirect domains to default endpoint ([#4679](https://github.com/MetaMask/core/pull/4679))
+  - When the default RPC endpoint changes for a network, domains that were
+    referencing a network client id on that network are redirected to the new
+    default RPC endpoint.
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
 ## [18.0.0]
 
 ### Changed
@@ -261,7 +286,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.1...HEAD
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.0...@metamask/selected-network-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@17.0.0...@metamask/selected-network-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@16.0.0...@metamask/selected-network-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@15.0.2...@metamask/selected-network-controller@16.0.0

@@ -6,7 +6,6 @@ import {
   MESSAGE_SIGNING_SNAP,
   SNAP_ORIGIN,
   connectSnap,
-  getSnap,
   getSnaps,
   isSnapConnected,
 } from './messaging-signing-snap-requests';
@@ -63,44 +62,6 @@ describe('isSnapConnected() tests', () => {
     const isConnected = await isSnapConnected(mockProvider);
     expect(mockRequest).toHaveBeenCalled();
     expect(isConnected).toBe(false);
-  });
-});
-
-describe('getSnap() tests', () => {
-  it('tests invocation', async () => {
-    const { mockProvider, mockRequest } = arrangeMockProvider();
-
-    const mockSnap: Snap = { id: SNAP_ORIGIN } as MockVariable;
-    mockRequest.mockResolvedValue({ [SNAP_ORIGIN]: mockSnap });
-
-    const result = await getSnap(mockProvider);
-    expect(mockRequest).toHaveBeenCalled();
-    expect(result).toBeDefined();
-  });
-
-  it('returns undefined if unable to find snap', async () => {
-    const { mockProvider, mockRequest } = arrangeMockProvider();
-
-    const mockSnap: Snap = { id: 'A differentSnap' } as MockVariable;
-    mockRequest.mockResolvedValue({ diffSnap: mockSnap });
-
-    const result1 = await getSnap(mockProvider);
-    expect(mockRequest).toHaveBeenCalled();
-    expect(result1).toBeUndefined();
-
-    // Another test in case the wallet request returns null
-    mockRequest.mockResolvedValue(null);
-    const result2 = await getSnap(mockProvider);
-    expect(result2).toBeUndefined();
-  });
-
-  it('returns undefined if an error is thrown when making provider request', async () => {
-    const { mockProvider, mockRequest } = arrangeMockProvider();
-    mockRequest.mockRejectedValue(new Error('MOCK ERROR'));
-
-    const result = await getSnap(mockProvider);
-    expect(mockRequest).toHaveBeenCalled();
-    expect(result).toBeUndefined();
   });
 });
 

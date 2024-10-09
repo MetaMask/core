@@ -15,6 +15,9 @@ package-lock.json
 # Build preview message
 preview-build-message.txt
 
+examples/*/coverage
+examples/*/dist
+examples/*/docs
 packages/*/coverage
 packages/*/dist
 packages/*/docs

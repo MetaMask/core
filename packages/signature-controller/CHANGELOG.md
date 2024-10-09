@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.0]
+
+### Added
+
+- Add initial tracing to `SignatureController` ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - Adds an optional `trace` callback to the constructor, and an optional
+    `traceContext` option to the `newUnsignedTypedMessage` and
+    `newUnsignedPersonalMessage` methods.
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
 ## [19.0.0]
 
 ### Changed
@@ -304,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...HEAD
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...@metamask/signature-controller@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...@metamask/signature-controller@19.0.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.0...@metamask/signature-controller@18.0.1

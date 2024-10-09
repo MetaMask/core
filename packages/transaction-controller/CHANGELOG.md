@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.2.0]
+
+### Added
+
+- Add optional `incomingTransactions.etherscanApiKeysByChainId` constructor property to support API keys in requests to Etherscan ([#4748](https://github.com/MetaMask/core/pull/4748))
+
+### Fixed
+
+- Cleanup transactions only during initialisation ([#4753](https://github.com/MetaMask/core/pull/4753))
+- Remove `gasPrice` from requests to `linea_estimateGas` ([#4737](https://github.com/MetaMask/core/pull/4737))
+
+## [37.1.0]
+
+### Added
+
+- Populate `submitHistory` in state when submitting transactions to network ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Export `CHAIN_IDS`, `ETHERSCAN_SUPPORTED_NETWORKS` and `SPEED_UP_RATE` constants ([#4706](https://github.com/MetaMask/core/pull/4706))
+
+### Changed
+
+- Make `getPermittedAccounts` constructor callback optional ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
+## [37.0.0]
+
+### Changed
+
+- Remove unapproved transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
+- Fail approved and signed transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
+- Remove `TraceContext`, `TraceRequest`, and `TraceCallback` types ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - These were moved to `@metamask/controller-utils`.
+
+### Removed
+
+- **BREAKING:** Remove `initApprovals` method ([#4658](https://github.com/MetaMask/core/pull/4658))
+- **BREAKING:** Remove `beforeApproveOnInit` hook ([#4658](https://github.com/MetaMask/core/pull/4658))
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
 ## [36.1.0]
 
 ### Added
@@ -993,7 +1048,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.2.0...HEAD
+[37.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.1.0...@metamask/transaction-controller@37.2.0
+[37.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.0.0...@metamask/transaction-controller@37.1.0
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.1.0...@metamask/transaction-controller@37.0.0
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.0.0...@metamask/transaction-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...@metamask/transaction-controller@36.0.0
 [35.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.1...@metamask/transaction-controller@35.2.0

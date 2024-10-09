@@ -8,7 +8,7 @@ import { waitFor } from '../__fixtures__/test-utils';
 import type { UserStorageBaseOptions } from '../services';
 import { createMockNetworkConfiguration } from './__fixtures__/mockNetwork';
 import { startNetworkSyncing } from './controller-integration';
-import * as SyncModule from './sync';
+import * as SyncModule from './sync-mutations';
 
 jest.mock('loglevel', () => {
   const actual = jest.requireActual('loglevel');
