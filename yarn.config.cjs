@@ -761,23 +761,24 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
     dependencyIdent,
     dependenciesByRange,
   ] of nonPeerDependenciesByIdent.entries()) {
+    if (dependenciesByRange.size <= 1) {
+      continue;
+    }
     const dependenciesToConsider =
       getInconsistentDependenciesAndDevDependencies(
         dependencyIdent,
         dependenciesByRange,
       );
     const dependencyRanges = [...dependenciesToConsider.keys()].sort();
-    if (dependenciesByRange.size > 1) {
-      for (const dependencies of dependenciesToConsider.values()) {
-        for (const dependency of dependencies) {
-          dependency.error(
-            `Expected version range for ${dependencyIdent} (in ${
-              dependency.type
-            }) to be consistent across monorepo. Pick one: ${inspect(
-              dependencyRanges,
-            )}`,
-          );
-        }
+    for (const dependencies of dependenciesToConsider.values()) {
+      for (const dependency of dependencies) {
+        dependency.error(
+          `Expected version range for ${dependencyIdent} (in ${
+            dependency.type
+          }) to be consistent across monorepo. Pick one: ${inspect(
+            dependencyRanges,
+          )}`,
+        );
       }
     }
   }
