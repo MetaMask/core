@@ -13,6 +13,12 @@ export const CAIP_ACCOUNT_ID_REGEX =
 
 export const CAIP_ACCOUNT_ADDRESS_REGEX = /^[-.%a-zA-Z0-9]{1,128}$/u;
 
+export const CAIP_ASSET_TYPE_REGEX =
+  /^(?<chainId>(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32}))\/(?<assetNamespace>[-a-z0-9]{3,8}):(?<assetReference>[-.%a-zA-Z0-9]{1,128})$/u;
+
+export const CAIP_ASSET_ID_REGEX =
+  /^(?<chainId>(?<namespace>[-a-z0-9]{3,8}):(?<reference>[-_a-zA-Z0-9]{1,32}))\/(?<assetNamespace>[-a-z0-9]{3,8}):(?<assetReference>[-.%a-zA-Z0-9]{1,128})\/(?<tokenId>[-.%a-zA-Z0-9]{1,78})$/u;
+
 /**
  * A CAIP-2 chain ID, i.e., a human-readable namespace and reference.
  */
@@ -51,6 +57,24 @@ export const CaipAccountAddressStruct = pattern(
   CAIP_ACCOUNT_ADDRESS_REGEX,
 );
 export type CaipAccountAddress = Infer<typeof CaipAccountAddressStruct>;
+
+/**
+ * A CAIP-19 asset type identifier, i.e., a human-readable type of asset identifier.
+ */
+export const CaipAssetTypeStruct = pattern(
+  string(),
+  CAIP_ASSET_TYPE_REGEX,
+) as Struct<CaipAssetType, null>;
+export type CaipAssetType = `${string}:${string}/${string}:${string}`;
+
+/**
+ * A CAIP-19 asset ID identifier, i.e., a human-readable type of asset ID.
+ */
+export const CaipAssetIdStruct = pattern(
+  string(),
+  CAIP_ASSET_ID_REGEX,
+) as Struct<CaipAssetId, null>;
+export type CaipAssetId = `${string}:${string}/${string}:${string}/${string}`;
 
 /** Known CAIP namespaces. */
 export enum KnownCaipNamespace {
@@ -111,6 +135,26 @@ export function isCaipAccountAddress(
   value: unknown,
 ): value is CaipAccountAddress {
   return is(value, CaipAccountAddressStruct);
+}
+
+/**
+ * Check if the given value is a {@link CaipAssetType}.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a {@link CaipAssetType}.
+ */
+export function isCaipAssetType(value: unknown): value is CaipAssetType {
+  return is(value, CaipAssetTypeStruct);
+}
+
+/**
+ * Check if the given value is a {@link CaipAssetId}.
+ *
+ * @param value - The value to check.
+ * @returns Whether the value is a {@link CaipAssetId}.
+ */
+export function isCaipAssetId(value: unknown): value is CaipAssetId {
+  return is(value, CaipAssetIdStruct);
 }
 
 /**
