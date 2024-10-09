@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0]
+
+### Changed
+
+- Batch processing now considers both origin and `networkClientId`, ensuring requests targeting different networks are processed separately. ([#4718](https://github.com/MetaMask/core/pull/4718))
+- Incoming requests to `enqueueRequest` now must include a `networkClientId`; an error is thrown if it's missing. This was previously a required part of the type but since consumers like the extension do not have extensive typescript coverage this wasn't definitively enforced. ([#4718](https://github.com/MetaMask/core/pull/4718))
+
 ## [5.0.1]
 
 ### Fixed
@@ -261,7 +268,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.1...@metamask/queued-request-controller@5.1.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.0...@metamask/queued-request-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@4.0.0...@metamask/queued-request-controller@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@3.0.0...@metamask/queued-request-controller@4.0.0

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Changed
+
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
 ## [0.1.2]
 
 ### Changed
@@ -49,7 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.3...HEAD
+[0.1.3]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.2...@metamask/chain-controller@0.1.3
 [0.1.2]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.1...@metamask/chain-controller@0.1.2
 [0.1.1]: https://github.com/MetaMask/core/compare/@metamask/chain-controller@0.1.0...@metamask/chain-controller@0.1.1
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/chain-controller@0.1.0

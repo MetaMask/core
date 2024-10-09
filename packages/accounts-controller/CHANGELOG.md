@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.2.2]
+
+### Changed
+
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+  - Bump `@metamask/eth-snap-keyring` from `^4.3.3` to `^4.3.6`
+
 ## [18.2.1]
 
 ### Changed
@@ -320,7 +329,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.2...HEAD
+[18.2.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.1...@metamask/accounts-controller@18.2.2
 [18.2.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.0...@metamask/accounts-controller@18.2.1
 [18.2.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.1.1...@metamask/accounts-controller@18.2.0
 [18.1.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.1.0...@metamask/accounts-controller@18.1.1

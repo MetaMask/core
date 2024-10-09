@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6]
+
+### Added
+
+- add DELETE endpoint support ([#4758](https://github.com/MetaMask/core/pull/4758))
+
+## [0.9.5]
+
+### Fixed
+
+- **BREAKING** react native scrypt now takes a `UInt8Array` password argument instead of a `string` ([#4755](https://github.com/MetaMask/core/pull/4755))
+
+## [0.9.4]
+
+### Fixed
+
+- Account syncing performance issues and bugs ([#4746](https://github.com/MetaMask/core/pull/4746))
+  - Batch `GET` / `PUT` will now encrypt and decrypt sequentially in order to leverage the in-memory cache
+  - `nameLastUpdatedAt` will stop being saved to user storage if account name is a default name
+  - `waitForExpectedValue` has been removed and will stop waiting for `AccountsController:accountAdded` callback
+  - `randomBytes` leftover from sync -> async encryption migration was removed
+
+## [0.9.3]
+
+### Fixed
+
+- Only fire `onAccountNameUpdated` when account name has changed ([#4735](https://github.com/MetaMask/core/pull/4735))
+
+## [0.9.2]
+
+### Changed
+
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
 ## [0.9.1]
 
 ### Changed
@@ -232,7 +268,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.6...HEAD
+[0.9.6]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.5...@metamask/profile-sync-controller@0.9.6
+[0.9.5]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...@metamask/profile-sync-controller@0.9.5
+[0.9.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.3...@metamask/profile-sync-controller@0.9.4
+[0.9.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.2...@metamask/profile-sync-controller@0.9.3
+[0.9.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...@metamask/profile-sync-controller@0.9.2
 [0.9.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.0...@metamask/profile-sync-controller@0.9.1
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.1...@metamask/profile-sync-controller@0.9.0
 [0.8.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.8.0...@metamask/profile-sync-controller@0.8.1

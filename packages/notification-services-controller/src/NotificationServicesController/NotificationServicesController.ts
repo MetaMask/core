@@ -786,10 +786,15 @@ export default class NotificationServicesController extends BaseController<
    *
    * **Action** - Used during Sign In / Enabling of notifications.
    *
+   * @param opts - optional options to mutate this functionality
+   * @param opts.resetNotifications - this will not use the users stored preferences, and instead re-create notification triggers
+   * It will help in case uses get into a corrupted state or wants to wipe their notifications.
    * @returns The updated or newly created user storage.
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async createOnChainTriggers(): Promise<UserStorage> {
+  public async createOnChainTriggers(opts?: {
+    resetNotifications?: boolean;
+  }): Promise<UserStorage> {
     try {
       this.#setIsUpdatingMetamaskNotifications(true);
 
@@ -800,7 +805,13 @@ export default class NotificationServicesController extends BaseController<
 
       const { accounts } = await this.#accounts.listAccounts();
 
-      let userStorage = await this.#getUserStorage();
+      // Attempt Get User Storage
+      // Will be null if entry does not exist, or a user is resetting their notifications
+      // Will be defined if entry exists
+      // Will throw if fails to get the user storage entry
+      let userStorage = opts?.resetNotifications
+        ? null
+        : await this.#getUserStorage();
 
       // If userStorage does not exist, create a new one
       // All the triggers created are set as: "disabled"

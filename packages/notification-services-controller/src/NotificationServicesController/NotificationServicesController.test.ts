@@ -306,6 +306,29 @@ describe('metamask-notifications - createOnChainTriggers()', () => {
       );
     }
   });
+
+  it('creates new triggers if a user has chosen to reset notifications', async () => {
+    const {
+      messenger,
+      mockInitializeUserStorage,
+      mockEnablePushNotifications,
+      mockCreateOnChainTriggers,
+      mockPerformGetStorage,
+    } = arrangeMocks();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    const result = await controller.createOnChainTriggers({
+      resetNotifications: true,
+    });
+    expect(result).toBeDefined();
+    expect(mockPerformGetStorage).not.toHaveBeenCalled(); // not called as we are resetting notifications
+    expect(mockInitializeUserStorage).toHaveBeenCalled(); // called since no user storage (this is an existing user)
+    expect(mockCreateOnChainTriggers).toHaveBeenCalled();
+    expect(mockEnablePushNotifications).toHaveBeenCalled();
+  });
 });
 
 describe('metamask-notifications - deleteOnChainTriggersByAccount', () => {
