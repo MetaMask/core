@@ -1789,15 +1789,15 @@ __metadata:
   linkType: hard
 
 "@metamask/key-tree@npm:^9.1.1":
-  version: 9.1.1
-  resolution: "@metamask/key-tree@npm:9.1.1"
+  version: 9.1.2
+  resolution: "@metamask/key-tree@npm:9.1.2"
   dependencies:
     "@metamask/scure-bip39": ^2.1.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^9.0.0
     "@noble/curves": ^1.2.0
     "@noble/hashes": ^1.3.2
     "@scure/base": ^1.0.0
-  checksum: 4de5f92e4d9408829552bb569b998613ed940f289613fe86f9a5f0a66e392ec386d70b2365943c216b83c9ff249877fd731f2f791240a622ff186fd047d81f9e
+  checksum: eb60bdbfa1806c2f248bf2602cd242e21b0fbe8bbb00ec97c3891739956a81e26c0dae125282a6207dbbe0643e727ff3574067b48210a0b01f12aae7b3159b77
   languageName: node
   linkType: hard
 
