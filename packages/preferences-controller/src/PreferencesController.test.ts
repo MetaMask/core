@@ -22,6 +22,7 @@ describe('PreferencesController', () => {
       selectedAddress: '',
       useTokenDetection: true,
       useNftDetection: false,
+      useSafeChainsListValidation: true,
       displayNftMedia: false,
       securityAlertsEnabled: false,
       isMultiAccountBalancesEnabled: true,
@@ -419,6 +420,12 @@ describe('PreferencesController', () => {
     const controller = setupPreferencesController();
     controller.setUseTransactionSimulations(false);
     expect(controller.state.useTransactionSimulations).toBe(false);
+  });
+
+  it('should set useSafeChainsListValidation', () => {
+    const controller = setupPreferencesController();
+    controller.setUseSafeChainsListValidation(false);
+    expect(controller.state.useSafeChainsListValidation).toBe(false);
   });
 });
 

@@ -110,6 +110,10 @@ export type PreferencesState = {
    * Controls whether transaction simulations are enabled
    */
   useTransactionSimulations: boolean;
+  /**
+   * Controls whether safe chains list validation is used
+   */
+  useSafeChainsListValidation: boolean;
 };
 
 const metadata = {
@@ -120,6 +124,7 @@ const metadata = {
   isMultiAccountBalancesEnabled: { persist: true, anonymous: true },
   lostIdentities: { persist: true, anonymous: false },
   displayNftMedia: { persist: true, anonymous: true },
+  useSafeChainsListValidation: { persist: true, anonymous: true },
   securityAlertsEnabled: { persist: true, anonymous: true },
   selectedAddress: { persist: true, anonymous: false },
   showTestNetworks: { persist: true, anonymous: true },
@@ -197,6 +202,7 @@ export function getDefaultPreferencesState() {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
+    useSafeChainsListValidation: true,
     smartTransactionsOptInStatus: false,
     useTransactionSimulations: true,
   };
@@ -406,7 +412,7 @@ export class PreferencesController extends BaseController<
   }
 
   /**
-   * Toggle the opensea enabled setting.
+   * Toggle the display nft media enabled setting.
    *
    * @param displayNftMedia - Boolean indicating user preference on using OpenSea's API.
    */
@@ -502,6 +508,17 @@ export class PreferencesController extends BaseController<
   setUseTransactionSimulations(useTransactionSimulations: boolean) {
     this.update((state) => {
       state.useTransactionSimulations = useTransactionSimulations;
+    });
+  }
+
+  /**
+   * Toggle the use safe chains list validation.
+   *
+   * @param useSafeChainsListValidation - Boolean indicating user preference on using chainid.network third part to check safe networks.
+   */
+  setUseSafeChainsListValidation(useSafeChainsListValidation: boolean) {
+    this.update((state) => {
+      state.useSafeChainsListValidation = useSafeChainsListValidation;
     });
   }
 }
