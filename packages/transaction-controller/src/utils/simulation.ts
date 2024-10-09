@@ -477,24 +477,47 @@ function getEventTokenIds(event: ParsedEvent): (Hex | undefined)[] {
 }
 
 /**
- * Extract the value from a balance transaction response.
+ * Extract the value from a balance transaction response using the correct ABI.
  * @param from - The address to check the balance of.
  * @param token - The token to check the balance of.
  * @param response - The balance transaction response.
- * @returns The value of the balance transaction.
+ * @returns The value of the balance transaction as Hex.
  */
-function getValueFromBalanceTransaction(
+export function getValueFromBalanceTransaction(
   from: Hex,
   token: SimulationToken,
   response: SimulationResponseTransaction,
 ): Hex {
-  const normalizedReturn = normalizeReturnValue(response.return);
+  const interfaces = getContractInterfaces();
+  let decoded;
 
-  if (token.standard === SimulationTokenStandard.erc721) {
-    return normalizedReturn === from ? '0x1' : '0x0';
+  try {
+    if (token.standard === SimulationTokenStandard.erc721) {
+      // ERC721: Check ownership and return 1 if the owner is the user, 0 otherwise.
+      decoded = (
+        interfaces.get(SupportedToken.ERC721) as Interface
+      ).decodeFunctionResult('ownerOf', response.return);
+      const owner = decoded[0].toLowerCase();
+      return owner === from.toLowerCase() ? '0x1' : '0x0';
+    }
+    // Non-ERC721: ERC20 and ERC1155 use balanceOf
+    decoded = (
+      interfaces.get(
+        token.standard === SimulationTokenStandard.erc20
+          ? SupportedToken.ERC20
+          : SupportedToken.ERC1155,
+      ) as Interface
+    ).decodeFunctionResult('balanceOf', response.return);
+
+    return toHex(decoded[0] as Hex);
+  } catch (error) {
+    log('Failed to decode balance transaction', error, { token, response });
+    throw new SimulationError(
+      `Failed to decode balance transaction for token ${
+        token.address
+      }: ${String(error)}`,
+    );
   }
-
-  return normalizedReturn;
 }
 
 /**
@@ -605,15 +628,6 @@ function getSimulationBalanceChange(
     difference,
     isDecrease,
   };
-}
-
-/**
- * Normalize a return value.
- * @param value - The return value to normalize.
- * @returns The normalized return value.
- */
-function normalizeReturnValue(value: Hex): Hex {
-  return toHex(hexToBN(value));
 }
 
 /**

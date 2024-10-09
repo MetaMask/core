@@ -1,13 +1,16 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
+import { isHexString, type Hex } from '@metamask/utils';
 
 import {
+  SimulationError,
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 import {
   getSimulationData,
+  getValueFromBalanceTransaction,
   SupportedToken,
   type GetSimulationDataRequest,
 } from './simulation';
@@ -19,14 +22,34 @@ import {
 
 jest.mock('./simulation-api');
 
-const USER_ADDRESS_MOCK = '0x123';
-const OTHER_ADDRESS_MOCK = '0x456';
-const CONTRACT_ADDRESS_1_MOCK = '0x789';
-const CONTRACT_ADDRESS_2_MOCK = '0xDEF';
-const BALANCE_1_MOCK = '0x0';
-const BALANCE_2_MOCK = '0x1';
+// Utility function to encode uint256 values to 32-byte ABI format
+const encodeUint256 = (value: string | number): Hex => {
+  // Pad to 32 bytes (64 characters) and add '0x' prefix
+  return `0x${BigInt(value).toString(16).padStart(64, '0')}` as Hex;
+};
+
+// Utility function to encode addresses to correct length
+const encodeAddress = (address: Hex): Hex => {
+  // Ensure the address is a valid hex string and pad it to 20 bytes (40 characters)
+  if (!isHexString(address)) {
+    throw new Error('Invalid address format');
+  }
+  return `0x${address.toLowerCase().substring(2).padStart(40, '0')}` as Hex;
+};
+
+const trimLeadingZeros = (hexString: Hex): Hex => {
+  const trimmed = hexString.replace(/^0x0+/u, '0x') as Hex;
+  return trimmed === '0x' ? '0x0' : trimmed;
+};
+
+const USER_ADDRESS_MOCK = encodeAddress('0x123');
+const OTHER_ADDRESS_MOCK = encodeAddress('0x456');
+const CONTRACT_ADDRESS_1_MOCK = encodeAddress('0x789');
+const CONTRACT_ADDRESS_2_MOCK = encodeAddress('0xDEF');
+const BALANCE_1_MOCK = encodeUint256('0x0');
+const BALANCE_2_MOCK = encodeUint256('0x1');
 const DIFFERENCE_MOCK = '0x1';
-const VALUE_MOCK = '0x4';
+const VALUE_MOCK = encodeUint256('0x4');
 const TOKEN_ID_MOCK = '0x5';
 const OTHER_TOKEN_ID_MOCK = '0x6';
 const ERROR_CODE_MOCK = 123;
@@ -160,6 +183,7 @@ function createNativeBalanceResponse(
   return {
     transactions: [
       {
+        return: encodeUint256(previousBalance),
         callTrace: {
           calls: [],
           logs: [],
@@ -167,12 +191,12 @@ function createNativeBalanceResponse(
         stateDiff: {
           pre: {
             [USER_ADDRESS_MOCK]: {
-              balance: previousBalance,
+              balance: encodeUint256(previousBalance),
             },
           },
           post: {
-            [USER_ADDRESS_MOCK]: {
-              balance: newBalance,
+            [encodeAddress(USER_ADDRESS_MOCK)]: {
+              balance: encodeUint256(newBalance),
             },
           },
         },
@@ -194,7 +218,7 @@ function createBalanceOfResponse(
   return {
     transactions: [
       ...previousBalances.map((previousBalance) => ({
-        return: previousBalance,
+        return: encodeUint256(previousBalance),
         callTrace: {
           calls: [],
           logs: [],
@@ -205,7 +229,7 @@ function createBalanceOfResponse(
         },
       })),
       {
-        return: '0xabc',
+        return: encodeUint256('0xabc'), // Example correction with encoding
         callTrace: {
           calls: [],
           logs: [],
@@ -216,7 +240,7 @@ function createBalanceOfResponse(
         },
       },
       ...newBalances.map((newBalance) => ({
-        return: newBalance,
+        return: encodeUint256(newBalance),
         callTrace: {
           calls: [],
           logs: [],
@@ -398,8 +422,8 @@ describe('Simulation Utils', () => {
                 standard: tokenStandard,
                 address: CONTRACT_ADDRESS_1_MOCK,
                 id: tokenId,
-                previousBalance: BALANCE_1_MOCK,
-                newBalance: BALANCE_2_MOCK,
+                previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+                newBalance: trimLeadingZeros(BALANCE_2_MOCK),
                 difference: DIFFERENCE_MOCK,
                 isDecrease: false,
               },
@@ -501,8 +525,8 @@ describe('Simulation Utils', () => {
               standard: SimulationTokenStandard.erc20,
               address: CONTRACT_ADDRESS_1_MOCK,
               id: undefined,
-              previousBalance: BALANCE_2_MOCK,
-              newBalance: BALANCE_1_MOCK,
+              previousBalance: trimLeadingZeros(BALANCE_2_MOCK),
+              newBalance: trimLeadingZeros(BALANCE_1_MOCK),
               difference: DIFFERENCE_MOCK,
               isDecrease: true,
             },
@@ -545,8 +569,8 @@ describe('Simulation Utils', () => {
               standard: SimulationTokenStandard.erc721,
               address: CONTRACT_ADDRESS_1_MOCK,
               id: TOKEN_ID_MOCK,
-              previousBalance: BALANCE_1_MOCK,
-              newBalance: BALANCE_2_MOCK,
+              previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+              newBalance: trimLeadingZeros(BALANCE_2_MOCK),
               difference: DIFFERENCE_MOCK,
               isDecrease: false,
             },
@@ -554,8 +578,8 @@ describe('Simulation Utils', () => {
               standard: SimulationTokenStandard.erc721,
               address: CONTRACT_ADDRESS_1_MOCK,
               id: OTHER_TOKEN_ID_MOCK,
-              previousBalance: BALANCE_1_MOCK,
-              newBalance: BALANCE_2_MOCK,
+              previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+              newBalance: trimLeadingZeros(BALANCE_2_MOCK),
               difference: DIFFERENCE_MOCK,
               isDecrease: false,
             },
@@ -738,9 +762,9 @@ describe('Simulation Utils', () => {
               standard: SimulationTokenStandard.erc20,
               address: CONTRACT_ADDRESS_1_MOCK,
               id: undefined,
-              previousBalance: BALANCE_1_MOCK,
-              newBalance: BALANCE_2_MOCK,
-              difference: DIFFERENCE_MOCK,
+              previousBalance: trimLeadingZeros(BALANCE_1_MOCK),
+              newBalance: trimLeadingZeros(BALANCE_2_MOCK),
+              difference: '0x1',
               isDecrease: false,
             },
           ],
@@ -857,5 +881,56 @@ describe('Simulation Utils', () => {
         });
       });
     });
+  });
+});
+
+describe('getValueFromBalanceTransaction', () => {
+  const from = '0x1234567890123456789012345678901234567890';
+  const contractAddress = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
+
+  it.each([
+    [
+      'ERC20 balance',
+      SimulationTokenStandard.erc20,
+      '0x000000000000000000000000000000000000000000000000000000134c31d25200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      '0x134c31d252',
+    ],
+    [
+      'ERC721 ownership',
+      SimulationTokenStandard.erc721,
+      '0x0000000000000000000000001234567890123456789012345678901234567890',
+      '0x1',
+    ],
+    [
+      'ERC721 non-ownership',
+      SimulationTokenStandard.erc721,
+      '0x000000000000000000000000abcdef1234567890abcdef1234567890abcdef12',
+      '0x0',
+    ],
+    [
+      'ERC1155 balance',
+      SimulationTokenStandard.erc1155,
+      '0x0000000000000000000000000000000000000000000000000000000000000064',
+      '0x64',
+    ],
+  ])('correctly decodes %s', (_, standard, returnValue, expected) => {
+    const token = { standard, address: contractAddress };
+    const response = { return: returnValue as Hex };
+
+    const result = getValueFromBalanceTransaction(from, token, response);
+
+    expect(result).toBe(expected);
+  });
+
+  it('throws SimulationInvalidResponseError on decoding failure', () => {
+    const token = {
+      standard: SimulationTokenStandard.erc20,
+      address: contractAddress,
+    };
+    const response = { return: '0xInvalidData' as Hex };
+
+    expect(() => getValueFromBalanceTransaction(from, token, response)).toThrow(
+      SimulationError,
+    );
   });
 });
