@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.7]
 
-### Uncategorized
+### Added
 
-- feat(NOTIFY-1214): add support for DELETE ONE endpoint ([#4776](https://github.com/MetaMask/core/pull/4776))
-- fix: do not sync imported accounts ([#4777](https://github.com/MetaMask/core/pull/4777))
+- add support for DELETE ONE endpoint ([#4776](https://github.com/MetaMask/core/pull/4776))
+
+### Fixed
+
+- imported accounts won't be synced anymore by account syncing ([#4777](https://github.com/MetaMask/core/pull/4777))
 
 ## [0.9.6]
 
