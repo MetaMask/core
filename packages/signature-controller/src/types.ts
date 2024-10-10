@@ -14,10 +14,6 @@ export type MessageParams = {
   origin?: string;
 };
 
-export type MessageParamsEthSign = MessageParams & {
-  data: string;
-};
-
 export type MessageParamsPersonal = MessageParams & {
   data: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,10 +44,6 @@ type SignatureRequestBase = {
 
 export type SignatureRequest = SignatureRequestBase &
   (
-    | {
-        request: MessageParamsEthSign;
-        type: SignatureRequestType.EthSign;
-      }
     | {
         request: MessageParamsPersonal;
         type: SignatureRequestType.PersonalSign;

@@ -32,6 +32,10 @@ import type {
   SignatureRequest,
   MessageParams,
 } from './types';
+import {
+  validatePersonalSignatureRequest,
+  validateTypedSignatureRequest,
+} from './validation';
 
 const controllerName = 'SignatureController';
 
@@ -53,7 +57,7 @@ const getDefaultState = () => ({
   unapprovedTypedMessagesCount: 0,
 });
 
-type SignatureControllerState = {
+export type SignatureControllerState = {
   signatureRequests: Record<string, SignatureRequest>;
   // Legacy + Generated
   unapprovedPersonalMsgs: Record<string, any>;
@@ -92,9 +96,9 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type SignatureControllerOptions = {
+  getAllState?: () => unknown;
+  getCurrentChainId: () => Hex;
   messenger: SignatureControllerMessenger;
-  isEthSignEnabled: () => boolean;
-  getAllState: () => unknown;
   securityProviderRequest?: (
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +107,7 @@ export type SignatureControllerOptions = {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
-  getCurrentChainId: () => Hex;
+  state?: SignatureControllerState;
 };
 
 /**
@@ -116,21 +120,33 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
+  #getCurrentChainId: () => Hex;
+
   /**
    * Construct a Sign controller.
    *
    * @param options - The controller options.
+   * @param options.getCurrentChainId - A function that returns the current chain ID.
    * @param options.messenger - The restricted controller messenger for the sign controller.
+   * @param options.state - Initial state to set on this controller.
    */
-  constructor({ messenger }: SignatureControllerOptions) {
+  constructor({
+    getCurrentChainId,
+    messenger,
+    state,
+  }: SignatureControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
-      state: getDefaultState(),
+      state: {
+        ...getDefaultState(),
+        ...state,
+      },
     });
 
     this.hub = new EventEmitter();
+    this.#getCurrentChainId = getCurrentChainId;
   }
 
   /**
@@ -201,6 +217,8 @@ export class SignatureController extends BaseController<
     messageParams: MessageParamsPersonal,
     request: JsonRequest,
   ): Promise<string> {
+    validatePersonalSignatureRequest(messageParams);
+
     return this.#processSignatureRequest({
       messageParams,
       request,
@@ -215,6 +233,12 @@ export class SignatureController extends BaseController<
     version: SignTypedDataVersion,
     _signingOpts: any,
   ): Promise<string> {
+    validateTypedSignatureRequest(
+      messageParams,
+      version,
+      this.#getCurrentChainId(),
+    );
+
     return this.#processSignatureRequest({
       messageParams,
       request,
