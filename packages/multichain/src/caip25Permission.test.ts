@@ -13,7 +13,7 @@ import {
   Caip25EndowmentPermissionName,
   Caip25CaveatMutatorFactories,
   removeScope,
-} from './caip25permissions';
+} from './caip25Permission';
 
 jest.mock('./scope', () => ({
   validateAndFlattenScopes: jest.fn(),
@@ -73,7 +73,7 @@ describe('endowment:caip25', () => {
       };
       const result = removeScope('eip155:5', ethereumGoerliCaveat);
       expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.updateValue,
+        operation: CaveatMutatorOperation.UpdateValue,
         value: {
           requiredScopes: {
             'eip155:1': {
@@ -105,7 +105,7 @@ describe('endowment:caip25', () => {
       };
       const result = removeScope('eip155:1', ethereumGoerliCaveat);
       expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.revokePermission,
+        operation: CaveatMutatorOperation.RevokePermission,
       });
     });
 
@@ -128,7 +128,7 @@ describe('endowment:caip25', () => {
       };
       const result = removeScope('eip155:2', ethereumGoerliCaveat);
       expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.noop,
+        operation: CaveatMutatorOperation.Noop,
       });
     });
   });
@@ -148,7 +148,7 @@ describe('endowment:caip25', () => {
       };
       const result = removeAccount('0x1', ethereumGoerliCaveat);
       expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.updateValue,
+        operation: CaveatMutatorOperation.UpdateValue,
         value: {
           requiredScopes: {
             'eip155:1': {
@@ -188,7 +188,7 @@ describe('endowment:caip25', () => {
       };
       const result = removeAccount('0x1', ethereumGoerliCaveat);
       expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.updateValue,
+        operation: CaveatMutatorOperation.UpdateValue,
         value: {
           requiredScopes: {
             'eip155:1': {
@@ -233,7 +233,7 @@ describe('endowment:caip25', () => {
       };
       const result = removeAccount('0x3', ethereumGoerliCaveat);
       expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.noop,
+        operation: CaveatMutatorOperation.Noop,
       });
     });
   });

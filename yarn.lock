@@ -3015,13 +3015,19 @@ __metadata:
   resolution: "@metamask/multichain@workspace:packages/multichain"
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/network-controller": "npm:^21.0.1"
+    "@metamask/permission-controller": "npm:^11.0.2"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
+    lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+  peerDependencies:
+    "@metamask/network-controller": ^21.0.0
+    "@metamask/permission-controller": ^11.0.0
   languageName: unknown
   linkType: soft
 

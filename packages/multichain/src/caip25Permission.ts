@@ -191,12 +191,12 @@ function removeAccount(
 
   if (noChange) {
     return {
-      operation: CaveatMutatorOperation.noop,
+      operation: CaveatMutatorOperation.Noop,
     };
   }
 
   return {
-    operation: CaveatMutatorOperation.updateValue,
+    operation: CaveatMutatorOperation.UpdateValue,
     value: copyOfExistingScopes,
   };
 }
@@ -231,13 +231,13 @@ export function removeScope(
 
   if (requiredScopesRemoved) {
     return {
-      operation: CaveatMutatorOperation.revokePermission,
+      operation: CaveatMutatorOperation.RevokePermission,
     };
   }
 
   if (optionalScopesRemoved) {
     return {
-      operation: CaveatMutatorOperation.updateValue,
+      operation: CaveatMutatorOperation.UpdateValue,
       value: {
         requiredScopes: newRequiredScopes.reduce(reduceKeysHelper, {}),
         optionalScopes: newOptionalScopes.reduce(reduceKeysHelper, {}),
@@ -246,6 +246,6 @@ export function removeScope(
   }
 
   return {
-    operation: CaveatMutatorOperation.noop,
+    operation: CaveatMutatorOperation.Noop,
   };
 }

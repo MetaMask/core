@@ -39,8 +39,13 @@
     "test:verbose": "jest --verbose",
     "test:watch": "jest --watch"
   },
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/network-controller": "^21.0.1",
+    "@metamask/permission-controller": "^11.0.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -48,6 +53,10 @@
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
+  },
+  "peerDependencies": {
+    "@metamask/network-controller": "^21.0.0",
+    "@metamask/permission-controller": "^11.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
