@@ -8,8 +8,8 @@ import {
   SigningMethod,
   SigningStage,
 } from '@metamask/logging-controller';
-import { sign } from 'crypto';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
@@ -201,6 +201,47 @@ describe('SignatureController', () => {
           ...signatureRequests['3'],
           status: SignatureRequestStatus.Rejected,
         },
+      });
+    });
+
+    it('emits event if reason provided', () => {
+      const signatureRequests = {
+        '1': SIGNATURE_REQUEST_MOCK,
+        '2': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '2',
+          status: SignatureRequestStatus.Unapproved,
+        },
+        '3': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '3',
+          type: SignatureRequestType.TypedSign,
+          status: SignatureRequestStatus.Unapproved,
+        },
+      };
+
+      const listener = jest.fn();
+
+      const { controller } = createController({
+        state: {
+          signatureRequests,
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.hub.on('cancelWithReason', listener);
+
+      controller.rejectUnapproved('Custom reason');
+
+      expect(listener).toHaveBeenCalledTimes(2);
+
+      expect(listener).toHaveBeenCalledWith({
+        metadata: signatureRequests['2'],
+        reason: 'Custom reason',
+      });
+
+      expect(listener).toHaveBeenCalledWith({
+        metadata: signatureRequests['3'],
+        reason: 'Custom reason',
       });
     });
   });
@@ -443,6 +484,254 @@ describe('SignatureController', () => {
       );
 
       expect(result).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it.each([SignTypedDataVersion.V3, SignTypedDataVersion.V4])(
+      'supports data as string with version %s',
+      async (version) => {
+        const { controller, keyringControllerSignTypedMessageMock } =
+          createController();
+
+        keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+          SIGNATURE_HASH_MOCK,
+        );
+
+        const result = await controller.newUnsignedTypedMessage(
+          {
+            data: JSON.stringify({ test: 123 }),
+            from: '0xAddress',
+          },
+          {},
+          version as SignTypedDataVersion,
+          { parseJsonData: true },
+        );
+
+        expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
+          {
+            data: { test: 123 },
+            from: '0xAddress',
+          },
+          version,
+        );
+
+        expect(result).toBe(SIGNATURE_HASH_MOCK);
+      },
+    );
+
+    it('ignores parseJsonData if version is V1', async () => {
+      const { controller, keyringControllerSignTypedMessageMock } =
+        createController();
+
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      const result = await controller.newUnsignedTypedMessage(
+        {
+          data: JSON.stringify({ test: 123 }),
+          from: '0xAddress',
+        },
+        {},
+        SignTypedDataVersion.V1,
+        { parseJsonData: true },
+      );
+
+      expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
+        {
+          data: JSON.stringify({ test: 123 }),
+          from: '0xAddress',
+        },
+        SignTypedDataVersion.V1,
+      );
+
+      expect(result).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it('sets status to errored if signing fails', async () => {
+      const { controller, keyringControllerSignTypedMessageMock } =
+        createController();
+
+      const errorMock = new Error('Custom message');
+
+      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
+
+      await expect(
+        controller.newUnsignedTypedMessage(
+          {
+            data: '0xData',
+            from: '0xAddress',
+          },
+          {},
+          SignTypedDataVersion.V3,
+          { parseJsonData: false },
+        ),
+      ).rejects.toThrow(errorMock);
+
+      const id = Object.keys(controller.state.signatureRequests)[0];
+
+      expect(controller.state.signatureRequests[id].status).toBe(
+        SignatureRequestStatus.Errored,
+      );
+    });
+  });
+
+  describe('setDeferredSignSuccess', () => {
+    it('sets the signature and status on the signature request', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            '1': {
+              ...SIGNATURE_REQUEST_MOCK,
+              status: SignatureRequestStatus.InProgress,
+            },
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.setDeferredSignSuccess('1', SIGNATURE_HASH_MOCK);
+
+      expect(controller.state.signatureRequests['1'].signature).toBe(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      expect(controller.state.signatureRequests['1'].status).toBe(
+        SignatureRequestStatus.Signed,
+      );
+    });
+
+    it('resolves defered signature request', async () => {
+      const { controller } = createController();
+      let resolved = false;
+
+      const signaturePromise = controller
+        .newUnsignedPersonalMessage(
+          {
+            data: '0xData',
+            from: '0xAddress',
+            deferSetAsSigned: true,
+          },
+          {},
+        )
+        .then((result) => {
+          resolved = true;
+          return result;
+        });
+
+      await flushPromises();
+
+      expect(resolved).toBe(false);
+
+      const id = Object.keys(controller.state.signatureRequests)[0];
+      controller.setDeferredSignSuccess(id, SIGNATURE_HASH_MOCK);
+
+      await flushPromises();
+
+      expect(resolved).toBe(true);
+      expect(await signaturePromise).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it('throws if signature request not found', () => {
+      const { controller } = createController();
+
+      expect(() => {
+        controller.setDeferredSignSuccess('1', SIGNATURE_HASH_MOCK);
+      }).toThrow('Signature request with id 1 not found');
+    });
+  });
+
+  describe('setMessageMetadata', () => {
+    it('sets the metadata on the signature request', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            '1': SIGNATURE_REQUEST_MOCK,
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.setMessageMetadata('1', { test: 123 });
+
+      expect(controller.state.signatureRequests['1'].metadata).toStrictEqual({
+        test: 123,
+      });
+    });
+  });
+
+  describe('setDeferredSignError', () => {
+    it('sets the status on the signature request to rejected', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            '1': {
+              ...SIGNATURE_REQUEST_MOCK,
+              status: SignatureRequestStatus.InProgress,
+            },
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.setDeferredSignError('1');
+
+      expect(controller.state.signatureRequests['1'].status).toBe(
+        SignatureRequestStatus.Rejected,
+      );
+    });
+
+    it('rejects defered signature request', async () => {
+      const { controller } = createController();
+      let rejectedError;
+
+      controller
+        .newUnsignedPersonalMessage(
+          {
+            data: '0xData',
+            from: '0xAddress',
+            deferSetAsSigned: true,
+          },
+          {},
+        )
+        .catch((error) => {
+          rejectedError = error;
+        });
+
+      await flushPromises();
+
+      expect(rejectedError).toBeUndefined();
+
+      const id = Object.keys(controller.state.signatureRequests)[0];
+      controller.setDeferredSignError(id);
+
+      await flushPromises();
+
+      expect(rejectedError).toStrictEqual(
+        new Error(
+          'MetaMask personal_sign Signature: User denied message signature.',
+        ),
+      );
+    });
+  });
+
+  describe.each([
+    'setTypedMessageInProgress',
+    'setPersonalMessageInProgress',
+  ] as const)('%s', (fn) => {
+    it('sets the status on the signature request to in progress', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            '1': {
+              ...SIGNATURE_REQUEST_MOCK,
+              status: SignatureRequestStatus.Unapproved,
+            },
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller[fn]('1');
+
+      expect(controller.state.signatureRequests['1'].status).toBe(
+        SignatureRequestStatus.InProgress,
+      );
     });
   });
 });

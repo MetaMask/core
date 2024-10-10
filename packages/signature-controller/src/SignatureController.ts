@@ -416,16 +416,11 @@ export class SignatureController extends BaseController<
   async #approveAndSignRequest(metadata: SignatureRequest) {
     const { id } = metadata;
 
-    try {
-      this.#updateMetadata(id, (draftMetadata) => {
-        draftMetadata.status = SignatureRequestStatus.Approved;
-      });
+    this.#updateMetadata(id, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Approved;
+    });
 
-      await this.#signRequest(metadata);
-    } catch (error) {
-      this.#rejectSignatureRequest(id);
-      throw error;
-    }
+    await this.#signRequest(metadata);
   }
 
   async #signRequest(metadata: SignatureRequest) {
@@ -454,6 +449,7 @@ export class SignatureController extends BaseController<
           );
           break;
 
+        /* istanbul ignore next */
         default:
           throw new Error(`Unknown signature request type: ${type as string}`);
       }
@@ -470,8 +466,18 @@ export class SignatureController extends BaseController<
       });
 
       this.hub.emit(`${id}:finished`, finalMetadata);
-    } catch (error) {
+    } catch (error: any) {
+      if (type === SignatureRequestType.TypedSign) {
+        this.#updateMetadata(id, (draftMetadata) => {
+          draftMetadata.status = SignatureRequestStatus.Errored;
+          draftMetadata.error = error.message;
+        });
+      } else {
+        this.#rejectSignatureRequest(id);
+      }
+
       this.hub.emit(`${id}:signError`, { error });
+
       throw error;
     }
   }
@@ -490,7 +496,7 @@ export class SignatureController extends BaseController<
   async #waitForSignatureRequestFinished(id: string): Promise<string> {
     return new Promise((resolve, reject) => {
       this.hub.once(`${id}:finished`, (metadata: SignatureRequest) => {
-        const { error, request, signature, status, type } = metadata;
+        const { request, signature, status, type } = metadata;
 
         switch (status) {
           case SignatureRequestStatus.Signed:
@@ -503,11 +509,7 @@ export class SignatureController extends BaseController<
               ),
             );
 
-          case SignatureRequestStatus.Errored:
-            return reject(
-              new Error(`MetaMask ${type} Signature: ${error as string}`),
-            );
-
+          /* istanbul ignore next */
           default:
             return reject(
               new Error(
