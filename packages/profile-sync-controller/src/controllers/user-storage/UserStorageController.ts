@@ -315,10 +315,7 @@ export default class UserStorageController extends BaseController<
       );
     },
     doesInternalAccountHaveCorrectKeyringType: (account: InternalAccount) => {
-      return (
-        account.metadata.keyring.type === KeyringTypes.hd ||
-        account.metadata.keyring.type === KeyringTypes.simple
-      );
+      return account.metadata.keyring.type === KeyringTypes.hd;
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
       // eslint-disable-next-line @typescript-eslint/await-thenable
