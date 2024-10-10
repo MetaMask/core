@@ -11,7 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add new functions for creating new mock notifications ([#4780](https://github.com/MetaMask/core/pull/4780))
+### Added
+
+- Add new functions to create mock notifications ([#4780](https://github.com/MetaMask/core/pull/4780))
+  - `createMockNotificationAaveV3HealthFactor`: this function generates a mock notification related to the health factor of an Aave V3 position
+  - `createMockNotificationEnsExpiration`: this function creates a mock notification for the expiration of an ENS (Ethereum Name Service) domain
+  - `createMockNotificationLidoStakingRewards`: this function produces a mock notification for Lido staking rewards
+  - `createMockNotificationNotionalLoanExpiration`: this function generates a mock notification for the expiration of a Notional loan
+  - `createMockNotificationSparkFiHealthFactor`: This function produces a mock notification related to the health factor of a SparkFi position
 
 ## [0.8.2]
 
