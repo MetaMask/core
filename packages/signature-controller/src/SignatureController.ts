@@ -10,6 +10,7 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import {
   ApprovalType,
   detectSIWE,
@@ -105,18 +106,40 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type SignatureControllerOptions = {
+  /**
+   * @deprecated No longer in use.
+   */
   getAllState?: () => unknown;
+
+  /**
+   * Callback that returns the current chain ID.
+   */
   getCurrentChainId: () => Hex;
+
+  /**
+   * Restricted controller messenger required by the signature controller.
+   */
   messenger: SignatureControllerMessenger;
+
+  /**
+   * @deprecated No longer in use.
+   */
   securityProviderRequest?: (
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     requestData: any,
     methodName: string,
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
+
+  /**
+   * Initial state of the controller.
+   */
   state?: SignatureControllerState;
+
+  /**
+   * Callback to record the duration of code.
+   */
+  trace?: TraceCallback;
 };
 
 /**
@@ -131,6 +154,8 @@ export class SignatureController extends BaseController<
 
   #getCurrentChainId: () => Hex;
 
+  #trace: TraceCallback;
+
   /**
    * Construct a Sign controller.
    *
@@ -138,11 +163,13 @@ export class SignatureController extends BaseController<
    * @param options.getCurrentChainId - A function that returns the current chain ID.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
+   * @param options.trace - Callback to generate trace information.
    */
   constructor({
     getCurrentChainId,
     messenger,
     state,
+    trace,
   }: SignatureControllerOptions) {
     super({
       name: controllerName,
@@ -156,6 +183,7 @@ export class SignatureController extends BaseController<
 
     this.hub = new EventEmitter();
     this.#getCurrentChainId = getCurrentChainId;
+    this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
   }
 
   /**
@@ -335,6 +363,7 @@ export class SignatureController extends BaseController<
     approvalType,
     version,
     signingOptions,
+    traceContext,
   }: {
     messageParams: MessageParams;
     request: JsonRequest;
@@ -342,6 +371,7 @@ export class SignatureController extends BaseController<
     approvalType: ApprovalType;
     version?: SignTypedDataVersion;
     signingOptions?: TypedSigningOptions;
+    traceContext?: TraceContext;
   }): Promise<string> {
     log('Processing signature request', {
       messageParams,
@@ -388,9 +418,13 @@ export class SignatureController extends BaseController<
       );
 
       try {
-        const acceptResult = await this.#requestApproval(
-          metadata,
-          approvalType,
+        const acceptResult = await this.#trace(
+          { name: 'Await Approval', parentContext: traceContext },
+          (context) =>
+            this.#requestApproval(metadata, approvalType, {
+              traceContext: context,
+              actionId: request?.id?.toString(),
+            }),
         );
 
         resultCallbacks = acceptResult.resultCallbacks;
@@ -403,7 +437,7 @@ export class SignatureController extends BaseController<
         throw error;
       }
 
-      await this.#approveAndSignRequest(metadata);
+      await this.#approveAndSignRequest(metadata, traceContext);
 
       const signature = await finishedPromise;
 
@@ -421,14 +455,19 @@ export class SignatureController extends BaseController<
     }
   }
 
-  async #approveAndSignRequest(metadata: SignatureRequest) {
+  async #approveAndSignRequest(
+    metadata: SignatureRequest,
+    traceContext?: TraceContext,
+  ) {
     const { id } = metadata;
 
     this.#updateMetadata(id, (draftMetadata) => {
       draftMetadata.status = SignatureRequestStatus.Approved;
     });
 
-    await this.#signRequest(metadata);
+    await this.#trace({ name: 'Sign', parentContext: traceContext }, () =>
+      this.#signRequest(metadata),
+    );
   }
 
   async #signRequest(metadata: SignatureRequest) {
@@ -534,9 +573,19 @@ export class SignatureController extends BaseController<
   async #requestApproval(
     metadata: SignatureRequest,
     type: ApprovalType,
+    {
+      traceContext,
+      actionId,
+    }: { traceContext?: TraceContext; actionId?: string },
   ): Promise<AddResult> {
     const { id, request } = metadata;
     const origin = request.origin || ORIGIN_METAMASK;
+
+    await this.#trace({
+      name: 'Notification Display',
+      id: actionId,
+      parentContext: traceContext,
+    });
 
     return (await this.messagingSystem.call(
       'ApprovalController:addRequest',
