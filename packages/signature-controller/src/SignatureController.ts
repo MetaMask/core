@@ -262,24 +262,43 @@ export class SignatureController extends BaseController<
     });
   }
 
-  setDeferredSignSuccess(_messageId: string, _signature: any) {
-    throw new Error('Method not implemented.');
+  setDeferredSignSuccess(signatureRequestId: string, signature: any) {
+    const updatedSignatureRequest = this.#updateMetadata(
+      signatureRequestId,
+      (draftMetadata) => {
+        draftMetadata.signature = signature;
+        draftMetadata.status = SignatureRequestStatus.Signed;
+      },
+    );
+
+    this.hub.emit(`${signatureRequestId}:finished`, updatedSignatureRequest);
   }
 
-  setMessageMetadata(_messageId: string, _metadata: Json) {
-    throw new Error('Method not implemented.');
+  setMessageMetadata(signatureRequestId: string, metadata: Json) {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.metadata = metadata;
+    });
   }
 
-  setDeferredSignError(_messageId: string) {
-    throw new Error('Method not implemented.');
+  setDeferredSignError(signatureRequestId: string) {
+    const updatedSignatureRequest = this.#updateMetadata(
+      signatureRequestId,
+      (draftMetadata) => {
+        draftMetadata.status = SignatureRequestStatus.Rejected;
+      },
+    );
+
+    this.hub.emit(`${signatureRequestId}:finished`, updatedSignatureRequest);
   }
 
-  setTypedMessageInProgress(_messageId: string) {
-    throw new Error('Method not implemented.');
+  setTypedMessageInProgress(signatureRequestId: string) {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.InProgress;
+    });
   }
 
-  setPersonalMessageInProgress(_messageId: string) {
-    throw new Error('Method not implemented.');
+  setPersonalMessageInProgress(signatureRequestId: string) {
+    this.setTypedMessageInProgress(signatureRequestId);
   }
 
   #parseTypedData(
@@ -545,7 +564,7 @@ export class SignatureController extends BaseController<
       callback(state as any);
 
       const unapprovedRequests = Object.values(
-        state.signatureRequests as Record<string, SignatureRequest>,
+        state.signatureRequests as unknown as Record<string, SignatureRequest>,
       ).filter(
         (request) => request.status === SignatureRequestStatus.Unapproved,
       );

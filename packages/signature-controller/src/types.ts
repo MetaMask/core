@@ -41,6 +41,7 @@ export type MessageParamsTyped = MessageParams & {
 type SignatureRequestBase = {
   error?: string;
   id: string;
+  metadata?: Json;
   securityAlertResponse?: Record<string, Json>;
   signature?: string;
   signingOptions?: TypedSigningOptions;
@@ -65,6 +66,7 @@ export enum SignatureRequestStatus {
   Unapproved = 'unapproved',
   Approved = 'approved',
   Rejected = 'rejected',
+  InProgress = 'inProgress',
   Signed = 'signed',
   Errored = 'errored',
 }
