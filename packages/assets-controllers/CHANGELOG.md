@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.3.0]
 
-### Uncategorized
+### Changed
 
-- fix: remove includeDuplicateSymbolAssets filter ([#4768](https://github.com/MetaMask/core/pull/4768))
+- The `includeDuplicateSymbolAssets` param is removed from our api call to TokenApi ([#4768](https://github.com/MetaMask/core/pull/4768))
 
 ## [38.2.0]
 
