@@ -1,14 +1,21 @@
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import { Contract } from '@ethersproject/contracts';
+import { Web3Provider } from '@ethersproject/providers';
 import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
-import { safelyExecute, toHex } from '@metamask/controller-utils';
+import { toHex } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
+import type {
+  NetworkClientId,
+  NetworkControllerGetNetworkClientByIdAction,
+} from '@metamask/network-controller';
+import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type { Hex } from '@metamask/utils';
+import type BN from 'bn.js';
 
-import type { AssetsContractControllerGetERC20BalanceOfAction } from './AssetsContractController';
-import type { Token } from './TokenRatesController';
+import { multicallOrFallback } from './multicall';
 import type { TokensControllerStateChangeEvent } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
@@ -16,34 +23,32 @@ const DEFAULT_INTERVAL = 180000;
 const controllerName = 'TokenBalancesController';
 
 const metadata = {
-  contractBalances: { persist: true, anonymous: false },
+  tokenBalances: { persist: true, anonymous: false },
 };
 
 /**
  * Token balances controller options
  * @property interval - Polling interval used to fetch new token balances.
- * @property tokens - List of tokens to track balances for.
- * @property disabled - If set to true, all tracked tokens contract balances updates are blocked.
+ * @property messenger - A controller messenger.
+ * @property state - Initial state for the controller.
  */
 type TokenBalancesControllerOptions = {
   interval?: number;
-  tokens?: Token[];
-  disabled?: boolean;
   messenger: TokenBalancesControllerMessenger;
   state?: Partial<TokenBalancesControllerState>;
 };
 
 /**
- * Represents a mapping of hash token contract addresses to their balances.
+ * A mapping from account address to chain id to token address to balance.
  */
-type ContractBalances = Record<string, string>;
+type TokenBalances = Record<Hex, Record<Hex, Record<Hex, Hex>>>;
 
 /**
  * Token balances controller state
- * @property contractBalances - Hash of token contract addresses to balances
+ * @property tokenBalances - A mapping from account address to chain id to token address to balance.
  */
 export type TokenBalancesControllerState = {
-  contractBalances: ContractBalances;
+  tokenBalances: TokenBalances;
 };
 
 export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
@@ -54,9 +59,7 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
 export type TokenBalancesControllerActions =
   TokenBalancesControllerGetStateAction;
 
-export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
-  | AssetsContractControllerGetERC20BalanceOfAction;
+export type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -84,7 +87,7 @@ export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
  */
 export function getDefaultTokenBalancesState(): TokenBalancesControllerState {
   return {
-    contractBalances: {},
+    tokenBalances: {},
   };
 }
 
@@ -92,33 +95,21 @@ export function getDefaultTokenBalancesState(): TokenBalancesControllerState {
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the TokensController
  */
-export class TokenBalancesController extends BaseController<
+export class TokenBalancesController extends StaticIntervalPollingController<
   typeof controllerName,
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
 > {
-  #handle?: ReturnType<typeof setTimeout>;
-
-  #interval: number;
-
-  #tokens: Token[];
-
-  #disabled: boolean;
-
   /**
    * Construct a Token Balances Controller.
    *
    * @param options - The controller options.
    * @param options.interval - Polling interval used to fetch new token balances.
-   * @param options.tokens - List of tokens to track balances for.
-   * @param options.disabled - If set to true, all tracked tokens contract balances updates are blocked.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller restricted messenger.
    */
   constructor({
     interval = DEFAULT_INTERVAL,
-    tokens = [],
-    disabled = false,
     messenger,
     state = {},
   }: TokenBalancesControllerOptions) {
@@ -132,92 +123,53 @@ export class TokenBalancesController extends BaseController<
       },
     });
 
-    this.#disabled = disabled;
-    this.#interval = interval;
-    this.#tokens = tokens;
+    this.setIntervalLength(interval);
+  }
 
-    this.messagingSystem.subscribe(
-      'TokensController:stateChange',
-      ({ tokens: newTokens, detectedTokens }) => {
-        this.#tokens = [...newTokens, ...detectedTokens];
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.updateBalances();
-      },
+  /**
+   * Polls for erc20 token balances.
+   * @param networkClientId - The network client id to poll with.
+   * @param options - A mapping from account addresses to token addresses to poll.
+   */
+  async _executePoll(
+    networkClientId: NetworkClientId,
+    options: Record<Hex, Hex[]>,
+  ): Promise<void> {
+    const networkClient = this.messagingSystem.call(
+      `NetworkController:getNetworkClientById`,
+      networkClientId,
     );
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    this.poll();
-  }
+    const { chainId } = networkClient.configuration;
+    const provider = new Web3Provider(networkClient.provider);
 
-  /**
-   * Allows controller to update tracked tokens contract balances.
-   */
-  enable() {
-    this.#disabled = false;
-  }
-
-  /**
-   * Blocks controller from updating tracked tokens contract balances.
-   */
-  disable() {
-    this.#disabled = true;
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   * @param interval - Polling interval used to fetch new token balances.
-   */
-  async poll(interval?: number): Promise<void> {
-    if (interval) {
-      this.#interval = interval;
-    }
-
-    if (this.#handle) {
-      clearTimeout(this.#handle);
-    }
-
-    await safelyExecute(() => this.updateBalances());
-
-    this.#handle = setTimeout(() => {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      this.poll(this.#interval);
-    }, this.#interval);
-  }
-
-  /**
-   * Updates balances for all tokens.
-   */
-  async updateBalances() {
-    if (this.#disabled) {
-      return;
-    }
-    const selectedInternalAccount = this.messagingSystem.call(
-      'AccountsController:getSelectedAccount',
+    const accountTokenPairs = Object.entries(options).flatMap(
+      ([accountAddress, tokenAddresses]) =>
+        tokenAddresses.map((tokenAddress) => ({
+          accountAddress: accountAddress as Hex,
+          tokenAddress,
+        })),
     );
 
-    const newContractBalances: ContractBalances = {};
-    for (const token of this.#tokens) {
-      const { address } = token;
-      try {
-        const balance = await this.messagingSystem.call(
-          'AssetsContractController:getERC20BalanceOf',
-          address,
-          selectedInternalAccount.address,
-        );
-        newContractBalances[address] = toHex(balance);
-        token.hasBalanceError = false;
-      } catch (error) {
-        newContractBalances[address] = toHex(0);
-        token.hasBalanceError = true;
-      }
-    }
+    const calls = accountTokenPairs.map(({ accountAddress, tokenAddress }) => ({
+      contract: new Contract(tokenAddress, abiERC20, provider),
+      functionSignature: 'balanceOf(address)',
+      arguments: [accountAddress],
+    }));
+
+    const results = await multicallOrFallback(calls, chainId, provider);
 
     this.update((state) => {
-      state.contractBalances = newContractBalances;
+      for (let i = 0; i < results.length; i++) {
+        const { success, value } = results[i];
+
+        if (success) {
+          const { accountAddress, tokenAddress } = accountTokenPairs[i];
+          ((state.tokenBalances[accountAddress] ??= {})[chainId] ??= {})[
+            tokenAddress
+          ] = toHex(value as BN);
+        }
+      }
     });
   }
 }
