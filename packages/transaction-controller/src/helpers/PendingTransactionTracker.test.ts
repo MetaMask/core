@@ -79,12 +79,12 @@ describe('PendingTransactionTracker', () => {
       );
     }
 
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/await-thenable
     await blockTracker.on.mock.calls[0][1](latestBlockNumber);
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     blockTracker = createBlockTrackerMock();
     failTransaction = jest.fn();
 
@@ -887,7 +887,10 @@ describe('PendingTransactionTracker', () => {
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
           expect(options.publishTransaction).toHaveBeenCalledWith(
             ETH_QUERY_MOCK,
-            TRANSACTION_SUBMITTED_MOCK.rawTx,
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
+            },
           );
         });
 
@@ -1006,50 +1009,6 @@ describe('PendingTransactionTracker', () => {
           await onLatestBlock('0x124');
 
           expect(options.publishTransaction).toHaveBeenCalledTimes(0);
-        });
-      });
-
-      describe('approves transaction', () => {
-        it('if no raw transaction', async () => {
-          const getTransactions = jest.fn().mockReturnValue(
-            freeze(
-              [
-                {
-                  ...TRANSACTION_SUBMITTED_MOCK,
-                  rawTx: undefined,
-                },
-              ],
-              true,
-            ),
-          );
-
-          pendingTransactionTracker = new PendingTransactionTracker({
-            ...options,
-            getTransactions,
-          });
-
-          queryMock.mockResolvedValueOnce(undefined);
-          queryMock.mockResolvedValueOnce('0x1');
-
-          await onLatestBlock(BLOCK_NUMBER_MOCK);
-          getTransactions.mockReturnValue(
-            freeze(
-              [
-                {
-                  ...TRANSACTION_SUBMITTED_MOCK,
-                  rawTx: undefined,
-                  firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
-                },
-              ],
-              true,
-            ),
-          );
-          await onLatestBlock('0x124');
-
-          expect(options.approveTransaction).toHaveBeenCalledTimes(1);
-          expect(options.approveTransaction).toHaveBeenCalledWith(
-            TRANSACTION_SUBMITTED_MOCK.id,
-          );
         });
       });
     });

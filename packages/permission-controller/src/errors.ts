@@ -160,7 +160,11 @@ export class EndowmentPermissionDoesNotExistError extends Error {
   public data?: { origin: string };
 
   constructor(target: string, origin?: string) {
-    super(`Subject "${origin}" has no permission for "${target}".`);
+    super(
+      `${
+        origin ? `Subject "${origin}"` : 'Unknown subject'
+      } has no permission for "${target}".`,
+    );
     if (origin) {
       this.data = { origin };
     }

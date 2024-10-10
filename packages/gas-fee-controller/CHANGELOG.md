@@ -7,6 +7,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [20.0.0]
+
+### Changed
+
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/polling-controller` from `^9.0.1` to `^10.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [19.0.1]
+
+### Changed
+
+- Remove `@metamask/network-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+  - This was listed under `peerDependencies` already, so it was redundant as a dependency.
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/polling-controller` from `^9.0.0` to `^9.0.1` ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- Bump `@metamask/polling-controller` to `^9.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+## [18.0.0]
+
+### Added
+
+- **BREAKING:** Add constructor options to `GasFeeController`: `EIP1559APIEndpoint` (required), and `legacyAPIEndpoint` (optional) which defaults to `LEGACY_GAS_PRICES_API_URL`. ([#4446](https://github.com/MetaMask/core/pull/4446))
+  - These URLs are no longer hardcoded within the controller.
+
+### Removed
+
+- **BREAKING:** Remove `infuraAPIKey` as a constructor option for `GasFeeController`. This class field was previously used to construct and send the `Authorization` header for Infura gas API requests. ([#4446](https://github.com/MetaMask/core/pull/4446))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/polling-controller` to `^8.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [15.1.2]
 
 ### Fixed
@@ -275,7 +351,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@20.0.1...HEAD
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@20.0.0...@metamask/gas-fee-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@19.0.1...@metamask/gas-fee-controller@20.0.0
+[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@19.0.0...@metamask/gas-fee-controller@19.0.1
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@18.0.0...@metamask/gas-fee-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@17.0.0...@metamask/gas-fee-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@16.0.0...@metamask/gas-fee-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.2...@metamask/gas-fee-controller@16.0.0
 [15.1.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.1...@metamask/gas-fee-controller@15.1.2
 [15.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.1.0...@metamask/gas-fee-controller@15.1.1
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@15.0.0...@metamask/gas-fee-controller@15.1.0

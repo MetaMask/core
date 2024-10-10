@@ -17,43 +17,193 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .reply(200, {
+          '0x0000000000000000000000000000000000000000': {
+            price: 14,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
           '0xaaa': {
-            eth: 148.17205755299946,
+            price: 148.17205755299946,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xbbb': {
-            eth: 33689.98134554716,
+            price: 33689.98134554716,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xccc': {
-            eth: 148.1344197578456,
+            price: 148.1344197578456,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
         });
 
-      const pricedTokensByAddress =
+      const marketDataTokensByAddress =
         await new CodefiTokenPricesServiceV2().fetchTokenPrices({
           chainId: '0x1',
           tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
           currency: 'ETH',
         });
 
-      expect(pricedTokensByAddress).toStrictEqual({
+      expect(marketDataTokensByAddress).toStrictEqual({
+        '0x0000000000000000000000000000000000000000': {
+          tokenAddress: '0x0000000000000000000000000000000000000000',
+          currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 14,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
+        },
         '0xAAA': {
           tokenAddress: '0xAAA',
-          value: 148.17205755299946,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 148.17205755299946,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
       });
     });
@@ -62,15 +212,74 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .reply(200, {
+          '0x0000000000000000000000000000000000000000': {
+            price: 14,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
           '0xbbb': {
-            eth: 33689.98134554716,
+            price: 33689.98134554716,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xccc': {
-            eth: 148.1344197578456,
+            price: 148.1344197578456,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
         });
 
@@ -80,15 +289,71 @@ describe('CodefiTokenPricesServiceV2', () => {
         currency: 'ETH',
       });
       expect(result).toStrictEqual({
+        '0x0000000000000000000000000000000000000000': {
+          tokenAddress: '0x0000000000000000000000000000000000000000',
+          currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 14,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
+        },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
       });
     });
@@ -97,16 +362,52 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .reply(200, {
           '0xaaa': {},
           '0xbbb': {
-            eth: 33689.98134554716,
+            price: 33689.98134554716,
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xccc': {
-            eth: 148.1344197578456,
+            price: 148.1344197578456,
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
         });
 
@@ -117,15 +418,103 @@ describe('CodefiTokenPricesServiceV2', () => {
       });
 
       expect(result).toStrictEqual({
+        '0xAAA': {
+          currency: 'ETH',
+          tokenAddress: '0xAAA',
+        },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
+        },
+      });
+    });
+
+    it('should correctly handle null market data for a token address', async () => {
+      nock('https://price.api.cx.metamask.io')
+        .get('/v2/chains/1/spot-prices')
+        .query({
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
+          vsCurrency: 'ETH',
+          includeMarketData: 'true',
+        })
+        .reply(200, {
+          '0x0000000000000000000000000000000000000000': {
+            price: 14,
+            currency: 'ETH',
+          },
+          '0xaaa': null, // Simulating API returning null for market data
+          '0xbbb': {
+            price: 33689.98134554716,
+            currency: 'ETH',
+          },
+          '0xccc': {
+            price: 148.1344197578456,
+            currency: 'ETH',
+          },
+        });
+
+      const result = await new CodefiTokenPricesServiceV2().fetchTokenPrices({
+        chainId: '0x1',
+        tokenAddresses: ['0xAAA', '0xBBB', '0xCCC'],
+        currency: 'ETH',
+      });
+
+      expect(result).toStrictEqual({
+        '0x0000000000000000000000000000000000000000': {
+          tokenAddress: '0x0000000000000000000000000000000000000000',
+          currency: 'ETH',
+          price: 14,
+        },
+        '0xBBB': {
+          tokenAddress: '0xBBB',
+          currency: 'ETH',
+          price: 33689.98134554716,
+        },
+        '0xCCC': {
+          tokenAddress: '0xCCC',
+          currency: 'ETH',
+          price: 148.1344197578456,
         },
       });
     });
@@ -134,8 +523,10 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .replyWithError('Failed to fetch')
         .persist();
@@ -154,8 +545,10 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .times(1 + retries)
         .replyWithError('Failed to fetch');
@@ -175,8 +568,10 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .times(retries)
         .replyWithError('Failed to fetch');
@@ -184,22 +579,99 @@ describe('CodefiTokenPricesServiceV2', () => {
       nock('https://price.api.cx.metamask.io')
         .get('/v2/chains/1/spot-prices')
         .query({
-          tokenAddresses: '0xAAA,0xBBB,0xCCC',
+          tokenAddresses:
+            '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
           vsCurrency: 'ETH',
+          includeMarketData: 'true',
         })
         .reply(200, {
+          '0x0000000000000000000000000000000000000000': {
+            price: 14,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
           '0xaaa': {
-            eth: 148.17205755299946,
+            price: 148.17205755299946,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xbbb': {
-            eth: 33689.98134554716,
+            price: 33689.98134554716,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xccc': {
-            eth: 148.1344197578456,
+            price: 148.1344197578456,
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
         });
 
-      const pricedTokensByAddress = await new CodefiTokenPricesServiceV2({
+      const marketDataTokensByAddress = await new CodefiTokenPricesServiceV2({
         retries,
       }).fetchTokenPrices({
         chainId: '0x1',
@@ -207,21 +679,94 @@ describe('CodefiTokenPricesServiceV2', () => {
         currency: 'ETH',
       });
 
-      expect(pricedTokensByAddress).toStrictEqual({
+      expect(marketDataTokensByAddress).toStrictEqual({
+        '0x0000000000000000000000000000000000000000': {
+          tokenAddress: '0x0000000000000000000000000000000000000000',
+          currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 14,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
+        },
         '0xAAA': {
           tokenAddress: '0xAAA',
-          value: 148.17205755299946,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 148.17205755299946,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
         '0xBBB': {
           tokenAddress: '0xBBB',
-          value: 33689.98134554716,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 33689.98134554716,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
         '0xCCC': {
           tokenAddress: '0xCCC',
-          value: 148.1344197578456,
           currency: 'ETH',
+          pricePercentChange1d: 1,
+          priceChange1d: 1,
+          marketCap: 117219.99428314982,
+          allTimeHigh: 0.00060467892389492,
+          allTimeLow: 0.00002303954000865728,
+          totalVolume: 5155.094053542448,
+          high1d: 0.00008020715848194385,
+          low1d: 0.00007792083564549064,
+          price: 148.1344197578456,
+          circulatingSupply: 1494269733.9526057,
+          dilutedMarketCap: 117669.5125951733,
+          marketCapPercentChange1d: 0.76671,
+          pricePercentChange1h: -1.0736342953259423,
+          pricePercentChange7d: -7.351582573655089,
+          pricePercentChange14d: -1.0799098946709822,
+          pricePercentChange30d: -25.776321124365992,
+          pricePercentChange200d: 46.091571238599165,
+          pricePercentChange1y: -2.2992517267242754,
         },
       });
     });
@@ -242,19 +787,96 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .delay(degradedThreshold / 2)
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
           });
         const onDegradedHandler = jest.fn();
@@ -281,27 +903,46 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .replyWithError('Failed to fetch');
         // Second interceptor for successful response
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .delay(500)
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
           });
         const onDegradedHandler = jest.fn();
@@ -330,8 +971,10 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .replyWithError('Failed to fetch');
         const onDegradedHandler = jest.fn();
@@ -362,19 +1005,36 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .delay(degradedThreshold * 2)
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
           });
         const onDegradedHandler = jest.fn();
@@ -405,27 +1065,46 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .replyWithError('Failed to fetch');
         // Second interceptor for successful response
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .delay(degradedThreshold * 2)
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
             },
           });
         const onDegradedHandler = jest.fn();
@@ -469,8 +1148,10 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
@@ -478,18 +1159,95 @@ describe('CodefiTokenPricesServiceV2', () => {
         const successfullCallScope = nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
           });
         const service = new CodefiTokenPricesServiceV2({
@@ -538,8 +1296,10 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
@@ -547,18 +1307,95 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
           });
         const onBreakHandler = jest.fn();
@@ -602,8 +1439,10 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
@@ -666,8 +1505,10 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           // The +1 is for the additional request when the circuit is half-open
           .times(maximumConsecutiveFailures + 1)
@@ -680,14 +1521,89 @@ describe('CodefiTokenPricesServiceV2', () => {
             vsCurrency: 'ETH',
           })
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
           });
         const service = new CodefiTokenPricesServiceV2({
@@ -762,8 +1678,10 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .times(maximumConsecutiveFailures)
           .replyWithError('Failed to fetch');
@@ -771,18 +1689,95 @@ describe('CodefiTokenPricesServiceV2', () => {
         nock('https://price.api.cx.metamask.io')
           .get('/v2/chains/1/spot-prices')
           .query({
-            tokenAddresses: '0xAAA,0xBBB,0xCCC',
+            tokenAddresses:
+              '0x0000000000000000000000000000000000000000,0xAAA,0xBBB,0xCCC',
             vsCurrency: 'ETH',
+            includeMarketData: 'true',
           })
           .reply(200, {
+            '0x0000000000000000000000000000000000000000': {
+              price: 14,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
+            },
             '0xaaa': {
-              eth: 148.17205755299946,
+              price: 148.17205755299946,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xbbb': {
-              eth: 33689.98134554716,
+              price: 33689.98134554716,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
             '0xccc': {
-              eth: 148.1344197578456,
+              price: 148.1344197578456,
+              currency: 'ETH',
+              pricePercentChange1d: 1,
+              priceChange1d: 1,
+              marketCap: 117219.99428314982,
+              allTimeHigh: 0.00060467892389492,
+              allTimeLow: 0.00002303954000865728,
+              totalVolume: 5155.094053542448,
+              high1d: 0.00008020715848194385,
+              low1d: 0.00007792083564549064,
+              circulatingSupply: 1494269733.9526057,
+              dilutedMarketCap: 117669.5125951733,
+              marketCapPercentChange1d: 0.76671,
+              pricePercentChange1h: -1.0736342953259423,
+              pricePercentChange7d: -7.351582573655089,
+              pricePercentChange14d: -1.0799098946709822,
+              pricePercentChange30d: -25.776321124365992,
+              pricePercentChange200d: 46.091571238599165,
+              pricePercentChange1y: -2.2992517267242754,
             },
           });
         const service = new CodefiTokenPricesServiceV2({
@@ -821,27 +1816,100 @@ describe('CodefiTokenPricesServiceV2', () => {
         // Wait for circuit to move to half-open
         await clock.tickAsync(circuitBreakDuration);
 
-        const pricedTokensByAddress = await fetchTokenPricesWithFakeTimers({
+        const marketDataTokensByAddress = await fetchTokenPricesWithFakeTimers({
           clock,
           fetchTokenPrices,
           retries,
         });
 
-        expect(pricedTokensByAddress).toStrictEqual({
+        expect(marketDataTokensByAddress).toStrictEqual({
+          '0x0000000000000000000000000000000000000000': {
+            tokenAddress: '0x0000000000000000000000000000000000000000',
+            currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            price: 14,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
+          },
           '0xAAA': {
             tokenAddress: '0xAAA',
-            value: 148.17205755299946,
             currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            price: 148.17205755299946,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xBBB': {
             tokenAddress: '0xBBB',
-            value: 33689.98134554716,
             currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            price: 33689.98134554716,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
           '0xCCC': {
             tokenAddress: '0xCCC',
-            value: 148.1344197578456,
             currency: 'ETH',
+            pricePercentChange1d: 1,
+            priceChange1d: 1,
+            marketCap: 117219.99428314982,
+            allTimeHigh: 0.00060467892389492,
+            allTimeLow: 0.00002303954000865728,
+            totalVolume: 5155.094053542448,
+            high1d: 0.00008020715848194385,
+            low1d: 0.00007792083564549064,
+            price: 148.1344197578456,
+            circulatingSupply: 1494269733.9526057,
+            dilutedMarketCap: 117669.5125951733,
+            marketCapPercentChange1d: 0.76671,
+            pricePercentChange1h: -1.0736342953259423,
+            pricePercentChange7d: -7.351582573655089,
+            pricePercentChange14d: -1.0799098946709822,
+            pricePercentChange30d: -25.776321124365992,
+            pricePercentChange200d: 46.091571238599165,
+            pricePercentChange1y: -2.2992517267242754,
           },
         });
       });

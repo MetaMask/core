@@ -50,7 +50,11 @@ const PARSED_ERC20_TRANSFER_EVENT_MOCK = {
 const PARSED_ERC721_TRANSFER_EVENT_MOCK = {
   name: 'Transfer',
   contractAddress: CONTRACT_ADDRESS_1_MOCK,
-  args: [OTHER_ADDRESS_MOCK, USER_ADDRESS_MOCK, TOKEN_ID_MOCK],
+  args: [
+    OTHER_ADDRESS_MOCK,
+    USER_ADDRESS_MOCK,
+    { toHexString: () => TOKEN_ID_MOCK },
+  ],
 } as unknown as LogDescription;
 
 const PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK = {
@@ -60,7 +64,7 @@ const PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK = {
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    TOKEN_ID_MOCK,
+    { toHexString: () => TOKEN_ID_MOCK },
     { toHexString: () => VALUE_MOCK },
   ],
 } as unknown as LogDescription;
@@ -72,7 +76,7 @@ const PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK = {
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    [TOKEN_ID_MOCK],
+    [{ toHexString: () => TOKEN_ID_MOCK }],
     [{ toHexString: () => VALUE_MOCK }],
   ],
 } as unknown as LogDescription;
@@ -266,7 +270,6 @@ describe('Simulation Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
 
   beforeEach(() => {
-    jest.resetAllMocks();
     jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
   });
 

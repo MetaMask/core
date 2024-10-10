@@ -1,21 +1,34 @@
 import {
-  BUILT_IN_NETWORKS,
+  ChainId,
   InfuraNetworkType,
+  NetworkNickname,
+  NetworksTicker,
   toHex,
 } from '@metamask/controller-utils';
+import { v4 as uuidV4 } from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import type { FakeProviderStub } from '../../../tests/fake-provider';
+import { buildTestObject } from '../../../tests/helpers';
 import type {
   BuiltInNetworkClientId,
   CustomNetworkClientId,
   NetworkClient,
   NetworkClientConfiguration,
   NetworkClientId,
+  NetworkConfiguration,
   NetworkController,
 } from '../src';
 import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
+import type {
+  AddNetworkCustomRpcEndpointFields,
+  AddNetworkFields,
+  CustomRpcEndpoint,
+  InfuraRpcEndpoint,
+  UpdateNetworkCustomRpcEndpointFields,
+} from '../src/NetworkController';
+import { RpcEndpointType } from '../src/NetworkController';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -39,10 +52,11 @@ function buildFakeNetworkClient({
   configuration: NetworkClientConfiguration;
   providerStubs?: FakeProviderStub[];
 }): NetworkClient {
+  const provider = new FakeProvider({ stubs: providerStubs });
   return {
     configuration,
-    provider: new FakeProvider({ stubs: providerStubs }),
-    blockTracker: new FakeBlockTracker(),
+    provider,
+    blockTracker: new FakeBlockTracker({ provider }),
     destroy: () => {
       // do nothing
     },
@@ -126,17 +140,20 @@ export function buildMockGetNetworkClientById(
  * of an Infura network.
  *
  * @param network - The name of an Infura network.
- * @returns the Infura network client configuration.
+ * @param overrides - Properties to merge into the configuration object.
+ * @returns the complete Infura network client configuration.
  */
 export function buildInfuraNetworkClientConfiguration(
   network: InfuraNetworkType,
+  overrides: Partial<InfuraNetworkClientConfiguration> = {},
 ): InfuraNetworkClientConfiguration {
   return {
     type: NetworkClientType.Infura,
     network,
     infuraProjectId: 'test-infura-project-id',
-    chainId: BUILT_IN_NETWORKS[network].chainId,
-    ticker: BUILT_IN_NETWORKS[network].ticker,
+    chainId: ChainId[network],
+    ticker: NetworksTicker[network],
+    ...overrides,
   };
 }
 
@@ -163,4 +180,264 @@ export function buildCustomNetworkClientConfiguration(
       type: NetworkClientType.Custom,
     },
   );
+}
+
+/**
+ * Constructs a NetworkConfiguration object for use in testing, providing
+ * defaults and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new
+ * NetworkConfiguration with.
+ * @param defaultRpcEndpointType - The type of the RPC endpoint you want to
+ * use by default.
+ * @returns The complete NetworkConfiguration object.
+ */
+export function buildNetworkConfiguration(
+  overrides: Partial<NetworkConfiguration> = {},
+  defaultRpcEndpointType: RpcEndpointType = RpcEndpointType.Custom,
+): NetworkConfiguration {
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => '0x1337',
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => 'Some Network',
+      nativeCurrency: () => 'TOKEN',
+      rpcEndpoints: () => [
+        defaultRpcEndpointType === RpcEndpointType.Infura
+          ? buildInfuraRpcEndpoint(InfuraNetworkType['linea-goerli'])
+          : buildCustomRpcEndpoint({ url: 'https://test.endpoint' }),
+      ],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs a NetworkConfiguration object preloaded with a custom RPC endpoint
+ * for use in testing, providing defaults and allowing properties to be
+ * overridden at will.
+ *
+ * @param overrides - The properties to override the new NetworkConfiguration
+ * with.
+ * @returns The complete NetworkConfiguration object.
+ */
+export function buildCustomNetworkConfiguration(
+  overrides: Partial<NetworkConfiguration> = {},
+): NetworkConfiguration {
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => '0x1337' as const,
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => 'Some Network',
+      nativeCurrency: () => 'TOKEN',
+      rpcEndpoints: () => [
+        buildCustomRpcEndpoint({
+          url: generateCustomRpcEndpointUrl(),
+        }),
+      ],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs a NetworkConfiguration object preloaded with an Infura RPC
+ * endpoint for use in testing.
+ *
+ * @param infuraNetworkType - The Infura network type from which to create the
+ * NetworkConfiguration.
+ * @param overrides - The properties to override the new NetworkConfiguration
+ * with.
+ * @param overrides.rpcEndpoints - Extra RPC endpoints.
+ * @returns The complete NetworkConfiguration object.
+ */
+export function buildInfuraNetworkConfiguration(
+  infuraNetworkType: InfuraNetworkType,
+  overrides: Partial<NetworkConfiguration> = {},
+): NetworkConfiguration {
+  const defaultRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => ChainId[infuraNetworkType],
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => NetworkNickname[infuraNetworkType],
+      nativeCurrency: () => NetworksTicker[infuraNetworkType],
+      rpcEndpoints: () => [defaultRpcEndpoint],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs a InfuraRpcEndpoint object for use in testing.
+ *
+ * @param infuraNetworkType - The Infura network type from which to create the
+ * InfuraRpcEndpoint.
+ * @returns The created InfuraRpcEndpoint object.
+ */
+export function buildInfuraRpcEndpoint(
+  infuraNetworkType: InfuraNetworkType,
+): InfuraRpcEndpoint {
+  return {
+    networkClientId: infuraNetworkType,
+    type: RpcEndpointType.Infura as const,
+    // False negative - this is a string.
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+  };
+}
+
+/**
+ * Constructs an CustomRpcEndpoint object for use in testing, providing defaults
+ * and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new CustomRpcEndpoint with.
+ * @returns The complete CustomRpcEndpoint object.
+ */
+export function buildCustomRpcEndpoint(
+  overrides: Partial<CustomRpcEndpoint> = {},
+): CustomRpcEndpoint {
+  return buildTestObject(
+    {
+      networkClientId: () => uuidV4(),
+      type: () => RpcEndpointType.Custom as const,
+      url: () => generateCustomRpcEndpointUrl(),
+    },
+    overrides,
+  );
+}
+
+/**
+ * Constructs an AddNetworkFields object for use in testing, providing defaults
+ * and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new AddNetworkFields with.
+ * @returns The complete AddNetworkFields object.
+ */
+export function buildAddNetworkFields(
+  overrides: Partial<AddNetworkFields> = {},
+): AddNetworkFields {
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => '0x1337' as const,
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => 'Some Network',
+      nativeCurrency: () => 'TOKEN',
+      rpcEndpoints: () => [
+        buildAddNetworkCustomRpcEndpointFields({
+          url: generateCustomRpcEndpointUrl(),
+        }),
+      ],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs an AddNetworkCustomRpcEndpointFields object for use in testing,
+ * providing defaults and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new
+ * AddNetworkCustomRpcEndpointFields with.
+ * @returns The complete AddNetworkCustomRpcEndpointFields object.
+ */
+export function buildAddNetworkCustomRpcEndpointFields(
+  overrides: Partial<AddNetworkCustomRpcEndpointFields> = {},
+): AddNetworkCustomRpcEndpointFields {
+  return buildTestObject(
+    {
+      type: () => RpcEndpointType.Custom as const,
+      url: () => generateCustomRpcEndpointUrl(),
+    },
+    overrides,
+  );
+}
+
+/**
+ * Constructs an UpdateNetworkCustomRpcEndpointFields object for use in testing,
+ * providing defaults and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new
+ * UpdateNetworkCustomRpcEndpointFields with.
+ * @returns The complete UpdateNetworkCustomRpcEndpointFields object.
+ */
+export function buildUpdateNetworkCustomRpcEndpointFields(
+  overrides: Partial<UpdateNetworkCustomRpcEndpointFields> = {},
+): UpdateNetworkCustomRpcEndpointFields {
+  return buildTestObject(
+    {
+      type: () => RpcEndpointType.Custom as const,
+      url: () => generateCustomRpcEndpointUrl(),
+    },
+    overrides,
+  );
+}
+
+let testEndpointCounter = 0;
+
+/**
+ * Generates a unique custom RPC endpoint URL for testing.
+ *
+ * @returns The generated RPC endpoint URL.
+ */
+function generateCustomRpcEndpointUrl(): string {
+  const url = `https://test.endpoint/${testEndpointCounter}`;
+  testEndpointCounter += 1;
+  return url;
 }

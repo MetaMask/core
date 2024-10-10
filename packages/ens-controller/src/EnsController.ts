@@ -1,7 +1,3 @@
-import type {
-  ExternalProvider,
-  JsonRpcFetchFunc,
-} from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
 import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
@@ -15,10 +11,14 @@ import {
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
-import { toASCII } from 'punycode/';
+import { toASCII } from 'punycode/punycode.js';
 
 const log = createProjectLogger('ens-controller');
 
@@ -69,11 +69,15 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
+export type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction;
+
 export type EnsControllerMessenger = RestrictedControllerMessenger<
   typeof name,
+  AllowedActions,
   never,
-  never,
-  never,
+  AllowedActions['type'],
   never
 >;
 
@@ -108,22 +112,19 @@ export class EnsController extends BaseController<
    * @param options.registriesByChainId - Map between chain IDs and ENS contract addresses.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.provider - Provider instance.
    * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
     registriesByChainId = DEFAULT_ENS_NETWORK_MAP,
     messenger,
     state = {},
-    provider,
     onNetworkDidChange,
   }: {
     registriesByChainId?: Record<number, Hex>;
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
-    provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkDidChange?: (
-      listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
+      listener: (networkState: NetworkState) => void,
     ) => void;
   }) {
     super({
@@ -148,21 +149,12 @@ export class EnsController extends BaseController<
       },
     });
 
-    if (provider && onNetworkDidChange) {
-      onNetworkDidChange((networkState) => {
+    this.#setDefaultEthProvider(registriesByChainId);
+
+    if (onNetworkDidChange) {
+      onNetworkDidChange(({ selectedNetworkClientId }) => {
         this.resetState();
-        const currentChainId = networkState.providerConfig.chainId;
-        if (this.#getChainEnsSupport(currentChainId)) {
-          this.#ethProvider = new Web3Provider(provider, {
-            chainId: convertHexToDecimal(currentChainId),
-            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentChainId as ChainId
-            ],
-            ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
-          });
-        } else {
-          this.#ethProvider = null;
-        }
+        this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
       });
     }
   }
@@ -248,6 +240,8 @@ export class EnsController extends BaseController<
       (address && !isValidHexAddress(address))
     ) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid ENS entry: { chainId:${chainId}, ensName:${ensName}, address:${address}}`,
       );
     }
@@ -281,6 +275,40 @@ export class EnsController extends BaseController<
       };
     });
     return true;
+  }
+
+  #setDefaultEthProvider(registriesByChainId?: Record<number, Hex>) {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
+  }
+
+  #setEthProvider(
+    selectedNetworkClientId: string,
+    registriesByChainId?: Record<number, Hex>,
+  ) {
+    const {
+      configuration: { chainId: currentChainId },
+      provider,
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+
+    if (
+      registriesByChainId &&
+      registriesByChainId[parseInt(currentChainId, 16)] &&
+      this.#getChainEnsSupport(currentChainId)
+    ) {
+      this.#ethProvider = new Web3Provider(provider, {
+        chainId: convertHexToDecimal(currentChainId),
+        name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[currentChainId as ChainId],
+        ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
+      });
+    } else {
+      this.#ethProvider = null;
+    }
   }
 
   /**

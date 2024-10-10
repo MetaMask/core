@@ -79,7 +79,10 @@ describe('PersonalMessageManager', () => {
       from: fromMock,
     };
     const originalRequest = {
+      id: 111,
       origin: 'origin',
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/naming-convention
       securityAlertResponse: { result_type: 'result_type', reason: 'reason' },
     };
     const messageId = await controller.addUnapprovedMessage(
@@ -93,6 +96,7 @@ describe('PersonalMessageManager', () => {
     }
     expect(message.messageParams.from).toBe(messageParams.from);
     expect(message.messageParams.data).toBe(messageParams.data);
+    expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);

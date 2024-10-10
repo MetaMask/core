@@ -74,6 +74,10 @@ describe('util', () => {
       expect(util.toHex(new BN(4919))).toBe('0x1337');
     });
 
+    it('converts a bigint to a string prepended with "0x"', () => {
+      expect(util.toHex(4919n)).toBe('0x1337');
+    });
+
     it('parses a string as a number in decimal format and converts it to a hex string prepended with "0x"', () => {
       expect(util.toHex('4919')).toBe('0x1337');
     });
@@ -507,6 +511,8 @@ describe('util', () => {
             if (method === 'eth_getBlockByHash') {
               return cb(null, { id: params[0] });
             }
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             throw new Error(`Unsupported method ${method}`);
           }
         }

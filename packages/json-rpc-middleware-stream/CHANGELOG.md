@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.3]
+
+### Changed
+
+- Bump TypeScript from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [8.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [8.0.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` to `^9.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+- Bump `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+### Fixed
+
+- Fix incorrect notification detection logic ([#4427](https://github.com/MetaMask/core/pull/4427))
+  - Previously, response objects with a falsy `id` property were detected as notifications. Now, we check for the absence of the `id` property.
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [7.0.2]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
 ## [7.0.1]
 
 ### Fixed
@@ -116,7 +171,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.3...HEAD
+[8.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.2...@metamask/json-rpc-middleware-stream@8.0.3
+[8.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.1...@metamask/json-rpc-middleware-stream@8.0.2
+[8.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.0...@metamask/json-rpc-middleware-stream@8.0.1
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.2...@metamask/json-rpc-middleware-stream@8.0.0
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.1...@metamask/json-rpc-middleware-stream@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@7.0.0...@metamask/json-rpc-middleware-stream@7.0.1
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.2...@metamask/json-rpc-middleware-stream@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@6.0.1...@metamask/json-rpc-middleware-stream@6.0.2

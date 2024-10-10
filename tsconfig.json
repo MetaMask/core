@@ -1,6 +1,7 @@
 {
   "compilerOptions": { "esModuleInterop": true, "noEmit": true },
   "references": [
+    { "path": "./examples/example-controllers" },
     { "path": "./packages/accounts-controller" },
     { "path": "./packages/address-book-controller" },
     { "path": "./packages/announcement-controller" },
@@ -20,6 +21,7 @@
     { "path": "./packages/name-controller" },
     { "path": "./packages/network-controller" },
     { "path": "./packages/notification-controller" },
+    { "path": "./packages/notification-services-controller" },
     { "path": "./packages/permission-controller" },
     { "path": "./packages/permission-log-controller" },
     { "path": "./packages/phishing-controller" },

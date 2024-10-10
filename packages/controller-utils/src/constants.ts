@@ -110,6 +110,10 @@ export const OPENSEA_PROXY_URL =
 
 export const NFT_API_BASE_URL = 'https://nft.api.cx.metamask.io';
 
+export const NFT_API_VERSION = '1';
+
+export const NFT_API_TIMEOUT = 15000;
+
 // Default origin for controllers
 export const ORIGIN_METAMASK = 'metamask';
 
@@ -123,7 +127,6 @@ export enum ApprovalType {
   ConnectAccounts = 'connect_accounts',
   EthDecrypt = 'eth_decrypt',
   EthGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
-  EthSign = 'eth_sign',
   EthSignTypedData = 'eth_signTypedData',
   PersonalSign = 'personal_sign',
   ResultError = 'result_error',
@@ -131,6 +134,7 @@ export enum ApprovalType {
   SnapDialogAlert = 'snap_dialog:alert',
   SnapDialogConfirmation = 'snap_dialog:confirmation',
   SnapDialogPrompt = 'snap_dialog:prompt',
+  SnapDialogDefault = 'snap_dialog',
   SwitchEthereumChain = 'wallet_switchEthereumChain',
   Transaction = 'transaction',
   Unlock = 'unlock',

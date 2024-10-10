@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.1.0]
+
+### Added
+
+- Add initial tracing to `SignatureController` ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - Adds an optional `trace` callback to the constructor, and an optional
+    `traceContext` option to the `newUnsignedTypedMessage` and
+    `newUnsignedPersonalMessage` methods.
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peerDependency `@metamask/logging-controller` from `^5.0.0` to `^6.0.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/message-manager` from `^10.0.2` to `^10.0.3` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [18.1.0]
+
+### Changed
+
+- Throw exact error provided by client on rejection ([#4610](https://github.com/MetaMask/core/pull/4610))
+- Upgrade TypeScript version to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584))
+- Upgrade TypeScript version to `~5.1.6` ([#4576](https://github.com/MetaMask/core/pull/4576))
+
+### Removed
+
+- Remove `@metamask/rpc-errors` dependency ([#4610](https://github.com/MetaMask/core/pull/4610))
+
+## [18.0.1]
+
+### Changed
+
+- Remove `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/logging-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/message-manager` from `^10.0.0` to `^10.0.2` ([#4527](https://github.com/MetaMask/core/pull/4527), (#4548)[https://github.com/MetaMask/core/pull/4548])
+- Bump `@metamask/rpc-errors` from `^6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/logging-controller` to `^5.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/message-manager` to `^10.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Update `messages` getter to return `Record<string, PersonalMessage | TypedMessage>` instead of `Record<string, Message | PersonalMessage | TypedMessage>` ([#4319](https://github.com/MetaMask/core/pull/4319))
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING** Bump `@metamask/logging-controller` peer dependency to `^4.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/message-manager` to `^9.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove state properties `unapprovedMsgs` and `unapprovedMsgCount` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - These properties were related to handling of the `eth_sign` RPC method, but support for that is being removed, so these are no longer needed.
+- **BREAKING:** Remove `isEthSignEnabled` option from constructor ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This option governed whether handling of the `eth_sign` RPC method was enabled, but support for that method is being removed, so this is no longer needed.
+- **BREAKING:** Remove `newUnsignedMessage` method ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This method was called when a dapp used the `eth_sign` RPC method, but support for that method is being removed, so this is no longer needed.
+
 ## [16.0.0]
 
 ### Changed
@@ -239,7 +329,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...HEAD
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...@metamask/signature-controller@19.1.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...@metamask/signature-controller@19.0.0
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.0...@metamask/signature-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@17.0.0...@metamask/signature-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@16.0.0...@metamask/signature-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@15.0.0...@metamask/signature-controller@16.0.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.1...@metamask/signature-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@14.0.0...@metamask/signature-controller@14.0.1

@@ -79,11 +79,88 @@ export const ChainId = {
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
 export enum NetworksTicker {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   mainnet = 'ETH',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   goerli = 'GoerliETH',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   sepolia = 'SepoliaETH',
   'linea-goerli' = 'LineaETH',
   'linea-sepolia' = 'LineaETH',
   'linea-mainnet' = 'ETH',
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   rpc = '',
 }
+
+export const BlockExplorerUrl = {
+  [BuiltInNetworkName.Mainnet]: 'https://etherscan.io',
+  [BuiltInNetworkName.Goerli]: 'https://goerli.etherscan.io',
+  [BuiltInNetworkName.Sepolia]: 'https://sepolia.etherscan.io',
+  [BuiltInNetworkName.LineaGoerli]: 'https://goerli.lineascan.build',
+  [BuiltInNetworkName.LineaSepolia]: 'https://sepolia.lineascan.build',
+  [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
+} as const satisfies Record<InfuraNetworkType, string>;
+export type BlockExplorerUrl =
+  (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
+
+export const NetworkNickname = {
+  [BuiltInNetworkName.Mainnet]: 'Mainnet',
+  [BuiltInNetworkName.Goerli]: 'Goerli',
+  [BuiltInNetworkName.Sepolia]: 'Sepolia',
+  [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
+  [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
+  [BuiltInNetworkName.LineaMainnet]: 'Linea Mainnet',
+} as const satisfies Record<InfuraNetworkType, string>;
+export type NetworkNickname =
+  (typeof NetworkNickname)[keyof typeof NetworkNickname];
+
+/**
+ * Makes a selection of keys in a Record optional.
+ *
+ * @template Type - The Record that you want to operate on.
+ * @template Key - The union of keys you want to make optional.
+ */
+// TODO: Move to @metamask/utils
+export type Partialize<Type, Key extends keyof Type> = Omit<Type, Key> &
+  Partial<Pick<Type, Key>>;
+
+/** A context in which to execute a trace, in order to generate nested timings. */
+export type TraceContext = unknown;
+
+/** Request to trace an operation. */
+export type TraceRequest = {
+  /** Additional data to include in the trace. */
+  data?: Record<string, number | string | boolean>;
+
+  /** Name of the operation. */
+  name: string;
+
+  /**
+   * Unique identifier for the trace.
+   * Required if starting a trace and not providing a callback.
+   */
+  id?: string;
+
+  /** Trace context in which to execute the operation. */
+  parentContext?: TraceContext;
+
+  /** Additional tags to include in the trace to filter results. */
+  tags?: Record<string, number | string | boolean>;
+};
+
+/** Callback that traces the performance of an operation. */
+export type TraceCallback = <ReturnType>(
+  /** Request to trace the performance of an operation. */
+  request: TraceRequest,
+
+  /**
+   * Callback to trace.
+   * Thrown errors will not be caught, but the trace will still be recorded.
+   * @param context - The context in which the operation is running.
+   */
+  fn?: (context?: TraceContext) => ReturnType,
+) => Promise<ReturnType>;

@@ -21,9 +21,9 @@ import type {
 } from './Permission';
 
 export enum MethodNames {
-  requestPermissions = 'wallet_requestPermissions',
-  getPermissions = 'wallet_getPermissions',
-  revokePermissions = 'wallet_revokePermissions',
+  RequestPermissions = 'wallet_requestPermissions',
+  GetPermissions = 'wallet_getPermissions',
+  RevokePermissions = 'wallet_revokePermissions',
 }
 
 /**
@@ -44,15 +44,15 @@ export type ExtractSpecifications<
  * A middleware function for handling a permitted method.
  */
 export type HandlerMiddlewareFunction<
-  T,
-  U extends JsonRpcParams,
-  V extends Json,
+  Hooks,
+  Params extends JsonRpcParams,
+  Result extends Json,
 > = (
-  req: JsonRpcRequest<U>,
-  res: PendingJsonRpcResponse<V>,
+  req: JsonRpcRequest<Params>,
+  res: PendingJsonRpcResponse<Result>,
   next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
-  hooks: T,
+  hooks: Hooks,
 ) => void | Promise<void>;
 
 /**
@@ -61,20 +61,20 @@ export type HandlerMiddlewareFunction<
  * This can then be used to select only the necessary hooks whenever a method
  * is called for purposes of POLA.
  */
-export type HookNames<T> = {
-  [Property in keyof T]: true;
+export type HookNames<HookMap> = {
+  [Property in keyof HookMap]: true;
 };
 
 /**
  * A handler for a permitted method.
  */
 export type PermittedHandlerExport<
-  T,
-  U extends JsonRpcParams,
-  V extends Json,
+  Hooks,
+  Params extends JsonRpcParams,
+  Result extends Json,
 > = {
-  implementation: HandlerMiddlewareFunction<T, U, V>;
-  hookNames: HookNames<T>;
+  implementation: HandlerMiddlewareFunction<Hooks, Params, Result>;
+  hookNames: HookNames<Hooks>;
   methodNames: string[];
 };
 

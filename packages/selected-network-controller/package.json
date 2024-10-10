@@ -1,6 +1,6 @@
 {
   "name": "@metamask/selected-network-controller",
-  "version": "13.0.0",
+  "version": "18.0.1",
   "description": "Provides an interface to the currently selected networkClientId for a given domain",
   "keywords": [
     "MetaMask",
@@ -18,38 +18,44 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "files": [
     "dist/"
   ],
   "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/selected-network-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/selected-network-controller",
     "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^5.0.2",
-    "@metamask/json-rpc-engine": "^8.0.2",
-    "@metamask/network-controller": "^18.1.1",
-    "@metamask/permission-controller": "^9.0.2",
+    "@metamask/base-controller": "^7.0.1",
+    "@metamask/json-rpc-engine": "^9.0.3",
     "@metamask/swappable-obj-proxy": "^2.2.0",
-    "@metamask/utils": "^8.3.0"
+    "@metamask/utils": "^9.1.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/network-controller": "^21.0.1",
+    "@metamask/permission-controller": "^11.0.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -60,14 +66,14 @@
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.9.5"
+    "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^18.0.0",
-    "@metamask/permission-controller": "^9.0.0"
+    "@metamask/network-controller": "^21.0.0",
+    "@metamask/permission-controller": "^11.0.0"
   },
   "engines": {
-    "node": ">=16.0.0"
+    "node": "^18.18 || >=20"
   },
   "publishConfig": {
     "access": "public",

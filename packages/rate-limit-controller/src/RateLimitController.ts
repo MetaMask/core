@@ -164,15 +164,15 @@ export class RateLimitController<
     }
     this.recordRequest(type, origin);
 
-    const implementation = this.implementations[type].method;
+    const implementation = this.implementations[type].method as (
+      ...args: Parameters<RateLimitedApis[ApiType]['method']>
+    ) => ReturnType<RateLimitedApis[ApiType]['method']>;
 
     if (!implementation) {
       throw new Error('Invalid api type');
     }
 
-    return implementation(...args) as ReturnType<
-      RateLimitedApis[ApiType]['method']
-    >;
+    return implementation(...args);
   }
 
   /**
@@ -205,6 +205,8 @@ export class RateLimitController<
       Object.assign(state, {
         requests: {
           ...(state.requests as RateLimitedRequests<RateLimitedApis>),
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
           [api]: { [origin]: previous + 1 },
         },
       });

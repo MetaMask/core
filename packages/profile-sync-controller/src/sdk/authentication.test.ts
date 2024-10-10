@@ -1,3 +1,4 @@
+import { Env, Platform } from '../shared/env';
 import {
   MOCK_ACCESS_JWT,
   MOCK_SRP_LOGIN_RESPONSE,
@@ -7,7 +8,6 @@ import type { MockVariable } from './__fixtures__/test-utils';
 import { arrangeAuth } from './__fixtures__/test-utils';
 import { JwtBearerAuth } from './authentication';
 import type { LoginResponse, Pair } from './authentication-jwt-bearer/types';
-import { Env, Platform } from './env';
 import {
   NonceRetrievalError,
   PairError,
@@ -223,6 +223,8 @@ describe('Authentication - SRP Flow - getAccessToken() & getUserProfile()', () =
         mockOAuth2TokenUrl: {
           status: 400,
           body: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             error_description: 'invalid JWT token',
             error: 'invalid_request',
           },
@@ -398,6 +400,8 @@ describe('Authentication - SIWE Flow - getAccessToken(), getUserProfile(), signM
         mockOAuth2TokenUrl: {
           status: 400,
           body: {
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
             error_description: 'invalid JWT token',
             error: 'invalid_request',
           },

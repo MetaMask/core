@@ -11,8 +11,14 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Patch } from 'immer';
 import * as sinon from 'sinon';
 
-import type { ComposableControllerEvents } from './ComposableController';
-import { ComposableController } from './ComposableController';
+import type {
+  ChildControllerStateChangeEvents,
+  ComposableControllerEvents,
+} from './ComposableController';
+import {
+  ComposableController,
+  INVALID_CONTROLLER_ERROR,
+} from './ComposableController';
 
 // Mock BaseController classes
 
@@ -27,9 +33,9 @@ type FooControllerEvent = {
 type FooMessenger = RestrictedControllerMessenger<
   'FooController',
   never,
-  FooControllerEvent,
+  FooControllerEvent | QuzControllerEvent,
   never,
-  never
+  QuzControllerEvent['type']
 >;
 
 const fooControllerStateMetadata = {
@@ -60,6 +66,50 @@ class FooController extends BaseController<
   }
 }
 
+type QuzControllerState = {
+  quz: string;
+};
+type QuzControllerEvent = {
+  type: `QuzController:stateChange`;
+  payload: [QuzControllerState, Patch[]];
+};
+
+type QuzMessenger = RestrictedControllerMessenger<
+  'QuzController',
+  never,
+  QuzControllerEvent,
+  never,
+  never
+>;
+
+const quzControllerStateMetadata = {
+  quz: {
+    persist: true,
+    anonymous: true,
+  },
+};
+
+class QuzController extends BaseController<
+  'QuzController',
+  QuzControllerState,
+  QuzMessenger
+> {
+  constructor(messagingSystem: QuzMessenger) {
+    super({
+      messenger: messagingSystem,
+      metadata: quzControllerStateMetadata,
+      name: 'QuzController',
+      state: { quz: 'quz' },
+    });
+  }
+
+  updateQuz(quz: string) {
+    super.update((state) => {
+      state.quz = quz;
+    });
+  }
+}
+
 // Mock BaseControllerV1 classes
 
 type BarControllerState = BaseState & {
@@ -71,7 +121,7 @@ class BarController extends BaseControllerV1<never, BarControllerState> {
     bar: 'bar',
   };
 
-  override name = 'BarController';
+  override name = 'BarController' as const;
 
   constructor() {
     super();
@@ -86,19 +136,49 @@ class BarController extends BaseControllerV1<never, BarControllerState> {
 type BazControllerState = BaseState & {
   baz: string;
 };
+type BazControllerEvent = {
+  type: `BazController:stateChange`;
+  payload: [BazControllerState, Patch[]];
+};
+
+type BazMessenger = RestrictedControllerMessenger<
+  'BazController',
+  never,
+  BazControllerEvent,
+  never,
+  never
+>;
 
 class BazController extends BaseControllerV1<never, BazControllerState> {
   defaultState = {
     baz: 'baz',
   };
 
-  override name = 'BazController';
+  override name = 'BazController' as const;
 
-  constructor() {
+  protected messagingSystem: BazMessenger;
+
+  constructor({ messenger }: { messenger: BazMessenger }) {
     super();
     this.initialize();
+    this.messagingSystem = messenger;
   }
 }
+
+type ControllersMap = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  FooController: FooController;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  QuzController: QuzController;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  BarController: BarController;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  BazController: BazController;
+};
 
 describe('ComposableController', () => {
   afterEach(() => {
@@ -107,16 +187,38 @@ describe('ComposableController', () => {
 
   describe('BaseControllerV1', () => {
     it('should compose controller state', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        BarController: BarControllerState;
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        BazController: BazControllerState;
+      };
+
       const composableMessenger = new ControllerMessenger<
         never,
-        ComposableControllerEvents
+        | ComposableControllerEvents<ComposableControllerState>
+        | ChildControllerStateChangeEvents<ComposableControllerState>
       >().getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: [],
+        allowedEvents: ['BazController:stateChange'],
       });
-      const controller = new ComposableController({
-        controllers: [new BarController(), new BazController()],
+      const controller = new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
+        controllers: [
+          new BarController(),
+          new BazController({
+            messenger: new ControllerMessenger<never, never>().getRestricted({
+              name: 'BazController',
+              allowedActions: [],
+              allowedEvents: [],
+            }),
+          }),
+        ],
         messenger: composableMessenger,
       });
 
@@ -127,9 +229,14 @@ describe('ComposableController', () => {
     });
 
     it('should notify listeners of nested state change', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        BarController: BarControllerState;
+      };
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerEvents
+        ComposableControllerEvents<ComposableControllerState>
       >();
       const composableMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
@@ -137,7 +244,10 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const barController = new BarController();
-      new ComposableController({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController],
         messenger: composableMessenger,
       });
@@ -159,39 +269,68 @@ describe('ComposableController', () => {
 
   describe('BaseControllerV2', () => {
     it('should compose controller state', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        FooController: FooControllerState;
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        QuzController: QuzControllerState;
+      };
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
+        | QuzControllerEvent
       >();
-      const fooControllerMessenger = controllerMessenger.getRestricted({
+      const fooMessenger = controllerMessenger.getRestricted<
+        'FooController',
+        never,
+        QuzControllerEvent['type']
+      >({
         name: 'FooController',
+        allowedActions: [],
+        allowedEvents: ['QuzController:stateChange'],
+      });
+      const quzMessenger = controllerMessenger.getRestricted({
+        name: 'QuzController',
         allowedActions: [],
         allowedEvents: [],
       });
-      const fooController = new FooController(fooControllerMessenger);
+      const fooController = new FooController(fooMessenger);
+      const quzController = new QuzController(quzMessenger);
 
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        FooControllerEvent['type']
-      >({
+      const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
-        allowedEvents: ['FooController:stateChange'],
+        allowedEvents: [
+          'FooController:stateChange',
+          'QuzController:stateChange',
+        ],
       });
-      const composableController = new ComposableController({
-        controllers: [fooController],
+      const composableController = new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
+        controllers: [fooController, quzController],
         messenger: composableControllerMessenger,
       });
       expect(composableController.state).toStrictEqual({
         FooController: { foo: 'foo' },
+        QuzController: { quz: 'quz' },
       });
     });
 
     it('should notify listeners of nested state change', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        FooController: FooControllerState;
+      };
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerEvents | FooControllerEvent
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -199,16 +338,15 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        FooControllerEvent['type']
-      >({
+      const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      new ComposableController({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [fooController],
         messenger: composableControllerMessenger,
       });
@@ -231,10 +369,19 @@ describe('ComposableController', () => {
 
   describe('Mixed BaseControllerV1 and BaseControllerV2', () => {
     it('should compose controller state', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        BarController: BarControllerState;
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        FooController: FooControllerState;
+      };
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -242,16 +389,15 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        FooControllerEvent['type']
-      >({
+      const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      const composableController = new ComposableController({
+      const composableController = new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController, fooController],
         messenger: composableControllerMessenger,
       });
@@ -262,10 +408,19 @@ describe('ComposableController', () => {
     });
 
     it('should notify listeners of BaseControllerV1 state change', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        BarController: BarControllerState;
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        FooController: FooControllerState;
+      };
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerEvents | FooControllerEvent
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -273,16 +428,15 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        FooControllerEvent['type']
-      >({
+      const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      new ComposableController({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController, fooController],
         messenger: composableControllerMessenger,
       });
@@ -305,10 +459,19 @@ describe('ComposableController', () => {
     });
 
     it('should notify listeners of BaseControllerV2 state change', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        BarController: BarControllerState;
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        FooController: FooControllerState;
+      };
       const barController = new BarController();
       const controllerMessenger = new ControllerMessenger<
         never,
-        ComposableControllerEvents | FooControllerEvent
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -316,16 +479,15 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        FooControllerEvent['type']
-      >({
+      const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
-      new ComposableController({
+      new ComposableController<
+        ComposableControllerState,
+        ControllersMap[keyof ComposableControllerState]
+      >({
         controllers: [barController, fooController],
         messenger: composableControllerMessenger,
       });
@@ -370,10 +532,16 @@ describe('ComposableController', () => {
     });
 
     it('should throw if composing a controller that does not extend from BaseController', () => {
+      type ComposableControllerState = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        FooController: FooControllerState;
+      };
       const notController = new JsonRpcEngine();
       const controllerMessenger = new ControllerMessenger<
         never,
-        FooControllerEvent
+        | ComposableControllerEvents<ComposableControllerState>
+        | FooControllerEvent
       >();
       const fooControllerMessenger = controllerMessenger.getRestricted({
         name: 'FooController',
@@ -381,25 +549,22 @@ describe('ComposableController', () => {
         allowedEvents: [],
       });
       const fooController = new FooController(fooControllerMessenger);
-      const composableControllerMessenger = controllerMessenger.getRestricted<
-        'ComposableController',
-        never,
-        FooControllerEvent['type']
-      >({
+      const composableControllerMessenger = controllerMessenger.getRestricted({
         name: 'ComposableController',
         allowedActions: [],
         allowedEvents: ['FooController:stateChange'],
       });
       expect(
         () =>
-          new ComposableController({
+          new ComposableController<
+            ComposableControllerState,
+            ControllersMap[keyof ComposableControllerState]
+          >({
             // @ts-expect-error - Suppressing type error to test for runtime error handling
             controllers: [notController, fooController],
             messenger: composableControllerMessenger,
           }),
-      ).toThrow(
-        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
-      );
+      ).toThrow(INVALID_CONTROLLER_ERROR);
     });
   });
 });

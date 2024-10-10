@@ -7,6 +7,215 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.2.0]
+
+### Added
+
+- Add optional `incomingTransactions.etherscanApiKeysByChainId` constructor property to support API keys in requests to Etherscan ([#4748](https://github.com/MetaMask/core/pull/4748))
+
+### Fixed
+
+- Cleanup transactions only during initialisation ([#4753](https://github.com/MetaMask/core/pull/4753))
+- Remove `gasPrice` from requests to `linea_estimateGas` ([#4737](https://github.com/MetaMask/core/pull/4737))
+
+## [37.1.0]
+
+### Added
+
+- Populate `submitHistory` in state when submitting transactions to network ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Export `CHAIN_IDS`, `ETHERSCAN_SUPPORTED_NETWORKS` and `SPEED_UP_RATE` constants ([#4706](https://github.com/MetaMask/core/pull/4706))
+
+### Changed
+
+- Make `getPermittedAccounts` constructor callback optional ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
+## [37.0.0]
+
+### Changed
+
+- Remove unapproved transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
+- Fail approved and signed transactions during initialisation ([#4658](https://github.com/MetaMask/core/pull/4658))
+- Remove `TraceContext`, `TraceRequest`, and `TraceCallback` types ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - These were moved to `@metamask/controller-utils`.
+
+### Removed
+
+- **BREAKING:** Remove `initApprovals` method ([#4658](https://github.com/MetaMask/core/pull/4658))
+- **BREAKING:** Remove `beforeApproveOnInit` hook ([#4658](https://github.com/MetaMask/core/pull/4658))
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [36.1.0]
+
+### Added
+
+- Add missing `TransactionControllerOptions` type in package-level export ([#4683](https://github.com/MetaMask/core/pull/4683))
+
+## [36.0.0]
+
+### Changed
+
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/gas-fee-controller` from `^19.0.0` to `^20.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.3` to `^7.0.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+
+## [35.2.0]
+
+### Added
+
+- Add tracing infrastructure ([#4575](https://github.com/MetaMask/core/pull/4575))
+  - Add optional `trace` callback to constructor.
+  - Add optional `traceContext` option to `addTransaction` method.
+  - Add initial tracing of transaction lifecycle.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^6.0.3` ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `@metamask/network-controller` from `^20.1.0` to `^20.2.0` ([#4618](https://github.com/MetaMask/core/pull/4618))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.2` to `^4.1.3` ([#4607](https://github.com/MetaMask/core/pull/4607))
+
+### Removed
+
+- Remove validation of `gasValues` passed to `speedUpTransaction` and `stopTransaction` methods ([#4617](https://github.com/MetaMask/core/pull/4617))
+
+## [35.1.1]
+
+### Changed
+
+- Upgrade TypeScript version from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- Fix gaps in transaction validation and async error logging ([#4596](https://github.com/MetaMask/core/pull/4596))
+- Upgrade `@metamask/nonce-tracker` from v5 to v6 ([#4591](https://github.com/MetaMask/core/pull/4591))
+
+## [35.1.0]
+
+### Added
+
+- Add `DISPLAYED_TRANSACTION_HISTORY_PATHS` constant, representing the transaction history paths that may be used for display ([#4555](https://github.com/MetaMask/core/pull/4555))
+  - This was exported so that it might be used to ensure display logic and internal history logic remains in-sync.
+  - Any paths listed here will have their timestamps preserved. Unlisted paths may be compressed by the controller to minimize history size, losing the timestamp.
+- Add `MAX_TRANSACTION_HISTORY_LENGTH` constant, representing the expected maximum size of the `history` property for a given transaction ([#4555](https://github.com/MetaMask/core/pull/4555))
+  - Note that this is not strictly enforced, the length may exceed this number of all entries are "displayed" entries, but we expect this to be extremely improbable in practice.
+
+### Fixed
+
+- Prevent transaction history from growing endlessly in size ([#4555](https://github.com/MetaMask/core/pull/4555))
+
+## [35.0.1]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/gas-fee-controller`, and `@metamask/network-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/rpc-errors` from `^6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+### Fixed
+
+- Fix simulation data parsing logic to avoid failed simulations creating `ApprovalForAll` events ([#4512](https://github.com/MetaMask/core/pull/4512))
+
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- **BREAKING:** Bump peerDependency `@metamask/gas-fee-controller` to `^19.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+## [34.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^18.0.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+- Bump dependency `@metamask/accounts-controller` to `^17.2.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+
+## [33.0.1]
+
+### Changed
+
+- Document TransactionStatus enum ([#4380](https://github.com/MetaMask/core/pull/4380))
+- Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
+
+## [33.0.0]
+
+### Changed
+
+- **BREAKING:** The `TransactionController` messenger must now allow the `AccountsController:getSelectedAccount` action ([#4244](https://github.com/MetaMask/core/pull/4244))
+- **BREAKING:** `getCurrentAccount` returns an `InternalAccount` instead of a `string` in the `IncomingTransactionHelper` ([#4244](https://github.com/MetaMask/core/pull/4244))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^17.0.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Removed
+
+- **BREAKING:** Remove `getSelectedAddress` option from `TransactionController` ([#4244](https://github.com/MetaMask/core/pull/4244))
+  - The AccountsController is used to get the currently selected address automatically.
+
+### Fixed
+
+- `MultichainTrackingHelper.getEthQuery` now returns global `ethQuery` with ([#4390](https://github.com/MetaMask/core/pull/4390))
+- Support skipping updates to the simulation history for clients with disabled history ([#4349](https://github.com/MetaMask/core/pull/4349))
+
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [31.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^6.0.2` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/gas-fee-controller` to `^16.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove `sign` from `TransactionType` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This represented an `eth_sign` transaction, but support for that RPC method is being removed, so this is no longer needed.
+
+### Fixed
+
+- Pass an unfrozen transaction to the `afterSign` hook so that it is able to modify the transaction ([#4343](https://github.com/MetaMask/core/pull/4343))
+
+## [30.0.0]
+
+### Fixed
+
+- **BREAKING**: Update from `nonce-tracker@^3.0.0` to `@metamask/nonce-tracker@^5.0.0` to mitigate issue with redundant polling loops in block tracker. ([#4309](https://github.com/MetaMask/core/pull/4309))
+  - The constructor now expects the `blockTracker` option being an instance of `@metamask/eth-block-tracker` instead of`eth-block-tracker`.
+
 ## [29.1.0]
 
 ### Changed
@@ -839,7 +1048,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.2.0...HEAD
+[37.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.1.0...@metamask/transaction-controller@37.2.0
+[37.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.0.0...@metamask/transaction-controller@37.1.0
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.1.0...@metamask/transaction-controller@37.0.0
+[36.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.0.0...@metamask/transaction-controller@36.1.0
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...@metamask/transaction-controller@36.0.0
+[35.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.1...@metamask/transaction-controller@35.2.0
+[35.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.1.0...@metamask/transaction-controller@35.1.1
+[35.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.0.1...@metamask/transaction-controller@35.1.0
+[35.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.0.0...@metamask/transaction-controller@35.0.1
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@34.0.0...@metamask/transaction-controller@35.0.0
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.1...@metamask/transaction-controller@34.0.0
+[33.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@33.0.0...@metamask/transaction-controller@33.0.1
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@32.0.0...@metamask/transaction-controller@33.0.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@31.0.0...@metamask/transaction-controller@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@30.0.0...@metamask/transaction-controller@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.1.0...@metamask/transaction-controller@30.0.0
 [29.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.2...@metamask/transaction-controller@29.1.0
 [29.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.1...@metamask/transaction-controller@29.0.2
 [29.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@29.0.0...@metamask/transaction-controller@29.0.1

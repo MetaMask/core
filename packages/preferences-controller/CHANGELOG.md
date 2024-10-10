@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.3]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [13.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [13.0.1]
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [12.0.0]
+
+### Added
+
+- Add `smartTransactionsOptInStatus` preference ([#3815](https://github.com/MetaMask/core/pull/3815))
+  - Add `smartTransactionsOptInStatus` property to the `PreferencesController` state (default: `false`)
+  - Add `setSmartTransactionOptInStatus` method to set this property
+- Add `useTransactionSimulations` preference ([#4283](https://github.com/MetaMask/core/pull/4283))
+  - Add `useTransactionSimulations` property to the `PreferencesController` state (default value: `false`)
+  - Add `setUseTransactionSimulations` method to set this property
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove state property `disabledRpcMethodPreferences` along with `setDisabledRpcMethodPreferences` method ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - These were for disabling the `eth_sign` RPC method, but support for this method is being removed, so this preference is no longer needed.
+
 ## [11.0.0]
 
 ### Added
@@ -219,7 +282,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.3...HEAD
+[13.0.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.2...@metamask/preferences-controller@13.0.3
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...@metamask/preferences-controller@13.0.2
+[13.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.0...@metamask/preferences-controller@13.0.1
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@12.0.0...@metamask/preferences-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...@metamask/preferences-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@10.0.0...@metamask/preferences-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.1...@metamask/preferences-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.0...@metamask/preferences-controller@9.0.1

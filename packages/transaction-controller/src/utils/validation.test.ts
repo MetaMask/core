@@ -4,11 +4,16 @@ import { TransactionEnvelopeType } from '../types';
 import { validateTxParams } from './validation';
 
 describe('validation', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('validateTxParams', () => {
+    it('should throw if unknown transaction envelope type is specified', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(() => validateTxParams({ type: '0x3' } as any)).toThrow(
+        rpcErrors.invalidParams(
+          'Invalid transaction envelope type: "0x3". Must be one of: 0x0, 0x1, 0x2',
+        ),
+      );
+    });
+
     it('should throw if no from address', () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

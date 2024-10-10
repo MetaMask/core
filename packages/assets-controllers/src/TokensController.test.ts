@@ -11,23 +11,20 @@ import {
   ChainId,
   ORIGIN_METAMASK,
   convertHexToDecimal,
-  NetworkType,
-  toHex,
-  NetworksTicker,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
-  ProviderConfig,
 } from '@metamask/network-controller';
-import { defaultState as defaultNetworkState } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import nock from 'nock';
 import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
 
 import { FakeProvider } from '../../../tests/fake-provider';
+import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
 import type {
   ExtractAvailableAction,
   ExtractAvailableEvent,
@@ -41,10 +38,18 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import { TOKEN_END_POINT_API } from './token-service';
 import type { Token } from './TokenRatesController';
 import { TokensController } from './TokensController';
-import type { TokensControllerMessenger } from './TokensController';
+import type {
+  AllowedActions,
+  AllowedEvents,
+  TokensControllerMessenger,
+  TokensControllerState,
+} from './TokensController';
 
 jest.mock('@ethersproject/contracts');
-jest.mock('uuid');
+jest.mock('uuid', () => ({
+  ...jest.requireActual('uuid'),
+  v1: jest.fn(),
+}));
 jest.mock('./Standards/ERC20Standard');
 jest.mock('./Standards/NftStandards/ERC1155/ERC1155Standard');
 
@@ -58,16 +63,9 @@ const uuidV1Mock = jest.mocked(uuidV1);
 const ERC20StandardMock = jest.mocked(ERC20Standard);
 const ERC1155StandardMock = jest.mocked(ERC1155Standard);
 
-const SEPOLIA = {
-  chainId: toHex(11155111),
-  type: NetworkType.sepolia,
-  ticker: NetworksTicker.sepolia,
-};
-const GOERLI = {
-  chainId: toHex(5),
-  type: NetworkType.goerli,
-  ticker: NetworksTicker.goerli,
-};
+const defaultMockInternalAccount = createMockInternalAccount({
+  address: '0x1',
+});
 
 describe('TokensController', () => {
   beforeEach(() => {
@@ -79,7 +77,6 @@ describe('TokensController', () => {
 
   afterEach(() => {
     sinon.restore();
-    jest.resetAllMocks();
   });
 
   it('should set default state', async () => {
@@ -276,33 +273,36 @@ describe('TokensController', () => {
   });
 
   it('should add token by selected address', async () => {
+    const firstAddress = '0x123';
+    const firstAccount = createMockInternalAccount({
+      address: firstAddress,
+    });
+    const secondAddress = '0x321';
+    const secondAccount = createMockInternalAccount({
+      address: secondAddress,
+    });
     await withController(
-      async ({ controller, triggerPreferencesStateChange }) => {
+      {
+        mocks: {
+          getAccount: firstAccount,
+          getSelectedAccount: firstAccount,
+        },
+      },
+      async ({ controller, triggerSelectedAccountChange }) => {
         ContractMock.mockReturnValue(
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
-        const firstAddress = '0x123';
-        const secondAddress = '0x321';
 
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress: firstAddress,
-        });
+        triggerSelectedAccountChange(firstAccount);
         await controller.addToken({
           address: '0x01',
           symbol: 'bar',
           decimals: 2,
         });
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress: secondAddress,
-        });
+        triggerSelectedAccountChange(secondAccount);
         expect(controller.state.tokens).toHaveLength(0);
 
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress: firstAddress,
-        });
+        triggerSelectedAccountChange(firstAccount);
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x01',
           decimals: 2,
@@ -318,17 +318,17 @@ describe('TokensController', () => {
 
   it('should add token by network', async () => {
     await withController(async ({ controller, changeNetwork }) => {
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
         decimals: 2,
       });
 
-      changeNetwork(GOERLI);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       expect(controller.state.tokens).toHaveLength(0);
 
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x01',
         decimals: 2,
@@ -418,26 +418,33 @@ describe('TokensController', () => {
   });
 
   it('should remove token by selected address', async () => {
+    const firstAddress = '0x123';
+    const firstAccount = createMockInternalAccount({
+      address: firstAddress,
+    });
+    const secondAddress = '0x321';
+    const secondAccount = createMockInternalAccount({
+      address: secondAddress,
+    });
     await withController(
-      async ({ controller, triggerPreferencesStateChange }) => {
+      {
+        mocks: {
+          getAccount: firstAccount,
+          getSelectedAccount: firstAccount,
+        },
+      },
+      async ({ controller, triggerSelectedAccountChange }) => {
         ContractMock.mockReturnValue(
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
-        const firstAddress = '0x123';
-        const secondAddress = '0x321';
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress: firstAddress,
-        });
+
+        triggerSelectedAccountChange(firstAccount);
         await controller.addToken({
           address: '0x02',
           symbol: 'baz',
           decimals: 2,
         });
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress: secondAddress,
-        });
+        triggerSelectedAccountChange(secondAccount);
         await controller.addToken({
           address: '0x01',
           symbol: 'bar',
@@ -447,10 +454,7 @@ describe('TokensController', () => {
         controller.ignoreTokens(['0x01']);
         expect(controller.state.tokens).toHaveLength(0);
 
-        triggerPreferencesStateChange({
-          ...getDefaultPreferencesState(),
-          selectedAddress: firstAddress,
-        });
+        triggerSelectedAccountChange(firstAccount);
         expect(controller.state.tokens[0]).toStrictEqual({
           address: '0x02',
           decimals: 2,
@@ -469,13 +473,13 @@ describe('TokensController', () => {
       ContractMock.mockReturnValue(
         buildMockEthersERC721Contract({ supportsInterface: false }),
       );
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       await controller.addToken({
         address: '0x02',
         symbol: 'baz',
         decimals: 2,
       });
-      changeNetwork(GOERLI);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
       await controller.addToken({
         address: '0x01',
         symbol: 'bar',
@@ -485,7 +489,7 @@ describe('TokensController', () => {
       controller.ignoreTokens(['0x01']);
       expect(controller.state.tokens).toHaveLength(0);
 
-      changeNetwork(SEPOLIA);
+      changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
       expect(controller.state.tokens[0]).toStrictEqual({
         address: '0x02',
         decimals: 2,
@@ -530,18 +534,20 @@ describe('TokensController', () => {
     });
 
     it('should remove a token from the ignoredTokens/allIgnoredTokens lists if re-added as part of a bulk addTokens add', async () => {
+      const selectedAddress = '0x0001';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
       await withController(
-        async ({
-          controller,
-          triggerPreferencesStateChange,
-          changeNetwork,
-        }) => {
-          const selectedAddress = '0x0001';
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress,
-          });
-          changeNetwork(SEPOLIA);
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          triggerSelectedAccountChange(selectedAccount);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -577,18 +583,20 @@ describe('TokensController', () => {
     });
 
     it('should be able to clear the ignoredTokens list', async () => {
+      const selectedAddress = '0x0001';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
       await withController(
-        async ({
-          controller,
-          triggerPreferencesStateChange,
-          changeNetwork,
-        }) => {
-          const selectedAddress = '0x0001';
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress,
-          });
-          changeNetwork(SEPOLIA);
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          triggerSelectedAccountChange(selectedAccount);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -614,19 +622,24 @@ describe('TokensController', () => {
     });
 
     it('should ignore tokens by [chainID][accountAddress]', async () => {
+      const selectedAddress1 = '0x0001';
+      const selectedAccount1 = createMockInternalAccount({
+        address: selectedAddress1,
+      });
+      const selectedAddress2 = '0x0002';
+      const selectedAccount2 = createMockInternalAccount({
+        address: selectedAddress2,
+      });
       await withController(
-        async ({
-          controller,
-          triggerPreferencesStateChange,
-          changeNetwork,
-        }) => {
-          const selectedAddress1 = '0x0001';
-          const selectedAddress2 = '0x0002';
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: selectedAddress1,
-          });
-          changeNetwork(SEPOLIA);
+        {
+          mocks: {
+            getSelectedAccount: selectedAccount1,
+            getAccount: selectedAccount1,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange, changeNetwork }) => {
+          triggerSelectedAccountChange(selectedAccount1);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
           await controller.addToken({
             address: '0x01',
             symbol: 'bar',
@@ -638,7 +651,7 @@ describe('TokensController', () => {
           expect(controller.state.tokens).toHaveLength(0);
           expect(controller.state.ignoredTokens).toStrictEqual(['0x01']);
 
-          changeNetwork(GOERLI);
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
           expect(controller.state.ignoredTokens).toHaveLength(0);
 
           await controller.addToken({
@@ -649,10 +662,7 @@ describe('TokensController', () => {
           controller.ignoreTokens(['0x02']);
           expect(controller.state.ignoredTokens).toStrictEqual(['0x02']);
 
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: selectedAddress2,
-          });
+          triggerSelectedAccountChange(selectedAccount2);
           expect(controller.state.ignoredTokens).toHaveLength(0);
 
           await controller.addToken({
@@ -729,9 +739,7 @@ describe('TokensController', () => {
           const address = erc721ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          controller.update({
-            tokens: [{ address, symbol, decimals }],
-          });
+          await controller.addToken({ address, symbol, decimals });
 
           const result = await controller.updateTokenType(address);
           expect(result.isERC721).toBe(true);
@@ -747,9 +755,7 @@ describe('TokensController', () => {
           const address = erc20ContractAddresses[0];
           const { symbol, decimals } = contractMaps[address];
 
-          controller.update({
-            tokens: [{ address, symbol, decimals }],
-          });
+          await controller.addToken({ address, symbol, decimals });
 
           const result = await controller.updateTokenType(address);
           expect(result.isERC721).toBe(false);
@@ -763,14 +769,10 @@ describe('TokensController', () => {
           );
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-          controller.update({
-            tokens: [
-              {
-                address: tokenAddress,
-                symbol: 'TESTNFT',
-                decimals: 0,
-              },
-            ],
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
           });
 
           const result = await controller.updateTokenType(tokenAddress);
@@ -785,14 +787,10 @@ describe('TokensController', () => {
           );
           const tokenAddress = '0xda5584cc586d07c7141aa427224a4bd58e64af7d';
 
-          controller.update({
-            tokens: [
-              {
-                address: tokenAddress,
-                symbol: 'TESTNFT',
-                decimals: 0,
-              },
-            ],
+          await controller.addToken({
+            address: tokenAddress,
+            symbol: 'TESTNFT',
+            decimals: 0,
           });
 
           const result = await controller.updateTokenType(tokenAddress);
@@ -912,7 +910,9 @@ describe('TokensController', () => {
             symbol: 'LINK',
             decimals: 18,
           });
-          changeNetwork(GOERLI);
+          changeNetwork({
+            selectedNetworkClientId: InfuraNetworkType.goerli,
+          });
 
           await expect(addTokenPromise).rejects.toThrow(
             'TokensController Error: Switched networks while adding token',
@@ -927,9 +927,7 @@ describe('TokensController', () => {
       await withController(
         {
           options: {
-            config: {
-              chainId,
-            },
+            chainId,
           },
         },
         async ({ controller }) => {
@@ -939,6 +937,8 @@ describe('TokensController', () => {
           const fullErrorMessage = `TokenService Error: ${error}`;
           nock(TOKEN_END_POINT_API)
             .get(
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               `/token/${convertHexToDecimal(
                 chainId,
               )}?address=${dummyTokenAddress}`,
@@ -992,24 +992,29 @@ describe('TokensController', () => {
     });
 
     it('should add tokens to the correct chainId/selectedAddress on which they were detected even if its not the currently configured chainId/selectedAddress', async () => {
+      const CONFIGURED_ADDRESS = '0xConfiguredAddress';
+      const configuredAccount = createMockInternalAccount({
+        address: CONFIGURED_ADDRESS,
+      });
       await withController(
-        async ({
-          controller,
-          changeNetwork,
-          triggerPreferencesStateChange,
-        }) => {
+        {
+          mocks: {
+            getAccount: configuredAccount,
+          },
+        },
+        async ({ controller, changeNetwork, triggerSelectedAccountChange }) => {
           ContractMock.mockReturnValue(
             buildMockEthersERC721Contract({ supportsInterface: false }),
           );
 
           // The currently configured chain + address
-          const CONFIGURED_CHAIN = SEPOLIA;
-          const CONFIGURED_ADDRESS = '0xConfiguredAddress';
-          changeNetwork(CONFIGURED_CHAIN);
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: CONFIGURED_ADDRESS,
+          const CONFIGURED_CHAIN = ChainId.sepolia;
+          const CONFIGURED_NETWORK_CLIENT_ID = InfuraNetworkType.sepolia;
+
+          changeNetwork({
+            selectedNetworkClientId: CONFIGURED_NETWORK_CLIENT_ID,
           });
+          triggerSelectedAccountChange(configuredAccount);
 
           // A different chain + address
           const OTHER_CHAIN = '0xOtherChainId';
@@ -1057,12 +1062,12 @@ describe('TokensController', () => {
 
             // Expect tokens under the correct chain + account
             expect(controller.state.allTokens).toStrictEqual({
-              [CONFIGURED_CHAIN.chainId]: {
+              [CONFIGURED_CHAIN]: {
                 [CONFIGURED_ADDRESS]: [addedTokenConfiguredAccount],
               },
             });
             expect(controller.state.allDetectedTokens).toStrictEqual({
-              [CONFIGURED_CHAIN.chainId]: {
+              [CONFIGURED_CHAIN]: {
                 [CONFIGURED_ADDRESS]: [detectedTokenConfiguredAccount],
               },
               [OTHER_CHAIN]: {
@@ -1153,102 +1158,6 @@ describe('TokensController', () => {
           expect(controller.state.allTokens['0x5']['0x1']).toStrictEqual(
             dummyTokens,
           );
-        },
-      );
-    });
-  });
-
-  describe('_getNewAllTokensState method', () => {
-    it('should nest newTokens under chain ID and selected address when provided with newTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummyTokens: Token[] = [
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-        },
-      ];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAddress: dummySelectedAddress,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newTokens: dummyTokens,
-          });
-
-          expect(
-            processedTokens.newAllTokens[ChainId.mainnet][dummySelectedAddress],
-          ).toStrictEqual(dummyTokens);
-        },
-      );
-    });
-
-    it('should nest detectedTokens under chain ID and selected address when provided with detectedTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummyTokens: Token[] = [
-        {
-          address: '0x01',
-          symbol: 'barA',
-          decimals: 2,
-          aggregators: [],
-          image: undefined,
-        },
-      ];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAddress: dummySelectedAddress,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newDetectedTokens: dummyTokens,
-          });
-
-          expect(
-            processedTokens.newAllDetectedTokens[ChainId.mainnet][
-              dummySelectedAddress
-            ],
-          ).toStrictEqual(dummyTokens);
-        },
-      );
-    });
-
-    it('should nest ignoredTokens under chain ID and selected address when provided with ignoredTokens as input', async () => {
-      const dummySelectedAddress = '0x1';
-      const dummyIgnoredTokens = ['0x01'];
-
-      await withController(
-        {
-          options: {
-            chainId: ChainId.mainnet,
-            config: {
-              selectedAddress: dummySelectedAddress,
-            },
-          },
-        },
-        ({ controller }) => {
-          const processedTokens = controller._getNewAllTokensState({
-            newIgnoredTokens: dummyIgnoredTokens,
-          });
-          expect(
-            processedTokens.newAllIgnoredTokens[ChainId.mainnet][
-              dummySelectedAddress
-            ],
-          ).toStrictEqual(dummyIgnoredTokens);
         },
       );
     });
@@ -1688,7 +1597,6 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
         uuidV1Mock.mockReturnValue(requestId);
-
         await controller.watchAsset({ asset, type: 'ERC20' });
 
         expect(controller.state.tokens).toHaveLength(1);
@@ -1839,7 +1747,6 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
         uuidV1Mock.mockReturnValue(requestId);
-
         await expect(
           controller.watchAsset({ asset, type: 'ERC20' }),
         ).rejects.toThrow(errorMessage);
@@ -1887,13 +1794,16 @@ describe('TokensController', () => {
             .mockReturnValueOnce('67890');
 
           const acceptedRequest = new Promise<void>((resolve) => {
-            controller.subscribe((state) => {
-              if (
-                state.allTokens?.[chainId]?.[interactingAddress].length === 2
-              ) {
-                resolve();
-              }
-            });
+            messenger.subscribe(
+              'TokensController:stateChange',
+              (state: TokensControllerState) => {
+                if (
+                  state.allTokens?.[chainId]?.[interactingAddress].length === 2
+                ) {
+                  resolve();
+                }
+              },
+            );
           });
 
           const anotherAsset = buildTokenWithName({
@@ -1958,15 +1868,23 @@ describe('TokensController', () => {
 
   describe('when PreferencesController:stateChange is published', () => {
     it('should update tokens list when set address changes', async () => {
+      const selectedAccount = createMockInternalAccount({ address: '0x1' });
+      const selectedAccount2 = createMockInternalAccount({
+        address: '0x2',
+      });
       await withController(
-        async ({ controller, triggerPreferencesStateChange }) => {
+        {
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+        },
+        async ({ controller, triggerSelectedAccountChange }) => {
           ContractMock.mockReturnValue(
             buildMockEthersERC721Contract({ supportsInterface: false }),
           );
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: '0x1',
-          });
+
+          triggerSelectedAccountChange(selectedAccount);
           await controller.addToken({
             address: '0x01',
             symbol: 'A',
@@ -1977,10 +1895,7 @@ describe('TokensController', () => {
             symbol: 'B',
             decimals: 5,
           });
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: '0x2',
-          });
+          triggerSelectedAccountChange(selectedAccount2);
           expect(controller.state.tokens).toStrictEqual([]);
 
           await controller.addToken({
@@ -1988,10 +1903,7 @@ describe('TokensController', () => {
             symbol: 'C',
             decimals: 6,
           });
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: '0x1',
-          });
+          triggerSelectedAccountChange(selectedAccount);
           expect(controller.state.tokens).toStrictEqual([
             {
               address: '0x01',
@@ -2015,10 +1927,7 @@ describe('TokensController', () => {
             },
           ]);
 
-          triggerPreferencesStateChange({
-            ...getDefaultPreferencesState(),
-            selectedAddress: '0x2',
-          });
+          triggerSelectedAccountChange(selectedAccount2);
           expect(controller.state.tokens).toStrictEqual([
             {
               address: '0x03',
@@ -2043,7 +1952,7 @@ describe('TokensController', () => {
           buildMockEthersERC721Contract({ supportsInterface: false }),
         );
 
-        changeNetwork(SEPOLIA);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         await controller.addToken({
           address: '0x01',
           symbol: 'A',
@@ -2056,7 +1965,7 @@ describe('TokensController', () => {
         });
         const initialTokensFirst = controller.state.tokens;
 
-        changeNetwork(GOERLI);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         await controller.addToken({
           address: '0x03',
           symbol: 'C',
@@ -2113,10 +2022,10 @@ describe('TokensController', () => {
           },
         ]);
 
-        changeNetwork(SEPOLIA);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
         expect(initialTokensFirst).toStrictEqual(controller.state.tokens);
 
-        changeNetwork(GOERLI);
+        changeNetwork({ selectedNetworkClientId: InfuraNetworkType.goerli });
         expect(initialTokensSecond).toStrictEqual(controller.state.tokens);
       });
     });
@@ -2125,6 +2034,9 @@ describe('TokensController', () => {
   describe('Clearing nested lists', () => {
     it('should clear nest allTokens under chain ID and selected address when an added token is ignored', async () => {
       const selectedAddress = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
       const tokenAddress = '0x01';
       const dummyTokens = [
         {
@@ -2140,9 +2052,9 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAddress,
-            },
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({ controller }) => {
@@ -2158,6 +2070,9 @@ describe('TokensController', () => {
 
     it('should clear nest allIgnoredTokens under chain ID and selected address when an ignored token is re-added', async () => {
       const selectedAddress = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
       const tokenAddress = '0x01';
       const dummyTokens = [
         {
@@ -2173,9 +2088,9 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAddress,
-            },
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({ controller }) => {
@@ -2192,6 +2107,9 @@ describe('TokensController', () => {
 
     it('should clear nest allDetectedTokens under chain ID and selected address when an detected token is added to tokens list', async () => {
       const selectedAddress = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
       const tokenAddress = '0x01';
       const dummyTokens = [
         {
@@ -2207,9 +2125,9 @@ describe('TokensController', () => {
         {
           options: {
             chainId: ChainId.mainnet,
-            config: {
-              selectedAddress,
-            },
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
           },
         },
         async ({ controller }) => {
@@ -2279,6 +2197,117 @@ describe('TokensController', () => {
       });
     });
   });
+
+  describe('when selectedAccountId is not set or account not found', () => {
+    describe('detectTokens', () => {
+      it('updates the token states to empty arrays if the selectedAccountId account is undefined', async () => {
+        await withController(async ({ controller, changeNetwork }) => {
+          ContractMock.mockReturnValue(
+            buildMockEthersERC721Contract({ supportsInterface: false }),
+          );
+          changeNetwork({ selectedNetworkClientId: InfuraNetworkType.sepolia });
+
+          expect(controller.state.tokens).toStrictEqual([]);
+          expect(controller.state.ignoredTokens).toStrictEqual([]);
+          expect(controller.state.detectedTokens).toStrictEqual([]);
+        });
+      });
+    });
+
+    describe('addToken', () => {
+      it('handles undefined selected account', async () => {
+        await withController(async ({ controller, getAccountHandler }) => {
+          getAccountHandler.mockReturnValue(undefined);
+          const contractAddresses = Object.keys(contractMaps);
+          const erc721ContractAddresses = contractAddresses.filter(
+            (contractAddress) => contractMaps[contractAddress].erc721 === true,
+          );
+          const address = erc721ContractAddresses[0];
+          const { symbol, decimals } = contractMaps[address];
+
+          await controller.addToken({ address, symbol, decimals });
+
+          expect(controller.state.tokens).toStrictEqual([
+            {
+              address,
+              aggregators: [],
+              decimals,
+              image:
+                'https://static.cx.metamask.io/api/v1/tokenIcons/1/0x9c8ff314c9bc7f6e59a9d9225fb22946427edc03.png',
+              isERC721: true,
+              name: undefined,
+              symbol,
+            },
+          ]);
+        });
+      });
+    });
+
+    describe('addDetectedTokens', () => {
+      it('handles an undefined selected account', async () => {
+        await withController(async ({ controller, getAccountHandler }) => {
+          getAccountHandler.mockReturnValue(undefined);
+          const mockToken = {
+            address: '0x01',
+            symbol: 'barA',
+            decimals: 2,
+            aggregators: [],
+          };
+          await controller.addDetectedTokens([mockToken]);
+          expect(controller.state.detectedTokens[0]).toStrictEqual({
+            ...mockToken,
+            image: undefined,
+            isERC721: undefined,
+            name: undefined,
+          });
+        });
+      });
+    });
+
+    describe('watchAsset', () => {
+      it('handles undefined selected account', async () => {
+        await withController(
+          async ({ controller, approvalController, getAccountHandler }) => {
+            const requestId = '12345';
+            const addAndShowApprovalRequestSpy = jest
+              .spyOn(approvalController, 'addAndShowApprovalRequest')
+              .mockResolvedValue(undefined);
+            const asset = buildToken();
+            ContractMock.mockReturnValue(
+              buildMockEthersERC721Contract({ supportsInterface: false }),
+            );
+            uuidV1Mock.mockReturnValue(requestId);
+            getAccountHandler.mockReturnValue(undefined);
+            await controller.watchAsset({ asset, type: 'ERC20' });
+
+            expect(controller.state.tokens).toHaveLength(1);
+            expect(controller.state.tokens).toStrictEqual([
+              {
+                address: '0x000000000000000000000000000000000000dEaD',
+                aggregators: [],
+                decimals: 12,
+                image: 'image',
+                isERC721: false,
+                name: undefined,
+                symbol: 'TOKEN',
+              },
+            ]);
+            expect(addAndShowApprovalRequestSpy).toHaveBeenCalledTimes(1);
+            expect(addAndShowApprovalRequestSpy).toHaveBeenCalledWith({
+              id: requestId,
+              origin: ORIGIN_METAMASK,
+              type: ApprovalType.WatchAsset,
+              requestData: {
+                id: requestId,
+                interactingAddress: '', // this is the default value if account is not found
+                asset,
+              },
+            });
+          },
+        );
+      });
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
@@ -2286,14 +2315,23 @@ type WithControllerCallback<ReturnValue> = ({
   changeNetwork,
   messenger,
   approvalController,
-  triggerPreferencesStateChange,
+  triggerSelectedAccountChange,
 }: {
   controller: TokensController;
-  changeNetwork: (providerConfig: ProviderConfig) => void;
+  changeNetwork: (networkControllerState: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => void;
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
-  triggerPreferencesStateChange: (state: PreferencesState) => void;
+  triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
+  getAccountHandler: jest.Mock;
+  getSelectedAccountHandler: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerMockArgs = {
+  getAccount?: InternalAccount;
+  getSelectedAccount?: InternalAccount;
+};
 
 type WithControllerArgs<ReturnValue> =
   | [WithControllerCallback<ReturnValue>]
@@ -2304,6 +2342,7 @@ type WithControllerArgs<ReturnValue> =
           NetworkClientId,
           NetworkClientConfiguration
         >;
+        mocks?: WithControllerMockArgs;
       },
       WithControllerCallback<ReturnValue>,
     ];
@@ -2318,17 +2357,22 @@ type WithControllerArgs<ReturnValue> =
  * @param args.mockNetworkClientConfigurationsByNetworkClientId - Used to construct
  * mock versions of network clients and ultimately mock the
  * `NetworkController:getNetworkClientById` action.
+ * @param args.mocks - Move values for actions to be mocked.
  * @returns A collection of test controllers and mocks.
  */
 async function withController<ReturnValue>(
   ...args: WithControllerArgs<ReturnValue>
 ): Promise<ReturnValue> {
   const [
-    { options = {}, mockNetworkClientConfigurationsByNetworkClientId = {} },
+    {
+      options = {},
+      mockNetworkClientConfigurationsByNetworkClientId = {},
+      mocks = {} as WithControllerMockArgs,
+    },
     fn,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger: UnrestrictedMessenger = new ControllerMessenger();
+  const messenger = new ControllerMessenger<AllowedActions, AllowedEvents>();
 
   const approvalControllerMessenger = messenger.getRestricted({
     name: 'ApprovalController',
@@ -2346,35 +2390,59 @@ async function withController<ReturnValue>(
     allowedActions: [
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
+      'AccountsController:getAccount',
+      'AccountsController:getSelectedAccount',
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
-      'PreferencesController:stateChange',
+      'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
     ],
   });
+
+  const getAccountHandler = jest.fn<InternalAccount, []>();
+  messenger.registerActionHandler(
+    'AccountsController:getAccount',
+    getAccountHandler.mockReturnValue(
+      mocks?.getAccount ?? defaultMockInternalAccount,
+    ),
+  );
+
+  const getSelectedAccountHandler = jest.fn<InternalAccount, []>();
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    getSelectedAccountHandler.mockReturnValue(
+      mocks?.getSelectedAccount ?? defaultMockInternalAccount,
+    ),
+  );
+
   const controller = new TokensController({
     chainId: ChainId.mainnet,
-    config: {
-      selectedAddress: '0x1',
-      // The tests assume that this is set, but they shouldn't make that
-      // assumption. But we have to do this due to a bug in TokensController
-      // where the provider can possibly be `undefined` if `networkClientId` is
-      // not specified.
-      provider: new FakeProvider(),
-    },
+    // The tests assume that this is set, but they shouldn't make that
+    // assumption. But we have to do this due to a bug in TokensController
+    // where the provider can possibly be `undefined` if `networkClientId` is
+    // not specified.
+    provider: new FakeProvider(),
     messenger: controllerMessenger,
     ...options,
   });
 
-  const triggerPreferencesStateChange = (state: PreferencesState) => {
-    messenger.publish('PreferencesController:stateChange', state, []);
+  const triggerSelectedAccountChange = (internalAccount: InternalAccount) => {
+    getAccountHandler.mockReturnValue(internalAccount);
+    messenger.publish(
+      'AccountsController:selectedEvmAccountChange',
+      internalAccount,
+    );
   };
 
-  const changeNetwork = (providerConfig: ProviderConfig) => {
+  const changeNetwork = ({
+    selectedNetworkClientId,
+  }: {
+    selectedNetworkClientId: NetworkClientId;
+  }) => {
     messenger.publish('NetworkController:networkDidChange', {
-      ...defaultNetworkState,
-      providerConfig,
+      ...getDefaultNetworkControllerState(),
+      selectedNetworkClientId,
     });
   };
 
@@ -2391,7 +2459,9 @@ async function withController<ReturnValue>(
     changeNetwork,
     messenger,
     approvalController,
-    triggerPreferencesStateChange,
+    triggerSelectedAccountChange,
+    getAccountHandler,
+    getSelectedAccountHandler,
   });
 }
 

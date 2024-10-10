@@ -1,4 +1,3 @@
-import { convertHexToDecimal } from '@metamask/controller-utils';
 import {
   add0x,
   getKnownPropertyNames,
@@ -6,15 +5,13 @@ import {
 } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 
-import type {
-  GasPriceValue,
-  FeeMarketEIP1559Values,
-} from '../TransactionController';
 import { TransactionStatus } from '../types';
 import type {
   TransactionParams,
   TransactionMeta,
   TransactionError,
+  GasPriceValue,
+  FeeMarketEIP1559Values,
 } from '../types';
 
 export const ESTIMATE_GAS_ERROR = 'eth_estimateGas rpc method error';
@@ -85,50 +82,13 @@ export const validateGasValues = (
     const value = (gasValues as any)[key];
     if (typeof value !== 'string' || !isStrictHexString(value)) {
       throw new TypeError(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `expected hex string for ${key} but received: ${value}`,
       );
     }
   });
 };
-
-export const isFeeMarketEIP1559Values = (
-  gasValues?: GasPriceValue | FeeMarketEIP1559Values,
-): gasValues is FeeMarketEIP1559Values =>
-  (gasValues as FeeMarketEIP1559Values)?.maxFeePerGas !== undefined ||
-  (gasValues as FeeMarketEIP1559Values)?.maxPriorityFeePerGas !== undefined;
-
-export const isGasPriceValue = (
-  gasValues?: GasPriceValue | FeeMarketEIP1559Values,
-): gasValues is GasPriceValue =>
-  (gasValues as GasPriceValue)?.gasPrice !== undefined;
-
-export const getIncreasedPriceHex = (value: number, rate: number): string =>
-  add0x(`${parseInt(`${value * rate}`, 10).toString(16)}`);
-
-export const getIncreasedPriceFromExisting = (
-  value: string | undefined,
-  rate: number,
-): string => {
-  return getIncreasedPriceHex(convertHexToDecimal(value), rate);
-};
-
-/**
- * Validates that the proposed value is greater than or equal to the minimum value.
- *
- * @param proposed - The proposed value.
- * @param min - The minimum value.
- * @returns The proposed value.
- * @throws Will throw if the proposed value is too low.
- */
-export function validateMinimumIncrease(proposed: string, min: string) {
-  const proposedDecimal = convertHexToDecimal(proposed);
-  const minDecimal = convertHexToDecimal(min);
-  if (proposedDecimal >= minDecimal) {
-    return proposed;
-  }
-  const errorMsg = `The proposed value: ${proposedDecimal} should meet or exceed the minimum value: ${minDecimal}`;
-  throw new Error(errorMsg);
-}
 
 /**
  * Validates that a transaction is unapproved.
@@ -143,8 +103,9 @@ export function validateIfTransactionUnapproved(
 ) {
   if (transactionMeta?.status !== TransactionStatus.unapproved) {
     throw new Error(
-      `TransactionsController: Can only call ${fnName} on an unapproved transaction.
-      Current tx status: ${transactionMeta?.status}`,
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `TransactionsController: Can only call ${fnName} on an unapproved transaction.\n      Current tx status: ${transactionMeta?.status}`,
     );
   }
 }

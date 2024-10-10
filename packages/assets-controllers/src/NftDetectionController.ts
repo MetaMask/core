@@ -1,28 +1,65 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
-  fetchWithErrorHandling,
   toChecksumHexAddress,
   ChainId,
   NFT_API_BASE_URL,
+  NFT_API_VERSION,
+  convertHexToDecimal,
+  handleFetch,
+  fetchWithErrorHandling,
+  NFT_API_TIMEOUT,
 } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkController,
-  NetworkState,
   NetworkClient,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerStateChangeEvent,
+  NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
-import { StaticIntervalPollingControllerV1 } from '@metamask/polling-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
+import type {
+  PreferencesControllerGetStateAction,
+  PreferencesControllerStateChangeEvent,
+  PreferencesState,
+} from '@metamask/preferences-controller';
+import { createDeferredPromise, type Hex } from '@metamask/utils';
 
+import { reduceInBatchesSerially } from './assetsUtil';
 import { Source } from './constants';
 import {
   type NftController,
-  type NftState,
+  type NftControllerState,
   type NftMetadata,
 } from './NftController';
 
-const DEFAULT_INTERVAL = 180000;
+const controllerName = 'NftDetectionController';
+
+export type NFTDetectionControllerState = Record<never, never>;
+
+export type AllowedActions =
+  | AddApprovalRequest
+  | NetworkControllerGetStateAction
+  | NetworkControllerGetNetworkClientByIdAction
+  | PreferencesControllerGetStateAction
+  | AccountsControllerGetSelectedAccountAction;
+
+export type AllowedEvents =
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerStateChangeEvent;
+
+export type NftDetectionControllerMessenger = RestrictedControllerMessenger<
+  typeof controllerName,
+  AllowedActions,
+  AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
+const supportedNftDetectionNetworks: Hex[] = [
+  ChainId.mainnet,
+  ChainId['linea-mainnet'],
+];
 
 /**
  * @type ApiNft
@@ -44,26 +81,47 @@ const DEFAULT_INTERVAL = 180000;
  * @property creator - The NFT owner information object
  * @property lastSale - When this item was last sold
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNft {
+export type ApiNft = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   token_id: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   num_sales: number | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   background_color: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_preview_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_thumbnail_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   image_original_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_url: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   animation_original_url: string | null;
   name: string | null;
   description: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract: ApiNftContract;
   creator: ApiNftCreator;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   last_sale: ApiNftLastSale | null;
-}
+};
 
 /**
  * @type ApiNftContract
@@ -79,24 +137,33 @@ export interface ApiNft {
  * @property description - The NFT contract description
  * @property external_link - External link containing additional information
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNftContract {
+export type ApiNftContract = {
   address: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   asset_contract_type: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   created_date: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   schema_name: string | null;
   symbol: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_supply: string | null;
   description: string | null;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   external_link: string | null;
   collection: {
     name: string | null;
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     image_url?: string | null;
     tokenCount?: string | null;
   };
-}
+};
 
 /**
  * @type ApiNftLastSale
@@ -106,14 +173,17 @@ export interface ApiNftContract {
  * @property total_price - URI of NFT image associated with this owner
  * @property transaction - Object containing transaction_hash and block_hash
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNftLastSale {
+export type ApiNftLastSale = {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   event_timestamp: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   total_price: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   transaction: { transaction_hash: string; block_hash: string };
-}
+};
 
 /**
  * @type ApiNftCreator
@@ -123,31 +193,13 @@ export interface ApiNftLastSale {
  * @property profile_img_url - URI of NFT image associated with this owner
  * @property address - The owner address
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ApiNftCreator {
+export type ApiNftCreator = {
   user: { username: string };
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   profile_img_url: string;
   address: string;
-}
-
-/**
- * @type NftDetectionConfig
- *
- * NftDetection configuration
- * @property interval - Polling interval used to fetch new token rates
- * @property chainId - Current chain ID
- * @property selectedAddress - Vault selected address
- */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface NftDetectionConfig extends BaseConfig {
-  interval: number;
-  chainId: Hex;
-  selectedAddress: string;
-}
+};
 
 export type ReservoirResponse = {
   tokens: TokensResponse[];
@@ -171,8 +223,14 @@ export enum BlockaidResultType {
 export type Blockaid = {
   contract: string;
   chainId: number;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: BlockaidResultType;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   malicious_score: string;
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   attack_types: object;
 };
 
@@ -278,7 +336,42 @@ export type Attributes = {
   createdAt?: string;
 };
 
-export type Collection = {
+export type GetCollectionsResponse = {
+  collections: CollectionResponse[];
+};
+
+export type CollectionResponse = {
+  id?: string;
+  openseaVerificationStatus?: string;
+  contractDeployedAt?: string;
+  creator?: string;
+  ownerCount?: string;
+  topBid?: TopBid & {
+    sourceDomain?: string;
+  };
+};
+
+export type FloorAskCollection = {
+  id?: string;
+  price?: Price;
+  maker?: string;
+  kind?: string;
+  validFrom?: number;
+  validUntil?: number;
+  source?: SourceCollection;
+  rawData?: Metadata;
+  isNativeOffChainCancellable?: boolean;
+};
+
+export type SourceCollection = {
+  id: string;
+  domain: string;
+  name: string;
+  icon: string;
+  url: string;
+};
+
+export type TokenCollection = {
   id?: string;
   name?: string;
   slug?: string;
@@ -294,7 +387,10 @@ export type Collection = {
   floorAskPrice?: Price;
   royaltiesBps?: number;
   royalties?: Royalties[];
+  floorAsk?: FloorAskCollection;
 };
+
+export type Collection = TokenCollection & CollectionResponse;
 
 export type Royalties = {
   bps?: number;
@@ -347,210 +443,60 @@ export type Metadata = {
   tokenURI?: string;
 };
 
+export const MAX_GET_COLLECTION_BATCH_SIZE = 20;
+
 /**
- * Controller that passively polls on a set interval for NFT auto detection
+ * Controller that passively detects nfts for a user address
  */
-export class NftDetectionController extends StaticIntervalPollingControllerV1<
-  NftDetectionConfig,
-  BaseState
+export class NftDetectionController extends BaseController<
+  typeof controllerName,
+  NFTDetectionControllerState,
+  NftDetectionControllerMessenger
 > {
-  private intervalId?: ReturnType<typeof setTimeout>;
+  #disabled: boolean;
 
-  private getOwnerNftApi({
-    address,
-    next,
-  }: {
-    address: string;
-    next?: string;
-  }) {
-    return `${NFT_API_BASE_URL}/users/${address}/tokens?chainIds=1&limit=50&includeTopBid=true&continuation=${
-      next ?? ''
-    }`;
-  }
+  readonly #addNft: NftController['addNft'];
 
-  private async getOwnerNfts(address: string) {
-    let nftApiResponse: ReservoirResponse;
-    let nfts: TokensResponse[] = [];
-    let next;
+  readonly #getNftState: () => NftControllerState;
 
-    do {
-      nftApiResponse = await fetchWithErrorHandling({
-        url: this.getOwnerNftApi({ address, next }),
-        options: {
-          headers: {
-            Version: '1',
-          },
-        },
-        timeout: 15000,
-      });
-
-      if (!nftApiResponse) {
-        return nfts;
-      }
-
-      const newNfts = nftApiResponse.tokens.filter(
-        (elm) =>
-          elm.token.isSpam === false &&
-          (elm.blockaidResult?.result_type
-            ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
-            : true),
-      );
-
-      nfts = [...nfts, ...newNfts];
-    } while ((next = nftApiResponse.continuation));
-
-    return nfts;
-  }
+  #inProcessNftFetchingUpdates: Record<`${Hex}:${string}`, Promise<void>>;
 
   /**
-   * Name of this controller used during composition
-   */
-  override name = 'NftDetectionController';
-
-  private readonly getOpenSeaApiKey: () => string | undefined;
-
-  private readonly addNft: NftController['addNft'];
-
-  private readonly getNftApi: NftController['getNftApi'];
-
-  private readonly getNftState: () => NftState;
-
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
-
-  /**
-   * Creates an NftDetectionController instance.
+   * The controller options
    *
    * @param options - The controller options.
-   * @param options.chainId - The chain ID of the current network.
-   * @param options.onNftsStateChange - Allows subscribing to assets controller state changes.
-   * @param options.onPreferencesStateChange - Allows subscribing to preferences controller state changes.
-   * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
-   * @param options.getOpenSeaApiKey - Gets the OpenSea API key, if one is set.
-   * @param options.addNft - Add an NFT.
-   * @param options.getNftApi - Gets the URL to fetch an NFT from OpenSea.
-   * @param options.getNftState - Gets the current state of the Assets controller.
+   * @param options.messenger - A reference to the messaging system.
    * @param options.disabled - Represents previous value of useNftDetection. Used to detect changes of useNftDetection. Default value is true.
-   * @param options.selectedAddress - Represents current selected address.
-   * @param options.getNetworkClientById - Gets the network client by ID, from the NetworkController.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param options.addNft - Add an NFT.
+   * @param options.getNftState - Gets the current state of the Assets controller.
    */
-  constructor(
-    {
-      chainId: initialChainId,
-      getNetworkClientById,
-      onPreferencesStateChange,
-      onNetworkStateChange,
-      getOpenSeaApiKey,
-      addNft,
-      getNftApi,
-      getNftState,
-      disabled: initialDisabled,
-      selectedAddress: initialSelectedAddress,
-    }: {
-      chainId: Hex;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-      onNftsStateChange: (listener: (nftsState: NftState) => void) => void;
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkStateChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      getOpenSeaApiKey: () => string | undefined;
-      addNft: NftController['addNft'];
-      getNftApi: NftController['getNftApi'];
-      getNftState: () => NftState;
-      disabled: boolean;
-      selectedAddress: string;
-    },
-    config?: Partial<NftDetectionConfig>,
-    state?: Partial<BaseState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      interval: DEFAULT_INTERVAL,
-      chainId: initialChainId,
-      selectedAddress: initialSelectedAddress,
-      disabled: initialDisabled,
-    };
-    this.initialize();
-    this.getNftState = getNftState;
-    this.getNetworkClientById = getNetworkClientById;
-    onPreferencesStateChange(({ selectedAddress, useNftDetection }) => {
-      const { selectedAddress: previouslySelectedAddress, disabled } =
-        this.config;
-
-      if (
-        selectedAddress !== previouslySelectedAddress ||
-        !useNftDetection !== disabled
-      ) {
-        this.configure({ selectedAddress, disabled: !useNftDetection });
-        if (useNftDetection) {
-          this.start();
-        } else {
-          this.stop();
-        }
-      }
+  constructor({
+    messenger,
+    disabled = false,
+    addNft,
+    getNftState,
+  }: {
+    messenger: NftDetectionControllerMessenger;
+    disabled: boolean;
+    addNft: NftController['addNft'];
+    getNftState: () => NftControllerState;
+  }) {
+    super({
+      name: controllerName,
+      messenger,
+      metadata: {},
+      state: {},
     });
+    this.#disabled = disabled;
+    this.#inProcessNftFetchingUpdates = {};
 
-    onNetworkStateChange(({ selectedNetworkClientId }) => {
-      const selectedNetworkClient = getNetworkClientById(
-        selectedNetworkClientId,
-      );
-      const { chainId } = selectedNetworkClient.configuration;
+    this.#getNftState = getNftState;
+    this.#addNft = addNft;
 
-      this.configure({ chainId });
-    });
-    this.getOpenSeaApiKey = getOpenSeaApiKey;
-    this.addNft = addNft;
-    this.getNftApi = getNftApi;
-    this.setIntervalLength(this.config.interval);
-  }
-
-  async _executePoll(
-    networkClientId: string,
-    options: { address: string },
-  ): Promise<void> {
-    await this.detectNfts({ networkClientId, userAddress: options.address });
-  }
-
-  /**
-   * Start polling for the currency rate.
-   */
-  async start() {
-    if (!this.isMainnet() || this.disabled) {
-      return;
-    }
-
-    await this.startPolling();
-  }
-
-  /**
-   * Stop polling for the currency rate.
-   */
-  stop() {
-    this.stopPolling();
-  }
-
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-    }
-  }
-
-  /**
-   * Starts a new polling interval.
-   *
-   * @param interval - An interval on which to poll.
-   */
-  private async startPolling(interval?: number): Promise<void> {
-    interval && this.configure({ interval }, false, false);
-    this.stopPolling();
-    await this.detectNfts();
-    this.intervalId = setInterval(async () => {
-      await this.detectNfts();
-    }, this.config.interval);
+    this.messagingSystem.subscribe(
+      'PreferencesController:stateChange',
+      this.#onPreferencesControllerStateChange.bind(this),
+    );
   }
 
   /**
@@ -558,11 +504,69 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    *
    * @returns Whether current network is mainnet.
    */
-  isMainnet = (): boolean => this.config.chainId === ChainId.mainnet;
+  isMainnet(): boolean {
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return chainId === ChainId.mainnet;
+  }
 
-  isMainnetByNetworkClientId = (networkClient: NetworkClient): boolean => {
+  isMainnetByNetworkClientId(networkClient: NetworkClient): boolean {
     return networkClient.configuration.chainId === ChainId.mainnet;
-  };
+  }
+
+  /**
+   * Handles the state change of the preference controller.
+   * @param preferencesState - The new state of the preference controller.
+   * @param preferencesState.useNftDetection - Boolean indicating user preference on NFT detection.
+   */
+  #onPreferencesControllerStateChange({ useNftDetection }: PreferencesState) {
+    if (!useNftDetection !== this.#disabled) {
+      this.#disabled = !useNftDetection;
+    }
+  }
+
+  #getOwnerNftApi({
+    chainId,
+    address,
+    next,
+  }: {
+    chainId: string;
+    address: string;
+    next?: string;
+  }) {
+    return `${
+      NFT_API_BASE_URL as string
+    }/users/${address}/tokens?chainIds=${chainId}&limit=50&includeTopBid=true&continuation=${
+      next ?? ''
+    }`;
+  }
+
+  async #getOwnerNfts(
+    address: string,
+    chainId: Hex,
+    cursor: string | undefined,
+  ) {
+    // Convert hex chainId to number
+    const convertedChainId = convertHexToDecimal(chainId).toString();
+    const url = this.#getOwnerNftApi({
+      chainId: convertedChainId,
+      address,
+      next: cursor,
+    });
+    const nftApiResponse: ReservoirResponse = await handleFetch(url, {
+      headers: {
+        Version: NFT_API_VERSION,
+      },
+    });
+    return nftApiResponse;
+  }
 
   /**
    * Triggers asset ERC721 token auto detection on mainnet. Any newly detected NFTs are
@@ -572,17 +576,27 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
    * @param options.networkClientId - The network client ID to detect NFTs on.
    * @param options.userAddress - The address to detect NFTs for.
    */
-  async detectNfts(
-    {
-      networkClientId,
-      userAddress,
-    }: {
-      networkClientId?: NetworkClientId;
-      userAddress: string;
-    } = { userAddress: this.config.selectedAddress },
-  ) {
+  async detectNfts(options?: {
+    networkClientId?: NetworkClientId;
+    userAddress?: string;
+  }) {
+    const userAddress =
+      options?.userAddress ??
+      this.messagingSystem.call('AccountsController:getSelectedAccount')
+        .address;
+
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const {
+      configuration: { chainId },
+    } = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+
     /* istanbul ignore if */
-    if (!this.isMainnet() || this.disabled) {
+    if (!supportedNftDetectionNetworks.includes(chainId) || this.#disabled) {
       return;
     }
     /* istanbul ignore else */
@@ -590,66 +604,174 @@ export class NftDetectionController extends StaticIntervalPollingControllerV1<
       return;
     }
 
-    const apiNfts = await this.getOwnerNfts(userAddress);
-    const addNftPromises = apiNfts.map(async (nft) => {
-      const {
-        tokenId: token_id,
-        contract,
-        kind,
-        image: image_url,
-        imageSmall: image_thumbnail_url,
-        metadata: { imageOriginal: image_original_url } = {},
-        name,
-        description,
-        attributes,
-        topBid,
-        lastSale,
-        rarityRank,
-        rarityScore,
-        collection,
-      } = nft.token;
+    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    const updateKey: `${Hex}:${string}` = `${chainId}:${userAddress}`;
+    if (updateKey in this.#inProcessNftFetchingUpdates) {
+      // This prevents redundant updates
+      // This promise is resolved after the in-progress update has finished,
+      // and state has been updated.
+      await this.#inProcessNftFetchingUpdates[updateKey];
+      return;
+    }
 
-      let ignored;
-      /* istanbul ignore else */
-      const { ignoredNfts } = this.getNftState();
-      if (ignoredNfts.length) {
-        ignored = ignoredNfts.find((c) => {
-          /* istanbul ignore next */
-          return (
-            c.address === toChecksumHexAddress(contract) &&
-            c.tokenId === token_id
-          );
-        });
-      }
+    const {
+      promise: inProgressUpdate,
+      resolve: updateSucceeded,
+      reject: updateFailed,
+    } = createDeferredPromise({ suppressUnhandledRejection: true });
+    this.#inProcessNftFetchingUpdates[updateKey] = inProgressUpdate;
 
-      /* istanbul ignore else */
-      if (!ignored) {
-        /* istanbul ignore next */
-        const nftMetadata: NftMetadata = Object.assign(
-          {},
-          { name },
-          description && { description },
-          image_url && { image: image_url },
-          image_thumbnail_url && { imageThumbnail: image_thumbnail_url },
-          image_original_url && { imageOriginal: image_original_url },
-          kind && { standard: kind.toUpperCase() },
-          lastSale && { lastSale },
-          attributes && { attributes },
-          topBid && { topBid },
-          rarityRank && { rarityRank },
-          rarityScore && { rarityScore },
-          collection && { collection },
+    let next;
+    let apiNfts: TokensResponse[] = [];
+    let resultNftApi: ReservoirResponse;
+    try {
+      do {
+        resultNftApi = await this.#getOwnerNfts(userAddress, chainId, next);
+        apiNfts = resultNftApi.tokens.filter(
+          (elm) =>
+            elm.token.isSpam === false &&
+            (elm.blockaidResult?.result_type
+              ? elm.blockaidResult?.result_type === BlockaidResultType.Benign
+              : true),
         );
+        // Retrieve collections from apiNfts
+        // contract and collection.id are equal for simple contract addresses; this is to exclude cases for shared contracts
+        const collections = apiNfts.reduce<string[]>((acc, currValue) => {
+          if (
+            !acc.includes(currValue.token.contract) &&
+            currValue.token.contract === currValue?.token?.collection?.id
+          ) {
+            acc.push(currValue.token.contract);
+          }
+          return acc;
+        }, []);
 
-        await this.addNft(contract, token_id, {
-          nftMetadata,
-          userAddress,
-          source: Source.Detected,
-          networkClientId,
+        if (collections.length !== 0) {
+          // Call API to retrive collections infos
+          // The api accept a max of 20 contracts
+          const collectionResponse: GetCollectionsResponse =
+            await reduceInBatchesSerially({
+              values: collections,
+              batchSize: MAX_GET_COLLECTION_BATCH_SIZE,
+              eachBatch: async (allResponses, batch) => {
+                const params = new URLSearchParams(
+                  batch.map((s) => ['contract', s]),
+                );
+                params.append('chainId', '1'); // Adding chainId 1 because we are only detecting for mainnet
+                const collectionResponseForBatch = await fetchWithErrorHandling(
+                  {
+                    url: `${
+                      NFT_API_BASE_URL as string
+                    }/collections?${params.toString()}`,
+                    options: {
+                      headers: {
+                        Version: NFT_API_VERSION,
+                      },
+                    },
+                    timeout: NFT_API_TIMEOUT,
+                  },
+                );
+
+                return {
+                  ...allResponses,
+                  ...collectionResponseForBatch,
+                };
+              },
+              initialResult: {},
+            });
+
+          // Add collections response fields to  newnfts
+          if (collectionResponse.collections?.length) {
+            apiNfts.forEach((singleNFT) => {
+              const found = collectionResponse.collections.find(
+                (elm) =>
+                  elm.id?.toLowerCase() ===
+                  singleNFT.token.contract.toLowerCase(),
+              );
+              if (found) {
+                singleNFT.token = {
+                  ...singleNFT.token,
+                  collection: {
+                    ...(singleNFT.token.collection ?? {}),
+                    creator: found?.creator,
+                    openseaVerificationStatus: found?.openseaVerificationStatus,
+                    contractDeployedAt: found.contractDeployedAt,
+                    ownerCount: found.ownerCount,
+                    topBid: found.topBid,
+                  },
+                };
+              }
+            });
+          }
+        }
+
+        // Proceed to add NFTs
+        const addNftPromises = apiNfts.map(async (nft) => {
+          const {
+            tokenId,
+            contract,
+            kind,
+            image: imageUrl,
+            imageSmall: imageThumbnailUrl,
+            metadata: { imageOriginal: imageOriginalUrl } = {},
+            name,
+            description,
+            attributes,
+            topBid,
+            lastSale,
+            rarityRank,
+            rarityScore,
+            collection,
+          } = nft.token;
+
+          let ignored;
+          /* istanbul ignore else */
+          const { ignoredNfts } = this.#getNftState();
+          if (ignoredNfts.length) {
+            ignored = ignoredNfts.find((c) => {
+              /* istanbul ignore next */
+              return (
+                c.address === toChecksumHexAddress(contract) &&
+                c.tokenId === tokenId
+              );
+            });
+          }
+
+          /* istanbul ignore else */
+          if (!ignored) {
+            /* istanbul ignore next */
+            const nftMetadata: NftMetadata = Object.assign(
+              {},
+              { name },
+              description && { description },
+              imageUrl && { image: imageUrl },
+              imageThumbnailUrl && { imageThumbnail: imageThumbnailUrl },
+              imageOriginalUrl && { imageOriginal: imageOriginalUrl },
+              kind && { standard: kind.toUpperCase() },
+              lastSale && { lastSale },
+              attributes && { attributes },
+              topBid && { topBid },
+              rarityRank && { rarityRank },
+              rarityScore && { rarityScore },
+              collection && { collection },
+            );
+            await this.#addNft(contract, tokenId, {
+              nftMetadata,
+              userAddress,
+              source: Source.Detected,
+              networkClientId: options?.networkClientId,
+            });
+          }
         });
-      }
-    });
-    await Promise.all(addNftPromises);
+        await Promise.all(addNftPromises);
+      } while ((next = resultNftApi.continuation));
+      updateSucceeded();
+    } catch (error) {
+      updateFailed(error);
+      throw error;
+    } finally {
+      delete this.#inProcessNftFetchingUpdates[updateKey];
+    }
   }
 }
 

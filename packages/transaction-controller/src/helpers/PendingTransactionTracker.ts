@@ -48,18 +48,20 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): this;
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 }
 
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
-
-  #approveTransaction: (transactionId: string) => Promise<void>;
 
   #blockTracker: BlockTracker;
 
@@ -79,7 +81,10 @@ export class PendingTransactionTracker {
 
   #getGlobalLock: () => Promise<() => void>;
 
-  #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
+  #publishTransaction: (
+    ethQuery: EthQuery,
+    transactionMeta: TransactionMeta,
+  ) => Promise<string>;
 
   #running: boolean;
 
@@ -88,7 +93,6 @@ export class PendingTransactionTracker {
   #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
   constructor({
-    approveTransaction,
     blockTracker,
     getChainId,
     getEthQuery,
@@ -98,14 +102,16 @@ export class PendingTransactionTracker {
     publishTransaction,
     hooks,
   }: {
-    approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
     getChainId: () => string;
     getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
     getTransactions: () => TransactionMeta[];
     isResubmitEnabled?: () => boolean;
     getGlobalLock: () => Promise<() => void>;
-    publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
+    publishTransaction: (
+      ethQuery: EthQuery,
+      transactionMeta: TransactionMeta,
+    ) => Promise<string>;
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
@@ -115,7 +121,6 @@ export class PendingTransactionTracker {
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
-    this.#approveTransaction = approveTransaction;
     this.#blockTracker = blockTracker;
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
@@ -248,11 +253,13 @@ export class PendingTransactionTracker {
       } catch (error: any) {
         /* istanbul ignore next */
         const errorMessage =
-          error.value?.message?.toLowerCase() || error.message.toLowerCase();
+          error.value?.message?.toLowerCase() ||
+          error.message?.toLowerCase() ||
+          String(error);
 
         if (this.#isKnownTransactionError(errorMessage)) {
           log('Ignoring known transaction error', errorMessage);
-          return;
+          continue;
         }
 
         this.#warnTransaction(
@@ -278,20 +285,12 @@ export class PendingTransactionTracker {
       return;
     }
 
-    const { rawTx } = txMeta;
-
     if (!this.#beforePublish(txMeta)) {
       return;
     }
 
-    if (!rawTx?.length) {
-      log('Approving transaction as no raw value');
-      await this.#approveTransaction(txMeta.id);
-      return;
-    }
-
     const ethQuery = this.#getEthQuery(txMeta.networkClientId);
-    await this.#publishTransaction(ethQuery, rawTx);
+    await this.#publishTransaction(ethQuery, txMeta);
 
     const retryCount = (txMeta.retryCount ?? 0) + 1;
 

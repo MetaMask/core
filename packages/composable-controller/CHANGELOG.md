@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [9.0.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.3` to `^7.0.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+
+### Removed
+
+- **BREAKING:** Remove exports for types `LegacyControllerStateConstraint`, `RestrictedControllerMessengerConstraint`, and type guard functions `isBaseController`, `isBaseControllerV1` ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - These have been migrated to `@metamask/base-controller@7.0.0`.
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Add two required generic parameters to the `ComposableController` class: `ComposedControllerState` (constrained by `LegacyComposableControllerStateConstraint`) and `ChildControllers` (constrained by `ControllerInstance`) ([#4467](https://github.com/MetaMask/core/pull/4467))
+- **BREAKING:** The type guard `isBaseController` now validates that the input has an object-type property named `metadata` in addition to its existing checks ([#4467](https://github.com/MetaMask/core/pull/4467))
+- **BREAKING:** The type guard `isBaseControllerV1` now validates that the input has object-type properties `config`, `state`, and function-type property `subscribe`, in addition to its existing checks ([#4467](https://github.com/MetaMask/core/pull/4467))
+- **BREAKING:** Narrow `LegacyControllerStateConstraint` type from `BaseState | StateConstraint` to `BaseState & object | StateConstraint` ([#4467](https://github.com/MetaMask/core/pull/4467))
+- Add an optional generic parameter `ControllerName` to the `RestrictedControllerMessengerConstraint` type, which extends `string` and defaults to `string` ([#4467](https://github.com/MetaMask/core/pull/4467))
+- Bump `@metamask/base-controller` from `~6.0.0` to `~6.0.3` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544), [#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `typescript` from `~4.9.5` to `~5.2.2` and set `module{,Resolution}` options to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- **BREAKING:** The `ComposableController` class raises a type error if a non-controller with no `state` property is passed into the `ChildControllers` generic parameter or the `controllers` constructor option ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - Previously, a runtime error was thrown at class instantiation with no type-level enforcement.
+- When the `ComposableController` class is instantiated, its messenger now attempts to subscribe to all child controller `stateChange` events that are included in the messenger's events allowlist ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - This was always the expected behavior, but a bug introduced in `@metamask/composable-controller@6.0.0` caused `stateChange` event subscriptions to fail.
+- `isBaseController` and `isBaseControllerV1` no longer return false negatives ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - The `instanceof` operator is no longer used to validate that the input is a subclass of `BaseController` or `BaseControllerV1`.
+- The `ChildControllerStateChangeEvents` type checks that the child controller's state extends from the `StateConstraintV1` type instead of from `Record<string, unknown>` ([#4467](https://github.com/MetaMask/core/pull/4467))
+  - V1 controllers define their state types using the `interface` keyword, which are incompatible with `Record<string, unknown>` by default. This resulted in `ChildControllerStateChangeEvents` failing to generate `stateChange` events for V1 controllers and returning `never`.
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [6.0.2]
+
+### Added
+
+- Adds and exports new types: ([#3952](https://github.com/MetaMask/core/pull/3952))
+  - `RestrictedControllerMessengerConstraint`, which is the narrowest supertype of all controller-messenger instances.
+  - `LegacyControllerStateConstraint`, a universal supertype for the controller state object, encompassing both BaseControllerV1 and BaseControllerV2 state.
+  - `ComposableControllerStateConstraint`, the narrowest supertype for the composable controller state object.
+
+### Changed
+
+- **BREAKING:** The `ComposableController` class is now a generic class that expects one generic argument `ComposableControllerState` ([#3952](https://github.com/MetaMask/core/pull/3952)).
+  - **BREAKING:** For the `ComposableController` class to be typed correctly, any of its child controllers that extend `BaseControllerV1` must have an overridden `name` property that is defined using the `as const` assertion.
+- **BREAKING:** The types `ComposableControllerStateChangeEvent`, `ComposableControllerEvents`, `ComposableControllerMessenger` are now generic types that expect one generic argument `ComposableControllerState` ([#3952](https://github.com/MetaMask/core/pull/3952)).
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
 ## [6.0.1]
 
 ### Fixed
@@ -122,7 +199,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@8.0.0...@metamask/composable-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@7.0.0...@metamask/composable-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.2...@metamask/composable-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.1...@metamask/composable-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.0...@metamask/composable-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@5.0.1...@metamask/composable-controller@6.0.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@5.0.0...@metamask/composable-controller@5.0.1

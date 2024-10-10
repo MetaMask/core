@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.1.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [10.1.0]
+
+### Added
+
+- Add protected methods `addRequestToMessageParams`, `createUnapprovedMessage` to `AbstractMessageManager`
+
+### Changed
+
+- Add `requestId` property to the `messageParams` object to reference metric event fragments created from the `createRPCMethodTrackingMiddleware` in the client ([#4636](https://github.com/MetaMask/core/pull/4636))
+  - Add optional property `requestId` to `AbstractMessageParams` type
+  - Add optional property `id` to `OriginalRequest` type
+- Bump `@metamask/controller-utils` from `^11.1.0` to `^11.2.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+
+## [10.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [10.0.2]
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` to `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+### Fixed
+
+- Add `EventEmitter` type annotation to the `hub` class field of `AbstractMessageManager` ([#4510](https://github.com/MetaMask/core/pull/4510))
+  - This ensures that `hub` is not inferred to be a generic type, which would break types for downstream consumers.
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [9.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove `Message`, `MessageParams`, `MessageParamsMetamask`, and `MessageManager` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - Support for `eth_sign` is being removed, so these are no longer needed.
+
 ## [8.0.2]
 
 ### Changed
@@ -236,7 +313,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...HEAD
+[10.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.0...@metamask/message-manager@10.1.1
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.3...@metamask/message-manager@10.1.0
+[10.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.2...@metamask/message-manager@10.0.3
+[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.1...@metamask/message-manager@10.0.2
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.0...@metamask/message-manager@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@9.0.0...@metamask/message-manager@10.0.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.2...@metamask/message-manager@9.0.0
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.1...@metamask/message-manager@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@8.0.0...@metamask/message-manager@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@7.3.9...@metamask/message-manager@8.0.0

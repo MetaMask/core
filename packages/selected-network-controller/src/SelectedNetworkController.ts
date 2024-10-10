@@ -15,6 +15,7 @@ import type {
   HasPermissions as PermissionControllerHasPermissions,
 } from '@metamask/permission-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { Hex } from '@metamask/utils';
 import type { Patch } from 'immer';
 
 export const controllerName = 'SelectedNetworkController';
@@ -191,23 +192,59 @@ export class SelectedNetworkController extends BaseController<
 
     this.messagingSystem.subscribe(
       'NetworkController:stateChange',
-      ({ selectedNetworkClientId }, patches) => {
-        patches.forEach(({ op, path }) => {
-          // if a network is removed, update the networkClientId for all domains that were using it to the selected network
-          if (op === 'remove' && path[0] === 'networkConfigurations') {
-            const removedNetworkClientId = path[1] as NetworkClientId;
-            Object.entries(this.state.domains).forEach(
-              ([domain, networkClientIdForDomain]) => {
-                if (networkClientIdForDomain === removedNetworkClientId) {
-                  this.setNetworkClientIdForDomain(
-                    domain,
-                    selectedNetworkClientId,
-                  );
-                }
-              },
+      (
+        { selectedNetworkClientId, networkConfigurationsByChainId },
+        patches,
+      ) => {
+        const patch = patches.find(
+          ({ op, path }) =>
+            (op === 'replace' || op === 'remove') &&
+            path[0] === 'networkConfigurationsByChainId',
+        );
+
+        if (patch) {
+          const networkClientIdToChainId = Object.values(
+            networkConfigurationsByChainId,
+          ).reduce((acc, network) => {
+            network.rpcEndpoints.forEach(
+              ({ networkClientId }) => (acc[networkClientId] = network.chainId),
             );
-          }
-        });
+            return acc;
+          }, {} as Record<string, Hex>);
+
+          Object.entries(this.state.domains).forEach(
+            ([domain, networkClientIdForDomain]) => {
+              const chainIdForDomain =
+                networkClientIdToChainId[networkClientIdForDomain];
+
+              if (patch.op === 'remove' && !chainIdForDomain) {
+                // If the network was removed, fall back to the globally selected network
+                this.setNetworkClientIdForDomain(
+                  domain,
+                  selectedNetworkClientId,
+                );
+              } else if (patch.op === 'replace') {
+                // If the network was updated, redirect to the network's default endpoint
+
+                const updatedChainId = patch.path[1] as Hex;
+                if (!chainIdForDomain || chainIdForDomain === updatedChainId) {
+                  const network =
+                    networkConfigurationsByChainId[updatedChainId];
+
+                  const { networkClientId: defaultNetworkClientId } =
+                    network.rpcEndpoints[network.defaultRpcEndpointIndex];
+
+                  if (networkClientIdForDomain !== defaultNetworkClientId) {
+                    this.setNetworkClientIdForDomain(
+                      domain,
+                      defaultNetworkClientId,
+                    );
+                  }
+                }
+              }
+            },
+          );
+        }
       },
     );
 
@@ -307,6 +344,10 @@ export class SelectedNetworkController extends BaseController<
     domain: Domain,
     networkClientId: NetworkClientId,
   ) {
+    if (!this.#useRequestQueuePreference) {
+      return;
+    }
+
     if (domain === METAMASK_DOMAIN) {
       throw new Error(
         `NetworkClientId for domain "${METAMASK_DOMAIN}" cannot be set on the SelectedNetworkController`,

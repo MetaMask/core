@@ -67,14 +67,14 @@ type FilterObjectCaveat = Caveat<
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
 // A caveat value merger for any caveat whose value is an array of JSON primitives.
-const primitiveArrayMerger = <T extends string | null | number>(
-  a: T[],
-  b: T[],
+const primitiveArrayMerger = <Element extends string | null | number>(
+  a: Element[],
+  b: Element[],
 ) => {
   const diff = b.filter((element) => !a.includes(element));
 
   if (diff.length > 0) {
-    return [[...(a ?? []), ...diff], diff] as [T[], T[]];
+    return [[...(a ?? []), ...diff], diff] as [Element[], Element[]];
   }
   return [] as [];
 };
@@ -560,7 +560,7 @@ type AddPermissionRequestParams = {
   id: string;
   origin: string;
   requestData: PermissionsRequest;
-  type: MethodNames.requestPermissions;
+  type: MethodNames.RequestPermissions;
 };
 
 type AddPermissionRequestArgs = [string, AddPermissionRequestParams];
@@ -722,10 +722,6 @@ function getPermissionMatcher({
 }
 
 describe('PermissionController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
@@ -758,7 +754,9 @@ describe('PermissionController', () => {
                 },
               }),
             ),
-        ).toThrow(`Invalid permission type: "${invalidPermissionType}"`);
+        ).toThrow(
+          `Invalid permission type: "${String(invalidPermissionType)}"`,
+        );
       });
     });
 
@@ -1974,9 +1972,9 @@ describe('PermissionController', () => {
 
   describe('updatePermissionsByCaveat', () => {
     enum MultiCaveatOrigins {
-      a = 'a.com',
-      b = 'b.io',
-      c = 'c.biz',
+      A = 'a.com',
+      B = 'b.io',
+      C = 'c.biz',
     }
 
     /**
@@ -1988,7 +1986,7 @@ describe('PermissionController', () => {
       const controller = getDefaultPermissionController();
 
       controller.grantPermissions({
-        subject: { origin: MultiCaveatOrigins.a },
+        subject: { origin: MultiCaveatOrigins.A },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
             caveats: [{ type: CaveatTypes.filterArrayResponse, value: ['a'] }],
@@ -1997,7 +1995,7 @@ describe('PermissionController', () => {
       });
 
       controller.grantPermissions({
-        subject: { origin: MultiCaveatOrigins.b },
+        subject: { origin: MultiCaveatOrigins.B },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
             caveats: [
@@ -2019,7 +2017,7 @@ describe('PermissionController', () => {
       });
 
       controller.grantPermissions({
-        subject: { origin: MultiCaveatOrigins.c },
+        subject: { origin: MultiCaveatOrigins.C },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
             caveats: [{ type: CaveatTypes.filterObjectResponse, value: ['c'] }],
@@ -2040,22 +2038,22 @@ describe('PermissionController', () => {
     ) => {
       return {
         subjects: {
-          [MultiCaveatOrigins.a]: {
-            origin: MultiCaveatOrigins.a,
+          [MultiCaveatOrigins.A]: {
+            origin: MultiCaveatOrigins.A,
             permissions: {
               [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretArray,
                 caveats: [
                   { type: CaveatTypes.filterArrayResponse, value: ['a'] },
                 ],
-                invoker: MultiCaveatOrigins.a,
+                invoker: MultiCaveatOrigins.A,
               }),
-              ...overrides[MultiCaveatOrigins.a],
+              ...overrides[MultiCaveatOrigins.A],
             },
           },
 
-          [MultiCaveatOrigins.b]: {
-            origin: MultiCaveatOrigins.b,
+          [MultiCaveatOrigins.B]: {
+            origin: MultiCaveatOrigins.B,
             permissions: {
               [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretArray,
@@ -2063,7 +2061,7 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterArrayResponse, value: ['b'] },
                   { type: CaveatTypes.reverseArrayResponse, value: null },
                 ],
-                invoker: MultiCaveatOrigins.b,
+                invoker: MultiCaveatOrigins.B,
               }),
               [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretObject,
@@ -2071,42 +2069,42 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterObjectResponse, value: ['b'] },
                   { type: CaveatTypes.noopCaveat, value: null },
                 ],
-                invoker: MultiCaveatOrigins.b,
+                invoker: MultiCaveatOrigins.B,
               }),
               [PermissionNames.wallet_noopWithRequiredCaveat]:
                 getPermissionMatcher({
                   parentCapability:
                     PermissionNames.wallet_noopWithRequiredCaveat,
                   caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                  invoker: MultiCaveatOrigins.b,
+                  invoker: MultiCaveatOrigins.B,
                 }),
               [PermissionNames.wallet_doubleNumber]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_doubleNumber,
                 caveats: null,
-                invoker: MultiCaveatOrigins.b,
+                invoker: MultiCaveatOrigins.B,
               }),
-              ...overrides[MultiCaveatOrigins.b],
+              ...overrides[MultiCaveatOrigins.B],
             },
           },
 
-          [MultiCaveatOrigins.c]: {
-            origin: MultiCaveatOrigins.c,
+          [MultiCaveatOrigins.C]: {
+            origin: MultiCaveatOrigins.C,
             permissions: {
               [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretObject,
                 caveats: [
                   { type: CaveatTypes.filterObjectResponse, value: ['c'] },
                 ],
-                invoker: MultiCaveatOrigins.c,
+                invoker: MultiCaveatOrigins.C,
               }),
               [PermissionNames.wallet_noopWithRequiredCaveat]:
                 getPermissionMatcher({
                   parentCapability:
                     PermissionNames.wallet_noopWithRequiredCaveat,
                   caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                  invoker: MultiCaveatOrigins.c,
+                  invoker: MultiCaveatOrigins.C,
                 }),
-              ...overrides[MultiCaveatOrigins.c],
+              ...overrides[MultiCaveatOrigins.C],
             },
           },
         },
@@ -2128,7 +2126,7 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
         () => {
           return {
-            operation: CaveatMutatorOperation.updateValue,
+            operation: CaveatMutatorOperation.UpdateValue,
             value: ['a', 'b'],
           };
         },
@@ -2144,7 +2142,7 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
         () => {
-          return { operation: CaveatMutatorOperation.noop };
+          return { operation: CaveatMutatorOperation.Noop };
         },
       );
       expect(controller.state).toStrictEqual(getMultiCaveatStateMatcher());
@@ -2157,7 +2155,7 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
         () => {
           return {
-            operation: CaveatMutatorOperation.updateValue,
+            operation: CaveatMutatorOperation.UpdateValue,
             value: ['a', 'b'],
           };
         },
@@ -2165,23 +2163,23 @@ describe('PermissionController', () => {
 
       expect(controller.state).toStrictEqual(
         getMultiCaveatStateMatcher({
-          [MultiCaveatOrigins.a]: {
+          [MultiCaveatOrigins.A]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.filterArrayResponse, value: ['a', 'b'] },
               ],
-              invoker: MultiCaveatOrigins.a,
+              invoker: MultiCaveatOrigins.A,
             }),
           },
-          [MultiCaveatOrigins.b]: {
+          [MultiCaveatOrigins.B]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.filterArrayResponse, value: ['a', 'b'] },
                 { type: CaveatTypes.reverseArrayResponse, value: null },
               ],
-              invoker: MultiCaveatOrigins.b,
+              invoker: MultiCaveatOrigins.B,
             }),
           },
         }),
@@ -2195,9 +2193,9 @@ describe('PermissionController', () => {
       const mutator = () => {
         counter += 1;
         return counter === 1
-          ? { operation: CaveatMutatorOperation.noop as const }
+          ? { operation: CaveatMutatorOperation.Noop as const }
           : {
-              operation: CaveatMutatorOperation.updateValue as const,
+              operation: CaveatMutatorOperation.UpdateValue as const,
               value: ['a', 'b'],
             };
       };
@@ -2209,14 +2207,14 @@ describe('PermissionController', () => {
 
       expect(controller.state).toStrictEqual(
         getMultiCaveatStateMatcher({
-          [MultiCaveatOrigins.b]: {
+          [MultiCaveatOrigins.B]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.filterArrayResponse, value: ['a', 'b'] },
                 { type: CaveatTypes.reverseArrayResponse, value: null },
               ],
-              invoker: MultiCaveatOrigins.b,
+              invoker: MultiCaveatOrigins.B,
             }),
           },
         }),
@@ -2229,26 +2227,26 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
         () => {
-          return { operation: CaveatMutatorOperation.deleteCaveat };
+          return { operation: CaveatMutatorOperation.DeleteCaveat };
         },
       );
 
       expect(controller.state).toStrictEqual(
         getMultiCaveatStateMatcher({
-          [MultiCaveatOrigins.a]: {
+          [MultiCaveatOrigins.A]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: null,
-              invoker: MultiCaveatOrigins.a,
+              invoker: MultiCaveatOrigins.A,
             }),
           },
-          [MultiCaveatOrigins.b]: {
+          [MultiCaveatOrigins.B]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.reverseArrayResponse, value: null },
               ],
-              invoker: MultiCaveatOrigins.b,
+              invoker: MultiCaveatOrigins.B,
             }),
           },
         }),
@@ -2261,16 +2259,16 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterObjectResponse,
         () => {
-          return { operation: CaveatMutatorOperation.revokePermission };
+          return { operation: CaveatMutatorOperation.RevokePermission };
         },
       );
 
       const matcher = getMultiCaveatStateMatcher();
-      delete matcher.subjects[MultiCaveatOrigins.b].permissions[
+      delete matcher.subjects[MultiCaveatOrigins.B].permissions[
         PermissionNames.wallet_getSecretObject
       ];
 
-      delete matcher.subjects[MultiCaveatOrigins.c].permissions[
+      delete matcher.subjects[MultiCaveatOrigins.C].permissions[
         PermissionNames.wallet_getSecretObject
       ];
 
@@ -2286,8 +2284,8 @@ describe('PermissionController', () => {
         return {
           operation:
             counter === 1
-              ? CaveatMutatorOperation.revokePermission
-              : CaveatMutatorOperation.noop,
+              ? CaveatMutatorOperation.RevokePermission
+              : CaveatMutatorOperation.Noop,
         };
       };
 
@@ -2298,7 +2296,7 @@ describe('PermissionController', () => {
 
       const matcher = getMultiCaveatStateMatcher();
       // @ts-expect-error Intentional destructive testing
-      delete matcher.subjects[MultiCaveatOrigins.a];
+      delete matcher.subjects[MultiCaveatOrigins.A];
 
       expect(controller.state).toStrictEqual(matcher);
     });
@@ -2311,7 +2309,7 @@ describe('PermissionController', () => {
           CaveatTypes.filterArrayResponse,
           () => {
             return {
-              operation: CaveatMutatorOperation.updateValue,
+              operation: CaveatMutatorOperation.UpdateValue,
               value: 'foo',
             };
           },
@@ -2324,7 +2322,7 @@ describe('PermissionController', () => {
 
       expect(() =>
         controller.updatePermissionsByCaveat(CaveatTypes.noopCaveat, () => {
-          return { operation: CaveatMutatorOperation.deleteCaveat };
+          return { operation: CaveatMutatorOperation.DeleteCaveat };
         }),
       ).toThrow('noopWithRequiredCaveat permission validation failed');
     });
@@ -3176,7 +3174,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3228,7 +3226,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3299,7 +3297,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3379,7 +3377,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3475,7 +3473,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3564,7 +3562,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3623,7 +3621,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3697,7 +3695,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3753,7 +3751,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3823,7 +3821,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3902,7 +3900,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -3977,7 +3975,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4061,7 +4059,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4334,7 +4332,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.snap_foo]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4449,7 +4447,7 @@ describe('PermissionController', () => {
                 permissions: { [PermissionNames.wallet_getSecretArray]: {} },
                 ...getRequestDataDiffProperty(),
               },
-              type: MethodNames.requestPermissions,
+              type: MethodNames.RequestPermissions,
             },
             true,
           );
@@ -4501,7 +4499,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4552,7 +4550,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4602,7 +4600,7 @@ describe('PermissionController', () => {
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4664,7 +4662,7 @@ describe('PermissionController', () => {
                 permissions: { [PermissionNames.wallet_getSecretArray]: {} },
                 ...getRequestDataDiffProperty(),
               },
-              type: MethodNames.requestPermissions,
+              type: MethodNames.RequestPermissions,
             },
             true,
           );
@@ -4739,7 +4737,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -4800,7 +4798,7 @@ describe('PermissionController', () => {
               },
               ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
@@ -5030,7 +5028,7 @@ describe('PermissionController', () => {
                 },
                 diff: getPermissionDiffMatcher(leftCaveats, caveatsDiff),
               },
-              type: MethodNames.requestPermissions,
+              type: MethodNames.RequestPermissions,
             },
             true,
           );
@@ -6030,7 +6028,7 @@ describe('PermissionController', () => {
 
       const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
 
-      await messenger.call(
+      messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
         'wallet_getSecretArray',
@@ -6199,6 +6197,8 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
+      // ESLint is confused; this signature is async.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       expect(response.error).toMatchObject(
@@ -6221,6 +6221,8 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
+      // ESLint is confused; this signature is async.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;
@@ -6270,6 +6272,8 @@ describe('PermissionController', () => {
         { request: { ...request } },
       );
 
+      // ESLint is confused; this signature is async.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       const response = await engine.handle(request);
       assertIsJsonRpcFailure(response);
       const { error } = response;

@@ -1,141 +1,140 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
 import type {
-  ActionConstraint,
-  BaseConfig,
-  BaseState,
-  EventConstraint,
   RestrictedControllerMessenger,
   StateConstraint,
+  StateConstraintV1,
+  StateMetadata,
+  ControllerStateChangeEvent,
+  LegacyControllerStateConstraint,
+  ControllerInstance,
+} from '@metamask/base-controller';
+import {
+  BaseController,
+  isBaseController,
+  isBaseControllerV1,
 } from '@metamask/base-controller';
 import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
+export const INVALID_CONTROLLER_ERROR =
+  'Invalid controller: controller must have a `messagingSystem` or be a class inheriting from `BaseControllerV1`.';
+
 /**
- * A universal subtype of all controller instances that extend from `BaseControllerV1`.
- * Any `BaseControllerV1` instance can be assigned to this type.
+ * A universal supertype for the composable controller state object.
  *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseControllerV1` instances.
- * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
+ * This type is only intended to be used for disabling the generic constraint on the `ControllerState` type argument in the `BaseController` type as a temporary solution for ensuring compatibility with BaseControllerV1 child controllers.
+ * Note that it is unsuitable for general use as a type constraint.
  */
-export type BaseControllerV1Instance =
-  // `any` is used so that all `BaseControllerV1` instances are assignable to this type.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BaseControllerV1<any, any>;
-
-/**
- * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`).
- * Any `BaseController` instance can be assigned to this type.
- *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` instances.
- * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
- *
- * For this reason, we only look for `BaseController` properties that we use in the ComposableController (name and state).
- */
-export type BaseControllerInstance = {
-  name: string;
-  state: StateConstraint;
-};
-
-/**
- * A universal subtype of all controller instances that extend from `BaseController` (formerly `BaseControllerV2`) or `BaseControllerV1`.
- * Any `BaseController` or `BaseControllerV1` instance can be assigned to this type.
- *
- * Note that this type is not the greatest subtype or narrowest supertype of all `BaseController` and `BaseControllerV1` instances.
- * This type is therefore unsuitable for general use as a type constraint, and is only intended for use within the ComposableController.
- */
-export type ControllerInstance =
-  | BaseControllerV1Instance
-  | BaseControllerInstance;
-
-/**
- * Determines if the given controller is an instance of `BaseControllerV1`
- * @param controller - Controller instance to check
- * @returns True if the controller is an instance of `BaseControllerV1`
- */
-export function isBaseControllerV1(
-  controller: ControllerInstance,
-): controller is BaseControllerV1<
-  BaseConfig & Record<string, unknown>,
-  BaseState & Record<string, unknown>
-> {
-  return (
-    'name' in controller &&
-    typeof controller.name === 'string' &&
-    'defaultConfig' in controller &&
-    typeof controller.defaultConfig === 'object' &&
-    'defaultState' in controller &&
-    typeof controller.defaultState === 'object' &&
-    'disabled' in controller &&
-    typeof controller.disabled === 'boolean' &&
-    controller instanceof BaseControllerV1
-  );
-}
-
-/**
- * Determines if the given controller is an instance of `BaseController`
- * @param controller - Controller instance to check
- * @returns True if the controller is an instance of `BaseController`
- */
-export function isBaseController(
-  controller: ControllerInstance,
-): controller is BaseController<
-  string,
-  StateConstraint,
-  RestrictedControllerMessenger<
-    string,
-    ActionConstraint,
-    EventConstraint,
-    string,
-    string
-  >
-> {
-  return (
-    'name' in controller &&
-    typeof controller.name === 'string' &&
-    'state' in controller &&
-    typeof controller.state === 'object' &&
-    controller instanceof BaseController
-  );
-}
-
-// TODO: Replace `any` with `Json` once `BaseControllerV2` migrations are completed for all controllers.
-export type ComposableControllerState = {
-  // `any` is used here to disable the `BaseController` type constraint which expects state properties to extend `Record<string, Json>`.
-  // `ComposableController` state needs to accommodate `BaseControllerV1` state objects that may have properties wider than `Json`.
+// TODO: Replace with `ComposableControllerStateConstraint` once BaseControllerV2 migrations are completed for all controllers.
+type LegacyComposableControllerStateConstraint = {
+  // `any` is used here to disable the generic constraint on the `ControllerState` type argument in the `BaseController` type,
+  // enabling composable controller state types with BaseControllerV1 state objects to be.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [name: string]: Record<string, any>;
 };
 
-export type ComposableControllerStateChangeEvent = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [ComposableControllerState, Patch[]];
+/**
+ * The narrowest supertype for the composable controller state object.
+ * This is also a widest subtype of the 'LegacyComposableControllerStateConstraint' type.
+ */
+// TODO: Replace with `{ [name: string]: StateConstraint }` once BaseControllerV2 migrations are completed for all controllers.
+export type ComposableControllerStateConstraint = {
+  [name: string]: LegacyControllerStateConstraint;
 };
 
-export type ComposableControllerEvents = ComposableControllerStateChangeEvent;
-
-type AnyControllerStateChangeEvent = {
-  type: `${string}:stateChange`;
-  payload: [ControllerInstance['state'], Patch[]];
+/**
+ * A `stateChange` event for any controller instance that extends from either `BaseControllerV1` or `BaseControllerV2`.
+ */
+// TODO: Replace all instances with `ControllerStateChangeEvent` once `BaseControllerV2` migrations are completed for all controllers.
+type LegacyControllerStateChangeEvent<
+  ControllerName extends string,
+  ControllerState extends StateConstraintV1,
+> = {
+  type: `${ControllerName}:stateChange`;
+  payload: [ControllerState, Patch[]];
 };
 
-type AllowedEvents = AnyControllerStateChangeEvent;
-
-export type ComposableControllerMessenger = RestrictedControllerMessenger<
+/**
+ * The `stateChange` event type for the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ComposableControllerStateChangeEvent<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = LegacyControllerStateChangeEvent<
   typeof controllerName,
-  never,
-  ComposableControllerEvents | AllowedEvents,
-  never,
-  AllowedEvents['type']
+  ComposableControllerState
 >;
 
 /**
- * Controller that can be used to compose multiple controllers together.
+ * A union type of internal event types available to the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
  */
-export class ComposableController extends BaseController<
+export type ComposableControllerEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerStateChangeEvent<ComposableControllerState>;
+
+/**
+ * A utility type that extracts controllers from the {@link ComposableControllerState} type,
+ * and derives a union type of all of their corresponding `stateChange` events.
+ *
+ * This type can handle both `BaseController` and `BaseControllerV1` controller instances.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ChildControllerStateChangeEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ComposableControllerState extends Record<
+  infer ControllerName extends string,
+  infer ControllerState
+>
+  ? ControllerState extends StateConstraint
+    ? ControllerStateChangeEvent<ControllerName, ControllerState>
+    : // TODO: Remove this conditional branch once `BaseControllerV2` migrations are completed for all controllers.
+    ControllerState extends StateConstraintV1
+    ? LegacyControllerStateChangeEvent<ControllerName, ControllerState>
+    : never
+  : never;
+
+/**
+ * A union type of external event types available to the {@link ComposableControllerMessenger}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type AllowedEvents<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = ChildControllerStateChangeEvents<ComposableControllerState>;
+
+/**
+ * The messenger of the {@link ComposableController}.
+ *
+ * @template ComposableControllerState - A type object that maps controller names to their state types.
+ */
+export type ComposableControllerMessenger<
+  ComposableControllerState extends ComposableControllerStateConstraint,
+> = RestrictedControllerMessenger<
+  typeof controllerName,
+  never,
+  | ComposableControllerEvents<ComposableControllerState>
+  | AllowedEvents<ComposableControllerState>,
+  never,
+  AllowedEvents<ComposableControllerState>['type']
+>;
+
+/**
+ * Controller that composes multiple child controllers and maintains up-to-date composed state.
+ *
+ * @template ComposableControllerState - A type object containing the names and state types of the child controllers.
+ * @template ChildControllers - A union type of the child controllers being used to instantiate the {@link ComposableController}.
+ */
+export class ComposableController<
+  ComposableControllerState extends LegacyComposableControllerStateConstraint,
+  ChildControllers extends ControllerInstance,
+> extends BaseController<
   typeof controllerName,
   ComposableControllerState,
-  ComposableControllerMessenger
+  ComposableControllerMessenger<ComposableControllerState>
 > {
   /**
    * Creates a ComposableController instance.
@@ -149,8 +148,8 @@ export class ComposableController extends BaseController<
     controllers,
     messenger,
   }: {
-    controllers: ControllerInstance[];
-    messenger: ComposableControllerMessenger;
+    controllers: ChildControllers[];
+    messenger: ComposableControllerMessenger<ComposableControllerState>;
   }) {
     if (messenger === undefined) {
       throw new Error(`Messaging system is required`);
@@ -158,18 +157,21 @@ export class ComposableController extends BaseController<
 
     super({
       name: controllerName,
-      metadata: controllers.reduce(
+      metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
         (metadata, controller) => ({
           ...metadata,
           [controller.name]: isBaseController(controller)
             ? controller.metadata
             : { persist: true, anonymous: true },
         }),
-        {},
+        {} as never,
       ),
-      state: controllers.reduce((state, controller) => {
-        return { ...state, [controller.name]: controller.state };
-      }, {}),
+      state: controllers.reduce<ComposableControllerState>(
+        (state, controller) => {
+          return { ...state, [controller.name]: controller.state };
+        },
+        {} as never,
+      ),
       messenger,
     });
 
@@ -180,30 +182,34 @@ export class ComposableController extends BaseController<
 
   /**
    * Constructor helper that subscribes to child controller state changes.
+   *
    * @param controller - Controller instance to update
    */
   #updateChildController(controller: ControllerInstance): void {
-    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
-      throw new Error(
-        'Invalid controller: controller must extend from BaseController or BaseControllerV1',
-      );
-    }
-
     const { name } = controller;
-    if (
-      (isBaseControllerV1(controller) && 'messagingSystem' in controller) ||
-      isBaseController(controller)
-    ) {
+    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
+      // False negative. `name` is a string type.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      throw new Error(`${name} - ${INVALID_CONTROLLER_ERROR}`);
+    }
+    try {
       this.messagingSystem.subscribe(
+        // False negative. `name` is a string type.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `${name}:stateChange`,
-        (childState: Record<string, unknown>) => {
+        (childState: LegacyControllerStateConstraint) => {
           this.update((state) => {
             Object.assign(state, { [name]: childState });
           });
         },
       );
-    } else if (isBaseControllerV1(controller)) {
-      controller.subscribe((childState) => {
+    } catch (error: unknown) {
+      // False negative. `name` is a string type.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      console.error(`${name} - ${String(error)}`);
+    }
+    if (isBaseControllerV1(controller)) {
+      controller.subscribe((childState: StateConstraintV1) => {
         this.update((state) => {
           Object.assign(state, { [name]: childState });
         });

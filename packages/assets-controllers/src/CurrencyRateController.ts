@@ -145,6 +145,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<
     } finally {
       releaseLock();
     }
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     nativeCurrencies.forEach(this.updateExchangeRate.bind(this));
   }
 
@@ -168,6 +170,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<
       ? FALL_BACK_VS_CURRENCY // ETH
       : nativeCurrency;
 
+    let shouldUpdateState = true;
     try {
       if (
         currentCurrency &&
@@ -194,23 +197,27 @@ export class CurrencyRateController extends StaticIntervalPollingController<
           error.message.includes('market does not exist for this coin pair')
         )
       ) {
+        // Don't update state on transient / unexpected errors
+        shouldUpdateState = false;
         throw error;
       }
     } finally {
       try {
-        this.update(() => {
-          return {
-            currencyRates: {
-              ...currencyRates,
-              [nativeCurrency]: {
-                conversionDate,
-                conversionRate,
-                usdConversionRate,
+        if (shouldUpdateState) {
+          this.update(() => {
+            return {
+              currencyRates: {
+                ...currencyRates,
+                [nativeCurrency]: {
+                  conversionDate,
+                  conversionRate,
+                  usdConversionRate,
+                },
               },
-            },
-            currentCurrency,
-          };
-        });
+              currentCurrency,
+            };
+          });
+        }
       } finally {
         releaseLock();
       }

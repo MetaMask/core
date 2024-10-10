@@ -1,16 +1,21 @@
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import type {
+  ActionConstraint,
+  RestrictedControllerMessenger,
+} from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
 import type {
   NetworkClientId,
-  NetworkState,
-  NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetNetworkConfigurationByNetworkClientId,
+  NetworkControllerGetSelectedNetworkClientAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerNetworkDidChangeEvent,
   Provider,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
-import type { Hex } from '@metamask/utils';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import { getKnownPropertyNames, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
@@ -25,7 +30,7 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
   [SupportedTokenDetectionNetworks.mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
   [SupportedTokenDetectionNetworks.bsc]:
@@ -62,25 +67,10 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
-};
+} as const satisfies Record<Hex, string>;
 
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
-
-/**
- * @type AssetsContractConfig
- *
- * Assets Contract controller configuration
- * @property provider - Provider used to create a new web3 instance
- */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AssetsContractConfig extends BaseConfig {
-  provider: Provider | undefined;
-  ipfsGateway: string;
-  chainId: Hex;
-}
 
 /**
  * @type BalanceMap
@@ -88,94 +78,228 @@ export interface AssetsContractConfig extends BaseConfig {
  * Key value object containing the balance for each tokenAddress
  * @property [tokenAddress] - Address of the token
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface BalanceMap {
+export type BalanceMap = {
   [tokenAddress: string]: BN;
-}
+};
+
+/**
+ * The name of the {@link AssetsContractController}
+ */
+const name = 'AssetsContractController';
+
+/**
+ * A utility type that derives the public method names of a given messenger consumer class,
+ * and uses it to generate the class's internal messenger action types.
+ * @template Controller - A messenger consumer class.
+ */
+// TODO: Figure out generic constraint and move to base-controller
+type ControllerActionsMap<Controller> = {
+  [ClassMethod in keyof Controller as Controller[ClassMethod] extends ActionConstraint['handler']
+    ? ClassMethod
+    : never]: {
+    type: `${typeof name}:${ClassMethod & string}`;
+    handler: Controller[ClassMethod];
+  };
+};
+
+type AssetsContractControllerActionsMap =
+  ControllerActionsMap<AssetsContractController>;
+
+/**
+ * The union of all public class method names of {@link AssetsContractController}.
+ */
+type AssetsContractControllerMethodName =
+  keyof AssetsContractControllerActionsMap;
+
+/**
+ * The union of all internal messenger actions available to the {@link AssetsContractControllerMessenger}.
+ */
+export type AssetsContractControllerActions =
+  AssetsContractControllerActionsMap[AssetsContractControllerMethodName];
+
+export type AssetsContractControllerGetERC20StandardAction =
+  AssetsContractControllerActionsMap['getERC20Standard'];
+
+export type AssetsContractControllerGetERC721StandardAction =
+  AssetsContractControllerActionsMap['getERC721Standard'];
+
+export type AssetsContractControllerGetERC1155StandardAction =
+  AssetsContractControllerActionsMap['getERC1155Standard'];
+
+export type AssetsContractControllerGetERC20BalanceOfAction =
+  AssetsContractControllerActionsMap['getERC20BalanceOf'];
+
+export type AssetsContractControllerGetERC20TokenDecimalsAction =
+  AssetsContractControllerActionsMap['getERC20TokenDecimals'];
+
+export type AssetsContractControllerGetERC20TokenNameAction =
+  AssetsContractControllerActionsMap['getERC20TokenName'];
+
+export type AssetsContractControllerGetERC721NftTokenIdAction =
+  AssetsContractControllerActionsMap['getERC721NftTokenId'];
+
+export type AssetsContractControllerGetERC721TokenURIAction =
+  AssetsContractControllerActionsMap['getERC721TokenURI'];
+
+export type AssetsContractControllerGetERC721AssetNameAction =
+  AssetsContractControllerActionsMap['getERC721AssetName'];
+
+export type AssetsContractControllerGetERC721AssetSymbolAction =
+  AssetsContractControllerActionsMap['getERC721AssetSymbol'];
+
+export type AssetsContractControllerGetERC721OwnerOfAction =
+  AssetsContractControllerActionsMap['getERC721OwnerOf'];
+
+export type AssetsContractControllerGetERC1155TokenURIAction =
+  AssetsContractControllerActionsMap['getERC1155TokenURI'];
+
+export type AssetsContractControllerGetERC1155BalanceOfAction =
+  AssetsContractControllerActionsMap['getERC1155BalanceOf'];
+
+export type AssetsContractControllerTransferSingleERC1155Action =
+  AssetsContractControllerActionsMap['transferSingleERC1155'];
+
+export type AssetsContractControllerGetTokenStandardAndDetailsAction =
+  AssetsContractControllerActionsMap['getTokenStandardAndDetails'];
+
+export type AssetsContractControllerGetBalancesInSingleCallAction =
+  AssetsContractControllerActionsMap['getBalancesInSingleCall'];
+
+/**
+ * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
+ */
+export type AssetsContractControllerEvents = never;
+
+/**
+ * The union of all external messenger actions that must be allowed by the {@link AssetsContractControllerMessenger}.
+ */
+export type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientId
+  | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetStateAction;
+
+/**
+ * The union of all external messenger event that must be allowed by the {@link AssetsContractControllerMessenger}.
+ */
+export type AllowedEvents =
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent;
+
+/**
+ * The messenger of the {@link AssetsContractController}.
+ */
+export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
+  typeof name,
+  AssetsContractControllerActions | AllowedActions,
+  AssetsContractControllerEvents | AllowedEvents,
+  AllowedActions['type'],
+  AllowedEvents['type']
+>;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
  */
-export class AssetsContractController extends BaseControllerV1<
-  AssetsContractConfig,
-  BaseState
-> {
-  private _provider?: Provider;
+export class AssetsContractController {
+  readonly name: typeof name = name;
 
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AssetsContractController';
+  protected messagingSystem: AssetsContractControllerMessenger;
 
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+  #provider: Provider | undefined;
+
+  #ipfsGateway: string;
+
+  #chainId: Hex;
 
   /**
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
+   * @param options.messenger - The controller messenger.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      chainId: initialChainId,
-      onPreferencesStateChange,
-      onNetworkDidChange,
-      getNetworkClientById,
-    }: {
-      chainId: Hex;
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkDidChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-    },
-    config?: Partial<AssetsContractConfig>,
-    state?: Partial<BaseState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      provider: undefined,
-      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: initialChainId,
-    };
-    this.initialize();
-    this.getNetworkClientById = getNetworkClientById;
+  constructor({
+    messenger,
+    chainId: initialChainId,
+  }: {
+    messenger: AssetsContractControllerMessenger;
+    chainId: Hex;
+  }) {
+    this.messagingSystem = messenger;
+    this.#provider = undefined;
+    this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
+    this.#chainId = initialChainId;
 
-    onPreferencesStateChange(({ ipfsGateway }) => {
-      this.configure({ ipfsGateway });
-    });
+    this.#registerActionHandlers();
+    this.#registerEventSubscriptions();
+  }
 
-    onNetworkDidChange((networkState) => {
-      if (this.config.chainId !== networkState.providerConfig.chainId) {
-        this.configure({
-          chainId: networkState.providerConfig.chainId,
-        });
-      }
-    });
+  // TODO: Expand into base-controller utility function that batch registers action handlers.
+  #registerActionHandlers() {
+    const methodsExcludedFromMessenger = [
+      'constructor',
+      'messagingSystem',
+      'setProvider',
+      'provider',
+      'ipfsGateway',
+      'chainId',
+    ];
+
+    getKnownPropertyNames<keyof this>(Object.getPrototypeOf(this)).forEach(
+      (method) => {
+        if (
+          ((key: keyof this): key is AssetsContractControllerMethodName =>
+            !methodsExcludedFromMessenger.find((e) => e === key) &&
+            typeof this[key] === 'function')(method)
+        ) {
+          this.messagingSystem.registerActionHandler(
+            `${name}:${method}`,
+            // TODO: Write a generic for-loop implementation that iterates over an input union type in tandem with the input array.
+            // @ts-expect-error Both assigned argument and assignee parameter are using the entire union type for `method` instead of the type for the current element
+            this[method].bind(this),
+          );
+        }
+      },
+    );
+  }
+
+  #registerEventSubscriptions() {
+    this.messagingSystem.subscribe(
+      `PreferencesController:stateChange`,
+      ({ ipfsGateway }) => {
+        this.#ipfsGateway = ipfsGateway;
+      },
+    );
+
+    this.messagingSystem.subscribe(
+      `NetworkController:networkDidChange`,
+      ({ selectedNetworkClientId }) => {
+        const chainId = this.#getCorrectChainId(selectedNetworkClientId);
+
+        if (this.#chainId !== chainId) {
+          this.#chainId = chainId;
+          // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
+          this.#provider = this.#getCorrectProvider();
+        }
+      },
+    );
   }
 
   /**
    * Sets a new provider.
    *
-   * TODO: Replace this wth a method.
-   *
-   * @property provider - Provider used to create a new underlying Web3 instance
+   * @param provider - Provider used to create a new underlying Web3 instance
    */
-  set provider(provider: Provider) {
-    this._provider = provider;
+  setProvider(provider: Provider | undefined) {
+    this.#provider = provider;
   }
 
-  get provider() {
-    throw new Error('Property only used for setting');
+  get ipfsGateway() {
+    return this.#ipfsGateway;
+  }
+
+  get chainId() {
+    return this.#chainId;
   }
 
   /**
@@ -184,16 +308,19 @@ export class AssetsContractController extends BaseControllerV1<
    * @param networkClientId - Network Client ID.
    * @returns Web3Provider instance.
    */
-  getProvider(networkClientId?: NetworkClientId): Web3Provider {
+  #getCorrectProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
-      ? this.getNetworkClientById(networkClientId).provider
-      : this._provider;
+      ? this.messagingSystem.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        ).provider
+      : this.messagingSystem.call('NetworkController:getSelectedNetworkClient')
+          ?.provider ?? this.#provider;
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
 
-    // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     return new Web3Provider(provider);
   }
 
@@ -203,10 +330,24 @@ export class AssetsContractController extends BaseControllerV1<
    * @param networkClientId - Network Client ID used to get the provider.
    * @returns Hex chain ID.
    */
-  getChainId(networkClientId?: NetworkClientId): Hex {
-    return networkClientId
-      ? this.getNetworkClientById(networkClientId).configuration.chainId
-      : this.config.chainId;
+  #getCorrectChainId(networkClientId?: NetworkClientId): Hex {
+    if (networkClientId) {
+      const networkClientConfiguration = this.messagingSystem.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId,
+      );
+      if (networkClientConfiguration) {
+        return networkClientConfiguration.chainId;
+      }
+    }
+    const { selectedNetworkClientId } = this.messagingSystem.call(
+      'NetworkController:getState',
+    );
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return networkClient.configuration?.chainId ?? this.#chainId;
   }
 
   /**
@@ -216,7 +357,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns ERC20Standard instance.
    */
   getERC20Standard(networkClientId?: NetworkClientId): ERC20Standard {
-    const provider = this.getProvider(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
     return new ERC20Standard(provider);
   }
 
@@ -227,7 +368,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns ERC721Standard instance.
    */
   getERC721Standard(networkClientId?: NetworkClientId): ERC721Standard {
-    const provider = this.getProvider(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
     return new ERC721Standard(provider);
   }
 
@@ -238,7 +379,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns ERC1155Standard instance.
    */
   getERC1155Standard(networkClientId?: NetworkClientId): ERC1155Standard {
-    const provider = this.getProvider(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
     return new ERC1155Standard(provider);
   }
 
@@ -298,7 +439,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @param networkClientId - Network Client ID to fetch the provider with.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getERC721NftTokenId(
+  async getERC721NftTokenId(
     address: string,
     selectedAddress: string,
     index: number,
@@ -331,9 +472,7 @@ export class AssetsContractController extends BaseControllerV1<
     balance?: BN | undefined;
   }> {
     // Asserts provider is available
-    this.getProvider(networkClientId);
-
-    const { ipfsGateway } = this.config;
+    this.#getCorrectProvider(networkClientId);
 
     // ERC721
     try {
@@ -341,7 +480,7 @@ export class AssetsContractController extends BaseControllerV1<
       return {
         ...(await erc721Standard.getDetails(
           tokenAddress,
-          ipfsGateway,
+          this.#ipfsGateway,
           tokenId,
         )),
       };
@@ -355,7 +494,7 @@ export class AssetsContractController extends BaseControllerV1<
       return {
         ...(await erc1155Standard.getDetails(
           tokenAddress,
-          ipfsGateway,
+          this.#ipfsGateway,
           tokenId,
         )),
       };
@@ -519,9 +658,12 @@ export class AssetsContractController extends BaseControllerV1<
     tokensToDetect: string[],
     networkClientId?: NetworkClientId,
   ) {
-    const chainId = this.getChainId(networkClientId);
-    const provider = this.getProvider(networkClientId);
-    if (!(chainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)) {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+    if (
+      !((id): id is keyof typeof SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID =>
+        id in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)(chainId)
+    ) {
       // Only fetch balance if contract address exists
       return {};
     }

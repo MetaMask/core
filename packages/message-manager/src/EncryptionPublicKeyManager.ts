@@ -1,4 +1,4 @@
-import { v1 as random } from 'uuid';
+import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
@@ -65,7 +65,7 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'EncryptionPublicKeyManager';
+  override name = 'EncryptionPublicKeyManager' as const;
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -120,21 +120,23 @@ export class EncryptionPublicKeyManager extends AbstractMessageManager<
     messageParams: EncryptionPublicKeyParams,
     req?: OriginalRequest,
   ): Promise<string> {
-    if (req) {
-      messageParams.origin = req.origin;
-    }
-    const messageId = random();
-    const messageData: EncryptionPublicKey = {
-      id: messageId,
+    const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
-      status: 'unapproved',
-      time: Date.now(),
-      type: 'eth_getEncryptionPublicKey',
-    };
+      req,
+    ) satisfies EncryptionPublicKeyParams;
+
+    const messageData = this.createUnapprovedMessage(
+      updatedMessageParams,
+      ApprovalType.EthGetEncryptionPublicKey,
+      req,
+    ) satisfies EncryptionPublicKey;
+
+    const messageId = messageData.id;
+
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...messageParams,
-      ...{ metamaskId: messageId },
+      ...updatedMessageParams,
+      metamaskId: messageId,
     });
     return messageId;
   }

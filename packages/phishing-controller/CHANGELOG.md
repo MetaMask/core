@@ -7,6 +7,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.3]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [12.0.2]
+
+### Fixed
+
+- Export `PhishingDetectorResultType` enum type ([#4674](https://github.com/MetaMask/core/pull/4674))
+- Export `PhishingDetector` type ([#4553](https://github.com/MetaMask/core/pull/4553))
+
+## [12.0.1]
+
+### Added
+
+- Add `getHostnameFromUrl` utility function to standardize hostname extraction from URLs ([#4645](https://github.com/MetaMask/core/pull/4645))
+
+### Fixed
+
+- Update `test`, `isBlockedRequest`, and `bypass` methods to use the hostname for allowlist checks instead of the full origin ([#4645](https://github.com/MetaMask/core/pull/4645))
+  - The previous approach of using the full origin had limitations in dealing with subdomains or variations in the URL structure, which could lead to inconsistent results or false negatives.
+
+## [12.0.0]
+
+### Added
+
+- Add allowlist functionality to the C2 domain detection system ([#4464](https://github.com/MetaMask/core/pull/4644))
+- Add `PhishingController` functionality for blocking client-side C2 requests by managing a hashed C2 request blocklist ([#4526](https://github.com/MetaMask/core/pull/4526))
+  - Add `requestBlocklist` type to `ListTypes`.
+  - Add `isBlockedRequest` method to `PhishingController`.
+  - Add `isMaliciousRequestDomain` method to `PhishingDetector`.
+  - Add handling of `requestBlocklist` in `PhishingDetector` configuration.
+  - Add logic to update and check `requestBlocklist` when updating a stale list.
+  - Add `sha256Hash` function to generate SHA-256 hash of a domain.
+- Define and export new types: `PhishingControllerGetStateAction`, `PhishingControllerStateChangeEvent`, `PhishingControllerEvents` ([#4633](https://github.com/MetaMask/core/pull/4633))
+
+### Changed
+
+- **BREAKING:** Add `@noble/hashes` `^1.4.0` as dependency ([#4526](https://github.com/MetaMask/core/pull/4526))
+- **BREAKING:**: Add `ethereum-cryptography` `^2.1.2` as dependency ([#4526](https://github.com/MetaMask/core/pull/4526))
+- **BREAKING:** `PhishingControllerMessenger` must allow internal events defined in the `PhishingControllerEvents` type ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Widen `PhishingControllerActions` to include the `PhishingController:getState` action ([#4633](https://github.com/MetaMask/core/pull/4633))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^6.0.3` ([#4625](https://github.com/MetaMask/core/pull/4625))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.1.0` ([#4639](https://github.com/MetaMask/core/pull/4639))
+
+## [11.0.0]
+
+### Changed
+
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4584](https://github.com/MetaMask/core/pull/4584), [#4576](https://github.com/MetaMask/core/pull/4576))
+
+### Removed
+
+- **BREAKING:** Remove the Phishfort list from the PhishingController ([#4621](https://github.com/MetaMask/core/pull/4621))
+
+## [10.1.1]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` to `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+
+## [10.1.0]
+
+### Added
+
+- Port `PhishingDetector` from `eth-phishing-detector`; add TypeScript types ([#4137](https://github.com/MetaMask/core/pull/4137))
+- Add support for IPFS CID blocking to `PhishingDetector` ([#4465](https://github.com/MetaMask/core/pull/4465))
+
+### Changed
+
+- Bump `@metamask/base-controller` to `^6.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+- Bump `@metamask/controller-utils` to `^11.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [9.0.4]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
 ## [9.0.3]
 
 ### Changed
@@ -20,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed Stalelist and hotlist update intervals ([#4202](https://github.com/MetaMask/core/pull/4202))
   - Updated the Stalelist update interval to 30 days and the hotlist update interval to 5 mins
 - Bump `@metamask/controller-utils` version to `~9.1.0` ([#4153](https://github.com/MetaMask/core/pull/4153))
-- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core.git/pull/4084))
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
 - Bump `@metamask/base-controller` to `^5.0.2`
 
 ## [9.0.1]
@@ -184,7 +287,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...HEAD
+[12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@11.0.0...@metamask/phishing-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@11.0.0
+[10.1.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.0...@metamask/phishing-controller@10.1.1
+[10.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.0.0...@metamask/phishing-controller@10.1.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.4...@metamask/phishing-controller@10.0.0
+[9.0.4]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.3...@metamask/phishing-controller@9.0.4
 [9.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.2...@metamask/phishing-controller@9.0.3
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.1...@metamask/phishing-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@9.0.0...@metamask/phishing-controller@9.0.1

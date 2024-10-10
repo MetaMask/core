@@ -1,4 +1,5 @@
 import type { TypedTransaction } from '@ethereumjs/tx';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import type {
   ApprovalControllerActions,
   ApprovalControllerEvents,
@@ -8,9 +9,12 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
+  ChainId,
   InfuraNetworkType,
   NetworkType,
 } from '@metamask/controller-utils';
+import type { InternalAccount } from '@metamask/keyring-api';
+import { EthAccountType, EthMethod } from '@metamask/keyring-api';
 import {
   NetworkController,
   NetworkClientType,
@@ -25,9 +29,15 @@ import assert from 'assert';
 import nock from 'nock';
 import type { SinonFakeTimers } from 'sinon';
 import { useFakeTimers } from 'sinon';
+import { v4 as uuidV4 } from 'uuid';
 
 import { advanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
+import {
+  buildAddNetworkFields,
+  buildCustomNetworkClientConfiguration,
+  buildUpdateNetworkCustomRpcEndpointFields,
+} from '../../network-controller/tests/helpers';
 import {
   ETHERSCAN_TRANSACTION_BASE_MOCK,
   ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
@@ -48,6 +58,7 @@ import {
 import type {
   TransactionControllerActions,
   TransactionControllerEvents,
+  TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
 import type { TransactionMeta } from './types';
@@ -55,21 +66,72 @@ import { TransactionStatus, TransactionType } from './types';
 import { getEtherscanApiHost } from './utils/etherscan';
 import * as etherscanUtils from './utils/etherscan';
 
+jest.mock('uuid', () => {
+  const actual = jest.requireActual('uuid');
+
+  return {
+    ...actual,
+    v4: jest.fn(),
+  };
+});
+
 type UnrestrictedControllerMessenger = ControllerMessenger<
   | NetworkControllerActions
   | ApprovalControllerActions
-  | TransactionControllerActions,
+  | TransactionControllerActions
+  | AccountsControllerGetSelectedAccountAction,
   | NetworkControllerEvents
   | ApprovalControllerEvents
   | TransactionControllerEvents
 >;
 
+const uuidV4Mock = jest.mocked(uuidV4);
+
+const createMockInternalAccount = ({
+  id = uuidV4(),
+  address = '0x2990079bcdee240329a520d2444386fc119da21a',
+  name = 'Account 1',
+  importTime = Date.now(),
+  lastSelected = Date.now(),
+}: {
+  id?: string;
+  address?: string;
+  name?: string;
+  importTime?: number;
+  lastSelected?: number;
+} = {}): InternalAccount => {
+  return {
+    id,
+    address,
+    options: {},
+    methods: [
+      EthMethod.PersonalSign,
+      EthMethod.Sign,
+      EthMethod.SignTransaction,
+      EthMethod.SignTypedDataV1,
+      EthMethod.SignTypedDataV3,
+      EthMethod.SignTypedDataV4,
+    ],
+    type: EthAccountType.Eoa,
+    metadata: {
+      name,
+      keyring: { type: 'HD Key Tree' },
+      importTime,
+      lastSelected,
+    },
+  } as InternalAccount;
+};
+
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const INTERNAL_ACCOUNT_MOCK = createMockInternalAccount({
+  address: ACCOUNT_MOCK,
+});
+
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const ACCOUNT_3_MOCK = '0xe688b84b23f322a994a53dbf8e15fa82cdb71127';
 const infuraProjectId = 'fake-infura-project-id';
 
-const BLOCK_TRACKER_POLLING_INTERVAL = 20000;
+const BLOCK_TRACKER_POLLING_INTERVAL = 30000;
 
 /**
  * Builds the Infura network client configuration.
@@ -88,17 +150,15 @@ function buildInfuraNetworkClientConfiguration(
   };
 }
 
-const customGoerliNetworkClientConfiguration = {
-  type: NetworkClientType.Custom,
-  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-  ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
-  rpcUrl: 'https://mock.rpc.url',
-} as const;
-
 const setupController = async (
   givenOptions: Partial<
     ConstructorParameters<typeof TransactionController>[0]
   > = {},
+  mockData: {
+    selectedAccount?: InternalAccount;
+  } = {
+    selectedAccount: createMockInternalAccount({ address: '0xdeadbeef' }),
+  },
 ) => {
   // Mainnet network must be mocked for NetworkController instantiation
   mockNetwork({
@@ -119,9 +179,6 @@ const setupController = async (
       allowedActions: [],
       allowedEvents: [],
     }),
-    trackMetaMetricsEvent: () => {
-      // noop
-    },
     infuraProjectId,
   });
   await networkController.initializeProvider();
@@ -146,11 +203,21 @@ const setupController = async (
       'ApprovalController:addRequest',
       'NetworkController:getNetworkClientById',
       'NetworkController:findNetworkClientIdByChainId',
+      'AccountsController:getSelectedAccount',
     ],
     allowedEvents: ['NetworkController:stateChange'],
   });
 
-  const options = {
+  const mockGetSelectedAccount = jest
+    .fn()
+    .mockReturnValue(mockData.selectedAccount);
+
+  unrestrictedMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount,
+  );
+
+  const options: TransactionControllerOptions = {
     blockTracker,
     disableHistory: false,
     disableSendFlowHistory: false,
@@ -164,15 +231,17 @@ const setupController = async (
       );
     },
     getNetworkState: () => networkController.state,
-    getNetworkClientRegistry:
-      networkController.getNetworkClientRegistry.bind(networkController),
+    getNetworkClientRegistry: () =>
+      networkController.getNetworkClientRegistry(),
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
-    getSelectedAddress: () => '0xdeadbeef',
     hooks: {},
     isMultichainEnabled: false,
     messenger,
     onNetworkStateChange: () => {
       // noop
+    },
+    pendingTransactions: {
+      isResubmitEnabled: () => false,
     },
     provider,
     sign: async (transaction: TypedTransaction) => transaction,
@@ -187,13 +256,22 @@ const setupController = async (
     approvalController,
     networkController,
     messenger,
+    mockGetSelectedAccount,
   };
 };
 
 describe('TransactionController Integration', () => {
   let clock: SinonFakeTimers;
+  let uuidCounter = 0;
+
   beforeEach(() => {
     clock = useFakeTimers();
+
+    uuidV4Mock.mockImplementation(() => {
+      const uuid = `UUID-${uuidCounter}`;
+      uuidCounter += 1;
+      return uuid;
+    });
   });
 
   afterEach(() => {
@@ -207,7 +285,8 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it('should submit all approved transactions in state', async () => {
+    // eslint-disable-next-line jest/no-disabled-tests
+    it('should fail all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
@@ -311,14 +390,16 @@ describe('TransactionController Integration', () => {
           ],
         },
       });
+
+      await advanceTime({ clock, duration: 1 });
       await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toMatchObject([
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
       ]);
       transactionController.destroy();
@@ -745,11 +826,13 @@ describe('TransactionController Integration', () => {
     });
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
+      // eslint-disable-next-line jest/no-disabled-tests
       it('should add each transaction with consecutive nonces', async () => {
+        const goerliNetworkClientConfiguration =
+          buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli);
+
         mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
-          ),
+          networkClientConfiguration: goerliNetworkClientConfiguration,
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
@@ -774,7 +857,10 @@ describe('TransactionController Integration', () => {
         });
 
         mockNetwork({
-          networkClientConfiguration: customGoerliNetworkClientConfiguration,
+          networkClientConfiguration: buildCustomNetworkClientConfiguration({
+            rpcUrl: 'https://mock.rpc.url',
+            ticker: goerliNetworkClientConfiguration.ticker,
+          }),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x1'),
@@ -802,20 +888,31 @@ describe('TransactionController Integration', () => {
           await setupController({
             isMultichainEnabled: true,
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
           });
-        const otherNetworkClientIdOnGoerli =
-          await networkController.upsertNetworkConfiguration(
-            {
-              rpcUrl: 'https://mock.rpc.url',
-              chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-              ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
-            },
-            {
-              referrer: 'https://mock.referrer',
-              source: 'dapp',
-            },
-          );
+        const existingGoerliNetworkConfiguration =
+          networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+        assert(
+          existingGoerliNetworkConfiguration,
+          'Could not find network configuration for Goerli',
+        );
+        const updatedGoerliNetworkConfiguration =
+          await networkController.updateNetwork(ChainId.goerli, {
+            ...existingGoerliNetworkConfiguration,
+            rpcEndpoints: [
+              ...existingGoerliNetworkConfiguration.rpcEndpoints,
+              buildUpdateNetworkCustomRpcEndpointFields({
+                url: 'https://mock.rpc.url',
+              }),
+            ],
+          });
+        const otherGoerliRpcEndpoint =
+          updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+            return rpcEndpoint.url === 'https://mock.rpc.url';
+          });
+        assert(
+          otherGoerliRpcEndpoint,
+          'Could not find other Goerli RPC endpoint',
+        );
 
         const addTx1 = await transactionController.addTransaction(
           {
@@ -831,7 +928,7 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            networkClientId: otherNetworkClientIdOnGoerli,
+            networkClientId: otherGoerliRpcEndpoint.networkClientId,
           },
         );
 
@@ -839,6 +936,7 @@ describe('TransactionController Integration', () => {
           approvalController.accept(addTx1.transactionMeta.id),
           approvalController.accept(addTx2.transactionMeta.id),
         ]);
+        await advanceTime({ clock, duration: 1 });
         await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
@@ -852,6 +950,7 @@ describe('TransactionController Integration', () => {
     });
 
     describe('when transactions are added concurrently with the same networkClientId', () => {
+      // eslint-disable-next-line jest/no-disabled-tests
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -864,6 +963,7 @@ describe('TransactionController Integration', () => {
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
               '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
@@ -880,11 +980,13 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { approvalController, transactionController } =
-          await setupController({
-            isMultichainEnabled: true,
-            getPermittedAccounts: async () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
-          });
+          await setupController(
+            {
+              isMultichainEnabled: true,
+              getPermittedAccounts: async () => [ACCOUNT_MOCK],
+            },
+            { selectedAccount: INTERNAL_ACCOUNT_MOCK },
+          );
 
         const addTx1 = await transactionController.addTransaction(
           {
@@ -914,6 +1016,7 @@ describe('TransactionController Integration', () => {
         ]);
 
         await advanceTime({ clock, duration: 1 });
+        await advanceTime({ clock, duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
 
@@ -926,79 +1029,101 @@ describe('TransactionController Integration', () => {
     });
   });
 
-  describe('when changing rpcUrl of networkClient', () => {
-    it('should start tracking when a new network is added', async () => {
-      mockNetwork({
-        networkClientConfiguration: customGoerliNetworkClientConfiguration,
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetBlockByNumberRequestMock('0x1'),
-          buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-          buildEthGasPriceRequestMock(),
+  it('should start tracking when a new network is added', async () => {
+    mockNetwork({
+      networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType.goerli,
+      ),
+      mocks: [
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthGetBlockByNumberRequestMock('0x1'),
+        buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+        buildEthGasPriceRequestMock(),
+      ],
+    });
+    mockNetwork({
+      networkClientConfiguration: buildCustomNetworkClientConfiguration({
+        rpcUrl: 'https://mock.rpc.url',
+      }),
+      mocks: [
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthGetBlockByNumberRequestMock('0x1'),
+        buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+        buildEthGasPriceRequestMock(),
+      ],
+    });
+    const { networkController, transactionController } = await setupController({
+      isMultichainEnabled: true,
+    });
+
+    const existingGoerliNetworkConfiguration =
+      networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+    assert(
+      existingGoerliNetworkConfiguration,
+      'Could not find network configuration for Goerli',
+    );
+    const updatedGoerliNetworkConfiguration =
+      await networkController.updateNetwork(ChainId.goerli, {
+        ...existingGoerliNetworkConfiguration,
+        rpcEndpoints: [
+          ...existingGoerliNetworkConfiguration.rpcEndpoints,
+          buildUpdateNetworkCustomRpcEndpointFields({
+            url: 'https://mock.rpc.url',
+          }),
         ],
       });
-      const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+    const otherGoerliRpcEndpoint =
+      updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+        return rpcEndpoint.url === 'https://mock.rpc.url';
+      });
+    assert(otherGoerliRpcEndpoint, 'Could not find other Goerli RPC endpoint');
 
-      const otherNetworkClientIdOnGoerli =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            setActive: false,
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
+    await transactionController.addTransaction(
+      {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_3_MOCK,
+      },
+      {
+        networkClientId: otherGoerliRpcEndpoint.networkClientId,
+      },
+    );
 
-      await transactionController.addTransaction(
+    expect(transactionController.state.transactions[0]).toStrictEqual(
+      expect.objectContaining({
+        networkClientId: otherGoerliRpcEndpoint.networkClientId,
+      }),
+    );
+    transactionController.destroy();
+  });
+
+  it('should stop tracking when a network is removed', async () => {
+    const { networkController, transactionController } =
+      await setupController();
+
+    const networkConfiguration = await networkController.addNetwork(
+      buildAddNetworkFields(),
+    );
+
+    networkController.removeNetwork(networkConfiguration.chainId);
+
+    await expect(
+      transactionController.addTransaction(
         {
           from: ACCOUNT_MOCK,
-          to: ACCOUNT_3_MOCK,
+          to: ACCOUNT_2_MOCK,
         },
         {
-          networkClientId: otherNetworkClientIdOnGoerli,
+          networkClientId: networkConfiguration.rpcEndpoints[0].networkClientId,
         },
-      );
+      ),
+    ).rejects.toThrow(
+      'The networkClientId for this transaction could not be found',
+    );
 
-      expect(transactionController.state.transactions[0]).toStrictEqual(
-        expect.objectContaining({
-          networkClientId: otherNetworkClientIdOnGoerli,
-        }),
-      );
-      transactionController.destroy();
-    });
-    it('should stop tracking when a network is removed', async () => {
-      const { networkController, transactionController } =
-        await setupController();
-
-      const configurationId =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            setActive: false,
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
-
-      networkController.removeNetworkConfiguration(configurationId);
-
-      await expect(
-        transactionController.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-          { networkClientId: configurationId },
-        ),
-      ).rejects.toThrow(
-        'The networkClientId for this transaction could not be found',
-      );
-
-      expect(transactionController).toBeDefined();
-      transactionController.destroy();
-    });
+    expect(transactionController).toBeDefined();
+    transactionController.destroy();
   });
 
   describe('feature flag', () => {
@@ -1021,15 +1146,9 @@ describe('TransactionController Integration', () => {
           isMultichainEnabled: false,
         });
 
-      const configurationId =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            setActive: false,
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
+      const networkConfiguration = await networkController.addNetwork(
+        buildAddNetworkFields(),
+      );
 
       // add a transaction with the networkClientId of the newly added network
       // and expect it to throw since the networkClientId won't be found in the trackingMap
@@ -1039,7 +1158,10 @@ describe('TransactionController Integration', () => {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: configurationId },
+          {
+            networkClientId:
+              networkConfiguration.rpcEndpoints[0].networkClientId,
+          },
         ),
       ).rejects.toThrow(
         'The networkClientId for this transaction could not be found',
@@ -1054,14 +1176,9 @@ describe('TransactionController Integration', () => {
       ).toBeDefined();
       transactionController.destroy();
     });
+
     it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
-        return {
-          [NetworkType.goerli]: {
-            configuration: customGoerliNetworkClientConfiguration,
-          },
-        };
-      });
+      const getNetworkClientRegistrySpy = jest.fn();
 
       const { networkController, transactionController } =
         await setupController({
@@ -1069,45 +1186,28 @@ describe('TransactionController Integration', () => {
           getNetworkClientRegistry: getNetworkClientRegistrySpy,
         });
 
-      await networkController.upsertNetworkConfiguration(
-        customGoerliNetworkClientConfiguration,
-        {
-          setActive: false,
-          referrer: 'https://mock.referrer',
-          source: 'dapp',
-        },
-      );
+      await networkController.addNetwork(buildAddNetworkFields());
 
       expect(getNetworkClientRegistrySpy).not.toHaveBeenCalled();
       transactionController.destroy();
     });
+
     it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
-        return {
-          [NetworkType.goerli]: {
-            configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
-          },
-        };
-      });
+      uuidV4Mock.mockReturnValue('AAAA-AAAA-AAAA-AAAA');
 
       const { networkController, transactionController } =
-        await setupController({
-          isMultichainEnabled: true,
-          getNetworkClientRegistry: getNetworkClientRegistrySpy,
-        });
-
-      await networkController.upsertNetworkConfiguration(
-        customGoerliNetworkClientConfiguration,
-        {
-          setActive: false,
-          referrer: 'https://mock.referrer',
-          source: 'dapp',
-        },
+        await setupController({ isMultichainEnabled: true });
+      const getNetworkClientRegistrySpy = jest.spyOn(
+        networkController,
+        'getNetworkClientRegistry',
       );
+
+      await networkController.addNetwork(buildAddNetworkFields());
 
       expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
       transactionController.destroy();
     });
+
     it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
       const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
         return {
@@ -1128,6 +1228,7 @@ describe('TransactionController Integration', () => {
 
   describe('startIncomingTransactionPolling', () => {
     // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
+    // eslint-disable-next-line jest/no-disabled-tests
     it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1140,12 +1241,17 @@ describe('TransactionController Integration', () => {
       });
 
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-          isMultichainEnabled: true,
-        });
+        await setupController(
+          {
+            isMultichainEnabled: true,
+          },
+          { selectedAccount: selectedAccountMock },
+        );
 
       const expectedLastFetchedBlockNumbers: Record<string, number> = {};
       const expectedTransactions: Partial<TransactionMeta>[] = [];
@@ -1173,6 +1279,8 @@ describe('TransactionController Integration', () => {
           ]);
 
           expectedLastFetchedBlockNumbers[
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
@@ -1209,6 +1317,9 @@ describe('TransactionController Integration', () => {
 
     it('should start the global incoming transaction helper when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1225,9 +1336,10 @@ describe('TransactionController Integration', () => {
         )
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
-      const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
-      });
+      const { transactionController } = await setupController(
+        {},
+        { selectedAccount: selectedAccountMock },
+      );
 
       transactionController.startIncomingTransactionPolling();
 
@@ -1300,9 +1412,8 @@ describe('TransactionController Integration', () => {
         // mock the other goerli network client node requests
         mockNetwork({
           networkClientConfiguration: {
+            ...buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli),
             type: NetworkClientType.Custom,
-            chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-            ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
             rpcUrl: 'https://mock.rpc.url',
           },
           mocks: [
@@ -1314,26 +1425,47 @@ describe('TransactionController Integration', () => {
         });
 
         const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+        const selectedAccountMock = createMockInternalAccount({
+          address: selectedAddress,
+        });
 
         const { networkController, transactionController } =
-          await setupController({
-            getSelectedAddress: () => selectedAddress,
-            isMultichainEnabled: true,
-          });
-
-        const otherGoerliClientNetworkClientId =
-          await networkController.upsertNetworkConfiguration(
-            customGoerliNetworkClientConfiguration,
+          await setupController(
             {
-              referrer: 'https://mock.referrer',
-              source: 'dapp',
+              isMultichainEnabled: true,
             },
+            { selectedAccount: selectedAccountMock },
           );
+
+        const existingGoerliNetworkConfiguration =
+          networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+        assert(
+          existingGoerliNetworkConfiguration,
+          'Could not find network configuration for Goerli',
+        );
+        const updatedGoerliNetworkConfiguration =
+          await networkController.updateNetwork(ChainId.goerli, {
+            ...existingGoerliNetworkConfiguration,
+            rpcEndpoints: [
+              ...existingGoerliNetworkConfiguration.rpcEndpoints,
+              buildUpdateNetworkCustomRpcEndpointFields({
+                url: 'https://mock.rpc.url',
+              }),
+            ],
+          });
+        const otherGoerliRpcEndpoint =
+          updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+            return rpcEndpoint.url === 'https://mock.rpc.url';
+          });
+        assert(
+          otherGoerliRpcEndpoint,
+          'Could not find other Goerli RPC endpoint',
+        );
 
         // Etherscan API Mocks
 
         // Non-token transactions
-        nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.goerli].chainId))
+        nock(getEtherscanApiHost(ChainId.goerli))
           .get(
             `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
           )
@@ -1352,7 +1484,7 @@ describe('TransactionController Integration', () => {
           .persist();
 
         // token transactions
-        nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.goerli].chainId))
+        nock(getEtherscanApiHost(ChainId.goerli))
           .get(
             `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
           )
@@ -1372,7 +1504,7 @@ describe('TransactionController Integration', () => {
         // start polling with two clients which share the same chainId
         transactionController.startIncomingTransactionPolling([
           NetworkType.goerli,
-          otherGoerliClientNetworkClientId,
+          otherGoerliRpcEndpoint.networkClientId,
         ]);
         await advanceTime({ clock, duration: 1 });
         expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
@@ -1410,11 +1542,12 @@ describe('TransactionController Integration', () => {
   describe('stopIncomingTransactionPolling', () => {
     it('should not poll for new incoming transactions for the given networkClientId', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-        });
+        await setupController({}, { selectedAccount: selectedAccountMock });
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1454,10 +1587,14 @@ describe('TransactionController Integration', () => {
 
     it('should stop the global incoming transaction helper when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
       });
+
+      const { transactionController } = await setupController(
+        {},
+        { selectedAccount: selectedAccountMock },
+      );
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1490,11 +1627,12 @@ describe('TransactionController Integration', () => {
   describe('stopAllIncomingTransactionPolling', () => {
     it('should not poll for incoming transactions on any network client', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-        });
+        await setupController({}, { selectedAccount: selectedAccountMock });
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1532,14 +1670,20 @@ describe('TransactionController Integration', () => {
   });
 
   describe('updateIncomingTransactions', () => {
+    // eslint-disable-next-line jest/no-disabled-tests
     it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
+      });
 
       const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-          isMultichainEnabled: true,
-        });
+        await setupController(
+          {
+            isMultichainEnabled: true,
+          },
+          { selectedAccount: selectedAccountMock },
+        );
 
       const expectedLastFetchedBlockNumbers: Record<string, number> = {};
       const expectedTransactions: Partial<TransactionMeta>[] = [];
@@ -1559,9 +1703,13 @@ describe('TransactionController Integration', () => {
             )
             .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           transactionController.updateIncomingTransactions([networkClientId]);
 
           expectedLastFetchedBlockNumbers[
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `${config.chainId}#${selectedAddress}#normal`
           ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
           expectedTransactions.push({
@@ -1583,6 +1731,7 @@ describe('TransactionController Integration', () => {
 
       // we have to wait for the mutex to be released after the 5 second API rate limit timer
       await advanceTime({ clock, duration: 1 });
+      await advanceTime({ clock, duration: 1 });
 
       expect(transactionController.state.transactions).toHaveLength(
         2 * networkClientIds.length,
@@ -1600,10 +1749,14 @@ describe('TransactionController Integration', () => {
 
     it('should update the incoming transactions for the gloablly selected network when no networkClientIds provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
+      const selectedAccountMock = createMockInternalAccount({
+        address: selectedAddress,
       });
+
+      const { transactionController } = await setupController(
+        {},
+        { selectedAccount: selectedAccountMock },
+      );
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1617,6 +1770,8 @@ describe('TransactionController Integration', () => {
         )
         .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       transactionController.updateIncomingTransactions();
 
       // we have to wait for the mutex to be released after the 5 second API rate limit timer
@@ -1725,6 +1880,8 @@ describe('TransactionController Integration', () => {
             networkClientId,
           );
           const delay = () =>
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             new Promise<null>(async (resolve) => {
               await advanceTime({ clock, duration: 100 });
               resolve(null);
@@ -1736,6 +1893,8 @@ describe('TransactionController Integration', () => {
           ]);
           expect(secondNonceLockIfAcquired).toBeNull();
 
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/await-thenable
           await firstNonceLock.releaseLock();
           await advanceTime({ clock, duration: 1 });
 
@@ -1763,21 +1922,41 @@ describe('TransactionController Integration', () => {
       });
 
       mockNetwork({
-        networkClientConfiguration: customGoerliNetworkClientConfiguration,
+        networkClientConfiguration: {
+          ...buildInfuraNetworkClientConfiguration(InfuraNetworkType.goerli),
+          rpcUrl: 'https://mock.rpc.url',
+          type: NetworkClientType.Custom,
+        },
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
-      const otherNetworkClientIdOnGoerli =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
+      const existingGoerliNetworkConfiguration =
+        networkController.getNetworkConfigurationByChainId(ChainId.goerli);
+      assert(
+        existingGoerliNetworkConfiguration,
+        'Could not find network configuration for Goerli',
+      );
+      const updatedGoerliNetworkConfiguration =
+        await networkController.updateNetwork(ChainId.goerli, {
+          ...existingGoerliNetworkConfiguration,
+          rpcEndpoints: [
+            ...existingGoerliNetworkConfiguration.rpcEndpoints,
+            buildUpdateNetworkCustomRpcEndpointFields({
+              url: 'https://mock.rpc.url',
+            }),
+          ],
+        });
+      const otherGoerliRpcEndpoint =
+        updatedGoerliNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+          return rpcEndpoint.url === 'https://mock.rpc.url';
+        });
+      assert(
+        otherGoerliRpcEndpoint,
+        'Could not find other Goerli RPC endpoint',
+      );
 
       const firstNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
@@ -1791,9 +1970,11 @@ describe('TransactionController Integration', () => {
 
       const secondNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        otherNetworkClientIdOnGoerli,
+        otherGoerliRpcEndpoint.networkClientId,
       );
       const delay = () =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);
@@ -1805,6 +1986,8 @@ describe('TransactionController Integration', () => {
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstNonceLock.releaseLock();
       await advanceTime({ clock, duration: 1 });
 
@@ -1961,6 +2144,8 @@ describe('TransactionController Integration', () => {
       const secondNonceLockPromise =
         transactionController.getNonceLock(ACCOUNT_MOCK);
       const delay = () =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         new Promise<null>(async (resolve) => {
           await advanceTime({ clock, duration: 100 });
           resolve(null);
@@ -1972,6 +2157,8 @@ describe('TransactionController Integration', () => {
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstNonceLock.releaseLock();
 
       secondNonceLockIfAcquired = await Promise.race([

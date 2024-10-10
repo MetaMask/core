@@ -429,10 +429,10 @@ export type GenericPermissionController = PermissionController<
  * Describes the possible results of a {@link CaveatMutator} function.
  */
 export enum CaveatMutatorOperation {
-  noop,
-  updateValue,
-  deleteCaveat,
-  revokePermission,
+  Noop,
+  UpdateValue,
+  DeleteCaveat,
+  RevokePermission,
 }
 
 /**
@@ -451,18 +451,18 @@ export type CaveatMutator<TargetCaveat extends CaveatConstraint> = (
 
 type CaveatMutatorResult =
   | Readonly<{
-      operation: CaveatMutatorOperation.updateValue;
+      operation: CaveatMutatorOperation.UpdateValue;
       value: CaveatConstraint['value'];
     }>
   | Readonly<{
       operation: Exclude<
         CaveatMutatorOperation,
-        CaveatMutatorOperation.updateValue
+        CaveatMutatorOperation.UpdateValue
       >;
     }>;
 
-type MergeCaveatResult<T extends CaveatConstraint | undefined> =
-  T extends undefined
+type MergeCaveatResult<CaveatType extends CaveatConstraint | undefined> =
+  CaveatType extends undefined
     ? [CaveatConstraint, CaveatConstraint['value']]
     : [CaveatConstraint, CaveatConstraint['value']] | [];
 
@@ -1398,10 +1398,10 @@ export class PermissionController<
    * value to update the existing caveat with.
    *
    * For each caveat, depending on the mutator result, this method will:
-   * - Do nothing ({@link CaveatMutatorOperation.noop})
-   * - Update the value of the caveat ({@link CaveatMutatorOperation.updateValue}). The caveat specification validator, if any, will be called after updating the value.
-   * - Delete the caveat ({@link CaveatMutatorOperation.deleteCaveat}). The permission specification validator, if any, will be called after deleting the caveat.
-   * - Revoke the parent permission ({@link CaveatMutatorOperation.revokePermission})
+   * - Do nothing ({@link CaveatMutatorOperation.Noop})
+   * - Update the value of the caveat ({@link CaveatMutatorOperation.UpdateValue}). The caveat specification validator, if any, will be called after updating the value.
+   * - Delete the caveat ({@link CaveatMutatorOperation.DeleteCaveat}). The permission specification validator, if any, will be called after deleting the caveat.
+   * - Revoke the parent permission ({@link CaveatMutatorOperation.RevokePermission})
    *
    * This method throws if the validation of any caveat or permission fails.
    *
@@ -1436,10 +1436,10 @@ export class PermissionController<
           const mutatorResult = mutator(targetCaveat.value);
           const { operation } = mutatorResult;
           switch (operation) {
-            case CaveatMutatorOperation.noop:
+            case CaveatMutatorOperation.Noop:
               break;
 
-            case CaveatMutatorOperation.updateValue:
+            case CaveatMutatorOperation.UpdateValue:
               // Typecast: `Mutable` is used here to assign to a readonly
               // property. `targetConstraint` should already be mutable because
               // it's part of a draft, but for some reason it's not. We can't
@@ -1455,11 +1455,11 @@ export class PermissionController<
               );
               break;
 
-            case CaveatMutatorOperation.deleteCaveat:
+            case CaveatMutatorOperation.DeleteCaveat:
               this.deleteCaveat(permission, targetCaveatType, subject.origin);
               break;
 
-            case CaveatMutatorOperation.revokePermission:
+            case CaveatMutatorOperation.RevokePermission:
               this.deletePermission(
                 draftState.subjects,
                 subject.origin,
@@ -2314,11 +2314,11 @@ export class PermissionController<
    * @returns The merged permission.
    */
   #mergePermission<
-    T extends Partial<PermissionConstraint> | PermissionConstraint,
+    PermissionType extends Partial<PermissionConstraint> | PermissionConstraint,
   >(
-    leftPermission: T | undefined,
-    rightPermission: T,
-  ): [T, CaveatDiffMap<CaveatConstraint>] {
+    leftPermission: PermissionType | undefined,
+    rightPermission: PermissionType,
+  ): [PermissionType, CaveatDiffMap<CaveatConstraint>] {
     const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
       collectUniqueAndPairedCaveats(leftPermission, rightPermission);
 
@@ -2370,10 +2370,13 @@ export class PermissionController<
    * @param rightCaveat - The right-hand caveat to merge.
    * @returns The merged caveat and the diff between the two caveats.
    */
-  #mergeCaveat<T extends CaveatConstraint, U extends T | undefined>(
-    leftCaveat: U,
-    rightCaveat: T,
-  ): MergeCaveatResult<U> {
+  #mergeCaveat<
+    RightCaveat extends CaveatConstraint,
+    LeftCaveat extends RightCaveat | undefined,
+  >(
+    leftCaveat: LeftCaveat,
+    rightCaveat: RightCaveat,
+  ): MergeCaveatResult<LeftCaveat> {
     /* istanbul ignore if: This should be impossible */
     if (leftCaveat !== undefined && leftCaveat.type !== rightCaveat.type) {
       throw new CaveatMergeTypeMismatchError(leftCaveat.type, rightCaveat.type);
@@ -2400,7 +2403,7 @@ export class PermissionController<
           },
           diff,
         ]
-      : ([] as MergeCaveatResult<U>);
+      : ([] as MergeCaveatResult<LeftCaveat>);
   }
 
   /**
@@ -2419,7 +2422,7 @@ export class PermissionController<
         id,
         origin,
         requestData: permissionsRequest,
-        type: MethodNames.requestPermissions,
+        type: MethodNames.RequestPermissions,
       },
       true,
     );
@@ -2658,7 +2661,7 @@ export class PermissionController<
     }
 
     try {
-      this.messagingSystem.call(
+      await this.messagingSystem.call(
         'ApprovalController:acceptRequest',
         id,
         request,

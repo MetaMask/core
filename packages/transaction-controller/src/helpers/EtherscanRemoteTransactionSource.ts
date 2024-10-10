@@ -25,12 +25,15 @@ import type {
 } from '../utils/etherscan';
 
 const ETHERSCAN_RATE_LIMIT_INTERVAL = 5000;
+
 /**
  * A RemoteTransactionSource that fetches transaction data from Etherscan.
  */
 export class EtherscanRemoteTransactionSource
   implements RemoteTransactionSource
 {
+  #apiKeysByChainId?: Record<Hex, string>;
+
   #includeTokenTransfers: boolean;
 
   #isTokenRequestPending: boolean;
@@ -38,8 +41,13 @@ export class EtherscanRemoteTransactionSource
   #mutex = new Mutex();
 
   constructor({
+    apiKeysByChainId,
     includeTokenTransfers,
-  }: { includeTokenTransfers?: boolean } = {}) {
+  }: {
+    apiKeysByChainId?: Record<Hex, string>;
+    includeTokenTransfers?: boolean;
+  } = {}) {
+    this.#apiKeysByChainId = apiKeysByChainId;
     this.#includeTokenTransfers = includeTokenTransfers ?? true;
     this.#isTokenRequestPending = false;
   }
@@ -57,10 +65,17 @@ export class EtherscanRemoteTransactionSource
   ): Promise<TransactionMeta[]> {
     const releaseLock = await this.#mutex.acquire();
     const acquiredTime = Date.now();
+    const { currentChainId: chainId } = request;
+    const apiKey = this.#apiKeysByChainId?.[chainId];
+
+    if (apiKey) {
+      log('Etherscan API key found for chain', chainId);
+    }
 
     const etherscanRequest: EtherscanTransactionRequest = {
       ...request,
-      chainId: request.currentChainId,
+      apiKey,
+      chainId,
     };
 
     try {
@@ -122,6 +137,8 @@ export class EtherscanRemoteTransactionSource
     );
   };
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   #getResponseTransactions<T extends EtherscanTransactionMetaBase>(
     response: EtherscanTransactionResponse<T>,
   ): T[] {

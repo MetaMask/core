@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.3.0]
+
+### Added
+
+- Add types `TraceContext`, `TraceRequest`, `TraceCallback` ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - Migrated from `@metamask/transaction-controller@36.2.0`.
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [11.2.0]
+
+### Added
+
+- Add `BlockExplorerUrl` object and type for looking up the block explorer URL of any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `NetworkNickname` object and type for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4286))
+- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4286))
+
+## [11.1.0]
+
+### Added
+
+- Add default snap dialog to ApprovalType ([#4630](https://github.com/MetaMask/core/pull/4630))
+
+## [11.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [11.0.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+## [11.0.0]
+
+### Added
+
+- Add `NFT_API_VERSION` and `NFT_API_TIMEOUT` constants ([#4312](https://github.com/MetaMask/core/pull/4312))
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+
+### Removed
+
+- **BREAKING:** Remove `EthSign` from `ApprovalType` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This represented an `eth_sign` approval, but support for that RPC method is being removed, so this is no longer needed.
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+
 ## [9.1.0]
 
 ### Added
@@ -327,7 +400,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.3.0...HEAD
+[11.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.2.0...@metamask/controller-utils@11.3.0
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.1.0...@metamask/controller-utils@11.2.0
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.2...@metamask/controller-utils@11.1.0
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.1...@metamask/controller-utils@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1

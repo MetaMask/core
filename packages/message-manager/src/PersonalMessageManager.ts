@@ -1,6 +1,5 @@
 import type { SIWEMessage } from '@metamask/controller-utils';
-import { detectSIWE } from '@metamask/controller-utils';
-import { v1 as random } from 'uuid';
+import { detectSIWE, ApprovalType } from '@metamask/controller-utils';
 
 import type {
   AbstractMessage,
@@ -74,7 +73,7 @@ export class PersonalMessageManager extends AbstractMessageManager<
   /**
    * Name of this controller used during composition
    */
-  override name = 'PersonalMessageManager';
+  override name = 'PersonalMessageManager' as const;
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -91,27 +90,27 @@ export class PersonalMessageManager extends AbstractMessageManager<
     req?: OriginalRequest,
   ): Promise<string> {
     validateSignMessageData(messageParams);
-    if (req) {
-      messageParams.origin = req.origin;
-    }
-    messageParams.data = normalizeMessageData(messageParams.data);
 
     const ethereumSignInData = detectSIWE(messageParams);
-    const finalMsgParams = { ...messageParams, siwe: ethereumSignInData };
+    const updatedMessageParams = this.addRequestToMessageParams(
+      messageParams,
+      req,
+    ) satisfies PersonalMessageParams;
 
-    const messageId = random();
-    const messageData: PersonalMessage = {
-      id: messageId,
-      messageParams: finalMsgParams,
-      securityAlertResponse: req?.securityAlertResponse,
-      status: 'unapproved',
-      time: Date.now(),
-      type: 'personal_sign',
-    };
+    updatedMessageParams.data = normalizeMessageData(messageParams.data);
+    updatedMessageParams.siwe = ethereumSignInData;
+
+    const messageData = this.createUnapprovedMessage(
+      updatedMessageParams,
+      ApprovalType.PersonalSign,
+      req,
+    ) satisfies PersonalMessage;
+
+    const messageId = messageData.id;
     await this.addMessage(messageData);
     this.hub.emit(`unapprovedMessage`, {
-      ...finalMsgParams,
-      ...{ metamaskId: messageId },
+      ...updatedMessageParams,
+      metamaskId: messageId,
     });
     return messageId;
   }

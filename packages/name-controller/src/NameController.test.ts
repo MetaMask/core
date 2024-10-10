@@ -34,12 +34,6 @@ const CONTROLLER_ARGS_MOCK = {
   providers: [],
 };
 
-// eslint-disable-next-line jest/prefer-spy-on
-console.error = jest.fn();
-
-// eslint-disable-next-line jest/prefer-spy-on
-Date.now = jest.fn().mockReturnValue(TIME_MOCK * 1000);
-
 /**
  * Creates a mock name provider.
  *
@@ -76,6 +70,14 @@ function createMockProvider(
 }
 
 describe('NameController', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'error').mockImplementation(() => {
+      // do nothing
+    });
+
+    jest.spyOn(Date, 'now').mockReturnValue(TIME_MOCK * 1000);
+  });
+
   describe('setName', () => {
     it('creates an entry if new%s', () => {
       const provider1 = createMockProvider(1);

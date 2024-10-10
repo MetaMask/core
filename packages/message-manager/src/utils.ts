@@ -9,7 +9,6 @@ import { validate } from 'jsonschema';
 
 import type { DecryptMessageParams } from './DecryptMessageManager';
 import type { EncryptionPublicKeyParams } from './EncryptionPublicKeyManager';
-import type { MessageParams } from './MessageManager';
 import type { PersonalMessageParams } from './PersonalMessageManager';
 import type { TypedMessageParams } from './TypedMessageManager';
 
@@ -48,14 +47,12 @@ export function normalizeMessageData(data: string) {
 }
 
 /**
- * Validates a PersonalMessageParams and MessageParams objects for required properties and throws in
+ * Validates a PersonalMessageParams objects for required properties and throws in
  * the event of any validation error.
  *
  * @param messageData - PersonalMessageParams object to validate.
  */
-export function validateSignMessageData(
-  messageData: PersonalMessageParams | MessageParams,
-) {
+export function validateSignMessageData(messageData: PersonalMessageParams) {
   const { from, data } = messageData;
   validateAddress(from, 'from');
 
@@ -77,6 +74,8 @@ export function validateTypedSignMessageDataV1(
 
   if (!messageData.data || !Array.isArray(messageData.data)) {
     throw new Error(
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `Invalid message "data": ${messageData.data} must be a valid array.`,
     );
   }
@@ -146,12 +145,16 @@ export function validateTypedSignMessageDataV3V4(
     const activeChainId = parseInt(currentChainId, 16);
     if (Number.isNaN(activeChainId)) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Cannot sign messages for chainId "${chainId}", because MetaMask is switching networks.`,
       );
     }
 
     if (chainId !== activeChainId) {
       throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Provided chainId "${chainId}" must match the active chainId "${activeChainId}"`,
       );
     }

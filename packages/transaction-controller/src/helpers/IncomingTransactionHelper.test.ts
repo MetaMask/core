@@ -32,7 +32,21 @@ const BLOCK_TRACKER_MOCK = {
 
 const CONTROLLER_ARGS_MOCK = {
   blockTracker: BLOCK_TRACKER_MOCK,
-  getCurrentAccount: () => ADDRESS_MOCK,
+  getCurrentAccount: () => {
+    return {
+      id: '58def058-d35f-49a1-a7ab-e2580565f6f5',
+      address: ADDRESS_MOCK,
+      type: 'eip155:eoa' as const,
+      options: {},
+      methods: [],
+      metadata: {
+        name: 'Account 1',
+        keyring: { type: 'HD Key Tree' },
+        importTime: 1631619180000,
+        lastSelected: 1631619180000,
+      },
+    };
+  },
   getLastFetchedBlockNumbers: () => ({}),
   getChainId: () => CHAIN_ID_MOCK,
   remoteTransactionSource: {} as RemoteTransactionSource,
@@ -99,6 +113,8 @@ async function emitBlockTrackerLatestEvent(
     helper.start();
   }
 
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/await-thenable
   await BLOCK_TRACKER_MOCK.addListener.mock.calls[0]?.[1]?.(
     FROM_BLOCK_HEX_MOCK,
   );
@@ -113,10 +129,6 @@ async function emitBlockTrackerLatestEvent(
 }
 
 describe('IncomingTransactionHelper', () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('on block tracker latest event', () => {
     // eslint-disable-next-line jest/expect-expect
     it('handles errors', async () => {
@@ -546,7 +558,8 @@ describe('IncomingTransactionHelper', () => {
           remoteTransactionSource: createRemoteTransactionSourceMock([
             TRANSACTION_MOCK_2,
           ]),
-          getCurrentAccount: () => undefined as unknown as string,
+          // @ts-expect-error testing undefined
+          getCurrentAccount: () => undefined,
         });
 
         const { blockNumberListener } = await emitBlockTrackerLatestEvent(

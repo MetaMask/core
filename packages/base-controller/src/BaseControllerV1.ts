@@ -1,6 +1,39 @@
+import type { PublicInterface } from '@metamask/utils';
+
+import type { ControllerInstance } from './BaseControllerV2';
+
+/**
+ * Determines if the given controller is an instance of `BaseControllerV1`
+ *
+ * @param controller - Controller instance to check
+ * @returns True if the controller is an instance of `BaseControllerV1`
+ */
+export function isBaseControllerV1(
+  controller: ControllerInstance,
+): controller is BaseControllerV1Instance {
+  return (
+    'name' in controller &&
+    typeof controller.name === 'string' &&
+    'config' in controller &&
+    typeof controller.config === 'object' &&
+    'defaultConfig' in controller &&
+    typeof controller.defaultConfig === 'object' &&
+    'state' in controller &&
+    typeof controller.state === 'object' &&
+    'defaultState' in controller &&
+    typeof controller.defaultState === 'object' &&
+    'disabled' in controller &&
+    typeof controller.disabled === 'boolean' &&
+    'subscribe' in controller &&
+    typeof controller.subscribe === 'function'
+  );
+}
+
 /**
  * State change callbacks
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export type Listener<T> = (state: T) => void;
 
 /**
@@ -30,6 +63,26 @@ export interface BaseState {
 }
 
 /**
+ * The narrowest supertype for `BaseControllerV1` config objects.
+ * This type can be assigned to any `BaseControllerV1` config object.
+ */
+export type ConfigConstraint = BaseConfig & object;
+
+/**
+ * The narrowest supertype for `BaseControllerV1` state objects.
+ * This type can be assigned to any `BaseControllerV1` state object.
+ */
+export type StateConstraint = BaseState & object;
+
+/**
+ * The widest subtype of all controller instances that extend from `BaseControllerV1`.
+ * Any `BaseControllerV1` instance can be assigned to this type.
+ */
+export type BaseControllerV1Instance = PublicInterface<
+  BaseControllerV1<ConfigConstraint, StateConstraint>
+>;
+
+/**
  * @deprecated This class has been renamed to BaseControllerV1 and is no longer recommended for use for controllers. Please use BaseController (formerly BaseControllerV2) instead.
  *
  * Controller class that provides configuration, state management, and subscriptions.
@@ -38,6 +91,8 @@ export interface BaseState {
  * called "state". Each controller is responsible for its own state, and all global wallet state
  * is tracked in a controller as state.
  */
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export class BaseControllerV1<C extends BaseConfig, S extends BaseState> {
   /**
    * Default options used to configure this controller

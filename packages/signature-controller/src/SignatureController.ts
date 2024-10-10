@@ -30,7 +30,6 @@ import type {
   MessageParamsTyped,
   JsonRequest,
   SignatureRequest,
-  MessageParamsEthSign,
   MessageParams,
 } from './types';
 
@@ -39,10 +38,8 @@ const controllerName = 'SignatureController';
 const stateMetadata = {
   signatureRequests: { persist: false, anonymous: false },
   // Legacy + Generated
-  unapprovedMsgs: { persist: false, anonymous: false },
   unapprovedPersonalMsgs: { persist: false, anonymous: false },
   unapprovedTypedMessages: { persist: false, anonymous: false },
-  unapprovedMsgCount: { persist: false, anonymous: false },
   unapprovedPersonalMsgCount: { persist: false, anonymous: false },
   unapprovedTypedMessagesCount: { persist: false, anonymous: false },
 };
@@ -50,10 +47,8 @@ const stateMetadata = {
 const getDefaultState = () => ({
   signatureRequests: {},
   // Legacy + Generated
-  unapprovedMsgs: {},
   unapprovedPersonalMsgs: {},
   unapprovedTypedMessages: {},
-  unapprovedMsgCount: 0,
   unapprovedPersonalMsgCount: 0,
   unapprovedTypedMessagesCount: 0,
 });
@@ -61,10 +56,8 @@ const getDefaultState = () => ({
 type SignatureControllerState = {
   signatureRequests: Record<string, SignatureRequest>;
   // Legacy + Generated
-  unapprovedMsgs: Record<string, any>;
   unapprovedPersonalMsgs: Record<string, any>;
   unapprovedTypedMessages: Record<string, any>;
-  unapprovedMsgCount: number;
   unapprovedPersonalMsgCount: number;
   unapprovedTypedMessagesCount: number;
 };
@@ -123,25 +116,13 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #isEthSignEnabled: () => boolean;
-
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #getAllState: () => any;
-
   /**
    * Construct a Sign controller.
    *
    * @param options - The controller options.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.isEthSignEnabled - Callback to return true if eth_sign is enabled.
-   * @param options.getAllState - Callback to retrieve all user state.
    */
-  constructor({
-    messenger,
-    isEthSignEnabled,
-    getAllState,
-  }: SignatureControllerOptions) {
+  constructor({ messenger }: SignatureControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -149,18 +130,7 @@ export class SignatureController extends BaseController<
       state: getDefaultState(),
     });
 
-    this.#isEthSignEnabled = isEthSignEnabled;
-    this.#getAllState = getAllState;
     this.hub = new EventEmitter();
-  }
-
-  /**
-   * A getter for the number of 'unapproved' Messages in this.messages.
-   *
-   * @returns The number of 'unapproved' Messages in this.messages
-   */
-  get unapprovedMsgCount(): number {
-    return this.state.unapprovedMsgCount;
   }
 
   /**
@@ -224,18 +194,6 @@ export class SignatureController extends BaseController<
           (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
         )
         .forEach((metadata) => delete state.signatureRequests[metadata.id]);
-    });
-  }
-
-  async newUnsignedMessage(
-    messageParams: MessageParamsEthSign,
-    request: JsonRequest,
-  ): Promise<string> {
-    return this.#processSignatureRequest({
-      messageParams,
-      request,
-      type: SignatureRequestType.EthSign,
-      approvalType: ApprovalType.EthSign,
     });
   }
 
@@ -382,13 +340,6 @@ export class SignatureController extends BaseController<
       let signature: string;
 
       switch (type) {
-        case SignatureRequestType.EthSign:
-          signature = await this.messagingSystem.call(
-            'KeyringController:signMessage',
-            request,
-          );
-          break;
-
         case SignatureRequestType.PersonalSign:
           signature = await this.messagingSystem.call(
             'KeyringController:signPersonalMessage',
@@ -405,7 +356,7 @@ export class SignatureController extends BaseController<
           break;
 
         default:
-          throw new Error(`Unknown signature request type: ${type}`);
+          throw new Error(`Unknown signature request type: ${type as string}`);
       }
 
       this.hub.emit(`${type}:signed`, { signature, messageId: id });
@@ -454,7 +405,9 @@ export class SignatureController extends BaseController<
             );
 
           case SignatureRequestStatus.Errored:
-            return reject(new Error(`MetaMask ${type} Signature: ${error}`));
+            return reject(
+              new Error(`MetaMask ${type} Signature: ${error as string}`),
+            );
 
           default:
             return reject(
@@ -514,18 +467,6 @@ export class SignatureController extends BaseController<
       const unapprovedRequests = Object.values(state.signatureRequests).filter(
         (request) => request.status === SignatureRequestStatus.Unapproved,
       );
-
-      state.unapprovedMsgs = unapprovedRequests
-        .filter((request) => request.type === 'eth_sign')
-        .reduce(
-          (acc, request) => ({
-            ...acc,
-            [request.id]: { ...request, msgParams: request.request },
-          }),
-          {},
-        );
-
-      state.unapprovedMsgCount = Object.values(state.unapprovedMsgs).length;
 
       state.unapprovedPersonalMsgs = unapprovedRequests
         .filter((request) => request.type === 'personal_sign')

@@ -1,13 +1,13 @@
-import {
-  type RestrictedControllerMessenger,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
-  BaseController,
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  RestrictedControllerMessenger,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import { safelyExecute, toHex } from '@metamask/controller-utils';
-import type { PreferencesControllerGetStateAction } from '@metamask/preferences-controller';
 
-import type { AssetsContractController } from './AssetsContractController';
+import type { AssetsContractControllerGetERC20BalanceOfAction } from './AssetsContractController';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerStateChangeEvent } from './TokensController';
 
@@ -24,13 +24,11 @@ const metadata = {
  * @property interval - Polling interval used to fetch new token balances.
  * @property tokens - List of tokens to track balances for.
  * @property disabled - If set to true, all tracked tokens contract balances updates are blocked.
- * @property getERC20BalanceOf - Gets the balance of the given account at the given contract address.
  */
 type TokenBalancesControllerOptions = {
   interval?: number;
   tokens?: Token[];
   disabled?: boolean;
-  getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
   messenger: TokenBalancesControllerMessenger;
   state?: Partial<TokenBalancesControllerState>;
 };
@@ -56,7 +54,9 @@ export type TokenBalancesControllerGetStateAction = ControllerGetStateAction<
 export type TokenBalancesControllerActions =
   TokenBalancesControllerGetStateAction;
 
-export type AllowedActions = PreferencesControllerGetStateAction;
+export type AllowedActions =
+  | AccountsControllerGetSelectedAccountAction
+  | AssetsContractControllerGetERC20BalanceOfAction;
 
 export type TokenBalancesControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -99,8 +99,6 @@ export class TokenBalancesController extends BaseController<
 > {
   #handle?: ReturnType<typeof setTimeout>;
 
-  #getERC20BalanceOf: AssetsContractController['getERC20BalanceOf'];
-
   #interval: number;
 
   #tokens: Token[];
@@ -114,7 +112,6 @@ export class TokenBalancesController extends BaseController<
    * @param options.interval - Polling interval used to fetch new token balances.
    * @param options.tokens - List of tokens to track balances for.
    * @param options.disabled - If set to true, all tracked tokens contract balances updates are blocked.
-   * @param options.getERC20BalanceOf - Gets the balance of the given account at the given contract address.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller restricted messenger.
    */
@@ -122,7 +119,6 @@ export class TokenBalancesController extends BaseController<
     interval = DEFAULT_INTERVAL,
     tokens = [],
     disabled = false,
-    getERC20BalanceOf,
     messenger,
     state = {},
   }: TokenBalancesControllerOptions) {
@@ -144,12 +140,14 @@ export class TokenBalancesController extends BaseController<
       'TokensController:stateChange',
       ({ tokens: newTokens, detectedTokens }) => {
         this.#tokens = [...newTokens, ...detectedTokens];
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.updateBalances();
       },
     );
 
-    this.#getERC20BalanceOf = getERC20BalanceOf;
-
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.poll();
   }
 
@@ -184,6 +182,8 @@ export class TokenBalancesController extends BaseController<
     await safelyExecute(() => this.updateBalances());
 
     this.#handle = setTimeout(() => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       this.poll(this.#interval);
     }, this.#interval);
   }
@@ -195,21 +195,24 @@ export class TokenBalancesController extends BaseController<
     if (this.#disabled) {
       return;
     }
+    const selectedInternalAccount = this.messagingSystem.call(
+      'AccountsController:getSelectedAccount',
+    );
 
     const newContractBalances: ContractBalances = {};
     for (const token of this.#tokens) {
       const { address } = token;
-      const { selectedAddress } = this.messagingSystem.call(
-        'PreferencesController:getState',
-      );
       try {
-        newContractBalances[address] = toHex(
-          await this.#getERC20BalanceOf(address, selectedAddress),
+        const balance = await this.messagingSystem.call(
+          'AssetsContractController:getERC20BalanceOf',
+          address,
+          selectedInternalAccount.address,
         );
-        token.balanceError = null;
+        newContractBalances[address] = toHex(balance);
+        token.hasBalanceError = false;
       } catch (error) {
         newContractBalances[address] = toHex(0);
-        token.balanceError = error;
+        token.hasBalanceError = true;
       }
     }
 

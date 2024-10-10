@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "license": "MIT",
+  "sideEffects": false,
+  "main": "../../dist/controllers/authentication/__fixtures__/index.cjs",
+  "types": "../../dist/controllers/authentication/__fixtures__/index.d.cts"
+}

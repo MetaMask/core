@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [9.0.1]
+
+### Changed
+
+- Remove `@metamask/network-controller` dependency [#4556](https://github.com/MetaMask/core/pull/4556)
+  - This was listed under `peerDependencies` already, so it was redundant as a dependency.
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Fixed
+
+- `StaticIntervalPollingControllerOnly`, `StaticIntervalPollingController`, and `StaticIntervalPollingControllerV1` now properly stops polling when a stop is requested while `_executePoll` has not yet resolved for the current loop ([#4230](https://github.com/MetaMask/core/pull/4230))
+
 ## [6.0.2]
 
 ### Changed
@@ -123,7 +187,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.0...@metamask/polling-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.1...@metamask/polling-controller@10.0.0
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.0...@metamask/polling-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@8.0.0...@metamask/polling-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@7.0.0...@metamask/polling-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.2...@metamask/polling-controller@7.0.0
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.1...@metamask/polling-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@6.0.0...@metamask/polling-controller@6.0.1
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@5.0.1...@metamask/polling-controller@6.0.0

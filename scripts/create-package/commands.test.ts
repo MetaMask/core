@@ -13,10 +13,6 @@ jest.mock('./utils', () => ({
 jest.useFakeTimers().setSystemTime(new Date('2023-01-02'));
 
 describe('create-package/commands', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('createPackageHandler', () => {
     it('should create the expected package', async () => {
       (utils.readMonorepoFiles as jest.Mock).mockResolvedValue({
@@ -30,6 +26,8 @@ describe('create-package/commands', () => {
       });
 
       const args: Arguments<CreatePackageOptions> = {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         _: [],
         $0: 'create-package',
         name: '@metamask/new-package',

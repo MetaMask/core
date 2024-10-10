@@ -152,10 +152,98 @@ describe('assetsUtil', () => {
         chainId: ChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       const expectedValue = `https://static.cx.metamask.io/api/v1/tokenIcons/${convertHexToDecimal(
         ChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
+    });
+  });
+
+  describe('hasNewCollectionFields', () => {
+    let baseNftMetadata: NftMetadata;
+    let baseNft: Nft;
+
+    beforeEach(() => {
+      baseNftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
+
+      baseNft = {
+        ...baseNftMetadata,
+        address: 'address',
+        tokenId: '123',
+      };
+    });
+    it('should return false if both objects do not have collection', () => {
+      const different = assetsUtil.hasNewCollectionFields(
+        baseNftMetadata,
+        baseNft,
+      );
+      expect(different).toBe(false);
+    });
+
+    it('should return false if existing object has collection and new nft metadata object does not', () => {
+      const different = assetsUtil.hasNewCollectionFields(baseNftMetadata, {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      });
+      expect(different).toBe(false);
+    });
+
+    it('should return false if both objects has the same keys', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
+    });
+
+    it('should return true if new nft metadata object has keys that do not exist in the existing NFT', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          tokenCount: '5555',
+          ownerCount: '555',
+          contractDeployedAt: 'timestamp',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(true);
     });
   });
 
@@ -254,33 +342,33 @@ describe('assetsUtil', () => {
   });
 
   describe('getIpfsCIDv1AndPath', () => {
-    it('should return content identifier from default ipfs url format', () => {
+    it('should return content identifier from default ipfs url format', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return content identifier from alternative ipfs url format', () => {
+    it('should return content identifier from alternative ipfs url format', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return unchanged content identifier if already v1', () => {
+    it('should return unchanged content identifier if already v1', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return a path when url contains one', () => {
+    it('should return a path when url contains one', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: '/test/test/test' });
@@ -288,9 +376,9 @@ describe('assetsUtil', () => {
   });
 
   describe('getFormattedIpfsUrl', () => {
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           IFPS_GATEWAY,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
           true,
@@ -298,9 +386,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
           true,
@@ -308,9 +396,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           true,
@@ -318,9 +406,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
     });
 
-    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', () => {
+    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
@@ -328,9 +416,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
     });
 
-    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', () => {
+    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}/ipfs/`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
@@ -510,8 +598,25 @@ describe('assetsUtil', () => {
       jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
         [testTokenAddress]: {
           tokenAddress: testTokenAddress,
-          value: 0.0004588648479937523,
           currency: testNativeCurrency,
+          allTimeHigh: 4000,
+          allTimeLow: 900,
+          circulatingSupply: 2000,
+          dilutedMarketCap: 100,
+          high1d: 200,
+          low1d: 100,
+          marketCap: 1000,
+          marketCapPercentChange1d: 100,
+          price: 0.0004588648479937523,
+          pricePercentChange14d: 100,
+          pricePercentChange1h: 1,
+          pricePercentChange1y: 200,
+          pricePercentChange200d: 300,
+          pricePercentChange30d: 200,
+          pricePercentChange7d: 100,
+          totalVolume: 100,
+          priceChange1d: 100,
+          pricePercentChange1d: 100,
         },
       });
 

@@ -1,5 +1,6 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { ChainId } from '@metamask/controller-utils';
+import { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { createInfuraMiddleware } from '@metamask/eth-json-rpc-infura';
 import {
   createBlockCacheMiddleware,
@@ -23,7 +24,6 @@ import {
 } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import type { Hex, Json, JsonRpcParams } from '@metamask/utils';
-import { PollingBlockTracker } from 'eth-block-tracker';
 
 import type {
   BlockTracker,
@@ -101,6 +101,8 @@ export function createNetworkClient(
   const provider = providerFromEngine(engine);
 
   const destroy = () => {
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker.destroy();
   };
 
@@ -152,6 +154,8 @@ function createNetworkAndChainIdMiddleware({
   network: InfuraNetworkType;
 }) {
   return createScaffoldMiddleware({
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     eth_chainId: ChainId[network],
   });
 }

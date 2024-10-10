@@ -1,7 +1,9 @@
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
 import { BaseControllerV1 } from '@metamask/base-controller';
+import type { ApprovalType } from '@metamask/controller-utils';
 import type { Hex, Json } from '@metamask/utils';
 import { EventEmitter } from 'events';
+import { v1 as random } from 'uuid';
 
 /**
  * @type OriginalRequest
@@ -13,6 +15,7 @@ import { EventEmitter } from 'events';
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface OriginalRequest {
+  id?: number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
 }
@@ -44,11 +47,12 @@ export interface AbstractMessage {
 }
 
 /**
- * @type MessageParams
+ * @type AbstractMessageParams
  *
  * Represents the parameters to pass to the signing method once the signature request is approved.
  * @property from - Address from which the message is processed
  * @property origin? - Added for request origin identification
+ * @property requestId? - Original request id
  * @property deferSetAsSigned? - Whether to defer setting the message as signed immediately after the keyring is told to sign it
  */
 // This interface was created before this ESLint rule was added.
@@ -57,6 +61,7 @@ export interface AbstractMessage {
 export interface AbstractMessageParams {
   from: string;
   origin?: string;
+  requestId?: number;
   deferSetAsSigned?: boolean;
 }
 
@@ -85,7 +90,8 @@ export interface AbstractMessageParamsMetamask extends AbstractMessageParams {
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions, @typescript-eslint/naming-convention
 export interface MessageManagerState<M extends AbstractMessage>
   extends BaseState {
   unapprovedMessages: { [key: string]: M };
@@ -100,14 +106,22 @@ export type SecurityProviderRequest = (
   messageType: string,
 ) => Promise<Json>;
 
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/naming-convention
 type getCurrentChainId = () => Hex;
 
 /**
  * Controller in charge of managing - storing, adding, removing, updating - Messages.
  */
 export abstract class AbstractMessageManager<
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   M extends AbstractMessage,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   P extends AbstractMessageParams,
+  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   PM extends AbstractMessageParamsMetamask,
 > extends BaseControllerV1<BaseConfig, MessageManagerState<M>> {
   protected messages: M[];
@@ -117,6 +131,49 @@ export abstract class AbstractMessageManager<
   private readonly securityProviderRequest: SecurityProviderRequest | undefined;
 
   private readonly additionalFinishStatuses: string[];
+
+  /**
+   * Adds request props to the messsage params and returns a new messageParams object.
+   * @param messageParams - The messageParams to add the request props to.
+   * @param req - The original request object.
+   * @returns The messageParams with the request props added.
+   */
+  protected addRequestToMessageParams<
+    MessageParams extends AbstractMessageParams,
+  >(messageParams: MessageParams, req?: OriginalRequest) {
+    const updatedMessageParams = {
+      ...messageParams,
+    };
+
+    if (req) {
+      updatedMessageParams.requestId = req.id;
+      updatedMessageParams.origin = req.origin;
+    }
+
+    return updatedMessageParams;
+  }
+
+  /**
+   * Creates a new Message with a random id and an 'unapproved' status.
+   * @param messageParams - The messageParams to add the request props to.
+   * @param type - The approval type of the message.
+   * @param req - The original request object.
+   * @returns The new unapproved message for a specified type.
+   */
+  protected createUnapprovedMessage<
+    MessageParams extends AbstractMessageParams,
+  >(messageParams: MessageParams, type: ApprovalType, req?: OriginalRequest) {
+    const messageId = random();
+
+    return {
+      id: messageId,
+      messageParams,
+      securityAlertResponse: req?.securityAlertResponse,
+      status: 'unapproved',
+      time: Date.now(),
+      type,
+    };
+  }
 
   /**
    * Saves the unapproved messages, and their count to state.
@@ -195,7 +252,7 @@ export abstract class AbstractMessageManager<
   /**
    * EventEmitter instance used to listen to specific message events
    */
-  hub = new EventEmitter();
+  hub: EventEmitter = new EventEmitter();
 
   /**
    * Name of this controller used during composition
@@ -422,6 +479,8 @@ export abstract class AbstractMessageManager<
   ): Promise<string> {
     const { metamaskId: messageId, ...messageParams } = messageParamsWithId;
     return new Promise((resolve, reject) => {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       this.hub.once(`${messageId}:finished`, (data: AbstractMessage) => {
         switch (data.status) {
           case 'signed':
@@ -434,6 +493,8 @@ export abstract class AbstractMessageManager<
             );
           case 'errored':
             return reject(
+              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               new Error(`MetaMask ${messageName} Signature: ${data.error}`),
             );
           default:

@@ -1,6 +1,4 @@
 export type {
-  FeeMarketEIP1559Values,
-  GasPriceValue,
   MethodData,
   Result,
   TransactionControllerActions,
@@ -24,19 +22,23 @@ export type {
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerMessenger,
+  TransactionControllerOptions,
 } from './TransactionController';
 export {
   HARDFORK,
   CANCEL_RATE,
+  SPEED_UP_RATE,
   TransactionController,
 } from './TransactionController';
 export type {
   DappSuggestedGasFees,
   DefaultGasEstimates,
+  FeeMarketEIP1559Values,
   FeeMarketGasFeeEstimateForLevel,
   FeeMarketGasFeeEstimates,
   GasFeeEstimates,
   GasPriceGasFeeEstimates,
+  GasPriceValue,
   InferTransactionTypeResult,
   LegacyGasFeeEstimates,
   Log,
@@ -70,9 +72,14 @@ export {
   WalletDevice,
 } from './types';
 export type { EtherscanTransactionMeta } from './utils/etherscan';
+export {
+  DISPLAYED_TRANSACTION_HISTORY_PATHS,
+  MAX_TRANSACTION_HISTORY_LENGTH,
+} from './utils/history';
 export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
+export { CHAIN_IDS, ETHERSCAN_SUPPORTED_NETWORKS } from './constants';

@@ -1,10 +1,26 @@
 import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcId,
+  JsonRpcParams,
+  JsonRpcResponse,
+  JsonRpcVersion2,
+} from '@metamask/utils';
 import { inspect, isDeepStrictEqual } from 'util';
 
 // Store this in case it gets stubbed later
 const originalSetTimeout = global.setTimeout;
+
+/**
+ * A JSON-RPC request conforming to the EIP-1193 specification.
+ */
+type Eip1193Request<Params extends JsonRpcParams> = {
+  id?: JsonRpcId;
+  jsonrpc?: JsonRpcVersion2;
+  method: string;
+  params?: Params;
+};
 
 /**
  * Represents the type of the `response` property in a fake provider stub.
@@ -15,23 +31,23 @@ export type FakeProviderResponse = { result: any } | { error: string };
 
 /**
  * An object that allows specifying the behavior of a specific invocation of
- * `sendAsync`. The `method` always identifies the stub, but the behavior
- * may be specified multiple ways: `sendAsync` can either return a promise or
+ * `request`. The `method` always identifies the stub, but the behavior
+ * may be specified multiple ways: `request` can either return a promise or
  * throw an error, and if it returns a promise, that promise can either be
  * resolved with a response object or reject with an error.
  *
  * @property request - Looks for a request matching these specifications.
  * @property request.method - The RPC method to which this stub will be matched.
  * @property request.params - The params to which this stub will be matched.
- * @property response - Instructs `sendAsync` to return a promise that resolves
+ * @property response - Instructs `request` to return a promise that resolves
  * with a response object.
  * @property response.result - Specifies a successful response, with this as the
  * `result`.
  * @property response.error - Specifies an error response, with this as the
  * `error`.
- * @property error - Instructs `sendAsync` to return a promise that rejects with
+ * @property error - Instructs `request` to return a promise that rejects with
  * this error.
- * @property implementation - Allows overriding `sendAsync` entirely. Useful if
+ * @property implementation - Allows overriding `request` entirely. Useful if
  * you want it to throw an error.
  * @property delay - The amount of time that will pass after the callback is
  * called with the response.
@@ -69,7 +85,7 @@ export type FakeProviderStub = {
  * The set of options that the FakeProvider constructor takes.
  *
  * @property stubs - A set of objects that allow specifying the behavior
- * of specific invocations of `sendAsync` matching a `method`.
+ * of specific invocations of `request` matching a `method`.
  */
 type FakeProviderEngineOptions = {
   stubs?: FakeProviderStub[];
@@ -98,7 +114,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
    *
    * @param options - The options.
    * @param options.stubs - A set of objects that allow specifying the behavior
-   * of specific invocations of `sendAsync` matching a `method`.
+   * of specific invocations of `request` matching a `method`.
    */
   constructor({ stubs = [] }: FakeProviderEngineOptions = {}) {
     super({ engine: new JsonRpcEngine() });
@@ -107,8 +123,22 @@ export class FakeProvider extends SafeEventEmitterProvider {
     this.calledStubs = [];
   }
 
-  sendAsync = (
-    payload: JsonRpcRequest,
+  request = <Params extends JsonRpcParams, Result extends Json>(
+    payload: Eip1193Request<Params>,
+  ): Promise<Result> => {
+    return new Promise((resolve, reject) => {
+      this.#handleSend(payload, (error, providerRes) => {
+        if (error) {
+          reject(error);
+        } else {
+          resolve(providerRes.result);
+        }
+      });
+    });
+  };
+
+  sendAsync = <Params extends JsonRpcParams>(
+    payload: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
@@ -116,8 +146,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
     return this.#handleSend(payload, callback);
   };
 
-  send = (
-    req: JsonRpcRequest,
+  send = <Params extends JsonRpcParams>(
+    req: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
@@ -125,8 +155,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
     return this.#handleSend(req, callback);
   };
 
-  #handleSend(
-    req: JsonRpcRequest,
+  #handleSend<Params extends JsonRpcParams>(
+    req: Eip1193Request<Params>,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
@@ -173,9 +203,13 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
       if (stub.delay) {
         originalSetTimeout(() => {
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           this.#handleRequest(stub, callback);
         }, stub.delay);
       } else {
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         this.#handleRequest(stub, callback);
       }
 

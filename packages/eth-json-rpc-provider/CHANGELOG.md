@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.4]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [4.1.3]
+
+### Changed
+
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- Fix SafeEventEmitterProvider invalid default params ([#4603](https://github.com/MetaMask/core/pull/4603))
+
+## [4.1.2]
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/json-rpc-engine` from `^9.0.1` to `^9.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [4.1.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` to `^9.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+- Bump `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+## [4.1.0]
+
+### Added
+
+- Make `SafeEventEmitterProvider` EIP-1193 compatible by adding a `request` method ([#4422](https://github.com/MetaMask/core/pull/4422))
+  - Now `SafeEventEmitterProvider` is compatible with `@metamask/eth-query`, `@metamask/ethjs-query`, `BrowserProvider` from Ethers v6 and `Web3Provider` from Ethers v5
+
+### Deprecated
+
+- Mark `sendAsync` method as deprecated in favor of `request` method ([#4422](https://github.com/MetaMask/core/pull/4422))
+
+## [4.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
 ## [3.0.2]
 
 ### Changed
@@ -100,7 +162,13 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@3.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.4...HEAD
+[4.1.4]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.3...@metamask/eth-json-rpc-provider@4.1.4
+[4.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.2...@metamask/eth-json-rpc-provider@4.1.3
+[4.1.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.1...@metamask/eth-json-rpc-provider@4.1.2
+[4.1.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.0...@metamask/eth-json-rpc-provider@4.1.1
+[4.1.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.0.0...@metamask/eth-json-rpc-provider@4.1.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@3.0.2...@metamask/eth-json-rpc-provider@4.0.0
 [3.0.2]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@3.0.1...@metamask/eth-json-rpc-provider@3.0.2
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@3.0.0...@metamask/eth-json-rpc-provider@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@2.3.2...@metamask/eth-json-rpc-provider@3.0.0

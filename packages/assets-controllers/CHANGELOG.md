@@ -7,13 +7,368 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
+## [38.2.0]
 
+### Changed
+
+- The `TokenRatesController` now fetches token rates for all accounts, instead of just the selected account ([#4759](https://github.com/MetaMask/core/pull/4759))
+
+## [38.1.0]
+
+### Changed
+
+- Parallelization of detected tokens with balance ([#4697](https://github.com/MetaMask/core/pull/4697))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
+## [38.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+- Don't update currency rates on transient errors ([#4662](https://github.com/MetaMask/core/pull/4662))
+  - In `CurrencyRateController` if unexpected errors occur during requests to
+    crypto compare, the conversion rate in state will remain unchanged instead
+    of being set to null.
+- Fix fallback conversion rate for token market data ([#4615](https://github.com/MetaMask/core/pull/4615))
+  - On networks where the native currency is not ETH, token market data is now
+    correctly priced in the native currency.
+
+## [38.0.0]
+
+### Added
+
+- Export `MarketDataDetails` type ([#4622](https://github.com/MetaMask/core/pull/4622))
+
+### Changed
+
+- **BREAKING:** Narrow `TokensController` constructor option `provider` by removing `undefined` from its type signature ([#4567](https://github.com/MetaMask/core/pull/4567))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/polling-controller` from `^9.0.1` to `^10.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/keyring-api` to version `8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- Fix `RatesController` `setCryptocurrencyList` method, which was not using the correct field when updating internal state ([#4572](https://github.com/MetaMask/core/pull/4572))
+- Fetch correct price for the $OMNI native currency ([#4570](https://github.com/MetaMask/core/pull/4570))
+- Add public `name` property to `AssetsContractController` ([#4564](https://github.com/MetaMask/core/pull/4564))
+
+## [37.0.0]
+
+### Added
+
+- Add elements to the `AssetsContractController` class: ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - Add class field `messagingSystem`.
+  - Add getters for `ipfsGateway` and `chainId`. As corresponding setters have not been defined, these properties are not externally mutable.
+- Add and export the `AssetsContractControllerMessenger` type ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - `AssetsContractControllerMessenger` must allow the external actions `NetworkController:getNetworkClientById`, `NetworkController:getNetworkConfigurationByNetworkClientId`, `NetworkController:getSelectedNetworkClient`, `NetworkController:getState`.
+  - `AssetsContractControllerMessenger` must allow the external events `PreferencesController:stateChange`, `NetworkController:networkDidChange`.
+- Add and export new types: `AssetsContractControllerActions`, `AssetsContractControllerEvents`, `AssetsContractControllerGetERC20StandardAction`, `AssetsContractControllerGetERC721StandardAction`, `AssetsContractControllerGetERC1155StandardAction`, `AssetsContractControllerGetERC20BalanceOfAction`, `AssetsContractControllerGetERC20TokenDecimalsAction`, `AssetsContractControllerGetERC20TokenNameAction`, `AssetsContractControllerGetERC721NftTokenIdAction`, `AssetsContractControllerGetERC721TokenURIAction`, `AssetsContractControllerGetERC721AssetNameAction`, `AssetsContractControllerGetERC721AssetSymbolAction`, `AssetsContractControllerGetERC721OwnerOfAction`, `AssetsContractControllerGetERC1155TokenURIAction`, `AssetsContractControllerGetERC1155BalanceOfAction`, `AssetsContractControllerTransferSingleERC1155Action`, `AssetsContractControllerGetTokenStandardAndDetailsAction`, `AssetsContractControllerGetBalancesInSingleCallAction` ([#4397](https://github.com/MetaMask/core/pull/4397))
+- Add a new `setProvider` method to `AssetsContractController` ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - Replaces the removed `provider` setter method, and widens the `provider` function parameter type from `Provider` to `Provider | undefined`.
+- Export `TokenBalancesControllerState` type ([#4535](https://github.com/MetaMask/core/pull/4535))
+  - This was defined but not exported in v34.0.0.
+- Add `getNFTContractInfo` method to the `NFTController` for fetching NFT Collection Metadata from the NFT API ([#4524](https://github.com/MetaMask/core/pull/4524))
+
+### Changed
+
+- **BREAKING:** Add required constructor option `messenger` to the `AssetsContractController` class ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** `TokenBalancesControllerMessenger` must allow the `AssetsContractController:getERC20BalanceOf` action in addition to its previous allowed actions ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** `NftControllerMessenger` must allow the following actions in addition to its previous allowed actions: `AssetsContractController:getERC721AssetName`, `AssetsContractController:getERC721AssetSymbol`, `AssetsContractController:getERC721TokenURI`, `AssetsContractController:getERC721OwnerOf`, `AssetsContractController:getERC1155BalanceOf`, `AssetsContractController:getERC1155TokenURI` ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** The type of `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` is narrowed from `Record<Hex, string>` to the const-asserted literal properties of the `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID` object ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - The index signature is restricted to the union of the enum keys of `SupportedTokenDetectionNetworks`.
+  - The property value type is restricted to the type union of the addresses defined in the object.
+  - The object type is constrained by `Record<Hex, string>` using the `satisfies` keyword.
+- **BREAKING:** Convert the `BalanceMap` type from an `interface` into a type alias ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - Type aliases have an index signature of `string` by default, and are compatible with the `StateConstraint` type defined in the `@metamask/base-controller` package.
+- **BREAKING:** `getIpfsCIDv1AndPath`, `getFormattedIpfsUrl` are now async functions ([#3645](https://github.com/MetaMask/core/pull/3645))
+- **BREAKING:** Bump peerDependency `@metamask/accounts-controller` from `^17.0.0` to `^18.0.0` ([#4548](https://github.com/MetaMask/core/pull/4548))
+- Remove `@metamask/accounts-controller`, `@metamask/approval-controller`, `@metamask/keyring-controller`, and `@metamask/preferences-controller` dependencies [#4556](https://github.com/MetaMask/core/pull/4556)
+  - These were listed under `peerDependencies` already, so they were redundant as dependencies.
+- Add `immer` `^9.0.6` as a new dependency ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/abi-utils` from `^2.0.2` to `^2.0.3` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+- Bump `multiformats` from `^9.5.2` to `^13.1.0` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/polling-controller` from `^9.0.0` to `^9.0.1` ([#4548](https://github.com/MetaMask/core/pull/4548))
+
+### Removed
+
+- **BREAKING:** Remove elements from the `AssetsContractController` class: ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - **BREAKING:** `AssetsContractController` no longer inherits from `BaseControllerV1`.
+  - **BREAKING:** Remove constructor option callbacks `onPreferencesStateChange`, `onNetworkDidChange`, `getNetworkClientById`, and replace with corresponding messenger actions and events.
+  - **BREAKING:** Remove class fields: `name`, `config` (along with its properties `provider`, `ipfsGateway`, `chainId`).
+  - **BREAKING:** Remove methods: `getProvider`, `getChainId`.
+    - Use the getters `provider` and `chainId` instead.
+  - **BREAKING:** Remove the `provider` setter method.
+    - Use the `setProvider` method instead.
+- **BREAKING:** Remove the `getERC20BalanceOf` constructor option callback from the `TokenBalancesControllerOptions` type and the `TokenBalancesController` constructor ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - The messenger is expected to allow `AssetsContractController:getERC20BalanceOf` messenger action so that it can be used instead.
+- **BREAKING:** Remove `NftController` constructor option callbacks: `getERC721AssetName`, `getERC721AssetSymbol`, `getERC721TokenURI`, `getERC721OwnerOf`, `getERC1155BalanceOf`, `getERC1155TokenURI` ([#4397](https://github.com/MetaMask/core/pull/4397))
+  - These are accessed through the messenger instead.
+- **BREAKING:** Remove the `AssetsContractConfig` type ([#4397](https://github.com/MetaMask/core/pull/4397))
+- **BREAKING:** Remove export for `MISSING_PROVIDER_ERROR` ([#4397](https://github.com/MetaMask/core/pull/4397))
+
+### Fixed
+
+- **BREAKING:** Convert the `getERC721NftTokenId` method of the `AssetsContractController` into an async function. ([#4397](https://github.com/MetaMask/core/pull/4397))
+
+## [36.0.0]
+
+### Added
+
+- Add optional `topBid` property to the `NftMetadata` type. This property must be of type `TopBid`. ([#4522](https://github.com/MetaMask/core/pull/4522))
+- Add optional `floorAsk` property to the `TokenCollection` type. This property must be of type `FloorAskCollection`. ([#4522](https://github.com/MetaMask/core/pull/4522))
+- Add linea mainnet support to nft detection supported networks ([#4515](https://github.com/MetaMask/core/pull/4515))
+- The `Collection` type is expanded to include the following 'string'-type optional properties: `contractDeployedAt`, `creator`, `ownerCount`, and an optional property `topBid` of the type `TopBid & { sourceDomain?: string; }`. ([#4443](https://github.com/MetaMask/core/pull/4443))
+
+### Changed
+
+- Fetch NFT collections data from the NFT-API `Get Collections` endpoint when calling the `detectNfts` method of `NftDetectionController`, and the `updateNftMetadata` and `watchNft` methods of `NftController`. ([#4443](https://github.com/MetaMask/core/pull/4443))
+- Bump `@metamask/utils` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+### Fixed
+
+- **BREAKING:** The `attributes` property of the `NftMetadata` type must be of type `Attributes[]` ([#4522](https://github.com/MetaMask/core/pull/4522))
+  - The `attributes` property was added and typed as `Attributes` on `v28.0.0`.
+
+## [35.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peerDependency `@metamask/network-controller` to `^20.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- Bump `@metamask/polling-controller` to `^9.0.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+- Bump `@metamask/accounts-controller` to `^17.2.0` ([#4498](https://github.com/MetaMask/core/pull/4498))
+
+### Fixed
+
+- Add support for tokenURI encoded images to `NftController` methods `addNft`, `watchNft` and `updateNftMetadata` ([#4482](https://github.com/MetaMask/core/pull/4482))
+
+## [34.0.0]
+
+### Added
+
+- Add `AccountTrackerControllerGetStateAction`, `AccountTrackerControllerActions`, `AccountTrackerControllerStateChangeEvent`, and `AccountTrackerControllerEvents` types ([#4407](https://github.com/MetaMask/core/pull/4407))
+- Add `setIntervalLength` and `getIntervalLength` methods to `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - `setIntervalLength` replaces updating the polling interval via `configure`.
+
+### Changed
+
+- **BREAKING** `TokenBalancesController` messenger must allow the action `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` messenger must allow the action `AccountsController:getAccount`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `AccountsController:selectedAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenRatesController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount` and remove `PreferencesController:getState`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenRatesController` messenger must allow the event `AccountsController:selectedEvmAccountChange` and remove `PreferencesController:stateChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokensController` messenger must allow the action `AccountsController:getAccount`, `AccountsController:getSelectedAccount`.
+- **BREAKING** `TokensController` messenger must allow the event `AccountsController:selectedEvmAccountChange`. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- Upgrade AccountTrackerController to BaseControllerV2 ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** Convert `AccountInformation` from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** Rename `AccountTrackerState` to `AccountTrackerControllerState` and convert from interface to type ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** `AccountTrackerController` now inherits from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The constructor now takes a single options object rather than three arguments. Some options have been removed; see later entries.
+- **BREAKING:** The `AccountTrackerController` messenger must now allow the actions `PreferencesController:getState`, `NetworkController:getState`, and `NetworkController:getNetworkClientById` ([#4407](https://github.com/MetaMask/core/pull/4407))
+- **BREAKING:** The `refresh` method is no longer pre-bound to the controller ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - You may now need to pre-bind it e.g. `accountTrackerController.refresh.bind(accountTrackerController)`.
+- Bump `@metamask/accounts-controller` to `^17.1.0` ([#4460](https://github.com/MetaMask/core/pull/4460))
+
+### Removed
+
+- **BREAKING** `TokensController` removes `selectedAddress` constructor argument. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING** `TokenDetectionController` removes `selectedAddress` constructor argument. ([#4219](https://github.com/MetaMask/core/pull/4219))
+- **BREAKING:** Remove `AccountTrackerConfig` type ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - Some of these properties have been merged into the options that the `AccountTrackerController` constructor takes.
+- **BREAKING:** Remove `config` property and `configure` method from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The controller now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `provider`, `getMultiAccountBalancesEnabled`, `getCurrentChainId`, and `getNetworkClientById` from configuration options for `AccountTrackerController` ([#4407](https://github.com/MetaMask/core/pull/4407))
+  - The provider is now obtained directly from the network controller on demand.
+  - The messenger is now used in place of the callbacks.
+
+## [33.0.0]
+
+### Added
+
+- **BREAKING:** Add `messenger` as a constructor option for `AccountTrackerController` ([#4225](https://github.com/MetaMask/core/pull/4225))
+- **BREAKING:** Add `messenger` option to `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - This messenger must allow the actions `TokensController:getState`, `NetworkController:getNetworkClientById`, `NetworkController:getState`, and `PreferencesController:getState` and allow the events `PreferencesController:stateChange`, `TokensController:stateChange`, and `NetworkController:stateChange`.
+- Add types `TokenRatesControllerGetStateAction`, `TokenRatesControllerActions`, `TokenRatesControllerStateChangeEvent`, `TokenRatesControllerEvents`, `TokenRatesControllerMessenger`([#4314](https://github.com/MetaMask/core/pull/4314))
+- Add function `getDefaultTokenRatesControllerState` ([#4314](https://github.com/MetaMask/core/pull/4314))
+- Add `enable` and `disable` methods to `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - These are used to stop and restart polling.
+- Export `ContractExchangeRates` type ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - Add `AccountTrackerControllerMessenger` type
+- **BREAKING:** The `NftController` messenger must now allow `AccountsController:getAccount` and `AccountsController:getSelectedAccount` as messenger actions and `AccountsController:selectedEvmAccountChange` as a messenger event ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** `NftDetectionController` messenger must now allow `AccountsController:getSelectedAccount` as a messenger action ([#4221](https://github.com/MetaMask/core/pull/4221))
+- Token price API support for mantle network ([#4376](https://github.com/MetaMask/core/pull/4376))
+
+### Changed
+
+- **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^17.0.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
+- **BREAKING:** `TokenRatesController` now inherits from `StaticIntervalPollingController` instead of `StaticIntervalPollingControllerV1` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - The constructor now takes a single options object rather than three arguments. Some options have been removed; see later entries.
+- **BREAKING:** Rename `TokenRatesState` to `TokenRatesControllerState`, and convert from `interface` to `type` ([#4314](https://github.com/MetaMask/core/pull/4314))
+- The `NftController` now reads the selected address via the `AccountsController`, using the `AccountsController:selectedEvmAccountChange` messenger event to stay up to date ([#4221](https://github.com/MetaMask/core/pull/4221))
+- `NftDetectionController` now reads the currently selected account from `AccountsController` instead of `PreferencesController` ([#4221](https://github.com/MetaMask/core/pull/4221))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-controller` to `^17.1.0` ([#4413](https://github.com/MetaMask/core/pull/4413))
+
+### Removed
+
+- **BREAKING:** Remove `nativeCurrency`, `chainId`, `selectedAddress`, `allTokens`, and `allDetectedTokens` from configuration options for `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - The messenger is now used to obtain information from other controllers where this data was originally expected to come from.
+- **BREAKING:** Remove `config` property and `configure` method from `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - The controller now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `TokenRatesController` ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `TokenRatesConfig` type ([#4314](https://github.com/MetaMask/core/pull/4314))
+  - Some of these properties have been merged into the options that `TokenRatesController` takes.
+- **BREAKING:** Remove `NftController` constructor options `selectedAddress`. ([#4221](https://github.com/MetaMask/core/pull/4221))
+- **BREAKING:** Remove `AccountTrackerController` constructor options `getIdentities`, `getSelectedAddress` and `onPreferencesStateChange` ([#4225](https://github.com/MetaMask/core/pull/4225))
+- **BREAKING:** Remove `value` property from the data for each token in `state.marketData` ([#4364](https://github.com/MetaMask/core/pull/4364))
+  - The `price` property should be used instead.
+
+### Fixed
+
+- Prevent unnecessary state updates when executing the `NftController`'s `updateNftMetadata` method by comparing the metadata of fetched NFTs and NFTs in state and synchronizing state updates using a mutex lock. ([#4325](https://github.com/MetaMask/core/pull/4325))
+- Prevent the use of market data when not available for a given token ([#4361](https://github.com/MetaMask/core/pull/4361))
+- Fix `refresh` method remaining locked indefinitely after it was run successfully. Now lock is released on successful as well as failed runs. ([#4270](https://github.com/MetaMask/core/pull/4270))
+- `TokenRatesController` uses checksum instead of lowercase format for token addresses ([#4377](https://github.com/MetaMask/core/pull/4377))
+
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^16.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^19.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/preferences-controller` to `^13.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/polling-controller` to `^8.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [31.0.0]
+
+### Added
+
+- **BREAKING:** The `NftDetectionController` now takes a `messenger`, which can be used for communication ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - This messenger must allow the following actions `ApprovalController:addRequest`, `NetworkController:getState`, `NetworkController:getNetworkClientById`, and `PreferencesController:getState`, and must allow the events `PreferencesController:stateChange` and `NetworkController:stateChange`
+- Add `NftDetectionControllerMessenger` type ([#4312](https://github.com/MetaMask/core/pull/4312))
+- Add `NftControllerGetStateAction`, `NftControllerActions`, `NftControllerStateChangeEvent`, and `NftControllerEvents` types ([#4310](https://github.com/MetaMask/core/pull/4310))
+- Add `NftController:getState` and `NftController:stateChange` as an available action and event to the `NftController` messenger ([#4310](https://github.com/MetaMask/core/pull/4310))
+
+### Changed
+
+- **BREAKING:** Change `TokensController` to inherit from `BaseController` rather than `BaseControllerV1` ([#4304](https://github.com/MetaMask/core/pull/4304))
+  - The constructor now takes a single options object rather than three arguments, and all properties in `config` are now part of options.
+- **BREAKING:** Rename `TokensState` type to `TokensControllerState` ([#4304](https://github.com/MetaMask/core/pull/4304))
+- **BREAKING:** Make all `TokensController` methods and properties starting with `_` private ([#4304](https://github.com/MetaMask/core/pull/4304))
+- **BREAKING:** Convert `Token` from `interface` to `type` ([#4304](https://github.com/MetaMask/core/pull/4304))
+- **BREAKING:** Replace `balanceError` property in `Token` with `hasBalanceError`; update `TokenBalancesController` so that it no longer captures the error resulting from getting the balance of an ERC-20 token ([#4304](https://github.com/MetaMask/core/pull/4304))
+- **BREAKING:** Change `NftDetectionController` to inherit from `StaticIntervalPollingController` rather than `StaticIntervalPollingControllerV1` ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - The constructor now takes a single options object rather than three arguments, and all properties in `config` are now part of options.
+- **BREAKING:** Convert `ApiNft`, `ApiNftContract`, `ApiNftLastSale`, and `ApiNftCreator` from `interface` to `type` ([#4312](https://github.com/MetaMask/core/pull/4312))
+- **BREAKING:** Change `NftController` to inherit from `BaseController` rather than `BaseControllerV1` ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - The constructor now takes a single options object rather than three arguments, and all properties in `config` are now part of options.
+- **BREAKING:** Convert `Nft`, `NftContract`, and `NftMetadata` from `interface` to `type` ([#4310](https://github.com/MetaMask/core/pull/4310))
+- **BREAKING:** Rename `NftState` to `NftControllerState`, and convert to `type` ([#4310](https://github.com/MetaMask/core/pull/4310))
+- **BREAKING:** Rename `getDefaultNftState` to `getDefaultNftControllerState` ([#4310](https://github.com/MetaMask/core/pull/4310))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/accounts-controller` to `^15.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/approval-controller` to `^6.0.2` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/keyring-controller` to `^16.1.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.3` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- **BREAKING:** Bump dependency and peer dependency `@metamask/preferences-controller` to `^12.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+- Change `NftDetectionController` method `detectNfts` so that `userAddress` option is optional ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - This will default to the currently selected address as kept by PreferencesController.
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/polling-controller` to `^7.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove `config` property and `configure` method from `TokensController` ([#4304](https://github.com/MetaMask/core/pull/4304))
+  - The `TokensController` now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `TokensController` ([#4304](https://github.com/MetaMask/core/pull/4304))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `TokensConfig` type ([#4304](https://github.com/MetaMask/core/pull/4304))
+  - These properties have been merged into the options that `TokensController` takes.
+- **BREAKING:** Remove `config` property and `configure` method from `TokensController` ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - `TokensController` now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `NftDetectionController` ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `chainId` as a `NftDetectionController` constructor argument ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - The controller will now read the `networkClientId` from the NetworkController state through the messenger when needed.
+- **BREAKING:** Remove `getNetworkClientById` as a `NftDetectionController` constructor argument ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - The controller will now call `NetworkController:getNetworkClientId` through the messenger object.
+- **BREAKING:** Remove `onPreferencesStateChange` as a `NftDetectionController` constructor argument ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - The controller will now call `PreferencesController:stateChange` through the messenger object.
+- **BREAKING:** Remove `onNetworkStateChange` as a `NftDetectionController` constructor argument ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - The controller will now read the `networkClientId` from the NetworkController state through the messenger when needed.
+- **BREAKING:** Remove `getOpenSeaApiKey` as a `NftDetectionController` constructor argument ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - This was never used.
+- **BREAKING:** Remove `getNftApi` as a `NftDetectionController` constructor argument ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - This was never used.
+- **BREAKING:** Remove `NftDetectionConfig` type ([#4312](https://github.com/MetaMask/core/pull/4312))
+  - These properties have been merged into the options that `NftDetectionController` takes.
+- **BREAKING:** Remove `config` property and `configure` method from `NftController` ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - `NftController` now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `notify`, `subscribe`, and `unsubscribe` methods from `NftController` ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Remove `onPreferencesStateChange` as a `NftController` constructor argument ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - The controller will now call `PreferencesController:stateChange` through the messenger object.
+- **BREAKING:** Remove `onNetworkStateChange` as a `NftController` constructor argument ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - The controller will now call `NetworkController:stateChange` through the messenger object.
+- **BREAKING:** Remove `NftConfig` type ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - These properties have been merged into the options that `NftController` takes.
+- **BREAKING:** Remove `config` property and `configure` method from `NftController` ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - `NftController` now takes a single options object which can be used for configuration, and configuration is now kept internally.
+- **BREAKING:** Remove `hub` property from `NftController` ([#4310](https://github.com/MetaMask/core/pull/4310))
+  - Use the controller messenger for subscribing to and publishing events instead.
+- **BREAKING:** Modify `TokenListController` so that tokens fetched from the API and stored in state will no longer have `storage` and `erc20` properties ([#4235](https://github.com/MetaMask/core/pull/4235))
+  - These properties were never officially supported, but they were present in state anyway.
+
+## [30.0.0]
+
+### Added
+
+- Adds a new field `marketData` to the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
+- Adds a new `RatesController` to manage prices for non-EVM blockchains ([#4242](https://github.com/MetaMask/core/pull/4242))
+
+### Changed
+
+- **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+- When fetching token list for Linea Mainnet, use `occurrenceFloor` parameter of 1 instead of 3, and filter tokens to those with a `lineaTeam` aggregator or more than 3 aggregators ([#4253](https://github.com/MetaMask/core/pull/4253))
 - **BREAKING:** The NftController messenger must now allow the `NetworkController:getNetworkClientById` action ([#4305](https://github.com/MetaMask/core/pull/4305))
-- NftControllerMessenger now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4305](https://github.com/MetaMask/core/pull/4305))
-  - This should be functionally equivalent, but is being noted anyway.
-- NftDetectionController now makes use of `selectedNetworkClientId` when responding to changes in NetworkController state to capture the currently selected chain rather than `providerConfig` ([#4307](https://github.com/MetaMask/core/pull/4307))
-  - This should be functionally equivalent, but is being noted anyway.
+- **BREAKING:** Bump dependency and peer dependency `@metamask/network-controller` to `^18.1.2` ([#4332](https://github.com/MetaMask/core/pull/4332))
+- Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+
+### Removed
+
+- **BREAKING:** Removed `contractExchangeRates` and `contractExchangeRatesByChainId` from the state of `TokenRatesController` ([#4206](https://github.com/MetaMask/core/pull/4206))
+
+### Fixed
+
+- Only update NFT state when metadata actually changes ([#4143](https://github.com/MetaMask/core/pull/4143))
 
 ## [29.0.0]
 
@@ -781,7 +1136,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@29.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.2.0...HEAD
+[38.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.1.0...@metamask/assets-controllers@38.2.0
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...@metamask/assets-controllers@38.1.0
+[38.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...@metamask/assets-controllers@38.0.1
+[38.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
+[37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0
+[36.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@35.0.0...@metamask/assets-controllers@36.0.0
+[35.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@34.0.0...@metamask/assets-controllers@35.0.0
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@33.0.0...@metamask/assets-controllers@34.0.0
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@32.0.0...@metamask/assets-controllers@33.0.0
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@31.0.0...@metamask/assets-controllers@32.0.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@30.0.0...@metamask/assets-controllers@31.0.0
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@29.0.0...@metamask/assets-controllers@30.0.0
 [29.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@28.0.0...@metamask/assets-controllers@29.0.0
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.2.0...@metamask/assets-controllers@28.0.0
 [27.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@27.1.0...@metamask/assets-controllers@27.2.0

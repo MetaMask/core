@@ -1,17 +1,18 @@
+import { Env, Platform } from '../../shared/env';
 import { JwtBearerAuth } from '../authentication';
 import type {
   AuthSigningOptions,
   AuthStorageOptions,
 } from '../authentication-jwt-bearer/types';
 import { AuthType } from '../authentication-jwt-bearer/types';
-import { Env, Platform } from '../env';
 
 // Alias mocking variables with ANY to test runtime safety.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type MockVariable = any;
 
 // Utility for mocking, the generics will constrain values
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// TODO: Either fix this lint violation or explain why it's necessary to ignore.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/naming-convention
 export const typedMockFn = <Fn extends (...args: any[]) => any>() =>
   jest.fn<ReturnType<Fn>, Parameters<Fn>>();
 

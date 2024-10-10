@@ -15,6 +15,7 @@ jest.mock('@metamask/controller-utils', () => ({
 }));
 
 const ADDERSS_MOCK = '0x2A2D72308838A6A46a0B5FDA3055FE915b5D99eD';
+const API_KEY_MOCK = 'TestApiKey';
 
 const REQUEST_MOCK: EtherscanTransactionRequest = {
   address: ADDERSS_MOCK,
@@ -33,10 +34,6 @@ const RESPONSE_MOCK: EtherscanTransactionResponse<EtherscanTransactionMeta> = {
 
 describe('Etherscan', () => {
   const handleFetchMock = jest.mocked(handleFetch);
-
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
 
   describe('getEtherscanApiHost', () => {
     it('returns Etherscan API host for supported network', () => {
@@ -81,7 +78,11 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&offset=${REQUEST_MOCK.limit}` +
           `&sort=desc` +
           `&action=${action}` +
@@ -107,7 +108,11 @@ describe('Etherscan', () => {
         }/api?` +
           `module=account` +
           `&address=${REQUEST_MOCK.address}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&startBlock=${REQUEST_MOCK.fromBlock}` +
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `&offset=${REQUEST_MOCK.limit}` +
           `&sort=desc` +
           `&action=${action}` +
@@ -151,6 +156,33 @@ describe('Etherscan', () => {
           `&address=${REQUEST_MOCK.address}` +
           `&sort=desc` +
           `&action=${action}` +
+          `&tag=latest` +
+          `&page=1`,
+      );
+    });
+
+    it('includes API key if provided', async () => {
+      handleFetchMock.mockResolvedValueOnce(RESPONSE_MOCK);
+
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (Etherscan as any)[method]({
+        ...REQUEST_MOCK,
+        apiKey: API_KEY_MOCK,
+        fromBlock: undefined,
+        limit: undefined,
+      });
+
+      expect(handleFetchMock).toHaveBeenCalledTimes(1);
+      expect(handleFetchMock).toHaveBeenCalledWith(
+        `https://${ETHERSCAN_SUPPORTED_NETWORKS[CHAIN_IDS.GOERLI].subdomain}.${
+          ETHERSCAN_SUPPORTED_NETWORKS[CHAIN_IDS.GOERLI].domain
+        }/api?` +
+          `module=account` +
+          `&address=${REQUEST_MOCK.address}` +
+          `&sort=desc` +
+          `&action=${action}` +
+          `&apikey=${API_KEY_MOCK}` +
           `&tag=latest` +
           `&page=1`,
       );
