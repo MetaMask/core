@@ -697,7 +697,6 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
-      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 
