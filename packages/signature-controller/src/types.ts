@@ -4,14 +4,20 @@ import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
 export type JsonRequest = {
+  id?: number;
   origin?: string;
   securityAlertResponse?: Record<string, Json>;
+};
+
+export type TypedSigningOptions = {
+  parseJsonData: boolean;
 };
 
 export type MessageParams = {
   deferSetAsSigned?: boolean;
   from: string;
   origin?: string;
+  requestId?: number;
 };
 
 export type MessageParamsPersonal = MessageParams & {
@@ -37,6 +43,7 @@ type SignatureRequestBase = {
   id: string;
   securityAlertResponse?: Record<string, Json>;
   signature?: string;
+  signingOptions?: TypedSigningOptions;
   status: SignatureRequestStatus;
   time: number;
   version?: SignTypedDataVersion;
@@ -63,7 +70,6 @@ export enum SignatureRequestStatus {
 }
 
 export enum SignatureRequestType {
-  EthSign = 'eth_sign',
   PersonalSign = 'personal_sign',
   TypedSign = 'eth_signTypedData',
 }

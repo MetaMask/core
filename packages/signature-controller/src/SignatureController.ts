@@ -10,13 +10,17 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  detectSIWE,
+  ORIGIN_METAMASK,
+} from '@metamask/controller-utils';
 import type {
   KeyringControllerSignMessageAction,
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTypedMessageAction,
-  SignTypedDataVersion,
 } from '@metamask/keyring-controller';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { AddLog } from '@metamask/logging-controller';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { Hex, Json } from '@metamask/utils';
@@ -31,6 +35,7 @@ import type {
   JsonRequest,
   SignatureRequest,
   MessageParams,
+  TypedSigningOptions,
 } from './types';
 import {
   validatePersonalSignatureRequest,
@@ -151,7 +156,7 @@ export class SignatureController extends BaseController<
 
   /**
    * A getter for the number of 'unapproved' PersonalMessages in this.messages.
-   *
+   * @deprecated Use `signatureRequests` state instead.
    * @returns The number of 'unapproved' PersonalMessages in this.messages
    */
   get unapprovedPersonalMessagesCount(): number {
@@ -160,7 +165,7 @@ export class SignatureController extends BaseController<
 
   /**
    * A getter for the number of 'unapproved' TypedMessages in this.messages.
-   *
+   * @deprecated Use `signatureRequests` state instead.
    * @returns The number of 'unapproved' TypedMessages in this.messages
    */
   get unapprovedTypedMessagesCount(): number {
@@ -169,7 +174,7 @@ export class SignatureController extends BaseController<
 
   /**
    * A getter for returning all messages.
-   *
+   * @deprecated Use `signatureRequests` state instead.
    * @returns The object containing all messages.
    */
   get messages(): { [id: string]: SignatureRequest } {
@@ -219,6 +224,8 @@ export class SignatureController extends BaseController<
   ): Promise<string> {
     validatePersonalSignatureRequest(messageParams);
 
+    messageParams.siwe = detectSIWE(messageParams);
+
     return this.#processSignatureRequest({
       messageParams,
       request,
@@ -231,7 +238,7 @@ export class SignatureController extends BaseController<
     messageParams: MessageParamsTyped,
     request: JsonRequest,
     version: SignTypedDataVersion,
-    _signingOpts: any,
+    signingOptions: TypedSigningOptions,
   ): Promise<string> {
     validateTypedSignatureRequest(
       messageParams,
@@ -245,6 +252,7 @@ export class SignatureController extends BaseController<
       type: SignatureRequestType.TypedSign,
       approvalType: ApprovalType.EthSignTypedData,
       version,
+      signingOptions,
     });
   }
 
@@ -268,30 +276,63 @@ export class SignatureController extends BaseController<
     throw new Error('Method not implemented.');
   }
 
+  #parseTypedData(
+    messageParams: MessageParamsTyped,
+    version?: SignTypedDataVersion,
+  ): MessageParamsTyped {
+    if (
+      ![SignTypedDataVersion.V3, SignTypedDataVersion.V4].includes(
+        version as SignTypedDataVersion,
+      ) ||
+      typeof messageParams.data !== 'string'
+    ) {
+      return messageParams;
+    }
+
+    return {
+      ...messageParams,
+      data: JSON.parse(messageParams.data),
+    };
+  }
+
   async #processSignatureRequest({
     messageParams,
     request,
     type,
     approvalType,
     version,
+    signingOptions,
   }: {
     messageParams: MessageParams;
     request: JsonRequest;
     type: SignatureRequestType;
     approvalType: ApprovalType;
     version?: SignTypedDataVersion;
+    signingOptions?: TypedSigningOptions;
   }): Promise<string> {
-    log('Processing signature request', messageParams, request);
+    log('Processing signature request', {
+      messageParams,
+      request,
+      type,
+      version,
+    });
 
     const { securityAlertResponse } = request;
+
+    const finalMessageParams = {
+      ...messageParams,
+      origin: request.origin,
+      requestId: request.id,
+    };
 
     let resultCallbacks: AcceptResultCallbacks | undefined;
 
     try {
       const metadata = {
         id: random(),
-        request: messageParams,
+        request: finalMessageParams,
         securityAlertResponse,
+        signingOptions,
         status: SignatureRequestStatus.Unapproved,
         time: Date.now(),
         type,
@@ -358,7 +399,7 @@ export class SignatureController extends BaseController<
   }
 
   async #signRequest(metadata: SignatureRequest) {
-    const { id, request, type } = metadata;
+    const { id, request, signingOptions, type } = metadata;
 
     try {
       let signature: string;
@@ -372,9 +413,13 @@ export class SignatureController extends BaseController<
           break;
 
         case SignatureRequestType.TypedSign:
+          const finalRequest = signingOptions?.parseJsonData
+            ? this.#parseTypedData(request, metadata.version)
+            : request;
+
           signature = await this.messagingSystem.call(
             'KeyringController:signTypedMessage',
-            request,
+            finalRequest,
             metadata.version as SignTypedDataVersion,
           );
           break;
