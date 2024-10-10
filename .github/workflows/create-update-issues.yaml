@@ -2,79 +2,45 @@ name: Create Update Issues
 
 on:
   workflow_call:
-    inputs:
-      AUTH_APP_ID:
-        description: Github app id to authenticate in mobile and extention repositories
-        type: string
-        required: true
     secrets:
-      AUTH_APP_PRIVATE_KEY:
-        description: Github app private key to authenticate in mobile and extention repositories
+      GH_TOKEN:
+        description: Github token with access to mobile and extention repositories
         required: true
 
 jobs:
   create-update-issues:
     permissions:
-      issues: write
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout head
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-tags: true
 
-      - name: Get release tag
-        id: releaseTag
-        run: |
-          echo "tag=$(git describe --tags --abbrev=0)" >> "$GITHUB_OUTPUT"
-        shell: bash
-
-      - name: Check released package
-        id: releaseCheck
-        env:
-          tag: ${{ steps.releaseTag.outputs.tag }}
-        run: |
-          if [[ "${tag}" == @metamask/*  ]] ; then
-            # Extract package name without the leading '@'
-            package_name="${tag#@}"
-            package_name="${package_name%@*}"
-            echo "package_name=${package_name}" >> "$GITHUB_OUTPUT"
-
-            # Extract version number
-            version="${tag##*@}"
-            echo "version=${version}" >> "$GITHUB_OUTPUT"
-
-            # Check if version number ends with .0.0
-            if [[ $version == *.0.0 ]]; then
-              echo "$package_name major update"
-              echo "major_version=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "$package_name minor update"
-              echo "major_version=false" >> "$GITHUB_OUTPUT"
-            fi            
-          else
-            echo "Monorepo version update"
-            echo "major_version=false" >> "$GITHUB_OUTPUT"
-          fi
-        shell: bash
-
-      - name: Generate a token
-        id: generate-token
-        if: ${{ steps.releaseCheck.outputs.major_version == 'true' }}
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ inputs.AUTH_APP_ID }}
-          private-key: ${{ secrets.AUTH_APP_PRIVATE_KEY }}
-          repositories: metamask-mobile, metamask-extension
-
-      - name: Create Issue
+      - name: Create Issues
         if: ${{ steps.releaseCheck.outputs.major_version == 'true' }}
         env:
-          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
-          package: ${{ steps.releaseCheck.outputs.package_name }}
-          version: ${{ steps.releaseCheck.outputs.version }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          echo "Creating new issue..."
-          gh issue create --title "Update ${package} to version ${version}" --body "Please update ${package} to version ${version}" --repo "MetaMask/metamask-extension"
-          gh issue create --title "Update ${package} to version ${version}" --body "Please update ${package} to version ${version}" --repo "MetaMask/metamask-mobile"
+          IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at HEAD && printf '\0')
+
+          for tag in "${tag_array[@]}"; do
+            if [[ "${tag}" == @metamask/*  ]] ; then
+              # Extract package name without the leading '@'
+              package_name="${tag#@}"
+              package_name="${package_name%@*}"
+
+              # Extract version number
+              version="${tag##*@}"
+
+              # Check if version number ends with .0.0
+              if [[ $version == *.0.0 ]]; then
+                # Fetch responsible team form file
+                team=$(jq --arg key "$package_name" '.[$key]' teams.json)
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test" --label "$team"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test-2" --label "$team"
+              fi            
+            fi
+          done
         shell: bash

@@ -53,12 +53,10 @@ jobs:
     needs: [is-release, publish-release]
     if: needs.is-release.outputs.IS_RELEASE == 'true'
     permissions:
-      issues: write
+      contents: read
     uses: ./.github/workflows/create-update-issues.yaml
-    with:
-      AUTH_APP_ID: ${{ vars.AUTH_APP_ID }}
     secrets:
-      AUTH_APP_PRIVATE_KEY: ${{ secrets.AUTH_APP_PRIVATE_KEY }}
+      GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
 
   all-jobs-complete:
     name: All jobs complete
