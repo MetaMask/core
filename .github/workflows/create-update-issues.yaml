@@ -19,7 +19,6 @@ jobs:
           fetch-tags: true
 
       - name: Create Issues
-        if: ${{ steps.releaseCheck.outputs.major_version == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
