@@ -2,6 +2,14 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import {
+  LogType,
+  SigningMethod,
+  SigningStage,
+} from '@metamask/logging-controller';
+import { sign } from 'crypto';
+
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
@@ -22,7 +30,7 @@ const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
     from: '0xAddress',
     data: '0xData',
   },
-  status: SignatureRequestStatus.Unapproved,
+  status: SignatureRequestStatus.Signed,
   time: Date.now(),
   type: SignatureRequestType.PersonalSign,
 };
@@ -111,7 +119,7 @@ describe('SignatureController', () => {
   });
 
   describe('messages', () => {
-    it('returns the messages in state', () => {
+    it('returns the signature requests in state', () => {
       const { controller } = createController({
         state: {
           signatureRequests: {
@@ -124,6 +132,272 @@ describe('SignatureController', () => {
       expect(controller.messages).toStrictEqual({
         '1': SIGNATURE_REQUEST_MOCK,
         '2': SIGNATURE_REQUEST_MOCK,
+      });
+    });
+  });
+
+  describe('resetState', () => {
+    it('resets the state to default state', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            '1': SIGNATURE_REQUEST_MOCK,
+          },
+          unapprovedPersonalMsgs: {
+            '1': SIGNATURE_REQUEST_MOCK,
+          },
+          unapprovedTypedMessages: {
+            '1': SIGNATURE_REQUEST_MOCK,
+          },
+          unapprovedPersonalMsgCount: 1,
+          unapprovedTypedMessagesCount: 1,
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.resetState();
+
+      expect(controller.state).toStrictEqual({
+        signatureRequests: {},
+        unapprovedPersonalMsgs: {},
+        unapprovedTypedMessages: {},
+        unapprovedPersonalMsgCount: 0,
+        unapprovedTypedMessagesCount: 0,
+      });
+    });
+  });
+
+  describe('rejectUnapproved', () => {
+    it('rejects all signature requests with unapproved status', () => {
+      const signatureRequests = {
+        '1': SIGNATURE_REQUEST_MOCK,
+        '2': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '2',
+          status: SignatureRequestStatus.Unapproved,
+        },
+        '3': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '3',
+          type: SignatureRequestType.TypedSign,
+          status: SignatureRequestStatus.Unapproved,
+        },
+      };
+
+      const { controller } = createController({
+        state: {
+          signatureRequests,
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.rejectUnapproved();
+
+      expect(controller.state.signatureRequests).toStrictEqual({
+        '1': signatureRequests['1'],
+        '2': {
+          ...signatureRequests['2'],
+          status: SignatureRequestStatus.Rejected,
+        },
+        '3': {
+          ...signatureRequests['3'],
+          status: SignatureRequestStatus.Rejected,
+        },
+      });
+    });
+  });
+
+  describe('clearUnapproved', () => {
+    it('deletes all signature requests with unapproved status', () => {
+      const signatureRequests = {
+        '1': SIGNATURE_REQUEST_MOCK,
+        '2': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '2',
+          status: SignatureRequestStatus.Unapproved,
+        },
+        '3': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '3',
+          type: SignatureRequestType.TypedSign,
+          status: SignatureRequestStatus.Unapproved,
+        },
+      };
+
+      const { controller } = createController({
+        state: {
+          signatureRequests,
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.clearUnapproved();
+
+      expect(controller.state.signatureRequests).toStrictEqual({
+        '1': signatureRequests['1'],
+      });
+    });
+  });
+
+  describe.each([
+    [
+      'newUnsignedPersonalMessage',
+      (controller: SignatureController) =>
+        controller.newUnsignedPersonalMessage(
+          {
+            data: '0xData',
+            from: '0xAddress',
+          },
+          {},
+        ),
+    ],
+    [
+      'newUnsignedTypedMessage',
+      (controller: SignatureController) =>
+        controller.newUnsignedTypedMessage(
+          { data: '0xData', from: '0xAddress' },
+          {},
+          SignTypedDataVersion.V1,
+          { parseJsonData: false },
+        ),
+    ],
+  ])('%s', (_title: string, fn) => {
+    it('throws if rejected', async () => {
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
+
+      const errorMock = new Error('Custom message');
+      (errorMock as any).code = 1234;
+
+      approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
+
+      const promise = controller.newUnsignedPersonalMessage(
+        {
+          data: '0xData',
+          from: '0xAddress',
+        },
+        {},
+      );
+
+      await expect(promise).rejects.toMatchObject({
+        message: 'Custom message',
+        code: 1234,
+      });
+    });
+
+    it('invokes success callback if approved', async () => {
+      const resultCallbackSuccessMock = jest.fn();
+
+      const {
+        controller,
+        approvalControllerAddRequestMock,
+        keyringControllerSignPersonalMessageMock,
+        keyringControllerSignTypedMessageMock,
+      } = createController();
+
+      approvalControllerAddRequestMock.mockResolvedValueOnce({
+        resultCallbacks: {
+          success: resultCallbackSuccessMock,
+        },
+      });
+
+      keyringControllerSignPersonalMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      await fn(controller);
+
+      expect(resultCallbackSuccessMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackSuccessMock).toHaveBeenCalledWith(
+        SIGNATURE_HASH_MOCK,
+      );
+    });
+
+    it('invokes error callback if signing fails', async () => {
+      const resultCallbackErrorMock = jest.fn();
+
+      const errorMock = new Error('Custom message');
+
+      const {
+        controller,
+        approvalControllerAddRequestMock,
+        keyringControllerSignPersonalMessageMock,
+        keyringControllerSignTypedMessageMock,
+      } = createController();
+
+      approvalControllerAddRequestMock.mockResolvedValueOnce({
+        resultCallbacks: {
+          error: resultCallbackErrorMock,
+        },
+      });
+
+      keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
+      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
+
+      await expect(fn(controller)).rejects.toThrow(errorMock);
+
+      expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
+    });
+
+    it('adds logs to logging controller if approved', async () => {
+      const { controller, loggingControllerAddMock } = createController();
+
+      await fn(controller);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Proposed,
+          signingData: expect.any(Object),
+        },
+      });
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Signed,
+          signingData: expect.any(Object),
+        },
+      });
+    });
+
+    it('adds logs to logging controller if rejected', async () => {
+      const {
+        controller,
+        loggingControllerAddMock,
+        approvalControllerAddRequestMock,
+      } = createController();
+
+      const errorMock = new Error('Custom message');
+
+      approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
+
+      await expect(fn(controller)).rejects.toThrow(errorMock);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Proposed,
+          signingData: expect.any(Object),
+        },
+      });
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Rejected,
+          signingData: expect.any(Object),
+        },
       });
     });
   });
@@ -147,28 +421,28 @@ describe('SignatureController', () => {
 
       expect(result).toBe(SIGNATURE_HASH_MOCK);
     });
+  });
 
-    it('throws if rejected', async () => {
-      const { controller, approvalControllerAddRequestMock } =
+  describe('newUnsignedTypedMessage', () => {
+    it('returns signature hash if approved', async () => {
+      const { controller, keyringControllerSignTypedMessageMock } =
         createController();
 
-      const errorMock = new Error('Custom message');
-      (errorMock as any).code = 1234;
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
 
-      approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
-
-      const promise = controller.newUnsignedPersonalMessage(
+      const result = await controller.newUnsignedTypedMessage(
         {
           data: '0xData',
           from: '0xAddress',
         },
         {},
+        SignTypedDataVersion.V1,
+        { parseJsonData: false },
       );
 
-      await expect(promise).rejects.toMatchObject({
-        message: 'Custom message',
-        code: 1234,
-      });
+      expect(result).toBe(SIGNATURE_HASH_MOCK);
     });
   });
 });

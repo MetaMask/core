@@ -189,7 +189,9 @@ export class SignatureController extends BaseController<
    * Reset the controller state to the initial state.
    */
   resetState() {
-    this.#updateState(() => getDefaultState());
+    this.#updateState((state) => {
+      Object.assign(state, getDefaultState());
+    });
   }
 
   /**
@@ -378,9 +380,10 @@ export class SignatureController extends BaseController<
 
       const signature = await finishedPromise;
 
-      log('Signature request finished', metadata.id, signature);
+      log('Signature request finished', { id: metadata.id, signature });
 
       this.#addLog(type, version, SigningStage.Signed, messageParams);
+
       resultCallbacks?.success(signature);
 
       return signature;
@@ -541,38 +544,45 @@ export class SignatureController extends BaseController<
       // eslint-disable-next-line n/callback-return, n/no-callback-literal
       callback(state as any);
 
-      const unapprovedRequests = Object.values(state.signatureRequests).filter(
+      const unapprovedRequests = Object.values(
+        state.signatureRequests as Record<string, SignatureRequest>,
+      ).filter(
         (request) => request.status === SignatureRequestStatus.Unapproved,
       );
 
-      state.unapprovedPersonalMsgs = unapprovedRequests
-        .filter((request) => request.type === 'personal_sign')
-        .reduce(
-          (acc, request) => ({
-            ...acc,
-            [request.id]: { ...request, msgParams: request.request },
-          }),
-          {},
-        );
+      state.unapprovedPersonalMsgs = this.#generateLegacyState(
+        unapprovedRequests,
+        SignatureRequestType.PersonalSign,
+      );
+
+      state.unapprovedTypedMessages = this.#generateLegacyState(
+        unapprovedRequests,
+        SignatureRequestType.TypedSign,
+      );
 
       state.unapprovedPersonalMsgCount = Object.values(
         state.unapprovedPersonalMsgs,
       ).length;
 
-      state.unapprovedTypedMessages = unapprovedRequests
-        .filter((request) => request.type === 'eth_signTypedData')
-        .reduce(
-          (acc, request) => ({
-            ...acc,
-            [request.id]: { ...request, msgParams: request.request },
-          }),
-          {},
-        );
-
       state.unapprovedTypedMessagesCount = Object.values(
         state.unapprovedTypedMessages,
       ).length;
     });
+  }
+
+  #generateLegacyState(
+    unapprovedSignatureRequests: SignatureRequest[],
+    type: SignatureRequestType,
+  ) {
+    return unapprovedSignatureRequests
+      .filter((request) => request.type === type)
+      .reduce(
+        (acc, request) => ({
+          ...acc,
+          [request.id]: { ...request, msgParams: request.request },
+        }),
+        {},
+      );
   }
 
   #addLog(
