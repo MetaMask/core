@@ -1577,7 +1577,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^7.0.0, @metamask/eth-sig-util@npm:^7.0.1":
+"@metamask/eth-sig-util@npm:^7.0.0, @metamask/eth-sig-util@npm:^7.0.1, @metamask/eth-sig-util@npm:^7.0.3":
   version: 7.0.3
   resolution: "@metamask/eth-sig-util@npm:7.0.3"
   dependencies:
@@ -1592,15 +1592,15 @@ __metadata:
   linkType: hard
 
 "@metamask/eth-simple-keyring@npm:^6.0.1":
-  version: 6.0.1
-  resolution: "@metamask/eth-simple-keyring@npm:6.0.1"
+  version: 6.0.5
+  resolution: "@metamask/eth-simple-keyring@npm:6.0.5"
   dependencies:
     "@ethereumjs/util": ^8.1.0
-    "@metamask/eth-sig-util": ^7.0.0
-    "@metamask/utils": ^8.1.0
+    "@metamask/eth-sig-util": ^7.0.3
+    "@metamask/utils": ^9.2.1
     ethereum-cryptography: ^2.1.2
     randombytes: ^2.1.0
-  checksum: f0e302fbd583e5e189c1526a26afcd5c165e4ebbfe69924fa982e72a8b2867d698503bcc8b4473469727b90c96326b2c400d8dc491ff01f3b97c3d851a7a7b67
+  checksum: b7aba83cf8f6a8861d6c4bb7c34672f80798514b11480064a457dc84de4306e1f65c2adfe1051ae62f696267bcada1262e2059d92364e88901df1df43a7bcc18
   languageName: node
   linkType: hard
 
@@ -2339,7 +2339,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/utils@npm:^9.1.0":
+"@metamask/utils@npm:^9.1.0, @metamask/utils@npm:^9.2.1":
   version: 9.3.0
   resolution: "@metamask/utils@npm:9.3.0"
   dependencies:
