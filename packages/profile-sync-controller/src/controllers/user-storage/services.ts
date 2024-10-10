@@ -264,7 +264,7 @@ export async function deleteUserStorage(
     throw new Error('user-storage - feature/entry not found');
   }
 
-  if (userStorageResponse.status !== 200 || !userStorageResponse.ok) {
+  if (!userStorageResponse.ok) {
     throw new Error('user-storage - unable to delete data');
   }
 }
@@ -292,7 +292,7 @@ export async function deleteUserStorageAllFeatureEntries(
     throw new Error('user-storage - feature not found');
   }
 
-  if (userStorageResponse.status !== 200 || !userStorageResponse.ok) {
+  if (!userStorageResponse.ok) {
     throw new Error('user-storage - unable to delete data');
   }
 }
