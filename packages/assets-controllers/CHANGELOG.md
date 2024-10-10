@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: remove includeDuplicateSymbolAssets filter ([#4768](https://github.com/MetaMask/core/pull/4768))
+
 ## [38.2.0]
 
 ### Changed
