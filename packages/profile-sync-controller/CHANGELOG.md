@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- fix: do not sync imported accounts ([#4777](https://github.com/MetaMask/core/pull/4777))
-
 ## [0.9.6]
 
 ### Added
