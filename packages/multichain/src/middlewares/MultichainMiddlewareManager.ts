@@ -1,9 +1,10 @@
-import { JsonRpcMiddleware } from 'json-rpc-engine';
-import { ExternalScopeString } from './scope';
+import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { ExternalScopeString } from '../scope';
+import { Json, JsonRpcParams } from '@metamask/utils';
 
 // Extend JsonRpcMiddleware to include the destroy method
 // this was introduced in 7.0.0 of json-rpc-engine: https://github.com/MetaMask/json-rpc-engine/blob/v7.0.0/src/JsonRpcEngine.ts#L29-L40
-export type ExtendedJsonRpcMiddleware = JsonRpcMiddleware<unknown, unknown> & {
+export type ExtendedJsonRpcMiddleware = JsonRpcMiddleware<JsonRpcParams, Json> & {
   destroy?: () => void;
 };
 

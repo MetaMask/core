@@ -46,11 +46,8 @@ const createMultichainSubscriptionManager = () => {
     findNetworkClientIdByChainId: mockFindNetworkClientIdByChainId,
     getNetworkClientById: mockGetNetworkClientById,
   });
-  const onNotificationSpy = jest.fn();
 
-  multichainSubscriptionManager.on('notification', onNotificationSpy);
-
-  return { multichainSubscriptionManager, onNotificationSpy };
+  return { multichainSubscriptionManager };
 };
 
 describe('MultichainSubscriptionManager', () => {
@@ -66,9 +63,11 @@ describe('MultichainSubscriptionManager', () => {
   });
 
   it('should subscribe to a scope, origin, and tabId', () => {
-    const { multichainSubscriptionManager, onNotificationSpy } =
+    const { multichainSubscriptionManager} =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
+    const onNotificationSpy = jest.fn();
+    multichainSubscriptionManager.on('notification', onNotificationSpy);
 
     mockSubscriptionManager.events.on.mock.calls[0][1](
       newHeadsNotificationMock,
@@ -84,20 +83,16 @@ describe('MultichainSubscriptionManager', () => {
   });
 
   it('should unsubscribe from a scope', () => {
-    const { multichainSubscriptionManager, onNotificationSpy } =
+    const { multichainSubscriptionManager} =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByScope(scope);
 
-    mockSubscriptionManager.events.on.mock.calls[0][1](
-      newHeadsNotificationMock,
-    );
-
-    expect(onNotificationSpy).not.toHaveBeenCalled();
+    expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });
 
   it('should unsubscribe from a scope and origin', () => {
-    const { multichainSubscriptionManager, onNotificationSpy } =
+    const { multichainSubscriptionManager} =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByScopeAndOrigin(scope, origin);
@@ -106,11 +101,11 @@ describe('MultichainSubscriptionManager', () => {
       newHeadsNotificationMock,
     );
 
-    expect(onNotificationSpy).not.toHaveBeenCalled();
+    expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });
 
   it('should unsubscribe from a origin and tabId', () => {
-    const { multichainSubscriptionManager, onNotificationSpy } =
+    const { multichainSubscriptionManager} =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByOriginAndTabId(origin, tabId);
@@ -119,6 +114,6 @@ describe('MultichainSubscriptionManager', () => {
       newHeadsNotificationMock,
     );
 
-    expect(onNotificationSpy).not.toHaveBeenCalled();
+    expect(mockSubscriptionManager.destroy).toHaveBeenCalled();
   });
 });

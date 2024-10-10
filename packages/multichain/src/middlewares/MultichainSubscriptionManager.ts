@@ -1,9 +1,9 @@
 import EventEmitter from 'events';
 import { NetworkController } from '@metamask/network-controller';
 import SafeEventEmitter from '@metamask/safe-event-emitter';
-import { Hex, parseCaipChainId } from '@metamask/utils';
+import { CaipChainId, Hex, parseCaipChainId } from '@metamask/utils';
 import { toHex } from '@metamask/controller-utils';
-import { ExternalScopeString, ScopeString } from './scope';
+import { ExternalScopeString } from '../scope';
 
 export type SubscriptionManager = {
   events: EventEmitter;
@@ -93,7 +93,7 @@ export default class MultichainSubscriptionManager extends SafeEventEmitter {
     }
 
     const networkClientId = this.#findNetworkClientIdByChainId(
-      toHex(parseCaipChainId(subscriptionKey.scope).reference),
+      toHex(parseCaipChainId(subscriptionKey.scope as CaipChainId).reference),
     );
     const networkClient = this.#getNetworkClientById(networkClientId);
     const subscriptionManager = createSubscriptionManager({
@@ -128,7 +128,7 @@ export default class MultichainSubscriptionManager extends SafeEventEmitter {
     this.#removeSubscriptionEntry(subscriptionKey);
   }
 
-  unsubscribeByScope(scope: ScopeString) {
+  unsubscribeByScope(scope: ExternalScopeString) {
     this.#subscriptions.forEach((subscriptionEntry) => {
       if (subscriptionEntry.scope === scope) {
         this.#unsubscribe(subscriptionEntry);
@@ -136,7 +136,7 @@ export default class MultichainSubscriptionManager extends SafeEventEmitter {
     });
   }
 
-  unsubscribeByScopeAndOrigin(scope: ScopeString, origin: string) {
+  unsubscribeByScopeAndOrigin(scope: ExternalScopeString, origin: string) {
     this.#subscriptions.forEach((subscriptionEntry) => {
       if (
         subscriptionEntry.scope === scope &&

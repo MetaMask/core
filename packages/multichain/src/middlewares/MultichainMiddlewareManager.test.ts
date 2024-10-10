@@ -1,4 +1,4 @@
-import { JsonRpcRequest } from 'json-rpc-engine';
+import { JsonRpcRequest } from '@metamask/utils';
 import MultichainMiddlewareManager, {
   ExtendedJsonRpcMiddleware,
 } from './MultichainMiddlewareManager';
@@ -28,13 +28,13 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { scope } as unknown as JsonRpcRequest<unknown>,
+      { scope } as unknown as JsonRpcRequest,
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
     );
     expect(middlewareSpy).toHaveBeenCalledWith(
-      { scope } as unknown as JsonRpcRequest<unknown>,
+      { scope } as unknown as JsonRpcRequest,
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
@@ -65,7 +65,7 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { scope } as unknown as JsonRpcRequest<unknown>,
+      { scope } as unknown as JsonRpcRequest,
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
@@ -97,7 +97,7 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { scope } as unknown as JsonRpcRequest<unknown>,
+      { scope } as unknown as JsonRpcRequest,
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
@@ -129,7 +129,7 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { scope } as unknown as JsonRpcRequest<unknown>,
+      { scope } as unknown as JsonRpcRequest,
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,
@@ -161,7 +161,7 @@ describe('MultichainMiddlewareManager', () => {
     const endSpy = jest.fn();
 
     middleware(
-      { scope } as unknown as JsonRpcRequest<unknown>,
+      { scope } as unknown as JsonRpcRequest,
       { jsonrpc: '2.0', id: 0 },
       nextSpy,
       endSpy,

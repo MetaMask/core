@@ -13,7 +13,8 @@ import {
 } from '@open-rpc/meta-schema';
 import dereferenceDocument from '@open-rpc/schema-utils-js/build/dereference-document';
 import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document';
-import { Json, JsonRpcMiddleware } from 'json-rpc-engine';
+import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import { Json } from '@metamask/utils';
 import { Schema, ValidationError, Validator } from 'jsonschema';
 
 const transformError = (
@@ -85,7 +86,7 @@ export const multichainMethodCallValidator = async (
 
 export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
   JsonRpcRequest,
-  void
+  Json
 > = function (request, _response, next, end) {
   multichainMethodCallValidator(request.method, request.params).then(
     (errors) => {
