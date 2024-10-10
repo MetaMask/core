@@ -4,7 +4,7 @@ import {
   KnownCaipNamespace,
   parseCaipAccountId,
 } from '@metamask/utils';
-import { Caip25CaveatValue } from '../caip25permissions';
+import { Caip25CaveatValue } from '../caip25Permission';
 import {
   mergeScopes,
   parseScopeString,

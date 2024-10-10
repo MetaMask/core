@@ -1,6 +1,6 @@
 import { Hex, KnownCaipNamespace } from '@metamask/utils';
 import { toHex } from '@metamask/controller-utils';
-import { Caip25CaveatValue } from '../caip25permissions';
+import { Caip25CaveatValue } from '../caip25Permission';
 import {
   KnownNotifications,
   KnownRpcMethods,

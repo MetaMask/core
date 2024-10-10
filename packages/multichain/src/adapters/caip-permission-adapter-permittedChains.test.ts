@@ -1,4 +1,4 @@
-import { Caip25CaveatValue } from '../caip25permissions';
+import { Caip25CaveatValue } from '../caip25Permission';
 import { KnownNotifications, KnownRpcMethods } from '../scope';
 import {
   addPermittedEthChainId,
