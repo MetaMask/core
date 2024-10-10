@@ -1383,6 +1383,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/base-controller@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "@metamask/base-controller@npm:7.0.1"
+  dependencies:
+    "@metamask/utils": ^9.1.0
+    immer: ^9.0.6
+  checksum: 351d46f53410732b02cef4ca08227a26e05a03447fddb3f3d298536ad212c38143717cbe65a30a86e93824048d599deb345e475690b5bf5f1e21dfd0721afd15
+  languageName: node
+  linkType: hard
+
 "@metamask/browser-passworder@npm:^4.3.0":
   version: 4.3.0
   resolution: "@metamask/browser-passworder@npm:4.3.0"
@@ -1409,7 +1419,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.0.0":
+"@metamask/controller-utils@npm:^11.0.0, @metamask/controller-utils@npm:^11.3.0":
   version: 11.3.0
   resolution: "@metamask/controller-utils@npm:11.3.0"
   dependencies:
@@ -1839,17 +1849,17 @@ __metadata:
   linkType: hard
 
 "@metamask/message-manager@npm:^10.0.0":
-  version: 10.0.0
-  resolution: "@metamask/message-manager@npm:10.0.0"
+  version: 10.1.1
+  resolution: "@metamask/message-manager@npm:10.1.1"
   dependencies:
-    "@metamask/base-controller": ^6.0.0
-    "@metamask/controller-utils": ^11.0.0
+    "@metamask/base-controller": ^7.0.1
+    "@metamask/controller-utils": ^11.3.0
     "@metamask/eth-sig-util": ^7.0.1
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^9.1.0
     "@types/uuid": ^8.3.0
     jsonschema: ^1.2.4
     uuid: ^8.3.2
-  checksum: 8b0aeb310a4647ffb003939bc1b8b639ecd10467546ae680eec048caa13d4233520a373cabc311fecaa3db3e27f56154df60d2c6bc1403ddca7dfe8f96ecf052
+  checksum: 120494e02b99792afbbf700865c19dea054a73f3fdf591f5b2605f48b49f3b521055f001653643054fb88deafde5d825479189502f71814a9a7e280cae8a5d0a
   languageName: node
   linkType: hard
 
