@@ -488,6 +488,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<
 
     const addressAgainstWhichToDetect =
       selectedAddress ?? this.#getSelectedAddress();
+
+    // NetworkClientId can be a string ("mainnet", "goerli"), or a hex value to a real chain
+    // TODO: chainId is HEX. Convert this to decimal when consumed in API
     const { chainId, networkClientId: selectedNetworkClientId } =
       this.#getCorrectChainIdAndNetworkClientId(networkClientId);
     const chainIdAgainstWhichToDetect = chainId;
@@ -584,6 +587,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     chainId: Hex;
   }): Promise<void> {
     await safelyExecute(async () => {
+      // this is where we need to switch + fallback logic.
+      // the call is on a slice of 1000 items. Should we bail if fails to get all balances?
+      // NOTE - if we hit a rate limit, should we avoid continuing to make the API calls on subsequent slices
+      // Lets inspect `getBalancesInSingleCall` to see if this performs any bail or fallback (I think this is a multicall contract call)
+      // NOTE - actually we could avoid this loop entirely (since we won't need to recall if retrieved balances from all tokens)
+      // NOTE - how should we handle when there are `unprocessedNetworks`? Might be okay since token detection is done at a network level.
       const balances = await this.#getBalancesInSingleCall(
         selectedAddress,
         tokensSlice,
@@ -593,6 +602,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       const tokensWithBalance: Token[] = [];
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
+        // This is interesting
+        // We need to populate these arrays, however the tokenAPI does not return with `image`, or `aggregators`
+        // For now, we can only add tokens found in the #tokenList if we need this data :/
+        // Well... I guess image is optional :eyes:
         const { decimals, symbol, aggregators, iconUrl, name } =
           this.#tokenList[nonZeroTokenAddress];
         eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
