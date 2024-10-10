@@ -241,6 +241,35 @@ export async function batchUpsertUserStorage(
 }
 
 /**
+ * User Storage Service - Delete Storage Entry.
+ *
+ * @param opts - User Storage Options
+ */
+export async function deleteUserStorage(
+  opts: UserStorageOptions,
+): Promise<void> {
+  const { bearerToken, path, storageKey } = opts;
+  const encryptedPath = createEntryPath(path, storageKey);
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
+
+  const userStorageResponse = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  });
+
+  if (userStorageResponse.status === 404) {
+    throw new Error('user-storage - feature/entry not found');
+  }
+
+  if (!userStorageResponse.ok) {
+    throw new Error('user-storage - unable to delete data');
+  }
+}
+
+/**
  * User Storage Service - Delete all storage entries for a specific feature.
  *
  * @param opts - User Storage Options
@@ -259,12 +288,11 @@ export async function deleteUserStorageAllFeatureEntries(
     },
   });
 
-  // Acceptable error - since indicates feature does not exist.
   if (userStorageResponse.status === 404) {
     throw new Error('user-storage - feature not found');
   }
 
-  if (userStorageResponse.status !== 200 || !userStorageResponse.ok) {
+  if (!userStorageResponse.ok) {
     throw new Error('user-storage - unable to delete data');
   }
 }
