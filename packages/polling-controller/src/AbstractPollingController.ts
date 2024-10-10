@@ -1,4 +1,3 @@
-import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
@@ -9,12 +8,8 @@ import type {
   IPollingController,
 } from './types';
 
-export const getKey = (
-  networkClientId: NetworkClientId,
-  options: Json,
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
+export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
+  stringify(input);
 
 /**
  * AbstractPollingControllerBaseMixin
@@ -24,45 +19,35 @@ export const getKey = (
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
-  Base: TBase,
-) {
+export function AbstractPollingControllerBaseMixin<
+  TBase extends Constructor,
+  PollingInput extends Json,
+>(Base: TBase) {
   abstract class AbstractPollingControllerBase
     extends Base
-    implements IPollingController
+    implements IPollingController<PollingInput>
   {
     readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
-    #callbacks: Map<
-      PollingTokenSetId,
-      Set<(PollingTokenSetId: PollingTokenSetId) => void>
-    > = new Map();
+    #callbacks: Map<PollingTokenSetId, Set<(input: PollingInput) => void>> =
+      new Map();
 
-    abstract _executePoll(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ): Promise<void>;
+    abstract _executePoll(input: PollingInput): Promise<void>;
 
-    abstract _startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ): void;
+    abstract _startPolling(input: PollingInput): void;
 
     abstract _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
 
-    startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json = {},
-    ): string {
+    startPolling(input: PollingInput): string {
       const pollToken = random();
-      const key = getKey(networkClientId, options);
+      const key = getKey(input);
       const pollingTokenSet =
         this.#pollingTokenSets.get(key) ?? new Set<string>();
       pollingTokenSet.add(pollToken);
       this.#pollingTokenSets.set(key, pollingTokenSet);
 
       if (pollingTokenSet.size === 1) {
-        this._startPollingByNetworkClientId(networkClientId, options);
+        this._startPolling(input);
       }
 
       return pollToken;
@@ -98,19 +83,18 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
         if (callbacks) {
           for (const callback of callbacks) {
             // eslint-disable-next-line n/callback-return
-            callback(keyToDelete);
+            callback(JSON.parse(keyToDelete));
           }
           callbacks.clear();
         }
       }
     }
 
-    onPollingCompleteByNetworkClientId(
-      networkClientId: NetworkClientId,
-      callback: (networkClientId: NetworkClientId) => void,
-      options: Json = {},
+    onPollingComplete(
+      input: PollingInput,
+      callback: (input: PollingInput) => void,
     ) {
-      const key = getKey(networkClientId, options);
+      const key = getKey(input);
       const callbacks = this.#callbacks.get(key) ?? new Set<typeof callback>();
       callbacks.add(callback);
       this.#callbacks.set(key, callbacks);

@@ -76,6 +76,10 @@ export class UserStorage {
     return this.#getUserStorageAllFeatureEntries(path);
   }
 
+  async deleteItem(path: UserStoragePathWithFeatureAndKey): Promise<void> {
+    return this.#deleteUserStorage(path);
+  }
+
   async deleteAllFeatureItems(
     path: UserStoragePathWithFeatureOnly,
   ): Promise<void> {
@@ -291,6 +295,51 @@ export class UserStorage {
 
       throw new UserStorageError(
         `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorage(
+    path: UserStoragePathWithFeatureAndKey,
+  ): Promise<void> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(
+          `feature/key set not found for path '${path}'.`,
+        );
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }

@@ -138,6 +138,12 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+/** The input to start polling for the {@link TokenDetectionController} */
+type TokenDetectionPollingInput = {
+  networkClientId: NetworkClientId;
+  address: string;
+};
+
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
  * @property intervalId - Polling interval used to fetch new token rates
@@ -148,7 +154,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
-export class TokenDetectionController extends StaticIntervalPollingController<
+export class TokenDetectionController extends StaticIntervalPollingController<TokenDetectionPollingInput>()<
   typeof controllerName,
   TokenDetectionState,
   TokenDetectionControllerMessenger
@@ -432,16 +438,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     };
   }
 
-  async _executePoll(
-    networkClientId: NetworkClientId,
-    options: { address: string },
-  ): Promise<void> {
+  async _executePoll({
+    networkClientId,
+    address,
+  }: TokenDetectionPollingInput): Promise<void> {
     if (!this.isActive) {
       return;
     }
     await this.detectTokens({
       networkClientId,
-      selectedAddress: options.address,
+      selectedAddress: address,
     });
   }
 

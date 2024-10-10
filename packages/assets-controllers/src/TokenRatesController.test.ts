@@ -1216,7 +1216,9 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller }) => {
-          controller.startPollingByNetworkClientId('mainnet');
+          controller.startPolling({
+            networkClientId: 'mainnet',
+          });
 
           await advanceTime({ clock, duration: 0 });
           expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
@@ -1268,7 +1270,9 @@ describe('TokenRatesController', () => {
               },
             },
             async ({ controller }) => {
-              controller.startPollingByNetworkClientId('mainnet');
+              controller.startPolling({
+                networkClientId: 'mainnet',
+              });
               await advanceTime({ clock, duration: 0 });
 
               expect(controller.state).toStrictEqual({
@@ -1372,7 +1376,9 @@ describe('TokenRatesController', () => {
                 },
               },
               async ({ controller }) => {
-                controller.startPollingByNetworkClientId('mainnet');
+                controller.startPolling({
+                  networkClientId: 'mainnet',
+                });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
                 // downstream promises aren't flushed until the next advanceTime loop
@@ -1472,7 +1478,9 @@ describe('TokenRatesController', () => {
                 },
               },
               async ({ controller }) => {
-                controller.startPollingByNetworkClientId('mainnet');
+                controller.startPolling({
+                  networkClientId: 'mainnet',
+                });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
                 // downstream promises aren't flushed until the next advanceTime loop
@@ -1513,8 +1521,9 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller }) => {
-            const pollingToken =
-              controller.startPollingByNetworkClientId('mainnet');
+            const pollingToken = controller.startPolling({
+              networkClientId: 'mainnet',
+            });
             await advanceTime({ clock, duration: 0 });
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
               1,
