@@ -3,11 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import {
-  LogType,
-  SigningMethod,
-  SigningStage,
-} from '@metamask/logging-controller';
+import { LogType, SigningStage } from '@metamask/logging-controller';
 
 import { flushPromises } from '../../../tests/helpers';
 import type {
@@ -19,7 +15,7 @@ import { SignatureController } from './SignatureController';
 import type { SignatureRequest } from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
 
-jest.mock('./validation');
+jest.mock('./utils/validation');
 
 const CHAIN_ID_MOCK = '0x1';
 const SIGNATURE_HASH_MOCK = '0x123ABC';

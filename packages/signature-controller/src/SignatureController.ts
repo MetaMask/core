@@ -44,7 +44,7 @@ import type {
 import {
   validatePersonalSignatureRequest,
   validateTypedSignatureRequest,
-} from './validation';
+} from './utils/validation';
 
 const controllerName = 'SignatureController';
 
@@ -224,6 +224,14 @@ export class SignatureController extends BaseController<
     });
   }
 
+  /**
+   * Called when a dApp uses the personal_sign method.
+   * We currently provide personal_sign mostly for legacy dApps.
+   *
+   * @param messageParams - The params of the message to sign and return to the dApp.
+   * @param request - The original request, containing the origin.
+   * @returns Promise resolving to the raw signature hash generated from the signature request.
+   */
   async newUnsignedPersonalMessage(
     messageParams: MessageParamsPersonal,
     request: JsonRequest,
