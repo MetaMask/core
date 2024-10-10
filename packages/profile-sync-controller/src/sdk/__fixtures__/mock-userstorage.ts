@@ -76,3 +76,25 @@ export const handleMockUserStoragePut = (
 
   return mockEndpoint;
 };
+
+export const handleMockUserStorageDelete = async (mockReply?: MockReply) => {
+  const reply = mockReply ?? { status: 204 };
+  const mockEndpoint = nock(MOCK_STORAGE_URL)
+    .persist()
+    .delete(/.*/u)
+    .reply(reply.status);
+
+  return mockEndpoint;
+};
+
+export const handleMockUserStorageDeleteAllFeatureEntries = async (
+  mockReply?: MockReply,
+) => {
+  const reply = mockReply ?? { status: 204 };
+  const mockEndpoint = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+    .persist()
+    .delete('')
+    .reply(reply.status);
+
+  return mockEndpoint;
+};

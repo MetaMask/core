@@ -6,6 +6,8 @@ import {
   mockEndpointUpsertUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointBatchUpsertUserStorage,
+  mockEndpointDeleteUserStorageAllFeatureEntries,
+  mockEndpointDeleteUserStorage,
 } from './__fixtures__/mockServices';
 import {
   MOCK_STORAGE_DATA,
@@ -17,6 +19,8 @@ import {
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
+  deleteUserStorageAllFeatureEntries,
+  deleteUserStorage,
 } from './services';
 
 describe('user-storage/services.ts - getUserStorage() tests', () => {
@@ -239,5 +243,114 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
       expect.any(Error),
     );
     mockUpsertUserStorage.done();
+  });
+});
+
+describe('user-storage/services.ts - deleteUserStorage() tests', () => {
+  const actCallDeleteUserStorage = async () => {
+    return await deleteUserStorage({
+      path: 'notifications.notification_settings',
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+  };
+
+  it('invokes delete endpoint with no errors', async () => {
+    const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
+      'notifications.notification_settings',
+    );
+
+    await actCallDeleteUserStorage();
+
+    expect(mockDeleteUserStorage.isDone()).toBe(true);
+  });
+
+  it('throws error if unable to delete user storage', async () => {
+    const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
+      'notifications.notification_settings',
+      { status: 500 },
+    );
+
+    await expect(actCallDeleteUserStorage()).rejects.toThrow(expect.any(Error));
+    mockDeleteUserStorage.done();
+  });
+
+  it('throws error if feature not found', async () => {
+    const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
+      'notifications.notification_settings',
+      { status: 404 },
+    );
+
+    await expect(actCallDeleteUserStorage()).rejects.toThrow(
+      'user-storage - feature/entry not found',
+    );
+    mockDeleteUserStorage.done();
+  });
+
+  it('throws error if unable to get user storage', async () => {
+    const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
+      'notifications.notification_settings',
+      { status: 400 },
+    );
+
+    await expect(actCallDeleteUserStorage()).rejects.toThrow(
+      'user-storage - unable to delete data',
+    );
+    mockDeleteUserStorage.done();
+  });
+});
+
+describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests', () => {
+  const actCallDeleteUserStorageAllFeatureEntries = async () => {
+    return await deleteUserStorageAllFeatureEntries({
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      path: 'accounts',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+  };
+
+  it('invokes delete endpoint with no errors', async () => {
+    const mockDeleteUserStorage =
+      mockEndpointDeleteUserStorageAllFeatureEntries('accounts', undefined);
+
+    await actCallDeleteUserStorageAllFeatureEntries();
+
+    expect(mockDeleteUserStorage.isDone()).toBe(true);
+  });
+
+  it('throws error if unable to delete user storage', async () => {
+    const mockDeleteUserStorage =
+      mockEndpointDeleteUserStorageAllFeatureEntries('accounts', {
+        status: 500,
+      });
+
+    await expect(actCallDeleteUserStorageAllFeatureEntries()).rejects.toThrow(
+      expect.any(Error),
+    );
+    mockDeleteUserStorage.done();
+  });
+
+  it('throws error if feature not found', async () => {
+    const mockDeleteUserStorage =
+      mockEndpointDeleteUserStorageAllFeatureEntries('accounts', {
+        status: 404,
+      });
+
+    await expect(actCallDeleteUserStorageAllFeatureEntries()).rejects.toThrow(
+      'user-storage - feature not found',
+    );
+    mockDeleteUserStorage.done();
+  });
+
+  it('throws error if unable to get user storage', async () => {
+    const mockDeleteUserStorage =
+      mockEndpointDeleteUserStorageAllFeatureEntries('accounts', {
+        status: 400,
+      });
+
+    await expect(actCallDeleteUserStorageAllFeatureEntries()).rejects.toThrow(
+      'user-storage - unable to delete data',
+    );
+    mockDeleteUserStorage.done();
   });
 });

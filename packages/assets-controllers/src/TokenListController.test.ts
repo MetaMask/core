@@ -1363,5 +1363,5 @@ function getTokensPath(chainId: Hex) {
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
 }

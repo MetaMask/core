@@ -45,6 +45,8 @@ import {
 import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
   batchUpsertUserStorage,
+  deleteUserStorage,
+  deleteUserStorageAllFeatureEntries,
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
@@ -313,10 +315,7 @@ export default class UserStorageController extends BaseController<
       );
     },
     doesInternalAccountHaveCorrectKeyringType: (account: InternalAccount) => {
-      return (
-        account.metadata.keyring.type === KeyringTypes.hd ||
-        account.metadata.keyring.type === KeyringTypes.simple
-      );
+      return account.metadata.keyring.type === KeyringTypes.hd;
     },
     getInternalAccountsList: async (): Promise<InternalAccount[]> => {
       // eslint-disable-next-line @typescript-eslint/await-thenable
@@ -674,6 +673,49 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+    });
+  }
+
+  /**
+   * Allows deletion of user data. Developers can extend the entry path and entry name through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorage(
+    path: UserStoragePathWithFeatureAndKey,
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await deleteUserStorage({
+      path,
+      bearerToken,
+      storageKey,
+    });
+  }
+
+  /**
+   * Allows deletion of all user data entries for a specific feature.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @returns nothing. NOTE that an error is thrown if fails to delete data.
+   */
+  public async performDeleteStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await deleteUserStorageAllFeatureEntries({
+      path,
+      bearerToken,
+      storageKey,
     });
   }
 

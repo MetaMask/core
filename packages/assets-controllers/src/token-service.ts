@@ -23,7 +23,7 @@ function getTokensURL(chainId: Hex) {
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
 }
 
 /**
