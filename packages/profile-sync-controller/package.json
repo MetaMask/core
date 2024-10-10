@@ -1,6 +1,6 @@
 {
   "name": "@metamask/profile-sync-controller",
-  "version": "0.9.6",
+  "version": "0.9.7",
   "description": "The profile sync helps developers synchronize data across multiple clients and devices in a privacy-preserving way. All data saved in the user storage database is encrypted client-side to preserve privacy. The user storage provides a modular design, giving developers the flexibility to construct and manage their storage spaces in a way that best suits their needs",
   "keywords": [
     "MetaMask",
