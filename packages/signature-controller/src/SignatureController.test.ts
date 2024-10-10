@@ -28,26 +28,57 @@ const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
 };
 
 function createMessengerMock() {
-  return {
+  const loggingControllerAddMock = jest.fn();
+  const approvalControllerAddRequestMock = jest.fn();
+  const keyringControllerSignPersonalMessageMock = jest.fn();
+  const keyringControllerSignTypedMessageMock = jest.fn();
+
+  const callMock = (method: string, ...args: any[]) => {
+    switch (method) {
+      case 'LoggingController:add':
+        return loggingControllerAddMock(...args);
+      case 'ApprovalController:addRequest':
+        return approvalControllerAddRequestMock(...args);
+      case 'KeyringController:signPersonalMessage':
+        return keyringControllerSignPersonalMessageMock(...args);
+      case 'KeyringController:signTypedMessage':
+        return keyringControllerSignTypedMessageMock(...args);
+      default:
+        throw new Error(`Messenger method not recognised: ${method}`);
+    }
+  };
+
+  const messenger = {
     registerActionHandler: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
-    call: jest.fn(),
+    call: callMock,
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as unknown as jest.Mocked<SignatureControllerMessenger>;
+
+  approvalControllerAddRequestMock.mockResolvedValue({});
+  loggingControllerAddMock.mockResolvedValue({});
+
+  return {
+    approvalControllerAddRequestMock,
+    keyringControllerSignPersonalMessageMock,
+    keyringControllerSignTypedMessageMock,
+    loggingControllerAddMock,
+    messenger,
+  };
 }
 
 function createController(options?: Partial<SignatureControllerOptions>) {
-  const messenger = createMessengerMock();
+  const messengerMocks = createMessengerMock();
 
   const controller = new SignatureController({
-    messenger,
+    messenger: messengerMocks.messenger,
     getCurrentChainId: () => CHAIN_ID_MOCK,
     ...options,
   });
 
-  return { controller, messenger };
+  return { controller, ...messengerMocks };
 }
 
 describe('SignatureController', () => {
@@ -99,11 +130,12 @@ describe('SignatureController', () => {
 
   describe('newUnsignedPersonalMessage', () => {
     it('returns signature hash if approved', async () => {
-      const { controller, messenger } = createController();
+      const { controller, keyringControllerSignPersonalMessageMock } =
+        createController();
 
-      messenger.call
-        .mockResolvedValueOnce({})
-        .mockResolvedValueOnce(SIGNATURE_HASH_MOCK);
+      keyringControllerSignPersonalMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
 
       const result = await controller.newUnsignedPersonalMessage(
         {
@@ -117,9 +149,13 @@ describe('SignatureController', () => {
     });
 
     it('throws if rejected', async () => {
-      const { controller, messenger } = createController();
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
 
-      messenger.call.mockRejectedValueOnce({});
+      const errorMock = new Error('Custom message');
+      (errorMock as any).code = 1234;
+
+      approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
 
       const promise = controller.newUnsignedPersonalMessage(
         {
@@ -130,8 +166,8 @@ describe('SignatureController', () => {
       );
 
       await expect(promise).rejects.toMatchObject({
-        message: 'User rejected the request.',
-        code: 4001,
+        message: 'Custom message',
+        code: 1234,
       });
     });
   });

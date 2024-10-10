@@ -21,8 +21,12 @@ import type {
   KeyringControllerSignTypedMessageAction,
 } from '@metamask/keyring-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { AddLog } from '@metamask/logging-controller';
-import { providerErrors } from '@metamask/rpc-errors';
+import {
+  SigningMethod,
+  LogType,
+  SigningStage,
+  type AddLog,
+} from '@metamask/logging-controller';
 import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { v1 as random } from 'uuid';
@@ -317,6 +321,8 @@ export class SignatureController extends BaseController<
       version,
     });
 
+    this.#addLog(type, version, SigningStage.Proposed, messageParams);
+
     const { securityAlertResponse } = request;
 
     const finalMessageParams = {
@@ -359,12 +365,13 @@ export class SignatureController extends BaseController<
         );
 
         resultCallbacks = acceptResult.resultCallbacks;
-      } catch {
+      } catch (error) {
         log('User rejected request', metadata.id);
 
+        this.#addLog(type, version, SigningStage.Rejected, messageParams);
         this.#rejectSignatureRequest(metadata.id);
 
-        throw providerErrors.userRejectedRequest('User rejected the request.');
+        throw error;
       }
 
       await this.#approveAndSignRequest(metadata);
@@ -373,6 +380,7 @@ export class SignatureController extends BaseController<
 
       log('Signature request finished', metadata.id, signature);
 
+      this.#addLog(type, version, SigningStage.Signed, messageParams);
       resultCallbacks?.success(signature);
 
       return signature;
@@ -565,5 +573,51 @@ export class SignatureController extends BaseController<
         state.unapprovedTypedMessages,
       ).length;
     });
+  }
+
+  #addLog(
+    signatureRequestType: SignatureRequestType,
+    version: SignTypedDataVersion | undefined,
+    stage: SigningStage,
+    signingData: MessageParams,
+  ): void {
+    const signingMethod = this.#getSignTypeForLogger(
+      signatureRequestType,
+      version,
+    );
+
+    this.messagingSystem.call('LoggingController:add', {
+      type: LogType.EthSignLog,
+      data: {
+        signingMethod,
+        stage,
+        signingData,
+      },
+    });
+  }
+
+  #getSignTypeForLogger(
+    requestType: SignatureRequestType,
+    version?: SignTypedDataVersion,
+  ): SigningMethod {
+    if (requestType === SignatureRequestType.PersonalSign) {
+      return SigningMethod.PersonalSign;
+    }
+
+    if (
+      requestType === SignatureRequestType.TypedSign &&
+      version === SignTypedDataVersion.V3
+    ) {
+      return SigningMethod.EthSignTypedDataV3;
+    }
+
+    if (
+      requestType === SignatureRequestType.TypedSign &&
+      version === SignTypedDataVersion.V4
+    ) {
+      return SigningMethod.EthSignTypedDataV4;
+    }
+
+    return SigningMethod.EthSignTypedData;
   }
 }
