@@ -7005,15 +7005,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eth-phishing-detect@npm:^1.2.0":
-  version: 1.2.0
-  resolution: "eth-phishing-detect@npm:1.2.0"
-  dependencies:
-    fast-levenshtein: "npm:^2.0.6"
-  checksum: 10/e396c83a5678a227e76b8e2019d4307e060233c0c088d4b18cf9992e08233b58072ca1d9cdce0886f101c63395e3c134ca7ea6be02bc8522a41ac7e21c9ee05f
-  languageName: node
-  linkType: hard
-
 "ethereum-cryptography@npm:^0.1.3":
   version: 0.1.3
   resolution: "ethereum-cryptography@npm:0.1.3"
