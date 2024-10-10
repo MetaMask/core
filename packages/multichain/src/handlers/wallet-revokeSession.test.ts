@@ -3,7 +3,7 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import { Caip25EndowmentPermissionName } from '../caip25permissions';
+import { Caip25EndowmentPermissionName } from '../caip25Permission';
 import { walletRevokeSessionHandler } from './wallet-revokeSession';
 
 const baseRequest = {

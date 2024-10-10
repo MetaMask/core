@@ -2,7 +2,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-} from './caip25permissions';
+} from '../caip25Permission';
 import { walletInvokeMethodHandler } from './wallet-invokeMethod';
 
 const createMockedRequest = () => ({

@@ -3,8 +3,8 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-} from './caip25permissions';
-import { mergeScopes, parseScopeString } from './scope';
+} from '../caip25Permission';
+import { mergeScopes, parseScopeString } from '../scope';
 
 export async function walletInvokeMethodHandler(
   request,

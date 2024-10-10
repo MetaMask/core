@@ -1,8 +1,8 @@
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-} from '../caip25permissions';
-import { mergeScopes } from './scope';
+} from '../caip25Permission';
+import { mergeScopes } from '../scope';
 
 export async function walletGetSessionHandler(
   request,

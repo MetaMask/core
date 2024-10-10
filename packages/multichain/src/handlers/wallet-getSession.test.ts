@@ -1,7 +1,7 @@
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-} from '../caip25permissions';
+} from '../caip25Permission';
 import { walletGetSessionHandler } from './wallet-getSession';
 
 const baseRequest = {
