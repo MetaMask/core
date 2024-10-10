@@ -8,7 +8,11 @@ import type {
   UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
-import type { NativeScrypt } from '../../shared/types/encryption';
+import type {
+  NativeScrypt,
+  NativeAesGcmEncryptProps,
+  NativeAesGcmDecryptProps,
+} from '../../shared/types/encryption';
 
 const ENV_URLS = getEnvUrls(Env.PRD);
 
@@ -36,14 +40,20 @@ export type UserStorageBaseOptions = {
   bearerToken: string;
   storageKey: string;
   nativeScryptCrypto?: NativeScrypt;
+  nativeAesGcmEncrypt?: NativeAesGcmEncryptProps;
+  nativeAesGcmDecrypt?: NativeAesGcmDecryptProps;
 };
 
 export type UserStorageOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureAndKey;
+  iv?: string;
+  tag?: string;
 };
 
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
+  iv?: string;
+  tag?: string;
 };
 
 export type UserStorageBatchUpsertOptions = UserStorageAllFeatureEntriesOptions;
@@ -58,7 +68,15 @@ export async function getUserStorage(
   opts: UserStorageOptions,
 ): Promise<string | null> {
   try {
-    const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
+    const {
+      bearerToken,
+      path,
+      storageKey,
+      nativeScryptCrypto,
+      nativeAesGcmDecrypt,
+      iv,
+      tag,
+    } = opts;
 
     const encryptedPath = createEntryPath(path, storageKey);
     const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
@@ -91,6 +109,9 @@ export async function getUserStorage(
       encryptedData,
       opts.storageKey,
       nativeScryptCrypto,
+      nativeAesGcmDecrypt,
+      iv,
+      tag,
     );
 
     return decryptedData;
@@ -110,7 +131,14 @@ export async function getUserStorageAllFeatureEntries(
   opts: UserStorageAllFeatureEntriesOptions,
 ): Promise<string[] | null> {
   try {
-    const { bearerToken, path, nativeScryptCrypto } = opts;
+    const {
+      bearerToken,
+      path,
+      nativeScryptCrypto,
+      nativeAesGcmDecrypt,
+      iv,
+      tag,
+    } = opts;
     const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
     const userStorageResponse = await fetch(url.toString(), {
@@ -148,6 +176,9 @@ export async function getUserStorageAllFeatureEntries(
           entry.Data,
           opts.storageKey,
           nativeScryptCrypto,
+          nativeAesGcmDecrypt,
+          iv,
+          tag,
         );
         decryptedData.push(data);
       } catch {
@@ -172,12 +203,19 @@ export async function upsertUserStorage(
   data: string,
   opts: UserStorageOptions,
 ): Promise<void> {
-  const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
+  const {
+    bearerToken,
+    path,
+    storageKey,
+    nativeScryptCrypto,
+    nativeAesGcmEncrypt,
+  } = opts;
 
   const encryptedData = await encryption.encryptString(
     data,
     opts.storageKey,
     nativeScryptCrypto,
+    nativeAesGcmEncrypt,
   );
   const encryptedPath = createEntryPath(path, storageKey);
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
@@ -211,14 +249,25 @@ export async function batchUpsertUserStorage(
     return;
   }
 
-  const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
+  const {
+    bearerToken,
+    path,
+    storageKey,
+    nativeScryptCrypto,
+    nativeAesGcmEncrypt,
+  } = opts;
 
   const encryptedData: string[][] = [];
 
   for (const d of data) {
     encryptedData.push([
       createSHA256Hash(d[0] + storageKey),
-      await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
+      await encryption.encryptString(
+        d[1],
+        opts.storageKey,
+        nativeScryptCrypto,
+        nativeAesGcmEncrypt,
+      ),
     ]);
   }
 

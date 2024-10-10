@@ -4,7 +4,11 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
-import type { NativeScrypt } from '../types/encryption';
+import type {
+  NativeAesGcmDecryptProps,
+  NativeAesGcmEncryptProps,
+  NativeScrypt,
+} from '../types/encryption';
 import { getAnyCachedKey, getCachedKeyBySalt, setCachedKey } from './cache';
 import {
   base64ToByteArray,
@@ -54,12 +58,14 @@ class EncryptorDecryptor {
     plaintext: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    nativeAesGcmEncrypt?: NativeAesGcmEncryptProps,
   ): Promise<string> {
     try {
       return await this.#encryptStringV1(
         plaintext,
         password,
         nativeScryptCrypto,
+        nativeAesGcmEncrypt,
       );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
@@ -71,6 +77,9 @@ class EncryptorDecryptor {
     encryptedDataStr: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    nativeAesGcmDecrypt?: NativeAesGcmDecryptProps,
+    iv?: string,
+    tag?: string,
   ): Promise<string> {
     try {
       const encryptedData: EncryptedPayload = JSON.parse(encryptedDataStr);
@@ -80,6 +89,9 @@ class EncryptorDecryptor {
             encryptedData,
             password,
             nativeScryptCrypto,
+            nativeAesGcmDecrypt,
+            iv,
+            tag,
           );
         }
       }
@@ -96,6 +108,7 @@ class EncryptorDecryptor {
     plaintext: string,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    nativeAesGcmEncrypt?: NativeAesGcmEncryptProps,
   ): Promise<string> {
     const { key, salt } = await this.#getOrGenerateScryptKey(
       password,
@@ -113,7 +126,7 @@ class EncryptorDecryptor {
     const plaintextRaw = utf8ToBytes(plaintext);
     const ciphertextAndNonceAndSalt = concatBytes(
       salt,
-      this.#encrypt(plaintextRaw, key),
+      await this.#encrypt(plaintextRaw, key, nativeAesGcmEncrypt),
     );
 
     // Convert to Base64
@@ -139,6 +152,9 @@ class EncryptorDecryptor {
     data: EncryptedPayload,
     password: string,
     nativeScryptCrypto?: NativeScrypt,
+    nativeAesGcmDecrypt?: NativeAesGcmDecryptProps,
+    iv?: string,
+    tag?: string,
   ): Promise<string> {
     const { o, d: base64CiphertextAndNonceAndSalt, saltLen } = data;
 
@@ -168,11 +184,30 @@ class EncryptorDecryptor {
     );
 
     // Decrypt and return result.
-    return bytesToUtf8(this.#decrypt(ciphertextAndNonce, key));
+    return bytesToUtf8(
+      await this.#decrypt(
+        ciphertextAndNonce,
+        key,
+        nativeAesGcmDecrypt,
+        iv,
+        tag,
+      ),
+    );
   }
 
-  #encrypt(plaintext: Uint8Array, key: Uint8Array): Uint8Array {
+  async #encrypt(
+    plaintext: Uint8Array,
+    key: Uint8Array,
+    nativeAesGcmEncrypt?: NativeAesGcmEncryptProps,
+  ): Promise<Uint8Array> {
     const nonce = randomBytes(ALGORITHM_NONCE_SIZE);
+    if (nativeAesGcmEncrypt) {
+      console.log('using native aes gcm encrypt');
+      return concatBytes(
+        nonce,
+        (await nativeAesGcmEncrypt(key, plaintext)).content,
+      );
+    }
 
     // Encrypt and prepend nonce.
     const ciphertext = gcm(key, nonce).encrypt(plaintext);
@@ -180,7 +215,13 @@ class EncryptorDecryptor {
     return concatBytes(nonce, ciphertext);
   }
 
-  #decrypt(ciphertextAndNonce: Uint8Array, key: Uint8Array): Uint8Array {
+  async #decrypt(
+    ciphertextAndNonce: Uint8Array,
+    key: Uint8Array,
+    nativeAesGcmDecrypt?: NativeAesGcmDecryptProps,
+    iv?: string,
+    tag?: string,
+  ): Promise<Uint8Array> {
     // Create buffers of nonce and ciphertext.
     const nonce = ciphertextAndNonce.slice(0, ALGORITHM_NONCE_SIZE);
     const ciphertext = ciphertextAndNonce.slice(
@@ -189,6 +230,10 @@ class EncryptorDecryptor {
     );
 
     // Decrypt and return result.
+    if (nativeAesGcmDecrypt && iv && tag) {
+      console.log('using native aes gcm decrypt');
+      return nativeAesGcmDecrypt(key, ciphertext, iv, tag, false);
+    }
     return gcm(key, nonce).decrypt(ciphertext);
   }
 

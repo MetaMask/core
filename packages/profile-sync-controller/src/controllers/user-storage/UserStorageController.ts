@@ -28,7 +28,11 @@ import type {
   UserStoragePathWithFeatureOnly,
   UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
-import type { NativeScrypt } from '../../shared/types/encryption';
+import type {
+  NativeAesGcmEncryptProps,
+  NativeAesGcmDecryptProps,
+  NativeScrypt,
+} from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
 import type {
   AuthenticationControllerGetBearerToken,
@@ -407,6 +411,10 @@ export default class UserStorageController extends BaseController<
 
   #nativeScryptCrypto: NativeScrypt | undefined = undefined;
 
+  #nativeAesGcmEncrypt: NativeAesGcmEncryptProps | undefined = undefined;
+
+  #nativeAesGcmDecrypt: NativeAesGcmDecryptProps | undefined = undefined;
+
   getMetaMetricsState: () => boolean;
 
   constructor({
@@ -416,6 +424,8 @@ export default class UserStorageController extends BaseController<
     config,
     getMetaMetricsState,
     nativeScryptCrypto,
+    nativeAesGcmEncrypt,
+    nativeAesGcmDecrypt,
   }: {
     messenger: UserStorageControllerMessenger;
     state?: UserStorageControllerState;
@@ -426,6 +436,8 @@ export default class UserStorageController extends BaseController<
     };
     getMetaMetricsState: () => boolean;
     nativeScryptCrypto?: NativeScrypt;
+    nativeAesGcmEncrypt?: NativeAesGcmEncryptProps;
+    nativeAesGcmDecrypt?: NativeAesGcmDecryptProps;
   }) {
     super({
       messenger,
@@ -444,6 +456,8 @@ export default class UserStorageController extends BaseController<
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
     this.#nativeScryptCrypto = nativeScryptCrypto;
+    this.#nativeAesGcmEncrypt = nativeAesGcmEncrypt;
+    this.#nativeAesGcmDecrypt = nativeAesGcmDecrypt;
     this.#accounts.setupAccountSyncingSubscriptions();
 
     // Network Syncing
@@ -457,6 +471,8 @@ export default class UserStorageController extends BaseController<
             storageKey,
             bearerToken,
             nativeScryptCrypto: this.#nativeScryptCrypto,
+            nativeAesGcmEncrypt: this.#nativeAesGcmEncrypt,
+            nativeAesGcmDecrypt: this.#nativeAesGcmDecrypt,
           };
         },
       });
@@ -581,10 +597,14 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path and entry name through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}.${key}` that matches schema
+   * @param iv - optional iv
+   * @param tag - optional tag
    * @returns the decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorage(
     path: UserStoragePathWithFeatureAndKey,
+    iv?: string,
+    tag?: string,
   ): Promise<string | null> {
     this.#assertProfileSyncingEnabled();
 
@@ -596,6 +616,9 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      nativeAesGcmDecrypt: this.#nativeAesGcmDecrypt,
+      iv,
+      tag,
     });
 
     return result;
@@ -606,10 +629,14 @@ export default class UserStorageController extends BaseController<
    * Developers can extend the entry path through the `schema.ts` file.
    *
    * @param path - string in the form of `${feature}` that matches schema
+   * @param iv - optional iv
+   * @param tag - optional tag
    * @returns the array of decrypted string contents found from user storage (or null if not found)
    */
   public async performGetStorageAllFeatureEntries(
     path: UserStoragePathWithFeatureOnly,
+    iv?: string,
+    tag?: string,
   ): Promise<string[] | null> {
     this.#assertProfileSyncingEnabled();
 
@@ -621,6 +648,9 @@ export default class UserStorageController extends BaseController<
       bearerToken,
       storageKey,
       nativeScryptCrypto: this.#nativeScryptCrypto,
+      nativeAesGcmDecrypt: this.#nativeAesGcmDecrypt,
+      iv,
+      tag,
     });
 
     return result;
