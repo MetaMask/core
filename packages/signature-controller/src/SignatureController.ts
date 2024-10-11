@@ -40,6 +40,7 @@ import type {
   SignatureRequest,
   MessageParams,
   TypedSigningOptions,
+  LegacyStateMessage,
 } from './types';
 import {
   normalizePersonalMessageParams,
@@ -78,13 +79,13 @@ export type SignatureControllerState = {
    * Map of personal messages with the unapproved status, keyed by ID.
    * @deprecated - Use `signatureRequests` instead.
    */
-  unapprovedPersonalMsgs: Record<string, SignatureRequest>;
+  unapprovedPersonalMsgs: Record<string, LegacyStateMessage>;
 
   /**
    * Map of typed messages with the unapproved status, keyed by ID.
    * @deprecated - Use `signatureRequests` instead.
    */
-  unapprovedTypedMessages: Record<string, SignatureRequest>;
+  unapprovedTypedMessages: Record<string, LegacyStateMessage>;
 
   /**
    * Number of unapproved personal messages.
@@ -700,39 +701,41 @@ export class SignatureController extends BaseController<
       // eslint-disable-next-line n/callback-return, n/no-callback-literal
       callback(state as unknown as SignatureControllerState);
 
-      const unapprovedRequests = Object.values(
-        state.signatureRequests as unknown as Record<string, SignatureRequest>,
-      ).filter(
+      const unapprovedRequests = Object.values(state.signatureRequests).filter(
         (request) => request.status === SignatureRequestStatus.Unapproved,
-      );
+      ) as unknown as SignatureRequest[];
 
-      state.unapprovedPersonalMsgs = this.#generateLegacyState(
+      const personalSignMessages = this.#generateLegacyState(
         unapprovedRequests,
         SignatureRequestType.PersonalSign,
       );
 
-      state.unapprovedTypedMessages = this.#generateLegacyState(
+      const typedSignMessages = this.#generateLegacyState(
         unapprovedRequests,
         SignatureRequestType.TypedSign,
       );
 
-      state.unapprovedPersonalMsgCount = Object.values(
-        state.unapprovedPersonalMsgs,
-      ).length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.unapprovedPersonalMsgs = personalSignMessages as any;
 
-      state.unapprovedTypedMessagesCount = Object.values(
-        state.unapprovedTypedMessages,
-      ).length;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.unapprovedTypedMessages = typedSignMessages as any;
+
+      state.unapprovedPersonalMsgCount =
+        Object.values(personalSignMessages).length;
+
+      state.unapprovedTypedMessagesCount =
+        Object.values(typedSignMessages).length;
     });
   }
 
   #generateLegacyState(
-    unapprovedSignatureRequests: SignatureRequest[],
+    signatureRequests: SignatureRequest[],
     type: SignatureRequestType,
-  ) {
-    return unapprovedSignatureRequests
+  ): Record<string, LegacyStateMessage> {
+    return signatureRequests
       .filter((request) => request.type === type)
-      .reduce(
+      .reduce<Record<string, LegacyStateMessage>>(
         (acc, request) => ({
           ...acc,
           [request.id]: { ...request, msgParams: request.messageParams },

@@ -74,11 +74,11 @@ type SignatureRequestBase = {
   /** Custom metadata stored with the request. */
   metadata?: Json;
 
-  /** Response following a security scan of the request. */
-  securityAlertResponse?: Record<string, Json>;
-
   /** Signature hash resulting from the request. */
   rawSig?: string;
+
+  /** Response following a security scan of the request. */
+  securityAlertResponse?: Record<string, Json>;
 
   /** Options used for signing. */
   signingOptions?: TypedSigningOptions;
@@ -91,6 +91,15 @@ type SignatureRequestBase = {
 
   /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
+};
+
+/** Legacy messages stored in the state. */
+export type LegacyStateMessage = SignatureRequestBase & {
+  /** Message parameters that were requested to be signed. */
+  msgParams: MessageParamsPersonal | MessageParamsTyped;
+
+  /** Type of the signature request. */
+  type: string;
 };
 
 /** Metadata concerning a request to sign data. */
