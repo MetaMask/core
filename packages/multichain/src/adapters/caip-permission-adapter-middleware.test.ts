@@ -1,13 +1,11 @@
 import { providerErrors } from '@metamask/rpc-errors';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import {
-  caipPermissionAdapterMiddleware,
-  type JsonRpcRequestWithNetworkClientIdAndOrigin,
-} from './caip-permission-adapter-middleware';
+import { caipPermissionAdapterMiddleware } from './caip-permission-adapter-middleware';
 
 const baseRequest = {
   id: 1,
@@ -64,7 +62,12 @@ const createMockedHandler = () => {
         chainId,
       };
     });
-  const handler = (request: JsonRpcRequestWithNetworkClientIdAndOrigin) =>
+  const handler = (
+    request: JsonRpcRequest & {
+      networkClientId: string;
+      origin: string;
+    },
+  ) =>
     caipPermissionAdapterMiddleware(request, {}, next, end, {
       getCaveat,
       getNetworkConfigurationByNetworkClientId,

@@ -3,17 +3,16 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
 import { walletRevokeSessionHandler } from './wallet-revokeSession';
 
-const baseRequest: JsonRpcRequestWithNetworkClientIdAndOrigin = {
+const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',
   params: {},
   jsonrpc: '2.0' as const,
   id: 1,
-  networkClientId: 'mainnet',
   method: 'wallet_revokeSession',
 };
 
@@ -26,7 +25,7 @@ const createMockedHandler = () => {
     id: 1,
     jsonrpc: '2.0' as const,
   };
-  const handler = (request: JsonRpcRequestWithNetworkClientIdAndOrigin) =>
+  const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletRevokeSessionHandler(request, response, next, end, {
       revokePermission,
     });

@@ -2,14 +2,12 @@ import type {
   JsonRpcEngineNextCallback,
   JsonRpcEngineEndCallback,
 } from '@metamask/json-rpc-engine';
-import type { PermissionController } from '@metamask/permission-controller';
 import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcSuccess, Json } from '@metamask/utils';
-import type { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
+import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
 
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
 
@@ -24,7 +22,7 @@ import { Caip25EndowmentPermissionName } from '../caip25Permission';
  * @param hooks.revokePermission - The revokePermission function.
  */
 export async function walletRevokeSessionHandler(
-  request: JsonRpcRequestWithNetworkClientIdAndOrigin,
+  request: JsonRpcRequest & { origin: string },
   response: JsonRpcSuccess<Json>,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,

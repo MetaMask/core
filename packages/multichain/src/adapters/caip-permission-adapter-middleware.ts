@@ -11,11 +11,6 @@ import {
 import type { ScopeString } from '../scope';
 import { mergeScopes } from '../scope';
 
-export type JsonRpcRequestWithNetworkClientIdAndOrigin = JsonRpcRequest & {
-  networkClientId: string;
-  origin: string;
-};
-
 /**
  * Middleware to handle CAIP-25 permission requests.
  *
@@ -28,7 +23,10 @@ export type JsonRpcRequestWithNetworkClientIdAndOrigin = JsonRpcRequest & {
  * @param hooks.getNetworkConfigurationByNetworkClientId - Function to retrieve a network configuration.
  */
 export async function caipPermissionAdapterMiddleware(
-  request: JsonRpcRequestWithNetworkClientIdAndOrigin,
+  request: JsonRpcRequest & {
+    networkClientId: string;
+    origin: string;
+  },
   _response: unknown,
   next: () => Promise<void>,
   end: (error?: Error) => void,

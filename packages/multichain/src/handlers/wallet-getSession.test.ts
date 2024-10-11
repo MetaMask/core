@@ -1,17 +1,17 @@
-import { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
+import type { JsonRpcRequest } from '@metamask/utils';
+
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
 import { walletGetSessionHandler } from './wallet-getSession';
 
-const baseRequest: JsonRpcRequestWithNetworkClientIdAndOrigin = {
+const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',
   jsonrpc: '2.0' as const,
   method: 'wallet_getSession',
   params: {},
   id: 1,
-  networkClientId: 'mainnet',
 };
 
 const createMockedHandler = () => {
@@ -48,7 +48,7 @@ const createMockedHandler = () => {
     id: 1,
     jsonrpc: '2.0' as const,
   };
-  const handler = (request: JsonRpcRequestWithNetworkClientIdAndOrigin) =>
+  const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletGetSessionHandler(request, response, next, end, {
       getCaveat,
     });

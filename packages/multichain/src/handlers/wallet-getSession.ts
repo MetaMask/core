@@ -1,6 +1,5 @@
 import type { Caveat } from '@metamask/permission-controller';
-import type { JsonRpcSuccess } from '@metamask/utils';
-import type { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
+import type { JsonRpcRequest, JsonRpcSuccess } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
@@ -21,7 +20,7 @@ import { mergeScopes } from '../scope';
  * @param hooks.getCaveat - Function to retrieve a caveat.
  */
 export async function walletGetSessionHandler(
-  request: JsonRpcRequestWithNetworkClientIdAndOrigin,
+  request: JsonRpcRequest & { origin: string },
   response: JsonRpcSuccess<{ sessionScopes: ScopesObject }>,
   _next: () => void,
   end: () => void,

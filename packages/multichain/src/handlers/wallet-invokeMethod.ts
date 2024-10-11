@@ -1,8 +1,11 @@
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
-import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 import { numberToHex } from '@metamask/utils';
-import type { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
@@ -20,13 +23,13 @@ import { mergeScopes, parseScopeString } from '../scope';
  * @param next - The next middleware function.
  * @param end - The end function.
  * @param hooks - The hooks object.
- * @param hooks.getCaveat
- * @param hooks.findNetworkClientIdByChainId
- * @param hooks.getSelectedNetworkClientId
+ * @param hooks.getCaveat - the hook for getting a caveat from a permission for an origin.
+ * @param hooks.findNetworkClientIdByChainId - the hook for finding the networkClientId for a chainId.
+ * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  */
 export async function walletInvokeMethodHandler(
-  request: JsonRpcRequestWithNetworkClientIdAndOrigin,
-  _response: JsonRpcSuccess<Json>,
+  request: JsonRpcRequest & { origin: string },
+  _response: PendingJsonRpcResponse<Json>,
   next: () => void,
   end: (error: Error) => void,
   hooks: {

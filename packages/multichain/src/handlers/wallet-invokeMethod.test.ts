@@ -1,14 +1,17 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcRequest } from '@metamask/utils';
 
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
 import { walletInvokeMethodHandler } from './wallet-invokeMethod';
-import { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
 
 const createMockedRequest = () => ({
+  jsonrpc: '2.0' as const,
+  id: 0,
   origin: 'http://test.com',
+  method: 'wallet_invokeMethod',
   params: {
     scope: 'eip155:1',
     request: {
@@ -56,8 +59,8 @@ const createMockedHandler = () => {
   const getSelectedNetworkClientId = jest
     .fn()
     .mockReturnValue('selectedNetworkClientId');
-  const handler = (request: JsonRpcRequestWithNetworkClientIdAndOrigin) =>
-    walletInvokeMethodHandler(request, {}, next, end, {
+  const handler = (request: JsonRpcRequest & { origin: string }) =>
+    walletInvokeMethodHandler(request, { jsonrpc: '2.0', id: 1 }, next, end, {
       getCaveat,
       findNetworkClientIdByChainId,
       getSelectedNetworkClientId,
@@ -182,6 +185,8 @@ describe('wallet_invokeMethod', () => {
 
       await handler(request);
       expect(request).toStrictEqual({
+        jsonrpc: '2.0' as const,
+        id: 0,
         scope: 'eip155:1',
         origin: 'http://test.com',
         networkClientId: 'mainnet',
@@ -250,6 +255,8 @@ describe('wallet_invokeMethod', () => {
       };
       await handler(walletRequest);
       expect(walletRequest).toStrictEqual({
+        jsonrpc: '2.0' as const,
+        id: 0,
         scope: 'wallet',
         origin: 'http://test.com',
         networkClientId: 'selectedNetworkClientId',
