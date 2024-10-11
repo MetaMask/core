@@ -57,6 +57,16 @@
         "default": "./dist/adapters/caip-permission-adapter-middleware.cjs"
       }
     },
+    "./adapters/caip-permission-adapter-permittedChains": {
+      "import": {
+        "types": "./dist/adapters/caip-permission-adapter-permittedChains.d.mts",
+        "default": "./dist/adapters/caip-permission-adapter-permittedChains.mjs"
+      },
+      "require": {
+        "types": "./dist/adapters/caip-permission-adapter-permittedChains.d.cts",
+        "default": "./dist/adapters/caip-permission-adapter-permittedChains.cjs"
+      }
+    },
     "./handlers/wallet-getSession": {
       "import": {
         "types": "./dist/handlers/wallet-getSession.d.mts",
