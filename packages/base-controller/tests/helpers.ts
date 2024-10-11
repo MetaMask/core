@@ -1,4 +1,4 @@
-import type { RestrictedControllerMessenger } from '../src';
+import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // We don't care about the types marked with `any` for this type.

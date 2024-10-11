@@ -10,3 +10,7 @@ export const bytesToUtf8 = (byteArray: Uint8Array) => {
   const decoder = new TextDecoder('utf-8');
   return decoder.decode(byteArray);
 };
+
+export const stringToByteArray = (str: string) => {
+  return new TextEncoder().encode(str);
+};
