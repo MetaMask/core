@@ -187,8 +187,8 @@ describe('Validation Utils', () => {
               unexpectedChainId as never,
             ),
           ).toThrow(
-            `Cannot sign messages for chainId "${convertHexToDecimal(
-              CHAIN_ID_MOCK as string,
+            `Cannot sign messages for chainId "${String(
+              convertHexToDecimal(CHAIN_ID_MOCK),
             )}", because MetaMask is switching networks.`,
           );
         });
