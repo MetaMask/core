@@ -8,7 +8,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { ExternalScopeString } from '../scope';
+import type { ExternalScopeString } from '../scope/scope';
 
 export type ExtendedJsonRpcMiddleware = {
   (

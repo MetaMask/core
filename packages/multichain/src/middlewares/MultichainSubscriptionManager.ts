@@ -5,7 +5,7 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 import type EventEmitter from 'events';
 
-import type { ExternalScopeString } from '../scope';
+import type { ExternalScopeString } from '../scope/scope';
 
 export type SubscriptionManager = {
   events: EventEmitter;

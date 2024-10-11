@@ -20,8 +20,13 @@ import {
 import { strict as assert } from 'assert';
 import { cloneDeep, isEqual } from 'lodash';
 
-import type { ExternalScopeString, ScopesObject, ScopeObject } from './scope';
-import { validateAndFlattenScopes, assertScopesSupported } from './scope';
+import { assertScopesSupported } from './scope/assert';
+import { validateAndFlattenScopes } from './scope/authorization';
+import type {
+  ExternalScopeString,
+  ScopeObject,
+  ScopesObject,
+} from './scope/scope';
 
 export type Caip25CaveatValue = {
   requiredScopes: ScopesObject;

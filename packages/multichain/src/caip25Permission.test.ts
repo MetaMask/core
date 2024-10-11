@@ -14,19 +14,24 @@ import {
   Caip25CaveatMutatorFactories,
   removeScope,
 } from './caip25Permission';
-import * as Scope from './scope';
+import * as ScopeAssert from './scope/assert';
+import * as ScopeAuthorization from './scope/authorization';
 
-jest.mock('./scope', () => ({
+jest.mock('./scope/authorization', () => ({
   validateAndFlattenScopes: jest.fn(),
+}));
+const MockScopeAuthorization = jest.mocked(ScopeAuthorization);
+
+jest.mock('./scope/assert', () => ({
   assertScopesSupported: jest.fn(),
 }));
-const MockScope = jest.mocked(Scope);
+const MockScopeAssert = jest.mocked(ScopeAssert);
 
 const { removeAccount } = Caip25CaveatMutatorFactories[Caip25CaveatType];
 
 describe('endowment:caip25', () => {
   beforeEach(() => {
-    MockScope.validateAndFlattenScopes.mockReturnValue({
+    MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
       flattenedRequiredScopes: {},
       flattenedOptionalScopes: {},
     });
@@ -409,7 +414,9 @@ describe('endowment:caip25', () => {
       } catch (err) {
         // noop
       }
-      expect(MockScope.validateAndFlattenScopes).toHaveBeenCalledWith(
+      expect(
+        MockScopeAuthorization.validateAndFlattenScopes,
+      ).toHaveBeenCalledWith(
         {
           'eip155:1': {
             methods: ['eth_chainId'],
@@ -428,7 +435,7 @@ describe('endowment:caip25', () => {
     });
 
     it('asserts the validated and flattened required scopes are supported', () => {
-      MockScope.validateAndFlattenScopes.mockReturnValue({
+      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
         flattenedRequiredScopes: {
           'eip155:1': {
             methods: ['flattened_required'],
@@ -474,7 +481,7 @@ describe('endowment:caip25', () => {
       } catch (err) {
         // noop
       }
-      expect(MockScope.assertScopesSupported).toHaveBeenCalledWith(
+      expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
         {
           'eip155:1': {
             methods: ['flattened_required'],
@@ -486,12 +493,12 @@ describe('endowment:caip25', () => {
         }),
       );
       const isChainIdSupportedBody =
-        MockScope.assertScopesSupported.mock.calls[0][1].isChainIdSupported.toString();
+        MockScopeAssert.assertScopesSupported.mock.calls[0][1].isChainIdSupported.toString();
       expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
     });
 
     it('asserts the validated and flattened optional scopes are supported', () => {
-      MockScope.validateAndFlattenScopes.mockReturnValue({
+      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
         flattenedRequiredScopes: {
           'eip155:1': {
             methods: ['flattened_required'],
@@ -537,7 +544,7 @@ describe('endowment:caip25', () => {
       } catch (err) {
         // noop
       }
-      expect(MockScope.assertScopesSupported).toHaveBeenCalledWith(
+      expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
         {
           'eip155:1': {
             methods: ['flattened_optional'],
@@ -549,12 +556,12 @@ describe('endowment:caip25', () => {
         }),
       );
       const isChainIdSupportedBody =
-        MockScope.assertScopesSupported.mock.calls[1][1].isChainIdSupported.toString();
+        MockScopeAssert.assertScopesSupported.mock.calls[1][1].isChainIdSupported.toString();
       expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
     });
 
     it('throws if the input requiredScopes does not match the output of validateAndFlattenScopes', () => {
-      MockScope.validateAndFlattenScopes.mockReturnValue({
+      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
         flattenedRequiredScopes: {},
         flattenedOptionalScopes: {
           'eip155:5': {
@@ -597,7 +604,7 @@ describe('endowment:caip25', () => {
     });
 
     it('throws if the input optionalScopes does not match the output of validateAndFlattenScopes', () => {
-      MockScope.validateAndFlattenScopes.mockReturnValue({
+      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
         flattenedRequiredScopes: {
           'eip155:1': {
             methods: ['eth_chainId'],
@@ -640,7 +647,7 @@ describe('endowment:caip25', () => {
     });
 
     it('does not throw if the input requiredScopes and optionalScopes ScopesObject are already validated and flattened', () => {
-      MockScope.validateAndFlattenScopes.mockReturnValue({
+      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
         flattenedRequiredScopes: {
           'eip155:1': {
             methods: ['eth_chainId'],

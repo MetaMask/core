@@ -6,8 +6,9 @@ import {
 } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import type { ScopesObject } from '../scope';
-import { mergeScopes, parseScopeString, type ScopeString } from '../scope';
+import type { ScopesObject, ScopeString } from '../scope/scope';
+import { parseScopeString } from '../scope/scope';
+import { mergeScopes } from '../scope/transform';
 
 const isEip155ScopeString = (scopeString: ScopeString) => {
   const { namespace, reference } = parseScopeString(scopeString);
