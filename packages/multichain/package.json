@@ -31,90 +31,150 @@
       "import": {
         "types": "./dist/caip25Permission.d.mts",
         "default": "./dist/caip25Permission.mjs"
+      },
+      "require": {
+        "types": "./dist/caip25Permission.d.cts",
+        "default": "./dist/caip25Permission.cjs"
       }
     },
     "./adapters/caip-permission-adapter-eth-accounts": {
       "import": {
         "types": "./dist/adapters/caip-permission-adapter-eth-accounts.d.mts",
         "default": "./dist/adapters/caip-permission-adapter-eth-accounts.mjs"
+      },
+      "require": {
+        "types": "./dist/adapters/caip-permission-adapter-eth-accounts.d.cts",
+        "default": "./dist/adapters/caip-permission-adapter-eth-accounts.cjs"
       }
     },
     "./adapters/caip-permission-adapter-middleware": {
       "import": {
         "types": "./dist/adapters/caip-permission-adapter-middleware.d.mts",
         "default": "./dist/adapters/caip-permission-adapter-middleware.mjs"
+      },
+      "require": {
+        "types": "./dist/adapters/caip-permission-adapter-middleware.d.cts",
+        "default": "./dist/adapters/caip-permission-adapter-middleware.cjs"
       }
     },
     "./handlers/wallet-getSession": {
       "import": {
         "types": "./dist/handlers/wallet-getSession.d.mts",
         "default": "./dist/handlers/wallet-getSession.mjs"
+      },
+      "require": {
+        "types": "./dist/handlers/wallet-getSession.d.cts",
+        "default": "./dist/handlers/wallet-getSession.cjs"
       }
     },
     "./handlers/wallet-invokeMethod": {
       "import": {
         "types": "./dist/handlers/wallet-invokeMethod.d.mts",
         "default": "./dist/handlers/wallet-invokeMethod.mjs"
+      },
+      "require": {
+        "types": "./dist/handlers/wallet-invokeMethod.d.cts",
+        "default": "./dist/handlers/wallet-invokeMethod.cjs"
       }
     },
     "./handlers/wallet-revokeSession": {
       "import": {
         "types": "./dist/handlers/wallet-revokeSession.d.mts",
         "default": "./dist/handlers/wallet-revokeSession.mjs"
+      },
+      "require": {
+        "types": "./dist/handlers/wallet-revokeSession.d.cts",
+        "default": "./dist/handlers/wallet-revokeSession.cjs"
       }
     },
     "./middlewares/MultichainMethodCallValidator": {
       "import": {
         "types": "./dist/middlewares/MultichainMethodCallValidator.d.mts",
         "default": "./dist/middlewares/MultichainMethodCallValidator.mjs"
+      },
+      "require": {
+        "types": "./dist/middlewares/MultichainMethodCallValidator.d.cts",
+        "default": "./dist/middlewares/MultichainMethodCallValidator.cjs"
       }
     },
     "./middlewares/MultichainMiddlewareManager": {
       "import": {
         "types": "./dist/middlewares/MultichainMiddlewareManager.d.mts",
         "default": "./dist/middlewares/MultichainMiddlewareManager.mjs"
+      },
+      "require": {
+        "types": "./dist/middlewares/MultichainMiddlewareManager.d.cts",
+        "default": "./dist/middlewares/MultichainMiddlewareManager.cjs"
       }
     },
     "./middlewares/MultichainSubscriptionManager": {
       "import": {
         "types": "./dist/middlewares/MultichainSubscriptionManager.d.mts",
         "default": "./dist/middlewares/MultichainSubscriptionManager.mjs"
+      },
+      "require": {
+        "types": "./dist/middlewares/MultichainSubscriptionManager.d.cts",
+        "default": "./dist/middlewares/MultichainSubscriptionManager.cjs"
       }
     },
     "./scope/authorization": {
       "import": {
         "types": "./dist/scope/authorization.d.mts",
         "default": "./dist/scope/authorization.mjs"
+      },
+      "require": {
+        "types": "./dist/scope/authorization.d.cts",
+        "default": "./dist/scope/authorization.cjs"
       }
     },
     "./scope/filter": {
       "import": {
         "types": "./dist/scope/filter.d.mts",
         "default": "./dist/scope/filter.mjs"
+      },
+      "require": {
+        "types": "./dist/scope/filter.d.cts",
+        "default": "./dist/scope/filter.cjs"
       }
     },
     "./scope/scope": {
       "import": {
         "types": "./dist/scope/scope.d.mts",
         "default": "./dist/scope/scope.mjs"
+      },
+      "require": {
+        "types": "./dist/scope/scope.d.cts",
+        "default": "./dist/scope/scope.cjs"
       }
     },
     "./scope/supported": {
       "import": {
         "types": "./dist/scope/supported.d.mts",
         "default": "./dist/scope/supported.mjs"
+      },
+      "require": {
+        "types": "./dist/scope/supported.d.cts",
+        "default": "./dist/scope/supported.cjs"
       }
     },
     "./scope/transform": {
       "import": {
         "types": "./dist/scope/transform.d.mts",
         "default": "./dist/scope/transform.mjs"
+      },
+      "require": {
+        "types": "./dist/scope/transform.d.cts",
+        "default": "./dist/scope/transform.cjs"
       }
     },
     "./scope/validation": {
       "import": {
         "types": "./dist/scope/validation.d.mts",
         "default": "./dist/scope/validation.mjs"
+      },
+      "require": {
+        "types": "./dist/scope/validation.d.cts",
+        "default": "./dist/scope/validation.cjs"
       }
     },
     "./package.json": "./package.json"
