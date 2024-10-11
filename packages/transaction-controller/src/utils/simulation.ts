@@ -332,14 +332,14 @@ async function getTokenBalanceChanges(
       const previousBalanceCheckSkipped = !balanceTxs.before.get(token);
       const previousBalance = previousBalanceCheckSkipped
         ? '0x0'
-        : getValueFromBalanceTransaction(
+        : getAmountFromBalanceTransactionResult(
             request.from,
             token,
             // eslint-disable-next-line no-plusplus
             response.transactions[prevBalanceTxIndex++],
           );
 
-      const newBalance = getValueFromBalanceTransaction(
+      const newBalance = getAmountFromBalanceTransactionResult(
         request.from,
         token,
         response.transactions[index + balanceTxs.before.size + 1],
@@ -477,39 +477,46 @@ function getEventTokenIds(event: ParsedEvent): (Hex | undefined)[] {
 }
 
 /**
+ * Get the interface for a token standard.
+ * @param tokenStandard - The token standard.
+ * @returns The interface for the token standard.
+ */
+function getContractInterface(
+  tokenStandard: SimulationTokenStandard,
+): Interface {
+  switch (tokenStandard) {
+    case SimulationTokenStandard.erc721:
+      return new Interface(abiERC721);
+    case SimulationTokenStandard.erc1155:
+      return new Interface(abiERC1155);
+    default:
+      return new Interface(abiERC20);
+  }
+}
+
+/**
  * Extract the value from a balance transaction response using the correct ABI.
  * @param from - The address to check the balance of.
  * @param token - The token to check the balance of.
  * @param response - The balance transaction response.
  * @returns The value of the balance transaction as Hex.
  */
-export function getValueFromBalanceTransaction(
+function getAmountFromBalanceTransactionResult(
   from: Hex,
   token: SimulationToken,
   response: SimulationResponseTransaction,
 ): Hex {
-  const interfaces = getContractInterfaces();
-  let decoded;
+  const contract = getContractInterface(token.standard);
 
   try {
     if (token.standard === SimulationTokenStandard.erc721) {
-      // ERC721: Check ownership and return 1 if the owner is the user, 0 otherwise.
-      decoded = (
-        interfaces.get(SupportedToken.ERC721) as Interface
-      ).decodeFunctionResult('ownerOf', response.return);
-      const owner = decoded[0].toLowerCase();
-      return owner === from.toLowerCase() ? '0x1' : '0x0';
+      const result = contract.decodeFunctionResult('ownerOf', response.return);
+      const owner = result[0];
+      return hexToBN(owner).eq(hexToBN(from)) ? '0x1' : '0x0';
     }
-    // Non-ERC721: ERC20 and ERC1155 use balanceOf
-    decoded = (
-      interfaces.get(
-        token.standard === SimulationTokenStandard.erc20
-          ? SupportedToken.ERC20
-          : SupportedToken.ERC1155,
-      ) as Interface
-    ).decodeFunctionResult('balanceOf', response.return);
 
-    return toHex(decoded[0] as Hex);
+    const result = contract.decodeFunctionResult('balanceOf', response.return);
+    return toHex(result[0]);
   } catch (error) {
     log('Failed to decode balance transaction', error, { token, response });
     throw new SimulationError(
@@ -532,22 +539,16 @@ function getBalanceTransactionData(
   from: Hex,
   tokenId?: Hex,
 ): Hex {
+  const contract = getContractInterface(tokenStandard);
   switch (tokenStandard) {
     case SimulationTokenStandard.erc721:
-      return new Interface(abiERC721).encodeFunctionData('ownerOf', [
-        tokenId,
-      ]) as Hex;
+      return contract.encodeFunctionData('ownerOf', [tokenId]) as Hex;
 
     case SimulationTokenStandard.erc1155:
-      return new Interface(abiERC1155).encodeFunctionData('balanceOf', [
-        from,
-        tokenId,
-      ]) as Hex;
+      return contract.encodeFunctionData('balanceOf', [from, tokenId]) as Hex;
 
     default:
-      return new Interface(abiERC20).encodeFunctionData('balanceOf', [
-        from,
-      ]) as Hex;
+      return contract.encodeFunctionData('balanceOf', [from]) as Hex;
   }
 }
 
