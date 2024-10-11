@@ -27,6 +27,96 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./caip25Permission": {
+      "import": {
+        "types": "./dist/caip25Permission.d.mts",
+        "default": "./dist/caip25Permission.mjs"
+      }
+    },
+    "./adapters/caip-permission-adapter-eth-accounts": {
+      "import": {
+        "types": "./dist/adapters/caip-permission-adapter-eth-accounts.d.mts",
+        "default": "./dist/adapters/caip-permission-adapter-eth-accounts.mjs"
+      }
+    },
+    "./adapters/caip-permission-adapter-middleware": {
+      "import": {
+        "types": "./dist/adapters/caip-permission-adapter-middleware.d.mts",
+        "default": "./dist/adapters/caip-permission-adapter-middleware.mjs"
+      }
+    },
+    "./handlers/wallet-getSession": {
+      "import": {
+        "types": "./dist/handlers/wallet-getSession.d.mts",
+        "default": "./dist/handlers/wallet-getSession.mjs"
+      }
+    },
+    "./handlers/wallet-invokeMethod": {
+      "import": {
+        "types": "./dist/handlers/wallet-invokeMethod.d.mts",
+        "default": "./dist/handlers/wallet-invokeMethod.mjs"
+      }
+    },
+    "./handlers/wallet-revokeSession": {
+      "import": {
+        "types": "./dist/handlers/wallet-revokeSession.d.mts",
+        "default": "./dist/handlers/wallet-revokeSession.mjs"
+      }
+    },
+    "./middlewares/MultichainMethodCallValidator": {
+      "import": {
+        "types": "./dist/middlewares/MultichainMethodCallValidator.d.mts",
+        "default": "./dist/middlewares/MultichainMethodCallValidator.mjs"
+      }
+    },
+    "./middlewares/MultichainMiddlewareManager": {
+      "import": {
+        "types": "./dist/middlewares/MultichainMiddlewareManager.d.mts",
+        "default": "./dist/middlewares/MultichainMiddlewareManager.mjs"
+      }
+    },
+    "./middlewares/MultichainSubscriptionManager": {
+      "import": {
+        "types": "./dist/middlewares/MultichainSubscriptionManager.d.mts",
+        "default": "./dist/middlewares/MultichainSubscriptionManager.mjs"
+      }
+    },
+    "./scope/authorization": {
+      "import": {
+        "types": "./dist/scope/authorization.d.mts",
+        "default": "./dist/scope/authorization.mjs"
+      }
+    },
+    "./scope/filter": {
+      "import": {
+        "types": "./dist/scope/filter.d.mts",
+        "default": "./dist/scope/filter.mjs"
+      }
+    },
+    "./scope/scope": {
+      "import": {
+        "types": "./dist/scope/scope.d.mts",
+        "default": "./dist/scope/scope.mjs"
+      }
+    },
+    "./scope/supported": {
+      "import": {
+        "types": "./dist/scope/supported.d.mts",
+        "default": "./dist/scope/supported.mjs"
+      }
+    },
+    "./scope/transform": {
+      "import": {
+        "types": "./dist/scope/transform.d.mts",
+        "default": "./dist/scope/transform.mjs"
+      }
+    },
+    "./scope/validation": {
+      "import": {
+        "types": "./dist/scope/validation.d.mts",
+        "default": "./dist/scope/validation.mjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
