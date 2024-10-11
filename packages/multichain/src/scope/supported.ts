@@ -1,5 +1,4 @@
 import { toHex } from '@metamask/controller-utils';
-import type { InternalAccount } from '@metamask/keyring-api';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import {
   isCaipChainId,
@@ -71,7 +70,7 @@ export const isSupportedScopeString = (
 
 export const isSupportedAccount = (
   account: CaipAccountId,
-  getInternalAccounts: () => InternalAccount[],
+  getInternalAccounts: () => { type: string; address: string }[],
 ) => {
   const {
     address,

@@ -17,7 +17,7 @@ import { parseScopeString } from './scope';
  * @param list - The list of items to filter
  * @returns A list of unique items
  */
-function unique<T>(list: T[]): T[] {
+function unique<Value>(list: Value[]): Value[] {
   return Array.from(new Set(list));
 }
 
@@ -39,7 +39,7 @@ export const flattenScope = (
   const { namespace, reference } = parseScopeString(scopeString);
 
   // Scope is already a CAIP-2 ID and has no references to flatten
-  if (reference || !references) {
+  if (!namespace || reference || !references) {
     return { [scopeString]: scopeObject };
   }
 

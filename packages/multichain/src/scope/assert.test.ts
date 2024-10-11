@@ -163,12 +163,14 @@ describe('Scope Assert', () => {
     const isChainIdSupported = jest.fn();
 
     it('does not throw an error if no scopes are defined', () => {
-      assertScopesSupported(
-        {},
-        {
-          isChainIdSupported,
-        },
-      );
+      expect(
+        assertScopesSupported(
+          {},
+          {
+            isChainIdSupported,
+          },
+        ),
+      ).toBeUndefined();
     });
 
     it('throws an error if any scope is invalid', () => {

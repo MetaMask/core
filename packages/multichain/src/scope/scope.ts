@@ -12,9 +12,9 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-export type NonWalletKnownCaipNamespace = Exclude<
+export type NonWalletKnownCaipNamespace = Extract<
   KnownCaipNamespace,
-  KnownCaipNamespace.Wallet
+  KnownCaipNamespace.Eip155
 >;
 
 export const KnownWalletRpcMethods: string[] = [
