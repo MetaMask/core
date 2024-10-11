@@ -656,34 +656,36 @@ describe('endowment:caip25', () => {
           },
         },
       });
-      validator({
-        caveats: [
-          {
-            type: Caip25CaveatType,
-            value: {
-              requiredScopes: {
-                'eip155:1': {
-                  methods: ['eth_chainId'],
-                  notifications: [],
-                  accounts: ['eip155:1:0xdead'],
+      expect(
+        validator({
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {
+                  'eip155:1': {
+                    methods: ['eth_chainId'],
+                    notifications: [],
+                    accounts: ['eip155:1:0xdead'],
+                  },
                 },
-              },
-              optionalScopes: {
-                'eip155:5': {
-                  methods: [],
-                  notifications: [],
-                  accounts: ['eip155:5:0xbeef'],
+                optionalScopes: {
+                  'eip155:5': {
+                    methods: [],
+                    notifications: [],
+                    accounts: ['eip155:5:0xbeef'],
+                  },
                 },
+                isMultichainOrigin: true,
               },
-              isMultichainOrigin: true,
             },
-          },
-        ],
-        date: 1234,
-        id: '1',
-        invoker: 'test.com',
-        parentCapability: Caip25EndowmentPermissionName,
-      });
+          ],
+          date: 1234,
+          id: '1',
+          invoker: 'test.com',
+          parentCapability: Caip25EndowmentPermissionName,
+        }),
+      ).toBeUndefined();
     });
   });
 });

@@ -53,7 +53,7 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
  * `endowment:caip25` returns nothing atm;
  *
  * @param builderOptions - The specification builder options.
- * @param builderOptions.findNetworkClientIdByChainId
+ * @param builderOptions.findNetworkClientIdByChainId - The hook to find the networkClientId for a chainId.
  * @returns The specification for the `caip25` endowment.
  */
 const specificationBuilder: PermissionSpecificationBuilder<
@@ -140,9 +140,9 @@ export const Caip25CaveatMutatorFactories = {
   },
 };
 
-const reduceKeysHelper = <K extends string, V>(
-  acc: Record<K, V>,
-  [key, value]: [K, V],
+const reduceKeysHelper = <Key extends string, Value>(
+  acc: Record<Key, Value>,
+  [key, value]: [Key, Value],
 ) => {
   return {
     ...acc,
