@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   AddApprovalRequest,
   AcceptResultCallbacks,
@@ -43,6 +42,10 @@ import type {
   TypedSigningOptions,
 } from './types';
 import {
+  normalizePersonalMessageParams,
+  normalizeTypedMessageParams,
+} from './utils/normalize';
+import {
   validatePersonalSignatureRequest,
   validateTypedSignatureRequest,
 } from './utils/validation';
@@ -75,13 +78,13 @@ export type SignatureControllerState = {
    * Map of personal messages with the unapproved status, keyed by ID.
    * @deprecated - Use `signatureRequests` instead.
    */
-  unapprovedPersonalMsgs: Record<string, any>;
+  unapprovedPersonalMsgs: Record<string, SignatureRequest>;
 
   /**
    * Map of typed messages with the unapproved status, keyed by ID.
    * @deprecated - Use `signatureRequests` instead.
    */
-  unapprovedTypedMessages: Record<string, any>;
+  unapprovedTypedMessages: Record<string, SignatureRequest>;
 
   /**
    * Number of unapproved personal messages.
@@ -289,10 +292,13 @@ export class SignatureController extends BaseController<
   ): Promise<string> {
     validatePersonalSignatureRequest(messageParams);
 
-    messageParams.siwe = detectSIWE(messageParams);
+    const normalizedMessageParams =
+      normalizePersonalMessageParams(messageParams);
+
+    normalizedMessageParams.siwe = detectSIWE(messageParams);
 
     return this.#processSignatureRequest({
-      messageParams,
+      messageParams: normalizedMessageParams,
       request,
       type: SignatureRequestType.PersonalSign,
       approvalType: ApprovalType.PersonalSign,
@@ -324,8 +330,13 @@ export class SignatureController extends BaseController<
       this.#getCurrentChainId(),
     );
 
-    return this.#processSignatureRequest({
+    const normalizedMessageParams = normalizeTypedMessageParams(
       messageParams,
+      version as SignTypedDataVersion,
+    );
+
+    return this.#processSignatureRequest({
+      messageParams: normalizedMessageParams,
       request,
       type: SignatureRequestType.TypedSign,
       approvalType: ApprovalType.EthSignTypedData,
@@ -342,6 +353,7 @@ export class SignatureController extends BaseController<
    * @param signatureRequestId - The ID of the signature request.
    * @param signature - The signature to provide.
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     const updatedSignatureRequest = this.#updateMetadata(
       signatureRequestId,
@@ -578,6 +590,7 @@ export class SignatureController extends BaseController<
       });
 
       this.hub.emit(`${id}:finished`, finalMetadata);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (type === SignatureRequestType.TypedSign) {
         this.#updateMetadata(id, (draftMetadata) => {
@@ -658,7 +671,7 @@ export class SignatureController extends BaseController<
         id,
         origin,
         type,
-        requestData: { ...messageParams } as any,
+        requestData: { ...messageParams },
         expectsResult: true,
       },
       true,
@@ -685,7 +698,7 @@ export class SignatureController extends BaseController<
   #updateState(callback: (state: SignatureControllerState) => void) {
     return this.update((state) => {
       // eslint-disable-next-line n/callback-return, n/no-callback-literal
-      callback(state as any);
+      callback(state as unknown as SignatureControllerState);
 
       const unapprovedRequests = Object.values(
         state.signatureRequests as unknown as Record<string, SignatureRequest>,

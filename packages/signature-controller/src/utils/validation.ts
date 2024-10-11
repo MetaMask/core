@@ -4,7 +4,7 @@ import {
   typedSignatureHash,
 } from '@metamask/eth-sig-util';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { Hex } from '@metamask/utils';
+import { type Hex } from '@metamask/utils';
 import { validate } from 'jsonschema';
 
 import type { MessageParamsPersonal, MessageParamsTyped } from '../types';

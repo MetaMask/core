@@ -1,7 +1,5 @@
-/* eslint-disable jsdoc/require-jsdoc */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+import type { SIWEMessage } from '@metamask/controller-utils';
+import { detectSIWE } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 
@@ -12,10 +10,15 @@ import type {
   SignatureControllerState,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
-import type { SignatureRequest } from './types';
+import type { MessageParamsPersonal, SignatureRequest } from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
+import {
+  normalizePersonalMessageParams,
+  normalizeTypedMessageParams,
+} from './utils/normalize';
 
 jest.mock('./utils/validation');
+jest.mock('./utils/normalize');
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -40,12 +43,17 @@ const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
   type: SignatureRequestType.PersonalSign,
 };
 
+/**
+ * Create a mock messenger instance.
+ * @returns The mock messenger instance plus individual mock functions for each action.
+ */
 function createMessengerMock() {
   const loggingControllerAddMock = jest.fn();
   const approvalControllerAddRequestMock = jest.fn();
   const keyringControllerSignPersonalMessageMock = jest.fn();
   const keyringControllerSignTypedMessageMock = jest.fn();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callMock = (method: string, ...args: any[]) => {
     switch (method) {
       case 'LoggingController:add':
@@ -66,8 +74,6 @@ function createMessengerMock() {
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
     call: callMock,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as unknown as jest.Mocked<SignatureControllerMessenger>;
 
   approvalControllerAddRequestMock.mockResolvedValue({});
@@ -82,6 +88,11 @@ function createMessengerMock() {
   };
 }
 
+/**
+ * Create a new instance of the SignatureController.
+ * @param options - Optional overrides for the default options.
+ * @returns The controller instance plus individual mock functions for each action.
+ */
 function createController(options?: Partial<SignatureControllerOptions>) {
   const messengerMocks = createMessengerMock();
 
@@ -95,8 +106,21 @@ function createController(options?: Partial<SignatureControllerOptions>) {
 }
 
 describe('SignatureController', () => {
+  const normalizePersonalMessageParamsMock = jest.mocked(
+    normalizePersonalMessageParams,
+  );
+
+  const normalizeTypedMessageParamsMock = jest.mocked(
+    normalizeTypedMessageParams,
+  );
+
+  const detectSIWEMock = jest.mocked(detectSIWE);
+
   beforeEach(() => {
     jest.resetAllMocks();
+
+    normalizePersonalMessageParamsMock.mockImplementation((params) => params);
+    normalizeTypedMessageParamsMock.mockImplementation((params) => params);
   });
 
   describe('unapprovedPersonalMessagesCount', () => {
@@ -304,6 +328,7 @@ describe('SignatureController', () => {
         createController();
 
       const errorMock = new Error('Custom message');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (errorMock as any).code = 1234;
 
       approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
@@ -478,6 +503,26 @@ describe('SignatureController', () => {
       );
 
       expect(result).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it('adds SIWE data', async () => {
+      const { controller } = createController();
+
+      const siweMock = {
+        isSIWEMessage: true,
+        parsedMessage: { domain: 'test' },
+      } as SIWEMessage;
+
+      detectSIWEMock.mockReturnValueOnce(siweMock);
+
+      await controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {});
+
+      const id = Object.keys(controller.state.signatureRequests)[0];
+
+      const messageParams = controller.state.signatureRequests[id]
+        .messageParams as MessageParamsPersonal;
+
+      expect(messageParams.siwe).toStrictEqual(siweMock);
     });
   });
 
