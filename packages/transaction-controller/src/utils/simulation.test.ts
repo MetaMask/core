@@ -35,18 +35,21 @@ const trimLeadingZeros = (hexString: Hex): Hex => {
   return trimmed === '0x' ? '0x0' : trimmed;
 };
 
-const USER_ADDRESS_MOCK = '0x123';
-const OTHER_ADDRESS_MOCK = '0x456';
-const CONTRACT_ADDRESS_1_MOCK = '0x789';
-const CONTRACT_ADDRESS_2_MOCK = '0xDEF';
-const BALANCE_1_MOCK = '0x0';
-const BALANCE_2_MOCK = '0x1';
-const DIFFERENCE_MOCK = '0x1';
-const VALUE_MOCK = '0x4';
-const TOKEN_ID_MOCK = '0x5';
-const OTHER_TOKEN_ID_MOCK = '0x6';
+const USER_ADDRESS_MOCK = '0x123' as Hex;
+const OTHER_ADDRESS_MOCK = '0x456' as Hex;
+const CONTRACT_ADDRESS_1_MOCK = '0x789' as Hex;
+const CONTRACT_ADDRESS_2_MOCK = '0xDEF' as Hex;
+const BALANCE_1_MOCK = '0x0' as Hex;
+const BALANCE_2_MOCK = '0x1' as Hex;
+const DIFFERENCE_MOCK = '0x1' as Hex;
+const VALUE_MOCK = '0x4' as Hex;
+const TOKEN_ID_MOCK = '0x5' as Hex;
+const OTHER_TOKEN_ID_MOCK = '0x6' as Hex;
 const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error';
+
+// Regression test – leading zero in user address
+const USER_ADDRESS_WITH_LEADING_ZEROS = '0x0123' as Hex;
 
 const REQUEST_MOCK: GetSimulationDataRequest = {
   chainId: '0x1',
@@ -295,6 +298,7 @@ describe('Simulation Utils', () => {
       it.each([
         {
           title: 'ERC-20 token',
+          from: USER_ADDRESS_MOCK,
           parsedEvent: PARSED_ERC20_TRANSFER_EVENT_MOCK,
           tokenType: SupportedToken.ERC20,
           tokenStandard: SimulationTokenStandard.erc20,
@@ -304,6 +308,7 @@ describe('Simulation Utils', () => {
         },
         {
           title: 'ERC-721 token',
+          from: USER_ADDRESS_MOCK,
           parsedEvent: PARSED_ERC721_TRANSFER_EVENT_MOCK,
           tokenType: SupportedToken.ERC721,
           tokenStandard: SimulationTokenStandard.erc721,
@@ -312,7 +317,19 @@ describe('Simulation Utils', () => {
           newBalances: [USER_ADDRESS_MOCK],
         },
         {
+          // Regression test – leading zero in user address
+          title: 'ERC-721 token – where user address has leadding zero',
+          from: USER_ADDRESS_WITH_LEADING_ZEROS,
+          parsedEvent: PARSED_ERC721_TRANSFER_EVENT_MOCK,
+          tokenType: SupportedToken.ERC721,
+          tokenStandard: SimulationTokenStandard.erc721,
+          tokenId: TOKEN_ID_MOCK,
+          previousBalances: [OTHER_ADDRESS_MOCK],
+          newBalances: [USER_ADDRESS_WITH_LEADING_ZEROS],
+        },
+        {
           title: 'ERC-1155 token via single event',
+          from: USER_ADDRESS_MOCK,
           parsedEvent: PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK,
           tokenType: SupportedToken.ERC1155,
           tokenStandard: SimulationTokenStandard.erc1155,
@@ -322,6 +339,7 @@ describe('Simulation Utils', () => {
         },
         {
           title: 'ERC-1155 token via batch event',
+          from: USER_ADDRESS_MOCK,
           parsedEvent: PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK,
           tokenType: SupportedToken.ERC1155,
           tokenStandard: SimulationTokenStandard.erc1155,
@@ -331,6 +349,7 @@ describe('Simulation Utils', () => {
         },
         {
           title: 'wrapped ERC-20 token',
+          from: USER_ADDRESS_MOCK,
           parsedEvent: PARSED_WRAPPED_ERC20_DEPOSIT_EVENT_MOCK,
           tokenType: SupportedToken.ERC20_WRAPPED,
           tokenStandard: SimulationTokenStandard.erc20,
@@ -340,6 +359,7 @@ describe('Simulation Utils', () => {
         },
         {
           title: 'legacy ERC-721 token',
+          from: USER_ADDRESS_MOCK,
           parsedEvent: PARSED_ERC721_TRANSFER_EVENT_MOCK,
           tokenType: SupportedToken.ERC721_LEGACY,
           tokenStandard: SimulationTokenStandard.erc721,
@@ -350,6 +370,7 @@ describe('Simulation Utils', () => {
       ])(
         'on $title',
         async ({
+          from,
           parsedEvent,
           tokenStandard,
           tokenType,
@@ -367,7 +388,10 @@ describe('Simulation Utils', () => {
               createBalanceOfResponse(previousBalances, newBalances),
             );
 
-          const simulationData = await getSimulationData(REQUEST_MOCK);
+          const simulationData = await getSimulationData({
+            chainId: '0x1',
+            from,
+          });
 
           expect(simulationData).toStrictEqual({
             nativeBalanceChange: undefined,
