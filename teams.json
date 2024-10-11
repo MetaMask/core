@@ -23,7 +23,7 @@
   "metamask/notification-services-controller": "team-notifications",
   "metamask/permission-controller": "team-wallet-api-platform",
   "metamask/permission-log-controller": "team-wallet-api-platform",
-  "metamask/phishing-controller": "",
+  "metamask/phishing-controller": "team-product-safety",
   "metamask/polling-controller": "team-wallet-framework",
   "metamask/preferences-controller": "team-wallet-framework",
   "metamask/profile-sync-controller": "team-notifications",
