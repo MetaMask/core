@@ -1,10 +1,11 @@
 import { isCaipReference } from '@metamask/utils';
-import {
+
+import type {
   ExternalScopeString,
-  parseScopeString,
   ExternalScopeObject,
   ExternalScopesObject,
 } from './scope';
+import { parseScopeString } from './scope';
 
 export const isValidScope = (
   scopeString: ExternalScopeString,

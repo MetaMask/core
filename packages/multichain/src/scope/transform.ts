@@ -1,16 +1,23 @@
-import { CaipReference } from '@metamask/utils';
+import type { CaipReference } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
-import {
+
+import type {
   ExternalScopeObject,
   ExternalScopesObject,
   ScopeString,
   ScopeObject,
   ScopesObject,
-  parseScopeString,
 } from './scope';
+import { parseScopeString } from './scope';
 
-// DRY THIS
-function unique<T>(list: T[]): T[] {
+// TODO: DRY THIS
+/**
+ * Returns a list of unique items
+ *
+ * @param list - The list of items to filter
+ * @returns A list of unique items
+ */
+function unique<Value>(list: Value[]): Value[] {
   return Array.from(new Set(list));
 }
 
@@ -32,7 +39,7 @@ export const flattenScope = (
   const { namespace, reference } = parseScopeString(scopeString);
 
   // Scope is already a CAIP-2 ID and has no references to flatten
-  if (reference || !references) {
+  if (!namespace || reference || !references) {
     return { [scopeString]: scopeObject };
   }
 

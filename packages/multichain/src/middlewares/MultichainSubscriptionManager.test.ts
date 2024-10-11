@@ -1,4 +1,5 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
+
 import MultichainSubscriptionManager from './MultichainSubscriptionManager';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
@@ -63,7 +64,7 @@ describe('MultichainSubscriptionManager', () => {
   });
 
   it('should subscribe to a scope, origin, and tabId', () => {
-    const { multichainSubscriptionManager} =
+    const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     const onNotificationSpy = jest.fn();
@@ -83,7 +84,7 @@ describe('MultichainSubscriptionManager', () => {
   });
 
   it('should unsubscribe from a scope', () => {
-    const { multichainSubscriptionManager} =
+    const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByScope(scope);
@@ -92,7 +93,7 @@ describe('MultichainSubscriptionManager', () => {
   });
 
   it('should unsubscribe from a scope and origin', () => {
-    const { multichainSubscriptionManager} =
+    const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByScopeAndOrigin(scope, origin);
@@ -105,7 +106,7 @@ describe('MultichainSubscriptionManager', () => {
   });
 
   it('should unsubscribe from a origin and tabId', () => {
-    const { multichainSubscriptionManager} =
+    const { multichainSubscriptionManager } =
       createMultichainSubscriptionManager();
     multichainSubscriptionManager.subscribe({ scope, origin, tabId });
     multichainSubscriptionManager.unsubscribeByOriginAndTabId(origin, tabId);

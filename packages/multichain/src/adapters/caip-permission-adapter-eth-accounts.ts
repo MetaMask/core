@@ -1,16 +1,13 @@
 import {
-  CaipAccountId,
-  Hex,
+  type CaipAccountId,
+  type Hex,
   KnownCaipNamespace,
   parseCaipAccountId,
 } from '@metamask/utils';
-import { Caip25CaveatValue } from '../caip25Permission';
-import {
-  mergeScopes,
-  parseScopeString,
-  ScopesObject,
-  ScopeString,
-} from '../scope';
+
+import type { Caip25CaveatValue } from '../caip25Permission';
+import type { ScopesObject } from '../scope';
+import { mergeScopes, parseScopeString, type ScopeString } from '../scope';
 
 const isEip155ScopeString = (scopeString: ScopeString) => {
   const { namespace, reference } = parseScopeString(scopeString);

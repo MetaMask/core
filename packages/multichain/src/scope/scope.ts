@@ -1,18 +1,20 @@
 import MetaMaskOpenRPCDocument from '@metamask/api-specs';
-import {
+import type {
   CaipChainId,
   CaipReference,
   CaipAccountId,
-  isCaipNamespace,
-  isCaipChainId,
-  parseCaipChainId,
   KnownCaipNamespace,
   CaipNamespace,
 } from '@metamask/utils';
+import {
+  isCaipNamespace,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
 
-export type NonWalletKnownCaipNamespace = Exclude<
+export type NonWalletKnownCaipNamespace = Extract<
   KnownCaipNamespace,
-  KnownCaipNamespace.Wallet
+  KnownCaipNamespace.Eip155
 >;
 
 export const KnownWalletRpcMethods: string[] = [
@@ -22,7 +24,7 @@ export const KnownWalletRpcMethods: string[] = [
 const WalletEip155Methods = ['wallet_addEthereumChain'];
 
 const Eip155Methods = MetaMaskOpenRPCDocument.methods
-  .map(({ name }: { name: string}) => name)
+  .map(({ name }: { name: string }) => name)
   .filter((method: string) => !WalletEip155Methods.includes(method))
   .filter((method: string) => !KnownWalletRpcMethods.includes(method));
 

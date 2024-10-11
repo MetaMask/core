@@ -1,9 +1,11 @@
-import EventEmitter from 'events';
-import { NetworkController } from '@metamask/network-controller';
-import SafeEventEmitter from '@metamask/safe-event-emitter';
-import { CaipChainId, Hex, parseCaipChainId } from '@metamask/utils';
 import { toHex } from '@metamask/controller-utils';
-import { ExternalScopeString } from '../scope';
+import type { NetworkController } from '@metamask/network-controller';
+import SafeEventEmitter from '@metamask/safe-event-emitter';
+import type { CaipChainId, Hex } from '@metamask/utils';
+import { parseCaipChainId } from '@metamask/utils';
+import type EventEmitter from 'events';
+
+import type { ExternalScopeString } from '../scope';
 
 export type SubscriptionManager = {
   events: EventEmitter;

@@ -1,21 +1,22 @@
 import { MultiChainOpenRPCDocument } from '@metamask/api-specs';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
 import { rpcErrors } from '@metamask/rpc-errors';
-import {
+import { isObject } from '@metamask/utils';
+import type {
+  Json,
   JsonRpcError,
   JsonRpcParams,
   JsonRpcRequest,
-  isObject,
 } from '@metamask/utils';
-import {
+import type {
   ContentDescriptorObject,
   MethodObject,
   OpenrpcDocument,
 } from '@open-rpc/meta-schema';
 import dereferenceDocument from '@open-rpc/schema-utils-js/build/dereference-document';
 import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document';
-import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { Json } from '@metamask/utils';
-import { Schema, ValidationError, Validator } from 'jsonschema';
+import type { Schema, ValidationError } from 'jsonschema';
+import { Validator } from 'jsonschema';
 
 const transformError = (
   error: ValidationError,
@@ -88,6 +89,7 @@ export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
   JsonRpcRequest,
   Json
 > = function (request, _response, next, end) {
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   multichainMethodCallValidator(request.method, request.params).then(
     (errors) => {
       if (errors) {

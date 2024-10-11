@@ -1,11 +1,23 @@
-import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { ExternalScopeString } from '../scope';
-import { Json, JsonRpcParams } from '@metamask/utils';
+import type {
+  JsonRpcEngineEndCallback,
+  JsonRpcEngineNextCallback,
+} from '@metamask/json-rpc-engine';
+import type {
+  Json,
+  JsonRpcRequest,
+  PendingJsonRpcResponse,
+} from '@metamask/utils';
 
-// Extend JsonRpcMiddleware to include the destroy method
-// this was introduced in 7.0.0 of json-rpc-engine: https://github.com/MetaMask/json-rpc-engine/blob/v7.0.0/src/JsonRpcEngine.ts#L29-L40
-export type ExtendedJsonRpcMiddleware = JsonRpcMiddleware<JsonRpcParams, Json> & {
-  destroy?: () => void;
+import type { ExternalScopeString } from '../scope';
+
+export type ExtendedJsonRpcMiddleware = {
+  (
+    req: JsonRpcRequest & { scope: string },
+    res: PendingJsonRpcResponse<Json>,
+    next: JsonRpcEngineNextCallback,
+    end: JsonRpcEngineEndCallback,
+  ): void;
+  destroy?: () => void | Promise<void>;
 };
 
 type MiddlewareKey = {
@@ -57,7 +69,10 @@ export default class MultichainMiddlewareManager {
       return;
     }
 
-    existingMiddlewareEntry.middleware.destroy?.();
+    // When the destroy function on the middleware is async,
+    // we don't need to wait for it complete
+    // eslint-disable-next-line no-void
+    void existingMiddlewareEntry.middleware.destroy?.();
 
     this.#removeMiddlewareEntry(middlewareKey);
   }
@@ -97,10 +112,7 @@ export default class MultichainMiddlewareManager {
     tabId?: number,
   ) {
     const middleware: ExtendedJsonRpcMiddleware = (req, res, next, end) => {
-      const r = req as unknown as {
-        scope: string;
-      };
-      const { scope } = r;
+      const { scope } = req;
       const middlewareEntry = this.#getMiddlewareEntry({
         scope,
         origin,
@@ -110,8 +122,9 @@ export default class MultichainMiddlewareManager {
       if (middlewareEntry) {
         middlewareEntry.middleware(req, res, next, end);
       } else {
-        next();
+        return next();
       }
+      return undefined;
     };
     middleware.destroy = this.removeMiddlewareByOriginAndTabId.bind(
       this,

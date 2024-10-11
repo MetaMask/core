@@ -1,6 +1,7 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
+
 import { assertScopeSupported, assertScopesSupported } from './assert';
-import { ScopeObject } from './scope';
+import type { ScopeObject } from './scope';
 import * as Supported from './supported';
 
 jest.mock('./supported', () => ({
@@ -133,10 +134,7 @@ describe('Scope Assert', () => {
             },
           );
         }).toThrow(
-          new JsonRpcError(
-            5102,
-            'Requested notifications are not supported',
-          ),
+          new JsonRpcError(5102, 'Requested notifications are not supported'),
         );
       });
 
@@ -165,12 +163,14 @@ describe('Scope Assert', () => {
     const isChainIdSupported = jest.fn();
 
     it('does not throw an error if no scopes are defined', () => {
-      assertScopesSupported(
-        {},
-        {
-          isChainIdSupported,
-        },
-      );
+      expect(
+        assertScopesSupported(
+          {},
+          {
+            isChainIdSupported,
+          },
+        ),
+      ).toBeUndefined();
     });
 
     it('throws an error if any scope is invalid', () => {
@@ -185,9 +185,7 @@ describe('Scope Assert', () => {
             isChainIdSupported,
           },
         );
-      }).toThrow(
-        new JsonRpcError(5100, 'Requested chains are not supported'),
-      );
+      }).toThrow(new JsonRpcError(5100, 'Requested chains are not supported'));
     });
 
     it('does not throw an error if all scopes are valid', () => {

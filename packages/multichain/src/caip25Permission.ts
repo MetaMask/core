@@ -1,4 +1,4 @@
-import { strict as assert } from 'assert';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   PermissionSpecificationBuilder,
   EndowmentGetterParams,
@@ -11,22 +11,17 @@ import {
   PermissionType,
   SubjectType,
 } from '@metamask/permission-controller';
+import type { CaipAccountId, Json } from '@metamask/utils';
 import {
-  CaipAccountId,
-  Json,
   parseCaipAccountId,
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
-import { NetworkClientId } from '@metamask/network-controller';
+import { strict as assert } from 'assert';
 import { cloneDeep, isEqual } from 'lodash';
-import {
-  ExternalScopeString,
-  validateAndFlattenScopes,
-  ScopesObject,
-  ScopeObject,
-  assertScopesSupported,
-} from './scope';
+
+import type { ExternalScopeString, ScopesObject, ScopeObject } from './scope';
+import { validateAndFlattenScopes, assertScopesSupported } from './scope';
 
 export type Caip25CaveatValue = {
   requiredScopes: ScopesObject;
@@ -58,7 +53,7 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
  * `endowment:caip25` returns nothing atm;
  *
  * @param builderOptions - The specification builder options.
- * @param builderOptions.findNetworkClientIdByChainId
+ * @param builderOptions.findNetworkClientIdByChainId - The hook to find the networkClientId for a chainId.
  * @returns The specification for the `caip25` endowment.
  */
 const specificationBuilder: PermissionSpecificationBuilder<
@@ -145,9 +140,9 @@ export const Caip25CaveatMutatorFactories = {
   },
 };
 
-const reduceKeysHelper = <K extends string, V>(
-  acc: Record<K, V>,
-  [key, value]: [K, V],
+const reduceKeysHelper = <Key extends string, Value>(
+  acc: Record<Key, Value>,
+  [key, value]: [Key, Value],
 ) => {
   return {
     ...acc,
@@ -155,6 +150,12 @@ const reduceKeysHelper = <K extends string, V>(
   };
 };
 
+/**
+ * Removes the account from the scope object.
+ *
+ * @param targetAddress - The address to remove from the scope object.
+ * @returns A function that removes the account from the scope object.
+ */
 function removeAccountFilterFn(targetAddress: string) {
   return (account: CaipAccountId) => {
     const parsed = parseCaipAccountId(account);
@@ -162,6 +163,12 @@ function removeAccountFilterFn(targetAddress: string) {
   };
 }
 
+/**
+ * Removes the account from the scope object.
+ *
+ * @param targetAddress - The address to remove from the scope object.
+ * @param scopeObject - The scope object to remove the account from.
+ */
 function removeAccountOnScope(targetAddress: string, scopeObject: ScopeObject) {
   if (scopeObject.accounts) {
     scopeObject.accounts = scopeObject.accounts.filter(
@@ -170,6 +177,13 @@ function removeAccountOnScope(targetAddress: string, scopeObject: ScopeObject) {
   }
 }
 
+/**
+ * Removes the target account from the scope object.
+ *
+ * @param targetAddress - The address to remove from the scope object.
+ * @param existingScopes - The scope object to remove the account from.
+ * @returns The updated scope object.
+ */
 function removeAccount(
   targetAddress: string, // non caip-10 formatted address
   existingScopes: Caip25CaveatValue,
@@ -208,6 +222,7 @@ function removeAccount(
  *
  * @param targetScopeString - The scope that is being removed.
  * @param caip25CaveatValue - The CAIP-25 permission caveat value to remove the scope from.
+ * @returns The updated CAIP-25 permission caveat value.
  */
 export function removeScope(
   targetScopeString: ExternalScopeString,

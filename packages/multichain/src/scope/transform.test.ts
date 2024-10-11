@@ -1,4 +1,4 @@
-import { ExternalScopeObject } from './scope';
+import type { ExternalScopeObject } from './scope';
 import {
   flattenScope,
   mergeScopes,

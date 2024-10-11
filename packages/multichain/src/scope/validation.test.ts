@@ -1,8 +1,5 @@
-import { ExternalScopeObject } from './scope';
-import {
-  isValidScope,
-  validateScopes,
-} from './validation';
+import type { ExternalScopeObject } from './scope';
+import { isValidScope, validateScopes } from './validation';
 
 const validScopeString = 'eip155:1';
 const validScopeObject: ExternalScopeObject = {
@@ -128,7 +125,9 @@ describe('Scope Validation', () => {
         scopeString: string,
         scopeObject: unknown,
       ) => {
-        expect(isValidScope(scopeString, scopeObject as ExternalScopeObject)).toStrictEqual(expected);
+        expect(
+          isValidScope(scopeString, scopeObject as ExternalScopeObject),
+        ).toStrictEqual(expected);
       },
     );
   });
@@ -140,16 +139,20 @@ describe('Scope Validation', () => {
     };
 
     it('does not throw an error if required scopes are defined but none are valid', () => {
-      validateScopes(
-        { 'eip155:1': {} as unknown as ExternalScopeObject },
-        undefined,
-      );
+      expect(
+        validateScopes(
+          { 'eip155:1': {} as unknown as ExternalScopeObject },
+          undefined,
+        ),
+      ).toStrictEqual({ validRequiredScopes: {}, validOptionalScopes: {} });
     });
 
     it('does not throw an error if optional scopes are defined but none are valid', () => {
-      validateScopes(undefined, {
-        'eip155:1': {} as unknown as ExternalScopeObject,
-      });
+      expect(
+        validateScopes(undefined, {
+          'eip155:1': {} as unknown as ExternalScopeObject,
+        }),
+      ).toStrictEqual({ validRequiredScopes: {}, validOptionalScopes: {} });
     });
 
     it('returns the valid required and optional scopes', () => {

@@ -3,20 +3,29 @@ import {
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcRequest } from '@metamask/utils';
+
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
 import { walletRevokeSessionHandler } from './wallet-revokeSession';
 
-const baseRequest = {
+const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',
   params: {},
+  jsonrpc: '2.0' as const,
+  id: 1,
+  method: 'wallet_revokeSession',
 };
 
 const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
   const revokePermission = jest.fn();
-  const response = {};
-  const handler = (request) =>
+  const response = {
+    result: true,
+    id: 1,
+    jsonrpc: '2.0' as const,
+  };
+  const handler = (request: JsonRpcRequest & { origin: string }) =>
     walletRevokeSessionHandler(request, response, next, end, {
       revokePermission,
     });
@@ -44,21 +53,24 @@ describe('wallet_revokeSession', () => {
   it('returns true if the CAIP-25 endowment permission does not exist', async () => {
     const { handler, response, revokePermission } = createMockedHandler();
     revokePermission.mockImplementation(() => {
-      throw new PermissionDoesNotExistError();
+      throw new PermissionDoesNotExistError(
+        'foo.com',
+        Caip25EndowmentPermissionName,
+      );
     });
 
     await handler(baseRequest);
-    expect(response.result).toStrictEqual(true);
+    expect(response.result).toBe(true);
   });
 
   it('returns true if the subject does not exist', async () => {
     const { handler, response, revokePermission } = createMockedHandler();
     revokePermission.mockImplementation(() => {
-      throw new UnrecognizedSubjectError();
+      throw new UnrecognizedSubjectError('foo.com');
     });
 
     await handler(baseRequest);
-    expect(response.result).toStrictEqual(true);
+    expect(response.result).toBe(true);
   });
 
   it('throws an internal RPC error if something unexpected goes wrong with revoking the permission', async () => {
@@ -75,6 +87,6 @@ describe('wallet_revokeSession', () => {
     const { handler, response } = createMockedHandler();
 
     await handler(baseRequest);
-    expect(response.result).toStrictEqual(true);
+    expect(response.result).toBe(true);
   });
 });

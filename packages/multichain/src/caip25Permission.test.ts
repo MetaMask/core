@@ -1,19 +1,20 @@
+import type { NonEmptyArray } from '@metamask/controller-utils';
+import type { CaveatConstraint } from '@metamask/permission-controller';
 import {
-  CaveatConstraint,
   CaveatMutatorOperation,
   PermissionType,
   SubjectType,
 } from '@metamask/permission-controller';
-import { NonEmptyArray } from '@metamask/controller-utils';
-import * as Scope from './scope';
+
+import type { Caip25CaveatValue } from './caip25Permission';
 import {
   Caip25CaveatType,
-  Caip25CaveatValue,
   caip25EndowmentBuilder,
   Caip25EndowmentPermissionName,
   Caip25CaveatMutatorFactories,
   removeScope,
 } from './caip25Permission';
+import * as Scope from './scope';
 
 jest.mock('./scope', () => ({
   validateAndFlattenScopes: jest.fn(),
@@ -655,34 +656,36 @@ describe('endowment:caip25', () => {
           },
         },
       });
-      validator({
-        caveats: [
-          {
-            type: Caip25CaveatType,
-            value: {
-              requiredScopes: {
-                'eip155:1': {
-                  methods: ['eth_chainId'],
-                  notifications: [],
-                  accounts: ['eip155:1:0xdead'],
+      expect(
+        validator({
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {
+                  'eip155:1': {
+                    methods: ['eth_chainId'],
+                    notifications: [],
+                    accounts: ['eip155:1:0xdead'],
+                  },
                 },
-              },
-              optionalScopes: {
-                'eip155:5': {
-                  methods: [],
-                  notifications: [],
-                  accounts: ['eip155:5:0xbeef'],
+                optionalScopes: {
+                  'eip155:5': {
+                    methods: [],
+                    notifications: [],
+                    accounts: ['eip155:5:0xbeef'],
+                  },
                 },
+                isMultichainOrigin: true,
               },
-              isMultichainOrigin: true,
             },
-          },
-        ],
-        date: 1234,
-        id: '1',
-        invoker: 'test.com',
-        parentCapability: Caip25EndowmentPermissionName,
-      });
+          ],
+          date: 1234,
+          id: '1',
+          invoker: 'test.com',
+          parentCapability: Caip25EndowmentPermissionName,
+        }),
+      ).toBeUndefined();
     });
   });
 });

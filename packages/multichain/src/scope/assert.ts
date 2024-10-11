@@ -1,11 +1,12 @@
-import { Hex } from '@metamask/utils';
 import { JsonRpcError } from '@metamask/rpc-errors';
+import type { Hex } from '@metamask/utils';
+
+import type { ScopeObject, ScopesObject } from './scope';
 import {
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
 } from './supported';
-import { ScopeObject, ScopesObject } from './scope';
 
 export const assertScopeSupported = (
   scopeString: string,
@@ -50,10 +51,7 @@ export const assertScopeSupported = (
     // When provider does not recognize one or more requested notification(s)
     //   code = 5202
     //   message = "Unknown notification(s) requested"
-    throw new JsonRpcError(
-      5102,
-      'Requested notifications are not supported',
-    );
+    throw new JsonRpcError(5102, 'Requested notifications are not supported');
   }
 };
 

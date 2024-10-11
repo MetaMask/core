@@ -1,29 +1,31 @@
+import { toHex } from '@metamask/controller-utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 import {
-  CaipAccountId,
-  Hex,
   isCaipChainId,
   isCaipNamespace,
   KnownCaipNamespace,
   parseCaipAccountId,
   parseCaipChainId,
 } from '@metamask/utils';
-import { toHex } from '@metamask/controller-utils';
-import { InternalAccount } from '@metamask/keyring-api';
+
+import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './scope';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-  NonWalletKnownCaipNamespace,
   parseScopeString,
-  ExternalScopeString,
 } from './scope';
 
 // TODO Maybe this gets DRY'ed into utils?.. It's used in TokenDetectionController too
-function isEqualCaseInsensitive(
-  value1: string,
-  value2: string,
-): boolean {
+/**
+ * Checks if two strings are equal, ignoring case.
+ *
+ * @param value1 - The first string to compare.
+ * @param value2 - The second string to compare.
+ * @returns `true` if the strings are equal, ignoring case; otherwise, `false`.
+ */
+function isEqualCaseInsensitive(value1: string, value2: string): boolean {
   if (typeof value1 !== 'string' || typeof value2 !== 'string') {
     return false;
   }
@@ -68,7 +70,7 @@ export const isSupportedScopeString = (
 
 export const isSupportedAccount = (
   account: CaipAccountId,
-  getInternalAccounts: () => InternalAccount[],
+  getInternalAccounts: () => { type: string; address: string }[],
 ) => {
   const {
     address,
