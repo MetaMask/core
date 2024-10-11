@@ -29,6 +29,7 @@ const encodeTo32ByteHex = (value: string | number): Hex => {
   return `0x${BigInt(value).toString(16).padStart(64, '0')}`;
 };
 
+// getSimulationData returns values in hex format with leading zeros trimmed.
 const trimLeadingZeros = (hexString: Hex): Hex => {
   const trimmed = hexString.replace(/^0x0+/u, '0x') as Hex;
   return trimmed === '0x' ? '0x0' : trimmed;
