@@ -1500,15 +1500,15 @@ __metadata:
   linkType: hard
 
 "@metamask/eth-hd-keyring@npm:^7.0.1":
-  version: 7.0.1
-  resolution: "@metamask/eth-hd-keyring@npm:7.0.1"
+  version: 7.0.4
+  resolution: "@metamask/eth-hd-keyring@npm:7.0.4"
   dependencies:
     "@ethereumjs/util": ^8.1.0
-    "@metamask/eth-sig-util": ^7.0.0
-    "@metamask/scure-bip39": ^2.1.0
-    "@metamask/utils": ^8.1.0
+    "@metamask/eth-sig-util": ^7.0.3
+    "@metamask/scure-bip39": ^2.1.1
+    "@metamask/utils": ^9.2.1
     ethereum-cryptography: ^2.1.2
-  checksum: f6ee6dd4bfaf63358265bdfb9c99f32b4a35239ff83def6dca5cf4d9e635c8dc063aab1d3c512f07df50bc0a0e2d05f92075aebecc5098f731b29f8de5d5e2be
+  checksum: 5babb4244d3f2900cac754037353c2fdf85451ef4a174067fb79024354a8aca274be4d2cf9d4dc32c793b75c9bb27e8af10c667d85951493304feb8666944dd2
   languageName: node
   linkType: hard
 
@@ -2073,7 +2073,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/scure-bip39@npm:^2.1.0, @metamask/scure-bip39@npm:^2.1.1":
+"@metamask/scure-bip39@npm:^2.1.1":
   version: 2.1.1
   resolution: "@metamask/scure-bip39@npm:2.1.1"
   dependencies:
