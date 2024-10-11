@@ -512,7 +512,7 @@ function getAmountFromBalanceTransactionResult(
     if (token.standard === SimulationTokenStandard.erc721) {
       const result = contract.decodeFunctionResult('ownerOf', response.return);
       const owner = result[0];
-      return hexToBN(owner).eq(hexToBN(from)) ? '0x1' : '0x0';
+      return owner.toLowerCase() === from.toLowerCase() ? '0x1' : '0x0';
     }
 
     const result = contract.decodeFunctionResult('balanceOf', response.return);

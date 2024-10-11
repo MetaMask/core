@@ -35,10 +35,12 @@ const trimLeadingZeros = (hexString: Hex): Hex => {
   return trimmed === '0x' ? '0x0' : trimmed;
 };
 
-const USER_ADDRESS_MOCK = '0x123' as Hex;
-const OTHER_ADDRESS_MOCK = '0x456' as Hex;
-const CONTRACT_ADDRESS_1_MOCK = '0x789' as Hex;
-const CONTRACT_ADDRESS_2_MOCK = '0xDEF' as Hex;
+const USER_ADDRESS_MOCK = '0x1233333333333333333333333333333333333333' as Hex;
+const OTHER_ADDRESS_MOCK = '0x4566666666666666666666666666666666666666' as Hex;
+const CONTRACT_ADDRESS_1_MOCK =
+  '0x7899999999999999999999999999999999999999' as Hex;
+const CONTRACT_ADDRESS_2_MOCK =
+  '0xDEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF' as Hex;
 const BALANCE_1_MOCK = '0x0' as Hex;
 const BALANCE_2_MOCK = '0x1' as Hex;
 const DIFFERENCE_MOCK = '0x1' as Hex;
@@ -49,7 +51,8 @@ const ERROR_CODE_MOCK = 123;
 const ERROR_MESSAGE_MOCK = 'Test Error';
 
 // Regression test – leading zero in user address
-const USER_ADDRESS_WITH_LEADING_ZEROS = '0x0123' as Hex;
+const USER_ADDRESS_WITH_LEADING_ZERO =
+  '0x0012333333333333333333333333333333333333' as Hex;
 
 const REQUEST_MOCK: GetSimulationDataRequest = {
   chainId: '0x1',
@@ -319,13 +322,20 @@ describe('Simulation Utils', () => {
         {
           // Regression test – leading zero in user address
           title: 'ERC-721 token – where user address has leadding zero',
-          from: USER_ADDRESS_WITH_LEADING_ZEROS,
-          parsedEvent: PARSED_ERC721_TRANSFER_EVENT_MOCK,
+          from: USER_ADDRESS_WITH_LEADING_ZERO,
+          parsedEvent: {
+            ...PARSED_ERC721_TRANSFER_EVENT_MOCK,
+            args: [
+              OTHER_ADDRESS_MOCK,
+              USER_ADDRESS_WITH_LEADING_ZERO,
+              { toHexString: () => TOKEN_ID_MOCK },
+            ],
+          },
           tokenType: SupportedToken.ERC721,
           tokenStandard: SimulationTokenStandard.erc721,
           tokenId: TOKEN_ID_MOCK,
           previousBalances: [OTHER_ADDRESS_MOCK],
-          newBalances: [USER_ADDRESS_WITH_LEADING_ZEROS],
+          newBalances: [USER_ADDRESS_WITH_LEADING_ZERO],
         },
         {
           title: 'ERC-1155 token via single event',
