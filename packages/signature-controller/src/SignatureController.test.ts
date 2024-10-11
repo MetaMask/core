@@ -285,15 +285,15 @@ describe('SignatureController', () => {
   describe.each([
     [
       'newUnsignedPersonalMessage',
-      (controller: SignatureController) =>
-        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {}),
+      (controller: SignatureController, request = {}) =>
+        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, request),
     ],
     [
       'newUnsignedTypedMessage',
-      (controller: SignatureController) =>
+      (controller: SignatureController, request = {}) =>
         controller.newUnsignedTypedMessage(
           PARAMS_MOCK,
-          {},
+          request,
           SignTypedDataVersion.V1,
           { parseJsonData: false },
         ),
@@ -436,6 +436,30 @@ describe('SignatureController', () => {
           signingData: expect.any(Object),
         },
       });
+    });
+
+    it('populates origin from request', async () => {
+      const { controller } = createController();
+
+      await fn(controller, { origin: 'test' });
+
+      const id = Object.keys(controller.state.signatureRequests)[0];
+
+      expect(controller.state.signatureRequests[id].request.origin).toBe(
+        'test',
+      );
+    });
+
+    it('populates request ID from request', async () => {
+      const { controller } = createController();
+
+      await fn(controller, { id: 'test' });
+
+      const id = Object.keys(controller.state.signatureRequests)[0];
+
+      expect(controller.state.signatureRequests[id].request.requestId).toBe(
+        'test',
+      );
     });
   });
 

@@ -37,7 +37,7 @@ import { SignatureRequestStatus, SignatureRequestType } from './types';
 import type {
   MessageParamsPersonal,
   MessageParamsTyped,
-  JsonRequest,
+  OriginalRequest,
   SignatureRequest,
   MessageParams,
   TypedSigningOptions,
@@ -51,7 +51,6 @@ const controllerName = 'SignatureController';
 
 const stateMetadata = {
   signatureRequests: { persist: false, anonymous: false },
-  // Legacy + Generated
   unapprovedPersonalMsgs: { persist: false, anonymous: false },
   unapprovedTypedMessages: { persist: false, anonymous: false },
   unapprovedPersonalMsgCount: { persist: false, anonymous: false },
@@ -60,7 +59,6 @@ const stateMetadata = {
 
 const getDefaultState = () => ({
   signatureRequests: {},
-  // Legacy + Generated
   unapprovedPersonalMsgs: {},
   unapprovedTypedMessages: {},
   unapprovedPersonalMsgCount: 0,
@@ -68,11 +66,33 @@ const getDefaultState = () => ({
 });
 
 export type SignatureControllerState = {
+  /**
+   * Map of all signature requests including all types and statuses, keyed by ID.
+   */
   signatureRequests: Record<string, SignatureRequest>;
-  // Legacy + Generated
+
+  /**
+   * Map of personal messages with the unapproved status, keyed by ID.
+   * @deprecated - Use `signatureRequests` instead.
+   */
   unapprovedPersonalMsgs: Record<string, any>;
+
+  /**
+   * Map of typed messages with the unapproved status, keyed by ID.
+   * @deprecated - Use `signatureRequests` instead.
+   */
   unapprovedTypedMessages: Record<string, any>;
+
+  /**
+   * Number of unapproved personal messages.
+   * @deprecated - Use `signatureRequests` instead.
+   */
   unapprovedPersonalMsgCount: number;
+
+  /**
+   * Number of unapproved typed messages.
+   * @deprecated - Use `signatureRequests` instead.
+   */
   unapprovedTypedMessagesCount: number;
 };
 
@@ -258,11 +278,14 @@ export class SignatureController extends BaseController<
    *
    * @param messageParams - The params of the message to sign and return to the dApp.
    * @param request - The original request, containing the origin.
+   * @param options - An options bag for the method.
+   * @param options.traceContext - The parent context for any new traces.
    * @returns Promise resolving to the raw signature hash generated from the signature request.
    */
   async newUnsignedPersonalMessage(
     messageParams: MessageParamsPersonal,
-    request: JsonRequest,
+    request: OriginalRequest,
+    options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     validatePersonalSignatureRequest(messageParams);
 
@@ -273,18 +296,31 @@ export class SignatureController extends BaseController<
       request,
       type: SignatureRequestType.PersonalSign,
       approvalType: ApprovalType.PersonalSign,
+      traceContext: options.traceContext,
     });
   }
 
+  /**
+   * Called when a dapp uses the eth_signTypedData method, per EIP-712.
+   *
+   * @param messageParams - The params of the message to sign and return to the dApp.
+   * @param request - The original request, containing the origin.
+   * @param version - The version of the signTypedData request.
+   * @param signingOptions - Options for signing the typed message.
+   * @param options - An options bag for the method.
+   * @param options.traceContext - The parent context for any new traces.
+   * @returns Promise resolving to the raw signature hash generated from the signature request.
+   */
   async newUnsignedTypedMessage(
     messageParams: MessageParamsTyped,
-    request: JsonRequest,
-    version: SignTypedDataVersion,
+    request: OriginalRequest,
+    version: string,
     signingOptions: TypedSigningOptions,
+    options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     validateTypedSignatureRequest(
       messageParams,
-      version,
+      version as SignTypedDataVersion,
       this.#getCurrentChainId(),
     );
 
@@ -293,11 +329,19 @@ export class SignatureController extends BaseController<
       request,
       type: SignatureRequestType.TypedSign,
       approvalType: ApprovalType.EthSignTypedData,
-      version,
+      version: version as SignTypedDataVersion,
       signingOptions,
+      traceContext: options.traceContext,
     });
   }
 
+  /**
+   * Provide a signature for a pending signature request that used `deferSetAsSigned`.
+   * Changes the status of the signature request to `signed`.
+   *
+   * @param signatureRequestId - The ID of the signature request.
+   * @param signature - The signature to provide.
+   */
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
     const updatedSignatureRequest = this.#updateMetadata(
       signatureRequestId,
@@ -310,12 +354,23 @@ export class SignatureController extends BaseController<
     this.hub.emit(`${signatureRequestId}:finished`, updatedSignatureRequest);
   }
 
+  /**
+   * Set custom metadata on a signature request.
+   * @param signatureRequestId - The ID of the signature request.
+   * @param metadata - The custom metadata to set.
+   */
   setMessageMetadata(signatureRequestId: string, metadata: Json) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.metadata = metadata;
     });
   }
 
+  /**
+   * Reject a pending signature request that used `deferSetAsSigned`.
+   * Changes the status of the signature request to `rejected`.
+   *
+   * @param signatureRequestId - The ID of the signature request.
+   */
   setDeferredSignError(signatureRequestId: string) {
     const updatedSignatureRequest = this.#updateMetadata(
       signatureRequestId,
@@ -327,12 +382,22 @@ export class SignatureController extends BaseController<
     this.hub.emit(`${signatureRequestId}:finished`, updatedSignatureRequest);
   }
 
+  /**
+   * Set the status of a signature request to 'inProgress'.
+   *
+   * @param signatureRequestId - The ID of the signature request.
+   */
   setTypedMessageInProgress(signatureRequestId: string) {
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.status = SignatureRequestStatus.InProgress;
     });
   }
 
+  /**
+   * Set the status of a signature request to 'inProgress'.
+   *
+   * @param signatureRequestId - The ID of the signature request.
+   */
   setPersonalMessageInProgress(signatureRequestId: string) {
     this.setTypedMessageInProgress(signatureRequestId);
   }
@@ -366,7 +431,7 @@ export class SignatureController extends BaseController<
     traceContext,
   }: {
     messageParams: MessageParams;
-    request: JsonRequest;
+    request: OriginalRequest;
     type: SignatureRequestType;
     approvalType: ApprovalType;
     version?: SignTypedDataVersion;

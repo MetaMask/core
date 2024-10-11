@@ -3,30 +3,56 @@
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
-export type JsonRequest = {
+/** Original client request that triggered the signature request. */
+export type OriginalRequest = {
+  /** Unique ID to identify the client request. */
   id?: number;
+
+  /** Source of the client request. */
   origin?: string;
+
+  /** Response following a security scan of the request. */
   securityAlertResponse?: Record<string, Json>;
 };
 
+/** Options for signing typed data. */
 export type TypedSigningOptions = {
+  /** Whether to automatically convert JSON string data to an object. */
   parseJsonData: boolean;
 };
 
+/** The message parameters that were requested to be signed. */
 export type MessageParams = {
+  /** Whether to delay marking the request as signed until a signature is provided via `setDeferredSignSuccess`. */
   deferSetAsSigned?: boolean;
+
+  /** Ethereum address to sign with. */
   from: string;
+
+  /**
+   * Source of the request.
+   * Such as a hostname of a dApp.
+   */
   origin?: string;
+
+  /**
+   * ID of the request that triggered this signature request.
+   */
   requestId?: number;
 };
 
+/** Personal message parameters that were requested to be signed. */
 export type MessageParamsPersonal = MessageParams & {
+  /** Hexadecimal data to sign. */
   data: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
+  /** Sign-In With Ethereum data extracted from the data. */
   siwe?: any;
 };
 
+/** Typed message parameters that were requested to be signed. */
 export type MessageParamsTyped = MessageParams & {
+  /** Structured data to sign. */
   data:
     | Record<string, any>[]
     | string
@@ -39,17 +65,35 @@ export type MessageParamsTyped = MessageParams & {
 };
 
 type SignatureRequestBase = {
+  /** Error message that occurred during the signing. */
   error?: string;
+
+  /** Unique ID to identify this request. */
   id: string;
+
+  /** Custom metadata stored with the request. */
   metadata?: Json;
+
+  /** Response following a security scan of the request. */
   securityAlertResponse?: Record<string, Json>;
+
+  /** Signature hash resulting from the request. */
   signature?: string;
+
+  /** Options used for signing. */
   signingOptions?: TypedSigningOptions;
-  status: SignatureRequestStatus;
+
+  /** Current status of the request. */
+  status: string;
+
+  /** Time the request was created. */
   time: number;
+
+  /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
 };
 
+/** Metadata concerning a request to sign data. */
 export type SignatureRequest = SignatureRequestBase &
   (
     | {
@@ -62,6 +106,7 @@ export type SignatureRequest = SignatureRequestBase &
       }
   );
 
+/** Status of a signature request. */
 export enum SignatureRequestStatus {
   Unapproved = 'unapproved',
   Approved = 'approved',
@@ -71,6 +116,7 @@ export enum SignatureRequestStatus {
   Errored = 'errored',
 }
 
+/** Type of supported signature requests. */
 export enum SignatureRequestType {
   PersonalSign = 'personal_sign',
   TypedSign = 'eth_signTypedData',
