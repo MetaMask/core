@@ -1,3 +1,10 @@
+export type GetSupportedNetworksResponse = {
+  fullSupport: number[];
+  partialSupport: {
+    balances: number[];
+  };
+};
+
 export type GetBalancesQueryParams = {
   /** @description Comma-separated network/chain IDs */
   networks?: string;

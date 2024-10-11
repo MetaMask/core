@@ -1,9 +1,40 @@
 import nock from 'nock';
 
 import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances';
-import { fetchMultiChainBalances } from './multi-chain-accounts';
+import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks';
+import {
+  fetchMultiChainBalances,
+  fetchSupportedChains,
+} from './multi-chain-accounts';
 
 const MOCK_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+
+describe('fetchSupportedChains()', () => {
+  const createMockAPI = () =>
+    nock('https://accounts.api.cx.metamask.io').get('/v1/supportedNetworks');
+
+  it('should successfully return supported networks array', async () => {
+    const mockAPI = createMockAPI().reply(
+      200,
+      MOCK_GET_SUPPORTED_NETWORKS_RESPONSE,
+    );
+
+    const result = await fetchSupportedChains();
+    expect(result).toStrictEqual(
+      MOCK_GET_SUPPORTED_NETWORKS_RESPONSE.fullSupport,
+    );
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('should throw error when fetch fails', async () => {
+    const mockAPI = createMockAPI().reply(500);
+
+    await expect(async () => await fetchSupportedChains()).rejects.toThrow(
+      expect.any(Error),
+    );
+    expect(mockAPI.isDone()).toBe(true);
+  });
+});
 
 describe('fetchMultiChainBalances()', () => {
   const createMockAPI = () =>
@@ -24,17 +55,11 @@ describe('fetchMultiChainBalances()', () => {
     const mockAPI = createMockAPI()
       .query({
         networks: '1,10',
-        filterSupportedTokens: 'true',
-        includeTokenAddresses: 'abc',
-        includeStakedAssets: 'false',
       })
       .reply(200, MOCK_GET_BALANCES_RESPONSE);
 
     const result = await fetchMultiChainBalances(MOCK_ADDRESS, {
-      networks: '1,10',
-      filterSupportedTokens: true,
-      includeTokenAddresses: 'abc',
-      includeStakedAssets: false,
+      networks: [1, 10],
     });
     expect(result).toBeDefined();
     expect(result).toStrictEqual(MOCK_GET_BALANCES_RESPONSE);
