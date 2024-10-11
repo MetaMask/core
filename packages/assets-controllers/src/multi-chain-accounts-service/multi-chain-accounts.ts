@@ -27,7 +27,7 @@ const getBalancesUrl = (
  * Fetches Supported Networks.
  * @returns supported networks (decimal)
  */
-export async function fetchSupportedChains(): Promise<number[]> {
+export async function fetchSupportedNetworks(): Promise<number[]> {
   const url = new URL(`${MULTICHAIN_ACCOUNTS_DOMAIN}/v1/supportedNetworks`);
   const response: GetSupportedNetworksResponse = await handleFetch(url);
   return response.fullSupport;

@@ -4,12 +4,12 @@ import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances';
 import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks';
 import {
   fetchMultiChainBalances,
-  fetchSupportedChains,
+  fetchSupportedNetworks,
 } from './multi-chain-accounts';
 
 const MOCK_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 
-describe('fetchSupportedChains()', () => {
+describe('fetchSupportedNetworks()', () => {
   const createMockAPI = () =>
     nock('https://accounts.api.cx.metamask.io').get('/v1/supportedNetworks');
 
@@ -19,7 +19,7 @@ describe('fetchSupportedChains()', () => {
       MOCK_GET_SUPPORTED_NETWORKS_RESPONSE,
     );
 
-    const result = await fetchSupportedChains();
+    const result = await fetchSupportedNetworks();
     expect(result).toStrictEqual(
       MOCK_GET_SUPPORTED_NETWORKS_RESPONSE.fullSupport,
     );
@@ -29,7 +29,7 @@ describe('fetchSupportedChains()', () => {
   it('should throw error when fetch fails', async () => {
     const mockAPI = createMockAPI().reply(500);
 
-    await expect(async () => await fetchSupportedChains()).rejects.toThrow(
+    await expect(async () => await fetchSupportedNetworks()).rejects.toThrow(
       expect.any(Error),
     );
     expect(mockAPI.isDone()).toBe(true);
