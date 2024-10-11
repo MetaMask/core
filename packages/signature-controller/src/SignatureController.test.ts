@@ -11,7 +11,11 @@ import type {
   SignatureControllerState,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
-import type { MessageParamsPersonal, SignatureRequest } from './types';
+import type {
+  MessageParamsPersonal,
+  OriginalRequest,
+  SignatureRequest,
+} from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
 import {
   normalizePersonalMessageParams,
@@ -29,6 +33,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 const ID_MOCK = '123-456';
 const CHAIN_ID_MOCK = '0x1';
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const FROM_MOCK = '0x456DEF';
 const DATA_MOCK = '0xABC123';
 const SIGNATURE_HASH_MOCK = '0x123ABC';
@@ -40,9 +45,15 @@ const PARAMS_MOCK = {
   data: DATA_MOCK,
 };
 
+const REQUEST_MOCK = {
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+};
+
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
+  chainId: CHAIN_ID_MOCK,
   id: ID_MOCK,
   messageParams: PARAMS_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   status: SignatureRequestStatus.Signed,
   time: Date.now(),
   type: SignatureRequestType.PersonalSign,
@@ -57,6 +68,7 @@ function createMessengerMock() {
   const approvalControllerAddRequestMock = jest.fn();
   const keyringControllerSignPersonalMessageMock = jest.fn();
   const keyringControllerSignTypedMessageMock = jest.fn();
+  const networkControllerGetNetworkClientByIdMock = jest.fn();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callMock = (method: string, ...args: any[]) => {
@@ -69,6 +81,8 @@ function createMessengerMock() {
         return keyringControllerSignPersonalMessageMock(...args);
       case 'KeyringController:signTypedMessage':
         return keyringControllerSignTypedMessageMock(...args);
+      case 'NetworkController:getNetworkClientById':
+        return networkControllerGetNetworkClientByIdMock(...args);
       default:
         throw new Error(`Messenger method not recognised: ${method}`);
     }
@@ -83,6 +97,12 @@ function createMessengerMock() {
 
   approvalControllerAddRequestMock.mockResolvedValue({});
   loggingControllerAddMock.mockResolvedValue({});
+
+  networkControllerGetNetworkClientByIdMock.mockReturnValue({
+    configuration: {
+      chainId: CHAIN_ID_MOCK,
+    },
+  });
 
   return {
     approvalControllerAddRequestMock,
@@ -327,13 +347,13 @@ describe('SignatureController', () => {
   describe.each([
     [
       'newUnsignedPersonalMessage',
-      (controller: SignatureController, request = {}) =>
+      (controller: SignatureController, request: OriginalRequest) =>
         controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, request),
       SignatureRequestType.PersonalSign,
     ],
     [
       'newUnsignedTypedMessage',
-      (controller: SignatureController, request = {}) =>
+      (controller: SignatureController, request: OriginalRequest) =>
         controller.newUnsignedTypedMessage(
           PARAMS_MOCK,
           request,
@@ -352,7 +372,7 @@ describe('SignatureController', () => {
       approvalControllerAddRequestMock.mockRejectedValueOnce(error);
 
       await expect(
-        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {}),
+        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, REQUEST_MOCK),
       ).rejects.toMatchObject({
         message: ERROR_MESSAGE_MOCK,
         code: ERROR_CODE_MOCK,
@@ -383,7 +403,7 @@ describe('SignatureController', () => {
         SIGNATURE_HASH_MOCK,
       );
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(resultCallbackSuccessMock).toHaveBeenCalledTimes(1);
       expect(resultCallbackSuccessMock).toHaveBeenCalledWith(
@@ -398,7 +418,7 @@ describe('SignatureController', () => {
 
       controller.hub.on(`${ID_MOCK}:finished`, listener);
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       const state = controller.state.signatureRequests[ID_MOCK];
 
@@ -418,7 +438,7 @@ describe('SignatureController', () => {
 
       approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
 
-      await fn(controller).catch(() => {
+      await fn(controller, REQUEST_MOCK).catch(() => {
         // Ignore error
       });
 
@@ -431,7 +451,7 @@ describe('SignatureController', () => {
     it('adds logs to logging controller if approved', async () => {
       const { controller, loggingControllerAddMock } = createController();
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
 
@@ -465,7 +485,7 @@ describe('SignatureController', () => {
 
       approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
 
-      await expect(fn(controller)).rejects.toThrow(errorMock);
+      await expect(fn(controller, REQUEST_MOCK)).rejects.toThrow(errorMock);
 
       expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
 
@@ -491,7 +511,7 @@ describe('SignatureController', () => {
     it('populates origin from request', async () => {
       const { controller } = createController();
 
-      await fn(controller, { origin: 'test' });
+      await fn(controller, { ...REQUEST_MOCK, origin: 'test' });
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.origin,
@@ -501,11 +521,19 @@ describe('SignatureController', () => {
     it('populates request ID from request', async () => {
       const { controller } = createController();
 
-      await fn(controller, { id: 'test' });
+      await fn(controller, { ...REQUEST_MOCK, id: 123 });
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.requestId,
-      ).toBe('test');
+      ).toBe(123);
+    });
+
+    it('throws if no network client ID in request', async () => {
+      const { controller } = createController();
+
+      await expect(fn(controller, {} as OriginalRequest)).rejects.toThrow(
+        'Network client ID not found in request',
+      );
     });
 
     it('emits unapproved message event', async () => {
@@ -515,7 +543,7 @@ describe('SignatureController', () => {
 
       controller.hub.on('unapprovedMessage', listener);
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith({
@@ -543,7 +571,7 @@ describe('SignatureController', () => {
 
       controller.hub.on(`${type}:signed`, listener);
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith({
@@ -568,7 +596,7 @@ describe('SignatureController', () => {
       keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
       keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
 
-      await fn(controller).catch(() => {
+      await fn(controller, REQUEST_MOCK).catch(() => {
         // Ignore error
       });
 
@@ -599,7 +627,9 @@ describe('SignatureController', () => {
       keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
       keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
 
-      await expect(fn(controller)).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      await expect(fn(controller, REQUEST_MOCK)).rejects.toThrow(
+        ERROR_MESSAGE_MOCK,
+      );
 
       expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
       expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
@@ -617,7 +647,7 @@ describe('SignatureController', () => {
 
       const result = await controller.newUnsignedPersonalMessage(
         { ...PARAMS_MOCK },
-        {},
+        REQUEST_MOCK,
       );
 
       expect(result).toBe(SIGNATURE_HASH_MOCK);
@@ -633,7 +663,10 @@ describe('SignatureController', () => {
 
       detectSIWEMock.mockReturnValueOnce(siweMock);
 
-      await controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {});
+      await controller.newUnsignedPersonalMessage(
+        { ...PARAMS_MOCK },
+        REQUEST_MOCK,
+      );
 
       const messageParams = controller.state.signatureRequests[ID_MOCK]
         .messageParams as MessageParamsPersonal;
@@ -653,7 +686,7 @@ describe('SignatureController', () => {
 
       const result = await controller.newUnsignedTypedMessage(
         PARAMS_MOCK,
-        {},
+        REQUEST_MOCK,
         SignTypedDataVersion.V1,
         { parseJsonData: false },
       );
@@ -676,7 +709,7 @@ describe('SignatureController', () => {
             ...PARAMS_MOCK,
             data: JSON.stringify({ test: 123 }),
           },
-          {},
+          REQUEST_MOCK,
           version as SignTypedDataVersion,
           { parseJsonData: true },
         );
@@ -706,7 +739,7 @@ describe('SignatureController', () => {
           ...PARAMS_MOCK,
           data: JSON.stringify({ test: 123 }),
         },
-        {},
+        REQUEST_MOCK,
         SignTypedDataVersion.V1,
         { parseJsonData: true },
       );
@@ -733,7 +766,7 @@ describe('SignatureController', () => {
       await expect(
         controller.newUnsignedTypedMessage(
           PARAMS_MOCK,
-          {},
+          REQUEST_MOCK,
           SignTypedDataVersion.V3,
           { parseJsonData: false },
         ),
@@ -782,7 +815,7 @@ describe('SignatureController', () => {
             ...PARAMS_MOCK,
             deferSetAsSigned: true,
           },
-          {},
+          REQUEST_MOCK,
         )
         .then((result) => {
           resolved = true;
@@ -860,7 +893,7 @@ describe('SignatureController', () => {
             ...PARAMS_MOCK,
             deferSetAsSigned: true,
           },
-          {},
+          REQUEST_MOCK,
         )
         .catch((error) => {
           rejectedError = error;

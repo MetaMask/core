@@ -3480,6 +3480,7 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^7.0.1"
     "@metamask/keyring-controller": "npm:^17.2.2"
     "@metamask/logging-controller": "npm:^6.0.1"
+    "@metamask/network-controller": "npm:^21.0.1"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -3495,6 +3496,7 @@ __metadata:
     "@metamask/approval-controller": ^7.0.0
     "@metamask/keyring-controller": ^17.0.0
     "@metamask/logging-controller": ^6.0.0
+    "@metamask/network-controller": ^21.0.1
   languageName: unknown
   linkType: soft
 
