@@ -33,6 +33,12 @@ import {
   buildInfuraNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
+import * as MutliChainAccountsServiceModule from './multi-chain-accounts-service';
+import {
+  MOCK_GET_BALANCES_RESPONSE,
+  createMockGetBalancesResponse,
+} from './multi-chain-accounts-service/mocks/mock-get-balances';
+import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './multi-chain-accounts-service/mocks/mock-get-supported-networks';
 import { TOKEN_END_POINT_API } from './token-service';
 import type {
   AllowedActions,
@@ -46,9 +52,11 @@ import {
 } from './TokenDetectionController';
 import {
   getDefaultTokenListState,
+  type TokenListMap,
   type TokenListState,
   type TokenListToken,
 } from './TokenListController';
+import type { Token } from './TokenRatesController';
 import type {
   TokensController,
   TokensControllerState,
@@ -173,8 +181,24 @@ function buildTokenDetectionControllerMessenger(
   });
 }
 
+const mockMultiChainAccountsService = () => {
+  const mockFetchSupportedNetworks = jest
+    .spyOn(MutliChainAccountsServiceModule, 'fetchSupportedNetworks')
+    .mockResolvedValue(MOCK_GET_SUPPORTED_NETWORKS_RESPONSE.fullSupport);
+  const mockFetchMultiChainBalances = jest
+    .spyOn(MutliChainAccountsServiceModule, 'fetchMultiChainBalances')
+    .mockResolvedValue(MOCK_GET_BALANCES_RESPONSE);
+
+  return {
+    mockFetchSupportedNetworks,
+    mockFetchMultiChainBalances,
+  };
+};
+
 describe('TokenDetectionController', () => {
   const defaultSelectedAccount = createMockInternalAccount();
+
+  mockMultiChainAccountsService();
 
   beforeEach(async () => {
     nock(TOKEN_END_POINT_API)
@@ -2236,6 +2260,229 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    // Our tests setup that RPC will try using sampleTokenA, and API will use sampleTokenB
+    // So can indicate which flow (RPC or API) is used
+    const arrangeActTestDetectTokensWithAccountsAPI = async (props?: {
+      /** Overwrite the tokens cache inside Tokens Controller */
+      overrideMockTokensCache?: (typeof sampleTokenA)[];
+      mockMultiChainAPI?: ReturnType<typeof mockMultiChainAccountsService>;
+      overrideMockTokenGetState?: Partial<TokensControllerState>;
+    }) => {
+      const {
+        overrideMockTokensCache = [sampleTokenA, sampleTokenB],
+        mockMultiChainAPI,
+        overrideMockTokenGetState,
+      } = props ?? {};
+
+      // Arrange - RPC Tokens Flow - Uses sampleTokenA
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      // Arrange - API Tokens Flow - Uses sampleTokenB
+      const { mockFetchSupportedNetworks, mockFetchMultiChainBalances } =
+        mockMultiChainAPI ?? mockMultiChainAccountsService();
+
+      if (!mockMultiChainAPI) {
+        mockFetchSupportedNetworks.mockResolvedValue([1]);
+        mockFetchMultiChainBalances.mockResolvedValue(
+          createMockGetBalancesResponse([sampleTokenB.address], 1),
+        );
+      }
+
+      // Arrange - Selected Account
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      // Arrange / Act - withController setup + invoke detectTokens
+      const { callAction } = await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockTokenListGetState,
+          callActionSpy,
+          mockTokensGetState,
+        }) => {
+          const tokenCacheData: TokenListMap = {};
+          overrideMockTokensCache.forEach(
+            (t) =>
+              (tokenCacheData[t.address] = {
+                name: t.name,
+                symbol: t.symbol,
+                decimals: t.decimals,
+                address: t.address,
+                occurrences: 1,
+                aggregators: t.aggregators,
+                iconUrl: t.image,
+              }),
+          );
+
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: tokenCacheData,
+              },
+            },
+          });
+
+          if (overrideMockTokenGetState) {
+            mockTokensGetState({
+              ...getDefaultTokensState(),
+              ...overrideMockTokenGetState,
+            });
+          }
+
+          // Act
+          await controller.detectTokens({
+            networkClientId: NetworkType.mainnet,
+            selectedAddress: selectedAccount.address,
+          });
+
+          return {
+            callAction: callActionSpy,
+          };
+        },
+      );
+
+      const assertAddedTokens = (token: Token) =>
+        expect(callAction).toHaveBeenCalledWith(
+          'TokensController:addDetectedTokens',
+          [token],
+          {
+            chainId: ChainId.mainnet,
+            selectedAddress: selectedAccount.address,
+          },
+        );
+
+      const assertTokensNeverAdded = () =>
+        expect(callAction).not.toHaveBeenCalledWith(
+          'TokensController:addDetectedTokens',
+        );
+
+      return {
+        assertAddedTokens,
+        assertTokensNeverAdded,
+        mockFetchMultiChainBalances,
+        mockGetBalancesInSingleCall,
+        rpcToken: sampleTokenA,
+        apiToken: sampleTokenB,
+      };
+    };
+
+    it('should trigger and use Accounts API for detection', async () => {
+      const {
+        assertAddedTokens,
+        mockFetchMultiChainBalances,
+        apiToken,
+        mockGetBalancesInSingleCall,
+      } = await arrangeActTestDetectTokensWithAccountsAPI();
+
+      expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+      expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+      assertAddedTokens(apiToken);
+    });
+
+    /**
+     * TODO - discuss if this is correct.
+     *
+     * If the Accounts API succeeds, but the tokens cannot be added (unable to create `Token` shape)
+     * Then should we add no tokens & then finish?
+     *
+     * If we want to, we could then do a pass with the RPC flow? But would it be necessary?
+     * - DEV - we can just add a simple check at the end of the API flow where if no tokens were added, then count it as a failure and perform the RPC flow?
+     */
+    it('uses the Accounts API but does not add unknown tokens', async () => {
+      // API returns sampleTokenB
+      // As this is not a known token (in cache), then is not added
+      const {
+        assertTokensNeverAdded,
+        mockFetchMultiChainBalances,
+        mockGetBalancesInSingleCall,
+      } = await arrangeActTestDetectTokensWithAccountsAPI({
+        overrideMockTokensCache: [sampleTokenA],
+      });
+
+      expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+      expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+      assertTokensNeverAdded();
+    });
+
+    it('fallbacks from using the Accounts API if fails', async () => {
+      // Test 1 - fetch supported networks fails
+      let mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchSupportedNetworks.mockRejectedValue(
+        new Error('Mock Error'),
+      );
+      let actResult = await arrangeActTestDetectTokensWithAccountsAPI({
+        mockMultiChainAPI: mockAPI,
+      });
+
+      expect(actResult.mockFetchMultiChainBalances).not.toHaveBeenCalled(); // never called as could not fetch supported networks...
+      expect(actResult.mockGetBalancesInSingleCall).toHaveBeenCalled(); // ...so then RPC flow was initiated
+      actResult.assertAddedTokens(actResult.rpcToken);
+
+      // Test 2 - fetch multi chain fails
+      mockAPI = mockMultiChainAccountsService();
+      mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+        new Error('Mock Error'),
+      );
+      actResult = await arrangeActTestDetectTokensWithAccountsAPI({
+        mockMultiChainAPI: mockAPI,
+      });
+
+      expect(actResult.mockFetchMultiChainBalances).toHaveBeenCalled(); // API was called, but failed...
+      expect(actResult.mockGetBalancesInSingleCall).toHaveBeenCalled(); // ...so then RPC flow was initiated
+      actResult.assertAddedTokens(actResult.rpcToken);
+    });
+
+    /**
+     * TODO - discuss if this is correct.
+     *
+     * If the Accounts API succeeds, but the tokens cannot be added (token already added)
+     * Then should we add no tokens (if they are all added) & then finish?
+     *
+     * If we want to, we could then do a pass with the RPC flow? But would it be necessary?
+     * - DEV - we can just add a simple check at the end of the API flow where if no tokens were added, then count it as a failure and perform the RPC flow?
+     */
+    it('uses the Accounts API but does not add tokens that are already added', async () => {
+      // Here we populate the token state with a token that exists in the tokenAPI.
+      // So the token retrieved from the API should not be added
+      const { assertTokensNeverAdded, mockFetchMultiChainBalances } =
+        await arrangeActTestDetectTokensWithAccountsAPI({
+          overrideMockTokenGetState: {
+            allDetectedTokens: {
+              '0x1': {
+                '0x0000000000000000000000000000000000000001': [
+                  {
+                    address: sampleTokenB.address,
+                    name: sampleTokenB.name,
+                    symbol: sampleTokenB.symbol,
+                    decimals: sampleTokenB.decimals,
+                    aggregators: sampleTokenB.aggregators,
+                  },
+                ],
+              },
+            },
+          },
+        });
+
+      expect(mockFetchMultiChainBalances).toHaveBeenCalled();
+      assertTokensNeverAdded();
+    });
   });
 });
 
@@ -2415,6 +2662,7 @@ async function withController<ReturnValue>(
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
+    useAccountsAPI: false,
     ...options,
   });
   try {

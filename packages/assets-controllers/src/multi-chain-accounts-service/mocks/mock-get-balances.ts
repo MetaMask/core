@@ -64,3 +64,20 @@ export const MOCK_GET_BALANCES_RESPONSE: GetBalancesResponse = {
   ],
   unprocessedNetworks: [],
 };
+
+export const createMockGetBalancesResponse = (
+  tokenAddrs: string[],
+  chainId: number,
+): GetBalancesResponse => ({
+  count: tokenAddrs.length,
+  balances: tokenAddrs.map((a) => ({
+    object: 'token',
+    address: a,
+    name: 'Mock Token',
+    symbol: 'MOCK',
+    decimals: 18,
+    balance: '10.18',
+    chainId,
+  })),
+  unprocessedNetworks: [],
+});

@@ -6,7 +6,7 @@ import type {
   GetSupportedNetworksResponse,
 } from './types';
 
-const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
+export const MULTICHAIN_ACCOUNTS_DOMAIN = 'https://accounts.api.cx.metamask.io';
 
 const getBalancesUrl = (
   address: string,

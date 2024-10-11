@@ -3,6 +3,7 @@ import nock from 'nock';
 import { MOCK_GET_BALANCES_RESPONSE } from './mocks/mock-get-balances';
 import { MOCK_GET_SUPPORTED_NETWORKS_RESPONSE } from './mocks/mock-get-supported-networks';
 import {
+  MULTICHAIN_ACCOUNTS_DOMAIN,
   fetchMultiChainBalances,
   fetchSupportedNetworks,
 } from './multi-chain-accounts';
@@ -11,7 +12,7 @@ const MOCK_ADDRESS = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 
 describe('fetchSupportedNetworks()', () => {
   const createMockAPI = () =>
-    nock('https://accounts.api.cx.metamask.io').get('/v1/supportedNetworks');
+    nock(MULTICHAIN_ACCOUNTS_DOMAIN).get('/v1/supportedNetworks');
 
   it('should successfully return supported networks array', async () => {
     const mockAPI = createMockAPI().reply(
@@ -38,7 +39,7 @@ describe('fetchSupportedNetworks()', () => {
 
 describe('fetchMultiChainBalances()', () => {
   const createMockAPI = () =>
-    nock('https://accounts.api.cx.metamask.io').get(
+    nock(MULTICHAIN_ACCOUNTS_DOMAIN).get(
       `/v2/accounts/${MOCK_ADDRESS}/balances`,
     );
 
