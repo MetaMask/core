@@ -35,7 +35,7 @@ import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
 import {
   fetchMultiChainBalances,
   fetchSupportedNetworks,
-} from './multi-chain-accounts-service/multi-chain-accounts';
+} from './multi-chain-accounts-service';
 import type {
   GetTokenListState,
   TokenListMap,
