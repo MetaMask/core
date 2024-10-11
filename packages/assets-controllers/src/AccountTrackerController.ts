@@ -120,10 +120,15 @@ export type AccountTrackerControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+/** The input to start polling for the {@link AccountTrackerController} */
+type AccountTrackerPollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * Controller that tracks the network balances for all user accounts.
  */
-export class AccountTrackerController extends StaticIntervalPollingController<
+export class AccountTrackerController extends StaticIntervalPollingController<AccountTrackerPollingInput>()<
   typeof controllerName,
   AccountTrackerControllerState,
   AccountTrackerControllerMessenger
@@ -309,9 +314,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<
   /**
    * Refreshes the balances of the accounts using the networkClientId
    *
-   * @param networkClientId - The network client ID used to get balances.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The network client ID used to get balances.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
+  async _executePoll({
+    networkClientId,
+  }: AccountTrackerPollingInput): Promise<void> {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.refresh(networkClientId);
