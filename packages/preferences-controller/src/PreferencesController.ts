@@ -110,6 +110,10 @@ export type PreferencesState = {
    * Controls whether transaction simulations are enabled
    */
   useTransactionSimulations: boolean;
+  /**
+   * Controls which order tokens are sorted in
+   */
+  tokenSortConfig: Record<string, string>;
 };
 
 const metadata = {
@@ -508,6 +512,17 @@ export class PreferencesController extends BaseController<
   setUseTransactionSimulations(useTransactionSimulations: boolean) {
     this.update((state) => {
       state.useTransactionSimulations = useTransactionSimulations;
+    });
+  }
+
+  /**
+   * A setter to update the user's preferred token sorting order.
+   *
+   * @param tokenSortConfig - a configuration representing the sort order of tokens.
+   */
+  setTokenSortConfig(tokenSortConfig: Record<string, string>) {
+    this.update((state) => {
+      state.tokenSortConfig = tokenSortConfig;
     });
   }
 }
