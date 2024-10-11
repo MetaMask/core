@@ -346,7 +346,7 @@ export class SignatureController extends BaseController<
     const updatedSignatureRequest = this.#updateMetadata(
       signatureRequestId,
       (draftMetadata) => {
-        draftMetadata.signature = signature;
+        draftMetadata.rawSig = signature;
         draftMetadata.status = SignatureRequestStatus.Signed;
       },
     );
@@ -460,7 +460,7 @@ export class SignatureController extends BaseController<
     try {
       const metadata = {
         id: random(),
-        request: finalMessageParams,
+        messageParams: finalMessageParams,
         securityAlertResponse,
         signingOptions,
         status: SignatureRequestStatus.Unapproved,
@@ -536,7 +536,7 @@ export class SignatureController extends BaseController<
   }
 
   async #signRequest(metadata: SignatureRequest) {
-    const { id, request, signingOptions, type } = metadata;
+    const { id, messageParams, signingOptions, type } = metadata;
 
     try {
       let signature: string;
@@ -545,14 +545,14 @@ export class SignatureController extends BaseController<
         case SignatureRequestType.PersonalSign:
           signature = await this.messagingSystem.call(
             'KeyringController:signPersonalMessage',
-            request,
+            messageParams,
           );
           break;
 
         case SignatureRequestType.TypedSign:
           const finalRequest = signingOptions?.parseJsonData
-            ? this.#parseTypedData(request, metadata.version)
-            : request;
+            ? this.#parseTypedData(messageParams, metadata.version)
+            : messageParams;
 
           signature = await this.messagingSystem.call(
             'KeyringController:signTypedMessage',
@@ -568,12 +568,12 @@ export class SignatureController extends BaseController<
 
       this.hub.emit(`${type}:signed`, { signature, messageId: id });
 
-      if (request.deferSetAsSigned) {
+      if (messageParams.deferSetAsSigned) {
         return;
       }
 
       const finalMetadata = this.#updateMetadata(id, (draftMetadata) => {
-        draftMetadata.signature = signature;
+        draftMetadata.rawSig = signature;
         draftMetadata.status = SignatureRequestStatus.Signed;
       });
 
@@ -608,11 +608,11 @@ export class SignatureController extends BaseController<
   async #waitForSignatureRequestFinished(id: string): Promise<string> {
     return new Promise((resolve, reject) => {
       this.hub.once(`${id}:finished`, (metadata: SignatureRequest) => {
-        const { request, signature, status, type } = metadata;
+        const { messageParams, rawSig, status, type } = metadata;
 
         switch (status) {
           case SignatureRequestStatus.Signed:
-            return resolve(signature as string);
+            return resolve(rawSig as string);
 
           case SignatureRequestStatus.Rejected:
             return reject(
@@ -626,7 +626,7 @@ export class SignatureController extends BaseController<
             return reject(
               new Error(
                 `MetaMask ${type} Signature: Unknown problem: ${JSON.stringify(
-                  request,
+                  messageParams,
                 )}`,
               ),
             );
@@ -643,8 +643,8 @@ export class SignatureController extends BaseController<
       actionId,
     }: { traceContext?: TraceContext; actionId?: string },
   ): Promise<AddResult> {
-    const { id, request } = metadata;
-    const origin = request.origin || ORIGIN_METAMASK;
+    const { id, messageParams } = metadata;
+    const origin = messageParams.origin || ORIGIN_METAMASK;
 
     await this.#trace({
       name: 'Notification Display',
@@ -658,7 +658,7 @@ export class SignatureController extends BaseController<
         id,
         origin,
         type,
-        requestData: { ...request } as any,
+        requestData: { ...messageParams } as any,
         expectsResult: true,
       },
       true,
@@ -722,7 +722,7 @@ export class SignatureController extends BaseController<
       .reduce(
         (acc, request) => ({
           ...acc,
-          [request.id]: { ...request, msgParams: request.request },
+          [request.id]: { ...request, msgParams: request.messageParams },
         }),
         {},
       );

@@ -78,7 +78,7 @@ type SignatureRequestBase = {
   securityAlertResponse?: Record<string, Json>;
 
   /** Signature hash resulting from the request. */
-  signature?: string;
+  rawSig?: string;
 
   /** Options used for signing. */
   signingOptions?: TypedSigningOptions;
@@ -97,11 +97,11 @@ type SignatureRequestBase = {
 export type SignatureRequest = SignatureRequestBase &
   (
     | {
-        request: MessageParamsPersonal;
+        messageParams: MessageParamsPersonal;
         type: SignatureRequestType.PersonalSign;
       }
     | {
-        request: MessageParamsTyped;
+        messageParams: MessageParamsTyped;
         type: SignatureRequestType.TypedSign;
       }
   );

@@ -34,7 +34,7 @@ const PARAMS_MOCK = {
 
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
   id: '1',
-  request: PARAMS_MOCK,
+  messageParams: PARAMS_MOCK,
   status: SignatureRequestStatus.Signed,
   time: Date.now(),
   type: SignatureRequestType.PersonalSign,
@@ -445,7 +445,7 @@ describe('SignatureController', () => {
 
       const id = Object.keys(controller.state.signatureRequests)[0];
 
-      expect(controller.state.signatureRequests[id].request.origin).toBe(
+      expect(controller.state.signatureRequests[id].messageParams.origin).toBe(
         'test',
       );
     });
@@ -457,9 +457,9 @@ describe('SignatureController', () => {
 
       const id = Object.keys(controller.state.signatureRequests)[0];
 
-      expect(controller.state.signatureRequests[id].request.requestId).toBe(
-        'test',
-      );
+      expect(
+        controller.state.signatureRequests[id].messageParams.requestId,
+      ).toBe('test');
     });
   });
 
@@ -601,7 +601,7 @@ describe('SignatureController', () => {
 
       controller.setDeferredSignSuccess('1', SIGNATURE_HASH_MOCK);
 
-      expect(controller.state.signatureRequests['1'].signature).toBe(
+      expect(controller.state.signatureRequests['1'].rawSig).toBe(
         SIGNATURE_HASH_MOCK,
       );
 
