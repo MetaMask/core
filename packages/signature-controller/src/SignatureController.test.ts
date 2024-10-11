@@ -17,15 +17,24 @@ import { SignatureRequestStatus, SignatureRequestType } from './types';
 
 jest.mock('./utils/validation');
 
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  detectSIWE: jest.fn(),
+}));
+
 const CHAIN_ID_MOCK = '0x1';
+const FROM_MOCK = '0x456DEF';
+const DATA_MOCK = '0xABC123';
 const SIGNATURE_HASH_MOCK = '0x123ABC';
+
+const PARAMS_MOCK = {
+  from: FROM_MOCK,
+  data: DATA_MOCK,
+};
 
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
   id: '1',
-  request: {
-    from: '0xAddress',
-    data: '0xData',
-  },
+  request: PARAMS_MOCK,
   status: SignatureRequestStatus.Signed,
   time: Date.now(),
   type: SignatureRequestType.PersonalSign,
@@ -277,19 +286,13 @@ describe('SignatureController', () => {
     [
       'newUnsignedPersonalMessage',
       (controller: SignatureController) =>
-        controller.newUnsignedPersonalMessage(
-          {
-            data: '0xData',
-            from: '0xAddress',
-          },
-          {},
-        ),
+        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {}),
     ],
     [
       'newUnsignedTypedMessage',
       (controller: SignatureController) =>
         controller.newUnsignedTypedMessage(
-          { data: '0xData', from: '0xAddress' },
+          PARAMS_MOCK,
           {},
           SignTypedDataVersion.V1,
           { parseJsonData: false },
@@ -306,10 +309,7 @@ describe('SignatureController', () => {
       approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
 
       const promise = controller.newUnsignedPersonalMessage(
-        {
-          data: '0xData',
-          from: '0xAddress',
-        },
+        { ...PARAMS_MOCK },
         {},
       );
 
@@ -449,10 +449,7 @@ describe('SignatureController', () => {
       );
 
       const result = await controller.newUnsignedPersonalMessage(
-        {
-          data: '0xData',
-          from: '0xAddress',
-        },
+        { ...PARAMS_MOCK },
         {},
       );
 
@@ -470,10 +467,7 @@ describe('SignatureController', () => {
       );
 
       const result = await controller.newUnsignedTypedMessage(
-        {
-          data: '0xData',
-          from: '0xAddress',
-        },
+        PARAMS_MOCK,
         {},
         SignTypedDataVersion.V1,
         { parseJsonData: false },
@@ -494,8 +488,8 @@ describe('SignatureController', () => {
 
         const result = await controller.newUnsignedTypedMessage(
           {
+            ...PARAMS_MOCK,
             data: JSON.stringify({ test: 123 }),
-            from: '0xAddress',
           },
           {},
           version as SignTypedDataVersion,
@@ -504,8 +498,8 @@ describe('SignatureController', () => {
 
         expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
           {
+            ...PARAMS_MOCK,
             data: { test: 123 },
-            from: '0xAddress',
           },
           version,
         );
@@ -524,8 +518,8 @@ describe('SignatureController', () => {
 
       const result = await controller.newUnsignedTypedMessage(
         {
+          ...PARAMS_MOCK,
           data: JSON.stringify({ test: 123 }),
-          from: '0xAddress',
         },
         {},
         SignTypedDataVersion.V1,
@@ -534,8 +528,8 @@ describe('SignatureController', () => {
 
       expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
         {
+          ...PARAMS_MOCK,
           data: JSON.stringify({ test: 123 }),
-          from: '0xAddress',
         },
         SignTypedDataVersion.V1,
       );
@@ -553,10 +547,7 @@ describe('SignatureController', () => {
 
       await expect(
         controller.newUnsignedTypedMessage(
-          {
-            data: '0xData',
-            from: '0xAddress',
-          },
+          PARAMS_MOCK,
           {},
           SignTypedDataVersion.V3,
           { parseJsonData: false },
@@ -602,8 +593,7 @@ describe('SignatureController', () => {
       const signaturePromise = controller
         .newUnsignedPersonalMessage(
           {
-            data: '0xData',
-            from: '0xAddress',
+            ...PARAMS_MOCK,
             deferSetAsSigned: true,
           },
           {},
@@ -680,8 +670,7 @@ describe('SignatureController', () => {
       controller
         .newUnsignedPersonalMessage(
           {
-            data: '0xData',
-            from: '0xAddress',
+            ...PARAMS_MOCK,
             deferSetAsSigned: true,
           },
           {},

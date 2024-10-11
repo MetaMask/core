@@ -5,8 +5,7 @@
     "declarationMap": true,
     "emitDeclarationOnly": true,
     "inlineSources": true,
-    "sourceMap": true,
-    "skipLibCheck": true
+    "sourceMap": true
   },
   "exclude": ["./jest.config.packages.ts", "**/*.test.ts", "**/jest.config.ts"]
 }
