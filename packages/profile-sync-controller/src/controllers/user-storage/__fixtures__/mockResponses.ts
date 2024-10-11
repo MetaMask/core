@@ -16,7 +16,7 @@ import {
 
 type MockResponse = {
   url: string;
-  requestMethod: 'GET' | 'POST' | 'PUT';
+  requestMethod: 'GET' | 'POST' | 'PUT' | 'DELETE';
   response: unknown;
 };
 
@@ -114,6 +114,26 @@ export const getMockUserStorageBatchPutResponse = (
   return {
     url: getMockUserStorageEndpoint(path),
     requestMethod: 'PUT',
+    response: null,
+  } satisfies MockResponse;
+};
+
+export const deleteMockUserStorageResponse = (
+  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+) => {
+  return {
+    url: getMockUserStorageEndpoint(path),
+    requestMethod: 'DELETE',
+    response: null,
+  } satisfies MockResponse;
+};
+
+export const deleteMockUserStorageAllFeatureEntriesResponse = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
+) => {
+  return {
+    url: getMockUserStorageEndpoint(path),
+    requestMethod: 'DELETE',
     response: null,
   } satisfies MockResponse;
 };

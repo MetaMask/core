@@ -18,6 +18,8 @@ import {
   mockEndpointGetUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointUpsertUserStorage,
+  mockEndpointDeleteUserStorageAllFeatureEntries,
+  mockEndpointDeleteUserStorage,
 } from './__fixtures__/mockServices';
 import {
   MOCK_STORAGE_DATA,
@@ -305,6 +307,284 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
+  });
+});
+
+describe('user-storage/user-storage-controller - performBatchSetStorage() tests', () => {
+  const arrangeMocks = (mockResponseStatus?: number) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointBatchUpsertUserStorage(
+        'notifications',
+        mockResponseStatus ? { status: mockResponseStatus } : undefined,
+      ),
+    };
+  };
+
+  it('batch saves to user storage', async () => {
+    const { messengerMocks, mockAPI } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.performBatchSetStorage('notifications', [
+      ['notifications.notification_settings', 'new data'],
+    ]);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+      },
+    });
+
+    await expect(
+      controller.performBatchSetStorage('notifications', [
+        ['notifications.notification_settings', 'new data'],
+      ]),
+    ).rejects.toThrow(expect.any(Error));
+  });
+
+  it.each([
+    [
+      'fails when no bearer token is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+    [
+      'fails when no session identifier is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await expect(
+        controller.performBatchSetStorage('notifications', [
+          ['notifications.notification_settings', 'new data'],
+        ]),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
+
+  it('rejects if api call fails', async () => {
+    const { messengerMocks, mockAPI } = arrangeMocks(500);
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.performBatchSetStorage('notifications', [
+        ['notifications.notification_settings', 'new data'],
+      ]),
+    ).rejects.toThrow(expect.any(Error));
+    mockAPI.done();
+  });
+});
+
+describe('user-storage/user-storage-controller - performDeleteStorage() tests', () => {
+  const arrangeMocks = async (mockResponseStatus?: number) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointDeleteUserStorage(
+        'notifications.notification_settings',
+        mockResponseStatus ? { status: mockResponseStatus } : undefined,
+      ),
+    };
+  };
+
+  it('deletes a user storage entry', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.performDeleteStorage(
+      'notifications.notification_settings',
+    );
+    mockAPI.done();
+
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+      },
+    });
+
+    await expect(
+      controller.performDeleteStorage('notifications.notification_settings'),
+    ).rejects.toThrow(expect.any(Error));
+  });
+
+  it.each([
+    [
+      'fails when no bearer token is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+    [
+      'fails when no session identifier is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = await arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await expect(
+        controller.performDeleteStorage('notifications.notification_settings'),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
+
+  it('rejects if api call fails', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks(500);
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.performDeleteStorage('notifications.notification_settings'),
+    ).rejects.toThrow(expect.any(Error));
+    mockAPI.done();
+  });
+});
+
+describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureEntries() tests', () => {
+  const arrangeMocks = async (mockResponseStatus?: number) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointDeleteUserStorageAllFeatureEntries(
+        'notifications',
+        mockResponseStatus ? { status: mockResponseStatus } : undefined,
+      ),
+    };
+  };
+
+  it('deletes all user storage entries for a feature', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.performDeleteStorageAllFeatureEntries('notifications');
+    mockAPI.done();
+
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+      },
+    });
+
+    await expect(
+      controller.performDeleteStorageAllFeatureEntries('notifications'),
+    ).rejects.toThrow(expect.any(Error));
+  });
+
+  it.each([
+    [
+      'fails when no bearer token is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+    [
+      'fails when no session identifier is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = await arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await expect(
+        controller.performDeleteStorageAllFeatureEntries('notifications'),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
+
+  it('rejects if api call fails', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks(500);
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.performDeleteStorageAllFeatureEntries('notifications'),
+    ).rejects.toThrow(expect.any(Error));
+    mockAPI.done();
   });
 });
 

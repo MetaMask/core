@@ -9,6 +9,8 @@ import {
   handleMockUserStorageGet,
   handleMockUserStoragePut,
   handleMockUserStorageGetAllFeatureEntries,
+  handleMockUserStorageDeleteAllFeatureEntries,
+  handleMockUserStorageDelete,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -130,6 +132,60 @@ describe('User Storage', () => {
 
     await userStorage.batchSetItems('accounts', dataToStore);
     expect(mockPut.isDone()).toBe(true);
+  });
+
+  it('user storage: delete one feature entry', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockDelete = await handleMockUserStorageDelete();
+
+    await userStorage.deleteItem('notifications.notification_settings');
+    expect(mockDelete.isDone()).toBe(true);
+  });
+
+  it('user storage: failed to delete one feature entry', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDelete({
+      status: 401,
+      body: {
+        message: 'failed to delete storage entry',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.deleteItem('notifications.notification_settings'),
+    ).rejects.toThrow(UserStorageError);
+  });
+
+  it('user storage: delete all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockDelete = await handleMockUserStorageDeleteAllFeatureEntries();
+
+    await userStorage.deleteAllFeatureItems('notifications');
+    expect(mockDelete.isDone()).toBe(true);
+  });
+
+  it('user storage: failed to delete all feature entries', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    await handleMockUserStorageDeleteAllFeatureEntries({
+      status: 401,
+      body: {
+        message: 'failed to delete all feature entries',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.deleteAllFeatureItems('notifications'),
+    ).rejects.toThrow(UserStorageError);
   });
 
   it('user storage: failed to set key', async () => {
