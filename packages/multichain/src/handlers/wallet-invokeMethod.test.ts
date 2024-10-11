@@ -1,9 +1,11 @@
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
 import { walletInvokeMethodHandler } from './wallet-invokeMethod';
+import { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
 
 const createMockedRequest = () => ({
   origin: 'http://test.com',
@@ -54,7 +56,7 @@ const createMockedHandler = () => {
   const getSelectedNetworkClientId = jest
     .fn()
     .mockReturnValue('selectedNetworkClientId');
-  const handler = (request) =>
+  const handler = (request: JsonRpcRequestWithNetworkClientIdAndOrigin) =>
     walletInvokeMethodHandler(request, {}, next, end, {
       getCaveat,
       findNetworkClientIdByChainId,

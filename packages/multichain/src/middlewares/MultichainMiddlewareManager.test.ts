@@ -1,7 +1,7 @@
-import { JsonRpcRequest } from '@metamask/utils';
-import MultichainMiddlewareManager, {
-  ExtendedJsonRpcMiddleware,
-} from './MultichainMiddlewareManager';
+import type { JsonRpcRequest } from '@metamask/utils';
+
+import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
+import MultichainMiddlewareManager from './MultichainMiddlewareManager';
 
 const scope = 'eip155:1';
 const origin = 'example.com';

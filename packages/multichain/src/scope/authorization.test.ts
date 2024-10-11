@@ -1,11 +1,8 @@
-import * as Validation from './validation';
-import * as Transform from './transform';
+import { bucketScopes, validateAndFlattenScopes } from './authorization';
 import * as Filter from './filter';
-import {
-  bucketScopes,
-  validateAndFlattenScopes,
-} from './authorization';
-import { ExternalScopeObject } from './scope';
+import type { ExternalScopeObject } from './scope';
+import * as Transform from './transform';
+import * as Validation from './validation';
 
 jest.mock('./validation', () => ({
   validateScopes: jest.fn(),

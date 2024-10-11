@@ -1,4 +1,4 @@
-import { Caip25CaveatValue } from '../caip25Permission';
+import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   getEthAccounts,
   setEthAccounts,

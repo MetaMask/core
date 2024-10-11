@@ -1,20 +1,35 @@
-import type { JsonRpcEngineNextCallback, JsonRpcEngineEndCallback } from '@metamask/json-rpc-engine';
+import type {
+  JsonRpcEngineNextCallback,
+  JsonRpcEngineEndCallback,
+} from '@metamask/json-rpc-engine';
+import type { PermissionController } from '@metamask/permission-controller';
 import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
-  PermissionController
 } from '@metamask/permission-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import { Caip25EndowmentPermissionName } from '../caip25Permission';
-import { JsonRpcRequest, JsonRpcResponse } from '@metamask/utils';
+import type { JsonRpcSuccess, Json } from '@metamask/utils';
+import type { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
 
+import { Caip25EndowmentPermissionName } from '../caip25Permission';
+
+/**
+ * Handles the `wallet_revokeSession` RPC method.
+ *
+ * @param request - The JSON-RPC request object.
+ * @param response - The JSON-RPC response object.
+ * @param _next - The next middleware function.
+ * @param end - The end callback function.
+ * @param hooks - The hooks object.
+ * @param hooks.revokePermission - The revokePermission function.
+ */
 export async function walletRevokeSessionHandler(
-  request: JsonRpcRequest<Params>,
-  response: JsonRpcResponse<true>,
+  request: JsonRpcRequestWithNetworkClientIdAndOrigin,
+  response: JsonRpcSuccess<Json>,
   _next: JsonRpcEngineNextCallback,
   end: JsonRpcEngineEndCallback,
   hooks: {
-    revokePermission: PermissionController['revokePermission']
+    revokePermission: (origin: string, permissionName: string) => void;
   },
 ) {
   try {

@@ -1,11 +1,17 @@
 import { providerErrors } from '@metamask/rpc-errors';
+
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-} from '../caip25permissions';
-import { CaipPermissionAdapterMiddleware } from './caip-permission-adapter-middleware';
+} from '../caip25Permission';
+import {
+  caipPermissionAdapterMiddleware,
+  type JsonRpcRequestWithNetworkClientIdAndOrigin,
+} from './caip-permission-adapter-middleware';
 
 const baseRequest = {
+  id: 1,
+  jsonrpc: '2.0' as const,
   origin: 'http://test.com',
   networkClientId: 'mainnet',
   method: 'eth_call',
@@ -48,7 +54,7 @@ const createMockedHandler = () => {
   });
   const getNetworkConfigurationByNetworkClientId = jest
     .fn()
-    .mockImplementation((networkClientId) => {
+    .mockImplementation((networkClientId: string) => {
       const chainId =
         {
           mainnet: '0x1',
@@ -58,8 +64,8 @@ const createMockedHandler = () => {
         chainId,
       };
     });
-  const handler = (request) =>
-    CaipPermissionAdapterMiddleware(request, {}, next, end, {
+  const handler = (request: JsonRpcRequestWithNetworkClientIdAndOrigin) =>
+    caipPermissionAdapterMiddleware(request, {}, next, end, {
       getCaveat,
       getNetworkConfigurationByNetworkClientId,
     });

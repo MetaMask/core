@@ -1,10 +1,14 @@
-import { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import { ExternalScopeString } from '../scope';
-import { Json, JsonRpcParams } from '@metamask/utils';
+import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
+import type { Json, JsonRpcParams } from '@metamask/utils';
+
+import type { ExternalScopeString } from '../scope';
 
 // Extend JsonRpcMiddleware to include the destroy method
 // this was introduced in 7.0.0 of json-rpc-engine: https://github.com/MetaMask/json-rpc-engine/blob/v7.0.0/src/JsonRpcEngine.ts#L29-L40
-export type ExtendedJsonRpcMiddleware = JsonRpcMiddleware<JsonRpcParams, Json> & {
+export type ExtendedJsonRpcMiddleware = JsonRpcMiddleware<
+  JsonRpcParams,
+  Json
+> & {
   destroy?: () => void;
 };
 
@@ -110,8 +114,9 @@ export default class MultichainMiddlewareManager {
       if (middlewareEntry) {
         middlewareEntry.middleware(req, res, next, end);
       } else {
-        next();
+        return next();
       }
+      return undefined;
     };
     middleware.destroy = this.removeMiddlewareByOriginAndTabId.bind(
       this,

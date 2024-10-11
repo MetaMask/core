@@ -1,19 +1,20 @@
+import type { NonEmptyArray } from '@metamask/controller-utils';
+import type { CaveatConstraint } from '@metamask/permission-controller';
 import {
-  CaveatConstraint,
   CaveatMutatorOperation,
   PermissionType,
   SubjectType,
 } from '@metamask/permission-controller';
-import { NonEmptyArray } from '@metamask/controller-utils';
-import * as Scope from './scope';
+
+import type { Caip25CaveatValue } from './caip25Permission';
 import {
   Caip25CaveatType,
-  Caip25CaveatValue,
   caip25EndowmentBuilder,
   Caip25EndowmentPermissionName,
   Caip25CaveatMutatorFactories,
   removeScope,
 } from './caip25Permission';
+import * as Scope from './scope';
 
 jest.mock('./scope', () => ({
   validateAndFlattenScopes: jest.fn(),

@@ -1,19 +1,48 @@
-import { numberToHex } from '@metamask/utils';
+import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import type { JsonRpcSuccess, Json, JsonRpcRequest } from '@metamask/utils';
+import { numberToHex } from '@metamask/utils';
+import type { JsonRpcRequestWithNetworkClientIdAndOrigin } from 'src/adapters/caip-permission-adapter-middleware';
+
+import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
+import type { ScopeString } from '../scope';
 import { mergeScopes, parseScopeString } from '../scope';
 
+/**
+ * Handler for the `wallet_invokeMethod` RPC method.
+ *
+ * @param request - The request object.
+ * @param _response - The response object.
+ * @param next - The next middleware function.
+ * @param end - The end function.
+ * @param hooks - The hooks object.
+ * @param hooks.getCaveat
+ * @param hooks.findNetworkClientIdByChainId
+ * @param hooks.getSelectedNetworkClientId
+ */
 export async function walletInvokeMethodHandler(
-  request,
-  _response,
-  next,
-  end,
-  hooks,
+  request: JsonRpcRequestWithNetworkClientIdAndOrigin,
+  _response: JsonRpcSuccess<Json>,
+  next: () => void,
+  end: (error: Error) => void,
+  hooks: {
+    getCaveat: (
+      origin: string,
+      endowmentPermissionName: string,
+      caveatType: string,
+    ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
+    findNetworkClientIdByChainId: (chainId: string) => string | undefined;
+    getSelectedNetworkClientId: () => string;
+  },
 ) {
-  const { scope, request: wrappedRequest } = request.params;
+  const { scope, request: wrappedRequest } = request.params as {
+    scope: ScopeString;
+    request: JsonRpcRequest;
+  };
 
   let caveat;
   try {

@@ -1,8 +1,5 @@
-import { ExternalScopeObject } from './scope';
-import {
-  isValidScope,
-  validateScopes,
-} from './validation';
+import type { ExternalScopeObject } from './scope';
+import { isValidScope, validateScopes } from './validation';
 
 const validScopeString = 'eip155:1';
 const validScopeObject: ExternalScopeObject = {
@@ -128,7 +125,9 @@ describe('Scope Validation', () => {
         scopeString: string,
         scopeObject: unknown,
       ) => {
-        expect(isValidScope(scopeString, scopeObject as ExternalScopeObject)).toStrictEqual(expected);
+        expect(
+          isValidScope(scopeString, scopeObject as ExternalScopeObject),
+        ).toStrictEqual(expected);
       },
     );
   });

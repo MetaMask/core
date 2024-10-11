@@ -6,7 +6,7 @@ describe('Scope', () => {
       expect(parseScopeString('abc')).toStrictEqual({ namespace: 'abc' });
     });
 
-    it('returns the namespace and reference if scopeString is a CAIP chain ID ', () => {
+    it('returns the namespace and reference if scopeString is a CAIP chain ID', () => {
       expect(parseScopeString('abc:foo')).toStrictEqual({
         namespace: 'abc',
         reference: 'foo',

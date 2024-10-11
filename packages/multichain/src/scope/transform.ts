@@ -1,15 +1,22 @@
-import { CaipReference } from '@metamask/utils';
+import type { CaipReference } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
-import {
+
+import type {
   ExternalScopeObject,
   ExternalScopesObject,
   ScopeString,
   ScopeObject,
   ScopesObject,
-  parseScopeString,
 } from './scope';
+import { parseScopeString } from './scope';
 
-// DRY THIS
+// TODO: DRY THIS
+/**
+ * Returns a list of unique items
+ *
+ * @param list - The list of items to filter
+ * @returns A list of unique items
+ */
 function unique<T>(list: T[]): T[] {
   return Array.from(new Set(list));
 }
