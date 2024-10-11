@@ -144,7 +144,7 @@ describe('Scope Validation', () => {
           { 'eip155:1': {} as unknown as ExternalScopeObject },
           undefined,
         ),
-      ).toBeTruthy();
+      ).toStrictEqual({ validRequiredScopes: {}, validOptionalScopes: {} });
     });
 
     it('does not throw an error if optional scopes are defined but none are valid', () => {
@@ -152,7 +152,7 @@ describe('Scope Validation', () => {
         validateScopes(undefined, {
           'eip155:1': {} as unknown as ExternalScopeObject,
         }),
-      ).toBeTruthy();
+      ).toStrictEqual({ validRequiredScopes: {}, validOptionalScopes: {} });
     });
 
     it('returns the valid required and optional scopes', () => {
