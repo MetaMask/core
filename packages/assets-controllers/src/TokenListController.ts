@@ -92,10 +92,15 @@ export const getDefaultTokenListState = (): TokenListState => {
   };
 };
 
+/** The input to start polling for the {@link TokenListController} */
+type TokenListPollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends StaticIntervalPollingController<
+export class TokenListController extends StaticIntervalPollingController<TokenListPollingInput>()<
   typeof name,
   TokenListState,
   TokenListControllerMessenger
@@ -211,7 +216,7 @@ export class TokenListController extends StaticIntervalPollingController<
     if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
@@ -219,7 +224,7 @@ export class TokenListController extends StaticIntervalPollingController<
    */
   async restart() {
     this.stopPolling();
-    await this.startPolling();
+    await this.#startPolling();
   }
 
   /**
@@ -248,7 +253,7 @@ export class TokenListController extends StaticIntervalPollingController<
   /**
    * Starts a new polling interval.
    */
-  private async startPolling(): Promise<void> {
+  async #startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList());
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -261,10 +266,13 @@ export class TokenListController extends StaticIntervalPollingController<
    * Fetching token list from the Token Service API.
    *
    * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The ID of the network client triggering the fetch.
    * @returns A promise that resolves when this operation completes.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
+  async _executePoll({
+    networkClientId,
+  }: TokenListPollingInput): Promise<void> {
     return this.fetchTokenList(networkClientId);
   }
 

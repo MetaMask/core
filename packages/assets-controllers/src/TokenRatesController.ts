@@ -221,11 +221,16 @@ export const getDefaultTokenRatesControllerState =
     };
   };
 
+/** The input to start polling for the {@link TokenRatesController} */
+export type TokenRatesPollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
-export class TokenRatesController extends StaticIntervalPollingController<
+export class TokenRatesController extends StaticIntervalPollingController<TokenRatesPollingInput>()<
   typeof controllerName,
   TokenRatesControllerState,
   TokenRatesControllerMessenger
@@ -594,10 +599,12 @@ export class TokenRatesController extends StaticIntervalPollingController<
   /**
    * Updates token rates for the given networkClientId
    *
-   * @param networkClientId - The network client ID used to get a ticker value.
-   * @returns The controller state.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The network client ID used to get a ticker value.
    */
-  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
+  async _executePoll({
+    networkClientId,
+  }: TokenRatesPollingInput): Promise<void> {
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,

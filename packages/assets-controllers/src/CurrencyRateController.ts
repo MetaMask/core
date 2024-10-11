@@ -78,11 +78,16 @@ const defaultState = {
   },
 };
 
+/** The input to start polling for the {@link CurrencyRateController} */
+type CurrencyRatePollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * Controller that passively polls on a set interval for an exchange rate from the current network
  * asset to the user's preferred currency.
  */
-export class CurrencyRateController extends StaticIntervalPollingController<
+export class CurrencyRateController extends StaticIntervalPollingController<CurrencyRatePollingInput>()<
   typeof name,
   CurrencyRateState,
   CurrencyRateMessenger
@@ -237,10 +242,12 @@ export class CurrencyRateController extends StaticIntervalPollingController<
   /**
    * Updates exchange rate for the current currency.
    *
-   * @param networkClientId - The network client ID used to get a ticker value.
-   * @returns The controller state.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The network client ID used to get a ticker value.
    */
-  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
+  async _executePoll({
+    networkClientId,
+  }: CurrencyRatePollingInput): Promise<void> {
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,

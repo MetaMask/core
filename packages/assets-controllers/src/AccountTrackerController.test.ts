@@ -505,7 +505,9 @@ describe('AccountTrackerController', () => {
           .spyOn(controller, 'refresh')
           .mockResolvedValue();
 
-        controller.startPollingByNetworkClientId(networkClientId1);
+        controller.startPolling({
+          networkClientId: networkClientId1,
+        });
 
         await advanceTime({ clock, duration: 0 });
         expect(refreshSpy).toHaveBeenNthCalledWith(1, networkClientId1);
@@ -516,8 +518,9 @@ describe('AccountTrackerController', () => {
         expect(refreshSpy).toHaveBeenNthCalledWith(2, networkClientId1);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
-        const pollToken =
-          controller.startPollingByNetworkClientId(networkClientId2);
+        const pollToken = controller.startPolling({
+          networkClientId: networkClientId2,
+        });
 
         await advanceTime({ clock, duration: 0 });
         expect(refreshSpy).toHaveBeenNthCalledWith(3, networkClientId2);
