@@ -3,7 +3,6 @@ import type { CaveatConstraint } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
   PermissionType,
-  SubjectType,
 } from '@metamask/permission-controller';
 
 import type { Caip25CaveatValue } from './caip25Permission';
@@ -52,7 +51,6 @@ describe('endowment:caip25', () => {
       targetName: Caip25EndowmentPermissionName,
       endowmentGetter: expect.any(Function),
       allowedCaveats: [Caip25CaveatType],
-      subjectTypes: [SubjectType.Website],
       validator: expect.any(Function),
     });
 
