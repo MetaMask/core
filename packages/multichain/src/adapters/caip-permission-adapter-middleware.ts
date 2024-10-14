@@ -8,8 +8,8 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import type { ScopeString } from '../scope/types';
 import { mergeScopes } from '../scope/transform';
+import type { ScopeString } from '../scope/types';
 
 /**
  * Middleware to handle CAIP-25 permission requests.

@@ -1,12 +1,12 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
-import type { ScopeObject, ScopesObject } from './types';
 import {
   isSupportedMethod,
   isSupportedNotification,
   isSupportedScopeString,
 } from './supported';
+import type { ScopeObject, ScopesObject } from './types';
 
 export const assertScopeSupported = (
   scopeString: string,

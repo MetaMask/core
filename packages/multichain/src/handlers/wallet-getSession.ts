@@ -6,8 +6,8 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import type { ScopesObject } from '../scope/types';
 import { mergeScopes } from '../scope/transform';
+import type { ScopesObject } from '../scope/types';
 
 /**
  * Handler for the `wallet_getSession` RPC method.

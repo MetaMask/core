@@ -1,8 +1,8 @@
 import type { Hex } from '@metamask/utils';
 
 import { bucketScopesBySupport } from './filter';
-import type { ExternalScopesObject, ScopesObject } from './types';
 import { flattenMergeScopes } from './transform';
+import type { ExternalScopesObject, ScopesObject } from './types';
 import { validateScopes } from './validation';
 
 export type Caip25Authorization =

@@ -12,9 +12,9 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
+import { mergeScopes } from '../scope/transform';
 import type { ScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
-import { mergeScopes } from '../scope/transform';
 
 /**
  * Handler for the `wallet_invokeMethod` RPC method.

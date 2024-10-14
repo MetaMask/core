@@ -1,10 +1,10 @@
-import type { ExternalScopeObject } from './types';
 import {
   flattenScope,
   mergeScopes,
   mergeScopeObject,
   flattenMergeScopes,
 } from './transform';
+import type { ExternalScopeObject } from './types';
 
 const validScopeObject: ExternalScopeObject = {
   methods: [],
