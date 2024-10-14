@@ -2261,8 +2261,15 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    // Our tests setup that RPC will try using sampleTokenA, and API will use sampleTokenB
-    // So can indicate which flow (RPC or API) is used
+    /**
+     * Test Utility - Arrange and Act `detectTokens()` with the Accounts API feature
+     * RPC flow will return `sampleTokenA` and the Accounts API flow will use `sampleTokenB`
+     * @param props - options to modify these tests
+     * @param props.overrideMockTokensCache - change the tokens cache
+     * @param props.mockMultiChainAPI - change the Accounts API responses
+     * @param props.overrideMockTokenGetState - change the external TokensController state
+     * @returns properties that can be used for assertions
+     */
     const arrangeActTestDetectTokensWithAccountsAPI = async (props?: {
       /** Overwrite the tokens cache inside Tokens Controller */
       overrideMockTokensCache?: (typeof sampleTokenA)[];
