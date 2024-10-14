@@ -9,7 +9,6 @@ import type {
 import {
   CaveatMutatorOperation,
   PermissionType,
-  SubjectType,
 } from '@metamask/permission-controller';
 import type { CaipAccountId, Json } from '@metamask/utils';
 import {
@@ -77,7 +76,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
     targetName: Caip25EndowmentPermissionName,
     allowedCaveats: [Caip25CaveatType],
     endowmentGetter: (_getterOptions?: EndowmentGetterParams) => null,
-    subjectTypes: [SubjectType.Website],
     validator: (permission: PermissionConstraint) => {
       const caip25Caveat = permission.caveats?.[0];
       if (
