@@ -1054,9 +1054,12 @@ export default class NotificationServicesController extends BaseController<
    *
    * **Action** - When a user views the notification list page/dropdown
    *
+   * @param previewToken - the preview token to use if needed
    * @throws {Error} Throws an error if unauthenticated or from other operations.
    */
-  public async fetchAndUpdateMetamaskNotifications(): Promise<INotification[]> {
+  public async fetchAndUpdateMetamaskNotifications(
+    previewToken?: string,
+  ): Promise<INotification[]> {
     try {
       this.#setIsFetchingMetamaskNotifications(true);
 
@@ -1065,6 +1068,7 @@ export default class NotificationServicesController extends BaseController<
         .isFeatureAnnouncementsEnabled
         ? await FeatureNotifications.getFeatureAnnouncementNotifications(
             this.#featureAnnouncementEnv,
+            previewToken,
           ).catch(() => [])
         : [];
 
