@@ -1565,15 +1565,15 @@ __metadata:
   linkType: hard
 
 "@metamask/eth-json-rpc-provider@npm:^4.0.0, @metamask/eth-json-rpc-provider@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "@metamask/eth-json-rpc-provider@npm:4.1.0"
+  version: 4.1.4
+  resolution: "@metamask/eth-json-rpc-provider@npm:4.1.4"
   dependencies:
-    "@metamask/json-rpc-engine": ^9.0.0
-    "@metamask/rpc-errors": ^6.2.1
+    "@metamask/json-rpc-engine": ^9.0.3
+    "@metamask/rpc-errors": ^6.3.1
     "@metamask/safe-event-emitter": ^3.0.0
-    "@metamask/utils": ^8.3.0
+    "@metamask/utils": ^9.1.0
     uuid: ^8.3.2
-  checksum: c9669c93df073423d36ff941b512247b569e7f7c56cc6110565bc8dc6590ad691a78d6d17eea6243721c1c464f0f008ea1326fc7373f90fb705fba5fb85d804d
+  checksum: e450f831012eb8c24e3a0fb7ed89d0d96d2bb8e8f17215d6d545259907bf67dd35f7b07f9be25e4f0d918a0c939f41c4c1bd5618d9c4b1cd681682f8ff916207
   languageName: node
   linkType: hard
 
