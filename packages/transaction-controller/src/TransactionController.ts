@@ -3625,12 +3625,6 @@ export class TransactionController extends BaseController<
     const isBalanceDifferenceEqual =
       simulationNativeBalanceDifference === value;
 
-    console.log({
-      isSimulationDataAvailable,
-      isMaliciousTransfer,
-      isBalanceDifferenceEqual,
-    });
-
     if (
       !isSimulationDataAvailable ||
       !isMaliciousTransfer ||
