@@ -3719,8 +3719,11 @@ export class TransactionController extends BaseController<
           }),
       );
 
-      if (!isEqual(simulationData, prevSimulationData)) {
-        simulationData.changeInSimulationData = true;
+      if (prevSimulationData && !isEqual(simulationData, prevSimulationData)) {
+        simulationData = {
+          ...simulationData,
+          changeInSimulationData: true,
+        };
       }
     }
 
