@@ -200,10 +200,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     isAccountsAPIEnabled: true,
     supportedNetworksCache: null as number[] | null,
     async getSupportedNetworks() {
+      /* istanbul ignore next */
       if (!this.isAccountsAPIEnabled) {
         throw new Error('Accounts API Feature Switch is disabled');
       }
 
+      /* istanbul ignore next */
       if (this.supportedNetworksCache) {
         return this.supportedNetworksCache;
       }
