@@ -1,7 +1,7 @@
 import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { assertScopeSupported } from './assert';
-import type { ScopesObject } from './scope';
+import type { ScopesObject } from './types';
 
 export const bucketScopesBySupport = (
   scopes: ScopesObject,

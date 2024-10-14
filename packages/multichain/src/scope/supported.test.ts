@@ -3,7 +3,7 @@ import {
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from './scope';
+} from './types';
 import {
   isSupportedMethod,
   isSupportedNotification,

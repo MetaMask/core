@@ -4,8 +4,8 @@ import type {
   ExternalScopeString,
   ExternalScopeObject,
   ExternalScopesObject,
-} from './scope';
-import { parseScopeString } from './scope';
+} from './types';
+import { parseScopeString } from './types';
 
 export const isValidScope = (
   scopeString: ExternalScopeString,

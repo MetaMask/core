@@ -46,7 +46,7 @@ const dereffedPromise = dereferenceDocument(
   MultiChainOpenRPCDocument as unknown as OpenrpcDocument,
   makeCustomResolver({}),
 );
-export const multichainMethodCallValidator = async (
+const multichainMethodCallValidator = async (
   method: string,
   params: JsonRpcParams | undefined,
 ) => {

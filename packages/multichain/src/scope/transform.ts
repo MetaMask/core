@@ -7,8 +7,8 @@ import type {
   ScopeString,
   ScopeObject,
   ScopesObject,
-} from './scope';
-import { parseScopeString } from './scope';
+} from './types';
+import { parseScopeString } from './types';
 
 // TODO: DRY THIS
 /**

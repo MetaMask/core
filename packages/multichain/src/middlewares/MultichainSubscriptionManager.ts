@@ -5,7 +5,7 @@ import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 import type EventEmitter from 'events';
 
-import type { ExternalScopeString } from '../scope/scope';
+import type { ExternalScopeString } from '../scope/types';
 
 export type SubscriptionManager = {
   events: EventEmitter;
@@ -38,7 +38,7 @@ type MultichainSubscriptionManagerOptions = {
   getNetworkClientById: NetworkController['getNetworkClientById'];
 };
 
-export default class MultichainSubscriptionManager extends SafeEventEmitter {
+export class MultichainSubscriptionManager extends SafeEventEmitter {
   #findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
 
   #getNetworkClientById: NetworkController['getNetworkClientById'];

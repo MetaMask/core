@@ -1,6 +1,6 @@
 import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
 
-import MultichainSubscriptionManager from './MultichainSubscriptionManager';
+import { MultichainSubscriptionManager } from './MultichainSubscriptionManager';
 
 jest.mock('@metamask/eth-json-rpc-filters/subscriptionManager', () =>
   jest.fn(),

@@ -8,14 +8,14 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './scope';
+import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
   parseScopeString,
-} from './scope';
+} from './types';
 
 // TODO Maybe this gets DRY'ed into utils?.. It's used in TokenDetectionController too
 /**

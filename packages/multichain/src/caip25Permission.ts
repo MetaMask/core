@@ -26,7 +26,7 @@ import type {
   ExternalScopeString,
   ScopeObject,
   ScopesObject,
-} from './scope/scope';
+} from './scope/types';
 
 export type Caip25CaveatValue = {
   requiredScopes: ScopesObject;

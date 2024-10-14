@@ -6,7 +6,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import type { ScopesObject } from '../scope/scope';
+import type { ScopesObject } from '../scope/types';
 import { mergeScopes } from '../scope/transform';
 
 /**

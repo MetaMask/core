@@ -1,7 +1,7 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
-import type { ScopeObject, ScopesObject } from './scope';
+import type { ScopeObject, ScopesObject } from './types';
 import {
   isSupportedMethod,
   isSupportedNotification,

@@ -1,7 +1,7 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
 
 import { assertScopeSupported, assertScopesSupported } from './assert';
-import type { ScopeObject } from './scope';
+import type { ScopeObject } from './types';
 import * as Supported from './supported';
 
 jest.mock('./supported', () => ({

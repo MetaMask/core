@@ -1,5 +1,5 @@
 import type { ExtendedJsonRpcMiddleware } from './MultichainMiddlewareManager';
-import MultichainMiddlewareManager from './MultichainMiddlewareManager';
+import { MultichainMiddlewareManager } from './MultichainMiddlewareManager';
 
 const scope = 'eip155:1';
 const origin = 'example.com';

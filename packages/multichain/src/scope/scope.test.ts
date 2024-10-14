@@ -1,4 +1,4 @@
-import { parseScopeString } from './scope';
+import { parseScopeString } from './types';
 
 describe('Scope', () => {
   describe('parseScopeString', () => {

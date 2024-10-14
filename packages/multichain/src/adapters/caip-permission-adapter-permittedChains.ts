@@ -3,12 +3,12 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import type { ScopesObject, ScopeString } from '../scope/scope';
+import type { ScopesObject, ScopeString } from '../scope/types';
 import {
   KnownNotifications,
   KnownRpcMethods,
   parseScopeString,
-} from '../scope/scope';
+} from '../scope/types';
 import { mergeScopes } from '../scope/transform';
 
 export const getPermittedEthChainIds = (

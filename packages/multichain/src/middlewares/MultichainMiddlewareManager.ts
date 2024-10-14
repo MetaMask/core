@@ -8,7 +8,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { ExternalScopeString } from '../scope/scope';
+import type { ExternalScopeString } from '../scope/types';
 
 export type ExtendedJsonRpcMiddleware = {
   (
@@ -29,7 +29,7 @@ type MiddlewareEntry = MiddlewareKey & {
   middleware: ExtendedJsonRpcMiddleware;
 };
 
-export default class MultichainMiddlewareManager {
+export class MultichainMiddlewareManager {
   #middlewares: MiddlewareEntry[] = [];
 
   #getMiddlewareEntry({
