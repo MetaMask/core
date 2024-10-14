@@ -2403,15 +2403,6 @@ describe('TokenDetectionController', () => {
       assertAddedTokens(apiToken);
     });
 
-    /**
-     * TODO - discuss if this is correct.
-     *
-     * If the Accounts API succeeds, but the tokens cannot be added (unable to create `Token` shape)
-     * Then should we add no tokens & then finish?
-     *
-     * If we want to, we could then do a pass with the RPC flow? But would it be necessary?
-     * - DEV - we can just add a simple check at the end of the API flow where if no tokens were added, then count it as a failure and perform the RPC flow?
-     */
     it('uses the Accounts API but does not add unknown tokens', async () => {
       // API returns sampleTokenB
       // As this is not a known token (in cache), then is not added
@@ -2456,15 +2447,6 @@ describe('TokenDetectionController', () => {
       actResult.assertAddedTokens(actResult.rpcToken);
     });
 
-    /**
-     * TODO - discuss if this is correct.
-     *
-     * If the Accounts API succeeds, but the tokens cannot be added (token already added)
-     * Then should we add no tokens (if they are all added) & then finish?
-     *
-     * If we want to, we could then do a pass with the RPC flow? But would it be necessary?
-     * - DEV - we can just add a simple check at the end of the API flow where if no tokens were added, then count it as a failure and perform the RPC flow?
-     */
     it('uses the Accounts API but does not add tokens that are already added', async () => {
       // Here we populate the token state with a token that exists in the tokenAPI.
       // So the token retrieved from the API should not be added

@@ -689,8 +689,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           return;
         }
 
-        // NOTE: some of this data is also available from the `token` balance,
-        // however it is missing the `aggregators` and `iconUrl` properties
         const { decimals, symbol, aggregators, iconUrl, name } =
           this.#tokenList[token.address];
         eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
