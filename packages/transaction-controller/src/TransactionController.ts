@@ -84,6 +84,7 @@ import type {
   SubmitHistoryEntry,
 } from './types';
 import {
+  BlockaidResultType,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
@@ -3599,7 +3600,46 @@ export class TransactionController extends BaseController<
       );
     }
 
+    if (this.#checkIfSimulationRetriggerNeeded(transactionMeta)) {
+      this.#updateSimulationData(transactionMeta).catch((error) => {
+        log('Error updating simulation data', error);
+        throw error;
+      });
+    }
+
     return transactionMeta;
+  }
+
+  #checkIfSimulationRetriggerNeeded(transactionMeta: TransactionMeta) {
+    const {
+      securityAlertResponse,
+      simulationData,
+      txParams: { value },
+    } = transactionMeta;
+
+    const isSimulationDataAvailable = Boolean(simulationData);
+    const isMaliciousTransfer =
+      securityAlertResponse?.result_type === BlockaidResultType.Malicious;
+    const simulationNativeBalanceDifference =
+      simulationData?.nativeBalanceChange?.difference;
+    const isBalanceDifferenceEqual =
+      simulationNativeBalanceDifference === value;
+
+    console.log({
+      isSimulationDataAvailable,
+      isMaliciousTransfer,
+      isBalanceDifferenceEqual,
+    });
+
+    if (
+      !isSimulationDataAvailable ||
+      !isMaliciousTransfer ||
+      !isBalanceDifferenceEqual
+    ) {
+      return false;
+    }
+
+    return true;
   }
 
   #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
@@ -3649,7 +3689,12 @@ export class TransactionController extends BaseController<
     transactionMeta: TransactionMeta,
     { traceContext }: { traceContext?: TraceContext } = {},
   ) {
-    const { id: transactionId, chainId, txParams } = transactionMeta;
+    const {
+      id: transactionId,
+      chainId,
+      txParams,
+      simulationData: prevSimulationData,
+    } = transactionMeta;
     const { from, to, value, data } = txParams;
 
     let simulationData: SimulationData = {
@@ -3692,6 +3737,10 @@ export class TransactionController extends BaseController<
       );
 
       return;
+    }
+
+    if (!isEqual(simulationData, prevSimulationData)) {
+      simulationData.changeInSimulationData = true;
     }
 
     this.#updateTransactionInternal(

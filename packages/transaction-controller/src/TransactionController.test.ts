@@ -36,6 +36,7 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
+import { merge } from 'lodash';
 import * as uuidModule from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -73,6 +74,7 @@ import type {
   SubmitHistoryEntry,
 } from './types';
 import {
+  BlockaidResultType,
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
@@ -5029,6 +5031,230 @@ describe('TransactionController', () => {
       ).toThrow(
         'Cannot update security alert response as no transaction metadata found',
       );
+    });
+
+    describe('should not trigger simulation data update', () => {
+      it('when simulationData is not available', async () => {
+        const transactionMeta = TRANSACTION_META_MOCK;
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMeta],
+            },
+          },
+        });
+
+        controller.updateSecurityAlertResponse(transactionMeta.id, {
+          reason: 'NA',
+          // This is API specific hence naming convention is not followed.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          result_type: BlockaidResultType.Malicious,
+        });
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      });
+
+      it('when security alert response type is not malicious', async () => {
+        const transactionMetaWithSimulationData = merge(
+          {},
+          TRANSACTION_META_MOCK,
+          {
+            txParams: {
+              value: '0x0',
+            },
+            simulationData: {
+              tokenBalanceChanges: [],
+              nativeBalanceChange: {
+                difference: '0x0',
+              },
+            },
+          },
+        );
+
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMetaWithSimulationData],
+            },
+          },
+        });
+
+        controller.updateSecurityAlertResponse(
+          transactionMetaWithSimulationData.id,
+          {
+            reason: 'NA',
+            // This is API specific hence naming convention is not followed.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            result_type: BlockaidResultType.Warning,
+          },
+        );
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      });
+
+      it('when transaction value is already different than simulated value', async () => {
+        const transactionMetaWithSimulationData = merge(
+          {},
+          TRANSACTION_META_MOCK,
+          {
+            txParams: {
+              value: '0x12345678',
+            },
+            simulationData: {
+              tokenBalanceChanges: [],
+              nativeBalanceChange: {
+                difference: '0x0',
+              },
+            },
+          },
+        );
+
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMetaWithSimulationData],
+            },
+          },
+        });
+
+        controller.updateSecurityAlertResponse(
+          transactionMetaWithSimulationData.id,
+          {
+            reason: 'NA',
+            // This is API specific hence naming convention is not followed.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            result_type: BlockaidResultType.Malicious,
+          },
+        );
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+      });
+    });
+
+    it('should retrigger simulation data update when simulationData available and if result_type is malicious', async () => {
+      const transactionMetaWithSimulationData = merge(
+        {},
+        TRANSACTION_META_MOCK,
+        {
+          txParams: {
+            value: '0x0',
+          },
+          simulationData: {
+            tokenBalanceChanges: [],
+            nativeBalanceChange: {
+              difference: '0x0',
+            },
+          },
+        },
+      );
+
+      getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [transactionMetaWithSimulationData],
+          },
+        },
+      });
+
+      controller.updateSecurityAlertResponse(
+        transactionMetaWithSimulationData.id,
+        {
+          reason: 'NA',
+          // This is API specific hence naming convention is not followed.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          result_type: BlockaidResultType.Malicious,
+        },
+      );
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    describe('should mark simulationDataChanged after security alert update', () => {
+      it('as true if simulationData updated', async () => {
+        // Assume that previous simulationData tells that transaction has no token balance changes
+        const transactionMetaWithSimulationData = merge(
+          {},
+          TRANSACTION_META_MOCK,
+          {
+            txParams: {
+              value: '0x0',
+            },
+            simulationData: {
+              tokenBalanceChanges: [],
+              nativeBalanceChange: {
+                difference: '0x0',
+              },
+            },
+          },
+        );
+
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMetaWithSimulationData],
+            },
+          },
+        });
+
+        controller.updateSecurityAlertResponse(
+          transactionMetaWithSimulationData.id,
+          {
+            reason: 'NA',
+            // This is API specific hence naming convention is not followed.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            result_type: BlockaidResultType.Malicious,
+          },
+        );
+
+        await flushPromises();
+
+        expect(
+          controller.state.transactions[0].simulationData
+            ?.changeInSimulationData,
+        ).toBe(true);
+      });
+
+      it('as undefined if current and new simulationData equality check is false', async () => {
+        // Assume that previous simulationData tells that transaction has some token balance changes
+        const transactionMeta = merge({}, TRANSACTION_META_MOCK, {
+          simulationData: SIMULATION_DATA_MOCK,
+        });
+
+        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [transactionMeta],
+            },
+          },
+        });
+
+        controller.updateSecurityAlertResponse(transactionMeta.id, {
+          reason: 'NA',
+          // This is API specific hence naming convention is not followed.
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          result_type: BlockaidResultType.Malicious,
+        });
+
+        await flushPromises();
+
+        expect(
+          controller.state.transactions[0].simulationData
+            ?.changeInSimulationData,
+        ).toBeUndefined();
+      });
     });
   });
 
