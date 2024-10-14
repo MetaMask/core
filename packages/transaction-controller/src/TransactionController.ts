@@ -3718,6 +3718,10 @@ export class TransactionController extends BaseController<
             data: data as Hex,
           }),
       );
+
+      if (!isEqual(simulationData, prevSimulationData)) {
+        simulationData.changeInSimulationData = true;
+      }
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);
@@ -3731,10 +3735,6 @@ export class TransactionController extends BaseController<
       );
 
       return;
-    }
-
-    if (!isEqual(simulationData, prevSimulationData)) {
-      simulationData.changeInSimulationData = true;
     }
 
     this.#updateTransactionInternal(
