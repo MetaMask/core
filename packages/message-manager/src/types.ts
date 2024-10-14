@@ -2,7 +2,7 @@ import type { SIWEMessage } from '@metamask/controller-utils';
 
 import type { AbstractMessageParams } from './AbstractMessageManager';
 
-// Below types are temporary as they are in use by the KeyringController.
+// Below types are temporary as they are used by the KeyringController.
 
 export type SignTypedDataMessageV3V4 = {
   types: Record<string, unknown>;

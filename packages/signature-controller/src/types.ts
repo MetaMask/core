@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+import type { SIWEMessage } from '@metamask/controller-utils';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Json } from '@metamask/utils';
 
@@ -41,26 +40,30 @@ export type MessageParams = {
   requestId?: number;
 };
 
+export type StateSIWEMessage = Omit<SIWEMessage, 'parsedMessage'> & {
+  parsedMessage: Omit<SIWEMessage['parsedMessage'], 'constructor'>;
+};
+
 /** Personal message parameters that were requested to be signed. */
 export type MessageParamsPersonal = MessageParams & {
   /** Hexadecimal data to sign. */
   data: string;
 
   /** Sign-In With Ethereum data extracted from the data. */
-  siwe?: any;
+  siwe?: StateSIWEMessage;
 };
 
 /** Typed message parameters that were requested to be signed. */
 export type MessageParamsTyped = MessageParams & {
   /** Structured data to sign. */
   data:
-    | Record<string, any>[]
+    | Record<string, Json>[]
     | string
     | {
-        types: Record<string, any>;
-        domain: Record<string, any>;
+        types: Record<string, Json>;
+        domain: Record<string, Json>;
         primaryType: string;
-        message: any;
+        message: Json;
       };
 };
 

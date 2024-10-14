@@ -41,6 +41,7 @@ import type {
   MessageParams,
   TypedSigningOptions,
   LegacyStateMessage,
+  StateSIWEMessage,
 } from './types';
 import {
   normalizePersonalMessageParams,
@@ -296,7 +297,9 @@ export class SignatureController extends BaseController<
     const normalizedMessageParams =
       normalizePersonalMessageParams(messageParams);
 
-    normalizedMessageParams.siwe = detectSIWE(messageParams);
+    normalizedMessageParams.siwe = detectSIWE(
+      messageParams,
+    ) as StateSIWEMessage;
 
     return this.#processSignatureRequest({
       messageParams: normalizedMessageParams,
@@ -558,7 +561,9 @@ export class SignatureController extends BaseController<
         case SignatureRequestType.PersonalSign:
           signature = await this.messagingSystem.call(
             'KeyringController:signPersonalMessage',
-            messageParams,
+            // Keyring controller temporarily using message manager types.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            messageParams as any,
           );
           break;
 
