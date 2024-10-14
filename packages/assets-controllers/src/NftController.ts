@@ -25,6 +25,7 @@ import {
   ApprovalType,
   NFT_API_BASE_URL,
   NFT_API_VERSION,
+  convertHexToDecimal,
 } from '@metamask/controller-utils';
 import { type InternalAccount } from '@metamask/keyring-api';
 import type {
@@ -507,16 +508,21 @@ export class NftController extends BaseController<
    *
    * @param contractAddress - Hex address of the NFT contract.
    * @param tokenId - The NFT identifier.
+   * @param networkClientId - The networkClientId identifier.
    * @returns Promise resolving to the current NFT name and image.
    */
   async #getNftInformationFromApi(
     contractAddress: string,
     tokenId: string,
+    networkClientId?: NetworkClientId,
   ): Promise<NftMetadata> {
-    // TODO Parameterize this by chainId for non-mainnet token detection
+    const chainId = this.#getCorrectChainId({ networkClientId });
+    // Convert hex chainId to number
+    const convertedChainId = convertHexToDecimal(chainId).toString();
+
     // Attempt to fetch the data with the nft-api
     const urlParams = new URLSearchParams({
-      chainIds: '1',
+      chainIds: convertedChainId,
       tokens: `${contractAddress}:${tokenId}`,
       includeTopBid: 'true',
       includeAttributes: 'true',
@@ -535,7 +541,7 @@ export class NftController extends BaseController<
       });
     // Params for getCollections API call
     const getCollectionParams = new URLSearchParams({
-      chainId: '1',
+      chainId: convertedChainId,
       id: `${nftInformation?.tokens[0]?.token?.collection?.id as string}`,
     }).toString();
     // Fetch collection information using collectionId
@@ -784,7 +790,11 @@ export class NftController extends BaseController<
       ),
       this.#openSeaEnabled && chainId === '0x1'
         ? safelyExecute(() =>
-            this.#getNftInformationFromApi(contractAddress, tokenId),
+            this.#getNftInformationFromApi(
+              contractAddress,
+              tokenId,
+              networkClientId,
+            ),
           )
         : undefined,
     ]);
