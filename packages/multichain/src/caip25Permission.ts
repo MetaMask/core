@@ -88,9 +88,8 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      const { requiredScopes, optionalScopes, isMultichainOrigin } = (
-        caip25Caveat.value as { value: Caip25CaveatValue }
-      ).value;
+      const { requiredScopes, optionalScopes, isMultichainOrigin } =
+        caip25Caveat.value as Caip25CaveatValue;
 
       if (
         !requiredScopes ||
