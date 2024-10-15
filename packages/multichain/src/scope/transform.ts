@@ -10,14 +10,13 @@ import type {
 } from './types';
 import { parseScopeString } from './types';
 
-// TODO: DRY THIS
 /**
  * Returns a list of unique items
  *
  * @param list - The list of items to filter
  * @returns A list of unique items
  */
-function unique<Value>(list: Value[]): Value[] {
+export function getUniqueArrayItems<Value>(list: Value[]): Value[] {
   return Array.from(new Set(list));
 }
 
@@ -56,28 +55,28 @@ export const mergeScopeObject = (
 ) => {
   const mergedScopeObject: ScopeObject = {
     methods: unique([...scopeObjectA.methods, ...scopeObjectB.methods]),
-    notifications: unique([
+    notifications: getUniqueArrayItems([
       ...scopeObjectA.notifications,
       ...scopeObjectB.notifications,
     ]),
   };
 
   if (scopeObjectA.accounts || scopeObjectB.accounts) {
-    mergedScopeObject.accounts = unique([
+    mergedScopeObject.accounts = getUniqueArrayItems([
       ...(scopeObjectA.accounts ?? []),
       ...(scopeObjectB.accounts ?? []),
     ]);
   }
 
   if (scopeObjectA.rpcDocuments || scopeObjectB.rpcDocuments) {
-    mergedScopeObject.rpcDocuments = unique([
+    mergedScopeObject.rpcDocuments = getUniqueArrayItems([
       ...(scopeObjectA.rpcDocuments ?? []),
       ...(scopeObjectB.rpcDocuments ?? []),
     ]);
   }
 
   if (scopeObjectA.rpcEndpoints || scopeObjectB.rpcEndpoints) {
-    mergedScopeObject.rpcEndpoints = unique([
+    mergedScopeObject.rpcEndpoints = getUniqueArrayItems([
       ...(scopeObjectA.rpcEndpoints ?? []),
       ...(scopeObjectB.rpcEndpoints ?? []),
     ]);

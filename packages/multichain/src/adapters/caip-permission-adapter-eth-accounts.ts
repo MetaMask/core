@@ -6,7 +6,7 @@ import {
 } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import { mergeScopes } from '../scope/transform';
+import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
 import type { ScopesObject, ScopeString } from '../scope/types';
 import { KnownWalletScopeString, parseScopeString } from '../scope/types';
 
@@ -36,7 +36,7 @@ export const getEthAccounts = (caip25CaveatValue: Caip25CaveatValue) => {
     });
   });
 
-  return Array.from(new Set(ethAccounts));
+  return getUniqueArrayItems(ethAccounts);
 };
 
 const setEthAccountsForScopesObject = (
