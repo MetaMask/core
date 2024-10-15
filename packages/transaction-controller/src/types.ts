@@ -1121,7 +1121,7 @@ export type SecurityAlertResponse = {
   features?: string[];
   // This is API specific hence naming convention is not followed.
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  result_type: BlockaidResultType | string;
+  result_type: string;
   providerRequestsCount?: Record<string, number>;
 };
 
@@ -1372,13 +1372,4 @@ export type SubmitHistoryEntry = {
   transaction: TransactionParams;
 };
 
-export enum BlockaidResultType {
-  Malicious = 'Malicious',
-  Warning = 'Warning',
-  Benign = 'Benign',
-  Errored = 'Error',
-
-  // MetaMask defined result types
-  NotApplicable = 'NotApplicable',
-  Loading = 'loading',
-}
+export const BLOCKAID_RESULT_TYPE_MALICIOUS = 'Malicious';

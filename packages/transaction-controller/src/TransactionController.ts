@@ -84,7 +84,7 @@ import type {
   SubmitHistoryEntry,
 } from './types';
 import {
-  BlockaidResultType,
+  BLOCKAID_RESULT_TYPE_MALICIOUS,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
@@ -3619,21 +3619,17 @@ export class TransactionController extends BaseController<
 
     const isSimulationDataAvailable = Boolean(simulationData);
     const isMaliciousTransfer =
-      securityAlertResponse?.result_type === BlockaidResultType.Malicious;
+      securityAlertResponse?.result_type === BLOCKAID_RESULT_TYPE_MALICIOUS;
     const simulationNativeBalanceDifference =
       simulationData?.nativeBalanceChange?.difference;
     const isBalanceDifferenceEqual =
       simulationNativeBalanceDifference === value;
 
-    if (
-      !isSimulationDataAvailable ||
-      !isMaliciousTransfer ||
-      !isBalanceDifferenceEqual
-    ) {
-      return false;
-    }
-
-    return true;
+    return (
+      isSimulationDataAvailable &&
+      isMaliciousTransfer &&
+      isBalanceDifferenceEqual
+    );
   }
 
   #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
