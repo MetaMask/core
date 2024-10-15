@@ -17,9 +17,9 @@ import { parseScopeString } from './types';
  * @param list - The list of items to filter
  * @returns A list of unique items
  */
-function unique<Value>(list: Value[]): Value[] {
+const unique = <Value>(list: Value[]): Value[] => {
   return Array.from(new Set(list));
-}
+};
 
 /**
  * Flattens a ScopeString and ScopeObject into a separate
