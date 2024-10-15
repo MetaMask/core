@@ -566,7 +566,6 @@ describe('SignatureController', () => {
       controller.hub.on(`${ID_MOCK}:signError`, listener);
 
       keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
-
       keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
 
       await fn(controller).catch(() => {
@@ -577,6 +576,33 @@ describe('SignatureController', () => {
       expect(listener).toHaveBeenCalledWith({
         error: errorMock,
       });
+    });
+
+    it('invokes error callback if signing fails', async () => {
+      const resultCallbackErrorMock = jest.fn();
+
+      const errorMock = createErrorMock();
+
+      const {
+        controller,
+        approvalControllerAddRequestMock,
+        keyringControllerSignPersonalMessageMock,
+        keyringControllerSignTypedMessageMock,
+      } = createController();
+
+      approvalControllerAddRequestMock.mockResolvedValueOnce({
+        resultCallbacks: {
+          error: resultCallbackErrorMock,
+        },
+      });
+
+      keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
+      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
+
+      await expect(fn(controller)).rejects.toThrow(ERROR_MESSAGE_MOCK);
+
+      expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
     });
   });
 
@@ -613,39 +639,6 @@ describe('SignatureController', () => {
         .messageParams as MessageParamsPersonal;
 
       expect(messageParams.siwe).toStrictEqual(siweMock);
-    });
-
-    it('invokes error callback if signing fails', async () => {
-      const resultCallbackErrorMock = jest.fn();
-
-      const errorMock = createErrorMock();
-
-      const {
-        controller,
-        approvalControllerAddRequestMock,
-        keyringControllerSignPersonalMessageMock,
-      } = createController();
-
-      approvalControllerAddRequestMock.mockResolvedValueOnce({
-        resultCallbacks: {
-          error: resultCallbackErrorMock,
-        },
-      });
-
-      keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
-
-      await expect(
-        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {}),
-      ).rejects.toThrow(
-        `MetaMask ${SignatureRequestType.PersonalSign} Signature: User denied message signature.`,
-      );
-
-      expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
-      expect(resultCallbackErrorMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: `MetaMask ${SignatureRequestType.PersonalSign} Signature: User denied message signature.`,
-        }),
-      );
     });
   });
 
@@ -744,53 +737,13 @@ describe('SignatureController', () => {
           SignTypedDataVersion.V3,
           { parseJsonData: false },
         ),
-      ).rejects.toThrow(
-        `MetaMask ${SignatureRequestType.TypedSign} Signature: ${errorMock.message}`,
-      );
+      ).rejects.toThrow(errorMock);
 
       expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
         SignatureRequestStatus.Errored,
       );
       expect(controller.state.signatureRequests[ID_MOCK].error).toBe(
         ERROR_MESSAGE_MOCK,
-      );
-    });
-
-    it('invokes error callback if signing fails', async () => {
-      const resultCallbackErrorMock = jest.fn();
-
-      const errorMock = createErrorMock();
-
-      const {
-        controller,
-        approvalControllerAddRequestMock,
-        keyringControllerSignTypedMessageMock,
-      } = createController();
-
-      approvalControllerAddRequestMock.mockResolvedValueOnce({
-        resultCallbacks: {
-          error: resultCallbackErrorMock,
-        },
-      });
-
-      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
-
-      await expect(
-        controller.newUnsignedTypedMessage(
-          { ...PARAMS_MOCK },
-          {},
-          SignTypedDataVersion.V1,
-          { parseJsonData: false },
-        ),
-      ).rejects.toThrow(
-        `MetaMask ${SignatureRequestType.TypedSign} Signature: ${ERROR_MESSAGE_MOCK}`,
-      );
-
-      expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
-      expect(resultCallbackErrorMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: `MetaMask ${SignatureRequestType.TypedSign} Signature: ${ERROR_MESSAGE_MOCK}`,
-        }),
       );
     });
   });

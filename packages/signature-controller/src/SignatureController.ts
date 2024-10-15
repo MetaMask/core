@@ -469,7 +469,7 @@ export class SignatureController extends BaseController<
     });
 
     let resultCallbacks: AcceptResultCallbacks | undefined;
-    let clientRejectError: unknown;
+    let approveOrSignError: unknown;
 
     const finalMetadataPromise = this.#waitForFinished(metadata.id);
 
@@ -479,14 +479,12 @@ export class SignatureController extends BaseController<
         metadata,
         request,
         traceContext,
-      }).catch((error) => {
-        clientRejectError = error as Error;
-        throw error;
       });
 
       await this.#approveAndSignRequest(metadata, traceContext);
     } catch (error) {
       log('Signature request failed', error);
+      approveOrSignError = error;
     }
 
     const finalMetadata = await finalMetadataPromise;
@@ -506,7 +504,8 @@ export class SignatureController extends BaseController<
         return finalMetadata.rawSig as string;
 
       case SignatureRequestStatus.Rejected:
-        const rejectedError = (clientRejectError ??
+        /* istanbul ignore next */
+        const rejectedError = (approveOrSignError ??
           new Error(
             `MetaMask ${type} Signature: User denied message signature.`,
           )) as Error;
@@ -515,9 +514,9 @@ export class SignatureController extends BaseController<
         throw rejectedError;
 
       case SignatureRequestStatus.Errored:
-        const erroredError = new Error(
-          `MetaMask ${type} Signature: ${error as string}`,
-        );
+        /* istanbul ignore next */
+        const erroredError = (approveOrSignError ??
+          new Error(`MetaMask ${type} Signature: ${error as string}`)) as Error;
 
         resultCallbacks?.error(erroredError);
         throw erroredError;
