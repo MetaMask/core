@@ -3,7 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import { mergeScopes } from '../scope/transform';
+import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
 import type { ScopesObject, ScopeString } from '../scope/types';
 import {
   KnownNotifications,
@@ -28,7 +28,7 @@ export const getPermittedEthChainIds = (
     }
   });
 
-  return Array.from(new Set(ethChainIds));
+  return getUniqueArrayItems(ethChainIds);
 };
 
 export const addPermittedEthChainId = (

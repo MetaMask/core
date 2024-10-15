@@ -611,3 +611,29 @@ describe('util', () => {
     });
   });
 });
+
+describe('isEqualCaseInsensitive', () => {
+  it('returns false for non-string values', () => {
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(null, 'test')).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive('test', null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(5, 'test')).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive('test', 5)).toBe(false);
+  });
+
+  it('returns false for strings that are not equal', () => {
+    expect(util.isEqualCaseInsensitive('test', 'test1')).toBe(false);
+    expect(util.isEqualCaseInsensitive('test1', 'test')).toBe(false);
+  });
+
+  it('returns true for strings that are equal', () => {
+    expect(util.isEqualCaseInsensitive('test', 'TEST')).toBe(true);
+    expect(util.isEqualCaseInsensitive('test', 'test')).toBe(true);
+    expect(util.isEqualCaseInsensitive('TEST', 'TEST')).toBe(true);
+    expect(util.isEqualCaseInsensitive('test', 'Test')).toBe(true);
+    expect(util.isEqualCaseInsensitive('Test', 'test')).toBe(true);
+  });
+});
