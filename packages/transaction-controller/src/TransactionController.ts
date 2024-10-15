@@ -116,6 +116,7 @@ import { determineTransactionType } from './utils/transaction-type';
 import {
   normalizeTransactionParams,
   isEIP1559Transaction,
+  isPercentageDifferenceWithinThreshold,
   validateGasValues,
   validateIfTransactionUnapproved,
   normalizeTxError,
@@ -3555,7 +3556,8 @@ export class TransactionController extends BaseController<
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
-    let updatedTransactionParams: (keyof TransactionParams)[] = [];
+    let isTransactionParamsUpdated = false;
+    let isSecurityAlertOrSimulationUpdated = false;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
@@ -3575,8 +3577,10 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      updatedTransactionParams =
-        this.#checkIfTransactionParamsUpdated(transactionMeta);
+      isSecurityAlertOrSimulationUpdated =
+        this.#checkIfSecurityAlertOrSimulationUpdated(transactionMeta);
+      isTransactionParamsUpdated =
+        this.#isTransactionParamsUpdated(transactionMeta);
 
       const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
@@ -3593,14 +3597,13 @@ export class TransactionController extends BaseController<
       transactionId,
     ) as TransactionMeta;
 
-    if (updatedTransactionParams.length > 0) {
-      this.#onTransactionParamsUpdated(
+    if (
+      this.#shouldRetriggerSimulation(
         transactionMeta,
-        updatedTransactionParams,
-      );
-    }
-
-    if (this.#checkIfSimulationRetriggerNeeded(transactionMeta)) {
+        isTransactionParamsUpdated,
+        isSecurityAlertOrSimulationUpdated,
+      )
+    ) {
       this.#updateSimulationData(transactionMeta).catch((error) => {
         log('Error updating simulation data', error);
         throw error;
@@ -3610,7 +3613,11 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
-  #checkIfSimulationRetriggerNeeded(transactionMeta: TransactionMeta) {
+  #shouldRetriggerSimulation(
+    transactionMeta: TransactionMeta,
+    isTransactionParamsUpdated: boolean,
+    isSecurityAlertOrSimulationUpdated: boolean,
+  ) {
     const {
       securityAlertResponse,
       simulationData,
@@ -3622,23 +3629,73 @@ export class TransactionController extends BaseController<
       securityAlertResponse?.result_type === BLOCKAID_RESULT_TYPE_MALICIOUS;
     const simulationNativeBalanceDifference =
       simulationData?.nativeBalanceChange?.difference;
-    const isBalanceDifferenceEqual =
-      simulationNativeBalanceDifference === value;
+    const isTxValueAndSimulationNativeBalanceDefined =
+      value !== undefined && simulationNativeBalanceDifference !== undefined;
+    const isTxValueVsBalanceAbovePercentageThreshold =
+      isTxValueAndSimulationNativeBalanceDefined &&
+      !isPercentageDifferenceWithinThreshold(
+        simulationNativeBalanceDifference,
+        value as Hex,
+        5,
+      );
 
-    return (
+    const shouldRetriggerForSecurityAlert =
+      isSecurityAlertOrSimulationUpdated &&
       isSimulationDataAvailable &&
       isMaliciousTransfer &&
-      isBalanceDifferenceEqual
-    );
+      isTxValueVsBalanceAbovePercentageThreshold;
+
+    return shouldRetriggerForSecurityAlert || isTransactionParamsUpdated;
   }
 
-  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
+  #checkIfSecurityAlertOrSimulationUpdated(
+    newTransactionMeta: TransactionMeta,
+  ) {
+    const {
+      id: transactionId,
+      simulationData: newSimulationData,
+      securityAlertResponse: newSecurityAlertResponse,
+    } = cloneDeep(newTransactionMeta);
+
+    const newTransactionProps = {
+      simulationData: newSimulationData,
+      securityAlertResponse: newSecurityAlertResponse,
+      simulationNativeBalanceDifference:
+        newSimulationData?.nativeBalanceChange?.difference,
+    };
+
+    const {
+      simulationData: originalSimulationData,
+      securityAlertResponse: originalSecurityAlertResponse,
+    } = cloneDeep(this.getTransaction(transactionId) as TransactionMeta);
+
+    const originalTransactionProps = {
+      simulationData: originalSimulationData,
+      securityAlertResponse: originalSecurityAlertResponse,
+      simulationNativeBalanceDifference:
+        originalSimulationData?.nativeBalanceChange?.difference,
+    };
+
+    // Skips the cases where simulationData fetch started or completed
+    const shouldSkip =
+      !newTransactionProps.simulationData ||
+      (!originalTransactionProps.simulationData &&
+        newTransactionProps.simulationData);
+
+    if (shouldSkip) {
+      return false;
+    }
+
+    return !isEqual(originalTransactionProps, newTransactionProps);
+  }
+
+  #isTransactionParamsUpdated(newTransactionMeta: TransactionMeta): boolean {
     const { id: transactionId, txParams: newParams } = newTransactionMeta;
 
     const originalParams = this.getTransaction(transactionId)?.txParams;
 
     if (!originalParams || isEqual(originalParams, newParams)) {
-      return [];
+      return false;
     }
 
     const params = Object.keys(newParams) as (keyof TransactionParams)[];
@@ -3655,24 +3712,9 @@ export class TransactionController extends BaseController<
       newParams,
     );
 
-    return updatedProperties;
-  }
-
-  #onTransactionParamsUpdated(
-    transactionMeta: TransactionMeta,
-    updatedParams: (keyof TransactionParams)[],
-  ) {
-    if (
-      (['to', 'value', 'data'] as const).some((param) =>
-        updatedParams.includes(param),
-      )
-    ) {
-      log('Updating simulation data due to transaction parameter update');
-      this.#updateSimulationData(transactionMeta).catch((error) => {
-        log('Error updating simulation data', error);
-        throw error;
-      });
-    }
+    return (['to', 'value', 'data'] as const).some((param) =>
+      updatedProperties.includes(param),
+    );
   }
 
   async #updateSimulationData(

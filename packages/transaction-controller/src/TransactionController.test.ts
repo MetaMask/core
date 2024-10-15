@@ -74,7 +74,7 @@ import type {
   SubmitHistoryEntry,
 } from './types';
 import {
-  BlockaidResultType,
+  BLOCKAID_RESULT_TYPE_MALICIOUS,
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
@@ -5049,7 +5049,7 @@ describe('TransactionController', () => {
           reason: 'NA',
           // This is API specific hence naming convention is not followed.
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          result_type: BlockaidResultType.Malicious,
+          result_type: BLOCKAID_RESULT_TYPE_MALICIOUS,
         });
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
@@ -5088,14 +5088,14 @@ describe('TransactionController', () => {
             reason: 'NA',
             // This is API specific hence naming convention is not followed.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            result_type: BlockaidResultType.Warning,
+            result_type: 'warning',
           },
         );
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
       });
 
-      it('when transaction value is already different than simulated value', async () => {
+      it('when transaction value and simulated native balance change within threshold', async () => {
         const transactionMetaWithSimulationData = merge(
           {},
           TRANSACTION_META_MOCK,
@@ -5106,7 +5106,7 @@ describe('TransactionController', () => {
             simulationData: {
               tokenBalanceChanges: [],
               nativeBalanceChange: {
-                difference: '0x0',
+                difference: '0x12345178',
               },
             },
           },
@@ -5128,7 +5128,7 @@ describe('TransactionController', () => {
             reason: 'NA',
             // This is API specific hence naming convention is not followed.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            result_type: BlockaidResultType.Malicious,
+            result_type: BLOCKAID_RESULT_TYPE_MALICIOUS,
           },
         );
 
@@ -5136,18 +5136,18 @@ describe('TransactionController', () => {
       });
     });
 
-    it('should retrigger simulation data update when simulationData available and if result_type is malicious', async () => {
+    it('should retrigger simulation data update when result_type is malicious and simulated transaction value above threshold', async () => {
       const transactionMetaWithSimulationData = merge(
         {},
         TRANSACTION_META_MOCK,
         {
           txParams: {
-            value: '0x0',
+            value: '0x012',
           },
           simulationData: {
             tokenBalanceChanges: [],
             nativeBalanceChange: {
-              difference: '0x0',
+              difference: '0x012345',
             },
           },
         },
@@ -5169,7 +5169,7 @@ describe('TransactionController', () => {
           reason: 'NA',
           // This is API specific hence naming convention is not followed.
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          result_type: BlockaidResultType.Malicious,
+          result_type: BLOCKAID_RESULT_TYPE_MALICIOUS,
         },
       );
 
@@ -5191,7 +5191,7 @@ describe('TransactionController', () => {
             simulationData: {
               tokenBalanceChanges: [],
               nativeBalanceChange: {
-                difference: '0x0',
+                difference: '0x012345',
               },
             },
           },
@@ -5213,7 +5213,7 @@ describe('TransactionController', () => {
             reason: 'NA',
             // This is API specific hence naming convention is not followed.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            result_type: BlockaidResultType.Malicious,
+            result_type: BLOCKAID_RESULT_TYPE_MALICIOUS,
           },
         );
 
@@ -5245,7 +5245,7 @@ describe('TransactionController', () => {
           reason: 'NA',
           // This is API specific hence naming convention is not followed.
           // eslint-disable-next-line @typescript-eslint/naming-convention
-          result_type: BlockaidResultType.Malicious,
+          result_type: BLOCKAID_RESULT_TYPE_MALICIOUS,
         });
 
         await flushPromises();
