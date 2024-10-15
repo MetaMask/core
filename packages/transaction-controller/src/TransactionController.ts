@@ -3556,8 +3556,8 @@ export class TransactionController extends BaseController<
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
-    let isTransactionParamsUpdated = false;
-    let isSecurityAlertOrSimulationUpdated = false;
+    let isTransactionParamsUpdated: boolean = false;
+    let isSecurityAlertOrSimulationUpdated: boolean = false;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
