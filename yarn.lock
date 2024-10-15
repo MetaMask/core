@@ -3111,7 +3111,7 @@ __metadata:
     "@metamask/profile-sync-controller": "npm:^0.9.7"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
-    bignumber.js: "npm:^4.1.0"
+    bignumber.js: "npm:^9.1.2"
     contentful: "npm:^10.15.0"
     deepmerge: "npm:^4.2.2"
     firebase: "npm:^10.11.0"
@@ -5316,13 +5316,6 @@ __metadata:
   version: 2.0.0
   resolution: "bech32@npm:2.0.0"
   checksum: 10/fa15acb270b59aa496734a01f9155677b478987b773bf701f465858bf1606c6a970085babd43d71ce61895f1baa594cb41a2cd1394bd2c6698f03cc2d811300e
-  languageName: node
-  linkType: hard
-
-"bignumber.js@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "bignumber.js@npm:4.1.0"
-  checksum: 10/b9a1761dd3c46ae2af44fb7c4c5587c57ba6815e6b4212c36f404984203866be01dd86a9882b2c65ebbed2625ed794c57a7955d78449ba1787843c3c8b556bc2
   languageName: node
   linkType: hard
 
