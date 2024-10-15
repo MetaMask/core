@@ -88,9 +88,8 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      // TODO: FIX THIS TYPE
       const { requiredScopes, optionalScopes, isMultichainOrigin } = (
-        caip25Caveat as unknown as { value: Caip25CaveatValue }
+        caip25Caveat.value as { value: Caip25CaveatValue }
       ).value;
 
       if (
