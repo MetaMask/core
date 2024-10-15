@@ -90,29 +90,6 @@ describe('endowment:caip25', () => {
       });
     });
 
-    it('can revoke the entire permission when a requiredScope is removed', () => {
-      const ethereumGoerliCaveat = {
-        requiredScopes: {
-          'eip155:1': {
-            methods: ['eth_call'],
-            notifications: ['chainChanged'],
-          },
-        },
-        optionalScopes: {
-          'eip155:5': {
-            methods: ['eth_call'],
-            notifications: ['accountsChanged'],
-          },
-        },
-        sessionProperties: {},
-        isMultichainOrigin: true,
-      };
-      const result = removeScope('eip155:1', ethereumGoerliCaveat);
-      expect(result).toStrictEqual({
-        operation: CaveatMutatorOperation.RevokePermission,
-      });
-    });
-
     it('can noop when nothing is removed', () => {
       const ethereumGoerliCaveat = {
         requiredScopes: {

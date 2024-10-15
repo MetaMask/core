@@ -247,13 +247,7 @@ export function removeScope(
     newOptionalScopes.length !==
     Object.keys(caip25CaveatValue.optionalScopes).length;
 
-  if (requiredScopesRemoved) {
-    return {
-      operation: CaveatMutatorOperation.RevokePermission,
-    };
-  }
-
-  if (optionalScopesRemoved) {
+  if (requiredScopesRemoved || optionalScopesRemoved) {
     return {
       operation: CaveatMutatorOperation.UpdateValue,
       value: {
