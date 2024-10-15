@@ -70,6 +70,13 @@ const getDefaultState = () => ({
   unapprovedTypedMessagesCount: 0,
 });
 
+/** List of statuses that will not be updated and trigger the finished event. */
+const FINAL_STATUSES: SignatureRequestStatus[] = [
+  SignatureRequestStatus.Signed,
+  SignatureRequestStatus.Rejected,
+  SignatureRequestStatus.Errored,
+];
+
 export type SignatureControllerState = {
   /**
    * Map of all signature requests including all types and statuses, keyed by ID.
@@ -359,15 +366,10 @@ export class SignatureController extends BaseController<
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setDeferredSignSuccess(signatureRequestId: string, signature: any) {
-    const updatedSignatureRequest = this.#updateMetadata(
-      signatureRequestId,
-      (draftMetadata) => {
-        draftMetadata.rawSig = signature;
-        draftMetadata.status = SignatureRequestStatus.Signed;
-      },
-    );
-
-    this.hub.emit(`${signatureRequestId}:finished`, updatedSignatureRequest);
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.rawSig = signature;
+      draftMetadata.status = SignatureRequestStatus.Signed;
+    });
   }
 
   /**
@@ -388,14 +390,9 @@ export class SignatureController extends BaseController<
    * @param signatureRequestId - The ID of the signature request.
    */
   setDeferredSignError(signatureRequestId: string) {
-    const updatedSignatureRequest = this.#updateMetadata(
-      signatureRequestId,
-      (draftMetadata) => {
-        draftMetadata.status = SignatureRequestStatus.Rejected;
-      },
-    );
-
-    this.hub.emit(`${signatureRequestId}:finished`, updatedSignatureRequest);
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Rejected;
+    });
   }
 
   /**
@@ -463,75 +460,152 @@ export class SignatureController extends BaseController<
 
     this.#addLog(type, version, SigningStage.Proposed, messageParams);
 
-    const { securityAlertResponse } = request;
+    const metadata = this.#addMetadata({
+      messageParams,
+      request,
+      signingOptions,
+      type,
+      version,
+    });
 
+    let resultCallbacks: AcceptResultCallbacks | undefined;
+    let clientRejectError: unknown;
+
+    const finalMetadataPromise = this.#waitForFinished(metadata.id);
+
+    try {
+      resultCallbacks = await this.#processApproval({
+        approvalType,
+        metadata,
+        request,
+        traceContext,
+      }).catch((error) => {
+        clientRejectError = error as Error;
+        throw error;
+      });
+
+      await this.#approveAndSignRequest(metadata, traceContext);
+    } catch (error) {
+      log('Signature request failed', error);
+    }
+
+    const finalMetadata = await finalMetadataPromise;
+
+    const {
+      error,
+      id,
+      messageParams: finalMessageParams,
+      rawSig: signature,
+    } = finalMetadata;
+
+    switch (finalMetadata.status) {
+      case SignatureRequestStatus.Signed:
+        log('Signature request finished', { id, signature });
+        this.#addLog(type, version, SigningStage.Signed, finalMessageParams);
+        resultCallbacks?.success(signature);
+        return finalMetadata.rawSig as string;
+
+      case SignatureRequestStatus.Rejected:
+        const rejectedError = (clientRejectError ??
+          new Error(
+            `MetaMask ${type} Signature: User denied message signature.`,
+          )) as Error;
+
+        resultCallbacks?.error(rejectedError);
+        throw rejectedError;
+
+      case SignatureRequestStatus.Errored:
+        const erroredError = new Error(
+          `MetaMask ${type} Signature: ${error as string}`,
+        );
+
+        resultCallbacks?.error(erroredError);
+        throw erroredError;
+
+      /* istanbul ignore next */
+      default:
+        throw new Error(
+          `MetaMask ${type} Signature: Unknown problem: ${JSON.stringify(
+            finalMessageParams,
+          )}`,
+        );
+    }
+  }
+
+  #addMetadata({
+    messageParams,
+    request,
+    signingOptions,
+    type,
+    version,
+  }: {
+    messageParams: MessageParams;
+    request: OriginalRequest;
+    signingOptions?: TypedSigningOptions;
+    type: SignatureRequestType;
+    version?: SignTypedDataVersion;
+  }): SignatureRequest {
     const finalMessageParams = {
       ...messageParams,
       origin: request.origin,
       requestId: request.id,
     };
 
-    let resultCallbacks: AcceptResultCallbacks | undefined;
+    const { securityAlertResponse } = request;
+
+    const metadata = {
+      id: random(),
+      messageParams: finalMessageParams,
+      securityAlertResponse,
+      signingOptions,
+      status: SignatureRequestStatus.Unapproved,
+      time: Date.now(),
+      type,
+      version,
+    } as SignatureRequest;
+
+    this.#updateState((state) => {
+      state.signatureRequests[metadata.id] = metadata;
+    });
+
+    this.hub.emit('unapprovedMessage', {
+      messageParams,
+      metamaskId: metadata.id,
+    });
+
+    return metadata;
+  }
+
+  async #processApproval({
+    approvalType,
+    metadata,
+    request,
+    traceContext,
+  }: {
+    approvalType: ApprovalType;
+    metadata: SignatureRequest;
+    request?: OriginalRequest;
+    traceContext?: TraceContext;
+  }): Promise<AcceptResultCallbacks | undefined> {
+    const { id, messageParams, type, version } = metadata;
 
     try {
-      const metadata = {
-        id: random(),
-        messageParams: finalMessageParams,
-        securityAlertResponse,
-        signingOptions,
-        status: SignatureRequestStatus.Unapproved,
-        time: Date.now(),
-        type,
-        version,
-      } as SignatureRequest;
-
-      this.#updateState((state) => {
-        state.signatureRequests[metadata.id] = metadata;
-      });
-
-      this.hub.emit('unapprovedMessage', {
-        messageParams,
-        metamaskId: metadata.id,
-      });
-
-      const finishedPromise = this.#waitForSignatureRequestFinished(
-        metadata.id,
+      const acceptResult = await this.#trace(
+        { name: 'Await Approval', parentContext: traceContext },
+        (context) =>
+          this.#requestApproval(metadata, approvalType, {
+            traceContext: context,
+            actionId: request?.id?.toString(),
+          }),
       );
 
-      try {
-        const acceptResult = await this.#trace(
-          { name: 'Await Approval', parentContext: traceContext },
-          (context) =>
-            this.#requestApproval(metadata, approvalType, {
-              traceContext: context,
-              actionId: request?.id?.toString(),
-            }),
-        );
-
-        resultCallbacks = acceptResult.resultCallbacks;
-      } catch (error) {
-        log('User rejected request', metadata.id);
-
-        this.#addLog(type, version, SigningStage.Rejected, messageParams);
-        this.#rejectSignatureRequest(metadata.id);
-
-        throw error;
-      }
-
-      await this.#approveAndSignRequest(metadata, traceContext);
-
-      const signature = await finishedPromise;
-
-      log('Signature request finished', { id: metadata.id, signature });
-
-      this.#addLog(type, version, SigningStage.Signed, messageParams);
-
-      resultCallbacks?.success(signature);
-
-      return signature;
+      return acceptResult.resultCallbacks;
     } catch (error) {
-      log('Signature request failed', error);
-      resultCallbacks?.error(error as Error);
+      log('User rejected request', { id, error });
+
+      this.#addLog(type, version, SigningStage.Rejected, messageParams);
+      this.#rejectSignatureRequest(id);
+
       throw error;
     }
   }
@@ -590,19 +664,14 @@ export class SignatureController extends BaseController<
         return;
       }
 
-      const finalMetadata = this.#updateMetadata(id, (draftMetadata) => {
+      this.#updateMetadata(id, (draftMetadata) => {
         draftMetadata.rawSig = signature;
         draftMetadata.status = SignatureRequestStatus.Signed;
       });
-
-      this.hub.emit(`${id}:finished`, finalMetadata);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       if (type === SignatureRequestType.TypedSign) {
-        this.#updateMetadata(id, (draftMetadata) => {
-          draftMetadata.status = SignatureRequestStatus.Errored;
-          draftMetadata.error = error.message;
-        });
+        this.#errorSignatureRequest(id, error.message);
       } else {
         this.#rejectSignatureRequest(id);
       }
@@ -611,6 +680,13 @@ export class SignatureController extends BaseController<
 
       throw error;
     }
+  }
+
+  #errorSignatureRequest(id: string, error: string) {
+    this.#updateMetadata(id, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Errored;
+      draftMetadata.error = error;
+    });
   }
 
   #rejectSignatureRequest(signatureRequestId: string, reason?: string) {
@@ -624,32 +700,10 @@ export class SignatureController extends BaseController<
     });
   }
 
-  async #waitForSignatureRequestFinished(id: string): Promise<string> {
-    return new Promise((resolve, reject) => {
+  async #waitForFinished(id: string): Promise<SignatureRequest> {
+    return new Promise((resolve) => {
       this.hub.once(`${id}:finished`, (metadata: SignatureRequest) => {
-        const { messageParams, rawSig, status, type } = metadata;
-
-        switch (status) {
-          case SignatureRequestStatus.Signed:
-            return resolve(rawSig as string);
-
-          case SignatureRequestStatus.Rejected:
-            return reject(
-              new Error(
-                `MetaMask ${type} Signature: User denied message signature.`,
-              ),
-            );
-
-          /* istanbul ignore next */
-          default:
-            return reject(
-              new Error(
-                `MetaMask ${type} Signature: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
+        resolve(metadata);
       });
     });
   }
@@ -688,6 +742,8 @@ export class SignatureController extends BaseController<
     id: string,
     callback: (metadata: SignatureRequest) => void,
   ): SignatureRequest {
+    let statusChanged = false;
+
     const { nextState } = this.#updateState((state) => {
       const metadata = state.signatureRequests[id];
 
@@ -695,10 +751,24 @@ export class SignatureController extends BaseController<
         throw new Error(`Signature request with id ${id} not found`);
       }
 
+      const originalStatus = metadata.status;
+
+      // eslint-disable-next-line n/callback-return
       callback(metadata);
+
+      statusChanged = metadata.status !== originalStatus;
     });
 
-    return nextState.signatureRequests[id];
+    const updatedMetadata = nextState.signatureRequests[id];
+
+    if (
+      statusChanged &&
+      FINAL_STATUSES.includes(updatedMetadata.status as SignatureRequestStatus)
+    ) {
+      this.hub.emit(`${id}:finished`, updatedMetadata);
+    }
+
+    return updatedMetadata;
   }
 
   #updateState(callback: (state: SignatureControllerState) => void) {
