@@ -9,7 +9,11 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import contractMap from '@metamask/contract-metadata';
-import { ChainId, safelyExecute } from '@metamask/controller-utils';
+import {
+  ChainId,
+  safelyExecute,
+  isEqualCaseInsensitive,
+} from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -43,26 +47,6 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
-
-/**
- * Compare 2 given strings and return boolean
- * eg: "foo" and "FOO" => true
- * eg: "foo" and "bar" => false
- * eg: "foo" and 123 => false
- *
- * @param value1 - first string to compare
- * @param value2 - first string to compare
- * @returns true if 2 strings are identical when they are lowercase
- */
-export function isEqualCaseInsensitive(
-  value1: string,
-  value2: string,
-): boolean {
-  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
-    return false;
-  }
-  return value1.toLowerCase() === value2.toLowerCase();
-}
 
 type LegacyToken = {
   name: string;

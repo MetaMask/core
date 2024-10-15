@@ -1,4 +1,4 @@
-import { toHex } from '@metamask/controller-utils';
+import { toHex, isEqualCaseInsensitive } from '@metamask/controller-utils';
 import type { CaipAccountId, Hex } from '@metamask/utils';
 import {
   isCaipChainId,
@@ -16,21 +16,6 @@ import {
   KnownWalletRpcMethods,
   parseScopeString,
 } from './types';
-
-// TODO Maybe this gets DRY'ed into utils?.. It's used in TokenDetectionController too
-/**
- * Checks if two strings are equal, ignoring case.
- *
- * @param value1 - The first string to compare.
- * @param value2 - The second string to compare.
- * @returns `true` if the strings are equal, ignoring case; otherwise, `false`.
- */
-function isEqualCaseInsensitive(value1: string, value2: string): boolean {
-  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
-    return false;
-  }
-  return value1.toLowerCase() === value2.toLowerCase();
-}
 
 export const isSupportedScopeString = (
   scopeString: string,
