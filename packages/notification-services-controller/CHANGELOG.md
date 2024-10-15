@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Changed
+
+- update `createMockNotification` functions to provide more realistic data for use in tests and component rendering in Storybook ([#4791](https://github.com/MetaMask/core/pull/4791))
+
+### Added
+
+- added the ability for the `fetchFeatureAnnouncementNotifications` function, within the `notification-services-controller`, to fetch draft content from Contentful. This is made possible by passing a `previewToken` parameter ([#4790](https://github.com/MetaMask/core/pull/4790))
+
 ## [0.9.0]
 
 ### Added
@@ -190,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.9.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.10.0...HEAD
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.9.0...@metamask/notification-services-controller@0.10.0
 [0.9.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.2...@metamask/notification-services-controller@0.9.0
 [0.8.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.1...@metamask/notification-services-controller@0.8.2
 [0.8.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.0...@metamask/notification-services-controller@0.8.1
