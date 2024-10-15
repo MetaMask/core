@@ -46,7 +46,7 @@ const setEthAccountsForScopesObject = (
   const updatedScopesObject: ScopesObject = {};
 
   Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
-    const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet
+    const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet;
 
     if (
       !isEip155ScopeString(scopeString as ScopeString) &&
@@ -84,10 +84,6 @@ export const setEthAccounts = (
     ),
     optionalScopes: setEthAccountsForScopesObject(
       {
-        wallet: {
-          methods: [],
-          notifications: [],
-        },
         [KnownWalletScopeString.Eip155]: {
           methods: [],
           notifications: [],

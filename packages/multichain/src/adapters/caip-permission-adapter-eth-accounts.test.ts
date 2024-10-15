@@ -47,11 +47,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
             notifications: [],
             accounts: ['wallet:eip155:0x5'],
           },
-          wallet: {
-            methods: [],
-            notifications: [],
-            accounts: ['wallet:eip155:0x6'],
-          },
         },
         isMultichainOrigin: false,
       });
@@ -63,7 +58,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
         '0x3',
         '0x100',
         '0x5',
-        '0x6',
       ]);
     });
   });
@@ -106,10 +100,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: ['eip155:100:0x100'],
           },
           'wallet:eip155': {
-            methods: [],
-            notifications: [],
-          },
-          wallet: {
             methods: [],
             notifications: [],
           },
@@ -163,21 +153,12 @@ describe('CAIP-25 eth_accounts adapters', () => {
               'wallet:eip155:0x3',
             ],
           },
-          wallet: {
-            methods: [],
-            notifications: [],
-            accounts: [
-              'wallet:eip155:0x1',
-              'wallet:eip155:0x2',
-              'wallet:eip155:0x3',
-            ],
-          },
         },
         isMultichainOrigin: false,
       });
     });
 
-    it('returns a CAIP-25 caveat value with "wallet" and "wallet:eip155" scopes with CAIP-10 account addresses formed from the accounts param when the "wallet" or "wallet:eip155" are not defined in optional scopes', () => {
+    it('returns a CAIP-25 caveat value with upserted "wallet:eip155" optional scope with CAIP-10 account addresses formed from the accounts param', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {},
         optionalScopes: {},
@@ -188,15 +169,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
       expect(result).toStrictEqual({
         requiredScopes: {},
         optionalScopes: {
-          wallet: {
-            methods: [],
-            notifications: [],
-            accounts: [
-              'wallet:eip155:0x1',
-              'wallet:eip155:0x2',
-              'wallet:eip155:0x3',
-            ],
-          },
           'wallet:eip155': {
             methods: [],
             notifications: [],
