@@ -6,8 +6,7 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
-
-import walletRevokeSession from './wallet-revokeSession';
+import { walletRevokeSession } from './wallet-revokeSession';
 
 const walletRevokeSessionHandler = walletRevokeSession.implementation;
 

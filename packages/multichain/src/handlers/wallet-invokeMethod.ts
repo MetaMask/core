@@ -109,7 +109,7 @@ async function walletInvokeMethodHandler(
   });
   return next();
 }
-const walletInvokeMethod = {
+export const walletInvokeMethod = {
   methodNames: ['wallet_invokeMethod'],
   implementation: walletInvokeMethodHandler,
   hookNames: {
@@ -118,4 +118,3 @@ const walletInvokeMethod = {
     getSelectedNetworkClientId: true,
   },
 };
-export default walletInvokeMethod;

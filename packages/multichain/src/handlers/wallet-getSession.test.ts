@@ -4,7 +4,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import walletGetSession from './wallet-getSession';
+import { walletGetSession } from './wallet-getSession';
 
 const walletGetSessionHandler = walletGetSession.implementation;
 

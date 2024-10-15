@@ -9,9 +9,9 @@ export {
   setPermittedEthChainIds,
 } from './adapters/caip-permission-adapter-permittedChains';
 
-export { walletGetSessionHandler } from './handlers/wallet-getSession';
-export { walletInvokeMethodHandler } from './handlers/wallet-invokeMethod';
-export { walletRevokeSessionHandler } from './handlers/wallet-revokeSession';
+export { walletGetSession } from './handlers/wallet-getSession';
+export { walletInvokeMethod } from './handlers/wallet-invokeMethod';
+export { walletRevokeSession } from './handlers/wallet-revokeSession';
 
 export { multichainMethodCallValidatorMiddleware } from './middlewares/multichainMethodCallValidator';
 export { MultichainMiddlewareManager } from './middlewares/MultichainMiddlewareManager';

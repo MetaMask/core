@@ -5,7 +5,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import walletInvokeMethod from './wallet-invokeMethod';
+import { walletInvokeMethod } from './wallet-invokeMethod';
 
 const walletInvokeMethodHandler = walletInvokeMethod.implementation;
 

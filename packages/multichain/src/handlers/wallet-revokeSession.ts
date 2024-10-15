@@ -45,11 +45,10 @@ async function walletRevokeSessionHandler(
   response.result = true;
   return end();
 }
-const walletRevokeSession = {
+export const walletRevokeSession = {
   methodNames: ['wallet_revokeSession'],
   implementation: walletRevokeSessionHandler,
   hookNames: {
     revokePermission: true,
   },
 };
-export default walletRevokeSession;
