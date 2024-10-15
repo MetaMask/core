@@ -302,9 +302,9 @@ export class UserOperationController extends BaseController<
   }
 
   startPollingByNetworkClientId(networkClientId: string): string {
-    return this.#pendingUserOperationTracker.startPollingByNetworkClientId(
+    return this.#pendingUserOperationTracker.startPolling({
       networkClientId,
-    );
+    });
   }
 
   async #addUserOperation(

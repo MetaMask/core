@@ -18,6 +18,12 @@ export enum TRIGGER_TYPES {
   ERC721_RECEIVED = 'erc721_received',
   ERC1155_SENT = 'erc1155_sent',
   ERC1155_RECEIVED = 'erc1155_received',
+  AAVE_V3_HEALTH_FACTOR = 'aave_v3_health_factor',
+  ENS_EXPIRATION = 'ens_expiration',
+  LIDO_STAKING_REWARDS = 'lido_staking_rewards',
+  ROCKETPOOL_STAKING_REWARDS = 'rocketpool_staking_rewards',
+  NOTIONAL_LOAN_EXPIRATION = 'notional_loan_expiration',
+  SPARK_FI_HEALTH_FACTOR = 'spark_fi_health_factor',
 }
 
 export const TRIGGER_TYPES_WALLET_SET: Set<string> = new Set([

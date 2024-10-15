@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Added
+
+- added the ability for the `fetchFeatureAnnouncementNotifications` function, within the `notification-services-controller`, to fetch draft content from Contentful. This is made possible by passing a `previewToken` parameter ([#4790](https://github.com/MetaMask/core/pull/4790))
+
+### Changed
+
+- update `createMockNotification` functions to provide more realistic data for use in tests and component rendering in Storybook ([#4791](https://github.com/MetaMask/core/pull/4791))
+
+## [0.9.0]
+
+### Added
+
+- Add new functions to create mock notifications ([#4780](https://github.com/MetaMask/core/pull/4780))
+  - `createMockNotificationAaveV3HealthFactor`: this function generates a mock notification related to the health factor of an Aave V3 position
+  - `createMockNotificationEnsExpiration`: this function creates a mock notification for the expiration of an ENS (Ethereum Name Service) domain
+  - `createMockNotificationLidoStakingRewards`: this function produces a mock notification for Lido staking rewards
+  - `createMockNotificationNotionalLoanExpiration`: this function generates a mock notification for the expiration of a Notional loan
+  - `createMockNotificationSparkFiHealthFactor`: This function produces a mock notification related to the health factor of a SparkFi position
+
 ## [0.8.2]
 
 ### Added
@@ -179,7 +200,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.10.0...HEAD
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.9.0...@metamask/notification-services-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.2...@metamask/notification-services-controller@0.9.0
 [0.8.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.1...@metamask/notification-services-controller@0.8.2
 [0.8.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.8.0...@metamask/notification-services-controller@0.8.1
 [0.8.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.7.0...@metamask/notification-services-controller@0.8.0

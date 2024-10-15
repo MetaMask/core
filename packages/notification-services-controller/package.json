@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.8.2",
+  "version": "0.10.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -111,7 +111,7 @@
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^17.2.2",
-    "@metamask/profile-sync-controller": "^0.9.6",
+    "@metamask/profile-sync-controller": "^0.9.7",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
     "contentful": "^10.15.0",

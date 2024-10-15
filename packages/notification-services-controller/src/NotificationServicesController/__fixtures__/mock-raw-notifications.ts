@@ -9,8 +9,8 @@ import type { OnChainRawNotification } from '../types/on-chain-notification/on-c
 export function createMockNotificationEthSent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ETH_SENT,
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    id: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
+    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa7',
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
@@ -44,8 +44,8 @@ export function createMockNotificationEthSent(): OnChainRawNotification {
 export function createMockNotificationEthReceived(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ETH_RECEIVED,
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    id: '3fa85f64-5717-4562-b3fc-2c963f66afa8',
+    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa8',
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
@@ -79,8 +79,8 @@ export function createMockNotificationEthReceived(): OnChainRawNotification {
 export function createMockNotificationERC20Sent(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ERC20_SENT,
-    id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    id: '3fa85f64-5717-4562-b3fc-2c963f66afa9',
+    trigger_id: '3fa85f64-5717-4562-b3fc-2c963f66afa9',
     chain_id: 1,
     block_number: 17485840,
     block_timestamp: '2022-03-01T00:00:00Z',
@@ -468,7 +468,7 @@ export function createMockNotificationRocketPoolUnStakeCompleted(): OnChainRawNo
         native_token_price_in_usd: '1553.75',
       },
     },
-    id: 'd8c246e7-a0a4-5f1d-b079-2b1707665fbc',
+    id: '291ec897-f569-4837-b6c0-21001b198dff',
     trigger_id: '291ec897-f569-4837-b6c0-21001b198dff',
     tx_hash:
       '0xc7972a7e409abfc62590ec90e633acd70b9b74e76ad02305be8bf133a0e22d5f',
@@ -517,7 +517,7 @@ export function createMockNotificationLidoStakeCompleted(): OnChainRawNotificati
         native_token_price_in_usd: '1806.33',
       },
     },
-    id: '9d9b1467-b3ee-5492-8ca2-22382657b690',
+    id: 'ec10d66a-f78f-461f-83c9-609aada8cc50',
     trigger_id: 'ec10d66a-f78f-461f-83c9-609aada8cc50',
     tx_hash:
       '0x8cc0fa805f7c3b1743b14f3b91c6b824113b094f26d4ccaf6a71ad8547ce6a0f',
@@ -566,8 +566,8 @@ export function createMockNotificationLidoWithdrawalRequested(): OnChainRawNotif
         native_token_price_in_usd: '1576.73',
       },
     },
-    id: '29ddc718-78c6-5f91-936f-2bef13a605f0',
-    trigger_id: 'ef003925-3379-4ba7-9e2d-8218690cadc8',
+    id: 'ef003925-3379-4ba7-9e2d-8218690cadc9',
+    trigger_id: 'ef003925-3379-4ba7-9e2d-8218690cadc9',
     tx_hash:
       '0x58b5f82e084cb750ea174e02b20fbdfd2ba8d78053deac787f34fc38e5d427aa',
     unread: true,
@@ -615,8 +615,8 @@ export function createMockNotificationLidoWithdrawalCompleted(): OnChainRawNotif
         native_token_price_in_usd: '1571.74',
       },
     },
-    id: 'f4ef0b7f-5612-537f-9144-0b5c63ae5391',
-    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042c',
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042f',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042f',
     tx_hash:
       '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
@@ -651,8 +651,189 @@ export function createMockNotificationLidoReadyToBeWithdrawn(): OnChainRawNotifi
         usd: '10000.00',
       },
     },
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042e',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042e',
+    tx_hash:
+      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
+    unread: true,
+  };
+
+  return mockNotification;
+}
+
+/**
+ * Mocking Utility - create a mock Aave V3 Health Factor notification
+ * @returns Mock raw Aave V3 Health Factor notification
+ */
+export function createMockNotificationAaveV3HealthFactor(): OnChainRawNotification {
+  const mockNotification: OnChainRawNotification = {
+    type: TRIGGER_TYPES.AAVE_V3_HEALTH_FACTOR,
+    block_number: 18378208,
+    block_timestamp: '1697643851',
+    chain_id: 1,
+    created_at: '2023-10-18T16:35:03.147606Z',
+    address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    data: {
+      kind: 'aave_v3_health_factor',
+      chainId: 1,
+      healthFactor: '3.4',
+      threshold: '5.5',
+    },
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042b',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042b',
+    tx_hash:
+      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
+    unread: true,
+  };
+
+  return mockNotification;
+}
+
+/**
+ * Mocking Utility - create a mock ENS Expiration notification
+ * @returns Mock raw ENS Expiration notification
+ */
+export function createMockNotificationEnsExpiration(): OnChainRawNotification {
+  const mockNotification: OnChainRawNotification = {
+    type: TRIGGER_TYPES.ENS_EXPIRATION,
+    block_number: 18378208,
+    block_timestamp: '1697643851',
+    chain_id: 1,
+    created_at: '2023-10-18T16:35:03.147606Z',
+    address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    data: {
+      kind: 'ens_expiration',
+      chainId: 1,
+      reverseEnsName: 'vitalik.eth',
+      expirationDateIso: '2024-01-01T00:00:00Z',
+      reminderDelayInSeconds: 86400,
+    },
     id: 'f4ef0b7f-5612-537f-9144-0b5c63ae5391',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042c',
+    tx_hash:
+      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
+    unread: true,
+  };
+
+  return mockNotification;
+}
+
+/**
+ * Mocking Utility - create a mock Lido Staking Rewards notification
+ * @returns Mock raw Lido Staking Rewards notification
+ */
+export function createMockNotificationLidoStakingRewards(): OnChainRawNotification {
+  const mockNotification: OnChainRawNotification = {
+    type: TRIGGER_TYPES.LIDO_STAKING_REWARDS,
+    block_number: 18378208,
+    block_timestamp: '1697643851',
+    chain_id: 1,
+    created_at: '2023-10-18T16:35:03.147606Z',
+    address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    data: {
+      kind: 'lido_staking_rewards',
+      chainId: 1,
+      currentStethBalance: '10',
+      currentEthValue: '10.5',
+      estimatedTotalRewardInPeriod: '0.5',
+      daysSinceLastNotification: 30,
+      notificationIntervalDays: 30,
+    },
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042l',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042l',
+    tx_hash:
+      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
+    unread: true,
+  };
+
+  return mockNotification;
+}
+
+/**
+ * Mocking Utility - create a mock Notional Loan Expiration notification
+ * @returns Mock raw Notional Loan Expiration notification
+ */
+export function createMockNotificationNotionalLoanExpiration(): OnChainRawNotification {
+  const mockNotification: OnChainRawNotification = {
+    type: TRIGGER_TYPES.NOTIONAL_LOAN_EXPIRATION,
+    block_number: 18378208,
+    block_timestamp: '1697643851',
+    chain_id: 1,
+    created_at: '2023-10-18T16:35:03.147606Z',
+    address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    data: {
+      kind: 'notional_loan_expiration',
+      chainId: 1,
+      loans: [
+        {
+          amount: '1.1234',
+          symbol: 'ETH',
+          maturityDateIso: '2024-01-01T00:00:00Z',
+        },
+      ],
+      reminderDelayInSeconds: 86400,
+    },
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042n',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042n',
+    tx_hash:
+      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
+    unread: true,
+  };
+
+  return mockNotification;
+}
+
+/**
+ * Mocking Utility - create a mock Rocketpool Staking Rewards notification
+ * @returns Mock raw Rocketpool Staking Rewards notification
+ */
+export function createMockNotificationRocketpoolStakingRewards(): OnChainRawNotification {
+  const mockNotification: OnChainRawNotification = {
+    type: TRIGGER_TYPES.ROCKETPOOL_STAKING_REWARDS,
+    block_number: 18378208,
+    block_timestamp: '1697643851',
+    chain_id: 1,
+    created_at: '2023-10-18T16:35:03.147606Z',
+    address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    data: {
+      kind: 'rocketpool_staking_rewards',
+      chainId: 1,
+      currentRethBalance: '10',
+      currentEthValue: '10.5',
+      estimatedTotalRewardInPeriod: '0.5',
+      daysSinceLastNotification: 30,
+      notificationIntervalDays: 30,
+    },
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042r',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042r',
+    tx_hash:
+      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
+    unread: true,
+  };
+
+  return mockNotification;
+}
+
+/**
+ * Mocking Utility - create a mock SparkFi Health Factor notification
+ * @returns Mock raw SparkFi Health Factor notification
+ */
+export function createMockNotificationSparkFiHealthFactor(): OnChainRawNotification {
+  const mockNotification: OnChainRawNotification = {
+    type: TRIGGER_TYPES.SPARK_FI_HEALTH_FACTOR,
+    block_number: 18378208,
+    block_timestamp: '1697643851',
+    chain_id: 1,
+    created_at: '2023-10-18T16:35:03.147606Z',
+    address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
+    data: {
+      kind: 'spark_fi_health_factor',
+      chainId: 1,
+      healthFactor: '3.4',
+      threshold: '5.5',
+    },
+    id: 'd73df14d-ce73-4f38-bad3-ab028154042s',
+    trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042s',
     tx_hash:
       '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
