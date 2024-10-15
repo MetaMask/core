@@ -109,3 +109,13 @@ export async function walletInvokeMethodHandler(
   });
   return next();
 }
+const walletInvokeMethod = {
+  methodNames: ['wallet_invokeMethod'],
+  implementation: walletInvokeMethodHandler,
+  hookNames: {
+    getCaveat: true,
+    findNetworkClientIdByChainId: true,
+    getSelectedNetworkClientId: true,
+  },
+};
+export default walletInvokeMethod;

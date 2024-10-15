@@ -56,3 +56,12 @@ export async function walletGetSessionHandler(
   };
   return end();
 }
+
+const walletGetSession = {
+  methodNames: ['wallet_getSession'],
+  implementation: walletGetSessionHandler,
+  hookNames: {
+    getCaveat: true,
+  },
+};
+export default walletGetSession;
