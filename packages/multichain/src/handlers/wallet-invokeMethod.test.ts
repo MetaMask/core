@@ -7,8 +7,6 @@ import {
 } from '../caip25Permission';
 import { walletInvokeMethod } from './wallet-invokeMethod';
 
-const walletInvokeMethodHandler = walletInvokeMethod.implementation;
-
 const createMockedRequest = () => ({
   jsonrpc: '2.0' as const,
   id: 0,
@@ -62,11 +60,17 @@ const createMockedHandler = () => {
     .fn()
     .mockReturnValue('selectedNetworkClientId');
   const handler = (request: JsonRpcRequest & { origin: string }) =>
-    walletInvokeMethodHandler(request, { jsonrpc: '2.0', id: 1 }, next, end, {
-      getCaveat,
-      findNetworkClientIdByChainId,
-      getSelectedNetworkClientId,
-    });
+    walletInvokeMethod.implementation(
+      request,
+      { jsonrpc: '2.0', id: 1 },
+      next,
+      end,
+      {
+        getCaveat,
+        findNetworkClientIdByChainId,
+        getSelectedNetworkClientId,
+      },
+    );
 
   return {
     next,

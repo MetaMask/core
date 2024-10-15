@@ -8,8 +8,6 @@ import type { JsonRpcRequest } from '@metamask/utils';
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
 import { walletRevokeSession } from './wallet-revokeSession';
 
-const walletRevokeSessionHandler = walletRevokeSession.implementation;
-
 const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',
   params: {},
@@ -28,7 +26,7 @@ const createMockedHandler = () => {
     jsonrpc: '2.0' as const,
   };
   const handler = (request: JsonRpcRequest & { origin: string }) =>
-    walletRevokeSessionHandler(request, response, next, end, {
+    walletRevokeSession.implementation(request, response, next, end, {
       revokePermission,
     });
 
