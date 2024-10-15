@@ -5221,7 +5221,7 @@ describe('TransactionController', () => {
 
         expect(
           controller.state.transactions[0].simulationData
-            ?.changeInSimulationData,
+            ?.isReSimulatedDueToSecurityAlert,
         ).toBe(true);
       });
 
@@ -5252,7 +5252,7 @@ describe('TransactionController', () => {
 
         expect(
           controller.state.transactions[0].simulationData
-            ?.changeInSimulationData,
+            ?.isReSimulatedDueToSecurityAlert,
         ).toBeUndefined();
       });
     });

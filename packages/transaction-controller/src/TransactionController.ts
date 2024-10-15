@@ -3556,8 +3556,8 @@ export class TransactionController extends BaseController<
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
-    let isTransactionParamsUpdated: boolean = false;
-    let isSecurityAlertOrSimulationUpdated: boolean = false;
+    let isReSimulateNeedDueToTxParamsUpdated = false;
+    let isReSimulateNeedDueToSecurityAlert = false;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
@@ -3577,10 +3577,10 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      isSecurityAlertOrSimulationUpdated =
-        this.#checkIfSecurityAlertOrSimulationUpdated(transactionMeta);
-      isTransactionParamsUpdated =
-        this.#isTransactionParamsUpdated(transactionMeta);
+      isReSimulateNeedDueToTxParamsUpdated =
+        this.#shouldReSimulateDueToTxParamUpdate(transactionMeta);
+      isReSimulateNeedDueToSecurityAlert =
+        this.#shouldReSimulateDueToSecurityAlert(transactionMeta);
 
       const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
@@ -3598,13 +3598,12 @@ export class TransactionController extends BaseController<
     ) as TransactionMeta;
 
     if (
-      this.#shouldRetriggerSimulation(
-        transactionMeta,
-        isTransactionParamsUpdated,
-        isSecurityAlertOrSimulationUpdated,
-      )
+      isReSimulateNeedDueToTxParamsUpdated ||
+      isReSimulateNeedDueToSecurityAlert
     ) {
-      this.#updateSimulationData(transactionMeta).catch((error) => {
+      this.#updateSimulationData(transactionMeta, {
+        isReSimulatedDueToSecurityAlert: isReSimulateNeedDueToSecurityAlert,
+      }).catch((error) => {
         log('Error updating simulation data', error);
         throw error;
       });
@@ -3613,11 +3612,9 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
-  #shouldRetriggerSimulation(
-    transactionMeta: TransactionMeta,
-    isTransactionParamsUpdated: boolean,
-    isSecurityAlertOrSimulationUpdated: boolean,
-  ) {
+  #shouldReSimulateDueToSecurityAlert(transactionMeta: TransactionMeta) {
+    const isSecurityAlertOrSimulationUpdated =
+      this.#isSecurityAlertOrSimulationUpdated(transactionMeta);
     const {
       securityAlertResponse,
       simulationData,
@@ -3639,18 +3636,15 @@ export class TransactionController extends BaseController<
         5,
       );
 
-    const shouldRetriggerForSecurityAlert =
+    return (
       isSecurityAlertOrSimulationUpdated &&
       isSimulationDataAvailable &&
       isMaliciousTransfer &&
-      isTxValueVsBalanceAbovePercentageThreshold;
-
-    return shouldRetriggerForSecurityAlert || isTransactionParamsUpdated;
+      isTxValueVsBalanceAbovePercentageThreshold
+    );
   }
 
-  #checkIfSecurityAlertOrSimulationUpdated(
-    newTransactionMeta: TransactionMeta,
-  ) {
+  #isSecurityAlertOrSimulationUpdated(newTransactionMeta: TransactionMeta) {
     const {
       id: transactionId,
       simulationData: newSimulationData,
@@ -3689,7 +3683,9 @@ export class TransactionController extends BaseController<
     return !isEqual(originalTransactionProps, newTransactionProps);
   }
 
-  #isTransactionParamsUpdated(newTransactionMeta: TransactionMeta): boolean {
+  #shouldReSimulateDueToTxParamUpdate(
+    newTransactionMeta: TransactionMeta,
+  ): boolean {
     const { id: transactionId, txParams: newParams } = newTransactionMeta;
 
     const originalParams = this.getTransaction(transactionId)?.txParams;
@@ -3719,7 +3715,13 @@ export class TransactionController extends BaseController<
 
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
-    { traceContext }: { traceContext?: TraceContext } = {},
+    {
+      traceContext,
+      isReSimulatedDueToSecurityAlert,
+    }: {
+      traceContext?: TraceContext;
+      isReSimulatedDueToSecurityAlert?: boolean;
+    } = {},
   ) {
     const {
       id: transactionId,
@@ -3760,7 +3762,7 @@ export class TransactionController extends BaseController<
       if (prevSimulationData && !isEqual(simulationData, prevSimulationData)) {
         simulationData = {
           ...simulationData,
-          changeInSimulationData: true,
+          isReSimulatedDueToSecurityAlert,
         };
       }
     }
