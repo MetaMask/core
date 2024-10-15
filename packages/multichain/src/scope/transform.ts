@@ -16,9 +16,9 @@ import { parseScopeString } from './types';
  * @param list - The list of items to filter
  * @returns A list of unique items
  */
-export function getUniqueArrayItems<Value>(list: Value[]): Value[] {
+export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
   return Array.from(new Set(list));
-}
+};
 
 /**
  * Flattens a ScopeString and ScopeObject into a separate
@@ -54,7 +54,10 @@ export const mergeScopeObject = (
   scopeObjectB: ScopeObject,
 ) => {
   const mergedScopeObject: ScopeObject = {
-    methods: unique([...scopeObjectA.methods, ...scopeObjectB.methods]),
+    methods: getUniqueArrayItems([
+      ...scopeObjectA.methods,
+      ...scopeObjectB.methods,
+    ]),
     notifications: getUniqueArrayItems([
       ...scopeObjectA.notifications,
       ...scopeObjectB.notifications,

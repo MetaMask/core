@@ -4,7 +4,7 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { walletGetSessionHandler } from './wallet-getSession';
+import { walletGetSession } from './wallet-getSession';
 
 const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',
@@ -49,7 +49,7 @@ const createMockedHandler = () => {
     jsonrpc: '2.0' as const,
   };
   const handler = (request: JsonRpcRequest & { origin: string }) =>
-    walletGetSessionHandler(request, response, next, end, {
+    walletGetSession.implementation(request, response, next, end, {
       getCaveat,
     });
 

@@ -19,7 +19,7 @@ import type { ScopesObject } from '../scope/types';
  * @param hooks - The hooks object.
  * @param hooks.getCaveat - Function to retrieve a caveat.
  */
-export async function walletGetSessionHandler(
+async function walletGetSessionHandler(
   request: JsonRpcRequest & { origin: string },
   response: JsonRpcSuccess<{ sessionScopes: ScopesObject }>,
   _next: () => void,
@@ -56,3 +56,11 @@ export async function walletGetSessionHandler(
   };
   return end();
 }
+
+export const walletGetSession = {
+  methodNames: ['wallet_getSession'],
+  implementation: walletGetSessionHandler,
+  hookNames: {
+    getCaveat: true,
+  },
+};
