@@ -6,7 +6,10 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { Caip25EndowmentPermissionName } from '../caip25Permission';
-import { walletRevokeSessionHandler } from './wallet-revokeSession';
+
+import walletRevokeSession from './wallet-revokeSession';
+
+const walletRevokeSessionHandler = walletRevokeSession.implementation;
 
 const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',

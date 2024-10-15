@@ -5,7 +5,9 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { walletInvokeMethodHandler } from './wallet-invokeMethod';
+import walletInvokeMethod from './wallet-invokeMethod';
+
+const walletInvokeMethodHandler = walletInvokeMethod.implementation;
 
 const createMockedRequest = () => ({
   jsonrpc: '2.0' as const,

@@ -4,7 +4,9 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
-import { walletGetSessionHandler } from './wallet-getSession';
+import walletGetSession from './wallet-getSession';
+
+const walletGetSessionHandler = walletGetSession.implementation;
 
 const baseRequest: JsonRpcRequest & { origin: string } = {
   origin: 'http://test.com',

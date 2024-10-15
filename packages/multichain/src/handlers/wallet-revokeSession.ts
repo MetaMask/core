@@ -21,7 +21,7 @@ import { Caip25EndowmentPermissionName } from '../caip25Permission';
  * @param hooks - The hooks object.
  * @param hooks.revokePermission - The revokePermission function.
  */
-export async function walletRevokeSessionHandler(
+async function walletRevokeSessionHandler(
   request: JsonRpcRequest & { origin: string },
   response: JsonRpcSuccess<Json>,
   _next: JsonRpcEngineNextCallback,

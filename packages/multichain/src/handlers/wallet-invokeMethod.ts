@@ -28,7 +28,7 @@ import { parseScopeString } from '../scope/types';
  * @param hooks.findNetworkClientIdByChainId - the hook for finding the networkClientId for a chainId.
  * @param hooks.getSelectedNetworkClientId - the hook for getting the current globally selected networkClientId.
  */
-export async function walletInvokeMethodHandler(
+async function walletInvokeMethodHandler(
   request: JsonRpcRequest & { origin: string },
   _response: PendingJsonRpcResponse<Json>,
   next: () => void,
