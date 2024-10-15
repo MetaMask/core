@@ -83,7 +83,7 @@ export async function deleteRegToken(
 /**
  * Service Worker Listener for when push notifications are received.
  * @param env - push notification environment
- * @param handler - handler to actually showing notification, MUST BE PROVEDED
+ * @param handler - handler to actually showing notification, MUST BE PROVIDED
  * @returns unsubscribe handler
  */
 export async function listenToPushNotificationsReceived(
@@ -128,12 +128,15 @@ export async function listenToPushNotificationsReceived(
  * @returns unsubscribe handler
  */
 export function listenToPushNotificationsClicked(
-  handler: (e: NotificationEvent, notification?: Types.INotification) => void,
+  handler: (
+    notification: Types.INotification | undefined,
+    e: NotificationEvent,
+  ) => void,
 ) {
   const clickHandler = (event: NotificationEvent) => {
     // Get Data
     const data: Types.INotification = event?.notification?.data;
-    handler(event, data);
+    handler(data, event);
   };
 
   self.addEventListener('notificationclick', clickHandler);

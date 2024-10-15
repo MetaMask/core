@@ -9,7 +9,13 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import log from 'loglevel';
 
 import type { Types } from '../NotificationServicesController';
-import { createRegToken, deleteRegToken } from './services/push/push-web';
+import * as WebPush from './services/push/push-web';
+import type {
+  CreateRegToken,
+  DeleteRegToken,
+  ListenToPushNotificationsClicked,
+  ListenToPushNotificationsReceived,
+} from './services/push/types';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
@@ -107,6 +113,8 @@ type ControllerConfig = {
    */
   isPushEnabled: boolean;
 
+  listenToPushNotificationsCreator?: ListenToPushNotificationsReceived;
+
   /**
    * Must handle when a push notification is received.
    * You must call `registration.showNotification` or equivalent to show the notification on web/mobile
@@ -115,19 +123,31 @@ type ControllerConfig = {
     notification: Types.INotification,
   ) => void | Promise<void>;
 
+  listenToPushClickedCreator?: ListenToPushNotificationsClicked;
+
   /**
    * Must handle when a push notification is clicked.
    * You must call `event.notification.close();` or equivalent for closing and opening notification in a new window.
    */
   onPushNotificationClicked: (
+    notification: Types.INotification | undefined,
     event: NotificationEvent,
-    notification?: Types.INotification,
   ) => void;
 
   /**
    * determine the config used for push notification services
    */
   platform: 'extension' | 'mobile';
+
+  /**
+   * Create Registration Token
+   */
+  createRegToken?: CreateRegToken;
+
+  /**
+   * Delete Registration Token
+   */
+  deleteRegToken?: DeleteRegToken;
 };
 
 /**
@@ -148,7 +168,7 @@ export default class NotificationServicesPushController extends BaseController<
 
   #env: PushNotificationEnv;
 
-  #config: ControllerConfig;
+  #config: Required<ControllerConfig>;
 
   constructor({
     messenger,
@@ -169,7 +189,17 @@ export default class NotificationServicesPushController extends BaseController<
     });
 
     this.#env = env;
-    this.#config = config;
+    this.#config = {
+      ...config,
+      createRegToken: config.createRegToken ?? WebPush.createRegToken,
+      deleteRegToken: config.deleteRegToken ?? WebPush.deleteRegToken,
+      listenToPushNotificationsCreator:
+        config.listenToPushNotificationsCreator ??
+        WebPush.listenToPushNotificationsReceived,
+      listenToPushClickedCreator:
+        config.listenToPushClickedCreator ??
+        WebPush.listenToPushNotificationsClicked,
+    };
 
     this.#registerMessageHandlers();
   }
@@ -216,6 +246,8 @@ export default class NotificationServicesPushController extends BaseController<
     try {
       this.#pushListenerUnsubscribe = await listenToPushNotifications({
         env: this.#env,
+        listenToPushNotificationsCreator:
+          this.#config.listenToPushNotificationsCreator,
         listenToPushReceived: async (n) => {
           this.messagingSystem.publish(
             'NotificationServicesPushController:onNewNotifications',
@@ -223,7 +255,8 @@ export default class NotificationServicesPushController extends BaseController<
           );
           await this.#config.onPushNotificationReceived(n);
         },
-        listenToPushClicked: (e, n) => {
+        listenToPushClickedCreator: this.#config.listenToPushClickedCreator,
+        listenToPushClicked: (n, e) => {
           if (n) {
             this.messagingSystem.publish(
               'NotificationServicesPushController:pushNotificationClicked',
@@ -231,7 +264,7 @@ export default class NotificationServicesPushController extends BaseController<
             );
           }
 
-          this.#config.onPushNotificationClicked(e, n);
+          this.#config.onPushNotificationClicked(n, e);
         },
       });
     } catch (e) {
@@ -267,7 +300,7 @@ export default class NotificationServicesPushController extends BaseController<
           bearerToken,
           triggers: UUIDs,
           env: this.#env,
-          createRegToken,
+          createRegToken: this.#config.createRegToken,
           platform: this.#config.platform,
         }).catch(() => null);
 
@@ -308,7 +341,7 @@ export default class NotificationServicesPushController extends BaseController<
         bearerToken,
         triggers: UUIDs,
         env: this.#env,
-        deleteRegToken,
+        deleteRegToken: this.#config.deleteRegToken,
         regToken: this.state.fcmToken,
       });
     } catch (error) {
@@ -354,8 +387,8 @@ export default class NotificationServicesPushController extends BaseController<
         bearerToken,
         triggers: UUIDs,
         env: this.#env,
-        createRegToken,
-        deleteRegToken,
+        createRegToken: this.#config.createRegToken,
+        deleteRegToken: this.#config.deleteRegToken,
         platform: this.#config.platform,
         regToken: this.state.fcmToken,
       });
