@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Add example controllers ([#4550](https://github.com/MetaMask/core/pull/4550))
-
 ## [7.0.1]
 
 ### Fixed

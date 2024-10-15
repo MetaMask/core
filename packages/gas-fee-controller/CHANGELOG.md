@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: make polling input generic ([#4752](https://github.com/MetaMask/core/pull/4752))
-
 ## [20.0.1]
 
 ### Fixed
