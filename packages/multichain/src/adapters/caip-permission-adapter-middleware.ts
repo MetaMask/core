@@ -1,4 +1,7 @@
-import type { NetworkConfiguration } from '@metamask/network-controller';
+import type {
+  NetworkConfiguration,
+  NetworkClientId,
+} from '@metamask/network-controller';
 import type { Caveat } from '@metamask/permission-controller';
 import { providerErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
@@ -24,7 +27,7 @@ import type { ScopeString } from '../scope/types';
  */
 export async function caipPermissionAdapterMiddleware(
   request: JsonRpcRequest & {
-    networkClientId: string;
+    networkClientId: NetworkClientId;
     origin: string;
   },
   _response: unknown,
@@ -35,7 +38,7 @@ export async function caipPermissionAdapterMiddleware(
       ...args: unknown[]
     ) => Caveat<typeof Caip25CaveatType, Caip25CaveatValue>;
     getNetworkConfigurationByNetworkClientId: (
-      networkClientId: string,
+      networkClientId: NetworkClientId,
     ) => NetworkConfiguration;
   },
 ) {
