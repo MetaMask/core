@@ -4,6 +4,7 @@ import SafeEventEmitter from '@metamask/safe-event-emitter';
 import type { CaipChainId, Hex } from '@metamask/utils';
 import { parseCaipChainId } from '@metamask/utils';
 import type EventEmitter from 'events';
+import createSubscriptionManager from '@metamask/eth-json-rpc-filters/subscriptionManager';
 
 import type { ExternalScopeString } from '../scope/types';
 
@@ -29,9 +30,6 @@ type SubscriptionKey = {
 type SubscriptionEntry = SubscriptionKey & {
   subscriptionManager: SubscriptionManager;
 };
-
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
-const createSubscriptionManager = require('@metamask/eth-json-rpc-filters/subscriptionManager');
 
 type MultichainSubscriptionManagerOptions = {
   findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
