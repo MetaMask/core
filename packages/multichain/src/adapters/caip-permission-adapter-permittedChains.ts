@@ -3,6 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
+import { mergeScopes } from '../scope/transform';
 import type { ScopesObject, ScopeString } from '../scope/types';
 import {
   KnownNotifications,
@@ -10,7 +11,6 @@ import {
   KnownWalletScopeString,
   parseScopeString,
 } from '../scope/types';
-import { mergeScopes } from '../scope/transform';
 
 export const getPermittedEthChainIds = (
   caip25CaveatValue: Caip25CaveatValue,
@@ -46,7 +46,7 @@ export const addPermittedEthChainId = (
   return {
     ...caip25CaveatValue,
     optionalScopes: {
-        [KnownWalletScopeString.Eip155]: {
+      [KnownWalletScopeString.Eip155]: {
         methods: [],
         notifications: [],
       },

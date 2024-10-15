@@ -13,7 +13,7 @@ import {
 } from '@metamask/utils';
 
 export enum KnownWalletScopeString {
-  Eip155 = "wallet:eip155",
+  Eip155 = 'wallet:eip155',
 }
 
 export type NonWalletKnownCaipNamespace = Extract<
