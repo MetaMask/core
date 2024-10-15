@@ -53,24 +53,25 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
   allowedCaveats: Readonly<NonEmptyArray<string>> | null;
 }>;
 
+type Caip25EndowmentSpecificationBuilderOptions = {
+  methodHooks: {
+    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
+  };
+};
+
 /**
- * `endowment:caip25` returns nothing atm;
+ * Helper that returns a `endowment:caip25` specification that
+ * can be passed into the PermissionController constructor.
  *
  * @param builderOptions - The specification builder options.
- * @param builderOptions.findNetworkClientIdByChainId - The hook to find the networkClientId for a chainId.
+ * @param builderOptions.methodHooks - The RPC method hooks needed by the method implementation.
  * @returns The specification for the `caip25` endowment.
  */
 const specificationBuilder: PermissionSpecificationBuilder<
   PermissionType.Endowment,
-  // TODO: FIX THIS
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any,
+  Caip25EndowmentSpecificationBuilderOptions,
   Caip25EndowmentSpecification
-> = ({
-  findNetworkClientIdByChainId,
-}: {
-  findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
-}) => {
+> = ({ methodHooks }: Caip25EndowmentSpecificationBuilderOptions) => {
   return {
     permissionType: PermissionType.Endowment,
     targetName: Caip25EndowmentPermissionName,
@@ -107,7 +108,7 @@ const specificationBuilder: PermissionSpecificationBuilder<
 
       const isChainIdSupported = (chainId: Hex) => {
         try {
-          findNetworkClientIdByChainId(chainId);
+          methodHooks.findNetworkClientIdByChainId(chainId);
           return true;
         } catch (err) {
           return false;

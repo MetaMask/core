@@ -222,7 +222,9 @@ describe('endowment:caip25', () => {
   describe('permission validator', () => {
     const findNetworkClientIdByChainId = jest.fn();
     const { validator } = caip25EndowmentBuilder.specificationBuilder({
-      findNetworkClientIdByChainId,
+      methodHooks: {
+        findNetworkClientIdByChainId,
+      },
     });
 
     it('throws an error if there is not exactly one caveat', () => {
