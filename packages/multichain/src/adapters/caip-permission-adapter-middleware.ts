@@ -12,7 +12,7 @@ import {
   Caip25EndowmentPermissionName,
 } from '../caip25Permission';
 import { mergeScopes } from '../scope/transform';
-import type { ScopeString } from '../scope/types';
+import { KnownWalletScopeString, type ScopeString } from '../scope/types';
 
 /**
  * Middleware to handle CAIP-25 permission requests.
@@ -70,7 +70,7 @@ export async function caipPermissionAdapterMiddleware(
 
   if (
     !scopesObject[scope]?.methods?.includes(method) &&
-    !scopesObject['wallet:eip155']?.methods?.includes(method) &&
+    !scopesObject[KnownWalletScopeString.Eip155]?.methods?.includes(method) &&
     !scopesObject.wallet?.methods?.includes(method)
   ) {
     return end(providerErrors.unauthorized());

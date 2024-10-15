@@ -38,6 +38,7 @@ describe('@metamask/multichain', () => {
         "caip25EndowmentBuilder",
         "Caip25CaveatMutatorFactories",
         "removeScope",
+        "KnownWalletScopeString",
         "KnownWalletRpcMethods",
         "KnownRpcMethods",
         "KnownWalletNamespaceRpcMethods",

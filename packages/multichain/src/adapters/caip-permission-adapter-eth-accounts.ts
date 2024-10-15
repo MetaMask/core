@@ -8,15 +8,14 @@ import {
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { mergeScopes } from '../scope/transform';
 import type { ScopesObject, ScopeString } from '../scope/types';
-import { parseScopeString } from '../scope/types';
+import { KnownWalletScopeString, parseScopeString } from '../scope/types';
 
 const isEip155ScopeString = (scopeString: ScopeString) => {
-  const { namespace, reference } = parseScopeString(scopeString);
+  const { namespace } = parseScopeString(scopeString);
 
   return (
     namespace === KnownCaipNamespace.Eip155 ||
-    (namespace === KnownCaipNamespace.Wallet &&
-      reference === KnownCaipNamespace.Eip155)
+    scopeString === KnownWalletScopeString.Eip155
   );
 };
 
@@ -47,10 +46,7 @@ const setEthAccountsForScopesObject = (
   const updatedScopesObject: ScopesObject = {};
 
   Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
-    const { namespace, reference } = parseScopeString(scopeString);
-
-    const isWalletNamespace =
-      namespace === KnownCaipNamespace.Wallet && reference === undefined;
+    const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet
 
     if (
       !isEip155ScopeString(scopeString as ScopeString) &&
@@ -63,7 +59,7 @@ const setEthAccountsForScopesObject = (
     const caipAccounts = accounts.map(
       (account) =>
         (isWalletNamespace
-          ? `wallet:eip155:${account}`
+          ? `${KnownWalletScopeString.Eip155}:${account}`
           : `${scopeString}:${account}`) as CaipAccountId,
     );
 
@@ -76,7 +72,6 @@ const setEthAccountsForScopesObject = (
   return updatedScopesObject;
 };
 
-// This helper must be called with existing eip155 scopes
 export const setEthAccounts = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: Hex[],
@@ -93,7 +88,7 @@ export const setEthAccounts = (
           methods: [],
           notifications: [],
         },
-        'wallet:eip155': {
+        [KnownWalletScopeString.Eip155]: {
           methods: [],
           notifications: [],
         },
