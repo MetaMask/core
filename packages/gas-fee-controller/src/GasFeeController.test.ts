@@ -1199,7 +1199,9 @@ describe('GasFeeController', () => {
         interval: pollingInterval,
       });
 
-      gasFeeController.startPollingByNetworkClientId('goerli');
+      gasFeeController.startPolling({
+        networkClientId: 'goerli',
+      });
       await clock.tickAsync(0);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
@@ -1228,7 +1230,9 @@ describe('GasFeeController', () => {
         gasFeeController.state.gasFeeEstimatesByChainId?.['0x5'],
       ).toStrictEqual(buildMockGasFeeStateFeeMarket());
 
-      gasFeeController.startPollingByNetworkClientId('sepolia');
+      gasFeeController.startPolling({
+        networkClientId: 'sepolia',
+      });
       await clock.tickAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({

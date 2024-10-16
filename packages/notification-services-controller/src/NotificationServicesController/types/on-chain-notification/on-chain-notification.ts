@@ -24,6 +24,19 @@ export type Data_ERC20Received = components['schemas']['Data_ERC20Received'];
 export type Data_ERC721Sent = components['schemas']['Data_ERC721Sent'];
 export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
 
+// Web3Notifications
+export type Data_AaveV3HealthFactor =
+  components['schemas']['Data_AaveV3HealthFactor'];
+export type Data_EnsExpiration = components['schemas']['Data_EnsExpiration'];
+export type Data_LidoStakingRewards =
+  components['schemas']['Data_LidoStakingRewards'];
+export type Data_RocketpoolStakingRewards =
+  components['schemas']['Data_RocketpoolStakingRewards'];
+export type Data_NotionalLoanExpiration =
+  components['schemas']['Data_NotionalLoanExpiration'];
+export type Data_SparkFiHealthFactor =
+  components['schemas']['Data_SparkFiHealthFactor'];
+
 type Notification = components['schemas']['Notification'];
 type NotificationDataKinds = NonNullable<Notification['data']>['kind'];
 type ConvertToEnum<Kind> = {
