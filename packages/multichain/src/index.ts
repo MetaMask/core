@@ -19,7 +19,10 @@ export { MultichainSubscriptionManager } from './middlewares/MultichainSubscript
 
 export { assertScopeSupported, assertScopesSupported } from './scope/assert';
 export type { Caip25Authorization } from './scope/authorization';
-export { validateAndNormalizeScopes, bucketScopes } from './scope/authorization';
+export {
+  validateAndNormalizeScopes,
+  bucketScopes,
+} from './scope/authorization';
 export { bucketScopesBySupport, filterScopesSupported } from './scope/filter';
 export * from './scope/types';
 export {
