@@ -1,7 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import { bucketScopesBySupport } from './filter';
-import { normalizeMergeScopes } from './transform';
+import { normalizeAndMergeScopes } from './transform';
 import type { ExternalScopesObject, ScopesObject } from './types';
 import { validateScopes } from './validation';
 
@@ -30,8 +30,8 @@ export const validateAndNormalizeScopes = (
     optionalScopes,
   );
 
-  const normalizedRequiredScopes = normalizeMergeScopes(validRequiredScopes);
-  const normalizedOptionalScopes = normalizeMergeScopes(validOptionalScopes);
+  const normalizedRequiredScopes = normalizeAndMergeScopes(validRequiredScopes);
+  const normalizedOptionalScopes = normalizeAndMergeScopes(validOptionalScopes);
 
   return {
     normalizedRequiredScopes,

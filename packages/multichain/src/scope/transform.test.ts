@@ -2,7 +2,7 @@ import {
   normalizeScope,
   mergeScopes,
   mergeScopeObject,
-  normalizeMergeScopes,
+  normalizeAndMergeScopes,
 } from './transform';
 import type { ExternalScopeObject, ScopeObject } from './types';
 
@@ -275,10 +275,10 @@ describe('Scope Transform', () => {
     });
   });
 
-  describe('normalizeMergeScopes', () => {
+  describe('normalizeAndMergeScopes', () => {
     it('normalizes scopes and merges any overlapping scopeStrings', () => {
       expect(
-        normalizeMergeScopes({
+        normalizeAndMergeScopes({
           eip155: {
             ...validScopeObject,
             methods: ['a', 'b'],

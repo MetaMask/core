@@ -32,7 +32,7 @@ export {
   normalizeScope,
   mergeScopeObject,
   mergeScopes,
-  normalizeMergeScopes,
+  normalizeAndMergeScopes,
 } from './scope/transform';
 export { isValidScope, validateScopes } from './scope/validation';
 

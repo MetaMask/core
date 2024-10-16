@@ -118,7 +118,7 @@ export const mergeScopes = (
   return scope;
 };
 
-export const normalizeMergeScopes = (
+export const normalizeAndMergeScopes = (
   scopes: ExternalScopesObject,
 ): ScopesObject => {
   let mergedScopes: ScopesObject = {};

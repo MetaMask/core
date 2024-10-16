@@ -10,7 +10,7 @@ jest.mock('./validation', () => ({
 const MockValidation = jest.mocked(Validation);
 
 jest.mock('./transform', () => ({
-  normalizeMergeScopes: jest.fn(),
+  normalizeAndMergeScopes: jest.fn(),
 }));
 const MockTransform = jest.mocked(Transform);
 
@@ -64,10 +64,10 @@ describe('Scope Authorization', () => {
       });
 
       validateAndNormalizeScopes({}, {});
-      expect(MockTransform.normalizeMergeScopes).toHaveBeenCalledWith({
+      expect(MockTransform.normalizeAndMergeScopes).toHaveBeenCalledWith({
         'eip155:1': validScopeObject,
       });
-      expect(MockTransform.normalizeMergeScopes).toHaveBeenCalledWith({
+      expect(MockTransform.normalizeAndMergeScopes).toHaveBeenCalledWith({
         'eip155:5': validScopeObject,
       });
     });
@@ -81,7 +81,7 @@ describe('Scope Authorization', () => {
           'eip155:5': validScopeObject,
         },
       });
-      MockTransform.normalizeMergeScopes.mockImplementation((value) => ({
+      MockTransform.normalizeAndMergeScopes.mockImplementation((value) => ({
         ...value,
         transformed: true,
       }));

@@ -29,7 +29,7 @@ describe('@metamask/multichain', () => {
         "normalizeScope",
         "mergeScopeObject",
         "mergeScopes",
-        "normalizeMergeScopes",
+        "normalizeAndMergeScopes",
         "isValidScope",
         "validateScopes",
         "Caip25CaveatType",
