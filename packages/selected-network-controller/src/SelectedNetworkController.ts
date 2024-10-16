@@ -283,13 +283,16 @@ export class SelectedNetworkController extends BaseController<
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
-    const networkProxy = this.getProviderAndBlockTracker(domain);
-    networkProxy.provider.setTarget(networkClient.provider);
-    networkProxy.blockTracker.setTarget(networkClient.blockTracker);
 
+    // This needs to happen before getProviderAndBlockTracker,
+    // otherwise we may be referencing a network client ID that no longer exists.
     this.update((state) => {
       state.domains[domain] = networkClientId;
     });
+
+    const networkProxy = this.getProviderAndBlockTracker(domain);
+    networkProxy.provider.setTarget(networkClient.provider);
+    networkProxy.blockTracker.setTarget(networkClient.blockTracker);
   }
 
   /**
