@@ -284,7 +284,7 @@ export class SelectedNetworkController extends BaseController<
       networkClientId,
     );
 
-    // This needs to happen before getProviderAndBlockTracker, 
+    // This needs to happen before getProviderAndBlockTracker,
     // otherwise we may be referencing a network client ID that no longer exists.
     this.update((state) => {
       state.domains[domain] = networkClientId;

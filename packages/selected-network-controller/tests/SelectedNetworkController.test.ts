@@ -366,7 +366,12 @@ describe('SelectedNetworkController', () => {
 
       it('redirects domains to the globally selected network when useRequestQueuePreference is true and handles garbage collected proxies', () => {
         const domainProxyMap = new Map();
-        const { controller, messenger, mockNetworkControllerGetState, mockGetNetworkClientById } = setup({
+        const {
+          controller,
+          messenger,
+          mockNetworkControllerGetState,
+          mockGetNetworkClientById,
+        } = setup({
           state: { domains: initialDomains },
           useRequestQueuePreference: true,
           domainProxyMap,
@@ -389,8 +394,8 @@ describe('SelectedNetworkController', () => {
           return {
             provider: { request: jest.fn() },
             blockTracker: { getLatestBlock: jest.fn() },
-          }
-        })
+          };
+        });
 
         deleteNetwork(
           '0x5',
