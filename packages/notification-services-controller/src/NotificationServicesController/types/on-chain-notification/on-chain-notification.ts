@@ -37,8 +37,9 @@ export type Data_NotionalLoanExpiration =
 export type Data_SparkFiHealthFactor =
   components['schemas']['Data_SparkFiHealthFactor'];
 
-type Notification = components['schemas']['Notification'];
-type NotificationDataKinds = NonNullable<Notification['data']>['kind'];
+type Notification =
+  | components['schemas']['WalletNotification']
+  | components['schemas']['Web3Notification'];
 type ConvertToEnum<Kind> = {
   [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
 }[TRIGGER_TYPES];
@@ -49,14 +50,26 @@ type ConvertToEnum<Kind> = {
  * 2. It ensures that the `data` field is the correct Notification data for this `type`
  * - The `Compute` utility merges the intersections (`&`) for a prettier type.
  */
-export type OnChainRawNotification = {
+type NormalizeNotification<
+  N extends Notification,
+  NotificationDataKinds extends string = NonNullable<N['data']>['kind'],
+> = {
   [K in NotificationDataKinds]: Compute<
-    Omit<Notification, 'data'> & {
+    Omit<N, 'data'> & {
       type: ConvertToEnum<K>;
-      data: Extract<Notification['data'], { kind: K }>;
+      data: Extract<N['data'], { kind: K }>;
     }
   >;
 }[NotificationDataKinds];
+
+// export type OnChainRawNotification = Compute<
+//   | NormalizeNotification<components['schemas']['WalletNotification']>
+//   | NormalizeNotification<components['schemas']['Web3Notification']>
+// >;
+export type OnChainRawNotification = Compute<
+  | NormalizeNotification<components['schemas']['WalletNotification']>
+  | NormalizeNotification<components['schemas']['Web3Notification']>
+>;
 
 export type UnprocessedOnChainRawNotification = Notification;
 
