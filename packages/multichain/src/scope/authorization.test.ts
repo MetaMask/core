@@ -109,12 +109,14 @@ describe('Scope Authorization', () => {
             'mock:A': {
               methods: [`mock_method_${callCount}`],
               notifications: [],
+              accounts: [],
             },
           },
           unsupportedScopes: {
             'mock:B': {
               methods: [`mock_method_${callCount}`],
               notifications: [],
+              accounts: [],
             },
           },
         };
@@ -128,6 +130,7 @@ describe('Scope Authorization', () => {
           wallet: {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         {
@@ -141,6 +144,7 @@ describe('Scope Authorization', () => {
           wallet: {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         {
@@ -156,6 +160,7 @@ describe('Scope Authorization', () => {
           wallet: {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         {
@@ -169,6 +174,7 @@ describe('Scope Authorization', () => {
           'mock:B': {
             methods: [`mock_method_1`],
             notifications: [],
+            accounts: [],
           },
         },
         {
@@ -184,6 +190,7 @@ describe('Scope Authorization', () => {
             wallet: {
               methods: [],
               notifications: [],
+              accounts: [],
             },
           },
           {
@@ -196,18 +203,21 @@ describe('Scope Authorization', () => {
           'mock:A': {
             methods: [`mock_method_1`],
             notifications: [],
+            accounts: [],
           },
         },
         supportableScopes: {
           'mock:A': {
             methods: [`mock_method_2`],
             notifications: [],
+            accounts: [],
           },
         },
         unsupportableScopes: {
           'mock:B': {
             methods: [`mock_method_2`],
             notifications: [],
+            accounts: [],
           },
         },
       });

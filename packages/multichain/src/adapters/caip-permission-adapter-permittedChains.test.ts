@@ -38,6 +38,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           'eip155:10': {
             methods: [],
             notifications: [],
+            accounts: [],
           },
           'eip155:100': {
             methods: [],
@@ -72,6 +73,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             'wallet:eip155': {
               methods: [],
               notifications: [],
+              accounts: [],
             },
           },
           isMultichainOrigin: false,
@@ -101,6 +103,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           'wallet:eip155': {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         isMultichainOrigin: false,
@@ -151,6 +154,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           'wallet:eip155': {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         isMultichainOrigin: false,
@@ -246,12 +250,14 @@ describe('CAIP-25 permittedChains adapters', () => {
             'bip122:000000000019d6689c085ae165831e93': {
               methods: [],
               notifications: [],
+              accounts: [],
             },
           },
           optionalScopes: {
             'eip155:1': {
               methods: ['eth_chainId'],
               notifications: [],
+              accounts: [],
             },
             'eip155:100': {
               methods: [],
@@ -274,12 +280,14 @@ describe('CAIP-25 permittedChains adapters', () => {
           'bip122:000000000019d6689c085ae165831e93': {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         optionalScopes: {
           'eip155:1': {
             methods: ['eth_chainId'],
             notifications: [],
+            accounts: [],
           },
         },
         isMultichainOrigin: false,
@@ -300,6 +308,7 @@ describe('CAIP-25 permittedChains adapters', () => {
             'eip155:1': {
               methods: ['eth_chainId'],
               notifications: [],
+              accounts: [],
             },
             'eip155:100': {
               methods: [],
@@ -324,6 +333,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           'eip155:1': {
             methods: ['eth_chainId'],
             notifications: [],
+            accounts: [],
           },
           'eip155:100': {
             methods: [],
@@ -338,6 +348,7 @@ describe('CAIP-25 permittedChains adapters', () => {
           'wallet:eip155': {
             methods: [],
             notifications: [],
+            accounts: [],
           },
         },
         isMultichainOrigin: false,

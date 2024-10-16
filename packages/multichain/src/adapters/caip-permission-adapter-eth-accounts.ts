@@ -87,6 +87,7 @@ export const setEthAccounts = (
         [KnownWalletScopeString.Eip155]: {
           methods: [],
           notifications: [],
+          accounts: [],
         },
         ...caip25CaveatValue.optionalScopes,
       },

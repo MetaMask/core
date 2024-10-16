@@ -64,12 +64,14 @@ describe('endowment:caip25', () => {
           'eip155:1': {
             methods: ['eth_call'],
             notifications: ['chainChanged'],
+            accounts: [],
           },
         },
         optionalScopes: {
           'eip155:5': {
             methods: ['eth_call'],
             notifications: ['accountsChanged'],
+            accounts: [],
           },
         },
         sessionProperties: {},
@@ -83,6 +85,7 @@ describe('endowment:caip25', () => {
             'eip155:1': {
               methods: ['eth_call'],
               notifications: ['chainChanged'],
+              accounts: [],
             },
           },
           optionalScopes: {},
@@ -96,12 +99,14 @@ describe('endowment:caip25', () => {
           'eip155:1': {
             methods: ['eth_call'],
             notifications: ['chainChanged'],
+            accounts: [],
           },
         },
         optionalScopes: {
           'eip155:5': {
             methods: ['eth_call'],
             notifications: ['accountsChanged'],
+            accounts: [],
           },
         },
         sessionProperties: {},
@@ -208,6 +213,7 @@ describe('endowment:caip25', () => {
           'eip155:5': {
             methods: ['eth_call'],
             notifications: ['accountsChanged'],
+            accounts: [],
           },
         },
         isMultichainOrigin: true,
@@ -417,12 +423,14 @@ describe('endowment:caip25', () => {
           'eip155:1': {
             methods: ['flattened_required'],
             notifications: [],
+            accounts: [],
           },
         },
         flattenedOptionalScopes: {
           'eip155:1': {
             methods: ['flattened_optional'],
             notifications: [],
+            accounts: [],
           },
         },
       });
@@ -463,6 +471,7 @@ describe('endowment:caip25', () => {
           'eip155:1': {
             methods: ['flattened_required'],
             notifications: [],
+            accounts: [],
           },
         },
         expect.objectContaining({
@@ -480,12 +489,14 @@ describe('endowment:caip25', () => {
           'eip155:1': {
             methods: ['flattened_required'],
             notifications: [],
+            accounts: [],
           },
         },
         flattenedOptionalScopes: {
           'eip155:1': {
             methods: ['flattened_optional'],
             notifications: [],
+            accounts: [],
           },
         },
       });
@@ -526,6 +537,7 @@ describe('endowment:caip25', () => {
           'eip155:1': {
             methods: ['flattened_optional'],
             notifications: [],
+            accounts: [],
           },
         },
         expect.objectContaining({

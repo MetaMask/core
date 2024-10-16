@@ -29,7 +29,7 @@ export {
   isSupportedNotification,
 } from './scope/supported';
 export {
-  flattenScope,
+  normalizeScope,
   mergeScopeObject,
   mergeScopes,
   flattenMergeScopes,

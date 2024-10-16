@@ -21,30 +21,36 @@ export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
 };
 
 /**
- * Flattens a ScopeString and ScopeObject into a separate
+ * Flattens a ScopeString and ExternalScopeObject into a separate
  * ScopeString and ScopeObject for each reference in the `references`
- * value if defined. Returns the ScopeString and ScopeObject
- * unmodified if it cannot be flattened
+ * value if defined. Adds an empty `accounts` array if not defined.
  *
- * @param scopeString - The string representing the scopeObject
- * @param scopeObject - The object that defines the scope
+ * @param scopeString - The string representing the scope
+ * @param externalScopeObject - The object that defines the scope
  * @returns a map of caipChainId to ScopeObjects
  */
-export const flattenScope = (
+export const normalizeScope = (
   scopeString: string,
-  scopeObject: ExternalScopeObject,
+  externalScopeObject: ExternalScopeObject,
 ): ScopesObject => {
-  const { references, ...restScopeObject } = scopeObject;
+  const { references, ...scopeObject } = externalScopeObject;
   const { namespace, reference } = parseScopeString(scopeString);
+
+  const normalizedScopeObject = {
+    accounts: [],
+    ...scopeObject,
+  };
 
   // Scope is already a CAIP-2 ID and has no references to flatten
   if (!namespace || reference || !references) {
-    return { [scopeString]: scopeObject };
+    return { [scopeString]: normalizedScopeObject };
   }
 
   const scopeMap: ScopesObject = {};
   references.forEach((nestedReference: CaipReference) => {
-    scopeMap[`${namespace}:${nestedReference}`] = cloneDeep(restScopeObject);
+    scopeMap[`${namespace}:${nestedReference}`] = cloneDeep(
+      normalizedScopeObject,
+    );
   });
   return scopeMap;
 };
@@ -62,14 +68,11 @@ export const mergeScopeObject = (
       ...scopeObjectA.notifications,
       ...scopeObjectB.notifications,
     ]),
+    accounts: getUniqueArrayItems([
+      ...scopeObjectA.accounts,
+      ...scopeObjectB.accounts,
+    ]),
   };
-
-  if (scopeObjectA.accounts || scopeObjectB.accounts) {
-    mergedScopeObject.accounts = getUniqueArrayItems([
-      ...(scopeObjectA.accounts ?? []),
-      ...(scopeObjectB.accounts ?? []),
-    ]);
-  }
 
   if (scopeObjectA.rpcDocuments || scopeObjectB.rpcDocuments) {
     mergedScopeObject.rpcDocuments = getUniqueArrayItems([
@@ -120,7 +123,7 @@ export const flattenMergeScopes = (
 ): ScopesObject => {
   let flattenedScopes: ScopesObject = {};
   Object.keys(scopes).forEach((scopeString) => {
-    const flattenedScopeMap = flattenScope(scopeString, scopes[scopeString]);
+    const flattenedScopeMap = normalizeScope(scopeString, scopes[scopeString]);
     flattenedScopes = mergeScopes(flattenedScopes, flattenedScopeMap);
   });
 

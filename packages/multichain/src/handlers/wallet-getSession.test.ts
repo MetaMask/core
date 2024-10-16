@@ -23,20 +23,24 @@ const createMockedHandler = () => {
         'eip155:1': {
           methods: ['eth_call'],
           notifications: [],
+          accounts: [],
         },
         'eip155:5': {
           methods: ['eth_chainId'],
           notifications: [],
+          accounts: [],
         },
       },
       optionalScopes: {
         'eip155:1': {
           methods: ['net_version'],
           notifications: ['chainChanged'],
+          accounts: [],
         },
         wallet: {
           methods: ['wallet_watchAsset'],
           notifications: [],
+          accounts: [],
         },
       },
     },
@@ -95,14 +99,17 @@ describe('wallet_getSession', () => {
         'eip155:1': {
           methods: ['eth_call', 'net_version'],
           notifications: ['chainChanged'],
+          accounts: [],
         },
         'eip155:5': {
           methods: ['eth_chainId'],
           notifications: [],
+          accounts: [],
         },
         wallet: {
           methods: ['wallet_watchAsset'],
           notifications: [],
+          accounts: [],
         },
       },
     });

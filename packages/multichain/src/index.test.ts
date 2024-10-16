@@ -26,7 +26,7 @@ describe('@metamask/multichain', () => {
         "isSupportedAccount",
         "isSupportedMethod",
         "isSupportedNotification",
-        "flattenScope",
+        "normalizeScope",
         "mergeScopeObject",
         "mergeScopes",
         "flattenMergeScopes",
