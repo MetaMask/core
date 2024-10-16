@@ -49,9 +49,11 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.3.0",
-    "@metamask/message-manager": "^10.1.1",
+    "@metamask/eth-sig-util": "^7.0.1",
     "@metamask/utils": "^9.1.0",
-    "lodash": "^4.17.21"
+    "jsonschema": "^1.2.4",
+    "lodash": "^4.17.21",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.0",

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove all code related to `@metamask/signature-controller` ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - Remove `TypedMessageManager`.
+  - Remove `PersonalMessageManager`.
+  - Remove utils:
+    - `validateSignMessageData`
+    - `validateTypedSignMessageDataV1`
+    - `validateTypedSignMessageDataV3V4`
+
 ## [10.1.1]
 
 ### Fixed

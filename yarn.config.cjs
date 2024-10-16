@@ -13,6 +13,15 @@ const semver = require('semver');
 const { inspect } = require('util');
 
 /**
+ * These packages and ranges are allowed to mismatch expected consistency checks
+ * Only intended as temporary measures to faciliate upgrades and releases.
+ * This should trend towards empty.
+ */
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  '@metamask/rpc-errors': ['^7.0.0'],
+};
+
+/**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
@@ -594,6 +603,11 @@ function expectUpToDateWorkspaceDependenciesAndDevDependencies(
       dependencyWorkspace !== null &&
       dependency.type !== 'peerDependencies'
     ) {
+      const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependency.ident];
+      if (ignoredRanges?.includes(dependency.range)) {
+        continue;
+      }
+
       dependency.update(`^${dependencyWorkspace.manifest.version}`);
     }
   }
@@ -725,22 +739,15 @@ function getInconsistentDependenciesAndDevDependencies(
   dependencyIdent,
   dependenciesByRange,
 ) {
-  const ALLOWED_INCONSISTENT_DEPENDENCIES = Object.entries({
-    // '@metamask/foo': ['^1.0.0'],
-  });
-  for (const [
-    allowedPackage,
-    ignoredRange,
-  ] of ALLOWED_INCONSISTENT_DEPENDENCIES) {
-    if (allowedPackage === dependencyIdent) {
-      return new Map(
-        Object.entries(dependenciesByRange).filter(
-          ([range]) => !ignoredRange.includes(range),
-        ),
-      );
-    }
+  const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependencyIdent];
+  if (!ignoredRanges) {
+    return dependenciesByRange;
   }
-  return dependenciesByRange;
+  return new Map(
+    Object.entries(dependenciesByRange).filter(
+      ([range]) => !ignoredRanges.includes(range),
+    ),
+  );
 }
 
 /**

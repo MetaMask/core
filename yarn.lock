@@ -2641,7 +2641,7 @@ __metadata:
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-query": "npm:^0.5.3"
     "@metamask/json-rpc-engine": "npm:^9.0.3"
-    "@metamask/rpc-errors": "npm:^6.3.1"
+    "@metamask/rpc-errors": "npm:^7.0.0"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -2935,7 +2935,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/rpc-errors": "npm:^6.3.1"
+    "@metamask/rpc-errors": "npm:^7.0.0"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -3507,6 +3507,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/rpc-errors@npm:^7.0.0":
+  version: 7.0.0
+  resolution: "@metamask/rpc-errors@npm:7.0.0"
+  dependencies:
+    "@metamask/utils": "npm:^9.0.0"
+    fast-safe-stringify: "npm:^2.0.6"
+  checksum: 10/f25e2a5506d4d0d6193c88aef8f035ec189a1177f8aee8fa01c9a33d73b1536ca7b5eea2fb33a477768bbd2abaf16529e68f0b3cf714387e5d6c9178225354fd
+  languageName: node
+  linkType: hard
+
 "@metamask/safe-event-emitter@npm:^3.0.0, @metamask/safe-event-emitter@npm:^3.1.1":
   version: 3.1.1
   resolution: "@metamask/safe-event-emitter@npm:3.1.1"
@@ -3560,18 +3570,20 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
     "@metamask/controller-utils": "npm:^11.3.0"
+    "@metamask/eth-sig-util": "npm:^7.0.1"
     "@metamask/keyring-controller": "npm:^17.2.2"
     "@metamask/logging-controller": "npm:^6.0.1"
-    "@metamask/message-manager": "npm:^10.1.1"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^27.5.1"
+    jsonschema: "npm:^1.2.4"
     lodash: "npm:^4.17.21"
     ts-jest: "npm:^27.1.4"
     typedoc: "npm:^0.24.8"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.2.2"
+    uuid: "npm:^8.3.2"
   peerDependencies:
     "@metamask/approval-controller": ^7.0.0
     "@metamask/keyring-controller": ^17.0.0
