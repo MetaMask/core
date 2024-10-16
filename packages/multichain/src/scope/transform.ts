@@ -21,9 +21,9 @@ export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
 };
 
 /**
- * Flattens a ScopeString and ExternalScopeObject into a separate
+ * Normalizes a ScopeString and ExternalScopeObject into a separate
  * ScopeString and ScopeObject for each reference in the `references`
- * value if defined. Adds an empty `accounts` array if not defined.
+ * value if defined and adds an empty `accounts` array if not defined.
  *
  * @param scopeString - The string representing the scope
  * @param externalScopeObject - The object that defines the scope
@@ -118,14 +118,14 @@ export const mergeScopes = (
   return scope;
 };
 
-export const flattenMergeScopes = (
+export const normalizeMergeScopes = (
   scopes: ExternalScopesObject,
 ): ScopesObject => {
-  let flattenedScopes: ScopesObject = {};
+  let mergedScopes: ScopesObject = {};
   Object.keys(scopes).forEach((scopeString) => {
-    const flattenedScopeMap = normalizeScope(scopeString, scopes[scopeString]);
-    flattenedScopes = mergeScopes(flattenedScopes, flattenedScopeMap);
+    const normalizedScopes = normalizeScope(scopeString, scopes[scopeString]);
+    mergedScopes = mergeScopes(mergedScopes, normalizedScopes);
   });
 
-  return flattenedScopes;
+  return mergedScopes;
 };

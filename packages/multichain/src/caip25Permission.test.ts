@@ -17,7 +17,7 @@ import * as ScopeAssert from './scope/assert';
 import * as ScopeAuthorization from './scope/authorization';
 
 jest.mock('./scope/authorization', () => ({
-  validateAndFlattenScopes: jest.fn(),
+  validateAndNormalizeScopes: jest.fn(),
 }));
 const MockScopeAuthorization = jest.mocked(ScopeAuthorization);
 
@@ -30,9 +30,9 @@ const { removeAccount } = Caip25CaveatMutatorFactories[Caip25CaveatType];
 
 describe('endowment:caip25', () => {
   beforeEach(() => {
-    MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
-      flattenedRequiredScopes: {},
-      flattenedOptionalScopes: {},
+    MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+      normalizedRequiredScopes: {},
+      normalizedOptionalScopes: {},
     });
   });
 
@@ -364,7 +364,7 @@ describe('endowment:caip25', () => {
       );
     });
 
-    it('validates and flattens the ScopesObjects', () => {
+    it('validates and normalizes the ScopesObjects', () => {
       try {
         validator({
           caveats: [
@@ -398,7 +398,7 @@ describe('endowment:caip25', () => {
         // noop
       }
       expect(
-        MockScopeAuthorization.validateAndFlattenScopes,
+        MockScopeAuthorization.validateAndNormalizeScopes,
       ).toHaveBeenCalledWith(
         {
           'eip155:1': {
@@ -417,18 +417,18 @@ describe('endowment:caip25', () => {
       );
     });
 
-    it('asserts the validated and flattened required scopes are supported', () => {
-      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
-        flattenedRequiredScopes: {
+    it('asserts the validated and normalized required scopes are supported', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
           'eip155:1': {
-            methods: ['flattened_required'],
+            methods: ['normalized_required'],
             notifications: [],
             accounts: [],
           },
         },
-        flattenedOptionalScopes: {
+        normalizedOptionalScopes: {
           'eip155:1': {
-            methods: ['flattened_optional'],
+            methods: ['normalized_optional'],
             notifications: [],
             accounts: [],
           },
@@ -469,7 +469,7 @@ describe('endowment:caip25', () => {
       expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
         {
           'eip155:1': {
-            methods: ['flattened_required'],
+            methods: ['normalized_required'],
             notifications: [],
             accounts: [],
           },
@@ -483,18 +483,18 @@ describe('endowment:caip25', () => {
       expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
     });
 
-    it('asserts the validated and flattened optional scopes are supported', () => {
-      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
-        flattenedRequiredScopes: {
+    it('asserts the validated and normalized optional scopes are supported', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
           'eip155:1': {
-            methods: ['flattened_required'],
+            methods: ['normalized_required'],
             notifications: [],
             accounts: [],
           },
         },
-        flattenedOptionalScopes: {
+        normalizedOptionalScopes: {
           'eip155:1': {
-            methods: ['flattened_optional'],
+            methods: ['normalized_optional'],
             notifications: [],
             accounts: [],
           },
@@ -535,7 +535,7 @@ describe('endowment:caip25', () => {
       expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
         {
           'eip155:1': {
-            methods: ['flattened_optional'],
+            methods: ['normalized_optional'],
             notifications: [],
             accounts: [],
           },
@@ -549,10 +549,10 @@ describe('endowment:caip25', () => {
       expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
     });
 
-    it('throws if the input requiredScopes does not match the output of validateAndFlattenScopes', () => {
-      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
-        flattenedRequiredScopes: {},
-        flattenedOptionalScopes: {
+    it('throws if the input requiredScopes does not match the output of validateAndNormalizeScopes', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {},
+        normalizedOptionalScopes: {
           'eip155:5': {
             methods: [],
             notifications: [],
@@ -592,16 +592,16 @@ describe('endowment:caip25', () => {
       }).toThrow(/Expected values to be strictly deep-equal/u);
     });
 
-    it('throws if the input optionalScopes does not match the output of validateAndFlattenScopes', () => {
-      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
-        flattenedRequiredScopes: {
+    it('throws if the input optionalScopes does not match the output of validateAndNormalizeScopes', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
           'eip155:1': {
             methods: ['eth_chainId'],
             notifications: [],
             accounts: ['eip155:1:0xdead'],
           },
         },
-        flattenedOptionalScopes: {},
+        normalizedOptionalScopes: {},
       });
       expect(() => {
         validator({
@@ -635,16 +635,16 @@ describe('endowment:caip25', () => {
       }).toThrow(/Expected values to be strictly deep-equal/u);
     });
 
-    it('does not throw if the input requiredScopes and optionalScopes ScopesObject are already validated and flattened', () => {
-      MockScopeAuthorization.validateAndFlattenScopes.mockReturnValue({
-        flattenedRequiredScopes: {
+    it('does not throw if the input requiredScopes and optionalScopes ScopesObject are already validated and normalized', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
           'eip155:1': {
             methods: ['eth_chainId'],
             notifications: [],
             accounts: ['eip155:1:0xdead'],
           },
         },
-        flattenedOptionalScopes: {
+        normalizedOptionalScopes: {
           'eip155:5': {
             methods: [],
             notifications: [],

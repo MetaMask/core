@@ -1,4 +1,4 @@
-import { bucketScopes, validateAndFlattenScopes } from './authorization';
+import { bucketScopes, validateAndNormalizeScopes } from './authorization';
 import * as Filter from './filter';
 import * as Transform from './transform';
 import type { ExternalScopeObject } from './types';
@@ -10,7 +10,7 @@ jest.mock('./validation', () => ({
 const MockValidation = jest.mocked(Validation);
 
 jest.mock('./transform', () => ({
-  flattenMergeScopes: jest.fn(),
+  normalizeMergeScopes: jest.fn(),
 }));
 const MockTransform = jest.mocked(Transform);
 
@@ -29,10 +29,10 @@ describe('Scope Authorization', () => {
     jest.resetAllMocks();
   });
 
-  describe('validateAndFlattenScopes', () => {
+  describe('validateAndNormalizeScopes', () => {
     it('validates the scopes', () => {
       try {
-        validateAndFlattenScopes(
+        validateAndNormalizeScopes(
           {
             'eip155:1': validScopeObject,
           },
@@ -53,7 +53,7 @@ describe('Scope Authorization', () => {
       );
     });
 
-    it('flatten and merges the validated scopes', () => {
+    it('normalized and merges the validated scopes', () => {
       MockValidation.validateScopes.mockReturnValue({
         validRequiredScopes: {
           'eip155:1': validScopeObject,
@@ -63,16 +63,16 @@ describe('Scope Authorization', () => {
         },
       });
 
-      validateAndFlattenScopes({}, {});
-      expect(MockTransform.flattenMergeScopes).toHaveBeenCalledWith({
+      validateAndNormalizeScopes({}, {});
+      expect(MockTransform.normalizeMergeScopes).toHaveBeenCalledWith({
         'eip155:1': validScopeObject,
       });
-      expect(MockTransform.flattenMergeScopes).toHaveBeenCalledWith({
+      expect(MockTransform.normalizeMergeScopes).toHaveBeenCalledWith({
         'eip155:5': validScopeObject,
       });
     });
 
-    it('returns the flattened and merged scopes', () => {
+    it('returns the normalized and merged scopes', () => {
       MockValidation.validateScopes.mockReturnValue({
         validRequiredScopes: {
           'eip155:1': validScopeObject,
@@ -81,17 +81,17 @@ describe('Scope Authorization', () => {
           'eip155:5': validScopeObject,
         },
       });
-      MockTransform.flattenMergeScopes.mockImplementation((value) => ({
+      MockTransform.normalizeMergeScopes.mockImplementation((value) => ({
         ...value,
         transformed: true,
       }));
 
-      expect(validateAndFlattenScopes({}, {})).toStrictEqual({
-        flattenedRequiredScopes: {
+      expect(validateAndNormalizeScopes({}, {})).toStrictEqual({
+        normalizedRequiredScopes: {
           'eip155:1': validScopeObject,
           transformed: true,
         },
-        flattenedOptionalScopes: {
+        normalizedOptionalScopes: {
           'eip155:5': validScopeObject,
           transformed: true,
         },

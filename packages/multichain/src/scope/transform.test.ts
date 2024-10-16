@@ -2,7 +2,7 @@ import {
   normalizeScope,
   mergeScopes,
   mergeScopeObject,
-  flattenMergeScopes,
+  normalizeMergeScopes,
 } from './transform';
 import type { ExternalScopeObject, ScopeObject } from './types';
 
@@ -52,16 +52,16 @@ describe('Scope Transform', () => {
       });
 
       it('returns one deep cloned scope per `references` element', () => {
-        const flattenedScopes = normalizeScope('eip155', {
+        const noramlizedScopes = normalizeScope('eip155', {
           ...validScopeObject,
           references: ['1', '5'],
         });
 
-        expect(flattenedScopes['eip155:1']).not.toBe(
-          flattenedScopes['eip155:5'],
+        expect(noramlizedScopes['eip155:1']).not.toBe(
+          noramlizedScopes['eip155:5'],
         );
-        expect(flattenedScopes['eip155:1'].methods).not.toBe(
-          flattenedScopes['eip155:5'].methods,
+        expect(noramlizedScopes['eip155:1'].methods).not.toBe(
+          noramlizedScopes['eip155:5'].methods,
         );
       });
     });
@@ -275,10 +275,10 @@ describe('Scope Transform', () => {
     });
   });
 
-  describe('flattenMergeScopes', () => {
-    it('flattens scopes and merges any overlapping scopeStrings', () => {
+  describe('normalizeMergeScopes', () => {
+    it('normalizes scopes and merges any overlapping scopeStrings', () => {
       expect(
-        flattenMergeScopes({
+        normalizeMergeScopes({
           eip155: {
             ...validScopeObject,
             methods: ['a', 'b'],

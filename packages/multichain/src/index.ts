@@ -19,7 +19,7 @@ export { MultichainSubscriptionManager } from './middlewares/MultichainSubscript
 
 export { assertScopeSupported, assertScopesSupported } from './scope/assert';
 export type { Caip25Authorization } from './scope/authorization';
-export { validateAndFlattenScopes, bucketScopes } from './scope/authorization';
+export { validateAndNormalizeScopes, bucketScopes } from './scope/authorization';
 export { bucketScopesBySupport, filterScopesSupported } from './scope/filter';
 export * from './scope/types';
 export {
@@ -32,7 +32,7 @@ export {
   normalizeScope,
   mergeScopeObject,
   mergeScopes,
-  flattenMergeScopes,
+  normalizeMergeScopes,
 } from './scope/transform';
 export { isValidScope, validateScopes } from './scope/validation';
 
