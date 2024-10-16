@@ -9,7 +9,12 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import contractMap from '@metamask/contract-metadata';
-import { ChainId, safelyExecute } from '@metamask/controller-utils';
+import {
+  ASSET_TYPES,
+  ChainId,
+  ERC20,
+  safelyExecute,
+} from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -713,10 +718,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             tokens: eventTokensDetails,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            token_standard: 'ERC20',
+            token_standard: ERC20,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            asset_type: 'TOKEN',
+            asset_type: ASSET_TYPES.TOKEN,
           },
         });
 
@@ -777,10 +782,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             tokens: eventTokensDetails,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            token_standard: 'ERC20',
+            token_standard: ERC20,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            asset_type: 'TOKEN',
+            asset_type: ASSET_TYPES.TOKEN,
           },
         });
 
