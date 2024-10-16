@@ -105,16 +105,24 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
+ * @param options - Additional options.
+ * @param options.isReSimulatedDueToSecurityAlert - Whether the simulation is being re-run due to a security alert.
  * @returns The simulation data.
  */
 export async function getSimulationData(
   request: GetSimulationDataRequest,
+  options: {
+    isReSimulatedDueToSecurityAlert: boolean;
+  },
 ): Promise<SimulationData> {
   const { chainId, from, to, value, data } = request;
+  const { isReSimulatedDueToSecurityAlert } = options;
 
   log('Getting simulation data', request);
 
   try {
+    const currentTimestampInSeconds = Math.floor(Date.now() / 1000);
+
     const response = await simulateTransactions(chainId, {
       transactions: [
         {
@@ -128,6 +136,11 @@ export async function getSimulationData(
       ],
       withCallTrace: true,
       withLogs: true,
+      ...(isReSimulatedDueToSecurityAlert && {
+        blockOverrides: {
+          time: toHex(currentTimestampInSeconds + 60),
+        },
+      }),
     });
 
     const transactionError = response.transactions?.[0]?.error;

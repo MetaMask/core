@@ -3750,13 +3750,20 @@ export class TransactionController extends BaseController<
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
-          getSimulationData({
-            chainId,
-            from: from as Hex,
-            to: to as Hex,
-            value: value as Hex,
-            data: data as Hex,
-          }),
+          getSimulationData(
+            {
+              chainId,
+              from: from as Hex,
+              to: to as Hex,
+              value: value as Hex,
+              data: data as Hex,
+            },
+            {
+              isReSimulatedDueToSecurityAlert: Boolean(
+                isReSimulatedDueToSecurityAlert,
+              ),
+            },
+          ),
       );
 
       if (prevSimulationData && !isEqual(simulationData, prevSimulationData)) {
