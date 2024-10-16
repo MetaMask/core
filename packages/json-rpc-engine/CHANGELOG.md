@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Update `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#4773](https://github.com/MetaMask/core/pull/4773))
-  - **BREAKING**: This changes the top-level error message of serialized internal JSON RPC errors to contain the actual error message, as opposed to the fixed string `Internal JSON-RPC Error.`.
+- **BREAKING**: Bump `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#4773](https://github.com/MetaMask/core/pull/4773))
+  - This modifies the top-level error message for serialized internal JSON-RPC errors to include the actual error message, instead of the generic `Internal JSON-RPC Error.` string.
 
 ## [9.0.3]
 
