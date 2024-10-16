@@ -20,7 +20,7 @@ import { strict as assert } from 'assert';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { assertScopesSupported } from './scope/assert';
-import { validateAndFlattenScopes } from './scope/authorization';
+import { validateAndNormalizeScopes } from './scope/authorization';
 import type {
   ExternalScopeString,
   ScopeObject,
@@ -101,8 +101,8 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      const { flattenedRequiredScopes, flattenedOptionalScopes } =
-        validateAndFlattenScopes(requiredScopes, optionalScopes);
+      const { normalizedRequiredScopes, normalizedOptionalScopes } =
+        validateAndNormalizeScopes(requiredScopes, optionalScopes);
 
       const isChainIdSupported = (chainId: Hex) => {
         try {
@@ -113,15 +113,15 @@ const specificationBuilder: PermissionSpecificationBuilder<
         }
       };
 
-      assertScopesSupported(flattenedRequiredScopes, {
+      assertScopesSupported(normalizedRequiredScopes, {
         isChainIdSupported,
       });
-      assertScopesSupported(flattenedOptionalScopes, {
+      assertScopesSupported(normalizedOptionalScopes, {
         isChainIdSupported,
       });
 
-      assert.deepEqual(requiredScopes, flattenedRequiredScopes);
-      assert.deepEqual(optionalScopes, flattenedOptionalScopes);
+      assert.deepEqual(requiredScopes, normalizedRequiredScopes);
+      assert.deepEqual(optionalScopes, normalizedOptionalScopes);
     },
   };
 };

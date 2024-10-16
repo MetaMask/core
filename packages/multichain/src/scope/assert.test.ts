@@ -14,6 +14,7 @@ const MockSupported = jest.mocked(Supported);
 const validScopeObject: ScopeObject = {
   methods: [],
   notifications: [],
+  accounts: [],
 };
 
 describe('Scope Assert', () => {

@@ -1,7 +1,7 @@
 import type { Hex } from '@metamask/utils';
 
 import { bucketScopesBySupport } from './filter';
-import { flattenMergeScopes } from './transform';
+import { normalizeAndMergeScopes } from './transform';
 import type { ExternalScopesObject, ScopesObject } from './types';
 import { validateScopes } from './validation';
 
@@ -18,24 +18,24 @@ export type Caip25Authorization =
       sessionProperties?: Record<string, unknown>;
     });
 
-export const validateAndFlattenScopes = (
+export const validateAndNormalizeScopes = (
   requiredScopes: ExternalScopesObject,
   optionalScopes: ExternalScopesObject,
 ): {
-  flattenedRequiredScopes: ScopesObject;
-  flattenedOptionalScopes: ScopesObject;
+  normalizedRequiredScopes: ScopesObject;
+  normalizedOptionalScopes: ScopesObject;
 } => {
   const { validRequiredScopes, validOptionalScopes } = validateScopes(
     requiredScopes,
     optionalScopes,
   );
 
-  const flattenedRequiredScopes = flattenMergeScopes(validRequiredScopes);
-  const flattenedOptionalScopes = flattenMergeScopes(validOptionalScopes);
+  const normalizedRequiredScopes = normalizeAndMergeScopes(validRequiredScopes);
+  const normalizedOptionalScopes = normalizeAndMergeScopes(validOptionalScopes);
 
   return {
-    flattenedRequiredScopes,
-    flattenedOptionalScopes,
+    normalizedRequiredScopes,
+    normalizedOptionalScopes,
   };
 };
 

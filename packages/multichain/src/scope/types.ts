@@ -51,8 +51,9 @@ export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
 // These External prefixed types represent the CAIP-217
 // Scope and ScopeObject as defined in the spec.
 export type ExternalScopeString = CaipChainId | CaipNamespace;
-export type ExternalScopeObject = ScopeObject & {
+export type ExternalScopeObject = Omit<ScopeObject, 'accounts'> & {
   references?: CaipReference[];
+  accounts?: CaipAccountId[];
 };
 export type ExternalScopesObject = Record<
   ExternalScopeString,
@@ -70,7 +71,7 @@ export type ScopeString = CaipChainId | KnownCaipNamespace.Wallet;
 export type ScopeObject = {
   methods: string[];
   notifications: string[];
-  accounts?: CaipAccountId[];
+  accounts: CaipAccountId[];
   rpcDocuments?: string[];
   rpcEndpoints?: string[];
 };

@@ -1,34 +1,46 @@
 import {
-  flattenScope,
+  normalizeScope,
   mergeScopes,
   mergeScopeObject,
-  flattenMergeScopes,
+  normalizeAndMergeScopes,
 } from './transform';
-import type { ExternalScopeObject } from './types';
+import type { ExternalScopeObject, ScopeObject } from './types';
 
-const validScopeObject: ExternalScopeObject = {
+const externalScopeObject: ExternalScopeObject = {
   methods: [],
   notifications: [],
 };
 
+const validScopeObject: ScopeObject = {
+  methods: [],
+  notifications: [],
+  accounts: [],
+};
+
 describe('Scope Transform', () => {
-  describe('flattenScope', () => {
-    it('returns the scope as is when the scopeString is chain scoped', () => {
-      expect(flattenScope('eip155:1', validScopeObject)).toStrictEqual({
+  describe('normalizeScope', () => {
+    it('returns the scope with empty accounts array when the scopeString is chain scoped when accounts are not defined', () => {
+      expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
+        'eip155:1': validScopeObject,
+      });
+    });
+
+    it('returns the scope as is when the scopeString is chain scoped and accounts are defined', () => {
+      expect(normalizeScope('eip155:1', validScopeObject)).toStrictEqual({
         'eip155:1': validScopeObject,
       });
     });
 
     describe('scopeString is namespace scoped', () => {
       it('returns the scope as is when `references` is not defined', () => {
-        expect(flattenScope('eip155', validScopeObject)).toStrictEqual({
+        expect(normalizeScope('eip155', validScopeObject)).toStrictEqual({
           eip155: validScopeObject,
         });
       });
 
       it('returns one scope per `references` element with `references` excluded from the scopeObject', () => {
         expect(
-          flattenScope('eip155', {
+          normalizeScope('eip155', {
             ...validScopeObject,
             references: ['1', '5', '64'],
           }),
@@ -40,16 +52,16 @@ describe('Scope Transform', () => {
       });
 
       it('returns one deep cloned scope per `references` element', () => {
-        const flattenedScopes = flattenScope('eip155', {
+        const noramlizedScopes = normalizeScope('eip155', {
           ...validScopeObject,
           references: ['1', '5'],
         });
 
-        expect(flattenedScopes['eip155:1']).not.toBe(
-          flattenedScopes['eip155:5'],
+        expect(noramlizedScopes['eip155:1']).not.toBe(
+          noramlizedScopes['eip155:5'],
         );
-        expect(flattenedScopes['eip155:1'].methods).not.toBe(
-          flattenedScopes['eip155:5'].methods,
+        expect(noramlizedScopes['eip155:1'].methods).not.toBe(
+          noramlizedScopes['eip155:5'].methods,
         );
       });
     });
@@ -200,12 +212,14 @@ describe('Scope Transform', () => {
             'eip155:1': {
               methods: ['a', 'b', 'c'],
               notifications: ['foo'],
+              accounts: [],
             },
           },
           {
             'eip155:1': {
               methods: ['c', 'd'],
               notifications: ['bar'],
+              accounts: [],
             },
           },
         ),
@@ -213,6 +227,7 @@ describe('Scope Transform', () => {
         'eip155:1': {
           methods: ['a', 'b', 'c', 'd'],
           notifications: ['foo', 'bar'],
+          accounts: [],
         },
       });
     });
@@ -224,16 +239,19 @@ describe('Scope Transform', () => {
             'eip155:1': {
               methods: ['a', 'b', 'c'],
               notifications: ['foo'],
+              accounts: [],
             },
           },
           {
             'eip155:2': {
               methods: ['c', 'd'],
               notifications: ['bar'],
+              accounts: [],
             },
             'eip155:3': {
               methods: [],
               notifications: [],
+              accounts: [],
             },
           },
         ),
@@ -241,23 +259,26 @@ describe('Scope Transform', () => {
         'eip155:1': {
           methods: ['a', 'b', 'c'],
           notifications: ['foo'],
+          accounts: [],
         },
         'eip155:2': {
           methods: ['c', 'd'],
           notifications: ['bar'],
+          accounts: [],
         },
         'eip155:3': {
           methods: [],
           notifications: [],
+          accounts: [],
         },
       });
     });
   });
 
-  describe('flattenMergeScopes', () => {
-    it('flattens scopes and merges any overlapping scopeStrings', () => {
+  describe('normalizeAndMergeScopes', () => {
+    it('normalizes scopes and merges any overlapping scopeStrings', () => {
       expect(
-        flattenMergeScopes({
+        normalizeAndMergeScopes({
           eip155: {
             ...validScopeObject,
             methods: ['a', 'b'],

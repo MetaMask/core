@@ -20,10 +20,12 @@ describe('filter', () => {
           'eip155:1': {
             methods: ['a'],
             notifications: [],
+            accounts: [],
           },
           'eip155:5': {
             methods: ['b'],
             notifications: [],
+            accounts: [],
           },
         },
         { isChainIdSupported },
@@ -34,6 +36,7 @@ describe('filter', () => {
         {
           methods: ['a'],
           notifications: [],
+          accounts: [],
         },
         { isChainIdSupported },
       );
@@ -42,6 +45,7 @@ describe('filter', () => {
         {
           methods: ['b'],
           notifications: [],
+          accounts: [],
         },
         { isChainIdSupported },
       );
@@ -60,10 +64,12 @@ describe('filter', () => {
             'eip155:1': {
               methods: ['a'],
               notifications: [],
+              accounts: [],
             },
             'eip155:5': {
               methods: ['b'],
               notifications: [],
+              accounts: [],
             },
           },
           { isChainIdSupported },
@@ -72,6 +78,7 @@ describe('filter', () => {
         'eip155:5': {
           methods: ['b'],
           notifications: [],
+          accounts: [],
         },
       });
     });
@@ -86,10 +93,12 @@ describe('filter', () => {
           'eip155:1': {
             methods: ['a'],
             notifications: [],
+            accounts: [],
           },
           'eip155:5': {
             methods: ['b'],
             notifications: [],
+            accounts: [],
           },
         },
         { isChainIdSupported },
@@ -100,6 +109,7 @@ describe('filter', () => {
         {
           methods: ['a'],
           notifications: [],
+          accounts: [],
         },
         { isChainIdSupported },
       );
@@ -108,6 +118,7 @@ describe('filter', () => {
         {
           methods: ['b'],
           notifications: [],
+          accounts: [],
         },
         { isChainIdSupported },
       );
@@ -126,10 +137,12 @@ describe('filter', () => {
             'eip155:1': {
               methods: ['a'],
               notifications: [],
+              accounts: [],
             },
             'eip155:5': {
               methods: ['b'],
               notifications: [],
+              accounts: [],
             },
           },
           { isChainIdSupported },
@@ -139,12 +152,14 @@ describe('filter', () => {
           'eip155:5': {
             methods: ['b'],
             notifications: [],
+            accounts: [],
           },
         },
         unsupportedScopes: {
           'eip155:1': {
             methods: ['a'],
             notifications: [],
+            accounts: [],
           },
         },
       });

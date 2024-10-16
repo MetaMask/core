@@ -27,24 +27,29 @@ const createMockedHandler = () => {
         'eip155:1': {
           methods: ['eth_call'],
           notifications: [],
+          accounts: [],
         },
         'eip155:5': {
           methods: ['eth_chainId'],
           notifications: [],
+          accounts: [],
         },
       },
       optionalScopes: {
         'eip155:1': {
           methods: ['net_version'],
           notifications: [],
+          accounts: [],
         },
         wallet: {
           methods: ['wallet_watchAsset'],
           notifications: [],
+          accounts: [],
         },
         unhandled: {
           methods: ['foobar'],
           notifications: [],
+          accounts: [],
         },
       },
       isMultichainOrigin: true,
