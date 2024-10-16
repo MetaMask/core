@@ -110,6 +110,14 @@ export type PreferencesState = {
    * Controls whether transaction simulations are enabled
    */
   useTransactionSimulations: boolean;
+  /**
+   * Controls whether Multi rpc modal is displayed or not
+   */
+  useMultiRpcMigration: boolean;
+  /**
+   * Controls whether chain validation is enabled or not
+   */
+  useSafeChainsListValidation: boolean;
 };
 
 const metadata = {
@@ -128,6 +136,8 @@ const metadata = {
   useTokenDetection: { persist: true, anonymous: true },
   smartTransactionsOptInStatus: { persist: true, anonymous: false },
   useTransactionSimulations: { persist: true, anonymous: true },
+  useMultiRpcMigration: { persist: true, anonymous: true },
+  useSafeChainsListValidation: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -197,6 +207,8 @@ export function getDefaultPreferencesState() {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
+    useMultiRpcMigration: true,
+    useSafeChainsListValidation: true,
     smartTransactionsOptInStatus: false,
     useTransactionSimulations: true,
   };
@@ -481,6 +493,31 @@ export class PreferencesController extends BaseController<
         };
       });
     }
+  }
+
+  /**
+   * Toggle the use safe chains list validation.
+   *
+   * @param useSafeChainsListValidation - Boolean indicating user preference on using chainid.network third part to check safe networks.
+   */
+  setUseSafeChainsListValidation(useSafeChainsListValidation: boolean) {
+    this.update((state) => {
+      state.useSafeChainsListValidation = useSafeChainsListValidation;
+    });
+  }
+
+  /**
+   * Toggle multi rpc migration modal.
+   *
+   * @param useMultiRpcMigration - Boolean indicating if the multi rpc modal will be displayed or not.
+   */
+  setUseMultiRpcMigration(useMultiRpcMigration: boolean) {
+    this.update((state) => {
+      state.useMultiRpcMigration = useMultiRpcMigration;
+      if (!useMultiRpcMigration) {
+        state.useMultiRpcMigration = false;
+      }
+    });
   }
 
   /**
