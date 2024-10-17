@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.3.0]
+
+### Added
+
+- Add types for bridge transactions ([#4714](https://github.com/MetaMask/core/pull/4714))
+
+### Changed
+
+- Reduce gas limit fallback from 95% to 35% of the block gas limit on failed gas limit estimations ([#4739](https://github.com/MetaMask/core/pull/4739))
+
+### Fixed
+
+- Use contract ABIs to decode the token balance responses ([#4775](https://github.com/MetaMask/core/pull/4775))
+
 ## [37.2.0]
 
 ### Added
@@ -1048,7 +1062,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.3.0...HEAD
+[37.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.2.0...@metamask/transaction-controller@37.3.0
 [37.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.1.0...@metamask/transaction-controller@37.2.0
 [37.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.0.0...@metamask/transaction-controller@37.1.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.1.0...@metamask/transaction-controller@37.0.0

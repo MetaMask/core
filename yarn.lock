@@ -2955,7 +2955,7 @@ __metadata:
     "@metamask/eth-sig-util": "npm:^7.0.1"
     "@metamask/eth-simple-keyring": "npm:^6.0.5"
     "@metamask/keyring-api": "npm:^8.1.3"
-    "@metamask/message-manager": "npm:^10.1.1"
+    "@metamask/message-manager": "npm:^11.0.0"
     "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -2992,7 +2992,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/message-manager@npm:^10.1.1, @metamask/message-manager@workspace:packages/message-manager":
+"@metamask/message-manager@npm:^11.0.0, @metamask/message-manager@workspace:packages/message-manager":
   version: 0.0.0-use.local
   resolution: "@metamask/message-manager@workspace:packages/message-manager"
   dependencies:
@@ -3666,7 +3666,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^37.2.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^37.3.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3734,7 +3734,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^10.0.1"
     "@metamask/rpc-errors": "npm:^6.3.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^37.2.0"
+    "@metamask/transaction-controller": "npm:^37.3.0"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"
