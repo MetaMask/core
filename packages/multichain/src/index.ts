@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 export {
   getEthAccounts,
   setEthAccounts,
@@ -37,3 +38,15 @@ export {
   Caip25CaveatMutatorFactories,
   removeScope,
 } from './caip25Permission';
+||||||| 8fb04fc2
+=======
+/**
+ * Example function that returns a greeting for the given name.
+ *
+ * @param name - The name to greet.
+ * @returns The greeting.
+ */
+export default function greeter(name: string): string {
+  return `Hello, ${name}!`;
+}
+>>>>>>> initialize-caip-multichain
