@@ -17,6 +17,7 @@ import type {
   AuthenticationController,
   UserStorageController,
 } from '@metamask/profile-sync-controller';
+import { assert } from '@metamask/utils';
 import log from 'loglevel';
 
 import { USER_STORAGE_VERSION_KEY } from './constants/constants';
@@ -32,7 +33,6 @@ import type {
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
-import { assert } from '@metamask/utils';
 
 // TODO: Fix Circular Type Dependencies
 // This indicates that control flow of messages is everywhere, lets orchestrate these better

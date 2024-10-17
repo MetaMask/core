@@ -7,6 +7,7 @@ import type {
 import type { UserStorageController } from '@metamask/profile-sync-controller';
 import { AuthenticationController } from '@metamask/profile-sync-controller';
 
+import { createMockSnapNotification } from './__fixtures__';
 import {
   createMockFeatureAnnouncementAPIResult,
   createMockFeatureAnnouncementRaw,
@@ -25,6 +26,7 @@ import {
   mockMarkNotificationsAsRead,
 } from './__fixtures__/mockServices';
 import { waitFor } from './__fixtures__/test-utils';
+import { TRIGGER_TYPES } from './constants';
 import NotificationServicesController, {
   defaultState,
 } from './NotificationServicesController';
@@ -36,13 +38,11 @@ import type {
   NotificationServicesPushControllerUpdateTriggerPushNotifications,
 } from './NotificationServicesController';
 import { processNotification } from './processors/process-notifications';
+import { processSnapNotification } from './processors/process-snap-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
+import type { INotification } from './types';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
-import { createMockSnapNotification } from './__fixtures__';
-import { INotification } from './types';
-import { TRIGGER_TYPES } from './constants';
-import { processSnapNotification } from './processors/process-snap-notifications';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
