@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 220.0.0 ([#4798](https://github.com/MetaMask/core/pull/4798))
+- fix: Ensure that network client ID is updated before use ([#4801](https://github.com/MetaMask/core/pull/4801))
+
 ## [18.0.1]
 
 ### Changed
