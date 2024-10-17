@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+### Changed
+- **BREAKING**: Update `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#342](https://github.com/MetaMask/eth-json-rpc-middleware/pull/342))
+- **BREAKING**: Update `@metamask/json-rpc-engine` from `^9.0.2` to `^10.0.0` ([#342](https://github.com/MetaMask/eth-json-rpc-middleware/pull/342))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.1` to `^4.1.5` ([#342](https://github.com/MetaMask/eth-json-rpc-middleware/pull/342))
+
+### Removed
+- **BREAKING**: Remove `eth_sign` support ([#320](https://github.com/MetaMask/eth-json-rpc-middleware/pull/320))
+  - The functions `ethSign` and `processEthSignMessage` have been removed
+
 ## [14.0.2]
 ### Fixed
 - Allow the string "cosmos" in the "verifyingContract" field of EIP-712 signatures ([#333](https://github.com/MetaMask/eth-json-rpc-middleware/pull/333))
@@ -211,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `json-rpc-engine@5.3.0` ([#53](https://github.com/MetaMask/eth-json-rpc-middleware/pull/53))
 - `eth-rpc-errors@3.0.0` ([#55](https://github.com/MetaMask/eth-json-rpc-middleware/pull/55))
 
-[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.2...v15.0.0
 [14.0.2]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.1...v14.0.2
 [14.0.1]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v14.0.0...v14.0.1
 [14.0.0]: https://github.com/MetaMask/eth-json-rpc-middleware/compare/v13.0.0...v14.0.0
