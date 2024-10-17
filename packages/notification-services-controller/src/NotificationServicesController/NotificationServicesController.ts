@@ -32,6 +32,7 @@ import type {
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
+import { assert } from '@metamask/utils';
 
 // TODO: Fix Circular Type Dependencies
 // This indicates that control flow of messages is everywhere, lets orchestrate these better
@@ -195,12 +196,18 @@ export type NotificationServicesControllerSelectIsNotificationServicesEnabled =
     handler: NotificationServicesController['selectIsNotificationServicesEnabled'];
   };
 
+export type NotificationServicesControllerGetNotificationsByType = {
+  type: `${typeof controllerName}:getNotificationsByType`;
+  handler: NotificationServicesController['getNotificationsByType'];
+};
+
 // Messenger Actions
 export type Actions =
   | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
-  | NotificationServicesControllerSelectIsNotificationServicesEnabled;
+  | NotificationServicesControllerSelectIsNotificationServicesEnabled
+  | NotificationServicesControllerGetNotificationsByType;
 
 // Allowed Actions
 export type AllowedActions =
@@ -571,6 +578,11 @@ export default class NotificationServicesController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:selectIsNotificationServicesEnabled`,
       this.selectIsNotificationServicesEnabled.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:getNotificationsByType`,
+      this.getNotificationsByType.bind(this),
     );
   }
 
@@ -1099,9 +1111,14 @@ export default class NotificationServicesController extends BaseController<
       );
       const onChainNotifications = processAndFilter(rawOnChainNotifications);
 
+      const snapNotifications = this.state.metamaskNotificationsList.filter(
+        (notification) => notification.type === TRIGGER_TYPES.SNAP,
+      );
+
       const metamaskNotifications: INotification[] = [
         ...featureAnnouncementNotifications,
         ...onChainNotifications,
+        ...snapNotifications,
       ];
       metamaskNotifications.sort(
         (a, b) =>
@@ -1128,6 +1145,23 @@ export default class NotificationServicesController extends BaseController<
   }
 
   /**
+   * Gets the specified type of notifications from state.
+   *
+   * @param type - The trigger type.
+   * @returns An array of notifications of the passed in type.
+   * @throws Throws an error if an invalid trigger type is passed.
+   */
+  public getNotificationsByType(type: TRIGGER_TYPES) {
+    assert(
+      Object.values(TRIGGER_TYPES).includes(type),
+      'Invalid trigger type.',
+    );
+    return this.state.metamaskNotificationsList.filter(
+      (notification) => notification.type === type,
+    );
+  }
+
+  /**
    * Marks specified metamask notifications as read.
    *
    * @param notifications - An array of notifications to be marked as read. Each notification should include its type and read status.
@@ -1138,19 +1172,36 @@ export default class NotificationServicesController extends BaseController<
   ): Promise<void> {
     let onchainNotificationIds: string[] = [];
     let featureAnnouncementNotificationIds: string[] = [];
+    let snapNotificationIds: string[] = [];
 
     try {
-      // Filter unread on/off chain notifications
-      const onChainNotifications = notifications.filter(
-        (notification) =>
-          notification.type !== TRIGGER_TYPES.FEATURES_ANNOUNCEMENT &&
-          !notification.isRead,
-      );
-
-      const featureAnnouncementNotifications = notifications.filter(
-        (notification) =>
-          notification.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT &&
-          !notification.isRead,
+      const [
+        onChainNotifications,
+        featureAnnouncementNotifications,
+        snapNotifications,
+      ] = notifications.reduce<
+        [
+          MarkAsReadNotificationsParam,
+          MarkAsReadNotificationsParam,
+          MarkAsReadNotificationsParam,
+        ]
+      >(
+        (allNotifications, notification) => {
+          if (!notification.isRead) {
+            switch (notification.type) {
+              case TRIGGER_TYPES.FEATURES_ANNOUNCEMENT:
+                allNotifications[1].push(notification);
+                break;
+              case TRIGGER_TYPES.SNAP:
+                allNotifications[2].push(notification);
+                break;
+              default:
+                allNotifications[0].push(notification);
+            }
+          }
+          return allNotifications;
+        },
+        [[], [], []],
       );
 
       // Mark On-Chain Notifications as Read
@@ -1178,6 +1229,12 @@ export default class NotificationServicesController extends BaseController<
             (notification) => notification.id,
           );
       }
+
+      if (snapNotifications.length > 0) {
+        snapNotificationIds = snapNotifications.map(
+          (notification) => notification.id,
+        );
+      }
     } catch (err) {
       log.warn('Something failed when marking notifications as read', err);
     }
@@ -1185,7 +1242,10 @@ export default class NotificationServicesController extends BaseController<
     // Update the state (state is also used on counter & badge)
     this.update((state) => {
       const currentReadList = state.metamaskNotificationsReadList;
-      const newReadIds = [...featureAnnouncementNotificationIds];
+      const newReadIds = [
+        ...featureAnnouncementNotificationIds,
+        ...snapNotificationIds,
+      ];
       state.metamaskNotificationsReadList = [
         ...new Set([...currentReadList, ...newReadIds]),
       ];
@@ -1233,9 +1293,9 @@ export default class NotificationServicesController extends BaseController<
           state.metamaskNotificationsList.map((n) => n.id),
         );
         // Add the new notification only if its ID is not already present in the list
-        if (!existingNotificationIds.has(notification.id)) {
+        if (!existingNotificationIds.has(processedNotification.id)) {
           state.metamaskNotificationsList = [
-            notification,
+            processedNotification,
             ...state.metamaskNotificationsList,
           ];
           this.messagingSystem.publish(

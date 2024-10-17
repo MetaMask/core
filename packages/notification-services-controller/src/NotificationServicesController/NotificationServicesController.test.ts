@@ -39,6 +39,10 @@ import { processNotification } from './processors/process-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
+import { createMockSnapNotification } from './__fixtures__';
+import { INotification } from './types';
+import { TRIGGER_TYPES } from './constants';
+import { processSnapNotification } from './processors/process-snap-notifications';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -472,23 +476,30 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
     };
   };
 
-  it('processes and shows feature announcements and wallet notifications', async () => {
+  it('processes and shows feature announcements, wallet and snap notifications', async () => {
     const {
       messenger,
       mockFeatureAnnouncementAPIResult,
       mockListNotificationsAPIResult,
     } = arrangeMocks();
 
+    const snapNotification = createMockSnapNotification();
+    const processedSnapNotification = processSnapNotification(snapNotification);
+
     const controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { ...defaultState, isFeatureAnnouncementsEnabled: true },
+      state: {
+        ...defaultState,
+        isFeatureAnnouncementsEnabled: true,
+        metamaskNotificationsList: [processedSnapNotification],
+      },
     });
 
     const result = await controller.fetchAndUpdateMetamaskNotifications();
 
     // Should have 1 feature announcement and 1 wallet notification
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(3);
     expect(
       result.find(
         (n) => n.id === mockFeatureAnnouncementAPIResult.items?.[0].fields.id,
@@ -497,9 +508,10 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
     expect(
       result.find((n) => n.id === mockListNotificationsAPIResult[0].id),
     ).toBeDefined();
+    expect(result.find((n) => n.type === TRIGGER_TYPES.SNAP)).toBeDefined();
 
     // State is also updated
-    expect(controller.state.metamaskNotificationsList).toHaveLength(2);
+    expect(controller.state.metamaskNotificationsList).toHaveLength(3);
   });
 
   it('only fetches and processes feature announcements if not authenticated', async () => {
@@ -526,6 +538,54 @@ describe('metamask-notifications - fetchAndUpdateMetamaskNotifications()', () =>
 
     // State is also updated
     expect(controller.state.metamaskNotificationsList).toHaveLength(1);
+  });
+});
+
+describe('metamask-notifications - getNotificationsByType', () => {
+  it('can fetch notifications by their type', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    const snapNotification = createMockSnapNotification();
+    const featureAnnouncement = createMockFeatureAnnouncementRaw();
+
+    await controller.updateMetamaskNotificationsList(
+      snapNotification as INotification,
+    );
+    await controller.updateMetamaskNotificationsList(
+      featureAnnouncement as INotification,
+    );
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(2);
+
+    const filteredNotifications = controller.getNotificationsByType(
+      TRIGGER_TYPES.SNAP,
+    );
+
+    expect(filteredNotifications).toHaveLength(1);
+    expect(filteredNotifications).toStrictEqual([
+      {
+        type: TRIGGER_TYPES.SNAP,
+        id: expect.any(String),
+        createdAt: expect.any(String),
+        isRead: false,
+        data: {
+          message: 'fooBar',
+          origin: '@metamask/example-snap',
+          detailedView: {
+            title: 'Detailed View',
+            interfaceId: '1',
+            footerLink: {
+              text: 'Go Home',
+              href: 'metamask://client/',
+            },
+          },
+        },
+      },
+    ]);
   });
 });
 
@@ -574,6 +634,21 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
     // Should see 1 item in controller read state.
     // This is because on-chain failed.
     // We can debate & change implementation if it makes sense to mark as read locally if external APIs fail.
+    expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
+  });
+
+  it('updates snap notifications as read', async () => {
+    const { messenger } = arrangeMocks();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+    });
+
+    await controller.markMetamaskNotificationsAsRead([
+      processNotification(createMockSnapNotification()),
+    ]);
+
+    // Should see 1 item in controller read state
     expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
   });
 });
@@ -667,6 +742,41 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     // We do not delete triggers when disabling notifications
     // As other devices might be using those triggers to receive notifications
     expect(mocks.mockDeleteOnChainTriggers).not.toHaveBeenCalled();
+  });
+});
+
+describe('metamask-notifications - updateMetamaskNotificationsList', () => {
+  it('can add and process a new notification to the notifications list', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { isNotificationServicesEnabled: true },
+    });
+    const snapNotification = createMockSnapNotification();
+    await controller.updateMetamaskNotificationsList(
+      snapNotification as INotification,
+    );
+    expect(controller.state.metamaskNotificationsList).toStrictEqual([
+      {
+        type: TRIGGER_TYPES.SNAP,
+        id: expect.any(String),
+        createdAt: expect.any(String),
+        isRead: false,
+        data: {
+          message: 'fooBar',
+          origin: '@metamask/example-snap',
+          detailedView: {
+            title: 'Detailed View',
+            interfaceId: '1',
+            footerLink: {
+              text: 'Go Home',
+              href: 'metamask://client/',
+            },
+          },
+        },
+      },
+    ]);
   });
 });
 
