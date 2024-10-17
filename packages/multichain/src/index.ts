@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 export {
   getEthAccounts,
   setEthAccounts,
@@ -11,9 +10,7 @@ export {
 } from './adapters/caip-permission-adapter-permittedChains';
 
 export type { Caip25Authorization } from './scope/authorization';
-export {
-  validateAndNormalizeScopes,
-} from './scope/authorization';
+export { validateAndNormalizeScopes } from './scope/authorization';
 export * from './scope/types';
 export {
   isSupportedScopeString,
@@ -38,15 +35,3 @@ export {
   Caip25CaveatMutatorFactories,
   removeScope,
 } from './caip25Permission';
-||||||| 8fb04fc2
-=======
-/**
- * Example function that returns a greeting for the given name.
- *
- * @param name - The name to greet.
- * @returns The greeting.
- */
-export default function greeter(name: string): string {
-  return `Hello, ${name}!`;
-}
->>>>>>> initialize-caip-multichain
