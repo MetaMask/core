@@ -2365,7 +2365,7 @@ __metadata:
     "@metamask/eslint-config-jest": "npm:^12.1.0"
     "@metamask/eslint-config-nodejs": "npm:^12.1.0"
     "@metamask/eslint-config-typescript": "npm:^12.1.0"
-    "@metamask/eth-block-tracker": "npm:^10.0.0"
+    "@metamask/eth-block-tracker": "npm:^11.0.1"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.5"
     "@metamask/json-rpc-engine": "npm:^10.0.0"
     "@metamask/utils": "npm:^9.1.0"
@@ -2501,19 +2501,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-block-tracker@npm:^10.0.0":
-  version: 10.0.0
-  resolution: "@metamask/eth-block-tracker@npm:10.0.0"
-  dependencies:
-    "@metamask/eth-json-rpc-provider": "npm:^4.0.0"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
-    "@metamask/utils": "npm:^8.1.0"
-    json-rpc-random-id: "npm:^1.0.1"
-    pify: "npm:^5.0.0"
-  checksum: 10/c035482544830d2b2d07db9a6b2002f387c2df2d25c0eb82a381a11de9efbf35f7b6e35fc868cc46424d1a13a75dde4c8146dbbc9d48155a0d882625b20cfca0
-  languageName: node
-  linkType: hard
-
 "@metamask/eth-block-tracker@npm:^11.0.1":
   version: 11.0.1
   resolution: "@metamask/eth-block-tracker@npm:11.0.1"
@@ -2583,7 +2570,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-json-rpc-provider@npm:^4.0.0, @metamask/eth-json-rpc-provider@npm:^4.1.1, @metamask/eth-json-rpc-provider@npm:^4.1.5, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
+"@metamask/eth-json-rpc-provider@npm:^4.1.1, @metamask/eth-json-rpc-provider@npm:^4.1.5, @metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider":
   version: 0.0.0-use.local
   resolution: "@metamask/eth-json-rpc-provider@workspace:packages/eth-json-rpc-provider"
   dependencies:
@@ -3061,7 +3048,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
     "@metamask/controller-utils": "npm:^11.3.0"
-    "@metamask/eth-block-tracker": "npm:^10.0.0"
+    "@metamask/eth-block-tracker": "npm:^11.0.1"
     "@metamask/eth-json-rpc-infura": "npm:^9.1.0"
     "@metamask/eth-json-rpc-middleware": "npm:^15.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^4.1.5"
@@ -3349,8 +3336,8 @@ __metadata:
   linkType: soft
 
 "@metamask/providers@npm:^17.1.2":
-  version: 17.1.2
-  resolution: "@metamask/providers@npm:17.1.2"
+  version: 17.2.1
+  resolution: "@metamask/providers@npm:17.2.1"
   dependencies:
     "@metamask/json-rpc-engine": "npm:^9.0.1"
     "@metamask/json-rpc-middleware-stream": "npm:^8.0.1"
@@ -3365,7 +3352,7 @@ __metadata:
     readable-stream: "npm:^3.6.2"
   peerDependencies:
     webextension-polyfill: ^0.10.0 || ^0.11.0 || ^0.12.0
-  checksum: 10/bf555f9774e340d4497c09c980094e759a198f11c5a78b403e639cf01904b9ec3b19a5e9f53567465dd8739da4138e2021ac9a404a99b1a6022add12a4b19a31
+  checksum: 10/ff9cbcdd4cfa410c52ae0d9d39ad9285fb21f583bcb36a8a39d1862681fe17483008c15ab0ce87797ea94cad82a2f2e58b29b1db1f02df151f9cf3b05013e8a4
   languageName: node
   linkType: hard
 
