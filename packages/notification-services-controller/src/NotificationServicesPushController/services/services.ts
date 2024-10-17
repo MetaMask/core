@@ -3,11 +3,12 @@ import log from 'loglevel';
 import type { Types } from '../../NotificationServicesController';
 import type { PushNotificationEnv } from '../types';
 import * as endpoints from './endpoints';
-import type { CreateRegToken, DeleteRegToken } from './push';
-import {
-  listenToPushNotificationsClicked,
-  listenToPushNotificationsReceived,
-} from './push/push-web';
+import type {
+  CreateRegToken,
+  DeleteRegToken,
+  ListenToPushNotificationsReceived,
+  ListenToPushNotificationsClicked,
+} from './push/types';
 
 export type RegToken = {
   token: string;
@@ -251,14 +252,24 @@ export async function updateTriggerPushNotifications(
   };
 }
 
-type ListenToPushNotificationsParams = {
+export type ListenToPushNotificationsParams = {
   env: PushNotificationEnv;
+
+  /**
+   * We pass in how to listen to push notifications, and what we should do when we receive a push notifications
+   */
+  listenToPushNotificationsCreator: ListenToPushNotificationsReceived;
   listenToPushReceived: (
     notification: Types.INotification,
   ) => void | Promise<void>;
+
+  /**
+   * We pass in how a push notification is clicked, and what we should do when we click on a push notification
+   */
+  listenToPushClickedCreator: ListenToPushNotificationsClicked;
   listenToPushClicked: (
+    notification: Types.INotification | undefined,
     event: NotificationEvent,
-    notification?: Types.INotification,
   ) => void;
 };
 
@@ -278,12 +289,10 @@ export async function listenToPushNotifications(
   1. handling receiving a push notification (and the content we want to display)
   2. handling when a user clicks on a push notification
   */
-  const unsubscribePushNotifications = await listenToPushNotificationsReceived(
-    env,
-    listenToPushReceived,
-  );
+  const unsubscribePushNotifications =
+    await params.listenToPushNotificationsCreator(env, listenToPushReceived);
   const unsubscribeNotificationClicks =
-    listenToPushNotificationsClicked(listenToPushClicked);
+    params.listenToPushClickedCreator(listenToPushClicked);
 
   const unsubscribe = () => {
     unsubscribePushNotifications();
