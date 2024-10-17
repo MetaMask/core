@@ -138,7 +138,7 @@ const specificationBuilder: PermissionSpecificationBuilder<
       );
       if (!allEthAccountsSupported) {
         throw new Error(
-          `${Caip25EndowmentPermissionName} error: Received invalid eip155 account values for caveat of type "${Caip25CaveatType}".`,
+          `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring`,
         );
       }
 
