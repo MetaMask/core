@@ -3091,6 +3091,24 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/notification-controller@workspace:packages/notification-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/notification-controller@workspace:packages/notification-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^3.4.4"
+    "@metamask/base-controller": "npm:^7.0.1"
+    "@metamask/utils": "npm:^9.3.0"
+    "@types/jest": "npm:^27.4.1"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^27.5.1"
+    nanoid: "npm:^3.1.31"
+    ts-jest: "npm:^27.1.4"
+    typedoc: "npm:^0.24.8"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.2.2"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/notification-services-controller@workspace:packages/notification-services-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/notification-services-controller@workspace:packages/notification-services-controller"
@@ -3102,7 +3120,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.3.0"
     "@metamask/keyring-controller": "npm:^17.2.2"
     "@metamask/profile-sync-controller": "npm:^0.9.7"
-    "@metamask/utils": "npm:^9.3.0"
+    "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
     bignumber.js: "npm:^4.1.0"
