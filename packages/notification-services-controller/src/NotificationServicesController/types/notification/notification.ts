@@ -1,10 +1,12 @@
 import type { FeatureAnnouncementRawNotification } from '../feature-announcement/feature-announcement';
 import type { OnChainRawNotification } from '../on-chain-notification/on-chain-notification';
+import type { RawSnapNotification } from '../snaps';
 import type { Compute } from '../type-utils';
 
 export type NotificationUnion =
   | FeatureAnnouncementRawNotification
-  | OnChainRawNotification;
+  | OnChainRawNotification
+  | RawSnapNotification;
 
 /**
  * The shape of a "generic" notification.
