@@ -24,6 +24,7 @@ export enum TRIGGER_TYPES {
   ROCKETPOOL_STAKING_REWARDS = 'rocketpool_staking_rewards',
   NOTIONAL_LOAN_EXPIRATION = 'notional_loan_expiration',
   SPARK_FI_HEALTH_FACTOR = 'spark_fi_health_factor',
+  SNAP = 'snap',
 }
 
 export const TRIGGER_TYPES_WALLET_SET: Set<string> = new Set([
