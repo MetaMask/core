@@ -122,7 +122,7 @@ const specificationBuilder: PermissionSpecificationBuilder<
         isChainIdSupported,
       });
 
-      // These should be EVM accounts already although the name does not necessary imply that
+      // Fetch EVM accounts from native wallet keyring
       // These addresses are lowercased already
       const existingEvmAddresses = methodHooks
         .listAccounts()
