@@ -29,10 +29,10 @@
   },
   "dependencies": {
     "@metamask/eth-block-tracker": "^11.0.1",
-    "@metamask/eth-json-rpc-provider": "^4.1.1",
+    "@metamask/eth-json-rpc-provider": "^4.1.5",
     "@metamask/eth-sig-util": "^7.0.3",
-    "@metamask/json-rpc-engine": "^9.0.2",
-    "@metamask/rpc-errors": "^6.3.1",
+    "@metamask/json-rpc-engine": "^10.0.0",
+    "@metamask/rpc-errors": "^7.0.0",
     "@metamask/utils": "^9.1.0",
     "@types/bn.js": "^5.1.5",
     "bn.js": "^5.2.1",
