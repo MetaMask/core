@@ -24,8 +24,8 @@ const transformError = (
   got: unknown,
 ) => {
   // if there is a path, add it to the message
-  const message = `${
-    param.name + (error.path.length > 0 ? `.${error.path.join('.')}` : '')
+  const message = `${param.name}${
+    error.path.length > 0 ? `.${error.path.join('.')}` : ''
   } ${error.message}`;
 
   return {
