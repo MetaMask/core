@@ -18,6 +18,7 @@
     { "path": "./packages/json-rpc-middleware-stream" },
     { "path": "./packages/keyring-controller" },
     { "path": "./packages/message-manager" },
+    { "path": "./packages/multichain" },
     { "path": "./packages/name-controller" },
     { "path": "./packages/network-controller" },
     { "path": "./packages/notification-controller" },
