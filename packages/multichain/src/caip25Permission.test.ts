@@ -552,7 +552,7 @@ describe('endowment:caip25', () => {
       expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
     });
 
-    it('throws if the eth accounts specified in the normalized scopeObjects are not all supported', () => {
+    it('throws if the eth accounts specified in the normalized scopeObjects are not found in the wallet keyring', () => {
       MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
         normalizedRequiredScopes: {
           'eip155:1': {
