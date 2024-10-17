@@ -10,10 +10,21 @@ export {
   setPermittedEthChainIds,
 } from './adapters/caip-permission-adapter-permittedChains';
 
+export { walletGetSession } from './handlers/wallet-getSession';
+export { walletInvokeMethod } from './handlers/wallet-invokeMethod';
+export { walletRevokeSession } from './handlers/wallet-revokeSession';
+
+export { multichainMethodCallValidatorMiddleware } from './middlewares/multichainMethodCallValidator';
+export { MultichainMiddlewareManager } from './middlewares/MultichainMiddlewareManager';
+export { MultichainSubscriptionManager } from './middlewares/MultichainSubscriptionManager';
+
+export { assertScopeSupported, assertScopesSupported } from './scope/assert';
 export type { Caip25Authorization } from './scope/authorization';
 export {
   validateAndNormalizeScopes,
+  bucketScopes,
 } from './scope/authorization';
+export { bucketScopesBySupport, filterScopesSupported } from './scope/filter';
 export * from './scope/types';
 export {
   isSupportedScopeString,
