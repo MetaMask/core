@@ -58,7 +58,7 @@
   "dependencies": {
     "@metamask/rpc-errors": "^7.0.0",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^9.3.0"
+    "@metamask/utils": "^9.1.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

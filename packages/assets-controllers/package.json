@@ -60,7 +60,7 @@
     "@metamask/metamask-eth-abis": "^3.1.1",
     "@metamask/polling-controller": "^10.0.1",
     "@metamask/rpc-errors": "^6.3.1",
-    "@metamask/utils": "^9.3.0",
+    "@metamask/utils": "^9.1.0",
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
     "async-mutex": "^0.5.0",
