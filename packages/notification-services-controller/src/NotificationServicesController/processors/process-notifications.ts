@@ -5,11 +5,13 @@ import type {
   NotificationUnion,
 } from '../types/notification/notification';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
+import type { RawSnapNotification } from '../types/snaps';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
 import { processOnChainNotification } from './process-onchain-notifications';
+import { processSnapNotification } from './process-snap-notifications';
 
 const isOnChainNotification = (
   n: NotificationUnion,
@@ -19,6 +21,9 @@ const isFeatureAnnouncement = (
   n: NotificationUnion,
 ): n is FeatureAnnouncementRawNotification =>
   n.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT;
+
+const isSnapNotification = (n: NotificationUnion): n is RawSnapNotification =>
+  n.type === TRIGGER_TYPES.SNAP;
 
 /**
  * Process feature announcement and wallet notifications into a shared/normalised notification shape.
@@ -47,6 +52,10 @@ export function processNotification(
 
   if (isOnChainNotification(notification)) {
     return processOnChainNotification(notification as OnChainRawNotification);
+  }
+
+  if (isSnapNotification(notification)) {
+    return processSnapNotification(notification as RawSnapNotification);
   }
 
   return exhaustedAllCases(notification as never);
