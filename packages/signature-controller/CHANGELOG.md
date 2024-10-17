@@ -28,16 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
   - **BREAKING** Change `type` property in message state to enum values rather than `string`.
-  - Deprecreate the following state since the same data can be derived from `signatureRequests`:
+  - Deprecate the following state since the same data can be derived from `signatureRequests`:
     - `unapprovedPersonalMsgs`
     - `unapprovedTypedMessages`
     - `unapprovedPersonalMsgCount`
     - `unapprovedTypedMessagesCount`
-  - Deprecreate the following properties since the same data can be derived from the state:
+  - Deprecate the following properties since the same data can be derived from the state:
     - `unapprovedPersonalMessagesCount`
     - `unapprovedTypedMessagesCount`
     - `messages`
-  - Deprecreate the following constructor options since they are no longer used:
+  - Deprecate the following constructor options since they are no longer used:
     - `getAllState`
     - `securityProviderRequest`
 

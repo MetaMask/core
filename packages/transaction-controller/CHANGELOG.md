@@ -9,11 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [37.3.0]
 
+### Added
+
+- Add types for bridge transactions ([#4714](https://github.com/MetaMask/core/pull/4714))
+
+### Changed
+
+- Reduce gas limit fallback from 95% to 35% of the block gas limit on failed gas limit estimations ([#4739](https://github.com/MetaMask/core/pull/4739))
+
 ### Fixed
 
 - Use contract ABIs to decode the token balance responses ([#4775](https://github.com/MetaMask/core/pull/4775))
-- Change gas limit fallback ([#4739](https://github.com/MetaMask/core/pull/4739))
-- Add types for bridge txs ([#4714](https://github.com/MetaMask/core/pull/4714))
 
 ## [37.2.0]
 
