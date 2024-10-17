@@ -9,13 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [37.3.0]
 
-### Uncategorized
+### Fixed
 
-- Release 220.0.0 ([#4798](https://github.com/MetaMask/core/pull/4798))
-- refactor: remove message managers from signature controller ([#4785](https://github.com/MetaMask/core/pull/4785))
-- fix(TXL-399): Use contract abi to decode the amounts of token balance changes ([#4775](https://github.com/MetaMask/core/pull/4775))
-- fix: change gas limit fallback ([#4739](https://github.com/MetaMask/core/pull/4739))
-- feat: add types for bridge txs ([#4714](https://github.com/MetaMask/core/pull/4714))
+- Use contract abi to decode the amounts of token balance changes ([#4775](https://github.com/MetaMask/core/pull/4775))
+- Change gas limit fallback ([#4739](https://github.com/MetaMask/core/pull/4739))
+- Add types for bridge txs ([#4714](https://github.com/MetaMask/core/pull/4714))
 
 ## [37.2.0]
 
