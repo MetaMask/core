@@ -7,15 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: make polling input generic ([#4752](https://github.com/MetaMask/core/pull/4752))
-- feat: add types for bridge txs ([#4714](https://github.com/MetaMask/core/pull/4714))
-- Release 212.0.0 ([#4754](https://github.com/MetaMask/core/pull/4754))
-- Release 208.0.0 ([#4734](https://github.com/MetaMask/core/pull/4734))
-- Revert "Release 208.0.0 (#4731)" ([#4731](https://github.com/MetaMask/core/pull/4731))
-- Release 208.0.0 ([#4731](https://github.com/MetaMask/core/pull/4731))
-
 ## [15.0.1]
 
 ### Fixed

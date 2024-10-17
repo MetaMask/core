@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: remove `eth-phishing-detect` ([#4681](https://github.com/MetaMask/core/pull/4681))
-
 ## [12.0.3]
 
 ### Fixed
