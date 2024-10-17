@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.3.0",
-    "@metamask/json-rpc-engine": "^9.0.3",
+    "@metamask/json-rpc-engine": "^10.0.0",
     "@metamask/rpc-errors": "^7.0.0",
     "@metamask/utils": "^9.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
