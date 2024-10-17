@@ -3,8 +3,16 @@
   "compilerOptions": {
     "baseUrl": "./",
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    "resolveJsonModule": true
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../network-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../permission-controller/tsconfig.build.json"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
