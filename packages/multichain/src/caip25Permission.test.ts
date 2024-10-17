@@ -44,6 +44,7 @@ describe('endowment:caip25', () => {
     const specification = caip25EndowmentBuilder.specificationBuilder({
       methodHooks: {
         findNetworkClientIdByChainId: jest.fn(),
+        listAccounts: jest.fn(),
       },
     });
     expect(specification).toStrictEqual({
@@ -227,9 +228,11 @@ describe('endowment:caip25', () => {
 
   describe('permission validator', () => {
     const findNetworkClientIdByChainId = jest.fn();
+    const listAccounts = jest.fn();
     const { validator } = caip25EndowmentBuilder.specificationBuilder({
       methodHooks: {
         findNetworkClientIdByChainId,
+        listAccounts,
       },
     });
 
@@ -493,7 +496,7 @@ describe('endowment:caip25', () => {
           },
         },
         normalizedOptionalScopes: {
-          'eip155:1': {
+          'eip155:5': {
             methods: ['normalized_optional'],
             notifications: [],
             accounts: [],
@@ -534,7 +537,7 @@ describe('endowment:caip25', () => {
       }
       expect(MockScopeAssert.assertScopesSupported).toHaveBeenCalledWith(
         {
-          'eip155:1': {
+          'eip155:5': {
             methods: ['normalized_optional'],
             notifications: [],
             accounts: [],
@@ -549,6 +552,61 @@ describe('endowment:caip25', () => {
       expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
     });
 
+    it('throws if the eth accounts specified in the normalized scopeObjects are not found in the wallet keyring', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
+          'eip155:1': {
+            methods: ['eth_chainId'],
+            notifications: [],
+            accounts: ['eip155:1:0xdead'],
+          },
+        },
+        normalizedOptionalScopes: {
+          'eip155:5': {
+            methods: [],
+            notifications: [],
+            accounts: ['eip155:5:0xbeef'],
+          },
+        },
+      });
+      listAccounts.mockReturnValue([{ address: '0xdead' }]); // missing '0xbeef'
+
+      expect(() => {
+        validator({
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {
+                  'eip155:1': {
+                    methods: ['eth_chainId'],
+                    notifications: [],
+                    accounts: ['eip155:1:0xdead'],
+                  },
+                },
+                optionalScopes: {
+                  'eip155:5': {
+                    methods: [],
+                    notifications: [],
+                    accounts: ['eip155:5:0xbeef'],
+                  },
+                },
+                isMultichainOrigin: true,
+              },
+            },
+          ],
+          date: 1234,
+          id: '1',
+          invoker: 'test.com',
+          parentCapability: Caip25EndowmentPermissionName,
+        });
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
+        ),
+      );
+    });
+
     it('throws if the input requiredScopes does not match the output of validateAndNormalizeScopes', () => {
       MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
         normalizedRequiredScopes: {},
@@ -560,6 +618,8 @@ describe('endowment:caip25', () => {
           },
         },
       });
+      listAccounts.mockReturnValue([{ address: '0xbeef' }]);
+
       expect(() => {
         validator({
           caveats: [
@@ -603,6 +663,8 @@ describe('endowment:caip25', () => {
         },
         normalizedOptionalScopes: {},
       });
+      listAccounts.mockReturnValue([{ address: '0xdead' }]);
+
       expect(() => {
         validator({
           caveats: [
@@ -652,6 +714,11 @@ describe('endowment:caip25', () => {
           },
         },
       });
+      listAccounts.mockReturnValue([
+        { address: '0xdead' },
+        { address: '0xbeef' },
+      ]);
+
       expect(
         validator({
           caveats: [
