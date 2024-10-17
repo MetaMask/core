@@ -4,7 +4,7 @@ import { type RawSnapNotification } from '../types/snaps';
 /**
  * Mocking Utility - create a mock raw snap notification
  *
- * @returns Mock Raw Feature Announcement
+ * @returns Mock Raw Snap Notification
  */
 export function createMockSnapNotification(): RawSnapNotification {
   return {
