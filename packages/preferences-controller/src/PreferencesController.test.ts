@@ -35,6 +35,11 @@ describe('PreferencesController', () => {
         return acc;
       }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
       smartTransactionsOptInStatus: false,
+      tokenSortConfig: {
+        key: 'tokenFiatAmount',
+        order: 'dsc',
+        sortCallback: 'stringNumeric',
+      },
     });
   });
 
