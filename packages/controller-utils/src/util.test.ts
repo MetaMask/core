@@ -615,6 +615,10 @@ describe('util', () => {
 describe('isEqualCaseInsensitive', () => {
   it('returns false for non-string values', () => {
     // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(null, null)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
+    expect(util.isEqualCaseInsensitive(5, 5)).toBe(false);
+    // @ts-expect-error Invalid type for testing purposes
     expect(util.isEqualCaseInsensitive(null, 'test')).toBe(false);
     // @ts-expect-error Invalid type for testing purposes
     expect(util.isEqualCaseInsensitive('test', null)).toBe(false);
