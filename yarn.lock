@@ -3094,7 +3094,7 @@ __metadata:
     "@metamask/json-rpc-engine": "npm:^9.0.3"
     "@metamask/network-controller": "npm:^21.0.1"
     "@metamask/permission-controller": "npm:^11.0.2"
-    "@metamask/rpc-errors": "npm:^6.3.1"
+    "@metamask/rpc-errors": "npm:^7.0.0"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^9.1.0"
     "@open-rpc/meta-schema": "npm:^1.14.6"
