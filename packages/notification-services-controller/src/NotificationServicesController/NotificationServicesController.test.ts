@@ -572,7 +572,7 @@ describe('metamask-notifications - getNotificationsByType', () => {
         id: expect.any(String),
         createdAt: expect.any(String),
         isRead: false,
-        readDate: false,
+        readDate: null,
         data: {
           message: 'fooBar',
           origin: '@metamask/example-snap',
@@ -640,13 +640,23 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
 
   it('updates snap notifications as read', async () => {
     const { messenger } = arrangeMocks();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
     const controller = new NotificationServicesController({
       messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        metamaskNotificationsList: [processedSnapNotification],
+      },
     });
 
     await controller.markMetamaskNotificationsAsRead([
-      processNotification(createMockSnapNotification()),
+      {
+        type: TRIGGER_TYPES.SNAP,
+        id: processedSnapNotification.id,
+        isRead: false,
+      },
     ]);
 
     // Should see 1 item in controller read state
