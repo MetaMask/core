@@ -19,6 +19,7 @@ import {
 import { strict as assert } from 'assert';
 import { cloneDeep, isEqual } from 'lodash';
 
+import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
 import { assertScopesSupported } from './scope/assert';
 import { validateAndNormalizeScopes } from './scope/authorization';
 import type {
@@ -56,6 +57,7 @@ type Caip25EndowmentSpecification = ValidPermissionSpecification<{
 type Caip25EndowmentSpecificationBuilderOptions = {
   methodHooks: {
     findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
+    listAccounts: () => { address: Hex }[];
   };
 };
 
@@ -119,6 +121,26 @@ const specificationBuilder: PermissionSpecificationBuilder<
       assertScopesSupported(normalizedOptionalScopes, {
         isChainIdSupported,
       });
+
+      // Fetch EVM accounts from native wallet keyring
+      // These addresses are lowercased already
+      const existingEvmAddresses = methodHooks
+        .listAccounts()
+        .map((account) => account.address);
+      const ethAccounts = getEthAccounts({
+        requiredScopes: normalizedRequiredScopes,
+        optionalScopes: normalizedOptionalScopes,
+        isMultichainOrigin,
+      }).map((address) => address.toLowerCase() as Hex);
+
+      const allEthAccountsSupported = ethAccounts.every((address) =>
+        existingEvmAddresses.includes(address),
+      );
+      if (!allEthAccountsSupported) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received eip155 account value(s) for caveat of type "${Caip25CaveatType}" that were not found in the wallet keyring.`,
+        );
+      }
 
       assert.deepEqual(requiredScopes, normalizedRequiredScopes);
       assert.deepEqual(optionalScopes, normalizedOptionalScopes);
