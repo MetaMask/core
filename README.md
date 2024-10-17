@@ -28,7 +28,6 @@ This repository contains the following packages [^fn1]:
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/name-controller`](packages/name-controller)
 - [`@metamask/network-controller`](packages/network-controller)
-- [`@metamask/notification-controller`](packages/notification-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
 - [`@metamask/permission-controller`](packages/permission-controller)
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
