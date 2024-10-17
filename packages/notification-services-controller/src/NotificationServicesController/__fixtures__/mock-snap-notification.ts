@@ -2,7 +2,7 @@ import { TRIGGER_TYPES } from '../constants';
 import { type RawSnapNotification } from '../types/snaps';
 
 /**
- * Mocking Utility - create a mock raw feature announcement
+ * Mocking Utility - create a mock raw snap notification
  *
  * @returns Mock Raw Feature Announcement
  */
