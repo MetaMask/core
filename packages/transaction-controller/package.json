@@ -73,7 +73,7 @@
     "@metamask/accounts-controller": "^18.2.2",
     "@metamask/approval-controller": "^7.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/eth-json-rpc-provider": "^4.1.4",
+    "@metamask/eth-json-rpc-provider": "^4.1.5",
     "@metamask/ethjs-provider-http": "^0.3.0",
     "@metamask/gas-fee-controller": "^20.0.1",
     "@metamask/keyring-api": "^8.1.3",
