@@ -10,5 +10,8 @@ describe('process-snap-notifications - processSnapNotification()', () => {
     expect(result.type).toBe(TRIGGER_TYPES.SNAP);
     expect(result.isRead).toBe(false);
     expect(result.data).toBeDefined();
+    // @ts-expect-error readDate property is guaranteed to exist
+    // as we're dealing with a snap notification
+    expect(result.readDate).toBeNull();
   });
 });

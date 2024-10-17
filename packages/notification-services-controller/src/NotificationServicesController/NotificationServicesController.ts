@@ -1260,6 +1260,13 @@ export default class NotificationServicesController extends BaseController<
             newReadIds.includes(notification.id) ||
             onchainNotificationIds.includes(notification.id)
           ) {
+            if (notification.type === TRIGGER_TYPES.SNAP) {
+              return {
+                ...notification,
+                isRead: true,
+                readDate: new Date().toISOString(),
+              };
+            }
             return { ...notification, isRead: true };
           }
           return notification;

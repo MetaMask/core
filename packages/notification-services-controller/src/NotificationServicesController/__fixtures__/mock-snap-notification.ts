@@ -9,6 +9,7 @@ import { type RawSnapNotification } from '../types/snaps';
 export function createMockSnapNotification(): RawSnapNotification {
   return {
     type: TRIGGER_TYPES.SNAP,
+    readDate: null,
     data: {
       message: 'fooBar',
       origin: '@metamask/example-snap',

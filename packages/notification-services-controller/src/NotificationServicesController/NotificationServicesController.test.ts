@@ -572,6 +572,7 @@ describe('metamask-notifications - getNotificationsByType', () => {
         id: expect.any(String),
         createdAt: expect.any(String),
         isRead: false,
+        readDate: false,
         data: {
           message: 'fooBar',
           origin: '@metamask/example-snap',
@@ -650,6 +651,13 @@ describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
 
     // Should see 1 item in controller read state
     expect(controller.state.metamaskNotificationsReadList).toHaveLength(1);
+
+    // The notification should have a read date
+    expect(
+      // @ts-expect-error readDate property is guaranteed to exist
+      // as we're dealing with a snap notification
+      controller.state.metamaskNotificationsList[0].readDate,
+    ).not.toBeNull();
   });
 });
 
@@ -762,6 +770,7 @@ describe('metamask-notifications - updateMetamaskNotificationsList', () => {
         type: TRIGGER_TYPES.SNAP,
         id: expect.any(String),
         createdAt: expect.any(String),
+        readDate: null,
         isRead: false,
         data: {
           message: 'fooBar',

@@ -12,9 +12,10 @@ import type { RawSnapNotification } from '../types/snaps';
 export const processSnapNotification = (
   snapNotification: RawSnapNotification,
 ): INotification => {
-  const { data, type } = snapNotification;
+  const { data, type, readDate } = snapNotification;
   return {
     id: uuid(),
+    readDate,
     createdAt: new Date().toISOString(),
     isRead: false,
     type,

@@ -8,6 +8,7 @@ export type ExpandedView = {
 
 export type RawSnapNotification = {
   type: TRIGGER_TYPES.SNAP;
+  readDate: string | null;
   data:
     | { message: string; origin: string }
     | { message: string; origin: string; detailedView: ExpandedView };
