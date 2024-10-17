@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.0.0]
+
 ### Added
 
 - Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
@@ -26,16 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
   - **BREAKING** Change `type` property in message state to enum values rather than `string`.
-  - Deprecreate the following state since the same data can be derived from `signatureRequests`:
+  - Deprecate the following state since the same data can be derived from `signatureRequests`:
     - `unapprovedPersonalMsgs`
     - `unapprovedTypedMessages`
     - `unapprovedPersonalMsgCount`
     - `unapprovedTypedMessagesCount`
-  - Deprecreate the following properties since the same data can be derived from the state:
+  - Deprecate the following properties since the same data can be derived from the state:
     - `unapprovedPersonalMessagesCount`
     - `unapprovedTypedMessagesCount`
     - `messages`
-  - Deprecreate the following constructor options since they are no longer used:
+  - Deprecate the following constructor options since they are no longer used:
     - `getAllState`
     - `securityProviderRequest`
 
@@ -361,7 +363,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.0.0...HEAD
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...@metamask/signature-controller@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...@metamask/signature-controller@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...@metamask/signature-controller@19.0.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0
