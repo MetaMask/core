@@ -66,16 +66,20 @@ const checkForInvalidParams = (
     paramsLength = Object.keys(params).length;
   }
 
-  if (
-    (numRequiredParams > paramsLength && numRequiredParams > 0) ||
-    paramsLength > paramsToCheck.length
-  ) {
+  if (numRequiredParams > paramsLength && numRequiredParams > 0) {
+    errors.push({
+      message: `Invalid number of parameters.`,
+      expected: numRequiredParams,
+      got: params,
+    });
+  } else if (paramsLength > paramsToCheck.length) {
     errors.push({
       message: `Invalid number of parameters.`,
       expected: paramsToCheck.length,
       got: params,
     });
   }
+
   return errors;
 };
 
