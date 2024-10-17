@@ -1,3 +1,6 @@
+import type { Hex } from '@metamask/utils';
+
+import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
 import type { ExternalScopesObject, ScopesObject } from './types';
 import { validateScopes } from './validation';
@@ -34,4 +37,33 @@ export const validateAndNormalizeScopes = (
     normalizedRequiredScopes,
     normalizedOptionalScopes,
   };
+};
+
+export const bucketScopes = (
+  scopes: ScopesObject,
+  {
+    isChainIdSupported,
+    isChainIdSupportable,
+  }: {
+    isChainIdSupported: (chainId: Hex) => boolean;
+    isChainIdSupportable: (chainId: Hex) => boolean;
+  },
+): {
+  supportedScopes: ScopesObject;
+  supportableScopes: ScopesObject;
+  unsupportableScopes: ScopesObject;
+} => {
+  const { supportedScopes, unsupportedScopes: maybeSupportableScopes } =
+    bucketScopesBySupport(scopes, {
+      isChainIdSupported,
+    });
+
+  const {
+    supportedScopes: supportableScopes,
+    unsupportedScopes: unsupportableScopes,
+  } = bucketScopesBySupport(maybeSupportableScopes, {
+    isChainIdSupported: isChainIdSupportable,
+  });
+
+  return { supportedScopes, supportableScopes, unsupportableScopes };
 };
