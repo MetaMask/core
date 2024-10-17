@@ -1,0 +1,45 @@
+name: Create Update Issues
+
+on:
+  workflow_call:
+    secrets:
+      GH_TOKEN:
+        description: Github token with access to mobile and extention repositories
+        required: true
+
+jobs:
+  create-update-issues:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout head
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Create Issues
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at HEAD && printf '\0')
+
+          for tag in "${tag_array[@]}"; do
+            if [[ "${tag}" == @metamask/*  ]] ; then
+              # Extract package name without the leading '@'
+              package_name="${tag#@}"
+              package_name="${package_name%@*}"
+
+              # Extract version number
+              version="${tag##*@}"
+
+              # Check if version number ends with .0.0
+              if [[ $version == *.0.0 ]]; then
+                # Fetch responsible team form file
+                team=$(jq --arg key "$package_name" '.[$key]' teams.json)
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test" --label "$team"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test-2" --label "$team"
+              fi            
+            fi
+          done
+        shell: bash
