@@ -139,7 +139,7 @@ export const multichainMethodCallValidator = async (
 };
 
 export const multichainMethodCallValidatorMiddleware: JsonRpcMiddleware<
-  any,
+  JsonRpcParams,
   Json
 > = function (request, _response, next, end) {
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
