@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.2]
+
 ### Uncategorized
 
 - Release 220.0.0 ([#4798](https://github.com/MetaMask/core.git/pull/4798))
@@ -291,7 +293,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@18.0.2...HEAD
+[18.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@18.0.1...@metamask/selected-network-controller@18.0.2
 [18.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@18.0.0...@metamask/selected-network-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@17.0.0...@metamask/selected-network-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/selected-network-controller@16.0.0...@metamask/selected-network-controller@17.0.0
