@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [21.1.0]
 
-### Uncategorized
+### Changed
 
-- Release 220.0.0 ([#4798](https://github.com/MetaMask/core/pull/4798))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.4` to `^4.1.5` ([#4798](https://github.com/MetaMask/core/pull/4798))
 
 ## [21.0.1]
 

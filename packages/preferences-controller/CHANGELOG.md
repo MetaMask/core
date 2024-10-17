@@ -9,11 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.1.0]
 
-### Uncategorized
+### Changed
 
-- Release 208.0.0 ([#4734](https://github.com/MetaMask/core/pull/4734))
-- Revert "Release 208.0.0 (#4731)" ([#4731](https://github.com/MetaMask/core/pull/4731))
-- Release 208.0.0 ([#4731](https://github.com/MetaMask/core/pull/4731))
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
 
 ## [13.0.3]
 

@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.0.0]
 
-### Uncategorized
+### Changed
 
-- feat: make polling input generic ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING**: The input to start polling is now a generic type that can be any input, instead of requiring a network client id like before. The functions interfaces are updated to accommodate this. `startPollingByNetworkClientId` is now `startPolling`. And `onPollingComplete` now returns the entire input object, instead of a network client id. ([#4752](https://github.com/MetaMask/core/pull/4752))
 
 ## [10.0.1]
 

@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [17.3.0]
 
-### Uncategorized
+### Changed
 
-- Release 221.0.0 ([#4805](https://github.com/MetaMask/core/pull/4805))
+- Bump `@metamask/message-manager` from `^10.1.1` to `^11.0.0` ([#4805](https://github.com/MetaMask/core/pull/4805))
 
 ## [17.2.2]
 

@@ -9,15 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [16.0.0]
 
-### Uncategorized
+### Added
 
-- Release 221.0.0 ([#4805](https://github.com/MetaMask/core/pull/4805))
-- feat: make polling input generic ([#4752](https://github.com/MetaMask/core/pull/4752))
-- feat: add types for bridge txs ([#4714](https://github.com/MetaMask/core/pull/4714))
-- Release 212.0.0 ([#4754](https://github.com/MetaMask/core/pull/4754))
-- Release 208.0.0 ([#4734](https://github.com/MetaMask/core/pull/4734))
-- Revert "Release 208.0.0 (#4731)" ([#4731](https://github.com/MetaMask/core/pull/4731))
-- Release 208.0.0 ([#4731](https://github.com/MetaMask/core/pull/4731))
+- Types for `bridge` and `bridgeApproval`. ([#4714](https://github.com/MetaMask/core/pull/4714))
+
+### Changed
+
+- **BREAKING:** `PendingUserOperationTracker` now uses the new polling interface from ([#4752](https://github.com/MetaMask/core/pull/4752)). `startPollingByNetworkClientId` is now `startPolling`. And `onPollingComplete` now returns the entire input object, instead of a network client id.
+- Bump `@metamask/transaction-controller` from `^37.1.0` to `^37.3.0` ([#4754](https://github.com/MetaMask/core/pull/4754),[#4805](https://github.com/MetaMask/core/pull/4805))
+- Bump `@metamask/approval-controller` from `^7.0.4` to `^7.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
+- Bump `@metamask/transaction-controller` from `^37.0.0` to `^37.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
 
 ## [15.0.1]
 
