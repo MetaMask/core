@@ -201,13 +201,19 @@ export type NotificationServicesControllerGetNotificationsByType = {
   handler: NotificationServicesController['getNotificationsByType'];
 };
 
+export type NotificationServicesControllerDeleteNotificationById = {
+  type: `${typeof controllerName}:deleteNotificationById`;
+  handler: NotificationServicesController['deleteNotificationById'];
+};
+
 // Messenger Actions
 export type Actions =
   | NotificationServicesControllerGetStateAction
   | NotificationServicesControllerUpdateMetamaskNotificationsList
   | NotificationServicesControllerDisableNotificationServices
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
-  | NotificationServicesControllerGetNotificationsByType;
+  | NotificationServicesControllerGetNotificationsByType
+  | NotificationServicesControllerDeleteNotificationById;
 
 // Allowed Actions
 export type AllowedActions =
@@ -583,6 +589,11 @@ export default class NotificationServicesController extends BaseController<
     this.messagingSystem.registerActionHandler(
       `${controllerName}:getNotificationsByType`,
       this.getNotificationsByType.bind(this),
+    );
+
+    this.messagingSystem.registerActionHandler(
+      `${controllerName}:deleteNotificationById`,
+      this.deleteNotificationById.bind(this),
     );
   }
 
@@ -1163,6 +1174,33 @@ export default class NotificationServicesController extends BaseController<
     return this.state.metamaskNotificationsList.filter(
       (notification) => notification.type === type,
     );
+  }
+
+  /**
+   * Used to delete a notification by id.
+   *
+   * Note: This function should only be used for notifications that are stored
+   * in this controller directly, currently only snaps notifications.
+   *
+   * @param id - The id of the notification to delete.
+   */
+  public async deleteNotificationById(id: string) {
+    const fetchedNotification = this.state.metamaskNotificationsList.find(
+      (notification) => notification.id === id,
+    );
+
+    assert(
+      fetchedNotification,
+      'The notification to be deleted does not exist.',
+    );
+
+    const newList = this.state.metamaskNotificationsList.filter(
+      (notification) => notification.id !== id,
+    );
+
+    this.update((state) => {
+      state.metamaskNotificationsList = newList;
+    });
   }
 
   /**

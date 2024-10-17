@@ -590,6 +590,24 @@ describe('metamask-notifications - getNotificationsByType', () => {
   });
 });
 
+describe('metamask-notifications - deleteNotificationById', () => {
+  it('will delete a notification by its id', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { metamaskNotificationsList: [processedSnapNotification] },
+    });
+
+    await controller.deleteNotificationById(processedSnapNotification.id);
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(0);
+  });
+});
+
 describe('metamask-notifications - markMetamaskNotificationsAsRead()', () => {
   const arrangeMocks = (options?: { onChainMarkAsReadFails: boolean }) => {
     const messengerMocks = mockNotificationMessenger();
