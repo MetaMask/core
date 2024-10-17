@@ -58,7 +58,7 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.2",
+    "@metamask/keyring-controller": "^17.3.0",
     "@metamask/logging-controller": "^6.0.1",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",

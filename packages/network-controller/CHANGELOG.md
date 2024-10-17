@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.1.0]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.4` to `^4.1.5` ([#4798](https://github.com/MetaMask/core/pull/4798))
+
 ## [21.0.1]
 
 ### Fixed
@@ -623,7 +629,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.1.0...HEAD
+[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.1...@metamask/network-controller@21.1.0
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.0...@metamask/network-controller@21.0.1
 [21.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...@metamask/network-controller@21.0.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
