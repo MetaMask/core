@@ -50,12 +50,12 @@ export function processNotification(
     return n;
   }
 
-  if (isOnChainNotification(notification)) {
-    return processOnChainNotification(notification as OnChainRawNotification);
-  }
-
   if (isSnapNotification(notification)) {
     return processSnapNotification(notification as RawSnapNotification);
+  }
+
+  if (isOnChainNotification(notification)) {
+    return processOnChainNotification(notification as OnChainRawNotification);
   }
 
   return exhaustedAllCases(notification as never);
