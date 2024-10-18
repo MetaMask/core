@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.1]
+
+### Changed
+
+- update the types described in `types/on-chain-notification/schema` and `types/on-chain-notification/on-chain-notification` ([#4818](https://github.com/MetaMask/core/pull/4818))
+- update the mock data according to the new types in `mock-raw-notifications` ([#4818](https://github.com/MetaMask/core/pull/4818))
+
 ## [0.10.0]
 
 ### Added
