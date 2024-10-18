@@ -28,7 +28,7 @@ import * as OnChainNotifications from './services/onchain-notifications';
 import type {
   INotification,
   MarkAsReadNotificationsParam,
-  NotificationUnion,
+  RawNotificationUnion,
 } from './types/notification/notification';
 import type { OnChainRawNotification } from './types/on-chain-notification/on-chain-notification';
 import type { UserStorage } from './types/user-storage/user-storage';
@@ -174,7 +174,9 @@ export const defaultState: NotificationServicesControllerState = {
   isCheckingAccountsPresence: false,
 };
 
-const locallyPersistedNotificationTypes = new Set<string>([TRIGGER_TYPES.SNAP]);
+const locallyPersistedNotificationTypes = new Set<TRIGGER_TYPES>([
+  TRIGGER_TYPES.SNAP,
+]);
 
 export type NotificationServicesControllerGetStateAction =
   ControllerGetStateAction<
@@ -1118,7 +1120,7 @@ export default class NotificationServicesController extends BaseController<
 
       // Combined Notifications
       const isNotUndefined = <Item>(t?: Item): t is Item => Boolean(t);
-      const processAndFilter = (ns: NotificationUnion[]) =>
+      const processAndFilter = (ns: RawNotificationUnion[]) =>
         ns
           .map((n) => safeProcessNotification(n, readIds))
           .filter(isNotUndefined);

@@ -6,10 +6,15 @@ export type ExpandedView = {
   footerLink?: { href: string; text: string };
 };
 
+export type RawSnapNotificationData =
+  | {
+      message: string;
+      origin: string;
+    }
+  | { message: string; origin: string; detailedView: ExpandedView };
+
 export type RawSnapNotification = {
   type: TRIGGER_TYPES.SNAP;
-  readDate: string | null;
-  data:
-    | { message: string; origin: string }
-    | { message: string; origin: string; detailedView: ExpandedView };
+  data: RawSnapNotificationData;
+  readDate: null;
 };

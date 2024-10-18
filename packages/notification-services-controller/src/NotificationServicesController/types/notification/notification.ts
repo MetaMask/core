@@ -3,9 +3,15 @@ import type { OnChainRawNotification } from '../on-chain-notification/on-chain-n
 import type { RawSnapNotification } from '../snaps';
 import type { Compute } from '../type-utils';
 
-export type NotificationUnion =
-  | FeatureAnnouncementRawNotification
+export type BaseNotification = {
+  id: string;
+  createdAt: string;
+  isRead: boolean;
+};
+
+export type RawNotificationUnion =
   | OnChainRawNotification
+  | FeatureAnnouncementRawNotification
   | RawSnapNotification;
 
 /**
@@ -15,11 +21,9 @@ export type NotificationUnion =
  * - `data` field (declared in the Raw shapes)
  */
 export type INotification = Compute<
-  NotificationUnion & {
-    id: string;
-    createdAt: string;
-    isRead: boolean;
-  }
+  | (FeatureAnnouncementRawNotification & BaseNotification)
+  | (OnChainRawNotification & BaseNotification)
+  | (RawSnapNotification & BaseNotification & { readDate?: string | null })
 >;
 
 // NFT

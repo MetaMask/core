@@ -550,14 +550,16 @@ describe('metamask-notifications - getNotificationsByType', () => {
       env: { featureAnnouncements: featureAnnouncementsEnv },
     });
 
-    const snapNotification = createMockSnapNotification();
-    const featureAnnouncement = createMockFeatureAnnouncementRaw();
-
-    await controller.updateMetamaskNotificationsList(
-      snapNotification as INotification,
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
     );
+    const processedFeatureAnnouncement = processFeatureAnnouncement(
+      createMockFeatureAnnouncementRaw(),
+    );
+
+    await controller.updateMetamaskNotificationsList(processedSnapNotification);
     await controller.updateMetamaskNotificationsList(
-      featureAnnouncement as INotification,
+      processedFeatureAnnouncement,
     );
 
     expect(controller.state.metamaskNotificationsList).toHaveLength(2);
@@ -836,10 +838,10 @@ describe('metamask-notifications - updateMetamaskNotificationsList', () => {
       env: { featureAnnouncements: featureAnnouncementsEnv },
       state: { isNotificationServicesEnabled: true },
     });
-    const snapNotification = createMockSnapNotification();
-    await controller.updateMetamaskNotificationsList(
-      snapNotification as INotification,
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
     );
+    await controller.updateMetamaskNotificationsList(processedSnapNotification);
     expect(controller.state.metamaskNotificationsList).toStrictEqual([
       {
         type: TRIGGER_TYPES.SNAP,
