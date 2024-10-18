@@ -3,7 +3,8 @@ import {
   getKnownPropertyNames,
   isStrictHexString,
 } from '@metamask/utils';
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
+import BigNumber from 'bignumber.js';
 
 import { TransactionStatus } from '../types';
 import type {
@@ -182,4 +183,32 @@ export function padHexToEvenLength(hex: string) {
   const evenData = data.length % 2 === 0 ? data : `0${data}`;
 
   return prefix + evenData;
+}
+
+/**
+ * Calculate the percentage difference between two hex values and determine if it is within a threshold.
+ *
+ * @param value1 - The first hex value.
+ * @param value2 - The second hex value.
+ * @param threshold - The percentage threshold for considering the values equal.
+ * @returns Whether the percentage difference is within the threshold.
+ */
+export function isPercentageDifferenceWithinThreshold(
+  value1: Hex,
+  value2: Hex,
+  threshold: number,
+): boolean {
+  const bnValue1 = new BigNumber(value1);
+  const bnValue2 = new BigNumber(value2);
+
+  if (bnValue1.isZero() && bnValue2.isZero()) {
+    return true;
+  }
+
+  const difference = bnValue1.minus(bnValue2).abs();
+  const average = bnValue1.plus(bnValue2).dividedBy(2);
+
+  const percentageDifference = difference.dividedBy(average).multipliedBy(100);
+
+  return percentageDifference.isLessThanOrEqualTo(threshold);
 }

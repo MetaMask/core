@@ -84,6 +84,7 @@ import type {
   SubmitHistoryEntry,
 } from './types';
 import {
+  BLOCKAID_RESULT_TYPE_MALICIOUS,
   TransactionEnvelopeType,
   TransactionType,
   TransactionStatus,
@@ -115,6 +116,7 @@ import { determineTransactionType } from './utils/transaction-type';
 import {
   normalizeTransactionParams,
   isEIP1559Transaction,
+  isPercentageDifferenceWithinThreshold,
   validateGasValues,
   validateIfTransactionUnapproved,
   normalizeTxError,
@@ -3554,7 +3556,8 @@ export class TransactionController extends BaseController<
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
-    let updatedTransactionParams: (keyof TransactionParams)[] = [];
+    let isReSimulateNeedDueToTxParamsUpdated = false;
+    let isReSimulateNeedDueToSecurityAlert = false;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
@@ -3574,8 +3577,10 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      updatedTransactionParams =
-        this.#checkIfTransactionParamsUpdated(transactionMeta);
+      isReSimulateNeedDueToTxParamsUpdated =
+        this.#shouldReSimulateDueToTxParamUpdate(transactionMeta);
+      isReSimulateNeedDueToSecurityAlert =
+        this.#shouldReSimulateDueToSecurityAlert(transactionMeta);
 
       const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
@@ -3592,23 +3597,101 @@ export class TransactionController extends BaseController<
       transactionId,
     ) as TransactionMeta;
 
-    if (updatedTransactionParams.length > 0) {
-      this.#onTransactionParamsUpdated(
-        transactionMeta,
-        updatedTransactionParams,
-      );
+    if (
+      isReSimulateNeedDueToTxParamsUpdated ||
+      isReSimulateNeedDueToSecurityAlert
+    ) {
+      this.#updateSimulationData(transactionMeta, {
+        isReSimulatedDueToSecurityAlert: isReSimulateNeedDueToSecurityAlert,
+      }).catch((error) => {
+        log('Error updating simulation data', error);
+        throw error;
+      });
     }
 
     return transactionMeta;
   }
 
-  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
+  #shouldReSimulateDueToSecurityAlert(transactionMeta: TransactionMeta) {
+    const isSecurityAlertOrSimulationUpdated =
+      this.#isSecurityAlertOrSimulationUpdated(transactionMeta);
+    const {
+      securityAlertResponse,
+      simulationData,
+      txParams: { value },
+    } = transactionMeta;
+
+    const isSimulationDataAvailable = Boolean(simulationData);
+    const isMaliciousTransfer =
+      securityAlertResponse?.result_type === BLOCKAID_RESULT_TYPE_MALICIOUS;
+    const simulationNativeBalanceDifference =
+      simulationData?.nativeBalanceChange?.difference;
+    const isTxValueAndSimulationNativeBalanceDefined =
+      value !== undefined && simulationNativeBalanceDifference !== undefined;
+    const isTxValueVsBalanceAbovePercentageThreshold =
+      isTxValueAndSimulationNativeBalanceDefined &&
+      !isPercentageDifferenceWithinThreshold(
+        simulationNativeBalanceDifference,
+        value as Hex,
+        5,
+      );
+
+    return (
+      isSecurityAlertOrSimulationUpdated &&
+      isSimulationDataAvailable &&
+      isMaliciousTransfer &&
+      isTxValueVsBalanceAbovePercentageThreshold
+    );
+  }
+
+  #isSecurityAlertOrSimulationUpdated(newTransactionMeta: TransactionMeta) {
+    const {
+      id: transactionId,
+      simulationData: newSimulationData,
+      securityAlertResponse: newSecurityAlertResponse,
+    } = cloneDeep(newTransactionMeta);
+
+    const newTransactionProps = {
+      simulationData: newSimulationData,
+      securityAlertResponse: newSecurityAlertResponse,
+      simulationNativeBalanceDifference:
+        newSimulationData?.nativeBalanceChange?.difference,
+    };
+
+    const {
+      simulationData: originalSimulationData,
+      securityAlertResponse: originalSecurityAlertResponse,
+    } = cloneDeep(this.getTransaction(transactionId) as TransactionMeta);
+
+    const originalTransactionProps = {
+      simulationData: originalSimulationData,
+      securityAlertResponse: originalSecurityAlertResponse,
+      simulationNativeBalanceDifference:
+        originalSimulationData?.nativeBalanceChange?.difference,
+    };
+
+    // Skips the cases where simulationData fetch started or completed
+    const shouldSkip =
+      !newTransactionProps.simulationData ||
+      (!originalTransactionProps.simulationData &&
+        newTransactionProps.simulationData);
+
+    if (shouldSkip) {
+      return false;
+    }
+
+    return !isEqual(originalTransactionProps, newTransactionProps);
+  }
+
+  #shouldReSimulateDueToTxParamUpdate(
+    newTransactionMeta: TransactionMeta,
+  ): boolean {
     const { id: transactionId, txParams: newParams } = newTransactionMeta;
 
     const originalParams = this.getTransaction(transactionId)?.txParams;
 
     if (!originalParams || isEqual(originalParams, newParams)) {
-      return [];
+      return false;
     }
 
     const params = Object.keys(newParams) as (keyof TransactionParams)[];
@@ -3625,31 +3708,27 @@ export class TransactionController extends BaseController<
       newParams,
     );
 
-    return updatedProperties;
-  }
-
-  #onTransactionParamsUpdated(
-    transactionMeta: TransactionMeta,
-    updatedParams: (keyof TransactionParams)[],
-  ) {
-    if (
-      (['to', 'value', 'data'] as const).some((param) =>
-        updatedParams.includes(param),
-      )
-    ) {
-      log('Updating simulation data due to transaction parameter update');
-      this.#updateSimulationData(transactionMeta).catch((error) => {
-        log('Error updating simulation data', error);
-        throw error;
-      });
-    }
+    return (['to', 'value', 'data'] as const).some((param) =>
+      updatedProperties.includes(param),
+    );
   }
 
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
-    { traceContext }: { traceContext?: TraceContext } = {},
+    {
+      traceContext,
+      isReSimulatedDueToSecurityAlert,
+    }: {
+      traceContext?: TraceContext;
+      isReSimulatedDueToSecurityAlert?: boolean;
+    } = {},
   ) {
-    const { id: transactionId, chainId, txParams } = transactionMeta;
+    const {
+      id: transactionId,
+      chainId,
+      txParams,
+      simulationData: prevSimulationData,
+    } = transactionMeta;
     const { from, to, value, data } = txParams;
 
     let simulationData: SimulationData = {
@@ -3671,14 +3750,28 @@ export class TransactionController extends BaseController<
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
-          getSimulationData({
-            chainId,
-            from: from as Hex,
-            to: to as Hex,
-            value: value as Hex,
-            data: data as Hex,
-          }),
+          getSimulationData(
+            {
+              chainId,
+              from: from as Hex,
+              to: to as Hex,
+              value: value as Hex,
+              data: data as Hex,
+            },
+            {
+              isReSimulatedDueToSecurityAlert: Boolean(
+                isReSimulatedDueToSecurityAlert,
+              ),
+            },
+          ),
       );
+
+      if (prevSimulationData && !isEqual(simulationData, prevSimulationData)) {
+        simulationData = {
+          ...simulationData,
+          isReSimulatedDueToSecurityAlert,
+        };
+      }
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);
