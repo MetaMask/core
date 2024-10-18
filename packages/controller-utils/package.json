@@ -50,7 +50,7 @@
     "@ethereumjs/util": "^8.1.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/utils": "^9.3.0",
     "@spruceid/siwe-parser": "2.1.0",
     "@types/bn.js": "^5.1.5",
     "bn.js": "^5.2.1",
