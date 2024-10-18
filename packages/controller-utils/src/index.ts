@@ -27,6 +27,7 @@ export {
   toChecksumHexAddress,
   toHex,
   weiHexToGweiDec,
+  isEqualCaseInsensitive,
 } from './util';
 export * from './types';
 export * from './siwe';

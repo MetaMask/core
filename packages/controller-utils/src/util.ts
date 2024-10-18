@@ -619,3 +619,20 @@ function logOrRethrowError(error: unknown, codesToCatch: number[] = []) {
     throw error;
   }
 }
+
+/**
+ * Checks if two strings are equal, ignoring case.
+ *
+ * @param value1 - The first string to compare.
+ * @param value2 - The second string to compare.
+ * @returns `true` if the strings are equal, ignoring case; otherwise, `false`.
+ */
+export function isEqualCaseInsensitive(
+  value1: string,
+  value2: string,
+): boolean {
+  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
+    return false;
+  }
+  return value1.toLowerCase() === value2.toLowerCase();
+}
