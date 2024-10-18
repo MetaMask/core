@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `GasFeeController` now uses the new polling interface from ([#4752](https://github.com/MetaMask/core/pull/4752)). `startPollingByNetworkClientId` is now `startPolling`. And `onPollingComplete` now returns the entire input object, instead of a network client id.
+- **BREAKING:** `GasFeeController` now uses a new polling interface that accepts the generic parameter `PollingInput` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
 
 ## [20.0.1]
 
