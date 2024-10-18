@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.2]
+### Fixed
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.1` to `^4.1.5` ([#273](https://github.com/MetaMask/eth-block-tracker/pull/273))
+
 ## [11.0.1]
 ### Changed
 - Bump `@metamask/eth-json-rpc-provider` from `^4.1.0` to `^4.1.1` ([#261](https://github.com/MetaMask/eth-block-tracker/pull/261))
@@ -187,7 +191,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add RpcBlockTracker
 
-[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.2...HEAD
+[11.0.2]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.1...v11.0.2
 [11.0.1]: https://github.com/MetaMask/eth-block-tracker/compare/v11.0.0...v11.0.1
 [11.0.0]: https://github.com/MetaMask/eth-block-tracker/compare/v10.1.0...v11.0.0
 [10.1.0]: https://github.com/MetaMask/eth-block-tracker/compare/v10.0.0...v10.1.0
