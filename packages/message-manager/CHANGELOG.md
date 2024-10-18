@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
+### Removed
+
+- Remove all code related to `@metamask/signature-controller` ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - Remove `TypedMessageManager`.
+  - Remove `PersonalMessageManager`.
+  - Remove utils:
+    - `validateSignMessageData`
+    - `validateTypedSignMessageDataV1`
+    - `validateTypedSignMessageDataV3V4`
+
 ## [10.1.1]
 
 ### Fixed
@@ -313,7 +325,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...@metamask/message-manager@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.0...@metamask/message-manager@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.3...@metamask/message-manager@10.1.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.2...@metamask/message-manager@10.0.3
