@@ -127,7 +127,6 @@ linkStyle default opacity:0.5
   network_controller --> base_controller;
   network_controller --> controller_utils;
   network_controller --> eth_json_rpc_provider;
-  network_controller --> json_rpc_engine;
   notification_controller --> base_controller;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
@@ -135,7 +134,6 @@ linkStyle default opacity:0.5
   notification_services_controller --> profile_sync_controller;
   permission_controller --> base_controller;
   permission_controller --> controller_utils;
-  permission_controller --> json_rpc_engine;
   permission_controller --> approval_controller;
   permission_log_controller --> base_controller;
   permission_log_controller --> json_rpc_engine;
@@ -153,7 +151,6 @@ linkStyle default opacity:0.5
   profile_sync_controller --> network_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
-  queued_request_controller --> json_rpc_engine;
   queued_request_controller --> network_controller;
   queued_request_controller --> selected_network_controller;
   rate_limit_controller --> base_controller;
@@ -163,7 +160,6 @@ linkStyle default opacity:0.5
   selected_network_controller --> permission_controller;
   signature_controller --> base_controller;
   signature_controller --> controller_utils;
-  signature_controller --> message_manager;
   signature_controller --> approval_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
