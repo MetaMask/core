@@ -174,6 +174,8 @@ export const defaultState: NotificationServicesControllerState = {
   isCheckingAccountsPresence: false,
 };
 
+const locallyPersistedNotificationTypes = new Set<string>([TRIGGER_TYPES.SNAP]);
+
 export type NotificationServicesControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
@@ -1192,6 +1194,16 @@ export default class NotificationServicesController extends BaseController<
     assert(
       fetchedNotification,
       'The notification to be deleted does not exist.',
+    );
+
+    assert(
+      locallyPersistedNotificationTypes.has(fetchedNotification.type),
+      `The notification type of "${
+        // notifications are guaranteed to have type properties which equate to strings
+        fetchedNotification.type as string
+      }" is not locally persisted, only the following types can use this function: ${[
+        ...locallyPersistedNotificationTypes,
+      ].join(', ')}.`,
     );
 
     const newList = this.state.metamaskNotificationsList.filter(

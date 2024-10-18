@@ -43,6 +43,7 @@ import * as OnChainNotifications from './services/onchain-notifications';
 import type { INotification } from './types';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
+import { processFeatureAnnouncement } from './processors';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -605,6 +606,52 @@ describe('metamask-notifications - deleteNotificationById', () => {
     await controller.deleteNotificationById(processedSnapNotification.id);
 
     expect(controller.state.metamaskNotificationsList).toHaveLength(0);
+  });
+
+  it('will throw if a notification is not found', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: { metamaskNotificationsList: [processedSnapNotification] },
+    });
+
+    await expect(controller.deleteNotificationById('foo')).rejects.toThrow(
+      'The notification to be deleted does not exist.',
+    );
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(1);
+  });
+
+  it('will throw if the notification to be deleted is not locally persisted', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const processedFeatureAnnouncement = processFeatureAnnouncement(
+      createMockFeatureAnnouncementRaw(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        metamaskNotificationsList: [
+          processedFeatureAnnouncement,
+          processedSnapNotification,
+        ],
+      },
+    });
+
+    await expect(
+      controller.deleteNotificationById(processedFeatureAnnouncement.id),
+    ).rejects.toThrow(
+      'The notification type of "features_announcement" is not locally persisted, only the following types can use this function: snap.',
+    );
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(2);
   });
 });
 
