@@ -16,5 +16,5 @@ export type RawSnapNotificationData =
 export type RawSnapNotification = {
   type: TRIGGER_TYPES.SNAP;
   data: RawSnapNotificationData;
-  readDate: null;
+  readDate: string | null;
 };
