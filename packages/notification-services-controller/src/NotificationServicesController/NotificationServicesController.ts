@@ -205,9 +205,9 @@ export type NotificationServicesControllerGetNotificationsByType = {
   handler: NotificationServicesController['getNotificationsByType'];
 };
 
-export type NotificationServicesControllerDeleteNotificationById = {
-  type: `${typeof controllerName}:deleteNotificationById`;
-  handler: NotificationServicesController['deleteNotificationById'];
+export type NotificationServicesControllerDeleteNotificationsById = {
+  type: `${typeof controllerName}:deleteNotificationsById`;
+  handler: NotificationServicesController['deleteNotificationsById'];
 };
 
 // Messenger Actions
@@ -217,7 +217,7 @@ export type Actions =
   | NotificationServicesControllerDisableNotificationServices
   | NotificationServicesControllerSelectIsNotificationServicesEnabled
   | NotificationServicesControllerGetNotificationsByType
-  | NotificationServicesControllerDeleteNotificationById;
+  | NotificationServicesControllerDeleteNotificationsById;
 
 // Allowed Actions
 export type AllowedActions =
@@ -596,8 +596,8 @@ export default class NotificationServicesController extends BaseController<
     );
 
     this.messagingSystem.registerActionHandler(
-      `${controllerName}:deleteNotificationById`,
-      this.deleteNotificationById.bind(this),
+      `${controllerName}:deleteNotificationsById`,
+      this.deleteNotificationsById.bind(this),
     );
   }
 
@@ -1215,6 +1215,20 @@ export default class NotificationServicesController extends BaseController<
     this.update((state) => {
       state.metamaskNotificationsList = newList;
     });
+  }
+
+  /**
+   * Used to batch delete notifications by id.
+   * 
+   * Note: This function should only be used for notifications that are stored
+   * in this controller directly, currently only snaps notifications.
+   *
+   * @param ids - The ids of the notifications to delete.
+   */
+  public async deleteNotificationsById(ids: string[]) {
+    for (const id of ids) {
+      await this.deleteNotificationById(id);
+    }
   }
 
   /**

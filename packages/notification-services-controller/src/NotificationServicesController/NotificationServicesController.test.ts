@@ -592,7 +592,7 @@ describe('metamask-notifications - getNotificationsByType', () => {
   });
 });
 
-describe('metamask-notifications - deleteNotificationById', () => {
+describe('metamask-notifications - deleteNotificationsById', () => {
   it('will delete a notification by its id', async () => {
     const { messenger } = mockNotificationMessenger();
     const processedSnapNotification = processSnapNotification(
@@ -604,7 +604,34 @@ describe('metamask-notifications - deleteNotificationById', () => {
       state: { metamaskNotificationsList: [processedSnapNotification] },
     });
 
-    await controller.deleteNotificationById(processedSnapNotification.id);
+    await controller.deleteNotificationsById([processedSnapNotification.id]);
+
+    expect(controller.state.metamaskNotificationsList).toHaveLength(0);
+  });
+
+  it('will batch delete notifications', async () => {
+    const { messenger } = mockNotificationMessenger();
+    const processedSnapNotification1 = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const processedSnapNotification2 = processSnapNotification(
+      createMockSnapNotification(),
+    );
+    const controller = new NotificationServicesController({
+      messenger,
+      env: { featureAnnouncements: featureAnnouncementsEnv },
+      state: {
+        metamaskNotificationsList: [
+          processedSnapNotification1,
+          processedSnapNotification2,
+        ],
+      },
+    });
+
+    await controller.deleteNotificationsById([
+      processedSnapNotification1.id,
+      processedSnapNotification2.id,
+    ]);
 
     expect(controller.state.metamaskNotificationsList).toHaveLength(0);
   });
@@ -620,7 +647,7 @@ describe('metamask-notifications - deleteNotificationById', () => {
       state: { metamaskNotificationsList: [processedSnapNotification] },
     });
 
-    await expect(controller.deleteNotificationById('foo')).rejects.toThrow(
+    await expect(controller.deleteNotificationsById(['foo'])).rejects.toThrow(
       'The notification to be deleted does not exist.',
     );
 
@@ -647,7 +674,7 @@ describe('metamask-notifications - deleteNotificationById', () => {
     });
 
     await expect(
-      controller.deleteNotificationById(processedFeatureAnnouncement.id),
+      controller.deleteNotificationsById([processedFeatureAnnouncement.id]),
     ).rejects.toThrow(
       'The notification type of "features_announcement" is not locally persisted, only the following types can use this function: snap.',
     );
