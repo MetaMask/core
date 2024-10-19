@@ -1219,7 +1219,7 @@ export default class NotificationServicesController extends BaseController<
 
   /**
    * Used to batch delete notifications by id.
-   * 
+   *
    * Note: This function should only be used for notifications that are stored
    * in this controller directly, currently only snaps notifications.
    *
