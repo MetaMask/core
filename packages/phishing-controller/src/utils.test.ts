@@ -7,6 +7,7 @@ import {
   fetchTimeNow,
   getHostnameFromUrl,
   matchPartsAgainstList,
+  processConfigs,
   // processConfigs,
   processDomainList,
   roundToNearestMinute,
@@ -286,33 +287,154 @@ describe('domainToParts', () => {
   });
 });
 
-// describe('processConfigs', () => {
-//   it('correctly converts a list of configs to a list of processed configs', () => {
-//     const configs = [
-//       {
-//         allowlist: ['example.com'],
-//         blocklist: ['sub.example.com'],
-//         fuzzylist: ['fuzzy.example.com'],
-//         tolerance: 2,
-//       },
-//     ];
+describe('processConfigs', () => {
+  let consoleErrorMock: jest.SpyInstance;
 
-//     const result = processConfigs(configs);
+  beforeEach(() => {
+    consoleErrorMock = jest.spyOn(console, 'error');
+  });
 
-//     expect(result).toStrictEqual([
-//       {
-//         allowlist: [['com', 'example']],
-//         blocklist: [['com', 'example', 'sub']],
-//         fuzzylist: [['com', 'example', 'fuzzy']],
-//         tolerance: 2,
-//       },
-//     ]);
-//   });
+  afterEach(() => {
+    consoleErrorMock.mockRestore();
+  });
 
-//   it('can be called with no arguments', () => {
-//     expect(processConfigs()).toStrictEqual([]);
-//   });
-// });
+  it('correctly processes a list of valid configs', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: ['fuzzy.example.com'],
+        tolerance: 2,
+        version: 1,
+        name: 'MetaMask',
+      },
+    ];
+
+    const result = processConfigs(configs);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('MetaMask');
+
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('filters out invalid configs and logs errors', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: [],
+        tolerance: 2,
+        version: 1,
+        name: 'MetaMask',
+      },
+      {
+        allowlist: [],
+        version: 1,
+        name: undefined,
+      },
+    ];
+
+    const result = processConfigs(configs);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('MetaMask');
+
+    expect(console.error).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an empty array when called with no arguments', () => {
+    const result = processConfigs();
+    expect(result).toStrictEqual([]);
+  });
+
+  it('filters out invalid configs and logs errors with multiple configs', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: [],
+        tolerance: 2,
+        version: 1,
+        name: 'MetaMask',
+      },
+      {
+        allowlist: [],
+        version: 1,
+        name: undefined,
+      },
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: [],
+        tolerance: 2,
+        version: 1,
+        name: 'name',
+      },
+      {
+        allowlist: [],
+        version: 1,
+        name: '',
+      },
+    ];
+
+    const result = processConfigs(configs);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe('MetaMask');
+    expect(result[1].name).toBe('name');
+
+    expect(console.error).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns an empty array when all configs are invalid', () => {
+    const configs = [
+      {
+        allowlist: [],
+        version: 1,
+        name: undefined,
+      },
+      {
+        blocklist: [],
+        fuzzylist: [],
+        tolerance: 2,
+        version: null,
+        name: '',
+      },
+    ];
+
+    // @ts-expect-error testing invalid input
+    const result = processConfigs(configs);
+
+    expect(result).toStrictEqual([]);
+
+    expect(console.error).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs errors for invalid tolerance or version types', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        tolerance: 'invalid',
+        version: 1,
+      },
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        tolerance: 2,
+        version: {},
+      },
+    ];
+
+    // @ts-expect-error testing invalid input
+    const result = processConfigs(configs);
+
+    expect(result).toStrictEqual([]);
+
+    expect(console.error).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe('processDomainList', () => {
   it('correctly converts a list of domains to an array of parts', () => {
