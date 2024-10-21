@@ -200,16 +200,28 @@ export const getDefaultPhishingDetectorConfig = ({
 });
 
 /**
- * Processes the configurations for the phishing detector.
+ * Processes the configurations for the phishing detector, filtering out any invalid configs.
  *
- * @param configs - the configurations to process.
- * @returns the processed configurations.
+ * @param configs - The configurations to process.
+ * @returns An array of processed and valid configurations.
  */
-export const processConfigs = (configs: PhishingDetectorList[] = []) => {
-  return configs.map((config: PhishingDetectorList) => {
-    validateConfig(config);
-    return { ...config, ...getDefaultPhishingDetectorConfig(config) };
-  });
+export const processConfigs = (
+  configs: PhishingDetectorList[] = [],
+): PhishingDetectorConfiguration[] => {
+  return configs
+    .filter((config) => {
+      try {
+        validateConfig(config);
+        return true;
+      } catch (error) {
+        console.error(error);
+        return false;
+      }
+    })
+    .map((config) => ({
+      ...config,
+      ...getDefaultPhishingDetectorConfig(config),
+    }));
 };
 
 /**

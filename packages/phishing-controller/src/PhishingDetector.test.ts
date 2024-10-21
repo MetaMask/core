@@ -75,87 +75,169 @@ describe('PhishingDetector', () => {
         );
       });
 
-      [
-        undefined,
-        null,
-        true,
-        false,
-        0,
-        1,
-        1.1,
-        '',
-        () => {
-          return { name: 'test', version: 1 };
-        },
-        {},
-      ].forEach((mockInvalidName) => {
-        it('throws an error when config name is invalid', async () => {
-          await expect(
-            withPhishingDetector(
-              [
-                {
-                  allowlist: [],
-                  blocklist: ['blocked-by-first.com'],
-                  fuzzylist: [],
-                  // @ts-expect-error testing invalid input
-                  name: mockInvalidName,
-                  tolerance: 2,
-                  version: 1,
-                },
-              ],
-              async () => mockInvalidName,
-            ),
-          ).rejects.toThrow("Invalid config parameter: 'name'");
-        });
-      });
+      it('logs an error when config name is invalid for various invalid inputs', async () => {
+        const invalidNames = [
+          undefined,
+          null,
+          true,
+          false,
+          0,
+          1,
+          1.1,
+          '',
+          () => {
+            return { name: 'test', version: 1 };
+          },
+          {},
+        ];
 
-      it('throws an error when tolerance is provided without fuzzylist', async () => {
-        await expect(
-          withPhishingDetector(
+        for (const mockInvalidName of invalidNames) {
+          const consoleErrorMock = jest.spyOn(console, 'error');
+
+          let detector;
+
+          await withPhishingDetector(
             [
-              // @ts-expect-error testing invalid input
               {
                 allowlist: [],
-                blocklist: [],
-                name: 'first',
+                blocklist: ['blocked-by-first.com'],
+                fuzzylist: [],
+                // @ts-expect-error testing invalid input
+                name: mockInvalidName,
                 tolerance: 2,
                 version: 1,
               },
             ],
-            async () => null,
-          ),
-        ).rejects.toThrow('Fuzzylist tolerance provided without fuzzylist');
+            async ({ detector: d }) => {
+              detector = d;
+            },
+          );
+
+          expect(detector).toBeDefined();
+
+          expect(console.error).toHaveBeenCalled();
+
+          consoleErrorMock.mockRestore();
+        }
       });
 
-      [
-        undefined,
-        null,
-        true,
-        false,
-        '',
-        () => {
-          return { name: 'test', version: 1 };
-        },
-        {},
-      ].forEach((mockInvalidVersion) => {
-        it('throws an error when config version is invalid', async () => {
-          await expect(
-            withPhishingDetector(
-              [
-                {
-                  allowlist: [],
-                  blocklist: ['blocked-by-first.com'],
-                  fuzzylist: [],
-                  name: 'first',
-                  tolerance: 2,
-                  // @ts-expect-error testing invalid input
-                  version: mockInvalidVersion,
-                },
-              ],
-              async () => null,
-            ),
-          ).rejects.toThrow("Invalid config parameter: 'version'");
-        });
+      it('drops the invalid config and retains the valid config', async () => {
+        const consoleErrorMock = jest.spyOn(console, 'error');
+
+        let detector: PhishingDetector | undefined;
+
+        await withPhishingDetector(
+          [
+            // Invalid config
+            {
+              allowlist: [],
+              blocklist: ['blocked-by-first.com'],
+              fuzzylist: [],
+              name: undefined,
+              tolerance: 2,
+              version: 1,
+            },
+            // Valid config
+            {
+              allowlist: [],
+              blocklist: ['blocked-by-second.com'],
+              fuzzylist: [],
+              name: 'MetaMask',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector: d }) => {
+            detector = d;
+          },
+        );
+
+        expect(detector).toBeDefined();
+
+        const result = detector?.check('https://blocked-by-second.com');
+
+        expect(result).toBeDefined();
+        expect(result?.type).toBe('blocklist');
+
+        const resultInvalid = detector?.check('https://blocked-by-first.com');
+
+        expect(resultInvalid).toBeDefined();
+        expect(resultInvalid?.type).toBe('all');
+
+        expect(console.error).toHaveBeenCalled();
+
+        consoleErrorMock.mockRestore();
+      });
+
+      it('logs an error when tolerance is provided without fuzzylist', async () => {
+        const consoleErrorMock = jest.spyOn(console, 'error');
+
+        let detector;
+
+        await withPhishingDetector(
+          [
+            // @ts-expect-error testing invalid input
+            {
+              allowlist: [],
+              blocklist: [],
+              name: 'first',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector: d }) => {
+            detector = d;
+          },
+        );
+
+        expect(detector).toBeDefined();
+
+        expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+
+        consoleErrorMock.mockRestore();
+      });
+
+      it('logs an error when config version is invalid for various invalid inputs', async () => {
+        const invalidVersions = [
+          undefined,
+          null,
+          true,
+          false,
+          '',
+          () => {
+            return { name: 'test', version: 1 };
+          },
+          {},
+        ];
+
+        for (const mockInvalidVersion of invalidVersions) {
+          const consoleErrorMock = jest.spyOn(console, 'error');
+
+          let detector;
+
+          await withPhishingDetector(
+            [
+              {
+                allowlist: [],
+                blocklist: ['blocked-by-first.com'],
+                fuzzylist: [],
+                name: 'first',
+                tolerance: 2,
+                // @ts-expect-error testing invalid input
+                version: mockInvalidVersion,
+              },
+            ],
+            async ({ detector: d }) => {
+              detector = d;
+            },
+          );
+
+          expect(detector).toBeDefined();
+
+          expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+
+          consoleErrorMock.mockRestore();
+        }
       });
     });
 
