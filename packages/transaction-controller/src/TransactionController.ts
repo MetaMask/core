@@ -3558,6 +3558,7 @@ export class TransactionController extends BaseController<
   ): Readonly<TransactionMeta> {
     let isReSimulateNeedDueToTxParamsUpdated = false;
     let isReSimulateNeedDueToSecurityAlert = false;
+    let isReSimulateNeedDueToThreshold = false;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
@@ -3581,6 +3582,8 @@ export class TransactionController extends BaseController<
         this.#shouldReSimulateDueToTxParamUpdate(transactionMeta);
       isReSimulateNeedDueToSecurityAlert =
         this.#shouldReSimulateDueToSecurityAlert(transactionMeta);
+      isReSimulateNeedDueToThreshold =
+        this.#shouldReSimulateDueToThreshold(transactionMeta);
 
       const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
@@ -3599,10 +3602,12 @@ export class TransactionController extends BaseController<
 
     if (
       isReSimulateNeedDueToTxParamsUpdated ||
-      isReSimulateNeedDueToSecurityAlert
+      isReSimulateNeedDueToSecurityAlert ||
+      isReSimulateNeedDueToThreshold
     ) {
       this.#updateSimulationData(transactionMeta, {
         isReSimulatedDueToSecurityAlert: isReSimulateNeedDueToSecurityAlert,
+        isReSimulatedDueToThreshold: isReSimulateNeedDueToThreshold,
       }).catch((error) => {
         log('Error updating simulation data', error);
         throw error;
@@ -3612,18 +3617,19 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
-  #shouldReSimulateDueToSecurityAlert(transactionMeta: TransactionMeta) {
-    const isSecurityAlertOrSimulationUpdated =
-      this.#isSecurityAlertOrSimulationUpdated(transactionMeta);
+  #shouldReSimulateDueToThreshold(transactionMeta: TransactionMeta) {
+    const isSimulationUpdated = this.#isSimulationUpdated(transactionMeta);
+
+    if (!isSimulationUpdated) {
+      return false;
+    }
+
     const {
-      securityAlertResponse,
       simulationData,
       txParams: { value },
     } = transactionMeta;
 
     const isSimulationDataAvailable = Boolean(simulationData);
-    const isMaliciousTransfer =
-      securityAlertResponse?.result_type === BLOCKAID_RESULT_TYPE_MALICIOUS;
     const simulationNativeBalanceDifference =
       simulationData?.nativeBalanceChange?.difference;
     const isTxValueAndSimulationNativeBalanceDefined =
@@ -3637,44 +3643,61 @@ export class TransactionController extends BaseController<
       );
 
     return (
-      isSecurityAlertOrSimulationUpdated &&
-      isSimulationDataAvailable &&
-      isMaliciousTransfer &&
-      isTxValueVsBalanceAbovePercentageThreshold
+      isSimulationDataAvailable && isTxValueVsBalanceAbovePercentageThreshold
     );
   }
 
-  #isSecurityAlertOrSimulationUpdated(newTransactionMeta: TransactionMeta) {
+  #shouldReSimulateDueToSecurityAlert(transactionMeta: TransactionMeta) {
+    const isSecurityAlertUpdated =
+      this.#isSecurityAlertUpdated(transactionMeta);
+
+    if (!isSecurityAlertUpdated) {
+      return false;
+    }
+
+    const { securityAlertResponse } = transactionMeta;
+
+    const isMaliciousTransfer =
+      securityAlertResponse?.result_type === BLOCKAID_RESULT_TYPE_MALICIOUS;
+
+    return isMaliciousTransfer;
+  }
+
+  #isSecurityAlertUpdated(newTransactionMeta: TransactionMeta) {
     const {
       id: transactionId,
-      simulationData: newSimulationData,
       securityAlertResponse: newSecurityAlertResponse,
     } = cloneDeep(newTransactionMeta);
 
+    const { securityAlertResponse: originalSecurityAlertResponse } = cloneDeep(
+      this.getTransaction(transactionId) as TransactionMeta,
+    );
+
+    return !isEqual(originalSecurityAlertResponse, newSecurityAlertResponse);
+  }
+
+  #isSimulationUpdated(newTransactionMeta: TransactionMeta) {
+    const { id: transactionId, simulationData: newSimulationData } =
+      cloneDeep(newTransactionMeta);
+
     const newTransactionProps = {
       simulationData: newSimulationData,
-      securityAlertResponse: newSecurityAlertResponse,
       simulationNativeBalanceDifference:
         newSimulationData?.nativeBalanceChange?.difference,
     };
 
-    const {
-      simulationData: originalSimulationData,
-      securityAlertResponse: originalSecurityAlertResponse,
-    } = cloneDeep(this.getTransaction(transactionId) as TransactionMeta);
+    const { simulationData: originalSimulationData } = cloneDeep(
+      this.getTransaction(transactionId) as TransactionMeta,
+    );
 
     const originalTransactionProps = {
       simulationData: originalSimulationData,
-      securityAlertResponse: originalSecurityAlertResponse,
       simulationNativeBalanceDifference:
         originalSimulationData?.nativeBalanceChange?.difference,
     };
 
-    // Skips the cases where simulationData fetch started or completed
-    const shouldSkip =
-      !newTransactionProps.simulationData ||
-      (!originalTransactionProps.simulationData &&
-        newTransactionProps.simulationData);
+    // Skip the case where simulationData fetch started
+    const shouldSkip = !newTransactionProps.simulationData;
 
     if (shouldSkip) {
       return false;
@@ -3718,9 +3741,11 @@ export class TransactionController extends BaseController<
     {
       traceContext,
       isReSimulatedDueToSecurityAlert,
+      isReSimulatedDueToThreshold,
     }: {
       traceContext?: TraceContext;
       isReSimulatedDueToSecurityAlert?: boolean;
+      isReSimulatedDueToThreshold?: boolean;
     } = {},
   ) {
     const {
@@ -3730,6 +3755,9 @@ export class TransactionController extends BaseController<
       simulationData: prevSimulationData,
     } = transactionMeta;
     const { from, to, value, data } = txParams;
+    const isReSimulatedDueToSecurity = Boolean(
+      isReSimulatedDueToSecurityAlert || isReSimulatedDueToThreshold,
+    );
 
     let simulationData: SimulationData = {
       error: {
@@ -3759,9 +3787,7 @@ export class TransactionController extends BaseController<
               data: data as Hex,
             },
             {
-              isReSimulatedDueToSecurityAlert: Boolean(
-                isReSimulatedDueToSecurityAlert,
-              ),
+              isReSimulatedDueToSecurity,
             },
           ),
       );
@@ -3769,7 +3795,7 @@ export class TransactionController extends BaseController<
       if (prevSimulationData && !isEqual(simulationData, prevSimulationData)) {
         simulationData = {
           ...simulationData,
-          isReSimulatedDueToSecurityAlert,
+          isReSimulatedDueToSecurity,
         };
       }
     }

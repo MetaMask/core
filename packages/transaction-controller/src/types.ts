@@ -1307,8 +1307,8 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
-  /** Set to true if simulationData changed after updating security alert */
-  isReSimulatedDueToSecurityAlert?: boolean;
+  /** Set to true if transaction re-simulated due to security concerns */
+  isReSimulatedDueToSecurity?: boolean;
 
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
