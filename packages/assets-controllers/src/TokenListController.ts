@@ -115,6 +115,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   private chainId: Hex;
 
+  private includeStakedAssets: boolean
+
   private abortController: AbortController;
 
   /**
@@ -128,6 +130,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param options.messenger - A restricted controller messenger.
    * @param options.state - Initial state to set on this controller.
    * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
+   * @param options.includeStakedAssets - Flag for whether to include staked assets in the token list.
    */
   constructor({
     chainId,
@@ -137,6 +140,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
+    includeStakedAssets = false
   }: {
     chainId: Hex;
     preventPollingOnNetworkRestart?: boolean;
@@ -147,6 +151,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     cacheRefreshThreshold?: number;
     messenger: TokenListControllerMessenger;
     state?: Partial<TokenListState>;
+    includeStakedAssets?: boolean ;
   }) {
     super({
       name,
@@ -157,6 +162,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
+    this.includeStakedAssets = includeStakedAssets;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
     if (onNetworkStateChange) {
@@ -306,6 +312,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
           () =>
             fetchTokenListByChainId(
               chainId,
+              this.includeStakedAssets,
               this.abortController.signal,
             ) as Promise<TokenListToken[]>,
         );

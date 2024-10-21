@@ -15,15 +15,16 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
  * Get the tokens URL for a specific network.
  *
  * @param chainId - The chain ID of the network the tokens requested are on.
- * @returns The tokens URL.
+ * @param includeStakedAssets - Flag for including staked assets in the token list.
+* @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex) {
+function getTokensURL(chainId: Hex, includeStakedAssets: boolean = false) {
   const occurrenceFloor = chainId === ChainId['linea-mainnet'] ? 1 : 3;
   // TODO: Either fix this lint violation or explain why it's necessary to ignore.
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=${occurrenceFloor}&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeStakedAssets=${includeStakedAssets}`;
 }
 
 /**
@@ -52,6 +53,7 @@ const defaultTimeout = tenSecondsInMilliseconds;
  * abort signal passed in.
  *
  * @param chainId - The chain ID of the network the requested tokens are on.
+ * @param includeStakedAssets - Flag for including staked assets in the token list.
  * @param abortSignal - The abort signal used to cancel the request if necessary.
  * @param options - Additional fetch options.
  * @param options.timeout - The fetch timeout.
@@ -59,10 +61,11 @@ const defaultTimeout = tenSecondsInMilliseconds;
  */
 export async function fetchTokenListByChainId(
   chainId: Hex,
+  includeStakedAssets: boolean,
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
-  const tokenURL = getTokensURL(chainId);
+  const tokenURL = getTokensURL(chainId, includeStakedAssets);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
     const result = await parseJsonResponse(response);
