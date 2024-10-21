@@ -5878,8 +5878,11 @@ describe('TransactionController', () => {
     });
 
     it('if first simulated transaction value threshold reached', async () => {
-      const modifiedSimulationMock = { ...SIMULATION_DATA_MOCK };
-      modifiedSimulationMock.nativeBalanceChange!.difference = '0x64'; // 100
+      const modifiedSimulationMock = merge({}, SIMULATION_DATA_MOCK, {
+        nativeBalanceChange: {
+          difference: '0x64',
+        },
+      });
 
       getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationMock);
       const { controller } = setupController();
@@ -5939,8 +5942,11 @@ describe('TransactionController', () => {
     });
 
     it('when transaction value is below the threshold', async () => {
-      const modifiedSimulationMock = { ...SIMULATION_DATA_MOCK };
-      modifiedSimulationMock.nativeBalanceChange!.difference = '0x64'; // 100
+      const modifiedSimulationMock = merge({}, SIMULATION_DATA_MOCK, {
+        nativeBalanceChange: {
+          difference: '0x64',
+        },
+      });
 
       getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationMock);
       const { controller } = setupController();
