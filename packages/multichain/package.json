@@ -51,13 +51,18 @@
     "@metamask/controller-utils": "^11.3.0",
     "@metamask/eth-json-rpc-filters": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.0",
+    "@metamask/safe-event-emitter": "^3.0.0",
     "@metamask/utils": "^9.1.0",
+    "@open-rpc/schema-utils-js": "^2.0.5",
+    "jsonschema": "^1.2.4",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/json-rpc-engine": "^9.0.3",
     "@metamask/network-controller": "^21.0.1",
     "@metamask/permission-controller": "^11.0.2",
+    "@open-rpc/meta-schema": "^1.14.6",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
