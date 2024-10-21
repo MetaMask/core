@@ -36,6 +36,7 @@ import { errorCodes, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 import assert from 'assert';
+import { merge } from 'lodash';
 import * as uuidModule from 'uuid';
 
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
@@ -73,6 +74,7 @@ import type {
   SubmitHistoryEntry,
 } from './types';
 import {
+  BLOCKAID_RESULT_TYPE_MALICIOUS,
   GasFeeEstimateType,
   SimulationErrorCode,
   SimulationTokenStandard,
@@ -1817,28 +1819,40 @@ describe('TransactionController', () => {
 
     describe('updates simulation data', () => {
       it('by default', async () => {
-        getSimulationDataMock.mockResolvedValueOnce(SIMULATION_DATA_MOCK);
+        const modifiedSimulationDataMock = merge({}, SIMULATION_DATA_MOCK, {
+          nativeBalanceChange: {
+            difference: '0x1',
+          },
+        });
+
+        getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationDataMock);
 
         const { controller } = setupController();
 
         await controller.addTransaction({
           from: ACCOUNT_MOCK,
           to: ACCOUNT_MOCK,
+          value: '0x1',
         });
 
         await flushPromises();
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-        expect(getSimulationDataMock).toHaveBeenCalledWith({
-          chainId: MOCK_NETWORK.chainId,
-          data: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          {
+            chainId: MOCK_NETWORK.chainId,
+            data: undefined,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            value: '0x1',
+          },
+          {
+            isReSimulatedDueToSecurity: false,
+          },
+        );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
-          SIMULATION_DATA_MOCK,
+          modifiedSimulationDataMock,
         );
       });
 
@@ -5825,5 +5839,176 @@ describe('TransactionController', () => {
         }),
       );
     });
+  });
+
+  describe('re-simulates', () => {
+    it('on updateSecurityAlertResponse when transaction marked as malicious', async () => {
+      const modifiedTransactionMeta = merge({}, TRANSACTION_META_MOCK, {
+        txParams: {
+          value: '0x1',
+        },
+      });
+
+      const modifiedSimulationData = merge({}, SIMULATION_DATA_MOCK, {
+        nativeBalanceChange: {
+          difference: '0x1',
+        },
+      });
+
+      getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationData);
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [modifiedTransactionMeta],
+          },
+        },
+      });
+
+      controller.updateSecurityAlertResponse(modifiedTransactionMeta.id, {
+        reason: 'NA',
+        // This is API specific hence naming convention is not followed.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        result_type: BLOCKAID_RESULT_TYPE_MALICIOUS,
+      });
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('if first simulated transaction value threshold reached', async () => {
+      const modifiedSimulationMock = merge({}, SIMULATION_DATA_MOCK, {
+        nativeBalanceChange: {
+          difference: '0x64',
+        },
+      });
+
+      getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationMock);
+      const { controller } = setupController();
+
+      // Transaction value = 0x5E => 94
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+        value: '0x5',
+      });
+
+      await flushPromises();
+
+      // First call for initial simulation
+      // Second call for re-simulation
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(2);
+      expect(
+        getSimulationDataMock.mock.calls[1][1]?.isReSimulatedDueToSecurity,
+      ).toBe(true);
+    });
+  });
+
+  describe('does not re-simulate', () => {
+    it('when security alert is not malicious', async () => {
+      const modifiedTransactionMeta = merge({}, TRANSACTION_META_MOCK, {
+        txParams: {
+          value: '0x1',
+        },
+      });
+
+      const modifiedSimulationData = merge({}, SIMULATION_DATA_MOCK, {
+        nativeBalanceChange: {
+          difference: '0x1',
+        },
+      });
+
+      getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationData);
+
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [modifiedTransactionMeta],
+          },
+        },
+      });
+
+      controller.updateSecurityAlertResponse(modifiedTransactionMeta.id, {
+        reason: 'NA',
+        // This is API specific hence naming convention is not followed.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        result_type: 'warning',
+      });
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('when transaction value is below the threshold', async () => {
+      const modifiedSimulationMock = merge({}, SIMULATION_DATA_MOCK, {
+        nativeBalanceChange: {
+          difference: '0x64',
+        },
+      });
+
+      getSimulationDataMock.mockResolvedValueOnce(modifiedSimulationMock);
+      const { controller } = setupController();
+
+      // Transaction value = 0x64 = 100
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+        value: '0x64',
+      });
+
+      await flushPromises();
+
+      // First call for initial simulation
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['value', 'to', 'data'])(
+      'if txParams.%s changes',
+      async (param) => {
+        const transactionId = '1';
+        const baseTransaction = {
+          id: transactionId,
+          chainId: toHex(5),
+          status: TransactionStatus.unapproved as const,
+          time: 123456789,
+          txParams: {
+            data: 'originalData',
+            gas: '50000',
+            gasPrice: '1000000000',
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_2_MOCK,
+            value: '5000000000000000000',
+          },
+        };
+        const transactionMeta: TransactionMeta = {
+          ...baseTransaction,
+          history: [{ ...baseTransaction }],
+        };
+
+        const { controller } = setupController({
+          options: {
+            state: {
+              transactions: [
+                {
+                  ...transactionMeta,
+                },
+              ],
+            },
+          },
+          updateToInitialState: true,
+        });
+
+        await controller.updateEditableParams(transactionMeta.id, {
+          ...transactionMeta.txParams,
+          [param]: ACCOUNT_2_MOCK,
+        });
+
+        await flushPromises();
+
+        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 });
