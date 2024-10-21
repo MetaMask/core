@@ -27,6 +27,7 @@ import {
   SigningStage,
   type AddLog,
 } from '@metamask/logging-controller';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
 import { v1 as random } from 'uuid';
@@ -113,7 +114,8 @@ type AllowedActions =
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
-  | AddLog;
+  | AddLog
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type GetSignatureState = ControllerGetStateAction<
   typeof controllerName,
@@ -184,25 +186,17 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #getCurrentChainId: () => Hex;
-
   #trace: TraceCallback;
 
   /**
    * Construct a Sign controller.
    *
    * @param options - The controller options.
-   * @param options.getCurrentChainId - A function that returns the current chain ID.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
-  constructor({
-    getCurrentChainId,
-    messenger,
-    state,
-    trace,
-  }: SignatureControllerOptions) {
+  constructor({ messenger, state, trace }: SignatureControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
@@ -214,7 +208,6 @@ export class SignatureController extends BaseController<
     });
 
     this.hub = new EventEmitter();
-    this.#getCurrentChainId = getCurrentChainId;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
   }
 
@@ -335,10 +328,12 @@ export class SignatureController extends BaseController<
     signingOptions: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
+    const chainId = this.#getChainId(request);
+
     validateTypedSignatureRequest(
       messageParams,
       version as SignTypedDataVersion,
-      this.#getCurrentChainId(),
+      chainId,
     );
 
     const normalizedMessageParams = normalizeTypedMessageParams(
@@ -347,13 +342,13 @@ export class SignatureController extends BaseController<
     );
 
     return this.#processSignatureRequest({
+      approvalType: ApprovalType.EthSignTypedData,
       messageParams: normalizedMessageParams,
       request,
-      type: SignatureRequestType.TypedSign,
-      approvalType: ApprovalType.EthSignTypedData,
-      version: version as SignTypedDataVersion,
       signingOptions,
       traceContext: options.traceContext,
+      type: SignatureRequestType.TypedSign,
+      version: version as SignTypedDataVersion,
     });
   }
 
@@ -435,6 +430,7 @@ export class SignatureController extends BaseController<
   }
 
   async #processSignatureRequest({
+    chainId: optionChainId,
     messageParams,
     request,
     type,
@@ -443,6 +439,7 @@ export class SignatureController extends BaseController<
     signingOptions,
     traceContext,
   }: {
+    chainId?: Hex;
     messageParams: MessageParams;
     request: OriginalRequest;
     type: SignatureRequestType;
@@ -458,9 +455,12 @@ export class SignatureController extends BaseController<
       version,
     });
 
+    const chainId = optionChainId ?? this.#getChainId(request);
+
     this.#addLog(type, version, SigningStage.Proposed, messageParams);
 
     const metadata = this.#addMetadata({
+      chainId,
       messageParams,
       request,
       signingOptions,
@@ -532,12 +532,14 @@ export class SignatureController extends BaseController<
   }
 
   #addMetadata({
+    chainId,
     messageParams,
     request,
     signingOptions,
     type,
     version,
   }: {
+    chainId: Hex;
     messageParams: MessageParams;
     request: OriginalRequest;
     signingOptions?: TypedSigningOptions;
@@ -550,11 +552,13 @@ export class SignatureController extends BaseController<
       requestId: request.id,
     };
 
-    const { securityAlertResponse } = request;
+    const { networkClientId, securityAlertResponse } = request;
 
     const metadata = {
+      chainId,
       id: random(),
       messageParams: finalMessageParams,
+      networkClientId,
       securityAlertResponse,
       signingOptions,
       status: SignatureRequestStatus.Unapproved,
@@ -566,6 +570,8 @@ export class SignatureController extends BaseController<
     this.#updateState((state) => {
       state.signatureRequests[metadata.id] = metadata;
     });
+
+    log('Added signature request', metadata);
 
     this.hub.emit('unapprovedMessage', {
       messageParams,
@@ -862,5 +868,20 @@ export class SignatureController extends BaseController<
     }
 
     return SigningMethod.EthSignTypedData;
+  }
+
+  #getChainId(request: OriginalRequest): Hex {
+    const { networkClientId } = request;
+
+    if (!networkClientId) {
+      throw new Error('Network client ID not found in request');
+    }
+
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+
+    return networkClient.configuration.chainId;
   }
 }
