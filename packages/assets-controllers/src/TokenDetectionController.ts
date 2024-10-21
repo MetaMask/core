@@ -34,7 +34,7 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual, mapValues, isObject, omit } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
@@ -74,6 +74,21 @@ export function isEqualCaseInsensitive(
     return false;
   }
   return value1.toLowerCase() === value2.toLowerCase();
+}
+
+/**
+ * Function that takes a TokensChainsCache and returns it without timestamp
+ * @param obj - Object to compare
+ * @returns returns the object argument without the timestamp
+ */
+function removeTimestamps(obj: TokensChainsCache) {
+  return mapValues(obj, (value) => {
+    if (isObject(value) && 'data' in value) {
+      // Return the object without the 'timestamp' property
+      return omit(value, ['timestamp']);
+    }
+    return value;
+  });
 }
 
 type LegacyToken = {
@@ -346,12 +361,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ tokensChainsCache }) => {
         // compare previous and incoming tokensChainsCache
-        const previousTokensChainsCache = this.#tokensChainsCache;
+        const previousTokensChainsCache = removeTimestamps(
+          this.#tokensChainsCache,
+        );
+        const cleanTokensChainsCache = removeTimestamps(tokensChainsCache);
         const isEqualValues = isEqual(
-          tokensChainsCache,
+          cleanTokensChainsCache,
           previousTokensChainsCache,
         );
-
         if (!isEqualValues) {
           await this.#restartTokenDetection();
         }
