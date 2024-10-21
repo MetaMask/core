@@ -6,7 +6,6 @@ describe('@metamask/multichain', () => {
       Array [
         "getEthAccounts",
         "setEthAccounts",
-        "caipPermissionAdapterMiddleware",
         "getPermittedEthChainIds",
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
