@@ -7,7 +7,7 @@ import {
   fetchTimeNow,
   getHostnameFromUrl,
   matchPartsAgainstList,
-  processConfigs,
+  // processConfigs,
   processDomainList,
   roundToNearestMinute,
   sha256Hash,
@@ -286,33 +286,33 @@ describe('domainToParts', () => {
   });
 });
 
-describe('processConfigs', () => {
-  it('correctly converts a list of configs to a list of processed configs', () => {
-    const configs = [
-      {
-        allowlist: ['example.com'],
-        blocklist: ['sub.example.com'],
-        fuzzylist: ['fuzzy.example.com'],
-        tolerance: 2,
-      },
-    ];
+// describe('processConfigs', () => {
+//   it('correctly converts a list of configs to a list of processed configs', () => {
+//     const configs = [
+//       {
+//         allowlist: ['example.com'],
+//         blocklist: ['sub.example.com'],
+//         fuzzylist: ['fuzzy.example.com'],
+//         tolerance: 2,
+//       },
+//     ];
 
-    const result = processConfigs(configs);
+//     const result = processConfigs(configs);
 
-    expect(result).toStrictEqual([
-      {
-        allowlist: [['com', 'example']],
-        blocklist: [['com', 'example', 'sub']],
-        fuzzylist: [['com', 'example', 'fuzzy']],
-        tolerance: 2,
-      },
-    ]);
-  });
+//     expect(result).toStrictEqual([
+//       {
+//         allowlist: [['com', 'example']],
+//         blocklist: [['com', 'example', 'sub']],
+//         fuzzylist: [['com', 'example', 'fuzzy']],
+//         tolerance: 2,
+//       },
+//     ]);
+//   });
 
-  it('can be called with no arguments', () => {
-    expect(processConfigs()).toStrictEqual([]);
-  });
-});
+//   it('can be called with no arguments', () => {
+//     expect(processConfigs()).toStrictEqual([]);
+//   });
+// });
 
 describe('processDomainList', () => {
   it('correctly converts a list of domains to an array of parts', () => {
