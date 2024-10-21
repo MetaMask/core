@@ -240,6 +240,7 @@ export class QueuedRequestController extends BaseController<
     this.#requestQueue
       .filter(({ origin }) => origin === flushOrigin)
       .forEach(({ processRequest }) => {
+        this.#processingRequestCount -= 1;
         processRequest(
           new Error(
             'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
@@ -249,6 +250,8 @@ export class QueuedRequestController extends BaseController<
     this.#requestQueue = this.#requestQueue.filter(
       ({ origin }) => origin !== flushOrigin,
     );
+    this.#originOfCurrentBatch = undefined;
+    this.#networkClientIdOfCurrentBatch = undefined;
   }
 
   /**
