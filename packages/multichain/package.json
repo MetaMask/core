@@ -1,12 +1,12 @@
 {
-  "name": "@metamask/accounts-controller",
-  "version": "18.2.2",
-  "description": "Manages internal accounts",
+  "name": "@metamask/multichain",
+  "version": "0.0.0",
+  "description": "Provides types, helpers, adapters, and wrappers for facilitating CAIP Multichain sessions",
   "keywords": [
     "MetaMask",
     "Ethereum"
   ],
-  "homepage": "https://github.com/MetaMask/core/tree/main/packages/accounts-controller#readme",
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/multichain#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
@@ -37,8 +37,8 @@
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/accounts-controller",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/multichain",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/multichain",
     "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -46,34 +46,15 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
-  "dependencies": {
-    "@ethereumjs/util": "^8.1.0",
-    "@metamask/base-controller": "^7.0.1",
-    "@metamask/eth-snap-keyring": "^4.3.6",
-    "@metamask/keyring-api": "^8.1.3",
-    "@metamask/snaps-sdk": "^6.5.0",
-    "@metamask/snaps-utils": "^8.1.1",
-    "@metamask/utils": "^9.1.0",
-    "deepmerge": "^4.2.2",
-    "ethereum-cryptography": "^2.1.2",
-    "immer": "^9.0.6",
-    "uuid": "^8.3.2"
-  },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.3.0",
-    "@metamask/snaps-controllers": "^9.7.0",
     "@types/jest": "^27.4.1",
-    "@types/readable-stream": "^2.3.0",
+    "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "ts-jest": "^27.1.4",
     "typedoc": "^0.24.8",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.2.2"
-  },
-  "peerDependencies": {
-    "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/snaps-controllers": "^9.7.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

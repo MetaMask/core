@@ -15,6 +15,7 @@ import {
 
 const MOCK_REG_TOKEN = 'REG_TOKEN';
 const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
+const MOCK_MOBILE_FCM_TOKEN = 'mockMobileFcmToken';
 const MOCK_TRIGGERS = ['1', '2', '3'];
 const MOCK_JWT = 'MOCK_JWT';
 
@@ -78,8 +79,15 @@ describe('NotificationServicesPushController Services', () => {
         env: {} as PushNotificationEnv,
       };
 
+      const mobileParams = {
+        ...params,
+        fcmToken: MOCK_MOBILE_FCM_TOKEN,
+        platform: 'mobile' as const,
+      };
+
       return {
         params,
+        mobileParams,
         apis: {
           mockGet: mockEndpointGetPushNotificationLinks(override?.mockGet),
           mockPut: mockEndpointUpdatePushNotificationLinks(override?.mockPut),
@@ -96,6 +104,17 @@ describe('NotificationServicesPushController Services', () => {
       expect(apis.mockPut.isDone()).toBe(true);
 
       expect(result).toBe(MOCK_NEW_REG_TOKEN);
+    });
+
+    it('should successfully call APIs and add provided mobile fcmToken', async () => {
+      const { mobileParams, apis } = arrangeMocks();
+      const result = await activatePushNotifications(mobileParams);
+
+      expect(apis.mockGet.isDone()).toBe(true);
+      expect(mobileParams.createRegToken).not.toHaveBeenCalled();
+      expect(apis.mockPut.isDone()).toBe(true);
+
+      expect(result).toBe(MOCK_MOBILE_FCM_TOKEN);
     });
 
     it('should return null if unable to get links from API', async () => {
