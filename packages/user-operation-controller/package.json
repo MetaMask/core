@@ -52,7 +52,7 @@
     "@metamask/controller-utils": "^11.3.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/polling-controller": "^10.0.1",
-    "@metamask/rpc-errors": "^6.3.1",
+    "@metamask/rpc-errors": "^7.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^9.3.0",
     "bn.js": "^5.2.1",

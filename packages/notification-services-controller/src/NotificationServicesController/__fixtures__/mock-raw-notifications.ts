@@ -668,8 +668,6 @@ export function createMockNotificationLidoReadyToBeWithdrawn(): OnChainRawNotifi
 export function createMockNotificationAaveV3HealthFactor(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.AAVE_V3_HEALTH_FACTOR,
-    block_number: 18378208,
-    block_timestamp: '1697643851',
     chain_id: 1,
     created_at: '2023-10-18T16:35:03.147606Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -681,8 +679,6 @@ export function createMockNotificationAaveV3HealthFactor(): OnChainRawNotificati
     },
     id: 'd73df14d-ce73-4f38-bad3-ab028154042b',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042b',
-    tx_hash:
-      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
   };
 
@@ -696,8 +692,6 @@ export function createMockNotificationAaveV3HealthFactor(): OnChainRawNotificati
 export function createMockNotificationEnsExpiration(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ENS_EXPIRATION,
-    block_number: 18378208,
-    block_timestamp: '1697643851',
     chain_id: 1,
     created_at: '2023-10-18T16:35:03.147606Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -710,8 +704,6 @@ export function createMockNotificationEnsExpiration(): OnChainRawNotification {
     },
     id: 'f4ef0b7f-5612-537f-9144-0b5c63ae5391',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042c',
-    tx_hash:
-      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
   };
 
@@ -725,8 +717,6 @@ export function createMockNotificationEnsExpiration(): OnChainRawNotification {
 export function createMockNotificationLidoStakingRewards(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.LIDO_STAKING_REWARDS,
-    block_number: 18378208,
-    block_timestamp: '1697643851',
     chain_id: 1,
     created_at: '2023-10-18T16:35:03.147606Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -741,8 +731,6 @@ export function createMockNotificationLidoStakingRewards(): OnChainRawNotificati
     },
     id: 'd73df14d-ce73-4f38-bad3-ab028154042l',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042l',
-    tx_hash:
-      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
   };
 
@@ -756,8 +744,6 @@ export function createMockNotificationLidoStakingRewards(): OnChainRawNotificati
 export function createMockNotificationNotionalLoanExpiration(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.NOTIONAL_LOAN_EXPIRATION,
-    block_number: 18378208,
-    block_timestamp: '1697643851',
     chain_id: 1,
     created_at: '2023-10-18T16:35:03.147606Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -775,8 +761,6 @@ export function createMockNotificationNotionalLoanExpiration(): OnChainRawNotifi
     },
     id: 'd73df14d-ce73-4f38-bad3-ab028154042n',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042n',
-    tx_hash:
-      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
   };
 
@@ -790,8 +774,6 @@ export function createMockNotificationNotionalLoanExpiration(): OnChainRawNotifi
 export function createMockNotificationRocketpoolStakingRewards(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.ROCKETPOOL_STAKING_REWARDS,
-    block_number: 18378208,
-    block_timestamp: '1697643851',
     chain_id: 1,
     created_at: '2023-10-18T16:35:03.147606Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -806,8 +788,6 @@ export function createMockNotificationRocketpoolStakingRewards(): OnChainRawNoti
     },
     id: 'd73df14d-ce73-4f38-bad3-ab028154042r',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042r',
-    tx_hash:
-      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
   };
 
@@ -821,8 +801,6 @@ export function createMockNotificationRocketpoolStakingRewards(): OnChainRawNoti
 export function createMockNotificationSparkFiHealthFactor(): OnChainRawNotification {
   const mockNotification: OnChainRawNotification = {
     type: TRIGGER_TYPES.SPARK_FI_HEALTH_FACTOR,
-    block_number: 18378208,
-    block_timestamp: '1697643851',
     chain_id: 1,
     created_at: '2023-10-18T16:35:03.147606Z',
     address: '0x881D40237659C251811CEC9c364ef91dC08D300C',
@@ -834,8 +812,6 @@ export function createMockNotificationSparkFiHealthFactor(): OnChainRawNotificat
     },
     id: 'd73df14d-ce73-4f38-bad3-ab028154042s',
     trigger_id: 'd73df14d-ce73-4f38-bad3-ab028154042s',
-    tx_hash:
-      '0xe6d210d2e601ef3dd1075c48e71452cf35f2daae3886911e964e3babad8ac657',
     unread: true,
   };
 
