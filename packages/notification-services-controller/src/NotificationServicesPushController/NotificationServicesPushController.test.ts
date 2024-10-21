@@ -16,10 +16,10 @@ const MOCK_MOBILE_FCM_TOKEN = 'mockMobileFcmToken';
 const MOCK_TRIGGERS = ['uuid1', 'uuid2'];
 
 describe('NotificationServicesPushController', () => {
-  const arrangeServicesMocks = () => {
+  const arrangeServicesMocks = (token?: string) => {
     const activatePushNotificationsMock = jest
       .spyOn(services, 'activatePushNotifications')
-      .mockResolvedValue(MOCK_FCM_TOKEN);
+      .mockResolvedValue(token ?? MOCK_FCM_TOKEN);
 
     const deactivatePushNotificationsMock = jest
       .spyOn(services, 'deactivatePushNotifications')
@@ -61,7 +61,7 @@ describe('NotificationServicesPushController', () => {
     });
 
     it('should update the state with provided mobile fcmToken', async () => {
-      arrangeServicesMocks();
+      arrangeServicesMocks(MOCK_MOBILE_FCM_TOKEN);
       const { controller, messenger } = arrangeMockMessenger();
       mockAuthBearerTokenCall(messenger);
 
