@@ -1,5 +1,5 @@
 import type { SIWEMessage } from '@metamask/controller-utils';
-import { detectSIWE } from '@metamask/controller-utils';
+import { detectSIWE, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 import { v1 } from 'uuid';
@@ -11,7 +11,12 @@ import type {
   SignatureControllerState,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
-import type { MessageParamsPersonal, SignatureRequest } from './types';
+import type {
+  MessageParamsPersonal,
+  MessageParamsTyped,
+  OriginalRequest,
+  SignatureRequest,
+} from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
 import {
   normalizePersonalMessageParams,
@@ -34,10 +39,14 @@ const DATA_MOCK = '0xABC123';
 const SIGNATURE_HASH_MOCK = '0x123ABC';
 const ERROR_MESSAGE_MOCK = 'Test Error Message';
 const ERROR_CODE_MOCK = 1234;
+const ORIGIN_MOCK = 'testOrigin';
 
 const PARAMS_MOCK = {
-  from: FROM_MOCK,
   data: DATA_MOCK,
+  from: FROM_MOCK,
+  metamaskId: ID_MOCK,
+  origin: ORIGIN_MOCK,
+  version: SignTypedDataVersion.V1,
 };
 
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
@@ -327,15 +336,26 @@ describe('SignatureController', () => {
   describe.each([
     [
       'newUnsignedPersonalMessage',
-      (controller: SignatureController, request = {}) =>
-        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, request),
+      (
+        controller: SignatureController,
+        request?: OriginalRequest,
+        params?: Partial<MessageParamsPersonal>,
+      ) =>
+        controller.newUnsignedPersonalMessage(
+          { ...PARAMS_MOCK, ...params },
+          request,
+        ),
       SignatureRequestType.PersonalSign,
     ],
     [
       'newUnsignedTypedMessage',
-      (controller: SignatureController, request = {}) =>
+      (
+        controller: SignatureController,
+        request?: OriginalRequest,
+        params?: Partial<MessageParamsTyped>,
+      ) =>
         controller.newUnsignedTypedMessage(
-          PARAMS_MOCK,
+          { ...PARAMS_MOCK, ...params },
           request,
           SignTypedDataVersion.V1,
           { parseJsonData: false },
@@ -488,7 +508,7 @@ describe('SignatureController', () => {
       });
     });
 
-    it('populates origin from request', async () => {
+    it('populates origin from request if present', async () => {
       const { controller } = createController();
 
       await fn(controller, { origin: 'test' });
@@ -498,14 +518,34 @@ describe('SignatureController', () => {
       ).toBe('test');
     });
 
+    it('populates origin from message params if no request', async () => {
+      const { controller } = createController();
+
+      await fn(controller);
+
+      expect(
+        controller.state.signatureRequests[ID_MOCK].messageParams.origin,
+      ).toBe(ORIGIN_MOCK);
+    });
+
     it('populates request ID from request', async () => {
       const { controller } = createController();
 
-      await fn(controller, { id: 'test' });
+      await fn(controller, { id: 123 });
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.requestId,
-      ).toBe('test');
+      ).toBe(123);
+    });
+
+    it('populates metamask ID using ID', async () => {
+      const { controller } = createController();
+
+      await fn(controller);
+
+      expect(
+        controller.state.signatureRequests[ID_MOCK].messageParams.metamaskId,
+      ).toBe(ID_MOCK);
     });
 
     it('emits unapproved message event', async () => {
@@ -604,6 +644,50 @@ describe('SignatureController', () => {
       expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
       expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
     });
+
+    it('requests approval', async () => {
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
+
+      await fn(controller);
+
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledTimes(1);
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledWith(
+        {
+          expectsResult: true,
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          requestData: expect.objectContaining({
+            data: PARAMS_MOCK.data,
+            from: PARAMS_MOCK.from,
+          }),
+          type,
+        },
+        true,
+      );
+    });
+
+    it('requests approval with internal origin if no origin provided', async () => {
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
+
+      await fn(controller, undefined, { origin: undefined });
+
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledTimes(1);
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledWith(
+        {
+          expectsResult: true,
+          id: ID_MOCK,
+          origin: ORIGIN_METAMASK,
+          requestData: expect.objectContaining({
+            data: PARAMS_MOCK.data,
+            from: PARAMS_MOCK.from,
+          }),
+          type,
+        },
+        true,
+      );
+    });
   });
 
   describe('newUnsignedPersonalMessage', () => {
@@ -685,6 +769,7 @@ describe('SignatureController', () => {
           {
             ...PARAMS_MOCK,
             data: { test: 123 },
+            version,
           },
           version,
         );
@@ -745,6 +830,24 @@ describe('SignatureController', () => {
       expect(controller.state.signatureRequests[ID_MOCK].error).toBe(
         ERROR_MESSAGE_MOCK,
       );
+    });
+
+    it('populates version in params', async () => {
+      const { controller } = createController();
+
+      await controller.newUnsignedTypedMessage(
+        PARAMS_MOCK,
+        {},
+        SignTypedDataVersion.V3,
+        { parseJsonData: false },
+      );
+
+      expect(
+        (
+          controller.state.signatureRequests[ID_MOCK]
+            .messageParams as MessageParamsTyped
+        ).version,
+      ).toBe(SignTypedDataVersion.V3);
     });
   });
 
