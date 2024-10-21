@@ -50,7 +50,10 @@ export type paths = {
             [name: string]: unknown;
           };
           content: {
-            'application/json': components['schemas']['Notification'][];
+            'application/json': (
+              | components['schemas']['WalletNotification']
+              | components['schemas']['Web3Notification']
+            )[];
           };
         };
       };
@@ -372,7 +375,7 @@ export type components = {
       /** Format: date-time */
       created_at?: string;
     };
-    Notification: {
+    WalletNotification: {
       /** Format: uuid */
       id: string;
       /** Format: uuid */
@@ -380,13 +383,13 @@ export type components = {
       /** @example 1 */
       chain_id: number;
       /** @example 17485840 */
-      block_number?: number;
-      block_timestamp?: string;
+      block_number: number;
+      block_timestamp: string;
       /**
        * Format: address
        * @example 0x881D40237659C251811CEC9c364ef91dC08D300C
        */
-      tx_hash?: string;
+      tx_hash: string;
       /** @example false */
       unread: boolean;
       /** Format: date-time */
@@ -408,7 +411,22 @@ export type components = {
         | components['schemas']['Data_ERC721Sent']
         | components['schemas']['Data_ERC721Received']
         | components['schemas']['Data_ERC1155Sent']
-        | components['schemas']['Data_ERC1155Received']
+        | components['schemas']['Data_ERC1155Received'];
+    };
+    Web3Notification: {
+      /** Format: uuid */
+      id: string;
+      /** Format: uuid */
+      trigger_id: string;
+      /** @example 1 */
+      chain_id: number;
+      /** @example false */
+      unread: boolean;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: address */
+      address: string;
+      data?:
         | components['schemas']['Data_AaveV3HealthFactor']
         | components['schemas']['Data_EnsExpiration']
         | components['schemas']['Data_LidoStakingRewards']
@@ -685,7 +703,5 @@ export type components = {
   headers: never;
   pathItems: never;
 };
-
 export type $defs = Record<string, never>;
-
 export type operations = Record<string, never>;
