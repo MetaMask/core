@@ -3,7 +3,7 @@ import {
   mockEndpointUpdatePushNotificationLinks,
 } from '../__fixtures__/mockServices';
 import type { PushNotificationEnv } from '../types/firebase';
-import * as PushWebModule from './push/push-web';
+import type { ListenToPushNotificationsParams } from './services';
 import {
   activatePushNotifications,
   deactivatePushNotifications,
@@ -267,24 +267,22 @@ describe('NotificationServicesPushController Services', () => {
 
   describe('listenToPushNotifications', () => {
     const arrangeMocks = () => {
-      const params = {
+      const mockReceivedUnsub = jest.fn();
+      const mockClickUnsub = jest.fn();
+
+      const params: ListenToPushNotificationsParams = {
+        listenToPushNotificationsCreator: jest
+          .fn()
+          .mockResolvedValue(mockReceivedUnsub),
         listenToPushReceived: jest.fn(),
+        listenToPushClickedCreator: jest.fn().mockReturnValue(mockClickUnsub),
         listenToPushClicked: jest.fn(),
         env: {} as PushNotificationEnv,
       };
 
-      const mockReceivedUnsub = jest.fn();
-      const mockClickUnsub = jest.fn();
-
       return {
         params,
         mocks: {
-          listenToPushNotificationsReceivedMock: jest
-            .spyOn(PushWebModule, 'listenToPushNotificationsReceived')
-            .mockResolvedValue(mockReceivedUnsub),
-          listenToPushNotificationsClickedMock: jest
-            .spyOn(PushWebModule, 'listenToPushNotificationsClicked')
-            .mockReturnValue(mockClickUnsub),
           mockReceivedUnsub,
           mockClickUnsub,
         },
@@ -295,8 +293,8 @@ describe('NotificationServicesPushController Services', () => {
       const { params, mocks } = arrangeMocks();
 
       const unsub = await listenToPushNotifications(params);
-      expect(mocks.listenToPushNotificationsClickedMock).toHaveBeenCalled();
-      expect(mocks.listenToPushNotificationsReceivedMock).toHaveBeenCalled();
+      expect(params.listenToPushNotificationsCreator).toHaveBeenCalled();
+      expect(params.listenToPushClickedCreator).toHaveBeenCalled();
 
       unsub();
       expect(mocks.mockClickUnsub).toHaveBeenCalled();
