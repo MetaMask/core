@@ -321,6 +321,7 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    // TODO mock network state is not working correctly in this test, TODO fix
     it('should not autodetect while not on supported networks', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
@@ -1058,15 +1059,20 @@ describe('TokenDetectionController', () => {
             mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1111,15 +1117,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1170,15 +1181,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1224,15 +1240,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1288,15 +1309,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1341,15 +1367,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1528,15 +1559,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1581,15 +1617,20 @@ describe('TokenDetectionController', () => {
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  [ChainId.mainnet]: {
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
+                    timestamp: 0,
                   },
                 },
               });
@@ -1635,15 +1676,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1710,7 +1756,6 @@ describe('TokenDetectionController', () => {
             };
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList,
               tokensChainsCache: {
                 '0x1': {
                   timestamp: 0,
@@ -1760,7 +1805,7 @@ describe('TokenDetectionController', () => {
           }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {},
+              tokensChainsCache: {},
             };
             mockTokenListGetState(tokenListState);
 
@@ -1801,15 +1846,20 @@ describe('TokenDetectionController', () => {
             }) => {
               const tokenListState = {
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  [ChainId.mainnet]: {
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
+                    timestamp: 0,
                   },
                 },
               };
@@ -1853,15 +1903,20 @@ describe('TokenDetectionController', () => {
           }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             };
@@ -1910,15 +1965,20 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+                timestamp: 0,
               },
             },
           });
