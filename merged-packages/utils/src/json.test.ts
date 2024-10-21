@@ -236,7 +236,7 @@ describe('json', () => {
       const [error] = validate(undefined, JsonStruct);
       assert(error !== undefined);
       expect(error.message).toBe(
-        'Expected the value to satisfy a union of `literal | boolean | finite number | string | array | record`, but received: undefined',
+        'Expected a value of type `JSON`, but received: `undefined`',
       );
     });
   });
@@ -417,6 +417,22 @@ describe('json', () => {
       expect(() =>
         assertIsJsonRpcRequest(JSON_RPC_REQUEST_FIXTURES.invalid[0]),
       ).toThrow('Invalid JSON-RPC request: oops');
+    });
+
+    it('is fast for large inputs', () => {
+      const request = {
+        jsonrpc: '2.0',
+        id: 'foo',
+        method: 'wallet_invokeSnap',
+        params: {
+          snapId: 'npm:@metamask/manage-state-example-snap',
+          request: {
+            method: 'setState',
+            params: { items: new Array(9999999).fill(2) },
+          },
+        },
+      };
+      expect(() => assertIsJsonRpcRequest(request)).not.toThrow();
     });
   });
 

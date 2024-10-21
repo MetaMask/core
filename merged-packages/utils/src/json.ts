@@ -1,13 +1,11 @@
 import {
   any,
   array,
-  boolean,
   coerce,
   create,
   define,
   integer,
   is,
-  lazy,
   literal,
   nullable,
   number,
@@ -154,33 +152,62 @@ export function exactOptional<Type, Schema>(
 }
 
 /**
- * A struct to check if the given value is finite number. Superstruct's
- * `number()` struct does not check if the value is finite.
+ * Validate an unknown input to be valid JSON.
  *
- * @returns A struct to check if the given value is finite number.
+ * Useful for constructing JSON structs.
+ *
+ * @param json - An unknown value.
+ * @returns True if the value is valid JSON, otherwise false.
  */
-const finiteNumber = () =>
-  define<number>('finite number', (value) => {
-    return is(value, number()) && Number.isFinite(value);
-  });
+function validateJson(json: unknown): boolean {
+  if (json === null || typeof json === 'boolean' || typeof json === 'string') {
+    return true;
+  }
+
+  if (typeof json === 'number' && Number.isFinite(json)) {
+    return true;
+  }
+
+  if (typeof json === 'object') {
+    let every = true;
+    if (Array.isArray(json)) {
+      // Ignoring linting error since for-of is significantly slower than a normal for-loop
+      // and performance is important in this specific function.
+      // eslint-disable-next-line @typescript-eslint/prefer-for-of
+      for (let i = 0; i < json.length; i++) {
+        if (!validateJson(json[i])) {
+          every = false;
+          break;
+        }
+      }
+      return every;
+    }
+
+    const entries = Object.entries(json);
+    // Ignoring linting errors since for-of is significantly slower than a normal for-loop
+    // and performance is important in this specific function.
+    // eslint-disable-next-line @typescript-eslint/prefer-for-of
+    for (let i = 0; i < entries.length; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (typeof entries[i]![0] !== 'string' || !validateJson(entries[i]![1])) {
+        every = false;
+        break;
+      }
+    }
+    return every;
+  }
+
+  return false;
+}
 
 /**
  * A struct to check if the given value is a valid JSON-serializable value.
  *
  * Note that this struct is unsafe. For safe validation, use {@link JsonStruct}.
  */
-// We cannot infer the type of the struct, because it is recursive.
-export const UnsafeJsonStruct: Struct<Json> = union([
-  literal(null),
-  boolean(),
-  finiteNumber(),
-  string(),
-  array(lazy(() => UnsafeJsonStruct)),
-  record(
-    string(),
-    lazy(() => UnsafeJsonStruct),
-  ),
-]);
+export const UnsafeJsonStruct: Struct<Json> = define('JSON', (json) =>
+  validateJson(json),
+);
 
 /**
  * A struct to check if the given value is a valid JSON-serializable value.
