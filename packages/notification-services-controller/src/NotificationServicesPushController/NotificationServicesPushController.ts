@@ -248,8 +248,9 @@ export default class NotificationServicesPushController extends BaseController<
    * 3. Sending the FCM token to the server responsible for sending notifications, to register the device.
    *
    * @param UUIDs - An array of UUIDs to enable push notifications for.
+   * @param fcmToken - The optional FCM token to use for push notifications.
    */
-  async enablePushNotifications(UUIDs: string[]) {
+  async enablePushNotifications(UUIDs: string[], fcmToken?: string) {
     if (!this.#config.isPushEnabled) {
       return;
     }
@@ -267,6 +268,7 @@ export default class NotificationServicesPushController extends BaseController<
           bearerToken,
           triggers: UUIDs,
           env: this.#env,
+          fcmToken,
           createRegToken,
           platform: this.#config.platform,
         }).catch(() => null);
