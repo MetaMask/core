@@ -321,7 +321,6 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    // TODO mock network state is not working correctly in this test, TODO fix
     it('should not autodetect while not on supported networks', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
@@ -335,11 +334,17 @@ describe('TokenDetectionController', () => {
             getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockNetworkState }) => {
+        async ({ controller, mockNetworkState, mockGetNetworkClientById }) => {
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: NetworkType.goerli,
           });
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: '0x5' },
+              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+          );
           await controller.start();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
