@@ -5900,7 +5900,7 @@ describe('TransactionController', () => {
       // Second call for re-simulation
       expect(getSimulationDataMock).toHaveBeenCalledTimes(2);
       expect(
-        getSimulationDataMock.mock.calls[1][1].isReSimulatedDueToSecurity,
+        getSimulationDataMock.mock.calls[1][1]?.isReSimulatedDueToSecurity,
       ).toBe(true);
     });
   });
