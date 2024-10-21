@@ -214,7 +214,7 @@ export class QueuedRequestController extends BaseController<
     this.messagingSystem.subscribe(
       SelectedNetworkControllerEventTypes.stateChange,
       (_, patch) => {
-        patch.forEach(({ op, path }) => {
+        patch.forEach(({ path }) => {
           if (
             path.length === 2 &&
             path[0] === 'domains' &&
@@ -222,9 +222,13 @@ export class QueuedRequestController extends BaseController<
           ) {
             const origin = path[1];
             this.#flushQueueForOrigin(origin);
-            // When a domain is removed from SelectedNetworkController, its because of revoke permissions or the useRequestQueue flag was toggled off.
-            // Rather than subscribe to the permissions controller event in addition to the selectedNetworkController ones, we simplify it and just handle remove on this event alone.
-            if (op === 'remove' && origin === this.#originOfCurrentBatch) {
+
+            // If the selected network for the origin of the current batch has been removed or changed,
+            // we need to clear the pending confirmations and reset the current batch.
+            if (origin === this.#originOfCurrentBatch) {
+              this.#processingRequestCount = 0;
+              this.#originOfCurrentBatch = undefined;
+              this.#networkClientIdOfCurrentBatch = undefined;
               this.#clearPendingConfirmations();
             }
           }
@@ -240,7 +244,6 @@ export class QueuedRequestController extends BaseController<
     this.#requestQueue
       .filter(({ origin }) => origin === flushOrigin)
       .forEach(({ processRequest }) => {
-        // this.#processingRequestCount -= 1;
         processRequest(
           new Error(
             'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
@@ -250,7 +253,6 @@ export class QueuedRequestController extends BaseController<
     this.#requestQueue = this.#requestQueue.filter(
       ({ origin }) => origin !== flushOrigin,
     );
-    this.#processingRequestCount = 0;
   }
 
   /**
