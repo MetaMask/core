@@ -98,4 +98,6 @@ export const parseScopeString = (
   return {};
 };
 
-export type ScopedProperties = Record<ScopeString, Record<string, Json>>;
+export type ScopedProperties = Record<CaipChainId, Record<string, Json>> & {
+  [KnownCaipNamespace.Wallet]?: Record<string, Json>;
+};
