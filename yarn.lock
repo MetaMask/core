@@ -3037,7 +3037,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/controller-utils": "npm:^11.3.0"
     "@metamask/eth-json-rpc-filters": "npm:^7.0.0"
-    "@metamask/network-controller": "npm:^21.0.1"
+    "@metamask/network-controller": "npm:^21.1.0"
     "@metamask/permission-controller": "npm:^11.0.2"
     "@metamask/rpc-errors": "npm:^7.0.0"
     "@metamask/utils": "npm:^9.1.0"
@@ -3074,7 +3074,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^21.0.1, @metamask/network-controller@npm:^21.1.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@npm:^21.1.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
