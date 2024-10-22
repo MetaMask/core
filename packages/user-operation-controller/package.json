@@ -54,7 +54,7 @@
     "@metamask/polling-controller": "^11.0.0",
     "@metamask/rpc-errors": "^7.0.0",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/utils": "^10.0.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
