@@ -91,11 +91,17 @@ export function getDefaultTokenBalancesState(): TokenBalancesControllerState {
   };
 }
 
+/** The input to start polling for the {@link TokenBalancesController} */
+export type TokenBalancesPollingInput = {
+  networkClientId: NetworkClientId;
+  tokensPerAccount: Record<Hex, Hex[]>;
+};
+
 /**
  * Controller that passively polls on a set interval token balances
  * for tokens stored in the TokensController
  */
-export class TokenBalancesController extends StaticIntervalPollingController<
+export class TokenBalancesController extends StaticIntervalPollingController<TokenBalancesPollingInput>()<
   typeof controllerName,
   TokenBalancesControllerState,
   TokenBalancesControllerMessenger
@@ -128,13 +134,14 @@ export class TokenBalancesController extends StaticIntervalPollingController<
 
   /**
    * Polls for erc20 token balances.
-   * @param networkClientId - The network client id to poll with.
-   * @param options - A mapping from account addresses to token addresses to poll.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The network client id to poll with.
+   * @param input.tokensPerAccount - A mapping from account addresses to token addresses to poll.
    */
-  async _executePoll(
-    networkClientId: NetworkClientId,
-    options: Record<Hex, Hex[]>,
-  ): Promise<void> {
+  async _executePoll({
+    networkClientId,
+    tokensPerAccount,
+  }: TokenBalancesPollingInput): Promise<void> {
     const networkClient = this.messagingSystem.call(
       `NetworkController:getNetworkClientById`,
       networkClientId,
@@ -143,7 +150,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<
     const { chainId } = networkClient.configuration;
     const provider = new Web3Provider(networkClient.provider);
 
-    const accountTokenPairs = Object.entries(options).flatMap(
+    const accountTokenPairs = Object.entries(tokensPerAccount).flatMap(
       ([accountAddress, tokenAddresses]) =>
         tokenAddresses.map((tokenAddress) => ({
           accountAddress: accountAddress as Hex,
