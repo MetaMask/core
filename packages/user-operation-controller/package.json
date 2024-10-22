@@ -1,6 +1,6 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "15.0.1",
+  "version": "16.0.0",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
     "MetaMask",
@@ -51,7 +51,7 @@
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.3.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/polling-controller": "^10.0.1",
+    "@metamask/polling-controller": "^11.0.0",
     "@metamask/rpc-errors": "^7.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^9.1.0",
@@ -63,9 +63,9 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/gas-fee-controller": "^20.0.1",
-    "@metamask/keyring-controller": "^17.2.2",
-    "@metamask/network-controller": "^21.0.1",
+    "@metamask/gas-fee-controller": "^21.0.0",
+    "@metamask/keyring-controller": "^17.3.0",
+    "@metamask/network-controller": "^21.1.0",
     "@metamask/transaction-controller": "^37.3.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -77,7 +77,7 @@
   },
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0",
-    "@metamask/gas-fee-controller": "^20.0.0",
+    "@metamask/gas-fee-controller": "^21.0.0",
     "@metamask/keyring-controller": "^17.0.0",
     "@metamask/network-controller": "^21.0.0",
     "@metamask/transaction-controller": "^37.0.0"
