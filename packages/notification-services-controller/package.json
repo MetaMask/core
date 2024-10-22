@@ -106,7 +106,7 @@
     "bignumber.js": "^4.1.0",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
-    "uuid": "^8.3.2"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

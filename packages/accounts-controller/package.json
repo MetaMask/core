@@ -57,7 +57,7 @@
     "deepmerge": "^4.2.2",
     "ethereum-cryptography": "^2.1.2",
     "immer": "^9.0.6",
-    "uuid": "^8.3.2"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",

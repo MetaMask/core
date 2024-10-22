@@ -58,7 +58,7 @@
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
-    "uuid": "^8.3.2"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.0",
