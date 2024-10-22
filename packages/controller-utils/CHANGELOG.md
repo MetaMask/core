@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [11.4.0]
 
-### Uncategorized
+### Added
 
-- feat: add `isEqualCaseInsensitive()` to `@metamask/controller-utils` ([#4811](https://github.com/MetaMask/core/pull/4811))
+- Added `isEqualCaseInsensitive()` function for case insensitive string comparison ([#4811](https://github.com/MetaMask/core/pull/4811))
 
 ## [11.3.0]
 
