@@ -63,7 +63,7 @@
     "loglevel": "^1.8.1",
     "reselect": "^5.1.1",
     "uri-js": "^4.4.1",
-    "uuid": "^8.3.2"
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
     "@json-rpc-specification/meta-schema": "^1.0.6",
