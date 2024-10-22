@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
