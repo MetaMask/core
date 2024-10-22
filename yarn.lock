@@ -2654,7 +2654,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/eth-sig-util@npm:^7.0.1, @metamask/eth-sig-util@npm:^7.0.3":
+"@metamask/eth-sig-util@npm:^7.0.3":
   version: 7.0.3
   resolution: "@metamask/eth-sig-util@npm:7.0.3"
   dependencies:
@@ -2665,6 +2665,20 @@ __metadata:
     ethereum-cryptography: "npm:^2.1.2"
     tweetnacl: "npm:^1.0.3"
   checksum: 10/a71b28607b0815d609cf27ab2d8535393d0a7e7f2c6b7a23d92669b770c664c14e2f539129351147339172b0bb865bb977e7cfb30624870eedab5d7ab700beff
+  languageName: node
+  linkType: hard
+
+"@metamask/eth-sig-util@npm:^8.0.0":
+  version: 8.0.0
+  resolution: "@metamask/eth-sig-util@npm:8.0.0"
+  dependencies:
+    "@ethereumjs/util": "npm:^8.1.0"
+    "@metamask/abi-utils": "npm:^2.0.4"
+    "@metamask/utils": "npm:^9.0.0"
+    "@scure/base": "npm:~1.1.3"
+    ethereum-cryptography: "npm:^2.1.2"
+    tweetnacl: "npm:^1.0.3"
+  checksum: 10/5de92bc59df31bcf417ecbdfd2b47f15c21b29454f45108513c55d9c005b7cb51373e9d254bd97533603ab7c7758fdf8fc5159612f366b05f92ebe5beb6d75d8
   languageName: node
   linkType: hard
 
@@ -3002,7 +3016,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.0.1"
     "@metamask/browser-passworder": "npm:^4.3.0"
     "@metamask/eth-hd-keyring": "npm:^7.0.4"
-    "@metamask/eth-sig-util": "npm:^7.0.1"
+    "@metamask/eth-sig-util": "npm:^8.0.0"
     "@metamask/eth-simple-keyring": "npm:^6.0.5"
     "@metamask/keyring-api": "npm:^8.1.3"
     "@metamask/message-manager": "npm:^11.0.0"
@@ -3049,7 +3063,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
     "@metamask/controller-utils": "npm:^11.3.0"
-    "@metamask/eth-sig-util": "npm:^7.0.1"
+    "@metamask/eth-sig-util": "npm:^8.0.0"
     "@metamask/utils": "npm:^9.1.0"
     "@types/jest": "npm:^27.4.1"
     "@types/uuid": "npm:^8.3.0"
@@ -3080,7 +3094,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.3.0"
     "@metamask/eth-json-rpc-filters": "npm:^7.0.0"
     "@metamask/json-rpc-engine": "npm:^9.0.3"
-    "@metamask/network-controller": "npm:^21.0.1"
+    "@metamask/network-controller": "npm:^21.1.0"
     "@metamask/permission-controller": "npm:^11.0.2"
     "@metamask/rpc-errors": "npm:^7.0.0"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
@@ -3121,7 +3135,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-controller@npm:^21.0.1, @metamask/network-controller@npm:^21.1.0, @metamask/network-controller@workspace:packages/network-controller":
+"@metamask/network-controller@npm:^21.1.0, @metamask/network-controller@workspace:packages/network-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-controller@workspace:packages/network-controller"
   dependencies:
@@ -3559,7 +3573,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
     "@metamask/controller-utils": "npm:^11.3.0"
-    "@metamask/eth-sig-util": "npm:^7.0.1"
+    "@metamask/eth-sig-util": "npm:^8.0.0"
     "@metamask/keyring-controller": "npm:^17.3.0"
     "@metamask/logging-controller": "npm:^6.0.1"
     "@metamask/utils": "npm:^9.1.0"

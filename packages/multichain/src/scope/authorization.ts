@@ -1,22 +1,27 @@
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { bucketScopesBySupport } from './filter';
 import { normalizeAndMergeScopes } from './transform';
-import type { ExternalScopesObject, ScopesObject } from './types';
+import type {
+  ExternalScopesObject,
+  ExternalScopeString,
+  ScopesObject,
+} from './types';
 import { validateScopes } from './validation';
 
-export type Caip25Authorization =
+export type Caip25Authorization = (
   | {
       requiredScopes: ExternalScopesObject;
       optionalScopes?: ExternalScopesObject;
-      sessionProperties?: Record<string, unknown>;
     }
-  | ({
+  | {
       requiredScopes?: ExternalScopesObject;
       optionalScopes: ExternalScopesObject;
-    } & {
-      sessionProperties?: Record<string, unknown>;
-    });
+    }
+) & {
+  sessionProperties?: Record<string, Json>;
+  scopedProperties?: Record<ExternalScopeString, Json>;
+};
 
 export const validateAndNormalizeScopes = (
   requiredScopes: ExternalScopesObject,

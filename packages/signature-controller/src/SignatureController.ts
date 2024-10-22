@@ -296,7 +296,7 @@ export class SignatureController extends BaseController<
    */
   async newUnsignedPersonalMessage(
     messageParams: MessageParamsPersonal,
-    request: OriginalRequest,
+    request?: OriginalRequest,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     validatePersonalSignatureRequest(messageParams);
@@ -330,9 +330,9 @@ export class SignatureController extends BaseController<
    */
   async newUnsignedTypedMessage(
     messageParams: MessageParamsTyped,
-    request: OriginalRequest,
+    request: OriginalRequest | undefined,
     version: string,
-    signingOptions: TypedSigningOptions,
+    signingOptions?: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     validateTypedSignatureRequest(
@@ -444,7 +444,7 @@ export class SignatureController extends BaseController<
     traceContext,
   }: {
     messageParams: MessageParams;
-    request: OriginalRequest;
+    request?: OriginalRequest;
     type: SignatureRequestType;
     approvalType: ApprovalType;
     version?: SignTypedDataVersion;
@@ -539,21 +539,26 @@ export class SignatureController extends BaseController<
     version,
   }: {
     messageParams: MessageParams;
-    request: OriginalRequest;
+    request?: OriginalRequest;
     signingOptions?: TypedSigningOptions;
     type: SignatureRequestType;
     version?: SignTypedDataVersion;
   }): SignatureRequest {
+    const id = random();
+    const origin = request?.origin ?? messageParams.origin;
+    const requestId = request?.id;
+    const securityAlertResponse = request?.securityAlertResponse;
+
     const finalMessageParams = {
       ...messageParams,
-      origin: request.origin,
-      requestId: request.id,
+      metamaskId: id,
+      origin,
+      requestId,
+      version,
     };
 
-    const { securityAlertResponse } = request;
-
     const metadata = {
-      id: random(),
+      id,
       messageParams: finalMessageParams,
       securityAlertResponse,
       signingOptions,
