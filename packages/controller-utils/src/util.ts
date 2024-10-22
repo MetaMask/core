@@ -8,8 +8,9 @@ import {
   isHexString,
   remove0x,
 } from '@metamask/utils';
-export type { BigNumber } from 'bignumber.js';
+import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
+export type { BigNumber };
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 
