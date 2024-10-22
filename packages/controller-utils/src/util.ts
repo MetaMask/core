@@ -10,11 +10,12 @@ import {
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
-export type { BigNumber };
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
+
+export type { BigNumber };
 
 const TIMEOUT_ERROR = new Error('timeout');
 
