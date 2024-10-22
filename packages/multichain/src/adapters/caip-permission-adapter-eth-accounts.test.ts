@@ -49,7 +49,6 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: ['wallet:eip155:0x5'],
           },
         },
-        isMultichainOrigin: false,
       });
 
       expect(ethAccounts).toStrictEqual([
