@@ -363,6 +363,52 @@ describe('SelectedNetworkController', () => {
           'deleted-network.com': networkControllerState.selectedNetworkClientId,
         });
       });
+
+      it('redirects domains to the globally selected network when useRequestQueuePreference is true and handles garbage collected proxies', () => {
+        const domainProxyMap = new Map();
+        const {
+          controller,
+          messenger,
+          mockNetworkControllerGetState,
+          mockGetNetworkClientById,
+        } = setup({
+          state: { domains: initialDomains },
+          useRequestQueuePreference: true,
+          domainProxyMap,
+        });
+
+        // Simulate proxies being garbage collected
+        domainProxyMap.clear();
+
+        const networkControllerState = {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: 'mainnet',
+        };
+
+        mockGetNetworkClientById.mockImplementation((id) => {
+          // Simulate the previous domain being deleted in NetworkController
+          if (id !== 'mainnet') {
+            throw new Error('Network client does not exist');
+          }
+
+          return {
+            provider: { request: jest.fn() },
+            blockTracker: { getLatestBlock: jest.fn() },
+          };
+        });
+
+        deleteNetwork(
+          '0x5',
+          networkControllerState,
+          messenger,
+          mockNetworkControllerGetState,
+        );
+
+        expect(controller.state.domains).toStrictEqual({
+          ...initialDomains,
+          'deleted-network.com': networkControllerState.selectedNetworkClientId,
+        });
+      });
     });
 
     describe('when a network is updated', () => {

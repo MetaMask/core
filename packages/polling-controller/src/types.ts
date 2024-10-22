@@ -1,29 +1,21 @@
-import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 
-export type PollingTokenSetId = `${NetworkClientId}:${string}`;
+export type PollingTokenSetId = string;
 
-export type IPollingController = {
-  startPollingByNetworkClientId(
-    networkClientId: NetworkClientId,
-    options: Json,
-  ): string;
+export type IPollingController<PollingInput extends Json> = {
+  startPolling(input: PollingInput): string;
 
   stopAllPolling(): void;
 
   stopPollingByPollingToken(pollingToken: string): void;
 
-  onPollingCompleteByNetworkClientId(
-    networkClientId: NetworkClientId,
-    callback: (networkClientId: NetworkClientId) => void,
-    options: Json,
+  onPollingComplete(
+    input: PollingInput,
+    callback: (input: PollingInput) => void,
   ): void;
 
-  _executePoll(networkClientId: NetworkClientId, options: Json): Promise<void>;
-  _startPollingByNetworkClientId(
-    networkClientId: NetworkClientId,
-    options: Json,
-  ): void;
+  _executePoll(input: PollingInput): Promise<void>;
+  _startPolling(input: PollingInput): void;
   _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
 };
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.0]
+
+### Changed
+
+- **BREAKING**: `AbstractPollingController` now accepts a generic type parameter `PollingInput` which is polymorphic, unlike the previous monomorphic required input of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+
 ## [10.0.1]
 
 ### Fixed
@@ -187,7 +195,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...@metamask/polling-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.0...@metamask/polling-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.1...@metamask/polling-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@9.0.0...@metamask/polling-controller@9.0.1

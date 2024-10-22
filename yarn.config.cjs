@@ -13,6 +13,16 @@ const semver = require('semver');
 const { inspect } = require('util');
 
 /**
+ * These packages and ranges are allowed to mismatch expected consistency checks
+ * Only intended as temporary measures to faciliate upgrades and releases.
+ * This should trend towards empty.
+ */
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  '@metamask/json-rpc-engine': ['^9.0.3'],
+  '@metamask/rpc-errors': ['^7.0.0'],
+};
+
+/**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
@@ -594,6 +604,11 @@ function expectUpToDateWorkspaceDependenciesAndDevDependencies(
       dependencyWorkspace !== null &&
       dependency.type !== 'peerDependencies'
     ) {
+      const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependency.ident];
+      if (ignoredRanges?.includes(dependency.range)) {
+        continue;
+      }
+
       dependency.update(`^${dependencyWorkspace.manifest.version}`);
     }
   }
@@ -715,6 +730,28 @@ function expectControllerDependenciesListedAsPeerDependencies(
 }
 
 /**
+ * Filter out dependency ranges which are not to be considered in `expectConsistentDependenciesAndDevDependencies`.
+ *
+ * @param {string} dependencyIdent - The dependency being filtered for
+ * @param {Map<string, Dependency>} dependenciesByRange - Dependencies by range
+ * @returns {Map<string, Dependency>} The resulting map.
+ */
+function getInconsistentDependenciesAndDevDependencies(
+  dependencyIdent,
+  dependenciesByRange,
+) {
+  const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependencyIdent];
+  if (!ignoredRanges) {
+    return dependenciesByRange;
+  }
+  return new Map(
+    Object.entries(dependenciesByRange).filter(
+      ([range]) => !ignoredRanges.includes(range),
+    ),
+  );
+}
+
+/**
  * Expect that all version ranges in `dependencies` and `devDependencies` for
  * the same dependency across the entire monorepo are the same. As it is
  * impossible to compare NPM version ranges, let the user decide if there are
@@ -732,18 +769,24 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
     dependencyIdent,
     dependenciesByRange,
   ] of nonPeerDependenciesByIdent.entries()) {
-    const dependencyRanges = [...dependenciesByRange.keys()].sort();
-    if (dependenciesByRange.size > 1) {
-      for (const dependencies of dependenciesByRange.values()) {
-        for (const dependency of dependencies) {
-          dependency.error(
-            `Expected version range for ${dependencyIdent} (in ${
-              dependency.type
-            }) to be consistent across monorepo. Pick one: ${inspect(
-              dependencyRanges,
-            )}`,
-          );
-        }
+    if (dependenciesByRange.size <= 1) {
+      continue;
+    }
+    const dependenciesToConsider =
+      getInconsistentDependenciesAndDevDependencies(
+        dependencyIdent,
+        dependenciesByRange,
+      );
+    const dependencyRanges = [...dependenciesToConsider.keys()].sort();
+    for (const dependencies of dependenciesToConsider.values()) {
+      for (const dependency of dependencies) {
+        dependency.error(
+          `Expected version range for ${dependencyIdent} (in ${
+            dependency.type
+          }) to be consistent across monorepo. Pick one: ${inspect(
+            dependencyRanges,
+          )}`,
+        );
       }
     }
   }

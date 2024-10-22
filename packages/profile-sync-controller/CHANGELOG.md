@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7]
+
+### Added
+
+- add support for DELETE ONE endpoint ([#4776](https://github.com/MetaMask/core/pull/4776))
+
+### Fixed
+
+- imported accounts won't be synced anymore by account syncing ([#4777](https://github.com/MetaMask/core/pull/4777))
+
+## [0.9.6]
+
+### Added
+
+- add DELETE endpoint support ([#4758](https://github.com/MetaMask/core/pull/4758))
+
+## [0.9.5]
+
+### Fixed
+
+- **BREAKING** react native scrypt now takes a `UInt8Array` password argument instead of a `string` ([#4755](https://github.com/MetaMask/core/pull/4755))
+
 ## [0.9.4]
 
 ### Fixed
@@ -256,7 +278,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.7...HEAD
+[0.9.7]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.6...@metamask/profile-sync-controller@0.9.7
+[0.9.6]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.5...@metamask/profile-sync-controller@0.9.6
+[0.9.5]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...@metamask/profile-sync-controller@0.9.5
 [0.9.4]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.3...@metamask/profile-sync-controller@0.9.4
 [0.9.3]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.2...@metamask/profile-sync-controller@0.9.3
 [0.9.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.1...@metamask/profile-sync-controller@0.9.2
