@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+### Changed
+- **BREAKING:** Drop support for Node.js versions 16, 21 ([#212](https://github.com/MetaMask/utils/pull/212))
+- Improve JSON validation performance ([#218](https://github.com/MetaMask/utils/pull/218))
+
 ## [9.3.0]
 ### Added
 - Add support for CAIP-19 ([#183](https://github.com/MetaMask/utils/pull/183))
@@ -264,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/utils/compare/v9.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/utils/compare/v10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/utils/compare/v9.3.0...v10.0.0
 [9.3.0]: https://github.com/MetaMask/utils/compare/v9.2.1...v9.3.0
 [9.2.1]: https://github.com/MetaMask/utils/compare/v9.2.0...v9.2.1
 [9.2.0]: https://github.com/MetaMask/utils/compare/v9.1.0...v9.2.0
