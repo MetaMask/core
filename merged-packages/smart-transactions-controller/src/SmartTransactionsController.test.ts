@@ -4,7 +4,11 @@ import {
   convertHexToDecimal,
   ChainId,
 } from '@metamask/controller-utils';
-import { NetworkStatus, type NetworkState } from '@metamask/network-controller';
+import {
+  NetworkStatus,
+  RpcEndpointType,
+  type NetworkState,
+} from '@metamask/network-controller';
 import {
   type TransactionParams,
   TransactionStatus,
@@ -356,9 +360,9 @@ describe('SmartTransactionsController', () => {
 
         triggerNetworStateChange({
           selectedNetworkClientId: NetworkType.sepolia,
-          networkConfigurations: {},
+          networkConfigurationsByChainId: {},
           networksMetadata: {},
-        } as NetworkState);
+        });
 
         expect(checkPollSpy).toHaveBeenCalled();
       });
@@ -426,9 +430,9 @@ describe('SmartTransactionsController', () => {
 
           triggerNetworStateChange({
             selectedNetworkClientId: NetworkType.sepolia,
-            networkConfigurations: {},
+            networkConfigurationsByChainId: {},
             networksMetadata: {},
-          } as NetworkState);
+          });
 
           expect(updateSmartTransactionsSpy).not.toHaveBeenCalled();
         },
@@ -1834,12 +1838,20 @@ async function withController<ReturnValue>(
 
   triggerNetworStateChange({
     selectedNetworkClientId: NetworkType.mainnet,
-    networkConfigurations: {
-      id: {
-        id: 'id',
-        rpcUrl: 'string',
+    networkConfigurationsByChainId: {
+      [ChainId.mainnet]: {
+        rpcEndpoints: [
+          {
+            type: RpcEndpointType.Custom,
+            url: 'https://mainnet.infura.io/v3/123',
+            networkClientId: 'id',
+          },
+        ],
         chainId: ChainId.mainnet,
-        ticker: 'string',
+        nativeCurrency: 'string',
+        name: 'mainnet',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
       },
     },
     networksMetadata: {
