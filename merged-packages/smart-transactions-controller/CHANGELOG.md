@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+### Changed
+- **BREAKING** Update `@metamask/polling-controller` from `^8.0.0` to `^11.0.0` ([#448](https://github.com/MetaMask/smart-transactions-controller/pull/448))
+  - `startPollingByNetworkClientId` has been renamed to `startPolling`, accepting a `SmartTransactionsControllerPollingInput` object instead of a string as argument.
+- Update `@metamask/transaction-controller` from `^34.0.0` to `^37.3.0` ([#446](https://github.com/MetaMask/smart-transactions-controller/pull/446))
+- Update `@metamask/base-controller` from `^6.0.0` to `^7.0.1` ([#448](https://github.com/MetaMask/smart-transactions-controller/pull/448))
+- Update `@metamask/network-controller` from `^20.0.0` to `^21.1.0` ([#447](https://github.com/MetaMask/smart-transactions-controller/pull/447))
+
 ## [13.2.0]
 ### Added
 - Add metrics events for Receive and Request ([#429](https://github.com/MetaMask/smart-transactions-controller/pull/429))
@@ -356,7 +364,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add initial SmartTransactionsController ([#1](https://github.com/MetaMask/smart-transactions-controller/pull/1))
 - Initial commit
 
-[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/smart-transactions-controller/compare/v14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.2.0...v14.0.0
 [13.2.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.1.0...v13.2.0
 [13.1.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v13.0.0...v13.1.0
 [13.0.0]: https://github.com/MetaMask/smart-transactions-controller/compare/v12.0.1...v13.0.0
