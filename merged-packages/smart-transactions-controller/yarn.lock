@@ -2090,6 +2090,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/polling-controller@npm:^11.0.0":
+  version: 11.0.0
+  resolution: "@metamask/polling-controller@npm:11.0.0"
+  dependencies:
+    "@metamask/base-controller": ^7.0.1
+    "@metamask/controller-utils": ^11.3.0
+    "@metamask/utils": ^9.1.0
+    "@types/uuid": ^8.3.0
+    fast-json-stable-stringify: ^2.1.0
+    uuid: ^8.3.2
+  peerDependencies:
+    "@metamask/network-controller": ^21.0.0
+  checksum: 52a8f72a9ef3633d0a3dae2c148923f14462c6bc3058ebb93d3b6288b4faa56d7b62396038fdb855053f711c1f9b214a572c1bb7bf3e9e1613c55bbeace69966
+  languageName: node
+  linkType: hard
+
 "@metamask/polling-controller@npm:^8.0.0":
   version: 8.0.0
   resolution: "@metamask/polling-controller@npm:8.0.0"
@@ -2213,7 +2229,7 @@ __metadata:
     "@ethersproject/bytes": ^5.7.0
     "@lavamoat/allow-scripts": ^2.3.1
     "@metamask/auto-changelog": ^3.1.0
-    "@metamask/base-controller": ^6.0.0
+    "@metamask/base-controller": ^7.0.1
     "@metamask/controller-utils": ^11.0.0
     "@metamask/eslint-config": ^12.2.0
     "@metamask/eslint-config-jest": ^12.1.0
@@ -2223,7 +2239,7 @@ __metadata:
     "@metamask/eth-query": ^4.0.0
     "@metamask/json-rpc-engine": ^9.0.0
     "@metamask/network-controller": ^21.1.0
-    "@metamask/polling-controller": ^8.0.0
+    "@metamask/polling-controller": ^11.0.0
     "@metamask/transaction-controller": ^34.0.0
     "@types/jest": ^26.0.24
     "@types/lodash": ^4.14.194

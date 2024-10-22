@@ -1383,7 +1383,7 @@ describe('SmartTransactionsController', () => {
     });
   });
 
-  describe('startPollingByNetworkClientId', () => {
+  describe('startPolling', () => {
     let clock: sinon.SinonFakeTimers;
 
     beforeEach(() => {
@@ -1431,9 +1431,9 @@ describe('SmartTransactionsController', () => {
         },
         async ({ controller }) => {
           const handleFetchSpy = jest.spyOn(utils, 'handleFetch');
-          const mainnetPollingToken = controller.startPollingByNetworkClientId(
-            NetworkType.mainnet,
-          );
+          const mainnetPollingToken = controller.startPolling({
+            networkClientId: NetworkType.mainnet,
+          });
 
           await advanceTime({ clock, duration: 0 });
 
@@ -1462,7 +1462,7 @@ describe('SmartTransactionsController', () => {
             fetchHeaders,
           );
 
-          controller.startPollingByNetworkClientId(NetworkType.sepolia);
+          controller.startPolling({ networkClientId: NetworkType.sepolia });
           await advanceTime({ clock, duration: 0 });
 
           expect(handleFetchSpy).toHaveBeenNthCalledWith(

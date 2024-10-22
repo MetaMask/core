@@ -200,7 +200,11 @@ type SmartTransactionsControllerOptions = {
   getMetaMetricsProps: () => Promise<MetaMetricsProps>;
 };
 
-export default class SmartTransactionsController extends StaticIntervalPollingController<
+export type SmartTransactionsControllerPollingInput = {
+  networkClientId: string;
+};
+
+export default class SmartTransactionsController extends StaticIntervalPollingController<SmartTransactionsControllerPollingInput>()<
   typeof controllerName,
   SmartTransactionsControllerState,
   SmartTransactionsControllerMessenger
@@ -301,7 +305,9 @@ export default class SmartTransactionsController extends StaticIntervalPollingCo
     );
   }
 
-  async _executePoll(networkClientId: string): Promise<void> {
+  async _executePoll({
+    networkClientId,
+  }: SmartTransactionsControllerPollingInput): Promise<void> {
     // if this is going to be truly UI driven polling we shouldn't really reach here
     // with a networkClientId that is not supported, but for now I'll add a check in case
     // wondering if we should add some kind of predicate to the polling controller to check whether
