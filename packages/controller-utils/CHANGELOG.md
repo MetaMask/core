@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `isEqualCaseInsensitive()` function for case insensitive string comparison ([#4811](https://github.com/MetaMask/core/pull/4811))
+- Add `isEqualCaseInsensitive` function for case-insensitive string comparison ([#4811](https://github.com/MetaMask/core/pull/4811))
 
 ## [11.3.0]
 
