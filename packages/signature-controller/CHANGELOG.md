@@ -9,11 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [20.1.0]
 
-### Uncategorized
+### Added
 
-- Bump `eth-sig-util` dependency to `8.0.0` for `signature-controller` ([#4830](https://github.com/MetaMask/core/pull/4830))
-- fix: add missing signature controller types for mobile ([#4822](https://github.com/MetaMask/core/pull/4822))
-- Release 223.0.0 ([#4810](https://github.com/MetaMask/core/pull/4810))
+- Add additional properties to message parameter types ([#4822](https://github.com/MetaMask/core/pull/4822))
+  - Add `metamaskId` to `MessageParams`.
+  - Add `version` to `MessageParamsTyped`.
+
+### Changed
+
+- Update required arguments in methods ([#4822](https://github.com/MetaMask/core/pull/4822))
+  - Make `request` argument optional in `newUnsignedPersonalMessage` and `newUnsignedTypedMessage`.
+  - Make `signingOptions` argument optional in `newUnsignedTypedMessage`.
+- Bump `eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+- Bump `@metamask/keyring-controller` from `^17.2.2` to `^17.3.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
 
 ## [20.0.0]
 
