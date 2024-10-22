@@ -130,7 +130,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
       const ethAccounts = getEthAccounts({
         requiredScopes: normalizedRequiredScopes,
         optionalScopes: normalizedOptionalScopes,
-        isMultichainOrigin,
       }).map((address) => address.toLowerCase() as Hex);
 
       const allEthAccountsSupported = ethAccounts.every((address) =>

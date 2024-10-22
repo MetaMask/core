@@ -19,7 +19,12 @@ const isEip155ScopeString = (scopeString: ScopeString) => {
   );
 };
 
-export const getEthAccounts = (caip25CaveatValue: Caip25CaveatValue) => {
+export const getEthAccounts = (
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes'
+  >,
+) => {
   const ethAccounts: string[] = [];
   const sessionScopes = mergeScopes(
     caip25CaveatValue.requiredScopes,

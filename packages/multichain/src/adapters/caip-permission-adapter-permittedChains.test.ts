@@ -46,7 +46,6 @@ describe('CAIP-25 permittedChains adapters', () => {
             accounts: ['eip155:100:0x100'],
           },
         },
-        isMultichainOrigin: false,
       });
 
       expect(ethChainIds).toStrictEqual(['0x1', '0x5', '0xa', '0x64']);

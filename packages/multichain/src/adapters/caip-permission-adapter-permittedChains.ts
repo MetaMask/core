@@ -13,7 +13,10 @@ import {
 } from '../scope/types';
 
 export const getPermittedEthChainIds = (
-  caip25CaveatValue: Caip25CaveatValue,
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes'
+  >,
 ) => {
   const ethChainIds: Hex[] = [];
   const sessionScopes = mergeScopes(
