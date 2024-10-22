@@ -11,8 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- In preparation for the release of new notification types, the schema for describing notifications has been updated `types/on-chain-notification/schema`. This modification does not impact the current implementation but enables involved clients to start to implement the new notifications ([#4818](https://github.com/MetaMask/core/pull/4818))
-- The release also allows involved clients to mock the new types of notifications. This enables developers who wish to start implementing the new notifications in supported clients to use the `mock-raw-notifications` module for testing and developing their solutions ([#4818](https://github.com/MetaMask/core/pull/4818))
+- update the types described in `types/on-chain-notification/schema` and `types/on-chain-notification/on-chain-notification` ([#4818](https://github.com/MetaMask/core/pull/4818))
+  - adds new notifications: aave_v3_health_factor; ens_expiration; lido_staking_rewards; notional_loan_expiration; rocketpool_staking_rewards; spark_fi_health_factor
+  - splits Wallet Notifications from Web 3 Notifications
+
+- updated and added new notification mocks ([#4818](https://github.com/MetaMask/core/pull/4818))
+  - can be accessed through `@metamask/notification-services-controller/notification-services/mocks`
 
 ## [0.10.0]
 
