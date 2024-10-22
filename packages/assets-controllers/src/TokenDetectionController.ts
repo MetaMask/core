@@ -14,6 +14,7 @@ import {
   ChainId,
   ERC20,
   safelyExecute,
+  isEqualCaseInsensitive,
 } from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
@@ -56,41 +57,6 @@ import type {
 
 const DEFAULT_INTERVAL = 180000;
 
-/**
- * Compare 2 given strings and return boolean
- * eg: "foo" and "FOO" => true
- * eg: "foo" and "bar" => false
- * eg: "foo" and 123 => false
- *
- * @param value1 - first string to compare
- * @param value2 - first string to compare
- * @returns true if 2 strings are identical when they are lowercase
- */
-export function isEqualCaseInsensitive(
-  value1: string,
-  value2: string,
-): boolean {
-  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
-    return false;
-  }
-  return value1.toLowerCase() === value2.toLowerCase();
-}
-
-/**
- * Function that takes a TokensChainsCache and returns it without timestamp
- * @param obj - Object to compare
- * @returns returns the object argument without the timestamp
- */
-function removeTimestamps(obj: TokensChainsCache) {
-  return mapValues(obj, (value) => {
-    if (isObject(value) && 'data' in value) {
-      // Return the object without the 'timestamp' property
-      return omit(value, ['timestamp']);
-    }
-    return value;
-  });
-}
-
 type LegacyToken = {
   name: string;
   logo: `${string}.svg`;
@@ -118,6 +84,21 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
     },
   };
 }, {});
+
+/**
+ * Function that takes a TokensChainsCache and returns it without timestamp
+ * @param obj - Object to compare
+ * @returns returns the object argument without the timestamp
+ */
+function removeTimestamps(obj: TokensChainsCache) {
+  return mapValues(obj, (value) => {
+    if (isObject(value) && 'data' in value) {
+      // Return the object without the 'timestamp' property
+      return omit(value, ['timestamp']);
+    }
+    return value;
+  });
+}
 
 export const controllerName = 'TokenDetectionController';
 
