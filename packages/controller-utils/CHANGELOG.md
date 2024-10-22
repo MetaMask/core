@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat: add `isEqualCaseInsensitive()` to `@metamask/controller-utils` ([#4811](https://github.com/MetaMask/core/pull/4811))
-
 ## [11.3.0]
 
 ### Added
