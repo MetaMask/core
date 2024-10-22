@@ -91,6 +91,7 @@ type ActivatePushNotificationsParams = {
   env: PushNotificationEnv;
   createRegToken: CreateRegToken;
   platform: 'extension' | 'mobile' | 'portfolio';
+  fcmToken?: string;
 };
 
 /**
@@ -102,7 +103,8 @@ type ActivatePushNotificationsParams = {
 export async function activatePushNotifications(
   params: ActivatePushNotificationsParams,
 ): Promise<string | null> {
-  const { bearerToken, triggers, env, createRegToken, platform } = params;
+  const { bearerToken, triggers, env, createRegToken, platform, fcmToken } =
+    params;
 
   const notificationLinks = await getPushNotificationLinks(bearerToken);
 
@@ -110,7 +112,7 @@ export async function activatePushNotifications(
     return null;
   }
 
-  const regToken = await createRegToken(env).catch(() => null);
+  const regToken = fcmToken ?? (await createRegToken(env).catch(() => null));
   if (!regToken) {
     return null;
   }
