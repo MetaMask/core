@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.3.0",
+    "@metamask/controller-utils": "^11.4.0",
     "@metamask/utils": "^9.1.0",
     "@types/uuid": "^8.3.0",
     "fast-json-stable-stringify": "^2.1.0",
