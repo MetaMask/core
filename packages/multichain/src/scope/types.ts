@@ -1,15 +1,16 @@
 import MetaMaskOpenRPCDocument from '@metamask/api-specs';
+import {
+  isCaipNamespace,
+  isCaipChainId,
+  parseCaipChainId,
+} from '@metamask/utils';
 import type {
   CaipChainId,
   CaipReference,
   CaipAccountId,
   KnownCaipNamespace,
   CaipNamespace,
-} from '@metamask/utils';
-import {
-  isCaipNamespace,
-  isCaipChainId,
-  parseCaipChainId,
+  Json,
 } from '@metamask/utils';
 
 export enum KnownWalletScopeString {
@@ -97,7 +98,4 @@ export const parseScopeString = (
   return {};
 };
 
-export type ScopedProperties = Record<
-  ExternalScopeString,
-  Record<string, unknown>
->;
+export type ScopedProperties = Record<ScopeString, Record<string, Json>>;
