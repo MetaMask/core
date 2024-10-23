@@ -19,10 +19,6 @@ const validScopeObject: ExternalScopeObject = {
 };
 
 describe('Scope Authorization', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('validateAndNormalizeScopes', () => {
     it('validates the scopes', () => {
       try {

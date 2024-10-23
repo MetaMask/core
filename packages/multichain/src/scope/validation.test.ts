@@ -8,10 +8,6 @@ const validScopeObject: ExternalScopeObject = {
 };
 
 describe('Scope Validation', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('isValidScope', () => {
     it.each([
       [

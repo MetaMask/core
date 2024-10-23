@@ -18,10 +18,6 @@ const validScopeObject: ScopeObject = {
 };
 
 describe('Scope Assert', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('assertScopeSupported', () => {
     const isChainIdSupported = jest.fn();
 

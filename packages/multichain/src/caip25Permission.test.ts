@@ -36,10 +36,6 @@ describe('endowment:caip25', () => {
     });
   });
 
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('builds the expected permission specification', () => {
     const specification = caip25EndowmentBuilder.specificationBuilder({
       methodHooks: {
