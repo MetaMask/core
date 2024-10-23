@@ -103,7 +103,7 @@
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.3.0",
     "@metamask/utils": "^9.1.0",
-    "bignumber.js": "^4.1.0",
+    "bignumber.js": "^9.1.2",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
     "uuid": "^8.3.2"

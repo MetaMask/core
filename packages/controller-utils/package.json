@@ -60,7 +60,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
-    "bignumber.js": "^4.1.0",
+    "bignumber.js": "^9.1.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "nock": "^13.3.1",
