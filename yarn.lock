@@ -2339,7 +2339,7 @@ __metadata:
     "@spruceid/siwe-parser": "npm:2.1.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
-    bignumber.js: "npm:^4.1.0"
+    bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.1"
     deepmerge: "npm:^4.2.2"
     eth-ens-namehash: "npm:^2.0.8"
