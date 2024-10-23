@@ -39,6 +39,15 @@ describe('Scope Validation', () => {
       ],
       [
         false,
+        'the scopeString is a valid CAIP namespace but references are invalid CAIP references',
+        'eip155',
+        {
+          ...validScopeObject,
+          references: ['@'],
+        },
+      ],
+      [
+        false,
         'methods contains empty string',
         validScopeString,
         {

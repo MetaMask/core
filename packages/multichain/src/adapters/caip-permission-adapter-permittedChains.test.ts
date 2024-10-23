@@ -253,6 +253,11 @@ describe('CAIP-25 permittedChains adapters', () => {
             },
           },
           optionalScopes: {
+            wallet: {
+              methods: [],
+              notifications: [],
+              accounts: [],
+            },
             'eip155:1': {
               methods: ['eth_chainId'],
               notifications: [],
@@ -283,6 +288,11 @@ describe('CAIP-25 permittedChains adapters', () => {
           },
         },
         optionalScopes: {
+          wallet: {
+            methods: [],
+            notifications: [],
+            accounts: [],
+          },
           'eip155:1': {
             methods: ['eth_chainId'],
             notifications: [],

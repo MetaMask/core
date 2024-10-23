@@ -168,6 +168,21 @@ describe('Scope Transform', () => {
         ...validScopeObject,
         rpcDocuments: ['a', 'b', 'c'],
       });
+
+      expect(
+        mergeScopeObject(
+          {
+            ...validScopeObject,
+          },
+          {
+            ...validScopeObject,
+            rpcDocuments: ['a', 'b', 'c'],
+          },
+        ),
+      ).toStrictEqual({
+        ...validScopeObject,
+        rpcDocuments: ['a', 'b', 'c'],
+      });
     });
 
     it('returns an object with the unique set of rpcEndpoints', () => {
@@ -195,6 +210,21 @@ describe('Scope Transform', () => {
           },
           {
             ...validScopeObject,
+          },
+        ),
+      ).toStrictEqual({
+        ...validScopeObject,
+        rpcEndpoints: ['a', 'b', 'c'],
+      });
+
+      expect(
+        mergeScopeObject(
+          {
+            ...validScopeObject,
+          },
+          {
+            ...validScopeObject,
+            rpcEndpoints: ['a', 'b', 'c'],
           },
         ),
       ).toStrictEqual({
