@@ -1,4 +1,5 @@
 import EthQuery from '@metamask/eth-query';
+import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
 import nock from 'nock';
 
@@ -31,6 +32,7 @@ describe('util', () => {
 
   it('bNToHex', () => {
     expect(util.BNToHex(new BN('1337'))).toBe('0x539');
+    expect(util.BNToHex(new BigNumber('1337'))).toBe('0x539');
   });
 
   it('fractionBN', () => {

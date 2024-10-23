@@ -8,11 +8,14 @@ import {
   isHexString,
   remove0x,
 } from '@metamask/utils';
+import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 
 import { MAX_SAFE_CHAIN_ID } from './constants';
+
+export type { BigNumber };
 
 const TIMEOUT_ERROR = new Error('timeout');
 
@@ -59,14 +62,14 @@ export function isSafeChainId(chainId: Hex): boolean {
   );
 }
 /**
- * Converts a BN object to a hex string with a '0x' prefix.
+ * Converts a BN or BigNumber object to a hex string with a '0x' prefix.
  *
- * @param inputBn - BN instance to convert to a hex string.
+ * @param inputBn - BN|BigNumber instance to convert to a hex string.
  * @returns A '0x'-prefixed hex string.
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function BNToHex(inputBn: BN) {
+export function BNToHex(inputBn: BN | BigNumber) {
   return add0x(inputBn.toString(16));
 }
 
