@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 226.0.0 ([#4834](https://github.com/MetaMask/core/pull/4834))
+- fix: add publish event in `deleteNotificationsById` and export snap types ([#4836](https://github.com/MetaMask/core/pull/4836))
+- deps(notification-services-controller): bignumber.js@^4.1.0->^9.1.2 ([#4828](https://github.com/MetaMask/core/pull/4828))
+
 ## [0.11.0]
 
 ### Added
