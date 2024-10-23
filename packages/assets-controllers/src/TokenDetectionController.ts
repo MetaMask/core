@@ -660,10 +660,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   #getConvertedStaticMainnetTokenList(): TokensChainsCache {
-    let data: TokenListMap = {};
-    for (const [key, value] of Object.entries(STATIC_MAINNET_TOKEN_LIST)) {
-      data = {
-        ...data,
+    const data: TokenListMap = Object.entries(STATIC_MAINNET_TOKEN_LIST).reduce(
+      (acc, [key, value]) => ({
+        ...acc,
         [key]: {
           name: value?.name,
           symbol: value?.symbol,
@@ -673,8 +672,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           aggregators: [],
           iconUrl: value?.iconUrl,
         },
-      };
-    }
+      }),
+      {},
+    );
     return {
       '0x1': {
         data,
