@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.10.12",
-    "@metamask/controller-utils": "^11.3.0",
+    "@metamask/controller-utils": "^11.4.0",
     "@metamask/eth-json-rpc-filters": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.0",
     "@metamask/utils": "^9.1.0",

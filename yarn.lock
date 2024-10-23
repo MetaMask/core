@@ -2334,7 +2334,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/controller-utils@npm:^11.3.0, @metamask/controller-utils@npm:^11.4.0, @metamask/controller-utils@workspace:packages/controller-utils":
+"@metamask/controller-utils@npm:^11.4.0, @metamask/controller-utils@workspace:packages/controller-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/controller-utils@workspace:packages/controller-utils"
   dependencies:
@@ -3050,7 +3050,7 @@ __metadata:
   dependencies:
     "@metamask/api-specs": "npm:^0.10.12"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/controller-utils": "npm:^11.3.0"
+    "@metamask/controller-utils": "npm:^11.4.0"
     "@metamask/eth-json-rpc-filters": "npm:^7.0.0"
     "@metamask/network-controller": "npm:^21.1.0"
     "@metamask/permission-controller": "npm:^11.0.2"
