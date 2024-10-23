@@ -49,13 +49,13 @@
   "dependencies": {
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.3.0",
+    "@metamask/controller-utils": "^11.4.0",
     "@metamask/utils": "^9.1.0",
     "punycode": "^2.1.1"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^21.0.1",
+    "@metamask/network-controller": "^21.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

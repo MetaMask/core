@@ -28,6 +28,7 @@ describe('PreferencesController', () => {
       showTestNetworks: false,
       isIpfsGatewayEnabled: true,
       useTransactionSimulations: true,
+      useMultiRpcMigration: true,
       showIncomingTransactions: Object.values(
         ETHERSCAN_SUPPORTED_CHAIN_IDS,
       ).reduce((acc, curr) => {
@@ -366,6 +367,12 @@ describe('PreferencesController', () => {
     expect(() => controller.setUseNftDetection(true)).toThrow(
       'useNftDetection cannot be enabled if openSeaEnabled is false',
     );
+  });
+
+  it('should set useMultiRpcMigration', () => {
+    const controller = setupPreferencesController();
+    controller.setUseMultiRpcMigration(true);
+    expect(controller.state.useMultiRpcMigration).toBe(true);
   });
 
   it('should set featureFlags', () => {

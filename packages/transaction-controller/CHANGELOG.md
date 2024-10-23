@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [37.3.0]
+
+### Added
+
+- Add types for bridge transactions ([#4714](https://github.com/MetaMask/core/pull/4714))
+
+### Changed
+
+- Reduce gas limit fallback from 95% to 35% of the block gas limit on failed gas limit estimations ([#4739](https://github.com/MetaMask/core/pull/4739))
+
+### Fixed
+
+- Use contract ABIs to decode the token balance responses ([#4775](https://github.com/MetaMask/core/pull/4775))
+
+## [37.2.0]
+
+### Added
+
+- Add optional `incomingTransactions.etherscanApiKeysByChainId` constructor property to support API keys in requests to Etherscan ([#4748](https://github.com/MetaMask/core/pull/4748))
+
+### Fixed
+
+- Cleanup transactions only during initialisation ([#4753](https://github.com/MetaMask/core/pull/4753))
+- Remove `gasPrice` from requests to `linea_estimateGas` ([#4737](https://github.com/MetaMask/core/pull/4737))
+
+## [37.1.0]
+
+### Added
+
+- Populate `submitHistory` in state when submitting transactions to network ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Export `CHAIN_IDS`, `ETHERSCAN_SUPPORTED_NETWORKS` and `SPEED_UP_RATE` constants ([#4706](https://github.com/MetaMask/core/pull/4706))
+
+### Changed
+
+- Make `getPermittedAccounts` constructor callback optional ([#4706](https://github.com/MetaMask/core/pull/4706))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
 ## [37.0.0]
 
 ### Changed
@@ -1023,7 +1062,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.3.0...HEAD
+[37.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.2.0...@metamask/transaction-controller@37.3.0
+[37.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.1.0...@metamask/transaction-controller@37.2.0
+[37.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.0.0...@metamask/transaction-controller@37.1.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.1.0...@metamask/transaction-controller@37.0.0
 [36.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@36.0.0...@metamask/transaction-controller@36.1.0
 [36.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@35.2.0...@metamask/transaction-controller@36.0.0

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.0.0]
+
+### Changed
+
+- **BREAKING:** `AccountTrackerController`, `CurrencyRateController`, `TokenDetectionController`, `TokenListController`, and `TokenRatesController` now use a new polling interface that accepts the generic parameter `PollingInput` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+
+## [38.3.0]
+
+### Changed
+
+- The `includeDuplicateSymbolAssets` param is removed from our api call to TokenApi ([#4768](https://github.com/MetaMask/core/pull/4768))
+
+## [38.2.0]
+
+### Changed
+
+- The `TokenRatesController` now fetches token rates for all accounts, instead of just the selected account ([#4759](https://github.com/MetaMask/core/pull/4759))
+
+## [38.1.0]
+
+### Changed
+
+- Parallelization of detected tokens with balance ([#4697](https://github.com/MetaMask/core/pull/4697))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+
 ## [38.0.1]
 
 ### Fixed
@@ -1121,7 +1150,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@39.0.0...HEAD
+[39.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.3.0...@metamask/assets-controllers@39.0.0
+[38.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.2.0...@metamask/assets-controllers@38.3.0
+[38.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.1.0...@metamask/assets-controllers@38.2.0
+[38.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.1...@metamask/assets-controllers@38.1.0
 [38.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.0.0...@metamask/assets-controllers@38.0.1
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@37.0.0...@metamask/assets-controllers@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@36.0.0...@metamask/assets-controllers@37.0.0

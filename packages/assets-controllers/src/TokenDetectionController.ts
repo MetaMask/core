@@ -9,7 +9,13 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import contractMap from '@metamask/contract-metadata';
-import { ChainId, safelyExecute } from '@metamask/controller-utils';
+import {
+  ASSET_TYPES,
+  ChainId,
+  ERC20,
+  safelyExecute,
+  isEqualCaseInsensitive,
+} from '@metamask/controller-utils';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerLockEvent,
@@ -28,9 +34,14 @@ import type {
   PreferencesControllerStateChangeEvent,
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
+import { hexToNumber } from '@metamask/utils';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
+import {
+  fetchMultiChainBalances,
+  fetchSupportedNetworks,
+} from './multi-chain-accounts-service';
 import type {
   GetTokenListState,
   TokenListMap,
@@ -43,26 +54,6 @@ import type {
 } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
-
-/**
- * Compare 2 given strings and return boolean
- * eg: "foo" and "FOO" => true
- * eg: "foo" and "bar" => false
- * eg: "foo" and 123 => false
- *
- * @param value1 - first string to compare
- * @param value2 - first string to compare
- * @returns true if 2 strings are identical when they are lowercase
- */
-export function isEqualCaseInsensitive(
-  value1: string,
-  value2: string,
-): boolean {
-  if (typeof value1 !== 'string' || typeof value2 !== 'string') {
-    return false;
-  }
-  return value1.toLowerCase() === value2.toLowerCase();
-}
 
 type LegacyToken = {
   name: string;
@@ -138,6 +129,12 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
   AllowedEvents['type']
 >;
 
+/** The input to start polling for the {@link TokenDetectionController} */
+type TokenDetectionPollingInput = {
+  networkClientId: NetworkClientId;
+  address: string;
+};
+
 /**
  * Controller that passively polls on a set interval for Tokens auto detection
  * @property intervalId - Polling interval used to fetch new token rates
@@ -148,7 +145,7 @@ export type TokenDetectionControllerMessenger = RestrictedControllerMessenger<
  * @property isDetectionEnabledFromPreferences - Boolean to track if detection is enabled from PreferencesController
  * @property isDetectionEnabledForNetwork - Boolean to track if detected is enabled for current network
  */
-export class TokenDetectionController extends StaticIntervalPollingController<
+export class TokenDetectionController extends StaticIntervalPollingController<TokenDetectionPollingInput>()<
   typeof controllerName,
   TokenDetectionState,
   TokenDetectionControllerMessenger
@@ -185,6 +182,48 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     };
   }) => void;
 
+  #accountsAPI = {
+    isAccountsAPIEnabled: true,
+    supportedNetworksCache: null as number[] | null,
+    async getSupportedNetworks() {
+      /* istanbul ignore next */
+      if (!this.isAccountsAPIEnabled) {
+        throw new Error('Accounts API Feature Switch is disabled');
+      }
+
+      /* istanbul ignore next */
+      if (this.supportedNetworksCache) {
+        return this.supportedNetworksCache;
+      }
+
+      const result = await fetchSupportedNetworks().catch(() => null);
+      this.supportedNetworksCache = result;
+      return result;
+    },
+
+    async getMultiChainBalances(address: string, chainId: Hex) {
+      if (!this.isAccountsAPIEnabled) {
+        throw new Error('Accounts API Feature Switch is disabled');
+      }
+
+      const chainIdNumber = hexToNumber(chainId);
+      const supportedNetworks = await this.getSupportedNetworks();
+
+      if (!supportedNetworks || !supportedNetworks.includes(chainIdNumber)) {
+        const supportedNetworksErrStr = (supportedNetworks ?? []).toString();
+        throw new Error(
+          `Unsupported Network: supported networks ${supportedNetworksErrStr}, network: ${chainIdNumber}`,
+        );
+      }
+
+      const result = await fetchMultiChainBalances(address, {
+        networks: [chainIdNumber],
+      });
+
+      return result.balances;
+    },
+  };
+
   /**
    * Creates a TokenDetectionController instance.
    *
@@ -194,6 +233,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
    * @param options.interval - Polling interval used to fetch new token rates
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
+   * @param options.useAccountsAPI - Feature Switch for using the accounts API when detecting tokens (default: true)
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -201,6 +241,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     getBalancesInSingleCall,
     trackMetaMetricsEvent,
     messenger,
+    useAccountsAPI = true,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -219,6 +260,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       };
     }) => void;
     messenger: TokenDetectionControllerMessenger;
+    useAccountsAPI?: boolean;
   }) {
     super({
       name: controllerName,
@@ -250,6 +292,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       'KeyringController:getState',
     );
     this.#isUnlocked = isUnlocked;
+
+    this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
 
     this.#registerEventListeners();
   }
@@ -432,16 +476,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     };
   }
 
-  async _executePoll(
-    networkClientId: NetworkClientId,
-    options: { address: string },
-  ): Promise<void> {
+  async _executePoll({
+    networkClientId,
+    address,
+  }: TokenDetectionPollingInput): Promise<void> {
     if (!this.isActive) {
       return;
     }
     await this.detectTokens({
       networkClientId,
-      selectedAddress: options.address,
+      selectedAddress: address,
     });
   }
 
@@ -512,10 +556,23 @@ export class TokenDetectionController extends StaticIntervalPollingController<
       ? STATIC_MAINNET_TOKEN_LIST
       : tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
 
-    const tokenDetectionPromises = this.#getSlicesOfTokensToDetect({
+    const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
       chainId: chainIdAgainstWhichToDetect,
       selectedAddress: addressAgainstWhichToDetect,
-    }).map((tokensSlice) =>
+    });
+
+    // Attempt Accounts API Detection
+    const accountAPIResult = await this.#addDetectedTokensViaAPI({
+      chainId: chainIdAgainstWhichToDetect,
+      selectedAddress: addressAgainstWhichToDetect,
+      tokenCandidateSlices,
+    });
+    if (accountAPIResult?.result === 'success') {
+      return;
+    }
+
+    // Attempt RPC Detection
+    const tokenDetectionPromises = tokenCandidateSlices.map((tokensSlice) =>
       this.#addDetectedTokens({
         tokensSlice,
         selectedAddress: addressAgainstWhichToDetect,
@@ -572,6 +629,97 @@ export class TokenDetectionController extends StaticIntervalPollingController<
     return slicesOfTokensToDetect;
   }
 
+  /**
+   * This adds detected tokens from the Accounts API, avoiding the multi-call RPC calls for balances
+   * @param options - method arguments
+   * @param options.selectedAddress - address to check against
+   * @param options.chainId - chainId to check tokens for
+   * @param options.tokenCandidateSlices - these are tokens we know a user does not have (by checking the tokens controller).
+   * We will use these these token candidates to determine if a token found from the API is valid to be added on the users wallet.
+   * It will also prevent us to adding tokens a user already has
+   * @returns a success or failed object
+   */
+  async #addDetectedTokensViaAPI({
+    selectedAddress,
+    chainId,
+    tokenCandidateSlices,
+  }: {
+    selectedAddress: string;
+    chainId: Hex;
+    tokenCandidateSlices: string[][];
+  }) {
+    return await safelyExecute(async () => {
+      const tokenBalances = await this.#accountsAPI
+        .getMultiChainBalances(selectedAddress, chainId)
+        .catch(() => null);
+
+      if (!tokenBalances || tokenBalances.length === 0) {
+        return { result: 'failed' } as const;
+      }
+
+      const tokensWithBalance: Token[] = [];
+      const eventTokensDetails: string[] = [];
+
+      const tokenCandidateSet = new Set<string>(tokenCandidateSlices.flat());
+
+      tokenBalances.forEach((token) => {
+        const tokenAddress = token.address;
+
+        // Make sure that the token to add is in our candidate list
+        // Ensures we don't add tokens we already own
+        if (!tokenCandidateSet.has(token.address)) {
+          return;
+        }
+
+        // We need specific data from tokenList to correctly create a token
+        // So even if we have a token that was detected correctly by the API, if its missing data we cannot safely add it.
+        if (!this.#tokenList[token.address]) {
+          return;
+        }
+
+        const { decimals, symbol, aggregators, iconUrl, name } =
+          this.#tokenList[token.address];
+        eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
+        tokensWithBalance.push({
+          address: tokenAddress,
+          decimals,
+          symbol,
+          aggregators,
+          image: iconUrl,
+          isERC721: false,
+          name,
+        });
+      });
+
+      if (tokensWithBalance.length) {
+        this.#trackMetaMetricsEvent({
+          event: 'Token Detected',
+          category: 'Wallet',
+          properties: {
+            tokens: eventTokensDetails,
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            token_standard: ERC20,
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            asset_type: ASSET_TYPES.TOKEN,
+          },
+        });
+
+        await this.messagingSystem.call(
+          'TokensController:addDetectedTokens',
+          tokensWithBalance,
+          {
+            selectedAddress,
+            chainId,
+          },
+        );
+      }
+
+      return { result: 'success' } as const;
+    });
+  }
+
   async #addDetectedTokens({
     tokensSlice,
     selectedAddress,
@@ -615,10 +763,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<
             tokens: eventTokensDetails,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            token_standard: 'ERC20',
+            token_standard: ERC20,
             // TODO: Either fix this lint violation or explain why it's necessary to ignore.
             // eslint-disable-next-line @typescript-eslint/naming-convention
-            asset_type: 'TOKEN',
+            asset_type: ASSET_TYPES.TOKEN,
           },
         });
 

@@ -221,11 +221,16 @@ export const getDefaultTokenRatesControllerState =
     };
   };
 
+/** The input to start polling for the {@link TokenRatesController} */
+export type TokenRatesPollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
-export class TokenRatesController extends StaticIntervalPollingController<
+export class TokenRatesController extends StaticIntervalPollingController<TokenRatesPollingInput>()<
   typeof controllerName,
   TokenRatesControllerState,
   TokenRatesControllerMessenger
@@ -301,8 +306,6 @@ export class TokenRatesController extends StaticIntervalPollingController<
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
-
-    this.#subscribeToAccountChange();
   }
 
   #subscribeToTokensStateChange() {
@@ -343,9 +346,6 @@ export class TokenRatesController extends StaticIntervalPollingController<
         );
 
         if (this.#chainId !== chainId || this.#ticker !== ticker) {
-          this.update((state) => {
-            state.marketData = {};
-          });
           this.#chainId = chainId;
           this.#ticker = ticker;
           if (this.#pollState === PollState.Active) {
@@ -356,45 +356,22 @@ export class TokenRatesController extends StaticIntervalPollingController<
     );
   }
 
-  #subscribeToAccountChange() {
-    this.messagingSystem.subscribe(
-      'AccountsController:selectedEvmAccountChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (selectedAccount) => {
-        if (this.#selectedAccountId !== selectedAccount.id) {
-          this.#selectedAccountId = selectedAccount.id;
-          if (this.#pollState === PollState.Active) {
-            await this.updateExchangeRates();
-          }
-        }
-      },
-    );
-  }
-
   /**
-   * Get the user's tokens for the given chain.
+   * Get the tokens for the given chain.
    *
    * @param chainId - The chain ID.
    * @returns The list of tokens addresses for the current chain
    */
   #getTokenAddresses(chainId: Hex): Hex[] {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-    const selectedAddress = selectedAccount?.address ?? '';
-    const tokens = this.#allTokens[chainId]?.[selectedAddress] || [];
-    const detectedTokens =
-      this.#allDetectedTokens[chainId]?.[selectedAddress] || [];
+    const getTokens = (allTokens: Record<Hex, { address: string }[]>) =>
+      Object.values(allTokens ?? {}).flatMap((tokens) =>
+        tokens.map(({ address }) => toHex(toChecksumHexAddress(address))),
+      );
 
-    return [
-      ...new Set(
-        [...tokens, ...detectedTokens].map((token) =>
-          toHex(toChecksumHexAddress(token.address)),
-        ),
-      ),
-    ].sort();
+    const tokenAddresses = getTokens(this.#allTokens[chainId]);
+    const detectedTokenAddresses = getTokens(this.#allDetectedTokens[chainId]);
+
+    return [...new Set([...tokenAddresses, ...detectedTokenAddresses])].sort();
   }
 
   /**
@@ -551,7 +528,10 @@ export class TokenRatesController extends StaticIntervalPollingController<
       };
 
       this.update((state) => {
-        state.marketData = marketData;
+        state.marketData = {
+          ...state.marketData,
+          ...marketData,
+        };
       });
       updateSucceeded();
     } catch (error: unknown) {
@@ -619,10 +599,12 @@ export class TokenRatesController extends StaticIntervalPollingController<
   /**
    * Updates token rates for the given networkClientId
    *
-   * @param networkClientId - The network client ID used to get a ticker value.
-   * @returns The controller state.
+   * @param input - The input for the poll.
+   * @param input.networkClientId - The network client ID used to get a ticker value.
    */
-  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
+  async _executePoll({
+    networkClientId,
+  }: TokenRatesPollingInput): Promise<void> {
     const networkClient = this.messagingSystem.call(
       'NetworkController:getNetworkClientById',
       networkClientId,

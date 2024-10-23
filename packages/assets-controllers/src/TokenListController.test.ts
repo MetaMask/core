@@ -1157,7 +1157,7 @@ describe('TokenListController', () => {
     });
   });
 
-  describe('startPollingByNetworkClient', () => {
+  describe('startPolling', () => {
     let clock: sinon.SinonFakeTimers;
     const pollingIntervalTime = 1000;
     beforeEach(() => {
@@ -1200,7 +1200,7 @@ describe('TokenListController', () => {
         expiredCacheExistingState.tokenList,
       );
 
-      controller.startPollingByNetworkClientId('sepolia');
+      controller.startPolling({ networkClientId: 'sepolia' });
       await advanceTime({ clock, duration: 0 });
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
@@ -1236,7 +1236,7 @@ describe('TokenListController', () => {
         expiredCacheExistingState.tokenList,
       );
 
-      controller.startPollingByNetworkClientId('goerli');
+      controller.startPolling({ networkClientId: 'goerli' });
       await advanceTime({ clock, duration: 0 });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
@@ -1306,7 +1306,9 @@ describe('TokenListController', () => {
       expect(controller.state).toStrictEqual(startingState);
 
       // start polling for sepolia
-      const pollingToken = controller.startPollingByNetworkClientId('sepolia');
+      const pollingToken = controller.startPolling({
+        networkClientId: 'sepolia',
+      });
       // wait a polling interval
       await advanceTime({ clock, duration: pollingIntervalTime });
 
@@ -1324,7 +1326,9 @@ describe('TokenListController', () => {
       controller.stopPollingByPollingToken(pollingToken);
 
       // start polling for binance
-      controller.startPollingByNetworkClientId('binance-network-client-id');
+      controller.startPolling({
+        networkClientId: 'binance-network-client-id',
+      });
       await advanceTime({ clock, duration: pollingIntervalTime });
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
@@ -1363,5 +1367,5 @@ function getTokensPath(chainId: Hex) {
   // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeDuplicateSymbolAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
 }

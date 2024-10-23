@@ -1,10 +1,11 @@
 import log from 'loglevel';
 
-import encryption from '../../shared/encryption';
+import encryption, { createSHA256Hash } from '../../shared/encryption';
 import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
+  UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
@@ -44,6 +45,8 @@ export type UserStorageOptions = UserStorageBaseOptions & {
 export type UserStorageAllFeatureEntriesOptions = UserStorageBaseOptions & {
   path: UserStoragePathWithFeatureOnly;
 };
+
+export type UserStorageBatchUpsertOptions = UserStorageAllFeatureEntriesOptions;
 
 /**
  * User Storage Service - Get Storage Entry.
@@ -133,21 +136,26 @@ export async function getUserStorageAllFeatureEntries(
       return null;
     }
 
-    const decryptedData = userStorage?.flatMap((entry) => {
+    const decryptedData: string[] = [];
+
+    for (const entry of userStorage) {
       if (!entry.Data) {
-        return [];
+        continue;
       }
 
-      return encryption.decryptString(
-        entry.Data,
-        opts.storageKey,
-        nativeScryptCrypto,
-      );
-    });
+      try {
+        const data = await encryption.decryptString(
+          entry.Data,
+          opts.storageKey,
+          nativeScryptCrypto,
+        );
+        decryptedData.push(data);
+      } catch {
+        // do nothing
+      }
+    }
 
-    return (await Promise.allSettled(decryptedData))
-      .map((d) => (d.status === 'fulfilled' ? d.value : undefined))
-      .filter((d): d is string => d !== undefined);
+    return decryptedData;
   } catch (e) {
     log.error('Failed to get user storage', e);
     return null;
@@ -185,5 +193,106 @@ export async function upsertUserStorage(
 
   if (!res.ok) {
     throw new Error('user-storage - unable to upsert data');
+  }
+}
+
+/**
+ * User Storage Service - Set multiple storage entries for one specific feature.
+ * You cannot use this method to set multiple features at once.
+ *
+ * @param data - data to store, in the form of an array of [entryKey, entryValue] pairs
+ * @param opts - storage options
+ */
+export async function batchUpsertUserStorage(
+  data: [UserStoragePathWithKeyOnly, string][],
+  opts: UserStorageBatchUpsertOptions,
+): Promise<void> {
+  if (!data.length) {
+    return;
+  }
+
+  const { bearerToken, path, storageKey, nativeScryptCrypto } = opts;
+
+  const encryptedData: string[][] = [];
+
+  for (const d of data) {
+    encryptedData.push([
+      createSHA256Hash(d[0] + storageKey),
+      await encryption.encryptString(d[1], opts.storageKey, nativeScryptCrypto),
+    ]);
+  }
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const formattedData = Object.fromEntries(encryptedData);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    body: JSON.stringify({ data: formattedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch upsert data');
+  }
+}
+
+/**
+ * User Storage Service - Delete Storage Entry.
+ *
+ * @param opts - User Storage Options
+ */
+export async function deleteUserStorage(
+  opts: UserStorageOptions,
+): Promise<void> {
+  const { bearerToken, path, storageKey } = opts;
+  const encryptedPath = createEntryPath(path, storageKey);
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${encryptedPath}`);
+
+  const userStorageResponse = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  });
+
+  if (userStorageResponse.status === 404) {
+    throw new Error('user-storage - feature/entry not found');
+  }
+
+  if (!userStorageResponse.ok) {
+    throw new Error('user-storage - unable to delete data');
+  }
+}
+
+/**
+ * User Storage Service - Delete all storage entries for a specific feature.
+ *
+ * @param opts - User Storage Options
+ */
+export async function deleteUserStorageAllFeatureEntries(
+  opts: UserStorageAllFeatureEntriesOptions,
+): Promise<void> {
+  const { bearerToken, path } = opts;
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const userStorageResponse = await fetch(url.toString(), {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+  });
+
+  if (userStorageResponse.status === 404) {
+    throw new Error('user-storage - feature not found');
+  }
+
+  if (!userStorageResponse.ok) {
+    throw new Error('user-storage - unable to delete data');
   }
 }

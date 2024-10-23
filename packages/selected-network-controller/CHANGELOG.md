@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [18.0.2]
+
+### Fixed
+
+- Ensure that the `networkClientID` is updated in `domains` state before fetching the network proxy for a given domain. This ensures that the network proxy being fetched has not already been garbage collected. ([#4801](https://github.com/MetaMask/core/pull/4801))
+
 ## [18.0.1]
 
 ### Changed
@@ -286,7 +292,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.2...HEAD
+[18.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.1...@metamask/selected-network-controller@18.0.2
 [18.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@18.0.0...@metamask/selected-network-controller@18.0.1
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@17.0.0...@metamask/selected-network-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@16.0.0...@metamask/selected-network-controller@17.0.0

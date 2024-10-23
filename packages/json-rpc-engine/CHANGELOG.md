@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [10.0.0]
+
+### Fixed
+
+- **BREAKING**: Bump `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#4773](https://github.com/MetaMask/core/pull/4773))
+  - This modifies the top-level error message for serialized internal JSON-RPC errors to include the actual error message, instead of the generic `Internal JSON-RPC Error.` string.
+
 ## [9.0.3]
 
 ### Changed
@@ -203,7 +210,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     This change may affect consumers that depend on the eager execution of middleware _during_ request processing, _outside of_ middleware functions and request handlers.
     - In general, it is a bad practice to work with state that depends on middleware execution, while the middleware are executing.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@10.0.0...HEAD
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.3...@metamask/json-rpc-engine@10.0.0
 [9.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.2...@metamask/json-rpc-engine@9.0.3
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.1...@metamask/json-rpc-engine@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-engine@9.0.0...@metamask/json-rpc-engine@9.0.1

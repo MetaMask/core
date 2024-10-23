@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [20.1.0]
+
+### Added
+
+- Add additional properties to message parameter types ([#4822](https://github.com/MetaMask/core/pull/4822))
+  - Add `metamaskId` to `MessageParams`.
+  - Add `version` to `MessageParamsTyped`.
+
+### Changed
+
+- Update required arguments in methods ([#4822](https://github.com/MetaMask/core/pull/4822))
+  - Make `request` argument optional in `newUnsignedPersonalMessage` and `newUnsignedTypedMessage`.
+  - Make `signingOptions` argument optional in `newUnsignedTypedMessage`.
+- Bump `eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+- Bump `@metamask/keyring-controller` from `^17.2.2` to `^17.3.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+
+## [20.0.0]
+
+### Added
+
+- Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - Add `signatureRequests` object to state to include all messages with all types and statuses.
+  - Add optional `state` option to constructor to provide initial state.
+  - Add equivalent types formerly in `@metamask/message-manager`:
+    - `OriginalRequest`
+    - `TypedSigningOptions`
+    - `MessageParams`
+    - `MessageParamsPersonal`
+    - `MessageParamsTyped`
+    - `SignatureRequest`
+    - `SignatureRequestStatus`
+    - `SignatureRequestType`
+
+### Changed
+
+- Remove usage of `@metamask/message-manager` package ([#4785](https://github.com/MetaMask/core/pull/4785))
+  - **BREAKING** Change `type` property in message state to enum values rather than `string`.
+  - Deprecate the following state since the same data can be derived from `signatureRequests`:
+    - `unapprovedPersonalMsgs`
+    - `unapprovedTypedMessages`
+    - `unapprovedPersonalMsgCount`
+    - `unapprovedTypedMessagesCount`
+  - Deprecate the following properties since the same data can be derived from the state:
+    - `unapprovedPersonalMessagesCount`
+    - `unapprovedTypedMessagesCount`
+    - `messages`
+  - Deprecate the following constructor options since they are no longer used:
+    - `getAllState`
+    - `securityProviderRequest`
+
 ## [19.1.0]
 
 ### Added
@@ -329,7 +379,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.1.0...HEAD
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@20.0.0...@metamask/signature-controller@20.1.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.1.0...@metamask/signature-controller@20.0.0
 [19.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@19.0.0...@metamask/signature-controller@19.1.0
 [19.0.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.1.0...@metamask/signature-controller@19.0.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@18.0.1...@metamask/signature-controller@18.1.0
