@@ -12,13 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Corrects the previous 21.1.0 release to document breaking changes that were missed:
-
-  - **BREAKING:** Bump @metamask/eth-block-tracker from ^10.0.0 to ^11.0.2 ([#4769](https://github.com/MetaMask/core/pull/4769))
-  - **BREAKING:** Bump @metamask/eth-json-rpc-middleware from ^13.0.0 to ^15.0.0 ([#4769](https://github.com/MetaMask/core/pull/4769))
-  - **BREAKING:** Bump @metamask/json-rpc-engine from ^9.0.3 to ^10.0.0 ([#4769](https://github.com/MetaMask/core/pull/4769))
-  - **BREAKING:** Bump @metamask/rpc-errors from ^6.3.1 to ^7.0.0 ([#4769](https://github.com/MetaMask/core/pull/4769))
-  - **BREAKING:** Bump @metamask/eth-json-rpc-infura from ^9.1.0 to ^10.0.0 ([#4769](https://github.com/MetaMask/core/pull/4769))
-
+  - **BREAKING:** Bump `@metamask/eth-block-tracker` from `^10.0.0` to `^11.0.2` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/eth-json-rpc-middleware` from `^13.0.0` to `^15.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/json-rpc-engine` from `^9.0.3` to `^10.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/eth-json-rpc-infura` from `^9.1.0` to `^10.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - Bump `@metamask/eth-json-rpc-provider` from `^4.1.4` to `^4.1.5` ([#4798](https://github.com/MetaMask/core/pull/4798))
+    - This update was recorded in the v21.1.0 changelog, but is listed here again because that release has been deprecated.
 - Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
 
 ## [21.1.0] [DEPRECATED]
