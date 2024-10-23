@@ -38,7 +38,7 @@ export type TokenListToken = {
 
 export type TokenListMap = Record<string, TokenListToken>;
 
-export type DataCache = {
+type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };

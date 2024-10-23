@@ -93,7 +93,6 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
 function removeTimestamps(obj: TokensChainsCache) {
   return mapValues(obj, (value) => {
     if (isObject(value) && 'data' in value) {
-      // Return the object without the 'timestamp' property
       return omit(value, ['timestamp']);
     }
     return value;
