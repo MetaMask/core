@@ -664,11 +664,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       (acc, [key, value]) => ({
         ...acc,
         [key]: {
-          name: value?.name,
-          symbol: value?.symbol,
-          decimals: value?.decimals,
-          address: value?.address,
-          occurrences: 1,
+          name: value.name,
+          symbol: value.symbol,
+          decimals: value.decimals,
+          address: value.address,
           aggregators: [],
           iconUrl: value?.iconUrl,
         },
