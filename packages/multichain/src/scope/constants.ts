@@ -43,5 +43,5 @@ export const KnownWalletNamespaceRpcMethods: Record<
 // Notifications
 export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
   {
-    eip155: ['accountsChanged', 'chainChanged', 'eth_subscription'],
+    eip155: ['eth_subscription'],
   };
