@@ -325,7 +325,7 @@ export class SignatureController extends BaseController<
     messageParams: MessageParamsTyped,
     request: OriginalRequest,
     version: string,
-    signingOptions: TypedSigningOptions,
+    signingOptions?: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     const chainId = this.#getChainId(request);
@@ -541,18 +541,24 @@ export class SignatureController extends BaseController<
   }: {
     chainId: Hex;
     messageParams: MessageParams;
-    request: OriginalRequest;
+    request?: OriginalRequest;
     signingOptions?: TypedSigningOptions;
     type: SignatureRequestType;
     version?: SignTypedDataVersion;
   }): SignatureRequest {
+    const id = random();
+    const origin = request?.origin ?? messageParams.origin;
+    const requestId = request?.id;
+    const securityAlertResponse = request?.securityAlertResponse;
+    const networkClientId = request?.networkClientId;
+
     const finalMessageParams = {
       ...messageParams,
-      origin: request.origin,
-      requestId: request.id,
+      metamaskId: id,
+      origin,
+      requestId,
+      version,
     };
-
-    const { networkClientId, securityAlertResponse } = request;
 
     const metadata = {
       chainId,

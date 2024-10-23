@@ -2,23 +2,29 @@ import { TRIGGER_TYPES } from '../constants/notification-schema';
 import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
 import type {
   INotification,
-  NotificationUnion,
+  RawNotificationUnion,
 } from '../types/notification/notification';
 import type { OnChainRawNotification } from '../types/on-chain-notification/on-chain-notification';
+import type { RawSnapNotification } from '../types/snaps';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
 import { processOnChainNotification } from './process-onchain-notifications';
+import { processSnapNotification } from './process-snap-notifications';
 
 const isOnChainNotification = (
-  n: NotificationUnion,
+  n: RawNotificationUnion,
 ): n is OnChainRawNotification => Object.values(TRIGGER_TYPES).includes(n.type);
 
 const isFeatureAnnouncement = (
-  n: NotificationUnion,
+  n: RawNotificationUnion,
 ): n is FeatureAnnouncementRawNotification =>
   n.type === TRIGGER_TYPES.FEATURES_ANNOUNCEMENT;
+
+const isSnapNotification = (
+  n: RawNotificationUnion,
+): n is RawSnapNotification => n.type === TRIGGER_TYPES.SNAP;
 
 /**
  * Process feature announcement and wallet notifications into a shared/normalised notification shape.
@@ -29,7 +35,7 @@ const isFeatureAnnouncement = (
  * @returns a processed notification
  */
 export function processNotification(
-  notification: NotificationUnion,
+  notification: RawNotificationUnion,
   readNotifications: string[] = [],
 ): INotification {
   const exhaustedAllCases = (_: never) => {
@@ -45,8 +51,12 @@ export function processNotification(
     return n;
   }
 
+  if (isSnapNotification(notification)) {
+    return processSnapNotification(notification);
+  }
+
   if (isOnChainNotification(notification)) {
-    return processOnChainNotification(notification as OnChainRawNotification);
+    return processOnChainNotification(notification);
   }
 
   return exhaustedAllCases(notification as never);
@@ -60,7 +70,7 @@ export function processNotification(
  * @returns a process notification or undefined if failed to process
  */
 export function safeProcessNotification(
-  notification: NotificationUnion,
+  notification: RawNotificationUnion,
   readNotifications: string[] = [],
 ): INotification | undefined {
   try {

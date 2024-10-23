@@ -49,7 +49,7 @@
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.3.0",
-    "@metamask/eth-sig-util": "^7.0.1",
+    "@metamask/eth-sig-util": "^8.0.0",
     "@metamask/utils": "^9.1.0",
     "jsonschema": "^1.2.4",
     "lodash": "^4.17.21",
@@ -58,9 +58,9 @@
   "devDependencies": {
     "@metamask/approval-controller": "^7.1.0",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.2",
+    "@metamask/keyring-controller": "^17.3.0",
     "@metamask/logging-controller": "^6.0.1",
-    "@metamask/network-controller": "^21.0.1",
+    "@metamask/network-controller": "^21.1.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",

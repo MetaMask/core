@@ -31,6 +31,9 @@ export type MessageParams = {
   /** Ethereum address to sign with. */
   from: string;
 
+  /** ID of the associated signature request. */
+  metamaskId?: string;
+
   /**
    * Source of the request.
    * Such as a hostname of a dApp.
@@ -68,6 +71,9 @@ export type MessageParamsTyped = MessageParams & {
         primaryType: string;
         message: Json;
       };
+
+  /** Version of the signTypedData request. */
+  version?: string;
 };
 
 type SignatureRequestBase = {
