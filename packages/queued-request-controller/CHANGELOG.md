@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 226.0.0 ([#4834](https://github.com/MetaMask/core/pull/4834))
-- Release 223.0.0 ([#4810](https://github.com/MetaMask/core/pull/4810))
-- deps: @metamask/rpc-errors@^6.3.1->^7.0.0 ([#4769](https://github.com/MetaMask/core/pull/4769))
-- Release/222.0.0 ([#4807](https://github.com/MetaMask/core/pull/4807))
-
 ## [5.1.0]
 
 ### Changed
