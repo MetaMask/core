@@ -12,6 +12,14 @@ import {
 import type { Constructor, PollingTokenSetId } from './types';
 
 /**
+ * The minimum input required to start polling for a {@link BlockTrackerPollingController}.
+ * Implementing classes may provide additional properties.
+ */
+export type BlockTrackerPollingInput = {
+  networkClientId: NetworkClientId;
+};
+
+/**
  * BlockTrackerPollingControllerMixin
  * A polling controller that polls using a block tracker.
  *
@@ -20,35 +28,30 @@ import type { Constructor, PollingTokenSetId } from './types';
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
-  Base: TBase,
-) {
-  abstract class BlockTrackerPollingController extends AbstractPollingControllerBaseMixin(
-    Base,
-  ) {
+function BlockTrackerPollingControllerMixin<
+  TBase extends Constructor,
+  PollingInput extends BlockTrackerPollingInput,
+>(Base: TBase) {
+  abstract class BlockTrackerPollingController extends AbstractPollingControllerBaseMixin<
+    TBase,
+    PollingInput
+  >(Base) {
     #activeListeners: Record<string, (options: Json) => Promise<void>> = {};
 
     abstract _getNetworkClientById(
       networkClientId: NetworkClientId,
     ): NetworkClient | undefined;
 
-    _startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ) {
-      const key = getKey(networkClientId, options);
+    _startPolling(input: PollingInput) {
+      const key = getKey(input);
 
       if (this.#activeListeners[key]) {
         return;
       }
 
-      const networkClient = this._getNetworkClientById(networkClientId);
+      const networkClient = this._getNetworkClientById(input.networkClientId);
       if (networkClient) {
-        const updateOnNewBlock = this._executePoll.bind(
-          this,
-          networkClientId,
-          options,
-        );
+        const updateOnNewBlock = this._executePoll.bind(this, input);
         // TODO: Either fix this lint violation or explain why it's necessary to ignore.
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         networkClient.blockTracker.addListener('latest', updateOnNewBlock);
@@ -57,13 +60,13 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `Unable to retrieve blockTracker for networkClientId ${networkClientId}`,
+          `Unable to retrieve blockTracker for networkClientId ${input.networkClientId}`,
         );
       }
     }
 
     _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
-      const [networkClientId] = key.split(':');
+      const { networkClientId } = JSON.parse(key);
       const networkClient = this._getNetworkClientById(
         networkClientId as NetworkClientId,
       );
@@ -85,9 +88,20 @@ function BlockTrackerPollingControllerMixin<TBase extends Constructor>(
 
 class Empty {}
 
-export const BlockTrackerPollingControllerOnly =
-  BlockTrackerPollingControllerMixin(Empty);
-export const BlockTrackerPollingController =
-  BlockTrackerPollingControllerMixin(BaseController);
-export const BlockTrackerPollingControllerV1 =
-  BlockTrackerPollingControllerMixin(BaseControllerV1);
+export const BlockTrackerPollingControllerOnly = <
+  PollingInput extends BlockTrackerPollingInput,
+>() => BlockTrackerPollingControllerMixin<typeof Empty, PollingInput>(Empty);
+
+export const BlockTrackerPollingController = <
+  PollingInput extends BlockTrackerPollingInput,
+>() =>
+  BlockTrackerPollingControllerMixin<typeof BaseController, PollingInput>(
+    BaseController,
+  );
+
+export const BlockTrackerPollingControllerV1 = <
+  PollingInput extends BlockTrackerPollingInput,
+>() =>
+  BlockTrackerPollingControllerMixin<typeof BaseControllerV1, PollingInput>(
+    BaseControllerV1,
+  );

@@ -22,10 +22,12 @@ export type {
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
   TransactionControllerMessenger,
+  TransactionControllerOptions,
 } from './TransactionController';
 export {
   HARDFORK,
   CANCEL_RATE,
+  SPEED_UP_RATE,
   TransactionController,
 } from './TransactionController';
 export type {
@@ -80,3 +82,4 @@ export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
+export { CHAIN_IDS, ETHERSCAN_SUPPORTED_NETWORKS } from './constants';

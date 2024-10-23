@@ -4,8 +4,10 @@ import {
   type BlockTrackerProxy,
   type NetworkState,
   getDefaultNetworkControllerState,
+  RpcEndpointType,
 } from '@metamask/network-controller';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
+import type { Hex } from '@metamask/utils';
 
 import type {
   AllowedActions,
@@ -293,55 +295,208 @@ describe('SelectedNetworkController', () => {
   });
 
   describe('NetworkController:stateChange', () => {
-    describe('when a networkClient is deleted from the network controller state', () => {
+    describe('when a network is deleted from the network controller', () => {
+      const initialDomains = {
+        'not-deleted-network.com': 'linea-mainnet',
+        'deleted-network.com': 'goerli',
+      };
+
+      const deleteNetwork = (
+        chainId: Hex,
+        networkControllerState: NetworkState,
+        messenger: ReturnType<typeof buildMessenger>,
+        mockNetworkControllerGetState: jest.Mock,
+      ) => {
+        delete networkControllerState.networkConfigurationsByChainId[chainId];
+        mockNetworkControllerGetState.mockReturnValueOnce(
+          networkControllerState,
+        );
+        messenger.publish(
+          'NetworkController:stateChange',
+          networkControllerState,
+          [
+            {
+              op: 'remove',
+              path: ['networkConfigurationsByChainId', chainId],
+            },
+          ],
+        );
+      };
+
       it('does not update state when useRequestQueuePreference is false', () => {
         const { controller, messenger, mockNetworkControllerGetState } = setup({
-          state: {
-            domains: {},
-          },
+          state: { domains: initialDomains },
+          useRequestQueuePreference: false,
         });
-        const mockNetworkControllerStateUpdate: NetworkState = {
-          ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: 'goerli',
-        };
-        mockNetworkControllerGetState.mockReturnValueOnce(
-          mockNetworkControllerStateUpdate,
+
+        const networkControllerState = getDefaultNetworkControllerState();
+        deleteNetwork(
+          '0x5',
+          networkControllerState,
+          messenger,
+          mockNetworkControllerGetState,
         );
 
-        messenger.publish(
-          'NetworkController:stateChange',
-          mockNetworkControllerStateUpdate,
-          [],
-        );
-        expect(controller.state.domains).toStrictEqual({});
+        expect(controller.state.domains).toStrictEqual(initialDomains);
       });
 
-      it('updates the networkClientId for domains which were previously set to the deleted networkClientId when useRequestQueuePreference is true', () => {
+      it('redirects domains to the globally selected network when useRequestQueuePreference is true', () => {
         const { controller, messenger, mockNetworkControllerGetState } = setup({
-          state: {
-            domains: {
-              metamask: 'goerli',
-              'example.com': 'test-network-client-id',
-              'test.com': 'test-network-client-id',
-            },
-          },
+          state: { domains: initialDomains },
           useRequestQueuePreference: true,
         });
-        const mockNetworkControllerStateUpdate: NetworkState = {
+
+        const networkControllerState = {
           ...getDefaultNetworkControllerState(),
-          selectedNetworkClientId: 'goerli',
+          selectedNetworkClientId: 'mainnet',
         };
+
+        deleteNetwork(
+          '0x5',
+          networkControllerState,
+          messenger,
+          mockNetworkControllerGetState,
+        );
+
+        expect(controller.state.domains).toStrictEqual({
+          ...initialDomains,
+          'deleted-network.com': networkControllerState.selectedNetworkClientId,
+        });
+      });
+
+      it('redirects domains to the globally selected network when useRequestQueuePreference is true and handles garbage collected proxies', () => {
+        const domainProxyMap = new Map();
+        const {
+          controller,
+          messenger,
+          mockNetworkControllerGetState,
+          mockGetNetworkClientById,
+        } = setup({
+          state: { domains: initialDomains },
+          useRequestQueuePreference: true,
+          domainProxyMap,
+        });
+
+        // Simulate proxies being garbage collected
+        domainProxyMap.clear();
+
+        const networkControllerState = {
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: 'mainnet',
+        };
+
+        mockGetNetworkClientById.mockImplementation((id) => {
+          // Simulate the previous domain being deleted in NetworkController
+          if (id !== 'mainnet') {
+            throw new Error('Network client does not exist');
+          }
+
+          return {
+            provider: { request: jest.fn() },
+            blockTracker: { getLatestBlock: jest.fn() },
+          };
+        });
+
+        deleteNetwork(
+          '0x5',
+          networkControllerState,
+          messenger,
+          mockNetworkControllerGetState,
+        );
+
+        expect(controller.state.domains).toStrictEqual({
+          ...initialDomains,
+          'deleted-network.com': networkControllerState.selectedNetworkClientId,
+        });
+      });
+    });
+
+    describe('when a network is updated', () => {
+      it('redirects domains when the default rpc endpoint is switched', () => {
+        const initialDomains = {
+          'different-chain.com': 'mainnet',
+          'chain-with-new-default.com': 'goerli',
+        };
+
+        const { controller, messenger, mockNetworkControllerGetState } = setup({
+          state: { domains: initialDomains },
+          useRequestQueuePreference: true,
+        });
+
+        const networkControllerState = getDefaultNetworkControllerState();
+        const goerliNetwork =
+          networkControllerState.networkConfigurationsByChainId['0x5'];
+
+        goerliNetwork.defaultRpcEndpointIndex =
+          goerliNetwork.rpcEndpoints.push({
+            type: RpcEndpointType.Custom,
+            url: 'https://new-default.com',
+            networkClientId: 'new-default-network-client-id',
+          }) - 1;
+
         mockNetworkControllerGetState.mockReturnValueOnce(
-          mockNetworkControllerStateUpdate,
+          networkControllerState,
         );
 
         messenger.publish(
           'NetworkController:stateChange',
-          mockNetworkControllerStateUpdate,
-          [],
+          networkControllerState,
+          [
+            {
+              op: 'replace',
+              path: ['networkConfigurationsByChainId', '0x5'],
+            },
+          ],
         );
-        expect(controller.state.domains['example.com']).toBe('goerli');
-        expect(controller.state.domains['test.com']).toBe('goerli');
+
+        expect(controller.state.domains).toStrictEqual({
+          ...initialDomains,
+          'chain-with-new-default.com': 'new-default-network-client-id',
+        });
+      });
+
+      it('redirects domains when the default rpc endpoint is deleted and replaced', () => {
+        const initialDomains = {
+          'different-chain.com': 'mainnet',
+          'chain-with-new-default.com': 'goerli',
+        };
+
+        const { controller, messenger, mockNetworkControllerGetState } = setup({
+          state: { domains: initialDomains },
+          useRequestQueuePreference: true,
+        });
+
+        const networkControllerState = getDefaultNetworkControllerState();
+        const goerliNetwork =
+          networkControllerState.networkConfigurationsByChainId['0x5'];
+
+        goerliNetwork.rpcEndpoints = [
+          {
+            type: RpcEndpointType.Custom,
+            url: 'https://new-default.com',
+            networkClientId: 'new-default-network-client-id',
+          },
+        ];
+
+        mockNetworkControllerGetState.mockReturnValueOnce(
+          networkControllerState,
+        );
+
+        messenger.publish(
+          'NetworkController:stateChange',
+          networkControllerState,
+          [
+            {
+              op: 'replace',
+              path: ['networkConfigurationsByChainId', '0x5'],
+            },
+          ],
+        );
+
+        expect(controller.state.domains).toStrictEqual({
+          ...initialDomains,
+          'chain-with-new-default.com': 'new-default-network-client-id',
+        });
       });
     });
   });

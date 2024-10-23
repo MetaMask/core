@@ -40,7 +40,7 @@ const origin = 'snap_test';
 const message = 'foo';
 
 describe('NotificationController', () => {
-  it('action: NotificationController:show', async () => {
+  it('action: NotificationController:show', () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
 
@@ -49,22 +49,39 @@ describe('NotificationController', () => {
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:show', origin, message),
+      unrestricted.call('NotificationController:show', origin, {
+        message,
+      }),
+    ).toBeUndefined();
+
+    expect(
+      unrestricted.call('NotificationController:show', origin, {
+        message,
+        title: 'title',
+        interfaceId: '1',
+      }),
     ).toBeUndefined();
     const notifications = Object.values(controller.state.notifications);
-    expect(notifications).toHaveLength(1);
-    expect(notifications).toContainEqual({
+    expect(notifications).toHaveLength(2);
+    expect(notifications[0]).toStrictEqual({
       createdDate: expect.any(Number),
       id: expect.any(String),
       message,
       origin,
       readDate: null,
+      expandedView: null,
+    });
+    expect(notifications[1]).toStrictEqual({
+      createdDate: expect.any(Number),
+      id: expect.any(String),
+      message,
+      origin,
+      readDate: null,
+      expandedView: { title: 'title', interfaceId: '1' },
     });
   });
 
-  it('action: NotificationController:markViewed', async () => {
+  it('action: NotificationController:markViewed', () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
 
@@ -73,16 +90,14 @@ describe('NotificationController', () => {
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:show', origin, message),
+      unrestricted.call('NotificationController:show', origin, {
+        message,
+      }),
     ).toBeUndefined();
     const notifications = Object.values(controller.state.notifications);
     expect(notifications).toHaveLength(1);
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:markRead', [
+      unrestricted.call('NotificationController:markRead', [
         notifications[0].id,
         'foo',
       ]),
@@ -97,7 +112,7 @@ describe('NotificationController', () => {
     expect(newNotifications).toHaveLength(1);
   });
 
-  it('action: NotificationController:dismiss', async () => {
+  it('action: NotificationController:dismiss', () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
 
@@ -106,16 +121,14 @@ describe('NotificationController', () => {
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:show', origin, message),
+      unrestricted.call('NotificationController:show', origin, {
+        message,
+      }),
     ).toBeUndefined();
     const notifications = Object.values(controller.state.notifications);
     expect(notifications).toHaveLength(1);
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:dismiss', [
+      unrestricted.call('NotificationController:dismiss', [
         notifications[0].id,
         'foo',
       ]),
@@ -124,7 +137,7 @@ describe('NotificationController', () => {
     expect(Object.values(controller.state.notifications)).toHaveLength(0);
   });
 
-  it('action: NotificationController:clear', async () => {
+  it('action: NotificationController:clear', () => {
     const unrestricted = getUnrestrictedMessenger();
     const messenger = getRestrictedMessenger(unrestricted);
 
@@ -133,17 +146,13 @@ describe('NotificationController', () => {
     });
 
     expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:show', origin, message),
+      unrestricted.call('NotificationController:show', origin, {
+        message,
+      }),
     ).toBeUndefined();
     const notifications = Object.values(controller.state.notifications);
     expect(notifications).toHaveLength(1);
-    expect(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await unrestricted.call('NotificationController:clear'),
-    ).toBeUndefined();
+    expect(unrestricted.call('NotificationController:clear')).toBeUndefined();
 
     expect(Object.values(controller.state.notifications)).toHaveLength(0);
   });

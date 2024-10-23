@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [21.1.0]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.4` to `^4.1.5` ([#4798](https://github.com/MetaMask/core/pull/4798))
+
+## [21.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [21.0.0]
+
 ### Added
 
 - **BREAKING:** Add `networkConfigurationsByChainId` to `NetworkState` (type: `Record<Hex, NetworkConfiguration>`) ([#4268](https://github.com/MetaMask/core/pull/4286))
@@ -45,6 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Update `getNetworkConfigurationByNetworkClientId` so that when given an Infura network name (that is, a value from `InfuraNetworkType`), it will return a masked version of the RPC endpoint URL for the associated Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
   - If you want the unmasked version, you'll need the `url` property from the network _client_ configuration, which you can get by calling `getNetworkClientById` and then accessing the `configuration` property off of the network client.
 - **BREAKING:** Update `loadBackup` to take and update `networkConfigurationsByChainId` instead of `networkConfigurations` ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/eth-block-tracker` from `^9.0.3` to `^10.0.0` ([#4424](https://github.com/MetaMask/core/pull/4424))
+- Bump `@metamask/eth-json-rpc-middleware` from `^12.1.1` to `^13.0.0` ([#4424](https://github.com/MetaMask/core/pull/4424))
 
 ### Removed
 
@@ -599,7 +629,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.1.0...HEAD
+[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.1...@metamask/network-controller@21.1.0
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.0...@metamask/network-controller@21.0.1
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...@metamask/network-controller@21.0.0
 [20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
 [20.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...@metamask/network-controller@20.1.0
 [20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0

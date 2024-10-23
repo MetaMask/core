@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import { toASCII } from 'punycode/';
+import { toASCII } from 'punycode/punycode.js';
 
 import { PhishingDetector } from './PhishingDetector';
 import {

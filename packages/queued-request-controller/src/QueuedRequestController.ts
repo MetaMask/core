@@ -5,13 +5,11 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
+  NetworkClientId,
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
 } from '@metamask/network-controller';
-import type {
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerStateChangeEvent,
-} from '@metamask/selected-network-controller';
+import type { SelectedNetworkControllerStateChangeEvent } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
 import { createDeferredPromise } from '@metamask/utils';
 
@@ -64,8 +62,7 @@ export type QueuedRequestControllerActions =
 
 export type AllowedActions =
   | NetworkControllerGetStateAction
-  | NetworkControllerSetActiveNetworkAction
-  | SelectedNetworkControllerGetNetworkClientIdForDomainAction;
+  | NetworkControllerSetActiveNetworkAction;
 
 export type AllowedEvents = SelectedNetworkControllerStateChangeEvent;
 
@@ -94,6 +91,12 @@ type QueuedRequest = {
    * The origin of the queued request.
    */
   origin: string;
+
+  /**
+   * The networkClientId of the queuedRequest.
+   */
+  networkClientId: NetworkClientId;
+
   /**
    * A callback used to continue processing the request, called when the request is dequeued.
    */
@@ -124,6 +127,12 @@ export class QueuedRequestController extends BaseController<
    * requests currently being processed.
    */
   #originOfCurrentBatch: string | undefined;
+
+  /**
+   * The networkClientId of the current batch of requests being processed, or `undefined` if there are no
+   * requests currently being processed.
+   */
+  #networkClientIdOfCurrentBatch?: NetworkClientId;
 
   /**
    * The list of all queued requests, in chronological order.
@@ -224,6 +233,9 @@ export class QueuedRequestController extends BaseController<
     );
   }
 
+  // Note: since we're using queueing for multichain requests to start, this flush could incorrectly flush
+  // multichain requests if the user switches networks on a dapp while multichain request is in the queue.
+  // we intend to remove queueing for multichain requests in the future, so for now we have to live with this.
   #flushQueueForOrigin(flushOrigin: string) {
     this.#requestQueue
       .filter(({ origin }) => origin === flushOrigin)
@@ -252,17 +264,24 @@ export class QueuedRequestController extends BaseController<
   async #processNextBatch() {
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
     this.#originOfCurrentBatch = firstRequest.origin;
+    this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
     const batch = [firstRequest.processRequest];
-    while (this.#requestQueue[0]?.origin === this.#originOfCurrentBatch) {
+
+    // alternatively we could still batch by only origin but switch networks in batches by
+    // adding the network clientId to the values in the batch array
+    while (
+      this.#requestQueue[0]?.networkClientId ===
+        this.#networkClientIdOfCurrentBatch &&
+      this.#requestQueue[0]?.origin === this.#originOfCurrentBatch
+    ) {
       const nextEntry = this.#requestQueue.shift() as QueuedRequest;
       batch.push(nextEntry.processRequest);
     }
-
     // If globally selected network is different from origin selected network,
     // switch network before processing batch
     let networkSwitchError: unknown;
     try {
-      await this.#switchNetworkIfNecessary();
+      await this.#switchNetworkIfNecessary(firstRequest.networkClientId);
     } catch (error: unknown) {
       networkSwitchError = error;
     }
@@ -277,34 +296,27 @@ export class QueuedRequestController extends BaseController<
    * Switch the globally selected network client to match the network
    * client of the current batch.
    *
+   * @param requestNetworkClientId - the networkClientId of the next request to process.
    * @throws Throws an error if the current selected `networkClientId` or the
    * `networkClientId` on the request are invalid.
    */
-  async #switchNetworkIfNecessary() {
-    // This branch is unreachable; it's just here for type reasons.
-    /* istanbul ignore next */
-    if (!this.#originOfCurrentBatch) {
-      throw new Error('Current batch origin must be initialized first');
-    }
-    const originNetworkClientId = this.messagingSystem.call(
-      'SelectedNetworkController:getNetworkClientIdForDomain',
-      this.#originOfCurrentBatch,
-    );
+  async #switchNetworkIfNecessary(requestNetworkClientId: NetworkClientId) {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
-    if (originNetworkClientId === selectedNetworkClientId) {
+
+    if (requestNetworkClientId === selectedNetworkClientId) {
       return;
     }
 
     await this.messagingSystem.call(
       'NetworkController:setActiveNetwork',
-      originNetworkClientId,
+      requestNetworkClientId,
     );
 
     this.messagingSystem.publish(
       'QueuedRequestController:networkSwitched',
-      originNetworkClientId,
+      requestNetworkClientId,
     );
   }
 
@@ -317,12 +329,19 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
-  async #waitForDequeue(origin: string): Promise<void> {
+  async #waitForDequeue({
+    origin,
+    networkClientId,
+  }: {
+    origin: string;
+    networkClientId: NetworkClientId;
+  }): Promise<void> {
     const { promise, reject, resolve } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
     this.#requestQueue.push({
       origin,
+      networkClientId,
       processRequest: (error: unknown) => {
         if (error) {
           reject(error);
@@ -354,8 +373,17 @@ export class QueuedRequestController extends BaseController<
     request: QueuedRequestMiddlewareJsonRpcRequest,
     requestNext: () => Promise<void>,
   ): Promise<void> {
+    if (request.networkClientId === undefined) {
+      // This error will occur if selectedNetworkMiddleware does not precede queuedRequestMiddleware in the middleware stack
+      throw new Error(
+        'Error while attempting to enqueue request: networkClientId is required.',
+      );
+    }
     if (this.#originOfCurrentBatch === undefined) {
       this.#originOfCurrentBatch = request.origin;
+    }
+    if (this.#networkClientIdOfCurrentBatch === undefined) {
+      this.#networkClientIdOfCurrentBatch = request.networkClientId;
     }
 
     try {
@@ -363,14 +391,18 @@ export class QueuedRequestController extends BaseController<
       // Network switch is handled when this batch is processed
       if (
         this.state.queuedRequestCount > 0 ||
-        this.#originOfCurrentBatch !== request.origin
+        this.#originOfCurrentBatch !== request.origin ||
+        this.#networkClientIdOfCurrentBatch !== request.networkClientId
       ) {
         this.#showApprovalRequest();
-        await this.#waitForDequeue(request.origin);
+        await this.#waitForDequeue({
+          origin: request.origin,
+          networkClientId: request.networkClientId,
+        });
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
-        await this.#switchNetworkIfNecessary();
+        await this.#switchNetworkIfNecessary(request.networkClientId);
       }
       this.#processingRequestCount += 1;
       try {
@@ -382,6 +414,7 @@ export class QueuedRequestController extends BaseController<
     } finally {
       if (this.#processingRequestCount === 0) {
         this.#originOfCurrentBatch = undefined;
+        this.#networkClientIdOfCurrentBatch = undefined;
         if (this.#requestQueue.length > 0) {
           // The next batch is triggered here. We intentionally omit the `await` because we don't
           // want the next batch to block resolution of the current request.

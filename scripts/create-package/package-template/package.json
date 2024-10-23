@@ -30,7 +30,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:validate": "../../scripts/validate-changelog.sh PACKAGE_NAME",
     "publish:preview": "yarn npm publish --tag preview",

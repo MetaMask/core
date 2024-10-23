@@ -6,8 +6,8 @@ import {
   MESSAGE_SIGNING_SNAP,
   SNAP_ORIGIN,
   connectSnap,
-  getSnap,
   getSnaps,
+  isSnapConnected,
 } from './messaging-signing-snap-requests';
 
 /**
@@ -33,41 +33,35 @@ describe('getSnaps() tests', () => {
   });
 });
 
-describe('getSnap() tests', () => {
-  it('tests invocation', async () => {
+describe('isSnapConnected() tests', () => {
+  it('return true if snap is connected', async () => {
     const { mockProvider, mockRequest } = arrangeMockProvider();
-
     const mockSnap: Snap = { id: SNAP_ORIGIN } as MockVariable;
     mockRequest.mockResolvedValue({ [SNAP_ORIGIN]: mockSnap });
 
-    const result = await getSnap(mockProvider);
+    const isConnected = await isSnapConnected(mockProvider);
     expect(mockRequest).toHaveBeenCalled();
-    expect(result).toBeDefined();
+    expect(isConnected).toBe(true);
   });
 
-  it('returns undefined if unable to find snap', async () => {
+  it('return false if snap is NOT connected', async () => {
     const { mockProvider, mockRequest } = arrangeMockProvider();
 
     const mockSnap: Snap = { id: 'A differentSnap' } as MockVariable;
     mockRequest.mockResolvedValue({ diffSnap: mockSnap });
 
-    const result1 = await getSnap(mockProvider);
+    const isConnected = await isSnapConnected(mockProvider);
     expect(mockRequest).toHaveBeenCalled();
-    expect(result1).toBeUndefined();
-
-    // Another test in case the wallet request returns null
-    mockRequest.mockResolvedValue(null);
-    const result2 = await getSnap(mockProvider);
-    expect(result2).toBeUndefined();
+    expect(isConnected).toBe(false);
   });
 
-  it('returns undefined if an error is thrown when making provider request', async () => {
+  it('return false if an error is thrown when making provider request', async () => {
     const { mockProvider, mockRequest } = arrangeMockProvider();
     mockRequest.mockRejectedValue(new Error('MOCK ERROR'));
 
-    const result = await getSnap(mockProvider);
+    const isConnected = await isSnapConnected(mockProvider);
     expect(mockRequest).toHaveBeenCalled();
-    expect(result).toBeUndefined();
+    expect(isConnected).toBe(false);
   });
 });
 

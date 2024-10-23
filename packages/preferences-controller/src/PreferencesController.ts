@@ -110,6 +110,10 @@ export type PreferencesState = {
    * Controls whether transaction simulations are enabled
    */
   useTransactionSimulations: boolean;
+  /**
+   * Controls whether Multi rpc modal is displayed or not
+   */
+  useMultiRpcMigration: boolean;
 };
 
 const metadata = {
@@ -128,6 +132,7 @@ const metadata = {
   useTokenDetection: { persist: true, anonymous: true },
   smartTransactionsOptInStatus: { persist: true, anonymous: false },
   useTransactionSimulations: { persist: true, anonymous: true },
+  useMultiRpcMigration: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -197,6 +202,7 @@ export function getDefaultPreferencesState() {
     showTestNetworks: false,
     useNftDetection: false,
     useTokenDetection: true,
+    useMultiRpcMigration: true,
     smartTransactionsOptInStatus: false,
     useTransactionSimulations: true,
   };
@@ -481,6 +487,20 @@ export class PreferencesController extends BaseController<
         };
       });
     }
+  }
+
+  /**
+   * Toggle multi rpc migration modal.
+   *
+   * @param useMultiRpcMigration - Boolean indicating if the multi rpc modal will be displayed or not.
+   */
+  setUseMultiRpcMigration(useMultiRpcMigration: boolean) {
+    this.update((state) => {
+      state.useMultiRpcMigration = useMultiRpcMigration;
+      if (!useMultiRpcMigration) {
+        state.useMultiRpcMigration = false;
+      }
+    });
   }
 
   /**
