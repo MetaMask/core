@@ -3,6 +3,7 @@ import type { CaipAccountId, Hex, CaipChainId } from '@metamask/utils';
 import { KnownCaipNamespace, parseCaipAccountId } from '@metamask/utils';
 
 import {
+  CaipReferenceRegexes,
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
@@ -21,7 +22,7 @@ export const isSupportedScopeString = (
     case KnownCaipNamespace.Wallet:
       return !reference || reference === KnownCaipNamespace.Eip155;
     case KnownCaipNamespace.Eip155:
-      return !reference || isChainIdSupported(toHex(reference));
+      return !reference || (CaipReferenceRegexes.eip155.test(reference) && isChainIdSupported(toHex(reference)));
     default:
       return false;
   }
