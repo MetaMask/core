@@ -1,21 +1,29 @@
 import { ApprovalType } from '@metamask/controller-utils';
 
 import type {
+  AbstractMessage,
   AbstractMessageParams,
   OriginalRequest,
   SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
-import type {
-  TypedMessage,
-  TypedMessageParams,
-  TypedMessageParamsMetamask,
-} from './TypedMessageManager';
+
+type ConcreteMessage = AbstractMessage & {
+  messageParams: ConcreteMessageParams;
+};
+
+type ConcreteMessageParams = AbstractMessageParams & {
+  test: number;
+};
+
+type ConcreteMessageParamsMetamask = ConcreteMessageParams & {
+  metamaskId?: string;
+};
 
 class AbstractTestManager extends AbstractMessageManager<
-  TypedMessage,
-  TypedMessageParams,
-  TypedMessageParamsMetamask
+  ConcreteMessage,
+  ConcreteMessageParams,
+  ConcreteMessageParamsMetamask
 > {
   addRequestToMessageParams<MessageParams extends AbstractMessageParams>(
     messageParams: MessageParams,
@@ -33,10 +41,9 @@ class AbstractTestManager extends AbstractMessageManager<
   }
 
   prepMessageForSigning(
-    messageParams: TypedMessageParamsMetamask,
-  ): Promise<TypedMessageParams> {
+    messageParams: ConcreteMessageParamsMetamask,
+  ): Promise<ConcreteMessageParams> {
     delete messageParams.metamaskId;
-    delete messageParams.version;
     return Promise.resolve(messageParams);
   }
 
@@ -44,29 +51,19 @@ class AbstractTestManager extends AbstractMessageManager<
     return super.setMessageStatus(messageId, status);
   }
 
-  async addUnapprovedMessage(_messageParams: TypedMessageParamsMetamask) {
+  async addUnapprovedMessage(_messageParams: ConcreteMessageParamsMetamask) {
     return Promise.resolve('mocked');
   }
 }
-const typedMessage = [
-  {
-    name: 'Message',
-    type: 'string',
-    value: 'Hi, Alice!',
-  },
-  {
-    name: 'A number',
-    type: 'uint32',
-    value: '1337',
-  },
-];
+
 const messageId = '1';
 const messageId2 = '2';
 const from = '0x0123';
 const messageTime = Date.now();
 const messageStatus = 'unapproved';
 const messageType = 'eth_signTypedData';
-const messageData = typedMessage;
+const testData = 123;
+const testData2 = 456;
 const rawSigMock = '0xsignaturemocked';
 const messageIdMock = 'message-id-mocked';
 const fromMock = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
@@ -77,7 +74,7 @@ const mockRequest = {
   id: 123,
   securityAlertResponse: mockSecurityProviderResponse,
 };
-const mockMessageParams = { from, data: 'test' };
+const mockMessageParams = { from, test: testData };
 
 describe('AbstractTestManager', () => {
   it('should set default state', () => {
@@ -98,7 +95,7 @@ describe('AbstractTestManager', () => {
     await controller.addMessage({
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -111,7 +108,7 @@ describe('AbstractTestManager', () => {
     }
     expect(message.id).toBe(messageId);
     expect(message.messageParams.from).toBe(from);
-    expect(message.messageParams.data).toBe(messageData);
+    expect(message.messageParams.test).toBe(testData);
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
@@ -122,7 +119,7 @@ describe('AbstractTestManager', () => {
     const message = {
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -132,7 +129,7 @@ describe('AbstractTestManager', () => {
     const message2 = {
       id: messageId2,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -159,7 +156,7 @@ describe('AbstractTestManager', () => {
     await controller.addMessage({
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -173,7 +170,7 @@ describe('AbstractTestManager', () => {
     }
     expect(message.id).toBe(messageId);
     expect(message.messageParams.from).toBe(from);
-    expect(message.messageParams.data).toBe(messageData);
+    expect(message.messageParams.test).toBe(testData);
     expect(message.time).toBe(messageTime);
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);
@@ -187,7 +184,7 @@ describe('AbstractTestManager', () => {
     await controller.addMessage({
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -207,7 +204,7 @@ describe('AbstractTestManager', () => {
     await controller.addMessage({
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -233,7 +230,7 @@ describe('AbstractTestManager', () => {
     await controller.addMessage({
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -258,7 +255,7 @@ describe('AbstractTestManager', () => {
     await controller.addMessage({
       id: messageId,
       messageParams: {
-        data: typedMessage,
+        test: testData,
         from,
       },
       status: messageStatus,
@@ -274,40 +271,16 @@ describe('AbstractTestManager', () => {
   });
 
   it('should get correct unapproved messages', async () => {
-    const firstMessageData = [
-      {
-        name: 'Message',
-        type: 'string',
-        value: 'Hi, Alice!',
-      },
-      {
-        name: 'A number',
-        type: 'uint32',
-        value: '1337',
-      },
-    ];
-    const secondMessageData = [
-      {
-        name: 'Message',
-        type: 'string',
-        value: 'Hi, Alice!',
-      },
-      {
-        name: 'A number',
-        type: 'uint32',
-        value: '1337',
-      },
-    ];
     const firstMessage = {
       id: '1',
-      messageParams: { from: '0x1', data: firstMessageData },
+      messageParams: { from: '0x1', test: testData },
       status: 'unapproved',
       time: 123,
       type: 'eth_signTypedData',
     };
     const secondMessage = {
       id: '2',
-      messageParams: { from: '0x1', data: secondMessageData },
+      messageParams: { from: '0x1', test: testData2 },
       status: 'unapproved',
       time: 123,
       type: 'eth_signTypedData',
@@ -322,10 +295,9 @@ describe('AbstractTestManager', () => {
     });
   });
 
-  it('should approve typed message', async () => {
+  it('should approve message', async () => {
     const controller = new AbstractTestManager();
-    const firstMessage = { from: '0xfoO', data: typedMessage };
-    const version = 'V1';
+    const firstMessage = { from: '0xfoO', test: testData };
     await controller.addMessage({
       id: messageId,
       messageParams: firstMessage,
@@ -336,7 +308,6 @@ describe('AbstractTestManager', () => {
     const messageParams = await controller.approveMessage({
       ...firstMessage,
       metamaskId: messageId,
-      version,
     });
     const message = controller.getMessage(messageId);
     expect(messageParams).toStrictEqual(firstMessage);

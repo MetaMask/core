@@ -46,6 +46,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
@@ -69,6 +70,7 @@ import type {
   SimulationData,
   GasFeeFlow,
   GasFeeFlowResponse,
+  SubmitHistoryEntry,
 } from './types';
 import {
   GasFeeEstimateType,
@@ -97,6 +99,7 @@ type UnrestrictedControllerMessenger = ControllerMessenger<
 >;
 
 const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
+const TRANSACTION_HASH_MOCK = '0x123456';
 
 jest.mock('@metamask/eth-query');
 jest.mock('./gas-flows/DefaultGasFeeFlow');
@@ -191,7 +194,7 @@ function buildMockEthQuery(): EthQuery {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sendRawTransaction: (_transaction: unknown, callback: any) => {
-      callback(undefined, 'somehash');
+      callback(undefined, TRANSACTION_HASH_MOCK);
     },
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -873,6 +876,7 @@ describe('TransactionController', () => {
         methodData: {},
         transactions: [],
         lastFetchedBlockNumbers: {},
+        submitHistory: [],
       });
     });
 
@@ -2264,6 +2268,100 @@ describe('TransactionController', () => {
         );
       });
     });
+
+    describe('updates submit history', () => {
+      it('adds entry to start of array', async () => {
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            state: {
+              submitHistory: [
+                {
+                  chainId: CHAIN_IDS.LINEA_MAINNET,
+                } as unknown as SubmitHistoryEntry,
+              ],
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          { origin: ORIGIN_METAMASK },
+        );
+
+        await result;
+
+        expect(controller.state.submitHistory).toStrictEqual([
+          {
+            chainId: MOCK_NETWORK.chainId,
+            hash: TRANSACTION_HASH_MOCK,
+            networkType: NetworkType.goerli,
+            networkUrl: expect.stringContaining('goerli.infura.io'),
+            origin: ORIGIN_METAMASK,
+            rawTransaction: expect.stringContaining('0x'),
+            time: expect.any(Number),
+            transaction: {
+              from: ACCOUNT_MOCK,
+              nonce: '0xc',
+              to: ACCOUNT_MOCK,
+              value: '0x0',
+            },
+          },
+          {
+            chainId: CHAIN_IDS.LINEA_MAINNET,
+          },
+        ]);
+      });
+
+      it('removes last entry if reached maximum size', async () => {
+        const existingSubmitHistory = Array(100);
+
+        existingSubmitHistory[99] = {
+          chainId: CHAIN_IDS.LINEA_MAINNET,
+        } as unknown as SubmitHistoryEntry;
+
+        const { controller } = setupController({
+          messengerOptions: {
+            addTransactionApprovalRequest: {
+              state: 'approved',
+            },
+          },
+          options: {
+            state: {
+              submitHistory: existingSubmitHistory,
+            },
+          },
+        });
+
+        const { result } = await controller.addTransaction(
+          {
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+          },
+          {
+            origin: ORIGIN_METAMASK,
+          },
+        );
+
+        await result;
+
+        expect(controller.state.submitHistory).toHaveLength(100);
+        expect(controller.state.submitHistory[0]).toStrictEqual(
+          expect.objectContaining({
+            chainId: MOCK_NETWORK.chainId,
+            origin: ORIGIN_METAMASK,
+          }),
+        );
+        expect(controller.state.submitHistory[99]).toBeUndefined();
+      });
+    });
   });
 
   describe('wipeTransactions', () => {
@@ -2733,6 +2831,59 @@ describe('TransactionController', () => {
       expect(finishedEventListener).toHaveBeenCalledTimes(2);
       expect(finishedEventListener).toHaveBeenCalledWith(cancelTransaction);
     });
+
+    it('updates submit history', async () => {
+      const { controller } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      const { result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0xFF',
+          gasPrice: '0xEE',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          origin: ORIGIN_METAMASK,
+        },
+      );
+
+      await result;
+
+      await controller.stopTransaction(controller.state.transactions[0].id);
+
+      const { submitHistory } = controller.state;
+
+      expect(submitHistory).toStrictEqual([
+        {
+          chainId: MOCK_NETWORK.chainId,
+          hash: TRANSACTION_HASH_MOCK,
+          networkType: NetworkType.goerli,
+          networkUrl: expect.stringContaining('goerli.infura.io'),
+          origin: 'cancel',
+          rawTransaction: expect.stringContaining('0x'),
+          time: expect.any(Number),
+          transaction: {
+            from: ACCOUNT_MOCK,
+            gas: '0xFF',
+            gasLimit: '0xFF',
+            gasPrice: '0x105',
+            nonce: '0xc',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+        },
+        expect.objectContaining({
+          origin: ORIGIN_METAMASK,
+        }),
+      ]);
+    });
   });
 
   describe('speedUpTransaction', () => {
@@ -3094,6 +3245,59 @@ describe('TransactionController', () => {
 
       expect(speedupEventListener).toHaveBeenCalledTimes(1);
       expect(speedupEventListener).toHaveBeenCalledWith(speedUpTransaction);
+    });
+
+    it('updates submit history', async () => {
+      const { controller } = setupController({
+        messengerOptions: {
+          addTransactionApprovalRequest: {
+            state: 'approved',
+          },
+        },
+      });
+
+      const { result } = await controller.addTransaction(
+        {
+          from: ACCOUNT_MOCK,
+          gas: '0xFF',
+          gasPrice: '0xEE',
+          to: ACCOUNT_MOCK,
+          value: '0x0',
+        },
+        {
+          origin: ORIGIN_METAMASK,
+        },
+      );
+
+      await result;
+
+      await controller.speedUpTransaction(controller.state.transactions[0].id);
+
+      const { submitHistory } = controller.state;
+
+      expect(submitHistory).toStrictEqual([
+        {
+          chainId: MOCK_NETWORK.chainId,
+          hash: TRANSACTION_HASH_MOCK,
+          networkType: NetworkType.goerli,
+          networkUrl: expect.stringContaining('goerli.infura.io'),
+          origin: 'speed up',
+          rawTransaction: expect.stringContaining('0x'),
+          time: expect.any(Number),
+          transaction: {
+            from: ACCOUNT_MOCK,
+            gas: '0xFF',
+            gasLimit: '0xFF',
+            gasPrice: '0x105',
+            nonce: '0xc',
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+        },
+        expect.objectContaining({
+          origin: ORIGIN_METAMASK,
+        }),
+      ]);
     });
   });
 

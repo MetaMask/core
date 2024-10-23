@@ -222,7 +222,7 @@ describe('SafeEventEmitterProvider', () => {
       ).rejects.toThrow(
         expect.objectContaining({
           code: -32603,
-          message: 'Internal JSON-RPC error.',
+          message: 'Test error',
           data: {
             cause: expect.objectContaining({
               stack: expect.stringContaining(

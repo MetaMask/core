@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../../dist/controllers/user-storage/__fixtures__/index.js",
-  "types": "../../dist/types/controllers/user-storage/__fixtures__/index.d.ts"
+  "main": "../../dist/controllers/user-storage/__fixtures__/index.cjs",
+  "types": "../../dist/types/controllers/user-storage/__fixtures__/index.d.cts"
 }

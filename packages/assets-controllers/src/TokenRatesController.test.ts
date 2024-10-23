@@ -645,7 +645,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should update exchange rates when chain ID changes', async () => {
+      it('should not update exchange rates when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -722,12 +722,18 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x0000000000000000000000000000000000000000': {
+                  currency: 'ETH',
+                },
+              },
+            });
           },
         );
       });
 
-      it('should clear marketData state when chain ID changes', async () => {
+      it('should not clear marketData state when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -776,7 +782,13 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x0000000000000000000000000000000000000000': {
+                  currency: 'ETH',
+                },
+              },
+            });
           },
         );
       });
@@ -865,7 +877,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should clear marketData state when ticker changes', async () => {
+      it('should not clear marketData state when ticker changes', async () => {
         await withController(
           {
             options: {
@@ -913,12 +925,37 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x02': {
+                  currency: 'ETH',
+                  priceChange1d: 0,
+                  pricePercentChange1d: 0,
+                  tokenAddress: '0x02',
+                  allTimeHigh: 4000,
+                  allTimeLow: 900,
+                  circulatingSupply: 2000,
+                  dilutedMarketCap: 100,
+                  high1d: 200,
+                  low1d: 100,
+                  marketCap: 1000,
+                  marketCapPercentChange1d: 100,
+                  price: 0.001,
+                  pricePercentChange14d: 100,
+                  pricePercentChange1h: 1,
+                  pricePercentChange1y: 200,
+                  pricePercentChange200d: 300,
+                  pricePercentChange30d: 200,
+                  pricePercentChange7d: 100,
+                  totalVolume: 100,
+                },
+              },
+            });
           },
         );
       });
 
-      it('should clear marketData state when chain ID changes', async () => {
+      it('should not clear marketData state when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -966,7 +1003,32 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x02': {
+                  currency: 'ETH',
+                  priceChange1d: 0,
+                  pricePercentChange1d: 0,
+                  tokenAddress: '0x02',
+                  allTimeHigh: 4000,
+                  allTimeLow: 900,
+                  circulatingSupply: 2000,
+                  dilutedMarketCap: 100,
+                  high1d: 200,
+                  low1d: 100,
+                  marketCap: 1000,
+                  marketCapPercentChange1d: 100,
+                  price: 0.001,
+                  pricePercentChange14d: 100,
+                  pricePercentChange1h: 1,
+                  pricePercentChange1y: 200,
+                  pricePercentChange200d: 300,
+                  pricePercentChange30d: 200,
+                  pricePercentChange7d: 100,
+                  totalVolume: 100,
+                },
+              },
+            });
           },
         );
       });
@@ -985,7 +1047,7 @@ describe('TokenRatesController', () => {
     });
 
     describe('when polling is active', () => {
-      it('should update exchange rates when selected address changes', async () => {
+      it('should not update exchange rates when selected address changes', async () => {
         const alternateSelectedAddress =
           '0x0000000000000000000000000000000000000002';
         const alternateSelectedAccount = createMockInternalAccount({
@@ -1024,7 +1086,7 @@ describe('TokenRatesController', () => {
               .mockResolvedValue();
             triggerSelectedAccountChange(alternateSelectedAccount);
 
-            expect(updateExchangeRatesSpy).toHaveBeenCalledTimes(1);
+            expect(updateExchangeRatesSpy).not.toHaveBeenCalled();
           },
         );
       });
@@ -1216,7 +1278,9 @@ describe('TokenRatesController', () => {
           },
         },
         async ({ controller }) => {
-          controller.startPollingByNetworkClientId('mainnet');
+          controller.startPolling({
+            networkClientId: 'mainnet',
+          });
 
           await advanceTime({ clock, duration: 0 });
           expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(1);
@@ -1268,7 +1332,9 @@ describe('TokenRatesController', () => {
               },
             },
             async ({ controller }) => {
-              controller.startPollingByNetworkClientId('mainnet');
+              controller.startPolling({
+                networkClientId: 'mainnet',
+              });
               await advanceTime({ clock, duration: 0 });
 
               expect(controller.state).toStrictEqual({
@@ -1372,7 +1438,9 @@ describe('TokenRatesController', () => {
                 },
               },
               async ({ controller }) => {
-                controller.startPollingByNetworkClientId('mainnet');
+                controller.startPolling({
+                  networkClientId: 'mainnet',
+                });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
                 // downstream promises aren't flushed until the next advanceTime loop
@@ -1472,7 +1540,9 @@ describe('TokenRatesController', () => {
                 },
               },
               async ({ controller }) => {
-                controller.startPollingByNetworkClientId('mainnet');
+                controller.startPolling({
+                  networkClientId: 'mainnet',
+                });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
                 // downstream promises aren't flushed until the next advanceTime loop
@@ -1513,8 +1583,9 @@ describe('TokenRatesController', () => {
             },
           },
           async ({ controller }) => {
-            const pollingToken =
-              controller.startPollingByNetworkClientId('mainnet');
+            const pollingToken = controller.startPolling({
+              networkClientId: 'mainnet',
+            });
             await advanceTime({ clock, duration: 0 });
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
               1,
@@ -1581,7 +1652,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('does not update state if there are no tokens for the given chain and address', async () => {
+      it('does not update state if there are no tokens for the given chain', async () => {
         await withController(
           async ({
             controller,
@@ -1589,23 +1660,10 @@ describe('TokenRatesController', () => {
             triggerNetworkStateChange,
           }) => {
             const tokenAddress = '0x0000000000000000000000000000000000000001';
-            const differentAccount =
-              '0x1000000000000000000000000000000000000000';
             controller.enable();
             await callUpdateExchangeRatesMethod({
               allTokens: {
-                // These tokens are for the right chain but wrong account
-                [ChainId.mainnet]: {
-                  [differentAccount]: [
-                    {
-                      address: tokenAddress,
-                      decimals: 18,
-                      symbol: 'TST',
-                      aggregators: [],
-                    },
-                  ],
-                },
-                // These tokens are for the right account but wrong chain
+                // These tokens are on a different chain
                 [toHex(2)]: {
                   [defaultSelectedAddress]: [
                     {
@@ -1713,7 +1771,10 @@ describe('TokenRatesController', () => {
             await callUpdateExchangeRatesMethod({
               allTokens: {
                 [chainId]: {
-                  [defaultSelectedAddress]: tokens,
+                  [defaultSelectedAddress]: tokens.slice(0, 100),
+                  // Include tokens from non selected addresses
+                  '0x0000000000000000000000000000000000000123':
+                    tokens.slice(100),
                 },
               },
               chainId,
@@ -1748,6 +1809,7 @@ describe('TokenRatesController', () => {
         const tokenAddresses = [
           '0x0000000000000000000000000000000000000001',
           '0x0000000000000000000000000000000000000002',
+          '0x0000000000000000000000000000000000000003',
         ];
         const tokenPricesService = buildMockTokenPricesService({
           fetchTokenPrices: jest.fn().mockResolvedValue({
@@ -1760,6 +1822,11 @@ describe('TokenRatesController', () => {
               currency: 'ETH',
               tokenAddress: tokenAddresses[1],
               value: 0.002,
+            },
+            [tokenAddresses[2]]: {
+              currency: 'ETH',
+              tokenAddress: tokenAddresses[2],
+              value: 0.003,
             },
           }),
         });
@@ -1787,6 +1854,15 @@ describe('TokenRatesController', () => {
                       aggregators: [],
                     },
                   ],
+                  // Include tokens from non selected addresses
+                  '0x0000000000000000000000000000000000000123': [
+                    {
+                      address: tokenAddresses[2],
+                      decimals: 18,
+                      symbol: 'TST1',
+                      aggregators: [],
+                    },
+                  ],
                 },
               },
               chainId: ChainId.mainnet,
@@ -1811,6 +1887,11 @@ describe('TokenRatesController', () => {
                   "currency": "ETH",
                   "tokenAddress": "0x0000000000000000000000000000000000000002",
                   "value": 0.002,
+                },
+                "0x0000000000000000000000000000000000000003": Object {
+                  "currency": "ETH",
+                  "tokenAddress": "0x0000000000000000000000000000000000000003",
+                  "value": 0.003,
                 },
               },
             },

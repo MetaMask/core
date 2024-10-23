@@ -887,7 +887,10 @@ describe('PendingTransactionTracker', () => {
           expect(options.publishTransaction).toHaveBeenCalledTimes(1);
           expect(options.publishTransaction).toHaveBeenCalledWith(
             ETH_QUERY_MOCK,
-            TRANSACTION_SUBMITTED_MOCK.rawTx,
+            {
+              ...TRANSACTION_SUBMITTED_MOCK,
+              firstRetryBlockNumber: BLOCK_NUMBER_MOCK,
+            },
           );
         });
 

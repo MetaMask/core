@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../dist/controllers/user-storage/index.js",
-  "types": "../dist/types/controllers/user-storage/index.d.ts"
+  "main": "../dist/controllers/user-storage/index.cjs",
+  "types": "../dist/controllers/user-storage/index.d.cts"
 }

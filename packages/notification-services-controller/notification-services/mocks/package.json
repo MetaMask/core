@@ -4,6 +4,6 @@
   "description": "",
   "license": "MIT",
   "sideEffects": false,
-  "main": "../../dist/NotificationServicesController/__fixtures__/index.js",
-  "types": "../../dist/types/NotificationServicesController/__fixtures__/index.d.ts"
+  "main": "../../dist/NotificationServicesController/__fixtures__/index.cjs",
+  "types": "../../dist/NotificationServicesController/__fixtures__/index.d.cts"
 }

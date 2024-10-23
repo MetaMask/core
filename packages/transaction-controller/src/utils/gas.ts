@@ -1,11 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
-import {
-  BNToHex,
-  fractionBN,
-  hexToBN,
-  query,
-} from '@metamask/controller-utils';
+import { BNToHex, hexToBN, query } from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
@@ -25,6 +20,7 @@ export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
+export const GAS_ESTIMATE_FALLBACK_MULTIPLIER = 0.35;
 
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
@@ -60,7 +56,7 @@ export async function estimateGas(
   const gasLimitBN = hexToBN(gasLimitHex);
 
   request.data = data ? add0x(data) : data;
-  request.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
+  request.gas = BNToHex(gasLimitBN.muln(GAS_ESTIMATE_FALLBACK_MULTIPLIER));
   request.value = value || '0x0';
 
   let estimatedGas = request.gas;
@@ -136,8 +132,12 @@ async function getGas(
     request.ethQuery,
   );
 
-  if (isCustomNetwork) {
-    log('Using original estimate as custom network');
+  if (isCustomNetwork || simulationFails) {
+    log(
+      isCustomNetwork
+        ? 'Using original estimate as custom network'
+        : 'Using original fallback estimate as simulation failed',
+    );
     return [estimatedGas, simulationFails];
   }
 

@@ -12,13 +12,14 @@ import type { PushNotificationEnv } from './types';
 
 const MOCK_JWT = 'mockJwt';
 const MOCK_FCM_TOKEN = 'mockFcmToken';
+const MOCK_MOBILE_FCM_TOKEN = 'mockMobileFcmToken';
 const MOCK_TRIGGERS = ['uuid1', 'uuid2'];
 
 describe('NotificationServicesPushController', () => {
-  const arrangeServicesMocks = () => {
+  const arrangeServicesMocks = (token?: string) => {
     const activatePushNotificationsMock = jest
       .spyOn(services, 'activatePushNotifications')
-      .mockResolvedValue(MOCK_FCM_TOKEN);
+      .mockResolvedValue(token ?? MOCK_FCM_TOKEN);
 
     const deactivatePushNotificationsMock = jest
       .spyOn(services, 'deactivatePushNotifications')
@@ -55,6 +56,20 @@ describe('NotificationServicesPushController', () => {
 
       await controller.enablePushNotifications(MOCK_TRIGGERS);
       expect(controller.state.fcmToken).toBe(MOCK_FCM_TOKEN);
+
+      expect(services.listenToPushNotifications).toHaveBeenCalled();
+    });
+
+    it('should update the state with provided mobile fcmToken', async () => {
+      arrangeServicesMocks(MOCK_MOBILE_FCM_TOKEN);
+      const { controller, messenger } = arrangeMockMessenger();
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.enablePushNotifications(
+        MOCK_TRIGGERS,
+        MOCK_MOBILE_FCM_TOKEN,
+      );
+      expect(controller.state.fcmToken).toBe(MOCK_MOBILE_FCM_TOKEN);
 
       expect(services.listenToPushNotifications).toHaveBeenCalled();
     });

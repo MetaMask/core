@@ -1,10 +1,10 @@
+import { Env, Platform } from '../../shared/env';
 import { JwtBearerAuth } from '../authentication';
 import type {
   AuthSigningOptions,
   AuthStorageOptions,
 } from '../authentication-jwt-bearer/types';
 import { AuthType } from '../authentication-jwt-bearer/types';
-import { Env, Platform } from '../env';
 
 // Alias mocking variables with ANY to test runtime safety.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

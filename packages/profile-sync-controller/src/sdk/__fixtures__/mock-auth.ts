@@ -1,5 +1,6 @@
 import nock from 'nock';
 
+import { Env } from '../../shared/env';
 import {
   NONCE_URL,
   SIWE_LOGIN_URL,
@@ -7,7 +8,6 @@ import {
   OIDC_TOKEN_URL,
   PAIR_IDENTIFIERS,
 } from '../authentication-jwt-bearer/services';
-import { Env } from '../env';
 
 type MockReply = {
   status: nock.StatusCode;

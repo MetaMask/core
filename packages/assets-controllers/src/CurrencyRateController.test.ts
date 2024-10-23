@@ -155,7 +155,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    controller.startPollingByNetworkClientId('mainnet');
+    controller.startPolling({ networkClientId: 'mainnet' });
     await advanceTime({ clock, duration: 0 });
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
     expect(controller.state.currencyRates).toStrictEqual({
@@ -192,7 +192,7 @@ describe('CurrencyRateController', () => {
       messenger,
     });
 
-    controller.startPollingByNetworkClientId('sepolia');
+    controller.startPolling({ networkClientId: 'sepolia' });
 
     await advanceTime({ clock, duration: 0 });
 
@@ -217,7 +217,7 @@ describe('CurrencyRateController', () => {
       fetchExchangeRate: fetchExchangeRateStub,
       messenger,
     });
-    controller.startPollingByNetworkClientId('sepolia');
+    controller.startPolling({ networkClientId: 'sepolia' });
     await advanceTime({ clock, duration: 0 });
 
     controller.stopAllPolling();
@@ -225,7 +225,7 @@ describe('CurrencyRateController', () => {
     // called once upon initial start
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(1);
 
-    controller.startPollingByNetworkClientId('sepolia');
+    controller.startPolling({ networkClientId: 'sepolia' });
     await advanceTime({ clock, duration: 0 });
 
     expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);

@@ -18,7 +18,7 @@ import type {
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
-import { toASCII } from 'punycode/';
+import { toASCII } from 'punycode/punycode.js';
 
 const log = createProjectLogger('ens-controller');
 

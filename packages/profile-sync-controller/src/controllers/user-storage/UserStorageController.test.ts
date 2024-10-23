@@ -2,6 +2,7 @@ import { ControllerMessenger } from '@metamask/base-controller';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type nock from 'nock';
 
+import encryption, { createSHA256Hash } from '../../shared/encryption';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
@@ -13,16 +14,19 @@ import {
   MOCK_USER_STORAGE_ACCOUNTS,
 } from './__fixtures__/mockAccounts';
 import {
+  mockEndpointBatchUpsertUserStorage,
   mockEndpointGetUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointUpsertUserStorage,
+  mockEndpointDeleteUserStorageAllFeatureEntries,
+  mockEndpointDeleteUserStorage,
 } from './__fixtures__/mockServices';
 import {
   MOCK_STORAGE_DATA,
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_KEY_SIGNATURE,
 } from './__fixtures__/mockStorage';
-import encryption from './encryption/encryption';
+import * as AccountsUserStorageModule from './accounts/user-storage';
 import type {
   GetUserStorageAllFeatureEntriesResponse,
   GetUserStorageResponse,
@@ -72,7 +76,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     const result = await controller.performGetStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
     );
     mockAPI.done();
     expect(result).toBe(MOCK_STORAGE_DATA);
@@ -90,7 +94,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     await expect(
-      controller.performGetStorage('notifications.notificationSettings'),
+      controller.performGetStorage('notifications.notification_settings'),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -125,7 +129,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       });
 
       await expect(
-        controller.performGetStorage('notifications.notificationSettings'),
+        controller.performGetStorage('notifications.notification_settings'),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -222,7 +226,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
 
     await controller.performSetStorage(
-      'notifications.notificationSettings',
+      'notifications.notification_settings',
       'new data',
     );
     expect(mockAPI.isDone()).toBe(true);
@@ -241,7 +245,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
     await expect(
       controller.performSetStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -279,7 +283,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
       await expect(
         controller.performSetStorage(
-          'notifications.notificationSettings',
+          'notifications.notification_settings',
           'new data',
         ),
       ).rejects.toThrow(expect.any(Error));
@@ -289,7 +293,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
   it('rejects if api call fails', async () => {
     const { messengerMocks } = arrangeMocks({
       mockAPI: mockEndpointUpsertUserStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         { status: 500 },
       ),
     });
@@ -299,10 +303,288 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
     await expect(
       controller.performSetStorage(
-        'notifications.notificationSettings',
+        'notifications.notification_settings',
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
+  });
+});
+
+describe('user-storage/user-storage-controller - performBatchSetStorage() tests', () => {
+  const arrangeMocks = (mockResponseStatus?: number) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointBatchUpsertUserStorage(
+        'notifications',
+        mockResponseStatus ? { status: mockResponseStatus } : undefined,
+      ),
+    };
+  };
+
+  it('batch saves to user storage', async () => {
+    const { messengerMocks, mockAPI } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.performBatchSetStorage('notifications', [
+      ['notifications.notification_settings', 'new data'],
+    ]);
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+      },
+    });
+
+    await expect(
+      controller.performBatchSetStorage('notifications', [
+        ['notifications.notification_settings', 'new data'],
+      ]),
+    ).rejects.toThrow(expect.any(Error));
+  });
+
+  it.each([
+    [
+      'fails when no bearer token is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+    [
+      'fails when no session identifier is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await expect(
+        controller.performBatchSetStorage('notifications', [
+          ['notifications.notification_settings', 'new data'],
+        ]),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
+
+  it('rejects if api call fails', async () => {
+    const { messengerMocks, mockAPI } = arrangeMocks(500);
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.performBatchSetStorage('notifications', [
+        ['notifications.notification_settings', 'new data'],
+      ]),
+    ).rejects.toThrow(expect.any(Error));
+    mockAPI.done();
+  });
+});
+
+describe('user-storage/user-storage-controller - performDeleteStorage() tests', () => {
+  const arrangeMocks = async (mockResponseStatus?: number) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointDeleteUserStorage(
+        'notifications.notification_settings',
+        mockResponseStatus ? { status: mockResponseStatus } : undefined,
+      ),
+    };
+  };
+
+  it('deletes a user storage entry', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.performDeleteStorage(
+      'notifications.notification_settings',
+    );
+    mockAPI.done();
+
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+      },
+    });
+
+    await expect(
+      controller.performDeleteStorage('notifications.notification_settings'),
+    ).rejects.toThrow(expect.any(Error));
+  });
+
+  it.each([
+    [
+      'fails when no bearer token is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+    [
+      'fails when no session identifier is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = await arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await expect(
+        controller.performDeleteStorage('notifications.notification_settings'),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
+
+  it('rejects if api call fails', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks(500);
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.performDeleteStorage('notifications.notification_settings'),
+    ).rejects.toThrow(expect.any(Error));
+    mockAPI.done();
+  });
+});
+
+describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureEntries() tests', () => {
+  const arrangeMocks = async (mockResponseStatus?: number) => {
+    return {
+      messengerMocks: mockUserStorageMessenger(),
+      mockAPI: mockEndpointDeleteUserStorageAllFeatureEntries(
+        'notifications',
+        mockResponseStatus ? { status: mockResponseStatus } : undefined,
+      ),
+    };
+  };
+
+  it('deletes all user storage entries for a feature', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.performDeleteStorageAllFeatureEntries('notifications');
+    mockAPI.done();
+
+    expect(mockAPI.isDone()).toBe(true);
+  });
+
+  it('rejects if UserStorage is not enabled', async () => {
+    const { messengerMocks } = await arrangeMocks();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+      state: {
+        isProfileSyncingEnabled: false,
+        isProfileSyncingUpdateLoading: false,
+      },
+    });
+
+    await expect(
+      controller.performDeleteStorageAllFeatureEntries('notifications'),
+    ).rejects.toThrow(expect.any(Error));
+  });
+
+  it.each([
+    [
+      'fails when no bearer token is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetBearerToken.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+    [
+      'fails when no session identifier is found (auth errors)',
+      (messengerMocks: ReturnType<typeof mockUserStorageMessenger>) =>
+        messengerMocks.mockAuthGetSessionProfile.mockRejectedValue(
+          new Error('MOCK FAILURE'),
+        ),
+    ],
+  ])(
+    'rejects on auth failure - %s',
+    async (
+      _: string,
+      arrangeFailureCase: (
+        messengerMocks: ReturnType<typeof mockUserStorageMessenger>,
+      ) => void,
+    ) => {
+      const { messengerMocks } = await arrangeMocks();
+      arrangeFailureCase(messengerMocks);
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        getMetaMetricsState: () => true,
+      });
+
+      await expect(
+        controller.performDeleteStorageAllFeatureEntries('notifications'),
+      ).rejects.toThrow(expect.any(Error));
+    },
+  );
+
+  it('rejects if api call fails', async () => {
+    const { messengerMocks, mockAPI } = await arrangeMocks(500);
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      getMetaMetricsState: () => true,
+    });
+
+    await expect(
+      controller.performDeleteStorageAllFeatureEntries('notifications'),
+    ).rejects.toThrow(expect.any(Error));
+    mockAPI.done();
   });
 });
 
@@ -503,12 +785,27 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               mockUserStorageAccountsResponse,
             ),
-          mockEndpointUpsertUserStorageAccount1: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[0].address}`,
-          ),
-          mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[1].address}`,
-          ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage(
+              'accounts',
+              undefined,
+              async (_uri, requestBody) => {
+                const decryptedBody = await decryptBatchUpsertBody(
+                  requestBody,
+                  MOCK_STORAGE_KEY,
+                );
+
+                const expectedBody = createExpectedAccountSyncBatchUpsertBody(
+                  MOCK_INTERNAL_ACCOUNTS.ALL.slice(0, 2).map((account) => [
+                    account.address,
+                    account as InternalAccount,
+                  ]),
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(decryptedBody).toStrictEqual(expectedBody);
+              },
+            ),
         },
       };
     };
@@ -524,12 +821,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
 
     await controller.syncInternalAccountsWithUserStorage();
     mockAPI.mockEndpointGetUserStorage.done();
-    mockAPI.mockEndpointUpsertUserStorageAccount1.done();
-    mockAPI.mockEndpointUpsertUserStorageAccount2.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
-    expect(mockAPI.mockEndpointUpsertUserStorageAccount1.isDone()).toBe(true);
-    expect(mockAPI.mockEndpointUpsertUserStorageAccount2.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
   });
 
   it('creates internal accounts if user storage has more accounts', async () => {
@@ -580,6 +874,59 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     );
   });
 
+  it('fires the onAccountAdded callback when adding an account', async () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
+    };
+
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList: MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              await mockUserStorageAccountsResponse(),
+            ),
+        },
+      };
+    };
+
+    const onAccountAdded = jest.fn();
+
+    const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+    const controller = new UserStorageController({
+      messenger: messengerMocks.messenger,
+      config: {
+        accountSyncing: {
+          onAccountAdded,
+        },
+      },
+      env: {
+        isAccountSyncingEnabled: true,
+      },
+      getMetaMetricsState: () => true,
+    });
+
+    await controller.syncInternalAccountsWithUserStorage();
+
+    mockAPI.mockEndpointGetUserStorage.done();
+
+    expect(onAccountAdded).toHaveBeenCalledTimes(
+      MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
+        MOCK_INTERNAL_ACCOUNTS.ONE.length,
+    );
+  });
+
   it('does not create internal accounts if user storage has less accounts', async () => {
     const mockUserStorageAccountsResponse = async () => {
       return {
@@ -606,10 +953,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
-
-          mockEndpointUpsertUserStorageAccount2: mockEndpointUpsertUserStorage(
-            `accounts.${MOCK_INTERNAL_ACCOUNTS.ALL[1].address}`,
-          ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage('accounts'),
         },
       };
     };
@@ -626,9 +971,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     await controller.syncInternalAccountsWithUserStorage();
 
     mockAPI.mockEndpointGetUserStorage.done();
-    mockAPI.mockEndpointUpsertUserStorageAccount2.done();
+    mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
     expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+    expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(true);
 
     expect(messengerMocks.mockKeyringAddNewAccount).not.toHaveBeenCalled();
   });
@@ -695,9 +1041,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITHOUT_LAST_UPDATED[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -714,7 +1059,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -736,9 +1081,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -755,7 +1099,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -868,9 +1212,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -887,11 +1230,53 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
       ).not.toHaveBeenCalled();
+    });
+
+    it('fires the onAccountNameUpdated callback when renaming an internal account', async () => {
+      const arrangeMocksForAccounts = async () => {
+        return {
+          messengerMocks: mockUserStorageMessenger({
+            accounts: {
+              accountsList:
+                MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+            },
+          }),
+          mockAPI: {
+            mockEndpointGetUserStorage:
+              await mockEndpointGetUserStorageAllFeatureEntries(
+                'accounts',
+                await mockUserStorageAccountsResponse(),
+              ),
+          },
+        };
+      };
+
+      const onAccountNameUpdated = jest.fn();
+
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        config: {
+          accountSyncing: {
+            onAccountNameUpdated,
+          },
+        },
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      mockAPI.mockEndpointGetUserStorage.done();
+
+      expect(onAccountNameUpdated).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -1054,9 +1439,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
                 'accounts',
                 await mockUserStorageAccountsResponse(),
               ),
-            mockEndpointUpsertUserStorage: mockEndpointUpsertUserStorage(
-              `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT[0].address}`,
-            ),
+            mockEndpointBatchUpsertUserStorage:
+              mockEndpointBatchUpsertUserStorage('accounts'),
           },
         };
       };
@@ -1073,7 +1457,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       mockAPI.mockEndpointGetUserStorage.done();
-      mockAPI.mockEndpointUpsertUserStorage.done();
+      mockAPI.mockEndpointBatchUpsertUserStorage.done();
 
       expect(
         messengerMocks.mockAccountsUpdateAccountMetadata,
@@ -1089,6 +1473,11 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
         messengerMocks: mockUserStorageMessenger(),
       };
     };
+
+    const mapInternalAccountToUserStorageAccountMock = jest.spyOn(
+      AccountsUserStorageModule,
+      'mapInternalAccountToUserStorageAccount',
+    );
 
     const { messengerMocks } = await arrangeMocks();
     const controller = new UserStorageController({
@@ -1107,9 +1496,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
     );
 
-    expect(
-      messengerMocks.mockAccountsGetAccountByAddress,
-    ).not.toHaveBeenCalled();
+    expect(mapInternalAccountToUserStorageAccountMock).not.toHaveBeenCalled();
   });
 
   it('returns void if account syncing feature flag is disabled', async () => {
@@ -1326,7 +1713,13 @@ function mockUserStorageMessenger(options?: {
       NotificationServicesControllerDisableNotificationServices['handler']
     >().mockResolvedValue();
 
-  const mockKeyringAddNewAccount = jest.fn().mockResolvedValue('0x123');
+  const mockKeyringAddNewAccount = jest.fn(() => {
+    baseMessenger.publish(
+      'AccountsController:accountAdded',
+      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+    );
+    return MOCK_INTERNAL_ACCOUNTS.ONE[0].address;
+  });
 
   const mockAccountsListAccounts = jest
     .fn()
@@ -1335,10 +1728,6 @@ function mockUserStorageMessenger(options?: {
     );
 
   const mockAccountsUpdateAccountMetadata = jest.fn().mockResolvedValue(true);
-
-  const mockAccountsGetAccountByAddress = jest
-    .fn()
-    .mockResolvedValue(MOCK_INTERNAL_ACCOUNTS.ONE[0]);
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
     // Creates the correct typed call params for mocks
@@ -1417,17 +1806,9 @@ function mockUserStorageMessenger(options?: {
       return mockAccountsUpdateAccountMetadata(args.slice(1));
     }
 
-    if (actionType === 'AccountsController:getAccountByAddress') {
-      return mockAccountsGetAccountByAddress();
-    }
-
-    const exhaustedMessengerMocks = (action: never) => {
-      throw new Error(
-        `MOCK_FAIL - unsupported messenger call: ${action as string}`,
-      );
-    };
-
-    return exhaustedMessengerMocks(actionType);
+    throw new Error(
+      `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
+    );
   });
 
   return {
@@ -1444,7 +1825,6 @@ function mockUserStorageMessenger(options?: {
     mockAuthPerformSignOut,
     mockKeyringAddNewAccount,
     mockAccountsUpdateAccountMetadata,
-    mockAccountsGetAccountByAddress,
     mockAccountsListAccounts,
   };
 }
@@ -1475,4 +1855,49 @@ async function createMockUserStorageEntries(
   data: unknown[],
 ): Promise<GetUserStorageAllFeatureEntriesResponse> {
   return await Promise.all(data.map((d) => createMockUserStorageEntry(d)));
+}
+
+/**
+ * Test Utility - decrypts a realistic batch upsert payload
+ * @param requestBody - nock body
+ * @param storageKey - storage key
+ * @returns decrypted body
+ */
+async function decryptBatchUpsertBody(
+  requestBody: nock.Body,
+  storageKey: string,
+) {
+  if (typeof requestBody === 'string') {
+    return requestBody;
+  }
+  return await Promise.all(
+    Object.entries<string>(requestBody.data).map(
+      async ([entryKey, entryValue]) => {
+        return [
+          entryKey,
+          await encryption.decryptString(entryValue, storageKey),
+        ];
+      },
+    ),
+  );
+}
+
+/**
+ * Test Utility - creates a realistic expected batch upsert payload
+ * @param data - data supposed to be upserted
+ * @param storageKey - storage key
+ * @returns expected body
+ */
+function createExpectedAccountSyncBatchUpsertBody(
+  data: [string, InternalAccount][],
+  storageKey: string,
+) {
+  return data.map(([entryKey, entryValue]) => [
+    createSHA256Hash(String(entryKey) + storageKey),
+    JSON.stringify(
+      AccountsUserStorageModule.mapInternalAccountToUserStorageAccount(
+        entryValue,
+      ),
+    ),
+  ]);
 }
