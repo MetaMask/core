@@ -8,14 +8,14 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-  parseScopeString,
-} from './types';
+} from './constants';
+import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
+import { parseScopeString } from './types';
 
 export const isSupportedScopeString = (
   scopeString: string,

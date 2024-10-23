@@ -1,14 +1,14 @@
 import {
-  isSupportedMethod,
-  isSupportedNotification,
-  isSupportedScopeString,
-} from './supported';
-import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from './types';
+} from './constants';
+import {
+  isSupportedMethod,
+  isSupportedNotification,
+  isSupportedScopeString,
+} from './supported';
 
 describe('Scope Support', () => {
   describe('isSupportedNotification', () => {

@@ -1,5 +1,5 @@
 import type { Caip25CaveatValue } from '../caip25Permission';
-import { KnownNotifications, KnownRpcMethods } from '../scope/types';
+import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
 import {
   addPermittedEthChainId,
   getPermittedEthChainIds,

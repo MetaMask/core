@@ -10,6 +10,12 @@ describe('@metamask/multichain', () => {
         "addPermittedEthChainId",
         "setPermittedEthChainIds",
         "validateAndNormalizeScopes",
+        "KnownWalletRpcMethods",
+        "KnownRpcMethods",
+        "KnownWalletNamespaceRpcMethods",
+        "KnownNotifications",
+        "parseScopeString",
+        "KnownWalletScopeString",
         "isSupportedScopeString",
         "isSupportedAccount",
         "isSupportedMethod",
@@ -26,12 +32,6 @@ describe('@metamask/multichain', () => {
         "caip25EndowmentBuilder",
         "Caip25CaveatMutatorFactories",
         "removeScope",
-        "KnownWalletScopeString",
-        "KnownWalletRpcMethods",
-        "KnownRpcMethods",
-        "KnownWalletNamespaceRpcMethods",
-        "KnownNotifications",
-        "parseScopeString",
       ]
     `);
   });

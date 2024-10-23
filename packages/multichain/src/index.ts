@@ -10,7 +10,23 @@ export {
 
 export type { Caip25Authorization } from './scope/authorization';
 export { validateAndNormalizeScopes } from './scope/authorization';
-export * from './scope/types';
+export {
+  KnownWalletRpcMethods,
+  KnownRpcMethods,
+  KnownWalletNamespaceRpcMethods,
+  KnownNotifications,
+} from './scope/constants';
+export type {
+  ExternalScopeString,
+  ExternalScopeObject,
+  ExternalScopesObject,
+  ScopeString,
+  ScopeObject,
+  ScopesObject,
+  ScopedProperties,
+  NonWalletKnownCaipNamespace,
+} from './scope/types';
+export { parseScopeString, KnownWalletScopeString } from './scope/types';
 export {
   isSupportedScopeString,
   isSupportedAccount,
