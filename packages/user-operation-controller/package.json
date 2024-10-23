@@ -65,7 +65,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/gas-fee-controller": "^21.0.0",
     "@metamask/keyring-controller": "^17.3.0",
-    "@metamask/network-controller": "^21.1.0",
+    "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^37.3.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -79,7 +79,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/gas-fee-controller": "^21.0.0",
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/network-controller": "^21.0.0",
+    "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^37.0.0"
   },
   "engines": {
