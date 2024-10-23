@@ -12,6 +12,11 @@ export type NonWalletKnownCaipNamespace = Exclude<
   KnownCaipNamespace.Wallet
 >;
 
+// Regexes for references for non-wallet known CAIP namespaces
+export const CaipReferenceRegexes: Record<NonWalletKnownCaipNamespace, RegExp> = {
+  eip155: /^(0|[1-9][0-9]*)$/
+}
+
 // Methods that do not belong to an ecosystem
 export const KnownWalletRpcMethods: string[] = [
   'wallet_registerOnboarding',
