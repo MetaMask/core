@@ -1229,6 +1229,11 @@ export default class NotificationServicesController extends BaseController<
     for (const id of ids) {
       await this.deleteNotificationById(id);
     }
+
+    this.messagingSystem.publish(
+      `${controllerName}:notificationsListUpdated`,
+      this.state.metamaskNotificationsList,
+    );
   }
 
   /**
