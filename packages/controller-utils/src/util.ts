@@ -10,6 +10,7 @@ import {
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
+import BN4 from 'bnjs4';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 
@@ -69,8 +70,17 @@ export function isSafeChainId(chainId: Hex): boolean {
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function BNToHex(inputBn: BN | BigNumber) {
+export function BNToHex(inputBn: BN | BN4 | BigNumber) {
   return add0x(inputBn.toString(16));
+}
+
+/**
+ * Return the bn.js library responsible for the BN in question
+ * @param targetBN - A BN instance
+ * @returns A bn.js instance
+ */
+function getBNImplementation(targetBN: BN | BN4): typeof BN4 | typeof BN {
+  return Object.keys(targetBN).includes('_strip') ? BN4 : BN;
 }
 
 /**
@@ -82,12 +92,16 @@ export function BNToHex(inputBn: BN | BigNumber) {
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  targetBN: BN,
+  targetBN: BN | BN4,
   numerator: number | string,
   denominator: number | string,
 ) {
-  const numBN = new BN(numerator);
-  const denomBN = new BN(denominator);
+  const BNImplementation = getBNImplementation(targetBN);
+
+  // @ts-expect-error - Incompatible constructor signatures are actually compatible here
+  const numBN = new BNImplementation(numerator);
+  // @ts-expect-error - Incompatible constructor signatures are actually compatible here
+  const denomBN = new BNImplementation(denominator);
   return targetBN.mul(numBN).div(denomBN);
 }
 
@@ -199,11 +213,11 @@ export function hexToText(hex: string) {
  * @param value - A base-16 number encoded as a string.
  * @returns The number as a BN object in base-16 mode.
  */
-export function fromHex(value: string | BN): BN {
+export function fromHex(value: string | BN | BN4): BN | BN4 {
   if (BN.isBN(value)) {
     return value;
   }
-  return new BN(hexToBN(value).toString(10));
+  return new BN(hexToBN(value as string).toString(10), 10);
 }
 
 /**
@@ -212,14 +226,14 @@ export function fromHex(value: string | BN): BN {
  * @param value - An integer, an integer encoded as a base-10 string, or a BN.
  * @returns The integer encoded as a hex string.
  */
-export function toHex(value: number | bigint | string | BN): Hex {
+export function toHex(value: number | bigint | string | BN | BN4): Hex {
   if (typeof value === 'string' && isStrictHexString(value)) {
     return value;
   }
   const hexString =
     BN.isBN(value) || typeof value === 'bigint'
       ? value.toString(16)
-      : new BN(value.toString(), 10).toString(16);
+      : new BN(value.toString(10), 10).toString(16);
   return `0x${hexString}`;
 }
 
