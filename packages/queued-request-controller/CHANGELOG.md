@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core.git/pull/4831))
-- Release 226.0.0 ([#4834](https://github.com/MetaMask/core.git/pull/4834))
-- Release 223.0.0 ([#4810](https://github.com/MetaMask/core.git/pull/4810))
-- deps: @metamask/rpc-errors@^6.3.1->^7.0.0 ([#4769](https://github.com/MetaMask/core.git/pull/4769))
-- Release/222.0.0 ([#4807](https://github.com/MetaMask/core.git/pull/4807))
-
 ### Changed
 
 - **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
@@ -280,28 +272,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@5.1.0...HEAD
-[5.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@5.0.1...@metamask/queued-request-controller@5.1.0
-[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@5.0.0...@metamask/queued-request-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@4.0.0...@metamask/queued-request-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@3.0.0...@metamask/queued-request-controller@4.0.0
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@2.0.0...@metamask/queued-request-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@1.0.0...@metamask/queued-request-controller@2.0.0
-[1.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.12.0...@metamask/queued-request-controller@1.0.0
-[0.12.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.11.0...@metamask/queued-request-controller@0.12.0
-[0.11.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.10.0...@metamask/queued-request-controller@0.11.0
-[0.10.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.9.0...@metamask/queued-request-controller@0.10.0
-[0.9.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.8.0...@metamask/queued-request-controller@0.9.0
-[0.8.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.7.0...@metamask/queued-request-controller@0.8.0
-[0.7.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.7.0
-[0.6.1]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
-[0.6.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
-[0.5.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0
-[0.4.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.3.0...@metamask/queued-request-controller@0.4.0
-[0.3.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.2.0...@metamask/queued-request-controller@0.3.0
-[0.2.0]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.4...@metamask/queued-request-controller@0.2.0
-[0.1.4]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.3...@metamask/queued-request-controller@0.1.4
-[0.1.3]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.2...@metamask/queued-request-controller@0.1.3
-[0.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.1...@metamask/queued-request-controller@0.1.2
-[0.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/queued-request-controller@0.1.0...@metamask/queued-request-controller@0.1.1
-[0.1.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/queued-request-controller@0.1.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...HEAD
+[5.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.1...@metamask/queued-request-controller@5.1.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.0...@metamask/queued-request-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@4.0.0...@metamask/queued-request-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@3.0.0...@metamask/queued-request-controller@4.0.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@2.0.0...@metamask/queued-request-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@1.0.0...@metamask/queued-request-controller@2.0.0
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.12.0...@metamask/queued-request-controller@1.0.0
+[0.12.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.11.0...@metamask/queued-request-controller@0.12.0
+[0.11.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.10.0...@metamask/queued-request-controller@0.11.0
+[0.10.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.9.0...@metamask/queued-request-controller@0.10.0
+[0.9.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.8.0...@metamask/queued-request-controller@0.9.0
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.7.0...@metamask/queued-request-controller@0.8.0
+[0.7.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.1...@metamask/queued-request-controller@0.7.0
+[0.6.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.6.0...@metamask/queued-request-controller@0.6.1
+[0.6.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.5.0...@metamask/queued-request-controller@0.6.0
+[0.5.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.4.0...@metamask/queued-request-controller@0.5.0
+[0.4.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.3.0...@metamask/queued-request-controller@0.4.0
+[0.3.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.2.0...@metamask/queued-request-controller@0.3.0
+[0.2.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.4...@metamask/queued-request-controller@0.2.0
+[0.1.4]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.3...@metamask/queued-request-controller@0.1.4
+[0.1.3]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.2...@metamask/queued-request-controller@0.1.3
+[0.1.2]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.1...@metamask/queued-request-controller@0.1.2
+[0.1.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@0.1.0...@metamask/queued-request-controller@0.1.1
+[0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/queued-request-controller@0.1.0
