@@ -52,16 +52,16 @@ describe('Scope Transform', () => {
       });
 
       it('returns one deep cloned scope per `references` element', () => {
-        const noramlizedScopes = normalizeScope('eip155', {
+        const normalizedScopes = normalizeScope('eip155', {
           ...validScopeObject,
           references: ['1', '5'],
         });
 
-        expect(noramlizedScopes['eip155:1']).not.toBe(
-          noramlizedScopes['eip155:5'],
+        expect(normalizedScopes['eip155:1']).not.toBe(
+          normalizedScopes['eip155:5'],
         );
-        expect(noramlizedScopes['eip155:1'].methods).not.toBe(
-          noramlizedScopes['eip155:5'].methods,
+        expect(normalizedScopes['eip155:1'].methods).not.toBe(
+          normalizedScopes['eip155:5'].methods,
         );
       });
     });
