@@ -70,10 +70,12 @@ export function isSafeChainId(chainId: Hex): boolean {
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function BNToHex(inputBn: BN | BN4 | BigNumber) {
+export function BNToHex(inputBn: BN | BN4 | BigNumber): string {
   return add0x(inputBn.toString(16));
 }
 
+function getBNImplementation(targetBN: BN4): typeof BN4;
+function getBNImplementation(targetBN: BN): typeof BN;
 /**
  * Return the bn.js library responsible for the BN in question
  * @param targetBN - A BN instance
@@ -83,6 +85,16 @@ function getBNImplementation(targetBN: BN | BN4): typeof BN4 | typeof BN {
   return Object.keys(targetBN).includes('_strip') ? BN4 : BN;
 }
 
+export function fractionBN(
+  targetBN: BN,
+  numerator: number | string,
+  denominator: number | string,
+): BN;
+export function fractionBN(
+  targetBN: BN4,
+  numerator: number | string,
+  denominator: number | string,
+): BN4;
 /**
  * Used to multiply a BN by a fraction.
  *
@@ -95,13 +107,13 @@ export function fractionBN(
   targetBN: BN | BN4,
   numerator: number | string,
   denominator: number | string,
-) {
+): BN | BN4 {
+  // @ts-expect-error - Signature overload confusion
   const BNImplementation = getBNImplementation(targetBN);
 
-  // @ts-expect-error - Incompatible constructor signatures are actually compatible here
   const numBN = new BNImplementation(numerator);
-  // @ts-expect-error - Incompatible constructor signatures are actually compatible here
   const denomBN = new BNImplementation(denominator);
+  // @ts-expect-error - BNImplementation gets unexpected typed
   return targetBN.mul(numBN).div(denomBN);
 }
 
@@ -206,6 +218,8 @@ export function hexToText(hex: string) {
   }
 }
 
+export function fromHex(value: string | BN): BN;
+export function fromHex(value: BN4): BN4;
 /**
  * Parses a hex string and converts it into a number that can be operated on in a bignum-safe,
  * base-10 way.
