@@ -2109,7 +2109,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -2147,7 +2147,7 @@ __metadata:
     "@metamask/network-controller": "npm:^22.0.0"
     "@metamask/polling-controller": "npm:^11.0.0"
     "@metamask/preferences-controller": "npm:^13.1.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -2568,7 +2568,7 @@ __metadata:
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-query": "npm:^0.5.3"
     "@metamask/json-rpc-engine": "npm:^10.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -2854,7 +2854,7 @@ __metadata:
   dependencies:
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@metamask/auto-changelog": "npm:^3.4.4"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/safe-event-emitter": "npm:^3.0.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -3061,7 +3061,7 @@ __metadata:
     "@metamask/eth-json-rpc-provider": "npm:^4.1.5"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/json-rpc-engine": "npm:^10.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/swappable-obj-proxy": "npm:^2.2.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
@@ -3188,7 +3188,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.0.1"
     "@metamask/controller-utils": "npm:^11.4.0"
     "@metamask/json-rpc-engine": "npm:^10.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^27.4.1"
@@ -3373,7 +3373,7 @@ __metadata:
     "@metamask/controller-utils": "npm:^11.4.0"
     "@metamask/json-rpc-engine": "npm:^10.0.0"
     "@metamask/network-controller": "npm:^22.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/selected-network-controller": "npm:^18.0.2"
     "@metamask/swappable-obj-proxy": "npm:^2.2.0"
     "@metamask/utils": "npm:^10.0.0"
@@ -3400,7 +3400,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^3.4.4"
     "@metamask/base-controller": "npm:^7.0.1"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
     deepmerge: "npm:^4.2.2"
@@ -3422,13 +3422,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/rpc-errors@npm:^7.0.0":
-  version: 7.0.0
-  resolution: "@metamask/rpc-errors@npm:7.0.0"
+"@metamask/rpc-errors@npm:^7.0.0, @metamask/rpc-errors@npm:^7.0.1":
+  version: 7.0.1
+  resolution: "@metamask/rpc-errors@npm:7.0.1"
   dependencies:
-    "@metamask/utils": "npm:^9.0.0"
+    "@metamask/utils": "npm:^10.0.0"
     fast-safe-stringify: "npm:^2.0.6"
-  checksum: 10/f25e2a5506d4d0d6193c88aef8f035ec189a1177f8aee8fa01c9a33d73b1536ca7b5eea2fb33a477768bbd2abaf16529e68f0b3cf714387e5d6c9178225354fd
+  checksum: 10/819708b4a7d9695ee67fd867d8f94bb5a273b479a242b17bd53c83d1fceec421fc42928f0bb340f4f138ec803dd82ec9659ce7b09a86aedad6a81d5a39ec5c35
   languageName: node
   linkType: hard
 
@@ -3698,7 +3698,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^22.0.0"
     "@metamask/nonce-tracker": "npm:^6.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/bn.js": "npm:^5.1.5"
     "@types/jest": "npm:^27.4.1"
@@ -3740,7 +3740,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^17.3.0"
     "@metamask/network-controller": "npm:^22.0.0"
     "@metamask/polling-controller": "npm:^11.0.0"
-    "@metamask/rpc-errors": "npm:^7.0.0"
+    "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/transaction-controller": "npm:^37.3.0"
     "@metamask/utils": "npm:^10.0.0"
