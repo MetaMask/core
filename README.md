@@ -122,6 +122,9 @@ linkStyle default opacity:0.5
   logging_controller --> controller_utils;
   message_manager --> base_controller;
   message_manager --> controller_utils;
+  multichain --> controller_utils;
+  multichain --> network_controller;
+  multichain --> permission_controller;
   name_controller --> base_controller;
   name_controller --> controller_utils;
   network_controller --> base_controller;
