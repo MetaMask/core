@@ -35,6 +35,7 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
+import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
@@ -46,6 +47,7 @@ import type {
   GetTokenListState,
   TokenListMap,
   TokenListStateChange,
+  TokensChainsCache,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
 import type {
@@ -82,6 +84,20 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
     },
   };
 }, {});
+
+/**
+ * Function that takes a TokensChainsCache and returns it without timestamp
+ * @param obj - Object to compare
+ * @returns returns the object argument without the timestamp
+ */
+function removeTimestamps(obj: TokensChainsCache) {
+  return mapValues(obj, (value) => {
+    if (isObject(value) && 'data' in value) {
+      return get(value, ['data']);
+    }
+    return value;
+  });
+}
 
 export const controllerName = 'TokenDetectionController';
 
@@ -156,7 +172,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #networkClientId: NetworkClientId;
 
-  #tokenList: TokenDetectionMap = {};
+  #tokensChainsCache: TokensChainsCache = {};
 
   #disabled: boolean;
 
@@ -278,6 +294,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#getCorrectChainIdAndNetworkClientId();
     this.#networkClientId = networkClientId;
 
+    const { tokensChainsCache } = this.messagingSystem.call(
+      'TokenListController:getState',
+    );
+    this.#tokensChainsCache = tokensChainsCache;
+
     const { useTokenDetection: defaultUseTokenDetection } =
       this.messagingSystem.call('PreferencesController:getState');
     this.#isDetectionEnabledFromPreferences = defaultUseTokenDetection;
@@ -318,10 +339,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       'TokenListController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ tokenList }) => {
-        const hasTokens = Object.keys(tokenList).length;
-
-        if (hasTokens) {
+      async ({ tokensChainsCache }) => {
+        // compare previous and incoming tokensChainsCache
+        const previousTokensChainsCache = removeTimestamps(
+          this.#tokensChainsCache,
+        );
+        const cleanTokensChainsCache = removeTimestamps(tokensChainsCache);
+        const isEqualValues = isEqual(
+          cleanTokensChainsCache,
+          previousTokensChainsCache,
+        );
+        if (!isEqualValues) {
           await this.#restartTokenDetection();
         }
       },
@@ -552,9 +580,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const { tokensChainsCache } = this.messagingSystem.call(
       'TokenListController:getState',
     );
-    this.#tokenList = isTokenDetectionInactiveInMainnet
-      ? STATIC_MAINNET_TOKEN_LIST
-      : tokensChainsCache[chainIdAgainstWhichToDetect]?.data ?? {};
+    this.#tokensChainsCache = isTokenDetectionInactiveInMainnet
+      ? this.#getConvertedStaticMainnetTokenList()
+      : tokensChainsCache ?? {};
 
     const tokenCandidateSlices = this.#getSlicesOfTokensToDetect({
       chainId: chainIdAgainstWhichToDetect,
@@ -604,7 +632,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     );
 
     const tokensToDetect: string[] = [];
-    for (const tokenAddress of Object.keys(this.#tokenList)) {
+    for (const tokenAddress of Object.keys(
+      this.#tokensChainsCache?.[chainId]?.data || {},
+    )) {
       if (
         [
           tokensAddresses,
@@ -627,6 +657,29 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }
 
     return slicesOfTokensToDetect;
+  }
+
+  #getConvertedStaticMainnetTokenList(): TokensChainsCache {
+    const data: TokenListMap = Object.entries(STATIC_MAINNET_TOKEN_LIST).reduce(
+      (acc, [key, value]) => ({
+        ...acc,
+        [key]: {
+          name: value.name,
+          symbol: value.symbol,
+          decimals: value.decimals,
+          address: value.address,
+          aggregators: [],
+          iconUrl: value?.iconUrl,
+        },
+      }),
+      {},
+    );
+    return {
+      '0x1': {
+        data,
+        timestamp: 0,
+      },
+    };
   }
 
   /**
@@ -671,14 +724,14 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           return;
         }
 
-        // We need specific data from tokenList to correctly create a token
+        // We need specific data from tokensChainsCache to correctly create a token
         // So even if we have a token that was detected correctly by the API, if its missing data we cannot safely add it.
-        if (!this.#tokenList[token.address]) {
+        if (!this.#tokensChainsCache[chainId].data[token.address]) {
           return;
         }
 
         const { decimals, symbol, aggregators, iconUrl, name } =
-          this.#tokenList[token.address];
+          this.#tokensChainsCache[chainId].data[token.address];
         eventTokensDetails.push(`${symbol} - ${tokenAddress}`);
         tokensWithBalance.push({
           address: tokenAddress,
@@ -742,7 +795,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       const eventTokensDetails: string[] = [];
       for (const nonZeroTokenAddress of Object.keys(balances)) {
         const { decimals, symbol, aggregators, iconUrl, name } =
-          this.#tokenList[nonZeroTokenAddress];
+          this.#tokensChainsCache[chainId].data[nonZeroTokenAddress];
         eventTokensDetails.push(`${symbol} - ${nonZeroTokenAddress}`);
         tokensWithBalance.push({
           address: nonZeroTokenAddress,
