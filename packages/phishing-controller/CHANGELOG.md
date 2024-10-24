@@ -9,11 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.1.0]
 
-### Uncategorized
+### Fixed
 
-- fix: phishing detector validation to drop invalid configs from detector ([#4820](https://github.com/MetaMask/core.git/pull/4820))
-- Release 226.0.0 ([#4834](https://github.com/MetaMask/core.git/pull/4834))
-- chore: remove `eth-phishing-detect` ([#4681](https://github.com/MetaMask/core.git/pull/4681))
+- Update the phishing detector validation to drop invalid configs from detector ([#4820](https://github.com/MetaMask/core/pull/4820))
 
 ## [12.0.3]
 
