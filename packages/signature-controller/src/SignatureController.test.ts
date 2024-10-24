@@ -128,7 +128,6 @@ function createController(options?: Partial<SignatureControllerOptions>) {
 
   const controller = new SignatureController({
     messenger: messengerMocks.messenger,
-    getCurrentChainId: () => CHAIN_ID_MOCK,
     ...options,
   });
 
