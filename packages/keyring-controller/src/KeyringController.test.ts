@@ -361,32 +361,6 @@ describe('KeyringController', () => {
     });
   });
 
-  describe('addNewAccountWithoutUpdate', () => {
-    it('should add new account without updating', async () => {
-      await withController(async ({ controller, initialState }) => {
-        await controller.addNewAccountWithoutUpdate();
-        expect(initialState.keyrings).toHaveLength(1);
-        expect(initialState.keyrings[0].accounts).not.toStrictEqual(
-          controller.state.keyrings[0].accounts,
-        );
-        expect(controller.state.keyrings[0].accounts).toHaveLength(2);
-        // we make sure that updateIdentities is not called
-        // during this test
-      });
-    });
-
-    it('should throw error with no HD keyring', async () => {
-      await withController(
-        { skipVaultCreation: true },
-        async ({ controller }) => {
-          await expect(controller.addNewAccountWithoutUpdate()).rejects.toThrow(
-            'No HD keyring found',
-          );
-        },
-      );
-    });
-  });
-
   describe('addNewKeyring', () => {
     describe('when there is a builder for the given type', () => {
       it('should add new keyring', async () => {

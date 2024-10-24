@@ -733,25 +733,6 @@ export class KeyringController extends BaseController<
   }
 
   /**
-   * Adds a new account to the default (first) HD seed phrase keyring without updating identities in preferences.
-   *
-   * @returns Promise resolving to the added account address.
-   */
-  async addNewAccountWithoutUpdate(): Promise<string> {
-    return this.#persistOrRollback(async () => {
-      const primaryKeyring = this.getKeyringsByType('HD Key Tree')[0] as
-        | EthKeyring<Json>
-        | undefined;
-      if (!primaryKeyring) {
-        throw new Error('No HD keyring found');
-      }
-      const [addedAccountAddress] = await primaryKeyring.addAccounts(1);
-      await this.verifySeedPhrase();
-      return addedAccountAddress;
-    });
-  }
-
-  /**
    * Effectively the same as creating a new keychain then populating it
    * using the given seed phrase.
    *
