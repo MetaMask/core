@@ -81,6 +81,8 @@ export const checkWhichNetworkIsLatest = (
       : 'Remote Wins';
   }
 
+  // Unreachable statement
+  /* istanbul ignore next */
   return 'Do Nothing';
 };
 
@@ -141,6 +143,9 @@ export const getUpdatedNetworkLists = (
     const localNetwork = localMap.get(chain);
     const remoteNetwork = remoteMap.get(chain);
     if (!localNetwork || !remoteNetwork) {
+      // This should be unreachable as we know the Maps created will have the values
+      // This is to satisfy types
+      /* istanbul ignore next */
       return;
     }
 
@@ -202,5 +207,7 @@ export const findNetworksToUpdate = (props: FindNetworksToUpdateProps) => {
     // Unable to perform sync, silently fail
   }
 
+  // Unreachable statement
+  /* istanbul ignore next */
   return undefined;
 };
