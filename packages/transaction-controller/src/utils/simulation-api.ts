@@ -42,6 +42,10 @@ export type SimulationRequest = {
    */
   transactions: SimulationRequestTransaction[];
 
+  blockOverrides?: {
+    time?: Hex;
+  };
+
   /**
    * Overrides to the state of the blockchain, keyed by smart contract address.
    */
