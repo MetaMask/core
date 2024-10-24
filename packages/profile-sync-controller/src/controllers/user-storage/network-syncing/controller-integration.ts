@@ -23,7 +23,9 @@ type PerformMainNetworkSyncProps = {
  * Global in-mem cache to signify that the network syncing is in progress
  * Ensures that listeners do not fire during main sync (prevent double requests)
  */
-let isMainNetworkSyncInProgress = false;
+// Exported to help testing
+// eslint-disable-next-line import/no-mutable-exports
+export let isMainNetworkSyncInProgress = false;
 
 /**
  * Initialize and setup events to listen to for network syncing

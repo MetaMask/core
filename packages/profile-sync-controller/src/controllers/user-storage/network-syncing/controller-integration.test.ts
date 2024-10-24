@@ -18,6 +18,7 @@ import {
   performMainNetworkSync,
   startNetworkSyncing,
 } from './controller-integration';
+import * as ControllerIntegrationModule from './controller-integration';
 import * as ServicesModule from './services';
 import * as SyncAllModule from './sync-all';
 import * as SyncMutationsModule from './sync-mutations';
@@ -68,70 +69,117 @@ const getEvents = (): ExternalEvents[] => [
   'NetworkController:networkRemoved',
 ];
 
-const testMatrix = [
-  {
-    event: 'NetworkController:networkRemoved' as const,
-    arrangeSyncFnMock: () =>
-      jest.spyOn(SyncMutationsModule, 'deleteNetwork').mockResolvedValue(),
-  },
-];
+describe('network-syncing/controller-integration - startNetworkSyncing()', () => {
+  it(`should successfully sync when NetworkController:networkRemoved is emitted`, async () => {
+    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
+      arrangeMocks();
+    startNetworkSyncing({ messenger, getStorageConfig });
+    baseMessenger.publish(
+      'NetworkController:networkRemoved',
+      createMockNetworkConfiguration(),
+    );
 
-describe.each(testMatrix)(
-  'network-syncing/controller-integration - startNetworkSyncing() $event',
-  ({ event, arrangeSyncFnMock }) => {
-    it(`should successfully sync when ${event} is emitted`, async () => {
-      const syncFnMock = arrangeSyncFnMock();
-      const { baseMessenger, messenger, getStorageConfig } = arrangeMocks();
-      startNetworkSyncing({ messenger, getStorageConfig });
-      baseMessenger.publish(event, createMockNetworkConfiguration());
-
-      await waitFor(() => {
-        expect(getStorageConfig).toHaveBeenCalled();
-        expect(syncFnMock).toHaveBeenCalled();
-      });
-    });
-
-    it('should silently fail is unable to authenticate or get storage key', async () => {
-      const syncFnMock = arrangeSyncFnMock();
-      const { baseMessenger, messenger, getStorageConfig } = arrangeMocks();
-      getStorageConfig.mockRejectedValue(new Error('Mock Error'));
-      startNetworkSyncing({ messenger, getStorageConfig });
-      baseMessenger.publish(event, createMockNetworkConfiguration());
-
+    await waitFor(() => {
       expect(getStorageConfig).toHaveBeenCalled();
-      expect(syncFnMock).not.toHaveBeenCalled();
+      expect(deleteNetworkMock).toHaveBeenCalled();
     });
+  });
 
-    it(`should emit a warning if controller messenger is missing the ${event} event`, async () => {
-      const { baseMessenger, getStorageConfig } = arrangeMocks();
+  it('should silently fail is unable to authenticate or get storage key', async () => {
+    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
+      arrangeMocks();
+    getStorageConfig.mockRejectedValue(new Error('Mock Error'));
+    startNetworkSyncing({ messenger, getStorageConfig });
+    baseMessenger.publish(
+      'NetworkController:networkRemoved',
+      createMockNetworkConfiguration(),
+    );
 
-      const eventsWithoutNetworkAdded = getEvents().filter((e) => e !== event);
-      const messenger = mockUserStorageMessenger(
-        baseMessenger,
-        eventsWithoutNetworkAdded,
-      );
+    await waitFor(() => {
+      expect(getStorageConfig).toHaveBeenCalled();
+      expect(deleteNetworkMock).not.toHaveBeenCalled();
+    });
+  });
 
+  it('should silently fail if unable to get storage config', async () => {
+    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
+      arrangeMocks();
+    getStorageConfig.mockResolvedValue(null);
+    startNetworkSyncing({ messenger, getStorageConfig });
+    baseMessenger.publish(
+      'NetworkController:networkRemoved',
+      createMockNetworkConfiguration(),
+    );
+
+    await waitFor(() => {
+      expect(getStorageConfig).toHaveBeenCalled();
+      expect(deleteNetworkMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it(`should emit a warning if controller messenger is missing the NetworkController:networkRemoved event`, async () => {
+    const { baseMessenger, getStorageConfig } = arrangeMocks();
+
+    const eventsWithoutNetworkAdded = getEvents().filter(
+      (e) => e !== 'NetworkController:networkRemoved',
+    );
+    const messenger = mockUserStorageMessenger(
+      baseMessenger,
+      eventsWithoutNetworkAdded,
+    );
+
+    await waitFor(() => {
       startNetworkSyncing({ messenger, getStorageConfig });
       expect(warnMock).toHaveBeenCalled();
     });
+  });
 
-    /**
-     * Test Utility - arrange mocks and parameters
-     * @returns the mocks and parameters used when testing `startNetworkSyncing()`
-     */
-    function arrangeMocks() {
-      const baseMessenger = mockBaseMessenger();
-      const messenger = mockUserStorageMessenger(baseMessenger);
-      const getStorageConfigMock = jest.fn().mockResolvedValue(storageOpts);
+  it('should not remove networks if main sync is in progress', async () => {
+    const { baseMessenger, getStorageConfig, deleteNetworkMock } =
+      arrangeMocks();
+    const messenger = mockUserStorageMessenger(baseMessenger);
 
-      return {
-        getStorageConfig: getStorageConfigMock,
-        baseMessenger,
-        messenger,
-      };
-    }
-  },
-);
+    // TODO - replace with jest.replaceProperty once we upgrade jest.
+    Object.defineProperty(
+      ControllerIntegrationModule,
+      'isMainNetworkSyncInProgress',
+      { value: true },
+    );
+
+    startNetworkSyncing({
+      messenger,
+      getStorageConfig,
+    });
+
+    baseMessenger.publish(
+      'NetworkController:networkRemoved',
+      createMockNetworkConfiguration(),
+    );
+
+    expect(getStorageConfig).not.toHaveBeenCalled();
+    expect(deleteNetworkMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Test Utility - arrange mocks and parameters
+   * @returns the mocks and parameters used when testing `startNetworkSyncing()`
+   */
+  function arrangeMocks() {
+    const baseMessenger = mockBaseMessenger();
+    const messenger = mockUserStorageMessenger(baseMessenger);
+    const getStorageConfigMock = jest.fn().mockResolvedValue(storageOpts);
+    const deleteNetworkMock = jest
+      .spyOn(SyncMutationsModule, 'deleteNetwork')
+      .mockResolvedValue();
+
+    return {
+      getStorageConfig: getStorageConfigMock,
+      baseMessenger,
+      messenger,
+      deleteNetworkMock,
+    };
+  }
+});
 
 describe('network-syncing/controller-integration - performMainSync()', () => {
   it('should do nothing if unable to get storage config', async () => {
