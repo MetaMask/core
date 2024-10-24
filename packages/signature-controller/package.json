@@ -50,7 +50,7 @@
     "@metamask/base-controller": "^7.0.1",
     "@metamask/controller-utils": "^11.4.0",
     "@metamask/eth-sig-util": "^8.0.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/utils": "^10.0.0",
     "jsonschema": "^1.2.4",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
@@ -60,6 +60,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/keyring-controller": "^17.3.0",
     "@metamask/logging-controller": "^6.0.1",
+    "@metamask/network-controller": "^22.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
@@ -71,7 +72,8 @@
   "peerDependencies": {
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/logging-controller": "^6.0.0"
+    "@metamask/logging-controller": "^6.0.0",
+    "@metamask/network-controller": "^22.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"

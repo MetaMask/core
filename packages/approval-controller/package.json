@@ -48,8 +48,8 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
-    "@metamask/rpc-errors": "^7.0.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/rpc-errors": "^7.0.1",
+    "@metamask/utils": "^10.0.0",
     "nanoid": "^3.1.31"
   },
   "devDependencies": {
