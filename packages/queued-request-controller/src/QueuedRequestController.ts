@@ -392,7 +392,8 @@ export class QueuedRequestController extends BaseController<
       if (
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
-        this.#networkClientIdOfCurrentBatch !== request.networkClientId
+        this.#networkClientIdOfCurrentBatch !== request.networkClientId ||
+        ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(request.method)
       ) {
         this.#showApprovalRequest();
         await this.#waitForDequeue({
