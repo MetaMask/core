@@ -39,6 +39,14 @@ import type {
 } from './UserStorageController';
 import UserStorageController from './UserStorageController';
 
+// Creates the correct typed call params for mocks
+type CallParams = {
+  [K in AllowedActions['type']]: [
+    K,
+    ...Parameters<Extract<AllowedActions, { type: K }>['handler']>,
+  ];
+}[AllowedActions['type']];
+
 const typedMockFn = <Func extends (...args: unknown[]) => unknown>() =>
   jest.fn<ReturnType<Func>, Parameters<Func>>();
 
@@ -1730,14 +1738,6 @@ function mockUserStorageMessenger(options?: {
   const mockAccountsUpdateAccountMetadata = jest.fn().mockResolvedValue(true);
 
   jest.spyOn(messenger, 'call').mockImplementation((...args) => {
-    // Creates the correct typed call params for mocks
-    type CallParams = {
-      [K in AllowedActions['type']]: [
-        K,
-        ...Parameters<Extract<AllowedActions, { type: K }>['handler']>,
-      ];
-    }[AllowedActions['type']];
-
     const [actionType, params] = args as unknown as CallParams;
 
     if (actionType === 'SnapController:handleRequest') {
