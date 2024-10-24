@@ -113,7 +113,7 @@ export async function getSimulationData(
   request: GetSimulationDataRequest,
   options: {
     isReSimulatedDueToSecurity?: boolean;
-  } = {}, // Default to an empty object
+  } = {},
 ): Promise<SimulationData> {
   const { chainId, from, to, value, data } = request;
   const { isReSimulatedDueToSecurity } = options;
