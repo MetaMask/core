@@ -141,16 +141,6 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 
 export type SignatureControllerOptions = {
   /**
-   * @deprecated No longer in use.
-   */
-  getAllState?: () => unknown;
-
-  /**
-   * Callback that returns the current chain ID.
-   */
-  getCurrentChainId: () => Hex;
-
-  /**
    * Restricted controller messenger required by the signature controller.
    */
   messenger: SignatureControllerMessenger;
