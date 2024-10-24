@@ -75,50 +75,50 @@ describe('PhishingDetector', () => {
         );
       });
 
-      it('logs an error when config name is invalid for various invalid inputs', async () => {
-        const invalidNames = [
-          undefined,
-          null,
-          true,
-          false,
-          0,
-          1,
-          1.1,
-          '',
-          () => {
-            return { name: 'test', version: 1 };
-          },
-          {},
-        ];
+      it.each([
+        undefined,
+        null,
+        true,
+        false,
+        0,
+        1,
+        1.1,
+        '',
+        () => {
+          return { name: 'test', version: 1 };
+        },
+        {},
+      ])('logs an error when config name is %p', async (mockInvalidName) => {
+        // Mock console.error to track error logs without cluttering test output
+        const consoleErrorMock = jest.spyOn(console, 'error');
 
-        for (const mockInvalidName of invalidNames) {
-          const consoleErrorMock = jest.spyOn(console, 'error');
+        let detector;
 
-          let detector;
-
-          await withPhishingDetector(
-            [
-              {
-                allowlist: [],
-                blocklist: ['blocked-by-first.com'],
-                fuzzylist: [],
-                // @ts-expect-error testing invalid input
-                name: mockInvalidName,
-                tolerance: 2,
-                version: 1,
-              },
-            ],
-            async ({ detector: d }) => {
-              detector = d;
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: ['blocked-by-first.com'],
+              fuzzylist: [],
+              // @ts-expect-error Testing invalid input
+              name: mockInvalidName,
+              tolerance: 2,
+              version: 1,
             },
-          );
+          ],
+          async ({ detector: d }) => {
+            detector = d;
+          },
+        );
 
-          expect(detector).toBeDefined();
+        // Ensure the detector is still defined
+        expect(detector).toBeDefined();
 
-          expect(console.error).toHaveBeenCalled();
+        // Check that console.error was called (you can further specify the error if needed)
+        expect(console.error).toHaveBeenCalled();
 
-          consoleErrorMock.mockRestore();
-        }
+        // Restore the original console.error implementation
+        consoleErrorMock.mockRestore();
       });
 
       it('drops the invalid config and retains the valid config', async () => {
@@ -197,20 +197,20 @@ describe('PhishingDetector', () => {
         consoleErrorMock.mockRestore();
       });
 
-      it('logs an error when config version is invalid for various invalid inputs', async () => {
-        const invalidVersions = [
-          undefined,
-          null,
-          true,
-          false,
-          '',
-          () => {
-            return { name: 'test', version: 1 };
-          },
-          {},
-        ];
-
-        for (const mockInvalidVersion of invalidVersions) {
+      it.each([
+        undefined,
+        null,
+        true,
+        false,
+        '',
+        () => {
+          return { name: 'test', version: 1 };
+        },
+        {},
+      ])(
+        'logs an error when config version is %p',
+        async (mockInvalidVersion) => {
+          // Mock console.error to track error logs without cluttering test output
           const consoleErrorMock = jest.spyOn(console, 'error');
 
           let detector;
@@ -223,7 +223,7 @@ describe('PhishingDetector', () => {
                 fuzzylist: [],
                 name: 'first',
                 tolerance: 2,
-                // @ts-expect-error testing invalid input
+                // @ts-expect-error Testing invalid input
                 version: mockInvalidVersion,
               },
             ],
@@ -232,13 +232,16 @@ describe('PhishingDetector', () => {
             },
           );
 
+          // Ensure the detector is still defined
           expect(detector).toBeDefined();
 
+          // Check that console.error was called with an error
           expect(console.error).toHaveBeenCalledWith(expect.any(Error));
 
+          // Restore the original console.error implementation
           consoleErrorMock.mockRestore();
-        }
-      });
+        },
+      );
     });
 
     describe('with legacy config', () => {
