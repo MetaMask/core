@@ -505,7 +505,7 @@ A controller should define and export a type union that holds all of its actions
 
 The name of this type should be `${ControllerName}Actions`.
 
-This type should be only passed to `RestrictedControllerMessenger` as the 2nd type parameter. It should _not_ be included in its 4th type parameter, as that is is used for external events.
+This type should be only passed to `RestrictedControllerMessenger` as the 2nd type parameter. It should _not_ be included in its 4th type parameter, as that is is used for external actions.
 
 🚫 **`FooController['type']` is passed as the 4th type parameter**
 
@@ -523,7 +523,7 @@ export type FooControllerMessenger = RestrictedControllerMessenger<
 >;
 ```
 
-✅ **`never` is passed as the 5th type parameter (assuming no external events)**
+✅ **`never` is passed as the 4th type parameter (assuming no external actions)**
 
 ```typescript
 export type FooControllerActions =
@@ -857,7 +857,7 @@ export type FooControllerState = {
 export class FooController extends BaseController<
   'FooController',
   // ERROR:
-  // [tsserver 2344] [E] Type 'NftControllerState' does not satisfy the constraint 'StateConstraint'.
+  // [tsserver 2344] [E] Type 'FooControllerState' does not satisfy the constraint 'StateConstraint'.
   //   Property 'bar' is incompatible with index signature.
   //     Type 'string | undefined' is not assignable to type 'Json'.
   FooControllerState,
