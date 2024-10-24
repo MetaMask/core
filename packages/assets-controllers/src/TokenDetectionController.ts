@@ -35,7 +35,7 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import { hexToNumber } from '@metamask/utils';
-import { isEqual, mapValues, isObject, omit } from 'lodash';
+import { isEqual, mapValues, isObject, get } from 'lodash';
 
 import type { AssetsContractController } from './AssetsContractController';
 import { isTokenDetectionSupportedForNetwork } from './assetsUtil';
@@ -93,7 +93,7 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
 function removeTimestamps(obj: TokensChainsCache) {
   return mapValues(obj, (value) => {
     if (isObject(value) && 'data' in value) {
-      return omit(value, ['timestamp']);
+      return get(value, ['data']);
     }
     return value;
   });
