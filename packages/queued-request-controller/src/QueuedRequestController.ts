@@ -255,7 +255,11 @@ export class QueuedRequestController extends BaseController<
     this.#requestQueue
       .filter(({ origin }) => origin === flushOrigin)
       .forEach(({ processRequest }) => {
-        processRequest(NetworkChangedError);
+        processRequest(
+          new Error(
+            'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+          ),
+        );
       });
     this.#requestQueue = this.#requestQueue.filter(
       ({ origin }) => origin !== flushOrigin,
@@ -435,10 +439,9 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
         this.#networkClientIdOfCurrentBatch !== request.networkClientId ||
-        (['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(
+        ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(
           request.method,
-        ) &&
-          this.state.queuedRequestCount > 0)
+        )
       ) {
         this.#showApprovalRequest();
         const dequeue = this.#waitForDequeue({
@@ -457,7 +460,7 @@ export class QueuedRequestController extends BaseController<
       try {
         await requestNext();
       } finally {
-        deferredResultPromise?.resolve();
+        deferredResultPromise?.resolve()
         this.#processingRequestCount -= 1;
       }
       return undefined;
