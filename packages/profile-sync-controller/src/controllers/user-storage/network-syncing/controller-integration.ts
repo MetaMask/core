@@ -93,12 +93,18 @@ export async function performMainNetworkSync(
     });
 
     // Update Remote
-    if (networksToUpdate?.remoteNetworksToUpdate) {
+    if (
+      networksToUpdate?.remoteNetworksToUpdate &&
+      networksToUpdate.remoteNetworksToUpdate.length > 0
+    ) {
       await batchUpdateNetworks(networksToUpdate?.remoteNetworksToUpdate, opts);
     }
 
     // Add missing local networks
-    if (networksToUpdate?.missingLocalNetworks) {
+    if (
+      networksToUpdate?.missingLocalNetworks &&
+      networksToUpdate.missingLocalNetworks.length > 0
+    ) {
       networksToUpdate.missingLocalNetworks.forEach((n) => {
         try {
           messenger.call('NetworkController:addNetwork', n);
@@ -110,20 +116,21 @@ export async function performMainNetworkSync(
     }
 
     // Update local networks
-    if (networksToUpdate?.localNetworksToUpdate) {
-      const promises = networksToUpdate.localNetworksToUpdate.map(async (n) => {
-        try {
-          await messenger.call('NetworkController:updateNetwork', n.chainId, n);
-          props.onNetworkUpdated?.(n.chainId);
-        } catch {
-          // Silently fail, we can try this again on next main sync
-        }
-      });
-      await Promise.all(promises);
+    if (
+      networksToUpdate?.localNetworksToUpdate &&
+      networksToUpdate.localNetworksToUpdate.length > 0
+    ) {
+      for (const n of networksToUpdate.localNetworksToUpdate) {
+        await messenger.call('NetworkController:updateNetwork', n.chainId, n);
+        props.onNetworkUpdated?.(n.chainId);
+      }
     }
 
     // Remove local networks
-    if (networksToUpdate?.localNetworksToRemove) {
+    if (
+      networksToUpdate?.localNetworksToRemove &&
+      networksToUpdate.localNetworksToRemove.length > 0
+    ) {
       networksToUpdate.localNetworksToRemove.forEach((n) => {
         try {
           messenger.call('NetworkController:removeNetwork', n.chainId);
