@@ -6,9 +6,17 @@ import { getAllRemoteNetworks } from './services';
 import { findNetworksToUpdate } from './sync-all';
 import { batchUpdateNetworks, deleteNetwork } from './sync-mutations';
 
-type NetworkSyncingProps = {
+type StartNetworkSyncingProps = {
   messenger: UserStorageControllerMessenger;
   getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
+};
+
+type PerformMainNetworkSyncProps = {
+  messenger: UserStorageControllerMessenger;
+  getStorageConfig: () => Promise<UserStorageBaseOptions | null>;
+  onNetworkAdded?: (chainId: string) => void;
+  onNetworkUpdated?: (chainId: string) => void;
+  onNetworkRemoved?: (chainId: string) => void;
 };
 
 /**
@@ -27,7 +35,7 @@ let isMainNetworkSyncInProgress = false;
  *
  * @param props - parameters used for initializing and enabling network syncing
  */
-export function startNetworkSyncing(props: NetworkSyncingProps) {
+export function startNetworkSyncing(props: StartNetworkSyncingProps) {
   const { messenger, getStorageConfig } = props;
   try {
     messenger.subscribe(
@@ -61,7 +69,9 @@ export function startNetworkSyncing(props: NetworkSyncingProps) {
  * It will fetch local networks and remote networks, then determines which networks (local and remote) to add/update
  * @param props - parameters used for this main sync
  */
-export async function performMainNetworkSync(props: NetworkSyncingProps) {
+export async function performMainNetworkSync(
+  props: PerformMainNetworkSyncProps,
+) {
   const { messenger, getStorageConfig } = props;
   isMainNetworkSyncInProgress = true;
   try {
@@ -92,6 +102,7 @@ export async function performMainNetworkSync(props: NetworkSyncingProps) {
       networksToUpdate.missingLocalNetworks.forEach((n) => {
         try {
           messenger.call('NetworkController:addNetwork', n);
+          props.onNetworkAdded?.(n.chainId);
         } catch {
           // Silently fail, we can try this again on next main sync
         }
@@ -103,6 +114,7 @@ export async function performMainNetworkSync(props: NetworkSyncingProps) {
       const promises = networksToUpdate.localNetworksToUpdate.map(async (n) => {
         try {
           await messenger.call('NetworkController:updateNetwork', n.chainId, n);
+          props.onNetworkUpdated?.(n.chainId);
         } catch {
           // Silently fail, we can try this again on next main sync
         }
@@ -115,6 +127,7 @@ export async function performMainNetworkSync(props: NetworkSyncingProps) {
       networksToUpdate.localNetworksToRemove.forEach((n) => {
         try {
           messenger.call('NetworkController:removeNetwork', n.chainId);
+          props.onNetworkRemoved?.(n.chainId);
         } catch {
           // Silently fail, we can try this again on next main sync
         }

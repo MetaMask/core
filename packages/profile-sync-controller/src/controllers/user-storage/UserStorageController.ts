@@ -173,6 +173,30 @@ type ControllerConfig = {
       situationMessage: string,
     ) => void;
   };
+
+  networkSyncing?: {
+    /**
+     * Callback that fires when network sync adds a network
+     * This is used for analytics.
+     * @param profileId - ID for a given User (shared cross devices once authenticated)
+     * @param chainId - Chain ID for the network added (in hex)
+     */
+    onNetworkAdded?: (profileId: string, chainId: string) => void;
+    /**
+     * Callback that fires when network sync updates a network
+     * This is used for analytics.
+     * @param profileId - ID for a given User (shared cross devices once authenticated)
+     * @param chainId - Chain ID for the network added (in hex)
+     */
+    onNetworkUpdated?: (profileId: string, chainId: string) => void;
+    /**
+     * Callback that fires when network sync deletes a network
+     * This is used for analytics.
+     * @param profileId - ID for a given User (shared cross devices once authenticated)
+     * @param chainId - Chain ID for the network added (in hex)
+     */
+    onNetworkRemoved?: (profileId: string, chainId: string) => void;
+  };
 };
 
 // Messenger Actions
@@ -1147,9 +1171,17 @@ export default class UserStorageController extends BaseController<
       return;
     }
 
+    const profileId = await this.#auth.getProfileId();
+
     await performMainNetworkSync({
       messenger: this.messagingSystem,
       getStorageConfig: this.#getStorageOptions,
+      onNetworkAdded: (cId) =>
+        this.#config?.networkSyncing?.onNetworkAdded?.(profileId, cId),
+      onNetworkUpdated: (cId) =>
+        this.#config?.networkSyncing?.onNetworkUpdated?.(profileId, cId),
+      onNetworkRemoved: (cId) =>
+        this.#config?.networkSyncing?.onNetworkRemoved?.(profileId, cId),
     });
   }
 }
