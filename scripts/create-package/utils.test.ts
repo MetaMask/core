@@ -14,6 +14,7 @@ jest.mock('fs', () => ({
     mkdir: jest.fn(),
     readFile: jest.fn(),
     writeFile: jest.fn(),
+    stat: jest.fn(),
   },
 }));
 
@@ -86,7 +87,9 @@ describe('create-package/utils', () => {
         nodeVersions: '>=18.0.0',
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
+      (fs.promises.stat as jest.Mock).mockResolvedValueOnce({
+        isDirectory: () => false,
+      });
 
       (fsUtils.readAllFiles as jest.Mock).mockResolvedValueOnce({
         'src/index.ts': 'export default 42;',
@@ -167,7 +170,9 @@ describe('create-package/utils', () => {
         nodeVersions: '20.0.0',
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValueOnce(true);
+      (fs.promises.stat as jest.Mock).mockResolvedValueOnce({
+        isDirectory: () => true,
+      });
 
       await expect(
         finalizeAndWriteData(packageData, monorepoFileData),

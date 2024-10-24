@@ -19,13 +19,11 @@ import { errorCodes } from '@metamask/rpc-errors';
 import { createEventEmitterProxy } from '@metamask/swappable-obj-proxy';
 import type { SwappableProxy } from '@metamask/swappable-obj-proxy';
 import type { Hex } from '@metamask/utils';
-import { isStrictHexString, hasProperty, isPlainObject } from '@metamask/utils';
-import { strict as assert } from 'assert';
+import { hasProperty, isPlainObject, isStrictHexString } from '@metamask/utils';
 import type { Draft } from 'immer';
 import type { Logger } from 'loglevel';
 import { createSelector } from 'reselect';
 import * as URI from 'uri-js';
-import { inspect } from 'util';
 import { v4 as uuidV4 } from 'uuid';
 
 import { INFURA_BLOCKED_KEY, NetworkStatus } from './constants';
@@ -788,9 +786,9 @@ function validateNetworkControllerState(state: NetworkState) {
 
   if (!networkClientIds.includes(state.selectedNetworkClientId)) {
     throw new Error(
-      `NetworkController state is invalid: \`selectedNetworkClientId\` ${inspect(
-        state.selectedNetworkClientId,
-      )} does not refer to an RPC endpoint within a network configuration`,
+      // False negative - this is a string.
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      `NetworkController state is invalid: \`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration`,
     );
   }
 }
@@ -1354,19 +1352,20 @@ export class NetworkController extends BaseController<
    * removed in a future release
    */
   async setProviderType(type: InfuraNetworkType) {
-    assert.notStrictEqual(
-      type,
-      NetworkType.rpc,
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
-    );
-    assert.ok(
-      isInfuraNetworkType(type),
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Unknown Infura provider type "${type}".`,
-    );
+    if ((type as unknown) === NetworkType.rpc) {
+      throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
+      );
+    }
+    if (!isInfuraNetworkType(type)) {
+      throw new Error(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        `Unknown Infura provider type "${type}".`,
+      );
+    }
 
     await this.setActiveNetwork(type);
   }
@@ -1635,9 +1634,7 @@ export class NetworkController extends BaseController<
 
     if (existingNetworkConfiguration === undefined) {
       throw new Error(
-        `Could not update network: Cannot find network configuration for chain ${inspect(
-          chainId,
-        )}`,
+        `Could not update network: Cannot find network configuration for chain '${chainId}'`,
       );
     }
 
@@ -1899,7 +1896,7 @@ export class NetworkController extends BaseController<
 
     if (existingNetworkConfiguration === undefined) {
       throw new Error(
-        `Cannot find network configuration for chain ${inspect(chainId)}`,
+        `Cannot find network configuration for chain '${chainId}'`,
       );
     }
 
@@ -2031,9 +2028,7 @@ export class NetworkController extends BaseController<
       !isSafeChainId(networkFields.chainId)
     ) {
       throw new Error(
-        `${errorMessagePrefix}: Invalid \`chainId\` ${inspect(
-          networkFields.chainId,
-        )} (must start with "0x" and not exceed the maximum)`,
+        `${errorMessagePrefix}: Invalid \`chainId\` '${networkFields.chainId}' (must start with "0x" and not exceed the maximum)`,
       );
     }
 
@@ -2082,9 +2077,9 @@ export class NetworkController extends BaseController<
     for (const rpcEndpointFields of networkFields.rpcEndpoints) {
       if (!isValidUrl(rpcEndpointFields.url)) {
         throw new Error(
-          `${errorMessagePrefix}: An entry in \`rpcEndpoints\` has invalid URL ${inspect(
-            rpcEndpointFields.url,
-          )}`,
+          // False negative - this is a string.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          `${errorMessagePrefix}: An entry in \`rpcEndpoints\` has invalid URL '${rpcEndpointFields.url}'`,
         );
       }
       const networkClientId =
@@ -2113,13 +2108,9 @@ export class NetworkController extends BaseController<
         )
       ) {
         throw new Error(
-          `${errorMessagePrefix}: RPC endpoint '${
-            // This is a string.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-            rpcEndpointFields.url
-          }' refers to network client ${inspect(
-            networkClientId,
-          )} that does not exist`,
+          // This is a string.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          `${errorMessagePrefix}: RPC endpoint '${rpcEndpointFields.url}' refers to network client '${networkClientId}' that does not exist`,
         );
       }
 
@@ -2561,7 +2552,7 @@ export class NetworkController extends BaseController<
       /* istanbul ignore if */
       if (!possibleAutoManagedNetworkClient) {
         throw new Error(
-          `No Infura network client found with ID ${inspect(networkClientId)}`,
+          `No Infura network client found with ID '${networkClientId}'`,
         );
       }
 
@@ -2573,9 +2564,7 @@ export class NetworkController extends BaseController<
         ];
 
       if (!possibleAutoManagedNetworkClient) {
-        throw new Error(
-          `No network client found with ID ${inspect(networkClientId)}`,
-        );
+        throw new Error(`No network client found with ID '${networkClientId}'`);
       }
 
       autoManagedNetworkClient = possibleAutoManagedNetworkClient;
