@@ -439,9 +439,10 @@ export class QueuedRequestController extends BaseController<
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
         this.#networkClientIdOfCurrentBatch !== request.networkClientId ||
-        ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(
-          request.method,
-        )
+        (this.#processingRequestCount > 0 &&
+          ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(
+            request.method,
+          ))
       ) {
         this.#showApprovalRequest();
         const dequeue = this.#waitForDequeue({
@@ -460,7 +461,7 @@ export class QueuedRequestController extends BaseController<
       try {
         await requestNext();
       } finally {
-        deferredResultPromise?.resolve()
+        deferredResultPromise?.resolve();
         this.#processingRequestCount -= 1;
       }
       return undefined;
