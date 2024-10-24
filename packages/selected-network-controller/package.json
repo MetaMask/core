@@ -50,11 +50,11 @@
     "@metamask/base-controller": "^7.0.1",
     "@metamask/json-rpc-engine": "^10.0.0",
     "@metamask/swappable-obj-proxy": "^2.2.0",
-    "@metamask/utils": "^9.1.0"
+    "@metamask/utils": "^10.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^21.0.1",
+    "@metamask/network-controller": "^22.0.0",
     "@metamask/permission-controller": "^11.0.2",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -69,7 +69,7 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/network-controller": "^21.0.0",
+    "@metamask/network-controller": "^22.0.0",
     "@metamask/permission-controller": "^11.0.0"
   },
   "engines": {

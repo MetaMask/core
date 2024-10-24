@@ -346,9 +346,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
         );
 
         if (this.#chainId !== chainId || this.#ticker !== ticker) {
-          this.update((state) => {
-            state.marketData = {};
-          });
           this.#chainId = chainId;
           this.#ticker = ticker;
           if (this.#pollState === PollState.Active) {
@@ -531,7 +528,10 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       };
 
       this.update((state) => {
-        state.marketData = marketData;
+        state.marketData = {
+          ...state.marketData,
+          ...marketData,
+        };
       });
       updateSucceeded();
     } catch (error: unknown) {

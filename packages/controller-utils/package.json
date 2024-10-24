@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "11.3.0",
+  "version": "11.4.0",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -50,7 +50,7 @@
     "@ethereumjs/util": "^8.1.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/utils": "^10.0.0",
     "@spruceid/siwe-parser": "2.1.0",
     "@types/bn.js": "^5.1.5",
     "bn.js": "^5.2.1",
@@ -60,6 +60,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@types/jest": "^27.4.1",
+    "bignumber.js": "^9.1.2",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "nock": "^13.3.1",
