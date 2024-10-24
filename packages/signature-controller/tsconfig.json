@@ -21,6 +21,9 @@
     },
     {
       "path": "../logging-controller"
+    },
+    {
+      "path": "../network-controller"
     }
   ],
   "include": ["../../types", "./src"]
