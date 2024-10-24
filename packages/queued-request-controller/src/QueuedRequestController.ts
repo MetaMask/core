@@ -11,6 +11,7 @@ import type {
 } from '@metamask/network-controller';
 import type { SelectedNetworkControllerStateChangeEvent } from '@metamask/selected-network-controller';
 import { SelectedNetworkControllerEventTypes } from '@metamask/selected-network-controller';
+import type { DeferredPromise } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 
 import type { QueuedRequestMiddlewareJsonRpcRequest } from './types';
@@ -98,10 +99,24 @@ type QueuedRequest = {
   networkClientId: NetworkClientId;
 
   /**
+   * The method of the queued request.
+   */
+  method: string;
+
+  /**
    * A callback used to continue processing the request, called when the request is dequeued.
    */
   processRequest: (error: unknown) => void;
+
+  /**
+   * A deferred promise to get the result of a method call
+   */
+  deferredResultPromise: DeferredPromise;
 };
+
+const NetworkChangedError = new Error(
+  'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+);
 
 /**
  * Queue requests for processing in batches, by request origin.
@@ -265,7 +280,7 @@ export class QueuedRequestController extends BaseController<
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
     this.#originOfCurrentBatch = firstRequest.origin;
     this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
-    const batch = [firstRequest.processRequest];
+    const batch = [firstRequest];
 
     // alternatively we could still batch by only origin but switch networks in batches by
     // adding the network clientId to the values in the batch array
@@ -275,7 +290,7 @@ export class QueuedRequestController extends BaseController<
       this.#requestQueue[0]?.origin === this.#originOfCurrentBatch
     ) {
       const nextEntry = this.#requestQueue.shift() as QueuedRequest;
-      batch.push(nextEntry.processRequest);
+      batch.push(nextEntry);
     }
     // If globally selected network is different from origin selected network,
     // switch network before processing batch
@@ -286,8 +301,27 @@ export class QueuedRequestController extends BaseController<
       networkSwitchError = error;
     }
 
-    for (const processRequest of batch) {
-      processRequest(networkSwitchError);
+    let didNetworkChange = false;
+
+    for (const request of batch) {
+      if (
+        ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(
+          request.method,
+        )
+      ) {
+        request.processRequest(networkSwitchError);
+        await request.deferredResultPromise.promise;
+        const { selectedNetworkClientId } = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+        if (this.#networkClientIdOfCurrentBatch !== selectedNetworkClientId) {
+          didNetworkChange = true;
+        }
+      } else {
+        request.processRequest(
+          didNetworkChange ? NetworkChangedError : networkSwitchError,
+        );
+      }
     }
     this.#updateQueuedRequestCount();
   }
@@ -329,19 +363,29 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
-  async #waitForDequeue({
+  #waitForDequeue({
     origin,
     networkClientId,
+    method,
   }: {
     origin: string;
     networkClientId: NetworkClientId;
-  }): Promise<void> {
-    const { promise, reject, resolve } = createDeferredPromise({
+    method: string;
+  }) {
+    const {
+      promise: dequeuePromise,
+      reject,
+      resolve,
+    } = createDeferredPromise({
+      suppressUnhandledRejection: true,
+    });
+    const deferredResultPromise = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
     this.#requestQueue.push({
       origin,
       networkClientId,
+      method,
       processRequest: (error: unknown) => {
         if (error) {
           reject(error);
@@ -349,10 +393,11 @@ export class QueuedRequestController extends BaseController<
           resolve();
         }
       },
+      deferredResultPromise,
     });
     this.#updateQueuedRequestCount();
 
-    return promise;
+    return { dequeuePromise, deferredResultPromise };
   }
 
   /**
@@ -389,17 +434,23 @@ export class QueuedRequestController extends BaseController<
     try {
       // Queue request for later processing
       // Network switch is handled when this batch is processed
+      let deferredResultPromise: DeferredPromise | undefined;
       if (
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
         this.#networkClientIdOfCurrentBatch !== request.networkClientId ||
-        ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(request.method)
+        ['wallet_switchEthereumChain', 'wallet_addEthereumChain'].includes(
+          request.method,
+        )
       ) {
         this.#showApprovalRequest();
-        await this.#waitForDequeue({
+        const dequeue = this.#waitForDequeue({
           origin: request.origin,
           networkClientId: request.networkClientId,
+          method: request.method,
         });
+        deferredResultPromise = dequeue.deferredResultPromise;
+        await dequeue.dequeuePromise;
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
@@ -409,6 +460,7 @@ export class QueuedRequestController extends BaseController<
       try {
         await requestNext();
       } finally {
+        deferredResultPromise?.resolve()
         this.#processingRequestCount -= 1;
       }
       return undefined;
