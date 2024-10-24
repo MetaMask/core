@@ -18,8 +18,7 @@ const { inspect } = require('util');
  * This should trend towards empty.
  */
 const ALLOWED_INCONSISTENT_DEPENDENCIES = {
-  '@metamask/json-rpc-engine': ['^9.0.3'],
-  '@metamask/rpc-errors': ['^7.0.0'],
+  // '@metamask/json-rpc-engine': ['^9.0.3'],
 };
 
 /**
