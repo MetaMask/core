@@ -105,6 +105,11 @@ describe('CAIP-25 eth_accounts adapters', () => {
             notifications: [],
             accounts: [],
           },
+          wallet: {
+            methods: [],
+            notifications: [],
+            accounts: [],
+          },
         },
         isMultichainOrigin: false,
       };
@@ -147,6 +152,15 @@ describe('CAIP-25 eth_accounts adapters', () => {
             accounts: ['eip155:100:0x1', 'eip155:100:0x2', 'eip155:100:0x3'],
           },
           'wallet:eip155': {
+            methods: [],
+            notifications: [],
+            accounts: [
+              'wallet:eip155:0x1',
+              'wallet:eip155:0x2',
+              'wallet:eip155:0x3',
+            ],
+          },
+          wallet: {
             methods: [],
             notifications: [],
             accounts: [

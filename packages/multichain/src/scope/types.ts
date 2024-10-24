@@ -1,4 +1,3 @@
-import MetaMaskOpenRPCDocument from '@metamask/api-specs';
 import {
   isCaipNamespace,
   isCaipChainId,
@@ -12,42 +11,6 @@ import type {
   CaipNamespace,
   Json,
 } from '@metamask/utils';
-
-export enum KnownWalletScopeString {
-  Eip155 = 'wallet:eip155',
-}
-
-export type NonWalletKnownCaipNamespace = Extract<
-  KnownCaipNamespace,
-  KnownCaipNamespace.Eip155
->;
-
-export const KnownWalletRpcMethods: string[] = [
-  'wallet_registerOnboarding',
-  'wallet_scanQRCode',
-];
-const WalletEip155Methods = ['wallet_addEthereumChain'];
-
-const Eip155Methods = MetaMaskOpenRPCDocument.methods
-  .map(({ name }: { name: string }) => name)
-  .filter((method: string) => !WalletEip155Methods.includes(method))
-  .filter((method: string) => !KnownWalletRpcMethods.includes(method));
-
-export const KnownRpcMethods: Record<NonWalletKnownCaipNamespace, string[]> = {
-  eip155: Eip155Methods,
-};
-
-export const KnownWalletNamespaceRpcMethods: Record<
-  NonWalletKnownCaipNamespace,
-  string[]
-> = {
-  eip155: WalletEip155Methods,
-};
-
-export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
-  {
-    eip155: ['accountsChanged', 'chainChanged', 'eth_subscription'],
-  };
 
 // These External prefixed types represent the CAIP-217
 // Scope and ScopeObject as defined in the spec.
@@ -80,6 +43,10 @@ export type ScopesObject = Record<CaipChainId, ScopeObject> & {
   [KnownCaipNamespace.Wallet]?: ScopeObject;
 };
 
+export type ScopedProperties = Record<CaipChainId, Record<string, Json>> & {
+  [KnownCaipNamespace.Wallet]?: Record<string, Json>;
+};
+
 export const parseScopeString = (
   scopeString: string,
 ): {
@@ -98,6 +65,13 @@ export const parseScopeString = (
   return {};
 };
 
-export type ScopedProperties = Record<CaipChainId, Record<string, Json>> & {
-  [KnownCaipNamespace.Wallet]?: Record<string, Json>;
-};
+// ScopeString for ecosystems that aren't chain specific
+export enum KnownWalletScopeString {
+  Eip155 = 'wallet:eip155',
+}
+
+// Known CAIP Namespaces excluding "wallet"
+export type NonWalletKnownCaipNamespace = Exclude<
+  KnownCaipNamespace,
+  KnownCaipNamespace.Wallet
+>;

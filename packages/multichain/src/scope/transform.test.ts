@@ -52,16 +52,16 @@ describe('Scope Transform', () => {
       });
 
       it('returns one deep cloned scope per `references` element', () => {
-        const noramlizedScopes = normalizeScope('eip155', {
+        const normalizedScopes = normalizeScope('eip155', {
           ...validScopeObject,
           references: ['1', '5'],
         });
 
-        expect(noramlizedScopes['eip155:1']).not.toBe(
-          noramlizedScopes['eip155:5'],
+        expect(normalizedScopes['eip155:1']).not.toBe(
+          normalizedScopes['eip155:5'],
         );
-        expect(noramlizedScopes['eip155:1'].methods).not.toBe(
-          noramlizedScopes['eip155:5'].methods,
+        expect(normalizedScopes['eip155:1'].methods).not.toBe(
+          normalizedScopes['eip155:5'].methods,
         );
       });
     });
@@ -168,6 +168,21 @@ describe('Scope Transform', () => {
         ...validScopeObject,
         rpcDocuments: ['a', 'b', 'c'],
       });
+
+      expect(
+        mergeScopeObject(
+          {
+            ...validScopeObject,
+          },
+          {
+            ...validScopeObject,
+            rpcDocuments: ['a', 'b', 'c'],
+          },
+        ),
+      ).toStrictEqual({
+        ...validScopeObject,
+        rpcDocuments: ['a', 'b', 'c'],
+      });
     });
 
     it('returns an object with the unique set of rpcEndpoints', () => {
@@ -195,6 +210,21 @@ describe('Scope Transform', () => {
           },
           {
             ...validScopeObject,
+          },
+        ),
+      ).toStrictEqual({
+        ...validScopeObject,
+        rpcEndpoints: ['a', 'b', 'c'],
+      });
+
+      expect(
+        mergeScopeObject(
+          {
+            ...validScopeObject,
+          },
+          {
+            ...validScopeObject,
+            rpcEndpoints: ['a', 'b', 'c'],
           },
         ),
       ).toStrictEqual({

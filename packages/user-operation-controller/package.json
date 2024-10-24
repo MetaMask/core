@@ -49,12 +49,12 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.3.0",
+    "@metamask/controller-utils": "^11.4.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/polling-controller": "^11.0.0",
-    "@metamask/rpc-errors": "^7.0.0",
+    "@metamask/rpc-errors": "^7.0.1",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/utils": "^10.0.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
@@ -65,7 +65,7 @@
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/gas-fee-controller": "^21.0.0",
     "@metamask/keyring-controller": "^17.3.0",
-    "@metamask/network-controller": "^21.1.0",
+    "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^37.3.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
@@ -79,7 +79,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/gas-fee-controller": "^21.0.0",
     "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/network-controller": "^21.0.0",
+    "@metamask/network-controller": "^22.0.0",
     "@metamask/transaction-controller": "^37.0.0"
   },
   "engines": {

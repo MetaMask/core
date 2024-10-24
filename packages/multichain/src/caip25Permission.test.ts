@@ -12,6 +12,7 @@ import {
   Caip25EndowmentPermissionName,
   Caip25CaveatMutatorFactories,
   removeScope,
+  Caip25CaveatFactoryFn,
 } from './caip25Permission';
 import * as ScopeAssert from './scope/assert';
 import * as ScopeAuthorization from './scope/authorization';
@@ -36,10 +37,6 @@ describe('endowment:caip25', () => {
     });
   });
 
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   it('builds the expected permission specification', () => {
     const specification = caip25EndowmentBuilder.specificationBuilder({
       methodHooks: {
@@ -56,6 +53,23 @@ describe('endowment:caip25', () => {
     });
 
     expect(specification.endowmentGetter()).toBeNull();
+  });
+
+  it('builds the caveat', () => {
+    expect(
+      Caip25CaveatFactoryFn({
+        requiredScopes: {},
+        optionalScopes: {},
+        isMultichainOrigin: true,
+      }),
+    ).toStrictEqual({
+      type: Caip25CaveatType,
+      value: {
+        requiredScopes: {},
+        optionalScopes: {},
+        isMultichainOrigin: true,
+      },
+    });
   });
 
   describe('caveat mutator removeScope', () => {
@@ -481,9 +495,11 @@ describe('endowment:caip25', () => {
           isChainIdSupported: expect.any(Function),
         }),
       );
-      const isChainIdSupportedBody =
-        MockScopeAssert.assertScopesSupported.mock.calls[0][1].isChainIdSupported.toString();
-      expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
+
+      MockScopeAssert.assertScopesSupported.mock.calls[0][1].isChainIdSupported(
+        '0x1',
+      );
+      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
     });
 
     it('asserts the validated and normalized optional scopes are supported', () => {
@@ -547,9 +563,71 @@ describe('endowment:caip25', () => {
           isChainIdSupported: expect.any(Function),
         }),
       );
-      const isChainIdSupportedBody =
-        MockScopeAssert.assertScopesSupported.mock.calls[1][1].isChainIdSupported.toString();
-      expect(isChainIdSupportedBody).toContain('findNetworkClientIdByChainId');
+      MockScopeAssert.assertScopesSupported.mock.calls[1][1].isChainIdSupported(
+        '0x1',
+      );
+      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
+    });
+
+    it('does not throw if unable to find a network client for the chainId', () => {
+      MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
+        normalizedRequiredScopes: {
+          'eip155:1': {
+            methods: ['normalized_required'],
+            notifications: [],
+            accounts: [],
+          },
+        },
+        normalizedOptionalScopes: {
+          'eip155:5': {
+            methods: ['normalized_optional'],
+            notifications: [],
+            accounts: [],
+          },
+        },
+      });
+      findNetworkClientIdByChainId.mockImplementation(() => {
+        throw new Error('unable to find network client');
+      });
+      try {
+        validator({
+          caveats: [
+            {
+              type: Caip25CaveatType,
+              value: {
+                requiredScopes: {
+                  'eip155:1': {
+                    methods: ['eth_chainId'],
+                    notifications: [],
+                    accounts: ['eip155:1:0xdead'],
+                  },
+                },
+                optionalScopes: {
+                  'eip155:5': {
+                    methods: [],
+                    notifications: [],
+                    accounts: ['eip155:5:0xbeef'],
+                  },
+                },
+                isMultichainOrigin: true,
+              },
+            },
+          ],
+          date: 1234,
+          id: '1',
+          invoker: 'test.com',
+          parentCapability: Caip25EndowmentPermissionName,
+        });
+      } catch (err) {
+        // noop
+      }
+
+      expect(
+        MockScopeAssert.assertScopesSupported.mock.calls[0][1].isChainIdSupported(
+          '0x1',
+        ),
+      ).toBe(false);
+      expect(findNetworkClientIdByChainId).toHaveBeenCalledWith('0x1');
     });
 
     it('throws if the eth accounts specified in the normalized scopeObjects are not found in the wallet keyring', () => {

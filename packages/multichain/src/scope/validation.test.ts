@@ -8,10 +8,6 @@ const validScopeObject: ExternalScopeObject = {
 };
 
 describe('Scope Validation', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('isValidScope', () => {
     it.each([
       [
@@ -39,6 +35,15 @@ describe('Scope Validation', () => {
         {
           ...validScopeObject,
           references: ['5'],
+        },
+      ],
+      [
+        false,
+        'the scopeString is a valid CAIP namespace but references are invalid CAIP references',
+        'eip155',
+        {
+          ...validScopeObject,
+          references: ['@'],
         },
       ],
       [

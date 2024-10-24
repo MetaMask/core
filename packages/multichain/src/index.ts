@@ -24,7 +24,23 @@ export {
   bucketScopes,
 } from './scope/authorization';
 export { bucketScopesBySupport, filterScopesSupported } from './scope/filter';
-export * from './scope/types';
+export {
+  KnownWalletRpcMethods,
+  KnownRpcMethods,
+  KnownWalletNamespaceRpcMethods,
+  KnownNotifications,
+} from './scope/constants';
+export type {
+  ExternalScopeString,
+  ExternalScopeObject,
+  ExternalScopesObject,
+  ScopeString,
+  ScopeObject,
+  ScopesObject,
+  ScopedProperties,
+  NonWalletKnownCaipNamespace,
+} from './scope/types';
+export { parseScopeString, KnownWalletScopeString } from './scope/types';
 export {
   isSupportedScopeString,
   isSupportedAccount,

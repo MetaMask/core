@@ -1,56 +1,30 @@
 import { toHex, isEqualCaseInsensitive } from '@metamask/controller-utils';
-import type { CaipAccountId, Hex } from '@metamask/utils';
-import {
-  isCaipChainId,
-  isCaipNamespace,
-  KnownCaipNamespace,
-  parseCaipAccountId,
-  parseCaipChainId,
-} from '@metamask/utils';
+import type { CaipAccountId, Hex, CaipChainId } from '@metamask/utils';
+import { KnownCaipNamespace, parseCaipAccountId } from '@metamask/utils';
 
-import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
 import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-  parseScopeString,
-} from './types';
+} from './constants';
+import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
+import { parseScopeString } from './types';
 
 export const isSupportedScopeString = (
   scopeString: string,
   isChainIdSupported: (chainId: Hex) => boolean,
 ) => {
-  const isNamespaceScoped = isCaipNamespace(scopeString);
-  const isChainScoped = isCaipChainId(scopeString);
+  const { namespace, reference } = parseScopeString(scopeString as CaipChainId);
 
-  if (isNamespaceScoped) {
-    switch (scopeString) {
-      case KnownCaipNamespace.Wallet:
-        return true;
-      case KnownCaipNamespace.Eip155:
-        return true;
-      default:
-        return false;
-    }
+  switch (namespace) {
+    case KnownCaipNamespace.Wallet:
+      return !reference || reference === KnownCaipNamespace.Eip155;
+    case KnownCaipNamespace.Eip155:
+      return !reference || isChainIdSupported(toHex(reference));
+    default:
+      return false;
   }
-
-  if (isChainScoped) {
-    const { namespace, reference } = parseCaipChainId(scopeString);
-    switch (namespace) {
-      case KnownCaipNamespace.Wallet:
-        if (reference === KnownCaipNamespace.Eip155) {
-          return true;
-        }
-        return false;
-      case KnownCaipNamespace.Eip155:
-        return isChainIdSupported(toHex(reference));
-      default:
-        return false;
-    }
-  }
-
-  return false;
 };
 
 export const isSupportedAccount = (
@@ -59,20 +33,23 @@ export const isSupportedAccount = (
 ) => {
   const {
     address,
-    chain: { namespace },
+    chain: { namespace, reference },
   } = parseCaipAccountId(account);
+
+  const isSupportedEip155Account = () =>
+    getInternalAccounts().some(
+      (internalAccount) =>
+        ['eip155:eoa', 'eip155:erc4337'].includes(internalAccount.type) &&
+        isEqualCaseInsensitive(address, internalAccount.address),
+    );
+
   switch (namespace) {
+    case KnownCaipNamespace.Wallet:
+      return reference === KnownCaipNamespace.Eip155
+        ? isSupportedEip155Account()
+        : false;
     case KnownCaipNamespace.Eip155:
-      try {
-        return getInternalAccounts().some(
-          (internalAccount) =>
-            ['eip155:eoa', 'eip155:erc4337'].includes(internalAccount.type) &&
-            isEqualCaseInsensitive(address, internalAccount.address),
-        );
-      } catch (err) {
-        console.log('failed to check if account is supported by wallet', err);
-      }
-      return false;
+      return isSupportedEip155Account();
     default:
       return false;
   }

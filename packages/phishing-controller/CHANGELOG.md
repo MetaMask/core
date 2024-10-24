@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.1.0]
+
+### Fixed
+
+- Update the phishing detector validation to drop invalid configs from detector ([#4820](https://github.com/MetaMask/core/pull/4820))
+
 ## [12.0.3]
 
 ### Fixed
@@ -287,7 +293,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...HEAD
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1
