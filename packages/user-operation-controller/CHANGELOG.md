@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+
+## [16.0.0]
+
+### Added
+
+- Added new entries `bridge`, `bridgeApproval` to the `TransactionType` enum ([#4714](https://github.com/MetaMask/core/pull/4714))
+
+### Changed
+
+- **BREAKING:** `PendingUserOperationTracker` now uses a new polling interface that accepts the generic parameter `PollingInput` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
+- **BREAKING:** The inherited `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
+- Bump `@metamask/transaction-controller` from `^37.1.0` to `^37.3.0` ([#4754](https://github.com/MetaMask/core/pull/4754),[#4805](https://github.com/MetaMask/core/pull/4805))
+- Bump `@metamask/approval-controller` from `^7.0.4` to `^7.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
+- Bump `@metamask/transaction-controller` from `^37.0.0` to `^37.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
+
 ## [15.0.1]
 
 ### Fixed
@@ -233,7 +253,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@16.0.0...HEAD
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.1...@metamask/user-operation-controller@16.0.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.0...@metamask/user-operation-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.1...@metamask/user-operation-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.0...@metamask/user-operation-controller@14.0.1

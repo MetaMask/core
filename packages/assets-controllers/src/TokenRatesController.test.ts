@@ -645,7 +645,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should update exchange rates when chain ID changes', async () => {
+      it('should not update exchange rates when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -722,12 +722,18 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x0000000000000000000000000000000000000000': {
+                  currency: 'ETH',
+                },
+              },
+            });
           },
         );
       });
 
-      it('should clear marketData state when chain ID changes', async () => {
+      it('should not clear marketData state when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -776,7 +782,13 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x0000000000000000000000000000000000000000': {
+                  currency: 'ETH',
+                },
+              },
+            });
           },
         );
       });
@@ -865,7 +877,7 @@ describe('TokenRatesController', () => {
         );
       });
 
-      it('should clear marketData state when ticker changes', async () => {
+      it('should not clear marketData state when ticker changes', async () => {
         await withController(
           {
             options: {
@@ -913,12 +925,37 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x02': {
+                  currency: 'ETH',
+                  priceChange1d: 0,
+                  pricePercentChange1d: 0,
+                  tokenAddress: '0x02',
+                  allTimeHigh: 4000,
+                  allTimeLow: 900,
+                  circulatingSupply: 2000,
+                  dilutedMarketCap: 100,
+                  high1d: 200,
+                  low1d: 100,
+                  marketCap: 1000,
+                  marketCapPercentChange1d: 100,
+                  price: 0.001,
+                  pricePercentChange14d: 100,
+                  pricePercentChange1h: 1,
+                  pricePercentChange1y: 200,
+                  pricePercentChange200d: 300,
+                  pricePercentChange30d: 200,
+                  pricePercentChange7d: 100,
+                  totalVolume: 100,
+                },
+              },
+            });
           },
         );
       });
 
-      it('should clear marketData state when chain ID changes', async () => {
+      it('should not clear marketData state when chain ID changes', async () => {
         await withController(
           {
             options: {
@@ -966,7 +1003,32 @@ describe('TokenRatesController', () => {
               selectedNetworkClientId: 'AAAA-BBBB-CCCC-DDDD',
             });
 
-            expect(controller.state.marketData).toStrictEqual({});
+            expect(controller.state.marketData).toStrictEqual({
+              '0x1': {
+                '0x02': {
+                  currency: 'ETH',
+                  priceChange1d: 0,
+                  pricePercentChange1d: 0,
+                  tokenAddress: '0x02',
+                  allTimeHigh: 4000,
+                  allTimeLow: 900,
+                  circulatingSupply: 2000,
+                  dilutedMarketCap: 100,
+                  high1d: 200,
+                  low1d: 100,
+                  marketCap: 1000,
+                  marketCapPercentChange1d: 100,
+                  price: 0.001,
+                  pricePercentChange14d: 100,
+                  pricePercentChange1h: 1,
+                  pricePercentChange1y: 200,
+                  pricePercentChange200d: 300,
+                  pricePercentChange30d: 200,
+                  pricePercentChange7d: 100,
+                  totalVolume: 100,
+                },
+              },
+            });
           },
         );
       });

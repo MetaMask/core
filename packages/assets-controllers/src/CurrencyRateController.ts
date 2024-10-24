@@ -7,10 +7,7 @@ import {
   TESTNET_TICKER_SYMBOLS,
   FALL_BACK_VS_CURRENCY,
 } from '@metamask/controller-utils';
-import type {
-  NetworkClientId,
-  NetworkControllerGetNetworkClientByIdAction,
-} from '@metamask/network-controller';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
@@ -80,7 +77,7 @@ const defaultState = {
 
 /** The input to start polling for the {@link CurrencyRateController} */
 type CurrencyRatePollingInput = {
-  networkClientId: NetworkClientId;
+  nativeCurrency: string;
 };
 
 /**
@@ -243,16 +240,12 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * Updates exchange rate for the current currency.
    *
    * @param input - The input for the poll.
-   * @param input.networkClientId - The network client ID used to get a ticker value.
+   * @param input.nativeCurrency - The native currency symbol to poll prices for.
    */
   async _executePoll({
-    networkClientId,
+    nativeCurrency,
   }: CurrencyRatePollingInput): Promise<void> {
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
-    );
-    await this.updateExchangeRate(networkClient.configuration.ticker);
+    await this.updateExchangeRate(nativeCurrency);
   }
 }
 
