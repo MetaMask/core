@@ -73,7 +73,7 @@
     "@metamask/approval-controller": "^7.0.0",
     "@metamask/keyring-controller": "^17.0.0",
     "@metamask/logging-controller": "^6.0.0",
-    "@metamask/network-controller": "^21.0.1"
+    "@metamask/network-controller": "^21.1.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
