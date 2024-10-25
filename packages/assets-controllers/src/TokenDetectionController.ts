@@ -86,11 +86,11 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
 }, {});
 
 /**
- * Function that takes a TokensChainsCache and returns it without timestamp
- * @param obj - Object to compare
- * @returns returns the object argument without the timestamp
+ * Function that takes a TokensChainsCache object and returns it containing only the data field
+ * @param obj - TokensChainsCache input object
+ * @returns returns the object input with only the data field
  */
-function removeTimestamps(obj: TokensChainsCache) {
+function retrieveDataFromTokensChainsCache(obj: TokensChainsCache) {
   return mapValues(obj, (value) => {
     if (isObject(value) && 'data' in value) {
       return get(value, ['data']);
@@ -340,14 +340,9 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ tokensChainsCache }) => {
-        // compare previous and incoming tokensChainsCache
-        const previousTokensChainsCache = removeTimestamps(
+        const isEqualValues = this.#compareTokensChainsCache(
+          tokensChainsCache,
           this.#tokensChainsCache,
-        );
-        const cleanTokensChainsCache = removeTimestamps(tokensChainsCache);
-        const isEqualValues = isEqual(
-          cleanTokensChainsCache,
-          previousTokensChainsCache,
         );
         if (!isEqualValues) {
           await this.#restartTokenDetection();
@@ -471,6 +466,29 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#intervalId = setInterval(async () => {
       await this.detectTokens();
     }, this.getIntervalLength());
+  }
+
+  /**
+   * Compares current and previous tokensChainsCache object focusing only on the data object.
+   * @param tokensChainsCache - current tokensChainsCache input object
+   * @param previousTokensChainsCache - previous tokensChainsCache input object
+   * @returns boolean indicating if the two objects are equal
+   */
+
+  #compareTokensChainsCache(
+    tokensChainsCache: TokensChainsCache,
+    previousTokensChainsCache: TokensChainsCache,
+  ): boolean {
+    const cleanPreviousTokensChainsCache = retrieveDataFromTokensChainsCache(
+      previousTokensChainsCache,
+    );
+    const cleanTokensChainsCache =
+      retrieveDataFromTokensChainsCache(tokensChainsCache);
+    const isEqualValues = isEqual(
+      cleanTokensChainsCache,
+      cleanPreviousTokensChainsCache,
+    );
+    return isEqualValues;
   }
 
   #getCorrectChainIdAndNetworkClientId(networkClientId?: NetworkClientId): {
