@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.2.0]
+
+### Changed
+
+- Changed the c2 blocklist fetch interval from 15 minutes to 5 minutes ([#4850](https://github.com/MetaMask/core/pull/4850))
+
 ## [12.1.0]
 
 ### Fixed
@@ -293,7 +299,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
 [12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
 [12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
