@@ -8,10 +8,10 @@ import { isPercentageDifferenceWithinThreshold } from './utils';
 
 const log = createModuleLogger(projectLogger, 'resimulate');
 
-const RESIMULATE_PARAMS = ['to', 'value', 'data'] as const;
-const BLOCKAID_RESULT_TYPE_MALICIOUS = 'Malicious';
-const VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD = 5;
-const BLOCK_TIME_ADDITIONAL_SECONDS = 60;
+export const RESIMULATE_PARAMS = ['to', 'value', 'data'] as const;
+export const BLOCKAID_RESULT_TYPE_MALICIOUS = 'Malicious';
+export const VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD = 5;
+export const BLOCK_TIME_ADDITIONAL_SECONDS = 60;
 
 export type ResimulateResponse = {
   blockTime?: number;
@@ -48,20 +48,21 @@ export function shouldResimulate(
   const resimulate =
     parametersUpdated || securityAlert || valueAndNativeBalanceMismatch;
 
-  if (resimulate) {
-    log('Transaction should be resimulated', {
-      transactionId,
-      parametersUpdated,
-      securityAlert,
-      valueAndNativeBalanceMismatch,
-    });
-  }
-
   let blockTime: number | undefined;
 
   if (securityAlert || valueAndNativeBalanceMismatch) {
     const nowSeconds = Math.floor(Date.now() / 1000);
     blockTime = nowSeconds + BLOCK_TIME_ADDITIONAL_SECONDS;
+  }
+
+  if (resimulate) {
+    log('Transaction should be resimulated', {
+      transactionId,
+      blockTime,
+      parametersUpdated,
+      securityAlert,
+      valueAndNativeBalanceMismatch,
+    });
   }
 
   return {
@@ -161,7 +162,7 @@ function hasValueAndNativeBalanceMismatch(
   const newNativeBalanceDifference =
     newSimulationData?.nativeBalanceChange?.difference ?? '0x0';
 
-  return isPercentageDifferenceWithinThreshold(
+  return !isPercentageDifferenceWithinThreshold(
     newNativeBalanceDifference,
     newValue as Hex,
     VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD,
