@@ -3640,13 +3640,6 @@ export class TransactionController extends BaseController<
     };
 
     if (this.#isSimulationEnabled()) {
-      this.#updateTransactionInternal(
-        { transactionId, skipHistory: true },
-        (txMeta) => {
-          txMeta.simulationData = undefined;
-        },
-      );
-
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
