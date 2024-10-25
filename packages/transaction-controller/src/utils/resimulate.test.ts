@@ -35,7 +35,7 @@ const TOKEN_BALANCE_CHANGE_MOCK: SimulationTokenBalanceChange = {
   difference: '0x1',
   previousBalance: '0x1',
   newBalance: '0x2',
-  isDecrease: false,
+  isDecrease: true,
 };
 
 const SIMULATION_DATA_MOCK: SimulationData = {
@@ -43,7 +43,7 @@ const SIMULATION_DATA_MOCK: SimulationData = {
     difference: '0x1',
     previousBalance: '0x1',
     newBalance: '0x2',
-    isDecrease: false,
+    isDecrease: true,
   },
   tokenBalanceChanges: [],
 };
@@ -339,6 +339,34 @@ describe('Resimulate Utils', () => {
             { ...TOKEN_BALANCE_CHANGE_MOCK, address: '0x2' },
           ],
         },
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('supports increased balance', () => {
+      getPercentageChangeMock
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(VALUE_COMPARISON_PERCENT_THRESHOLD + 1);
+
+      const result = hasSimulationDataChanged(
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [TOKEN_BALANCE_CHANGE_MOCK],
+        },
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [
+            { ...TOKEN_BALANCE_CHANGE_MOCK, isDecrease: false },
+          ],
+        },
+      );
+
+      expect(getPercentageChangeMock).toHaveBeenCalledTimes(2);
+      expect(getPercentageChangeMock).toHaveBeenNthCalledWith(
+        2,
+        new BN(1),
+        new BN(-1),
       );
 
       expect(result).toBe(true);
