@@ -49,7 +49,7 @@ import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
+import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -106,7 +106,7 @@ import {
   getNextNonce,
 } from './utils/nonce';
 import type { ResimulateResponse } from './utils/resimulate';
-import { shouldResimulate } from './utils/resimulate';
+import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
@@ -3667,7 +3667,7 @@ export class TransactionController extends BaseController<
       if (
         blockTime &&
         prevSimulationData &&
-        !isEqual(simulationData, prevSimulationData)
+        hasSimulationDataChanged(prevSimulationData, simulationData)
       ) {
         simulationData = {
           ...simulationData,

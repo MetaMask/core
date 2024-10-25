@@ -1,16 +1,22 @@
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { createModuleLogger, remove0x } from '@metamask/utils';
+import { BN } from 'bn.js';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
-import type { TransactionMeta, TransactionParams } from '../types';
-import { isPercentageDifferenceWithinThreshold } from './utils';
+import type {
+  SimulationBalanceChange,
+  SimulationData,
+  TransactionMeta,
+  TransactionParams,
+} from '../types';
+import { getPercentageChange } from './utils';
 
 const log = createModuleLogger(projectLogger, 'resimulate');
 
 export const RESIMULATE_PARAMS = ['to', 'value', 'data'] as const;
 export const BLOCKAID_RESULT_TYPE_MALICIOUS = 'Malicious';
-export const VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD = 5;
+export const VALUE_COMPARISON_PERCENT_THRESHOLD = 5;
 export const BLOCK_TIME_ADDITIONAL_SECONDS = 60;
 
 export type ResimulateResponse = {
@@ -69,6 +75,68 @@ export function shouldResimulate(
     blockTime,
     resimulate,
   };
+}
+
+/**
+ * Determine if the simulation data has changed.
+ * @param originalSimulationData - The original simulation data.
+ * @param newSimulationData - The new simulation data.
+ * @returns Whether the simulation data has changed.
+ */
+export function hasSimulationDataChanged(
+  originalSimulationData: SimulationData,
+  newSimulationData: SimulationData,
+): boolean {
+  if (isEqual(originalSimulationData, newSimulationData)) {
+    return false;
+  }
+
+  if (
+    isBalanceChangeUpdated(
+      originalSimulationData?.nativeBalanceChange,
+      newSimulationData?.nativeBalanceChange,
+    )
+  ) {
+    log('Simulation data native balance changed');
+    return true;
+  }
+
+  if (
+    originalSimulationData.tokenBalanceChanges.length !==
+    newSimulationData.tokenBalanceChanges.length
+  ) {
+    return true;
+  }
+
+  for (const originalTokenBalanceChange of originalSimulationData.tokenBalanceChanges) {
+    const newTokenBalanceChange = newSimulationData.tokenBalanceChanges.find(
+      ({ address, id }) =>
+        address === originalTokenBalanceChange.address &&
+        id === originalTokenBalanceChange.id,
+    );
+
+    if (!newTokenBalanceChange) {
+      log('Missing new token balance', {
+        address: originalTokenBalanceChange.address,
+        id: originalTokenBalanceChange.id,
+      });
+
+      return true;
+    }
+
+    if (
+      isBalanceChangeUpdated(originalTokenBalanceChange, newTokenBalanceChange)
+    ) {
+      log('Simulation data token balance changed', {
+        originalTokenBalanceChange,
+        newTokenBalanceChange,
+      });
+
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -162,9 +230,59 @@ function hasValueAndNativeBalanceMismatch(
   const newNativeBalanceDifference =
     newSimulationData?.nativeBalanceChange?.difference ?? '0x0';
 
-  return !isPercentageDifferenceWithinThreshold(
-    newNativeBalanceDifference,
+  return !percentageChangeWithinThreshold(
     newValue as Hex,
-    VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD,
+    newNativeBalanceDifference,
+    false,
+    newSimulationData?.nativeBalanceChange?.isDecrease === false,
+  );
+}
+
+/**
+ * Determine if a balance change has been updated.
+ * @param originalBalanceChange - The original balance change.
+ * @param newBalanceChange - The new balance change.
+ * @returns Whether the balance change has been updated.
+ */
+function isBalanceChangeUpdated(
+  originalBalanceChange?: SimulationBalanceChange,
+  newBalanceChange?: SimulationBalanceChange,
+): boolean {
+  return !percentageChangeWithinThreshold(
+    originalBalanceChange?.difference ?? '0x0',
+    newBalanceChange?.difference ?? '0x0',
+    originalBalanceChange?.isDecrease === false,
+    newBalanceChange?.isDecrease === false,
+  );
+}
+
+/**
+ * Determine if the percentage change between two values is within a threshold.
+ * @param originalValue - The original value.
+ * @param newValue - The new value.
+ * @param originalNegative - Whether the original value is negative.
+ * @param newNegative - Whether the new value is negative.
+ * @returns Whether the percentage change between the two values is within a threshold.
+ */
+function percentageChangeWithinThreshold(
+  originalValue: Hex,
+  newValue: Hex,
+  originalNegative?: boolean,
+  newNegative?: boolean,
+): boolean {
+  let originalValueBN = new BN(remove0x(originalValue), 'hex');
+  let newValueBN = new BN(remove0x(newValue), 'hex');
+
+  if (originalNegative) {
+    originalValueBN = originalValueBN.neg();
+  }
+
+  if (newNegative) {
+    newValueBN = newValueBN.neg();
+  }
+
+  return (
+    getPercentageChange(originalValueBN, newValueBN) <=
+    VALUE_COMPARISON_PERCENT_THRESHOLD
   );
 }

@@ -3704,7 +3704,6 @@ __metadata:
     "@types/jest": "npm:^27.4.1"
     "@types/node": "npm:^16.18.54"
     async-mutex: "npm:^0.5.0"
-    bignumber.js: "npm:^9.1.2"
     bn.js: "npm:^5.2.1"
     deepmerge: "npm:^4.2.2"
     eth-method-registry: "npm:^4.0.0"

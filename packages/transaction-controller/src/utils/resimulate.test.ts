@@ -1,19 +1,23 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { BN } from 'bn.js';
+
 import { CHAIN_IDS } from '../constants';
 import type {
   SecurityAlertResponse,
   SimulationData,
+  SimulationTokenBalanceChange,
   TransactionMeta,
 } from '../types';
-import { TransactionStatus } from '../types';
+import { SimulationTokenStandard, TransactionStatus } from '../types';
 import {
   BLOCK_TIME_ADDITIONAL_SECONDS,
   BLOCKAID_RESULT_TYPE_MALICIOUS,
+  hasSimulationDataChanged,
   RESIMULATE_PARAMS,
   shouldResimulate,
-  VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD,
+  VALUE_COMPARISON_PERCENT_THRESHOLD,
 } from './resimulate';
-import { isPercentageDifferenceWithinThreshold } from './utils';
+import { getPercentageChange } from './utils';
 
 jest.mock('./utils');
 
@@ -25,11 +29,30 @@ const SECURITY_ALERT_RESPONSE_MOCK: SecurityAlertResponse = {
   result_type: 'TestResultType',
 };
 
+const TOKEN_BALANCE_CHANGE_MOCK: SimulationTokenBalanceChange = {
+  address: '0x1',
+  standard: SimulationTokenStandard.erc20,
+  difference: '0x1',
+  previousBalance: '0x1',
+  newBalance: '0x2',
+  isDecrease: false,
+};
+
 const SIMULATION_DATA_MOCK: SimulationData = {
   nativeBalanceChange: {
     difference: '0x1',
     previousBalance: '0x1',
     newBalance: '0x2',
+    isDecrease: false,
+  },
+  tokenBalanceChanges: [],
+};
+
+const SIMULATION_DATA_2_MOCK: SimulationData = {
+  nativeBalanceChange: {
+    difference: '0x1',
+    previousBalance: '0x2',
+    newBalance: '0x3',
     isDecrease: false,
   },
   tokenBalanceChanges: [],
@@ -50,13 +73,13 @@ const TRANSACTION_META_MOCK: TransactionMeta = {
 };
 
 describe('Resimulate Utils', () => {
-  const isPercentageDifferenceWithinThresholdMock = jest.mocked(
-    isPercentageDifferenceWithinThreshold,
-  );
+  const getPercentageChangeMock = jest.mocked(getPercentageChange);
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(Date, 'now').mockReturnValue(CURRENT_TIME_MOCK);
+
+    getPercentageChangeMock.mockReturnValue(0);
   });
 
   describe('shouldResimulate', () => {
@@ -149,7 +172,9 @@ describe('Resimulate Utils', () => {
 
     describe('Value & Native Balance', () => {
       it('resimulates if value does not match native balance difference from simulation', () => {
-        isPercentageDifferenceWithinThresholdMock.mockReturnValue(false);
+        getPercentageChangeMock.mockReturnValueOnce(
+          VALUE_COMPARISON_PERCENT_THRESHOLD + 1,
+        );
 
         const result = shouldResimulate(TRANSACTION_META_MOCK, {
           ...TRANSACTION_META_MOCK,
@@ -160,7 +185,9 @@ describe('Resimulate Utils', () => {
       });
 
       it('includes block time if value does not match native balance difference from simulation', () => {
-        isPercentageDifferenceWithinThresholdMock.mockReturnValue(false);
+        getPercentageChangeMock.mockReturnValueOnce(
+          VALUE_COMPARISON_PERCENT_THRESHOLD + 1,
+        );
 
         const result = shouldResimulate(TRANSACTION_META_MOCK, {
           ...TRANSACTION_META_MOCK,
@@ -173,7 +200,7 @@ describe('Resimulate Utils', () => {
       });
 
       it('does not resimulate if simulation data changed but value and native balance match', () => {
-        isPercentageDifferenceWithinThresholdMock.mockReturnValue(true);
+        getPercentageChangeMock.mockReturnValueOnce(0);
 
         const result = shouldResimulate(TRANSACTION_META_MOCK, {
           ...TRANSACTION_META_MOCK,
@@ -187,8 +214,6 @@ describe('Resimulate Utils', () => {
       });
 
       it('does not resimulate if simulation data changed but value and native balance not specified', () => {
-        isPercentageDifferenceWithinThresholdMock.mockReturnValue(true);
-
         const result = shouldResimulate(
           {
             ...TRANSACTION_META_MOCK,
@@ -210,13 +235,10 @@ describe('Resimulate Utils', () => {
           },
         );
 
-        expect(isPercentageDifferenceWithinThresholdMock).toHaveBeenCalledTimes(
-          1,
-        );
-        expect(isPercentageDifferenceWithinThresholdMock).toHaveBeenCalledWith(
-          '0x0',
-          '0x0',
-          VALUE_NATIVE_BALANCE_PERCENT_THRESHOLD,
+        expect(getPercentageChangeMock).toHaveBeenCalledTimes(1);
+        expect(getPercentageChangeMock).toHaveBeenCalledWith(
+          new BN(0),
+          new BN(0),
         );
 
         expect(result).toStrictEqual({
@@ -224,6 +246,102 @@ describe('Resimulate Utils', () => {
           resimulate: false,
         });
       });
+    });
+  });
+
+  describe('hasSimulationDataChanged', () => {
+    it('returns false if simulation data unchanged', () => {
+      const result = hasSimulationDataChanged(
+        SIMULATION_DATA_MOCK,
+        SIMULATION_DATA_MOCK,
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('returns true if native balance changed', () => {
+      getPercentageChangeMock.mockReturnValueOnce(
+        VALUE_COMPARISON_PERCENT_THRESHOLD + 1,
+      );
+
+      const result = hasSimulationDataChanged(
+        SIMULATION_DATA_MOCK,
+        SIMULATION_DATA_2_MOCK,
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('returns true if token balance count does not match', () => {
+      getPercentageChangeMock.mockReturnValueOnce(0);
+
+      const result = hasSimulationDataChanged(SIMULATION_DATA_MOCK, {
+        ...SIMULATION_DATA_MOCK,
+        tokenBalanceChanges: [TOKEN_BALANCE_CHANGE_MOCK],
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('returns true if token balance does not match', () => {
+      getPercentageChangeMock
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(VALUE_COMPARISON_PERCENT_THRESHOLD + 1);
+
+      const result = hasSimulationDataChanged(
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [TOKEN_BALANCE_CHANGE_MOCK],
+        },
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [
+            { ...TOKEN_BALANCE_CHANGE_MOCK, difference: '0x2' },
+          ],
+        },
+      );
+
+      expect(result).toBe(true);
+    });
+
+    it('returns false if token balance changed but within threshold', () => {
+      getPercentageChangeMock
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(VALUE_COMPARISON_PERCENT_THRESHOLD);
+
+      const result = hasSimulationDataChanged(
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [TOKEN_BALANCE_CHANGE_MOCK],
+        },
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [
+            { ...TOKEN_BALANCE_CHANGE_MOCK, difference: '0x2' },
+          ],
+        },
+      );
+
+      expect(result).toBe(false);
+    });
+
+    it('returns true if new token balance not found', () => {
+      getPercentageChangeMock.mockReturnValueOnce(0).mockReturnValueOnce(0);
+
+      const result = hasSimulationDataChanged(
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [TOKEN_BALANCE_CHANGE_MOCK],
+        },
+        {
+          ...SIMULATION_DATA_MOCK,
+          tokenBalanceChanges: [
+            { ...TOKEN_BALANCE_CHANGE_MOCK, address: '0x2' },
+          ],
+        },
+      );
+
+      expect(result).toBe(true);
     });
   });
 });

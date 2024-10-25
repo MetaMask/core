@@ -3,8 +3,8 @@ import {
   getKnownPropertyNames,
   isStrictHexString,
 } from '@metamask/utils';
-import type { Hex, Json } from '@metamask/utils';
-import BigNumber from 'bignumber.js';
+import type { Json } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { TransactionStatus } from '../types';
 import type {
@@ -186,29 +186,27 @@ export function padHexToEvenLength(hex: string) {
 }
 
 /**
- * Calculate the percentage difference between two hex values and determine if it is within a threshold.
+ * Calculate the absolute percentage change between two values.
  *
- * @param value1 - The first hex value.
- * @param value2 - The second hex value.
- * @param threshold - The percentage threshold for considering the values equal.
- * @returns Whether the percentage difference is within the threshold.
+ * @param originalValue - The first value.
+ * @param newValue - The second value.
+ * @returns The percentage change from the first value to the second value.
+ * If the original value is zero and the new value is not, returns 100.
  */
-export function isPercentageDifferenceWithinThreshold(
-  value1: Hex,
-  value2: Hex,
-  threshold: number,
-): boolean {
-  const bnValue1 = new BigNumber(value1);
-  const bnValue2 = new BigNumber(value2);
+export function getPercentageChange(originalValue: BN, newValue: BN): number {
+  const precisionFactor = new BN(10).pow(new BN(18));
+  const originalValuePrecision = originalValue.mul(precisionFactor);
+  const newValuePrecision = newValue.mul(precisionFactor);
 
-  if (bnValue1.isZero() && bnValue2.isZero()) {
-    return true;
+  const difference = newValuePrecision.sub(originalValuePrecision);
+
+  if (difference.isZero()) {
+    return 0;
   }
 
-  const difference = bnValue1.minus(bnValue2).abs();
-  const average = bnValue1.plus(bnValue2).dividedBy(2);
+  if (originalValuePrecision.isZero() && !newValuePrecision.isZero()) {
+    return 100;
+  }
 
-  const percentageDifference = difference.dividedBy(average).multipliedBy(100);
-
-  return percentageDifference.isLessThanOrEqualTo(threshold);
+  return difference.muln(100).div(originalValuePrecision).abs().toNumber();
 }
