@@ -25,6 +25,7 @@ describe('QueuedRequestController', () => {
     const options: QueuedRequestControllerOptions = {
       messenger: buildQueuedRequestControllerMessenger(),
       shouldRequestSwitchNetwork: () => false,
+      canRequestSwitchNetworkWithoutApproval: () => false,
       clearPendingConfirmations: jest.fn(),
       showApprovalRequest: jest.fn(),
     };
@@ -1146,6 +1147,7 @@ describe('QueuedRequestController', () => {
         messenger: buildQueuedRequestControllerMessenger(messenger),
         shouldRequestSwitchNetwork: ({ method }) =>
           method === 'eth_sendTransaction',
+        canRequestSwitchNetworkWithoutApproval: () => false,
         clearPendingConfirmations: jest.fn(),
         showApprovalRequest: jest.fn(),
       };
@@ -1229,6 +1231,7 @@ describe('QueuedRequestController', () => {
         messenger: buildQueuedRequestControllerMessenger(messenger),
         shouldRequestSwitchNetwork: ({ method }) =>
           method === 'eth_sendTransaction',
+        canRequestSwitchNetworkWithoutApproval: () => false,
         clearPendingConfirmations: jest.fn(),
         showApprovalRequest: jest.fn(),
       };
@@ -1352,6 +1355,7 @@ function buildQueuedRequestController(
   const options: QueuedRequestControllerOptions = {
     messenger: buildQueuedRequestControllerMessenger(),
     shouldRequestSwitchNetwork: () => false,
+    canRequestSwitchNetworkWithoutApproval: () => false,
     clearPendingConfirmations: jest.fn(),
     showApprovalRequest: jest.fn(),
     ...overrideOptions,
