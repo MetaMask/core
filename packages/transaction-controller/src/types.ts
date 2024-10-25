@@ -1307,11 +1307,11 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
-  /** Set to true if transaction re-simulated due to security concerns */
-  isReSimulatedDueToSecurity?: boolean;
-
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
+
+  /** Whether the simulation response changed after a security check triggered a re-simulation. */
+  isUpdatedAfterSecurityCheck?: boolean;
 
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
@@ -1371,5 +1371,3 @@ export type SubmitHistoryEntry = {
   /** The transaction parameters that were submitted. */
   transaction: TransactionParams;
 };
-
-export const BLOCKAID_RESULT_TYPE_MALICIOUS = 'Malicious';

@@ -46,10 +46,10 @@ type ABI = Fragment[];
 
 export type GetSimulationDataRequest = {
   chainId: Hex;
+  data?: Hex;
   from: Hex;
   to?: Hex;
   value?: Hex;
-  data?: Hex;
 };
 
 type ParsedEvent = {
@@ -58,6 +58,10 @@ type ParsedEvent = {
   name: string;
   args: Record<string, Hex | Hex[]>;
   abi: ABI;
+};
+
+type GetSimulationDataOptions = {
+  blockTime?: number;
 };
 
 const log = createModuleLogger(projectLogger, 'simulation');
@@ -106,23 +110,19 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
  * @param options - Additional options.
- * @param options.isReSimulatedDueToSecurity - Whether the simulation is being re-run due to a security.
+ * @param options.blockTime - An optional block time to simulate the transaction at.
  * @returns The simulation data.
  */
 export async function getSimulationData(
   request: GetSimulationDataRequest,
-  options: {
-    isReSimulatedDueToSecurity?: boolean;
-  } = {},
+  options: GetSimulationDataOptions = {},
 ): Promise<SimulationData> {
   const { chainId, from, to, value, data } = request;
-  const { isReSimulatedDueToSecurity } = options;
+  const { blockTime } = options;
 
   log('Getting simulation data', request);
 
   try {
-    const currentTimestampInSeconds = Math.floor(Date.now() / 1000);
-
     const response = await simulateTransactions(chainId, {
       transactions: [
         {
@@ -136,9 +136,9 @@ export async function getSimulationData(
       ],
       withCallTrace: true,
       withLogs: true,
-      ...(isReSimulatedDueToSecurity && {
+      ...(blockTime && {
         blockOverrides: {
-          time: toHex(currentTimestampInSeconds + 60),
+          time: toHex(blockTime),
         },
       }),
     });
@@ -154,7 +154,11 @@ export async function getSimulationData(
 
     log('Parsed events', events);
 
-    const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
+    const tokenBalanceChanges = await getTokenBalanceChanges(
+      request,
+      events,
+      options,
+    );
 
     return {
       nativeBalanceChange,
@@ -309,12 +313,16 @@ function normalizeEventArgValue(value: any): any {
  * Generate token balance changes from parsed events.
  * @param request - The transaction that was simulated.
  * @param events - The parsed events.
+ * @param options - Additional options.
+ * @param options.blockTime - An optional block time to simulate the transaction at.
  * @returns An array of token balance changes.
  */
 async function getTokenBalanceChanges(
   request: GetSimulationDataRequest,
   events: ParsedEvent[],
+  options: GetSimulationDataOptions,
 ): Promise<SimulationTokenBalanceChange[]> {
+  const { blockTime } = options;
   const balanceTxs = getTokenBalanceTransactions(request, events);
 
   log('Generated balance transactions', [...balanceTxs.after.values()]);
@@ -331,6 +339,11 @@ async function getTokenBalanceChanges(
 
   const response = await simulateTransactions(request.chainId as Hex, {
     transactions,
+    ...(blockTime && {
+      blockOverrides: {
+        time: toHex(blockTime),
+      },
+    }),
   });
 
   log('Balance simulation response', response);

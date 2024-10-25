@@ -236,6 +236,7 @@ const setupController = async (
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
     hooks: {},
     isMultichainEnabled: false,
+    isSimulationEnabled: () => false,
     messenger,
     onNetworkStateChange: () => {
       // noop
