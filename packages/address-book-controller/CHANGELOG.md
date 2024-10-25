@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core.git/pull/4831))
+- Release 226.0.0 ([#4834](https://github.com/MetaMask/core.git/pull/4834))
+
 ## [6.0.1]
 
 ### Fixed
@@ -186,23 +191,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.1...HEAD
-[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@6.0.0...@metamask/address-book-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@5.0.0...@metamask/address-book-controller@6.0.0
-[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.2...@metamask/address-book-controller@5.0.0
-[4.0.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.1...@metamask/address-book-controller@4.0.2
-[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@4.0.0...@metamask/address-book-controller@4.0.1
-[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.7...@metamask/address-book-controller@4.0.0
-[3.1.7]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.6...@metamask/address-book-controller@3.1.7
-[3.1.6]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.5...@metamask/address-book-controller@3.1.6
-[3.1.5]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.4...@metamask/address-book-controller@3.1.5
-[3.1.4]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.3...@metamask/address-book-controller@3.1.4
-[3.1.3]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.2...@metamask/address-book-controller@3.1.3
-[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.1...@metamask/address-book-controller@3.1.2
-[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.1.0...@metamask/address-book-controller@3.1.1
-[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@3.0.0...@metamask/address-book-controller@3.1.0
-[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@2.0.0...@metamask/address-book-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.1.0...@metamask/address-book-controller@2.0.0
-[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.0.1...@metamask/address-book-controller@1.1.0
-[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/address-book-controller@1.0.0...@metamask/address-book-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/address-book-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@6.0.1...HEAD
+[6.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@6.0.0...@metamask/address-book-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@5.0.0...@metamask/address-book-controller@6.0.0
+[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@4.0.2...@metamask/address-book-controller@5.0.0
+[4.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@4.0.1...@metamask/address-book-controller@4.0.2
+[4.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@4.0.0...@metamask/address-book-controller@4.0.1
+[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.7...@metamask/address-book-controller@4.0.0
+[3.1.7]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.6...@metamask/address-book-controller@3.1.7
+[3.1.6]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.5...@metamask/address-book-controller@3.1.6
+[3.1.5]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.4...@metamask/address-book-controller@3.1.5
+[3.1.4]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.3...@metamask/address-book-controller@3.1.4
+[3.1.3]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.2...@metamask/address-book-controller@3.1.3
+[3.1.2]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.1...@metamask/address-book-controller@3.1.2
+[3.1.1]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.1.0...@metamask/address-book-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@3.0.0...@metamask/address-book-controller@3.1.0
+[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@2.0.0...@metamask/address-book-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@1.1.0...@metamask/address-book-controller@2.0.0
+[1.1.0]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@1.0.1...@metamask/address-book-controller@1.1.0
+[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/address-book-controller@1.0.0...@metamask/address-book-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/address-book-controller@1.0.0
