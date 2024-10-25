@@ -5845,5 +5845,44 @@ describe('TransactionController', () => {
         },
       );
     });
+
+    it('does not trigger simulation loop', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValue({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationDataMock).toHaveBeenCalledWith(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+        {
+          blockTime: 123,
+        },
+      );
+    });
   });
 });

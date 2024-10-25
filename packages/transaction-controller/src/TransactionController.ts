@@ -3548,11 +3548,13 @@ export class TransactionController extends BaseController<
       note,
       skipHistory,
       skipValidation,
+      skipResimulateCheck,
     }: {
       transactionId: string;
       note?: string;
       skipHistory?: boolean;
       skipValidation?: boolean;
+      skipResimulateCheck?: boolean;
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
@@ -3578,7 +3580,7 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      if (this.#isSimulationEnabled()) {
+      if (!skipResimulateCheck && this.#isSimulationEnabled()) {
         resimulateResponse = shouldResimulate(
           originalTransactionMeta,
           transactionMeta,
@@ -3686,6 +3688,7 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
+        skipResimulateCheck: Boolean(blockTime),
       },
       (txMeta) => {
         txMeta.simulationData = simulationData;
