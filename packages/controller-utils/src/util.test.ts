@@ -1,6 +1,7 @@
 import EthQuery from '@metamask/eth-query';
 import BigNumber from 'bignumber.js';
 import BN from 'bn.js';
+import BN4 from 'bnjs4';
 import nock from 'nock';
 
 import { FakeProvider } from '../../../tests/fake-provider';
@@ -32,11 +33,27 @@ describe('util', () => {
 
   it('bNToHex', () => {
     expect(util.BNToHex(new BN('1337'))).toBe('0x539');
+    expect(util.BNToHex(new BN4('1337'))).toBe('0x539');
     expect(util.BNToHex(new BigNumber('1337'))).toBe('0x539');
   });
 
   it('fractionBN', () => {
     expect(util.fractionBN(new BN('1337'), 9, 10).toNumber()).toBe(1203);
+    expect(util.fractionBN(new BN4('1337'), 9, 10).toNumber()).toBe(1203);
+    // Ensure return values use the same bn.js implementation as input by detection using non-typed API
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    expect(
+      (util.fractionBN(new BN4('1337'), 9, 10) as any)._strip,
+    ).toBeUndefined();
+    expect(
+      (util.fractionBN(new BN4('1337'), 9, 10) as any).strip,
+    ).toBeDefined();
+    expect(
+      (util.fractionBN(new BN('1337'), 9, 10) as any)._strip,
+    ).toBeDefined();
+    expect(
+      (util.fractionBN(new BN('1337'), 9, 10) as any).strip,
+    ).toBeUndefined();
   });
 
   it('getBuyURL', () => {
