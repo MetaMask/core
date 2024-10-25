@@ -4,13 +4,11 @@ on:
   workflow_call:
     secrets:
       GH_TOKEN:
-        description: Github token with access to mobile and extention repositories
+        description: GitHub token with permission to create issues in both mobile and extension repositories
         required: true
 
 jobs:
   create-update-issues:
-    permissions:
-      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Checkout head
@@ -36,9 +34,9 @@ jobs:
               # Check if version number ends with .0.0
               if [[ $version == *.0.0 ]]; then
                 # Fetch responsible team form file
-                team=$(jq --arg key "$package_name" '.[$key]' teams.json)
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test" --label "$team"
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test-2" --label "$team"
+                teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test" --label $teams
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test-2" --label $teams
               fi            
             fi
           done

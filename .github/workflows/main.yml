@@ -52,8 +52,6 @@ jobs:
     name: Create update issues
     needs: [is-release, publish-release]
     if: needs.is-release.outputs.IS_RELEASE == 'true'
-    permissions:
-      contents: read
     uses: ./.github/workflows/create-update-issues.yaml
     secrets:
       GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
