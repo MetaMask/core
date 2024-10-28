@@ -106,10 +106,6 @@ type QueuedRequest = {
   processedPromise: Promise<void>;
 };
 
-const NetworkChangedError = new Error(
-  'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
-);
-
 /**
  * Queue requests for processing in batches, by request origin.
  *
@@ -290,6 +286,42 @@ export class QueuedRequestController extends BaseController<
     this.#networkClientIdOfCurrentBatch = firstRequest.request.networkClientId;
     const batch = [firstRequest];
 
+    let networkSwitchError: unknown;
+    try {
+      // If globally selected network is different from origin selected network,
+      // switch network before processing batch
+      await this.#switchNetworkIfNecessary(
+        firstRequest.request.networkClientId,
+      );
+    } catch (error: unknown) {
+      networkSwitchError = error;
+    }
+
+    // If the first request might switch the network, process the request by
+    // itself. If the request does change the network, clear the queue for the
+    // origin since it any remaining requests are now invalidated
+    if (this.#canRequestSwitchNetworkWithoutApproval(firstRequest.request)) {
+      // This hack prevents the next batch from being processed
+      // after this request returns. This is necessary because
+      // we may need to flush the queue before the next set of requests
+      // are batched and processed, which we cannot do without blocking
+      // the queue from continuing by artificially increasing the processing
+      // request count
+      this.#processingRequestCount += 1;
+      firstRequest.processRequest(networkSwitchError);
+      this.#updateQueuedRequestCount();
+      await firstRequest.processedPromise;
+      this.#processingRequestCount -= 1;
+      const { selectedNetworkClientId } = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      if (this.#networkClientIdOfCurrentBatch !== selectedNetworkClientId) {
+        this.#flushQueueForOrigin(this.#originOfCurrentBatch);
+      }
+      this.#processNextBatchIfReady();
+      return;
+    }
+
     // alternatively we could still batch by only origin but switch networks in batches by
     // adding the network clientId to the values in the batch array
     while (
@@ -303,38 +335,10 @@ export class QueuedRequestController extends BaseController<
       const nextEntry = this.#requestQueue.shift() as QueuedRequest;
       batch.push(nextEntry);
     }
-    let networkError: unknown;
-    try {
-      const { request, processRequest, processedPromise } = firstRequest;
-      // If globally selected network is different from origin selected network,
-      // switch network before processing batch
-      await this.#switchNetworkIfNecessary(request.networkClientId);
-
-      // If the first request might switch the network, process it first
-      // and throw a error if the network now differs from that of the batch
-      if (this.#canRequestSwitchNetworkWithoutApproval(request)) {
-        batch.shift();
-        processRequest();
-        await processedPromise;
-        const { selectedNetworkClientId } = this.messagingSystem.call(
-          'NetworkController:getState',
-        );
-        if (this.#networkClientIdOfCurrentBatch !== selectedNetworkClientId) {
-          networkError = NetworkChangedError;
-        }
-      }
-    } catch (error: unknown) {
-      networkError = error;
-    }
 
     for (const { processRequest } of batch) {
-      processRequest(networkError);
+      processRequest(networkSwitchError);
     }
-
-    if (networkError === NetworkChangedError) {
-      this.#flushQueueForOrigin(this.#originOfCurrentBatch);
-    }
-
     this.#updateQueuedRequestCount();
   }
 
@@ -403,6 +407,19 @@ export class QueuedRequestController extends BaseController<
     return { dequeuedPromise, endRequest };
   }
 
+  #processNextBatchIfReady() {
+    if (this.#processingRequestCount === 0) {
+      this.#originOfCurrentBatch = undefined;
+      this.#networkClientIdOfCurrentBatch = undefined;
+      if (this.#requestQueue.length > 0) {
+        // The next batch is triggered here. We intentionally omit the `await` because we don't
+        // want the next batch to block resolution of the current request.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.#processNextBatch();
+      }
+    }
+  }
+
   /**
    * Enqueue a request to be processed in a batch with other requests from the same origin.
    *
@@ -463,16 +480,7 @@ export class QueuedRequestController extends BaseController<
       }
       return undefined;
     } finally {
-      if (this.#processingRequestCount === 0) {
-        this.#originOfCurrentBatch = undefined;
-        this.#networkClientIdOfCurrentBatch = undefined;
-        if (this.#requestQueue.length > 0) {
-          // The next batch is triggered here. We intentionally omit the `await` because we don't
-          // want the next batch to block resolution of the current request.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.#processNextBatch();
-        }
-      }
+      this.#processNextBatchIfReady();
     }
   }
 }
