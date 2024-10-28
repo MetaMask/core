@@ -2,6 +2,7 @@ import { Interface } from '@ethersproject/abi';
 import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
+import { isStrictHexString } from '@metamask/utils';
 
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
 import { isEIP1559Transaction } from './utils';
@@ -243,7 +244,7 @@ function validateGasFeeParams(txParams: TransactionParams) {
       'gasPrice',
       'maxPriorityFeePerGas',
     );
-    ensureFieldIsString(txParams, 'gasPrice');
+    ensureFieldIsValidHex(txParams, 'gasPrice');
   }
 
   if (txParams.maxFeePerGas) {
@@ -253,7 +254,7 @@ function validateGasFeeParams(txParams: TransactionParams) {
       'maxFeePerGas',
       'gasPrice',
     );
-    ensureFieldIsString(txParams, 'maxFeePerGas');
+    ensureFieldIsValidHex(txParams, 'maxFeePerGas');
   }
 
   if (txParams.maxPriorityFeePerGas) {
@@ -266,7 +267,7 @@ function validateGasFeeParams(txParams: TransactionParams) {
       'maxPriorityFeePerGas',
       'gasPrice',
     );
-    ensureFieldIsString(txParams, 'maxPriorityFeePerGas');
+    ensureFieldIsValidHex(txParams, 'maxPriorityFeePerGas');
   }
 }
 
@@ -332,22 +333,23 @@ function ensureMutuallyExclusiveFieldsNotProvided(
 }
 
 /**
- * Ensures that the provided value for field is a string, throws an
- * invalidParams error if field is not a string.
+ * Ensures that the provided value for field is a valid hexadecimal.
+ * Throws an invalidParams error if field is not a valid hexadecimal.
  *
  * @param txParams - The transaction parameters object
  * @param field - The current field being validated
- * @throws {rpcErrors.invalidParams} Throws if field is not a string
+ * @throws {rpcErrors.invalidParams} Throws if field is not a valid hexadecimal
  */
-function ensureFieldIsString(
+function ensureFieldIsValidHex(
   txParams: TransactionParams,
   field: GasFieldsToValidate,
 ) {
-  if (typeof txParams[field] !== 'string') {
+  const value = txParams[field];
+  if (typeof value !== 'string' || !isStrictHexString(value)) {
     throw rpcErrors.invalidParams(
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      `Invalid transaction params: ${field} is not a string. got: (${txParams[field]})`,
+      `Invalid transaction params: ${field} is not a valid hexadecimal string. got: (${String(
+        value,
+      )})`,
     );
   }
 }
