@@ -347,7 +347,7 @@ function ensureFieldIsValidHex(
   const value = txParams[field];
   if (typeof value !== 'string' || !isStrictHexString(value)) {
     throw rpcErrors.invalidParams(
-      `Invalid transaction params: ${field} is not a valid hexadecimal string. got: (${String(
+      `Invalid transaction params: ${field} is not a valid hexadecimal. got: (${String(
         value,
       )})`,
     );
