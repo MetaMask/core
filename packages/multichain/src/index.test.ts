@@ -31,7 +31,6 @@ describe('@metamask/multichain', () => {
         "Caip25EndowmentPermissionName",
         "caip25EndowmentBuilder",
         "Caip25CaveatMutators",
-        "removeScope",
       ]
     `);
   });

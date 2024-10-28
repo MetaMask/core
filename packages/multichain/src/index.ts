@@ -48,5 +48,4 @@ export {
   Caip25EndowmentPermissionName,
   caip25EndowmentBuilder,
   Caip25CaveatMutators,
-  removeScope,
 } from './caip25Permission';
