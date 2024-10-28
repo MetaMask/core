@@ -147,7 +147,7 @@ describe('endowment:caip25', () => {
         optionalScopes: {},
         isMultichainOrigin: true,
       };
-      const result = removeAccount('0x1', ethereumGoerliCaveat);
+      const result = removeAccount(ethereumGoerliCaveat, '0x1');
       expect(result).toStrictEqual({
         operation: CaveatMutatorOperation.UpdateValue,
         value: {
@@ -187,7 +187,7 @@ describe('endowment:caip25', () => {
         },
         isMultichainOrigin: true,
       };
-      const result = removeAccount('0x1', ethereumGoerliCaveat);
+      const result = removeAccount(ethereumGoerliCaveat, '0x1');
       expect(result).toStrictEqual({
         operation: CaveatMutatorOperation.UpdateValue,
         value: {
@@ -233,7 +233,7 @@ describe('endowment:caip25', () => {
         },
         isMultichainOrigin: true,
       };
-      const result = removeAccount('0x3', ethereumGoerliCaveat);
+      const result = removeAccount(ethereumGoerliCaveat, '0x3');
       expect(result).toStrictEqual({
         operation: CaveatMutatorOperation.Noop,
       });

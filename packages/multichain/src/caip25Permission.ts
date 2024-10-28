@@ -203,13 +203,13 @@ function removeAccountOnScope(targetAddress: string, scopeObject: ScopeObject) {
 /**
  * Removes the target account from the scope object.
  *
- * @param targetAddress - The address to remove from the scope object.
  * @param existingScopes - The scope object to remove the account from.
+ * @param targetAddress - The address to remove from the scope object.
  * @returns The updated scope object.
  */
 function removeAccount(
-  targetAddress: string, // non caip-10 formatted address
   existingScopes: Caip25CaveatValue,
+  targetAddress: string, // non caip-10 formatted address
 ) {
   // copy existing scopes
   const copyOfExistingScopes = cloneDeep(existingScopes);
