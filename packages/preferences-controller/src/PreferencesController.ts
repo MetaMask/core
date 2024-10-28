@@ -114,6 +114,18 @@ export type PreferencesState = {
    * Controls whether Multi rpc modal is displayed or not
    */
   useMultiRpcMigration: boolean;
+  /**
+   * Controls whether to use the safe chains list validation
+   */
+  useSafeChainsListValidation: boolean;
+  /**
+   * Controls which order tokens are sorted in
+   */
+  tokenSortConfig: Record<string, string>;
+  /**
+   * Controls whether balance and assets are hidden or not
+   */
+  privacyMode: boolean;
 };
 
 const metadata = {
@@ -133,6 +145,9 @@ const metadata = {
   smartTransactionsOptInStatus: { persist: true, anonymous: false },
   useTransactionSimulations: { persist: true, anonymous: true },
   useMultiRpcMigration: { persist: true, anonymous: true },
+  useSafeChainsListValidation: { persist: true, anonymous: true },
+  tokenSortConfig: { persist: true, anonymous: true },
+  privacyMode: { persist: true, anonymous: true },
 };
 
 const name = 'PreferencesController';
@@ -205,6 +220,13 @@ export function getDefaultPreferencesState() {
     useMultiRpcMigration: true,
     smartTransactionsOptInStatus: false,
     useTransactionSimulations: true,
+    useSafeChainsListValidation: true,
+    tokenSortConfig: {
+      key: 'tokenFiatAmount',
+      order: 'dsc',
+      sortCallback: 'stringNumeric',
+    },
+    privacyMode: false,
   };
 }
 
@@ -522,6 +544,42 @@ export class PreferencesController extends BaseController<
   setUseTransactionSimulations(useTransactionSimulations: boolean) {
     this.update((state) => {
       state.useTransactionSimulations = useTransactionSimulations;
+    });
+  }
+
+  /**
+   * A setter to update the user's preferred token sorting order.
+   *
+   * @param tokenSortConfig - a configuration representing the sort order of tokens.
+   */
+  setTokenSortConfig(tokenSortConfig: Record<string, string>) {
+    this.update((state) => {
+      state.tokenSortConfig = tokenSortConfig;
+    });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable safe chains list validation.
+   *
+   * @param useSafeChainsListValidation - true to enable safe chains list validation, false to disable it.
+   */
+  setUseSafeChainsListValidation(useSafeChainsListValidation: boolean) {
+    this.update((state) => {
+      state.useSafeChainsListValidation = useSafeChainsListValidation;
+      if (!useSafeChainsListValidation) {
+        state.useSafeChainsListValidation = false;
+      }
+    });
+  }
+
+  /**
+   * A setter for the user preferences to enable/disable privacy mode.
+   *
+   * @param privacyMode - true to enable privacy mode, false to disable it.
+   */
+  setPrivacyMode(privacyMode: boolean) {
+    this.update((state) => {
+      state.privacyMode = privacyMode;
     });
   }
 }
