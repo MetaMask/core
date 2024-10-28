@@ -410,6 +410,11 @@ export class QueuedRequestController extends BaseController<
     return { dequeuedPromise, endRequest };
   }
 
+  /**
+   * Prepares controller state for the next batch if the current
+   * batch is completed and starts processing the next batch if
+   * there are requests left in the queue.
+   */
   #processNextBatchIfReady() {
     if (this.#processingRequestCount === 0) {
       this.#originOfCurrentBatch = undefined;
