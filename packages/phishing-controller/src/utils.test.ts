@@ -4,6 +4,7 @@ import { ListKeys, ListNames } from './PhishingController';
 import {
   applyDiffs,
   domainToParts,
+  extractDomainName,
   fetchTimeNow,
   getHostnameFromUrl,
   matchPartsAgainstList,
@@ -601,5 +602,49 @@ describe('getHostname', () => {
     const url = 'https://www.example.com/path#section';
     const expectedHostname = 'www.example.com';
     expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+});
+
+describe('extractDomainName', () => {
+  it('should extract the primary domain from a standard hostname', () => {
+    const hostname = 'www.example.com';
+    const expected = 'example.com';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should extract the primary domain from a hostname with multiple subdomains', () => {
+    const hostname = 'a.b.c.example.com';
+    const expected = 'example.com';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should return single-segment hostnames as-is', () => {
+    const hostname = 'localhost';
+    const expected = 'localhost';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should extract the last two segments from a hostname with a multi-level TLD', () => {
+    const hostname = 'sub.example.co.uk';
+    const expected = 'co.uk';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should handle hostnames with uppercase letters correctly', () => {
+    const hostname = 'ExAmPlE.CoM';
+    const expected = 'example.com';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should return an empty string when given an empty hostname', () => {
+    const hostname = '';
+    const expected = '';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
   });
 });

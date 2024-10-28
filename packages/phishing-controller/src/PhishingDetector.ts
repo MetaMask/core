@@ -8,6 +8,7 @@ import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
   domainToParts,
+  extractDomainName,
   getDefaultPhishingDetectorConfig,
   matchPartsAgainstList,
   processConfigs,
@@ -235,6 +236,8 @@ export class PhishingDetector {
 
     const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
 
+    const domainName = extractDomainName(fqdn);
+
     const source = domainToParts(fqdn);
 
     for (const { allowlist, name, version } of this.#configs) {
@@ -252,11 +255,17 @@ export class PhishingDetector {
       }
     }
 
-    for (const { c2DomainBlocklist, name, version } of this.#configs) {
-      const hash = sha256Hash(hostname.toLowerCase());
-      const blocked = c2DomainBlocklist?.includes(hash) ?? false;
+    // Compute hashes for both hostname and domain name
+    const hostnameHash = sha256Hash(hostname.toLowerCase());
+    const domainNameHash = sha256Hash(domainName.toLowerCase());
 
-      if (blocked) {
+    for (const { c2DomainBlocklist, name, version } of this.#configs) {
+      const blockedHostname =
+        c2DomainBlocklist?.includes(hostnameHash) ?? false;
+      const blockedDomainName =
+        c2DomainBlocklist?.includes(domainNameHash) ?? false;
+
+      if (blockedHostname || blockedDomainName) {
         return {
           name,
           result: true,
