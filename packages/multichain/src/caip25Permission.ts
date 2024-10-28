@@ -16,7 +16,6 @@ import {
   type Hex,
   type NonEmptyArray,
 } from '@metamask/utils';
-import { strict as assert } from 'assert';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
@@ -141,8 +140,15 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      assert.deepEqual(requiredScopes, normalizedRequiredScopes);
-      assert.deepEqual(optionalScopes, normalizedOptionalScopes);
+
+      if (
+        !isEqual(requiredScopes, normalizedRequiredScopes) ||
+        !isEqual(optionalScopes, normalizedOptionalScopes)
+      ) {
+        throw new Error(
+          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
+        );
+      }
     },
   };
 };

@@ -726,7 +726,11 @@ describe('endowment:caip25', () => {
           invoker: 'test.com',
           parentCapability: Caip25EndowmentPermissionName,
         });
-      }).toThrow(/Expected values to be strictly deep-equal/u);
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
+        ),
+      );
     });
 
     it('throws if the input optionalScopes does not match the output of validateAndNormalizeScopes', () => {
@@ -771,7 +775,11 @@ describe('endowment:caip25', () => {
           invoker: 'test.com',
           parentCapability: Caip25EndowmentPermissionName,
         });
-      }).toThrow(/Expected values to be strictly deep-equal/u);
+      }).toThrow(
+        new Error(
+          `${Caip25EndowmentPermissionName} error: Received non-normalized value for caveat of type "${Caip25CaveatType}".`,
+        ),
+      );
     });
 
     it('does not throw if the input requiredScopes and optionalScopes ScopesObject are already validated and normalized', () => {
