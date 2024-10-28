@@ -334,36 +334,8 @@ export class SignatureController extends BaseController<
     );
 
     // Code below will invoke signature request decoding api for permits
-    let decodedRequest: DecodedRequestInfo;
-    try {
-      const { primaryType } = JSON.parse(request.params[1]);
-      if (primaryType === 'Permit') {
-        const { method, origin, params } = request;
-        const response = await fetch(
-          `https://qtgdj2huxh.execute-api.us-east-2.amazonaws.com/uat/v1/signature?chainId=${chainId}`,
-          {
-            method: 'POST',
-            body: JSON.stringify({
-              method,
-              origin,
-              params: [
-                params[0],
-                JSON.parse(convertNumbericValuestoQuotedString(params[1])),
-              ],
-            }),
-            headers: { 'Content-Type': 'application/json' },
-          },
-        );
-        decodedRequest = (await response.json()) as DecodedRequestInfo;
-      }
-    } catch (error) {
-      decodedRequest = {
-        error: {
-          message: error as string,
-          type: 'DECODING_FAILED_WITH_ERROR',
-        },
-      };
-    }
+    const decodedRequest: DecodedRequestInfo =
+      await this.#decodePermitSignatureRequest(request);
 
     return this.#processSignatureRequest({
       approvalType: ApprovalType.EthSignTypedData,
@@ -920,5 +892,40 @@ export class SignatureController extends BaseController<
     );
 
     return networkClient.configuration.chainId;
+  }
+
+  async #decodePermitSignatureRequest(request: OriginalRequest) {
+    // Code below will invoke signature request decoding api for permits
+    let decodedRequest: DecodedRequestInfo;
+    try {
+      const { primaryType } = JSON.parse(request.params[1]);
+      if (primaryType === 'Permit') {
+        const { method, origin, params } = request;
+        const response = await fetch(
+          `https://qtgdj2huxh.execute-api.us-east-2.amazonaws.com/uat/v1/signature?chainId=${chainId}`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              method,
+              origin,
+              params: [
+                params[0],
+                JSON.parse(convertNumbericValuestoQuotedString(params[1])),
+              ],
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+        decodedRequest = (await response.json()) as DecodedRequestInfo;
+      }
+    } catch (error) {
+      decodedRequest = {
+        error: {
+          message: error as string,
+          type: 'DECODING_FAILED_WITH_ERROR',
+        },
+      };
+    }
+    return decodedRequest;
   }
 }
