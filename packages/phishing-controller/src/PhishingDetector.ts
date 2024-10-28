@@ -255,7 +255,6 @@ export class PhishingDetector {
       }
     }
 
-    // Compute hashes for both hostname and domain name
     const hostnameHash = sha256Hash(hostname.toLowerCase());
     const domainNameHash = sha256Hash(domainName.toLowerCase());
 
