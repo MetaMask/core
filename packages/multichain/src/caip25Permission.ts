@@ -247,7 +247,7 @@ function removeAccount(
  * @param targetScopeString - The scope that is being removed.
  * @returns The updated CAIP-25 permission caveat value.
  */
-export function removeScope(
+function removeScope(
   caip25CaveatValue: Caip25CaveatValue,
   targetScopeString: ExternalScopeString,
 ) {

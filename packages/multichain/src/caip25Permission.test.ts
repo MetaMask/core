@@ -11,7 +11,6 @@ import {
   caip25EndowmentBuilder,
   Caip25EndowmentPermissionName,
   Caip25CaveatMutatorFactories,
-  removeScope,
   createCaip25Caveat,
 } from './caip25Permission';
 import * as ScopeAssert from './scope/assert';
@@ -27,7 +26,7 @@ jest.mock('./scope/assert', () => ({
 }));
 const MockScopeAssert = jest.mocked(ScopeAssert);
 
-const { removeAccount } = Caip25CaveatMutatorFactories[Caip25CaveatType];
+const { removeAccount, removeScope } = Caip25CaveatMutatorFactories[Caip25CaveatType];
 
 describe('endowment:caip25', () => {
   beforeEach(() => {
