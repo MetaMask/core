@@ -15,6 +15,12 @@ export type OriginalRequest = {
 
   /** Response following a security scan of the request. */
   securityAlertResponse?: Record<string, Json>;
+
+  /** Method of signature request */
+  method?: string;
+
+  /** Parameters in signature request */
+  params: string[];
 };
 
 /** Options for signing typed data. */
@@ -71,10 +77,27 @@ export type MessageParamsTyped = MessageParams & {
         primaryType: string;
         message: Json;
       };
-
+  /** Signature method V1, V3 or V4 */
+  signatureMethod?: string;
   /** Version of the signTypedData request. */
   version?: string;
 };
+
+export type DecodedRequestInfo =
+  | {
+      assetType: string;
+      changeType: string;
+      address: string;
+      amount: string;
+      contractAddress: string;
+    }
+  | {
+      error: {
+        message: string;
+        type: string;
+      };
+    }
+  | undefined;
 
 type SignatureRequestBase = {
   /** ID of the associated chain. */
@@ -109,6 +132,9 @@ type SignatureRequestBase = {
 
   /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
+
+  /** Response from message decoding api. */
+  decodedRequest?: DecodedRequestInfo;
 };
 
 /** Legacy messages stored in the state. */

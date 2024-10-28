@@ -43,8 +43,10 @@ import type {
   TypedSigningOptions,
   LegacyStateMessage,
   StateSIWEMessage,
+  DecodedRequestInfo,
 } from './types';
 import {
+  convertNumbericValuestoQuotedString,
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './utils/normalize';
@@ -331,6 +333,38 @@ export class SignatureController extends BaseController<
       version as SignTypedDataVersion,
     );
 
+    // Code below will invoke signature request decoding api for permits
+    let decodedRequest: DecodedRequestInfo;
+    try {
+      const { primaryType } = JSON.parse(request.params[1]);
+      if (primaryType === 'Permit') {
+        const { method, origin, params } = request;
+        const response = await fetch(
+          `https://qtgdj2huxh.execute-api.us-east-2.amazonaws.com/uat/v1/signature?chainId=${chainId}`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              method,
+              origin,
+              params: [
+                params[0],
+                JSON.parse(convertNumbericValuestoQuotedString(params[1])),
+              ],
+            }),
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+        decodedRequest = (await response.json()) as DecodedRequestInfo;
+      }
+    } catch (error) {
+      decodedRequest = {
+        error: {
+          message: error as string,
+          type: 'DECODING_FAILED_WITH_ERROR',
+        },
+      };
+    }
+
     return this.#processSignatureRequest({
       approvalType: ApprovalType.EthSignTypedData,
       messageParams: normalizedMessageParams,
@@ -339,6 +373,7 @@ export class SignatureController extends BaseController<
       traceContext: options.traceContext,
       type: SignatureRequestType.TypedSign,
       version: version as SignTypedDataVersion,
+      decodedRequest,
     });
   }
 
@@ -428,6 +463,7 @@ export class SignatureController extends BaseController<
     version,
     signingOptions,
     traceContext,
+    decodedRequest,
   }: {
     chainId?: Hex;
     messageParams: MessageParams;
@@ -437,6 +473,7 @@ export class SignatureController extends BaseController<
     version?: SignTypedDataVersion;
     signingOptions?: TypedSigningOptions;
     traceContext?: TraceContext;
+    decodedRequest?: DecodedRequestInfo;
   }): Promise<string> {
     log('Processing signature request', {
       messageParams,
@@ -456,6 +493,7 @@ export class SignatureController extends BaseController<
       signingOptions,
       type,
       version,
+      decodedRequest,
     });
 
     let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -528,6 +566,7 @@ export class SignatureController extends BaseController<
     signingOptions,
     type,
     version,
+    decodedRequest,
   }: {
     chainId: Hex;
     messageParams: MessageParams;
@@ -535,6 +574,7 @@ export class SignatureController extends BaseController<
     signingOptions?: TypedSigningOptions;
     type: SignatureRequestType;
     version?: SignTypedDataVersion;
+    decodedRequest?: DecodedRequestInfo;
   }): SignatureRequest {
     const id = random();
     const origin = request?.origin ?? messageParams.origin;
@@ -561,6 +601,7 @@ export class SignatureController extends BaseController<
       time: Date.now(),
       type,
       version,
+      decodedRequest,
     } as SignatureRequest;
 
     this.#updateState((state) => {

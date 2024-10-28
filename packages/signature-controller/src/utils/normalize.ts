@@ -59,3 +59,13 @@ function normalizePersonalMessageData(data: string) {
 
   return bytesToHex(Buffer.from(data, 'utf8'));
 }
+
+/**
+ * Takes a stringified JSON and replaces all numeric values in it with quoted strings.
+ *
+ * @param str - String of JSON to be fixed.
+ * @returns String with all numeric values converted to quoted strings.
+ */
+export function convertNumbericValuestoQuotedString(str: string) {
+  return str?.replace(/(?<=:\s*)(-?\d+(\.\d+)?)(?=[,\]}])/gu, '"$1"');
+}
