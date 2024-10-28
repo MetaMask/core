@@ -382,6 +382,17 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
+  /**
+   * Adds a request to the queue to be processed. A promise is returned that resolves/rejects when
+   * this request should continue execution/fail early. Additionally it returns a callback that
+   * must be called after the request finishes execution.
+   *
+   * Internally, the controller triggers the above returned promise to resolve via the `processRequest`.
+   * It also may await a promise that resolves with the above returned callback.
+   *
+   * @param request - The JSON-RPC request to process.
+   * @returns A promise resolves on dequeue and callback to notify request completion.
+   */
   #waitForDequeue(request: QueuedRequestMiddlewareJsonRpcRequest) {
     const {
       promise: dequeuedPromise,
@@ -477,7 +488,7 @@ export class QueuedRequestController extends BaseController<
       // are existing requests still being processed.
       const requestCouldClearProcessingBatchWithoutApproval =
         this.#processingRequestCount > 0 &&
-          this.#canRequestSwitchNetworkWithoutApproval(request)
+        this.#canRequestSwitchNetworkWithoutApproval(request);
 
       // Queue request for later processing
       // Network switch is handled when this batch is processed
