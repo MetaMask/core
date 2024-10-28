@@ -26,6 +26,8 @@ import { type Hex, assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
 
+import type { AssetsContractController } from './AssetsContractController';
+
 /**
  * The name of the {@link AccountTrackerController}.
  */
@@ -35,10 +37,12 @@ const controllerName = 'AccountTrackerController';
  * @type AccountInformation
  *
  * Account information object
- * @property balance - Hex string of an account balancec in wei
+ * @property balance - Hex string of an account balance in wei
+ * @property stakedBalance - Hex string of an account staked balance in wei
  */
 export type AccountInformation = {
   balance: string;
+  stakedBalance?: string;
 };
 
 /**
@@ -135,6 +139,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 > {
   readonly #refreshMutex = new Mutex();
 
+  readonly #includeStakedAssets: boolean;
+
+  readonly #getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
+
   #handle?: ReturnType<typeof setTimeout>;
 
   /**
@@ -144,15 +152,21 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.interval - Polling interval used to fetch new account balances.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The controller messaging system.
+   * @param options.getStakedBalanceForChain - The function to get the staked native asset balance for a chain.
+   * @param options.includeStakedAssets - Whether to include staked assets in the account balances.
    */
   constructor({
     interval = 10000,
     state,
     messenger,
+    getStakedBalanceForChain,
+    includeStakedAssets = false,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
     messenger: AccountTrackerControllerMessenger;
+    getStakedBalanceForChain: AssetsContractController['getStakedBalanceForChain'];
+    includeStakedAssets?: boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -175,6 +189,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       },
       metadata: accountTrackerMetadata,
     });
+    this.#getStakedBalanceForChain = getStakedBalanceForChain;
+
+    this.#includeStakedAssets = includeStakedAssets;
+
     this.setIntervalLength(interval);
 
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -358,6 +376,18 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
             balance,
           };
         }
+        if (this.#includeStakedAssets) {
+          const stakedBalance = await this.#getStakedBalanceForChain(
+            address,
+            networkClientId,
+          );
+          if (stakedBalance) {
+            accountsForChain[address] = {
+              ...accountsForChain[address],
+              stakedBalance,
+            };
+          }
+        }
       }
 
       this.update((state) => {
@@ -402,24 +432,37 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
 
     return await Promise.all(
-      addresses.map((address): Promise<[string, string] | undefined> => {
-        return safelyExecuteWithTimeout(async () => {
-          assert(ethQuery, 'Provider not set.');
-          const balance = await query(ethQuery, 'getBalance', [address]);
-          return [address, balance];
-        });
-      }),
+      addresses.map(
+        (
+          address,
+        ): Promise<[string, string, string | undefined] | undefined> => {
+          return safelyExecuteWithTimeout(async () => {
+            assert(ethQuery, 'Provider not set.');
+            const balance = await query(ethQuery, 'getBalance', [address]);
+
+            let stakedBalance: string | undefined;
+            if (this.#includeStakedAssets) {
+              stakedBalance = await this.#getStakedBalanceForChain(
+                address,
+                networkClientId,
+              );
+            }
+            return [address, balance, stakedBalance];
+          });
+        },
+      ),
     ).then((value) => {
       return value.reduce((obj, item) => {
         if (!item) {
           return obj;
         }
 
-        const [address, balance] = item;
+        const [address, balance, stakedBalance] = item;
         return {
           ...obj,
           [address]: {
             balance,
+            stakedBalance,
           },
         };
       }, {});
