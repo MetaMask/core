@@ -156,7 +156,7 @@ export const caip25EndowmentBuilder = Object.freeze({
  * Factories that construct caveat mutator functions that are passed to
  * PermissionController.updatePermissionsByCaveat.
  */
-export const Caip25CaveatMutatorFactories = {
+export const Caip25CaveatMutators = {
   [Caip25CaveatType]: {
     removeScope,
     removeAccount,

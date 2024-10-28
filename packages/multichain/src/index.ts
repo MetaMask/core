@@ -47,6 +47,6 @@ export {
   createCaip25Caveat,
   Caip25EndowmentPermissionName,
   caip25EndowmentBuilder,
-  Caip25CaveatMutatorFactories,
+  Caip25CaveatMutators,
   removeScope,
 } from './caip25Permission';
