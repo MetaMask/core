@@ -566,9 +566,6 @@ export class PreferencesController extends BaseController<
   setUseSafeChainsListValidation(useSafeChainsListValidation: boolean) {
     this.update((state) => {
       state.useSafeChainsListValidation = useSafeChainsListValidation;
-      if (!useSafeChainsListValidation) {
-        state.useSafeChainsListValidation = false;
-      }
     });
   }
 
