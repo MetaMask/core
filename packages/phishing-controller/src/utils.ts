@@ -303,3 +303,51 @@ export const extractDomainName = (hostname: string): string => {
   const domainParts = parts.slice(0, 2).reverse();
   return domainParts.join('.');
 };
+
+/**
+ * Generates all possible parent domains up to a specified limit.
+ *
+ * @param sourceParts - The list of domain parts in normal order (e.g., ['evil', 'domain', 'co', 'uk']).
+ * @param limit - The maximum number of parent domains to generate (default is 5).
+ * @returns An array of parent domains starting from the base TLD to the most specific subdomain.
+ * @example
+ * generateParentDomains(['evil', 'domain', 'co', 'uk'], 5)
+ * // Returns: ['co.uk', 'domain.co.uk', 'evil.domain.co.uk']
+ *
+ * generateParentDomains(['uk'], 5)
+ * // Returns: ['uk']
+ *
+ * generateParentDomains(['sub', 'example', 'com'], 5)
+ * // Returns: ['example.com', 'sub.example.com']
+ */
+export const generateParentDomains = (
+  sourceParts: string[],
+  limit = 5,
+): string[] => {
+  const domains: string[] = [];
+
+  if (sourceParts.length === 0) {
+    return domains;
+  }
+
+  if (sourceParts.length === 1) {
+    // Single-segment hostname (e.g., 'uk')
+    domains.push(sourceParts[0].toLowerCase());
+  } else {
+    // Start with the base TLD (last two labels, e.g., 'co.uk')
+    const baseTLD = sourceParts.slice(-2).join('.');
+    domains.push(baseTLD.toLowerCase());
+
+    // Iteratively add one subdomain level at a time, up to the specified limit
+    for (
+      let i = sourceParts.length - 3;
+      i >= 0 && domains.length < limit;
+      i--
+    ) {
+      const domain = sourceParts.slice(i).join('.');
+      domains.push(domain.toLowerCase());
+    }
+  }
+
+  return domains;
+};

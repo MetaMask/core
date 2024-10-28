@@ -6,6 +6,7 @@ import {
   domainToParts,
   extractDomainName,
   fetchTimeNow,
+  generateParentDomains,
   getHostnameFromUrl,
   matchPartsAgainstList,
   processConfigs,
@@ -646,5 +647,96 @@ describe('extractDomainName', () => {
     const expected = '';
     const result = extractDomainName(hostname);
     expect(result).toBe(expected);
+  });
+});
+
+describe('generateParentDomains', () => {
+  it('should return an empty array when sourceParts is empty', () => {
+    expect(generateParentDomains([], 5)).toStrictEqual([]);
+  });
+
+  it('should handle single-segment hostname correctly', () => {
+    const sourceParts = ['uk'];
+    const expected = ['uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle two-segment hostname correctly', () => {
+    const sourceParts = ['co', 'uk'];
+    const expected = ['co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle three-segment hostname correctly', () => {
+    const sourceParts = ['domain', 'co', 'uk'];
+    const expected = ['co.uk', 'domain.co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle four-segment hostname within limit', () => {
+    const sourceParts = ['evil', 'domain', 'co', 'uk'];
+    const expected = ['co.uk', 'domain.co.uk', 'evil.domain.co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle five-segment hostname within limit', () => {
+    const sourceParts = ['fifth', 'evil', 'domain', 'co', 'uk'];
+    const expected = [
+      'co.uk',
+      'domain.co.uk',
+      'evil.domain.co.uk',
+      'fifth.evil.domain.co.uk',
+    ];
+    expect(generateParentDomains(sourceParts, 5)).toStrictEqual(expected);
+  });
+
+  it('should handle hostnames exceeding the limit', () => {
+    const sourceParts = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const limit = 5;
+    const expected = ['f.g', 'e.f.g', 'd.e.f.g', 'c.d.e.f.g', 'b.c.d.e.f.g'];
+    expect(generateParentDomains(sourceParts, limit)).toStrictEqual(expected);
+  });
+
+  it('should lowercase all domain parts', () => {
+    const sourceParts = ['Evil', 'Domain', 'Co', 'Uk'];
+    const expected = ['co.uk', 'domain.co.uk', 'evil.domain.co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle hostnames with empty labels correctly', () => {
+    const sourceParts = ['a', '', 'b', 'example', 'com'];
+    // Assuming that empty strings are already filtered out before calling the function
+    // Thus, sourceParts should be ['a', 'b', 'example', 'com']
+    const filteredSourceParts = sourceParts.filter(Boolean);
+    const expected = ['example.com', 'b.example.com', 'a.b.example.com'];
+    expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle numeric labels correctly', () => {
+    const sourceParts = ['123', 'example', 'com'];
+    const expected = ['example.com', '123.example.com'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle special characters in labels correctly', () => {
+    const sourceParts = ['sub-domain', 'example', 'com'];
+    const expected = ['example.com', 'sub-domain.example.com'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle mixed case and empty labels correctly', () => {
+    const sourceParts = ['A', '', 'B', 'Example', 'Com'];
+    // After filtering: ['A', 'B', 'Example', 'Com']
+    const filteredSourceParts = sourceParts.filter(Boolean);
+    const expected = ['example.com', 'b.example.com', 'a.b.example.com'];
+    expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle trailing empty labels correctly', () => {
+    const sourceParts = ['a', 'b', 'c', ''];
+    // After filtering: ['a', 'b', 'c']
+    const filteredSourceParts = sourceParts.filter(Boolean);
+    const expected = ['b.c', 'a.b.c'];
+    expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
   });
 });

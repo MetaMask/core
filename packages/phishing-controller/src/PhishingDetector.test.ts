@@ -1299,6 +1299,33 @@ describe('PhishingDetector', () => {
       );
     });
 
+    it('check the hash against c2DomainBlocklist, returning the correct result without a version with sub domains', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+            ],
+            name: 'test-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain(
+            'https://sub.sub.evil.example.com',
+          );
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
     it('should return false if URL is invalid', async () => {
       await withPhishingDetector(
         [
