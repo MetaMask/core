@@ -10,7 +10,6 @@ import {
 } from '@metamask/utils';
 import type { BigNumber } from 'bignumber.js';
 import BN from 'bn.js';
-import BN4 from 'bnjs4';
 import ensNamehash from 'eth-ens-namehash';
 import deepEqual from 'fast-deep-equal';
 
@@ -70,31 +69,10 @@ export function isSafeChainId(chainId: Hex): boolean {
  */
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
 // eslint-disable-next-line @typescript-eslint/naming-convention
-export function BNToHex(inputBn: BN | BN4 | BigNumber): string {
+export function BNToHex(inputBn: BN | BigNumber) {
   return add0x(inputBn.toString(16));
 }
 
-function getBNImplementation(targetBN: BN4): typeof BN4;
-function getBNImplementation(targetBN: BN): typeof BN;
-/**
- * Return the bn.js library responsible for the BN in question
- * @param targetBN - A BN instance
- * @returns A bn.js instance
- */
-function getBNImplementation(targetBN: BN | BN4): typeof BN4 | typeof BN {
-  return Object.keys(targetBN).includes('_strip') ? BN4 : BN;
-}
-
-export function fractionBN(
-  targetBN: BN,
-  numerator: number | string,
-  denominator: number | string,
-): BN;
-export function fractionBN(
-  targetBN: BN4,
-  numerator: number | string,
-  denominator: number | string,
-): BN4;
 /**
  * Used to multiply a BN by a fraction.
  *
@@ -104,16 +82,12 @@ export function fractionBN(
  * @returns Product of the multiplication.
  */
 export function fractionBN(
-  targetBN: BN | BN4,
+  targetBN: BN,
   numerator: number | string,
   denominator: number | string,
-): BN | BN4 {
-  // @ts-expect-error - Signature overload confusion
-  const BNImplementation = getBNImplementation(targetBN);
-
-  const numBN = new BNImplementation(numerator);
-  const denomBN = new BNImplementation(denominator);
-  // @ts-expect-error - BNImplementation gets unexpected typed
+) {
+  const numBN = new BN(numerator);
+  const denomBN = new BN(denominator);
   return targetBN.mul(numBN).div(denomBN);
 }
 
@@ -218,8 +192,6 @@ export function hexToText(hex: string) {
   }
 }
 
-export function fromHex(value: string | BN): BN;
-export function fromHex(value: BN4): BN4;
 /**
  * Parses a hex string and converts it into a number that can be operated on in a bignum-safe,
  * base-10 way.
@@ -227,11 +199,11 @@ export function fromHex(value: BN4): BN4;
  * @param value - A base-16 number encoded as a string.
  * @returns The number as a BN object in base-16 mode.
  */
-export function fromHex(value: string | BN | BN4): BN | BN4 {
+export function fromHex(value: string | BN): BN {
   if (BN.isBN(value)) {
     return value;
   }
-  return new BN(hexToBN(value as string).toString(10), 10);
+  return new BN(hexToBN(value).toString(10));
 }
 
 /**
@@ -240,14 +212,14 @@ export function fromHex(value: string | BN | BN4): BN | BN4 {
  * @param value - An integer, an integer encoded as a base-10 string, or a BN.
  * @returns The integer encoded as a hex string.
  */
-export function toHex(value: number | bigint | string | BN | BN4): Hex {
+export function toHex(value: number | bigint | string | BN): Hex {
   if (typeof value === 'string' && isStrictHexString(value)) {
     return value;
   }
   const hexString =
     BN.isBN(value) || typeof value === 'bigint'
       ? value.toString(16)
-      : new BN(value.toString(10), 10).toString(16);
+      : new BN(value.toString(), 10).toString(16);
   return `0x${hexString}`;
 }
 
