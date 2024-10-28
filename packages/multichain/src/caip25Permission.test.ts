@@ -12,7 +12,7 @@ import {
   Caip25EndowmentPermissionName,
   Caip25CaveatMutatorFactories,
   removeScope,
-  Caip25CaveatFactoryFn,
+  createCaip25Caveat,
 } from './caip25Permission';
 import * as ScopeAssert from './scope/assert';
 import * as ScopeAuthorization from './scope/authorization';
@@ -57,7 +57,7 @@ describe('endowment:caip25', () => {
 
   it('builds the caveat', () => {
     expect(
-      Caip25CaveatFactoryFn({
+      createCaip25Caveat({
         requiredScopes: {},
         optionalScopes: {},
         isMultichainOrigin: true,

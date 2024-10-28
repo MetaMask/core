@@ -27,7 +27,7 @@ describe('@metamask/multichain', () => {
         "isValidScope",
         "validateScopes",
         "Caip25CaveatType",
-        "Caip25CaveatFactoryFn",
+        "createCaip25Caveat",
         "Caip25EndowmentPermissionName",
         "caip25EndowmentBuilder",
         "Caip25CaveatMutatorFactories",

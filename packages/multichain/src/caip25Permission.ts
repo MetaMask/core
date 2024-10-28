@@ -37,7 +37,7 @@ export type Caip25CaveatValue = {
 
 export const Caip25CaveatType = 'authorizedScopes';
 
-export const Caip25CaveatFactoryFn = (value: Caip25CaveatValue) => {
+export const createCaip25Caveat = (value: Caip25CaveatValue) => {
   return {
     type: Caip25CaveatType,
     value,

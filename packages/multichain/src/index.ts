@@ -44,7 +44,7 @@ export { isValidScope, validateScopes } from './scope/validation';
 export type { Caip25CaveatValue } from './caip25Permission';
 export {
   Caip25CaveatType,
-  Caip25CaveatFactoryFn,
+  createCaip25Caveat,
   Caip25EndowmentPermissionName,
   caip25EndowmentBuilder,
   Caip25CaveatMutatorFactories,
