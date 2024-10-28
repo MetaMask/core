@@ -308,10 +308,13 @@ export class QueuedRequestController extends BaseController<
       // the queue from continuing by artificially increasing the processing
       // request count
       this.#processingRequestCount += 1;
-      firstRequest.processRequest(networkSwitchError);
-      this.#updateQueuedRequestCount();
-      await firstRequest.processedPromise;
-      this.#processingRequestCount -= 1;
+      try {
+        firstRequest.processRequest(networkSwitchError);
+        this.#updateQueuedRequestCount();
+        await firstRequest.processedPromise;
+      } finally {
+        this.#processingRequestCount -= 1;
+      }
       const { selectedNetworkClientId } = this.messagingSystem.call(
         'NetworkController:getState',
       );
