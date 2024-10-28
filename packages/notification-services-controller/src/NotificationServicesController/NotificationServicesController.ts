@@ -577,7 +577,7 @@ export default class NotificationServicesController extends BaseController<
   #registerMessageHandlers(): void {
     this.messagingSystem.registerActionHandler(
       `${controllerName}:updateMetamaskNotificationsList`,
-      this.updateMetamaskNotificationsList.bind(this),
+      async (...args) => this.updateMetamaskNotificationsList(...args),
     );
 
     this.messagingSystem.registerActionHandler(
@@ -1229,6 +1229,11 @@ export default class NotificationServicesController extends BaseController<
     for (const id of ids) {
       await this.deleteNotificationById(id);
     }
+
+    this.messagingSystem.publish(
+      `${controllerName}:notificationsListUpdated`,
+      this.state.metamaskNotificationsList,
+    );
   }
 
   /**
@@ -1375,12 +1380,13 @@ export default class NotificationServicesController extends BaseController<
             processedNotification,
             ...state.metamaskNotificationsList,
           ];
-          this.messagingSystem.publish(
-            `${controllerName}:notificationsListUpdated`,
-            state.metamaskNotificationsList,
-          );
         }
       });
+
+      this.messagingSystem.publish(
+        `${controllerName}:notificationsListUpdated`,
+        this.state.metamaskNotificationsList,
+      );
     }
   }
 }
