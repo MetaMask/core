@@ -86,12 +86,12 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
 }, {});
 
 /**
- * Function that takes a TokensChainsCache object and returns it containing only the data field
- * @param obj - TokensChainsCache input object
- * @returns returns the object input with only the data field
+ * Function that takes a TokensChainsCache object and maps chainId with TokenListMap.
+ * @param tokensChainsCache - TokensChainsCache input object
+ * @returns returns the map of chainId with TokenListMap
  */
-function retrieveDataFromTokensChainsCache(obj: TokensChainsCache) {
-  return mapValues(obj, (value) => {
+function mapChainIdWithTokenListMap(tokensChainsCache: TokensChainsCache) {
+  return mapValues(tokensChainsCache, (value) => {
     if (isObject(value) && 'data' in value) {
       return get(value, ['data']);
     }
@@ -479,11 +479,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokensChainsCache: TokensChainsCache,
     previousTokensChainsCache: TokensChainsCache,
   ): boolean {
-    const cleanPreviousTokensChainsCache = retrieveDataFromTokensChainsCache(
+    const cleanPreviousTokensChainsCache = mapChainIdWithTokenListMap(
       previousTokensChainsCache,
     );
     const cleanTokensChainsCache =
-      retrieveDataFromTokensChainsCache(tokensChainsCache);
+      mapChainIdWithTokenListMap(tokensChainsCache);
     const isEqualValues = isEqual(
       cleanTokensChainsCache,
       cleanPreviousTokensChainsCache,
