@@ -51,6 +51,7 @@ import type {
   TokenListToken,
 } from './TokenListController';
 import type { Token } from './TokenRatesController';
+import { MAX_SYMBOL_LENGTH } from './constants';
 
 /**
  * @type SuggestedAssetMeta
@@ -868,9 +869,9 @@ export class TokensController extends BaseController<
       throw rpcErrors.invalidParams(`Invalid symbol: not a string`);
     }
 
-    if (asset.symbol.length > 11) {
+    if (asset.symbol.length < 1 || asset.symbol.length > MAX_SYMBOL_LENGTH) {
       throw rpcErrors.invalidParams(
-        `Invalid symbol "${asset.symbol}": longer than 11 characters`,
+        `Invalid symbol "${asset.symbol}": longer than ${MAX_SYMBOL_LENGTH} characters`,
       );
     }
 
