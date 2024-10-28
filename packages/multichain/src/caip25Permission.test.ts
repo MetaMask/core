@@ -92,7 +92,7 @@ describe('endowment:caip25', () => {
         sessionProperties: {},
         isMultichainOrigin: true,
       };
-      const result = removeScope('eip155:5', ethereumGoerliCaveat);
+      const result = removeScope(ethereumGoerliCaveat, 'eip155:5');
       expect(result).toStrictEqual({
         operation: CaveatMutatorOperation.UpdateValue,
         value: {
@@ -127,7 +127,7 @@ describe('endowment:caip25', () => {
         sessionProperties: {},
         isMultichainOrigin: true,
       };
-      const result = removeScope('eip155:2', ethereumGoerliCaveat);
+      const result = removeScope(ethereumGoerliCaveat, 'eip155:2');
       expect(result).toStrictEqual({
         operation: CaveatMutatorOperation.Noop,
       });

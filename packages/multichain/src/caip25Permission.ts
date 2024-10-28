@@ -243,13 +243,13 @@ function removeAccount(
  * `endowment:caip25` caveats. No-ops if the target scopeString is not in
  * the existing scopes,.
  *
- * @param targetScopeString - The scope that is being removed.
  * @param caip25CaveatValue - The CAIP-25 permission caveat value to remove the scope from.
+ * @param targetScopeString - The scope that is being removed.
  * @returns The updated CAIP-25 permission caveat value.
  */
 export function removeScope(
-  targetScopeString: ExternalScopeString,
   caip25CaveatValue: Caip25CaveatValue,
+  targetScopeString: ExternalScopeString,
 ) {
   const newRequiredScopes = Object.entries(
     caip25CaveatValue.requiredScopes,
