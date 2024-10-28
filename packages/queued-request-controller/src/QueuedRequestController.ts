@@ -98,7 +98,7 @@ type QueuedRequest = {
   /**
    * A callback used to continue processing the request, called when the request is dequeued.
    */
-  processRequest: (error: unknown) => void;
+  processRequest: (error?: unknown) => void;
 
   /**
    * A deferred promise that resolves when the request is processed.
@@ -303,7 +303,7 @@ export class QueuedRequestController extends BaseController<
       const nextEntry = this.#requestQueue.shift() as QueuedRequest;
       batch.push(nextEntry);
     }
-    let networkSwitchError: unknown;
+    let networkError: unknown;
     try {
       const { request, processRequest, processedPromise } = firstRequest;
       // If globally selected network is different from origin selected network,
@@ -314,22 +314,27 @@ export class QueuedRequestController extends BaseController<
       // and throw a error if the network now differs from that of the batch
       if (this.#canRequestSwitchNetworkWithoutApproval(request)) {
         batch.shift();
-        processRequest(networkSwitchError);
+        processRequest();
         await processedPromise;
         const { selectedNetworkClientId } = this.messagingSystem.call(
           'NetworkController:getState',
         );
         if (this.#networkClientIdOfCurrentBatch !== selectedNetworkClientId) {
-          throw NetworkChangedError;
+          networkError = NetworkChangedError;
         }
       }
     } catch (error: unknown) {
-      networkSwitchError = error;
+      networkError = error;
     }
 
     for (const { processRequest } of batch) {
-      processRequest(networkSwitchError);
+      processRequest(networkError);
     }
+
+    if (networkError === NetworkChangedError) {
+      this.#flushQueueForOrigin(this.#originOfCurrentBatch);
+    }
+
     this.#updateQueuedRequestCount();
   }
 
@@ -384,7 +389,7 @@ export class QueuedRequestController extends BaseController<
       });
     this.#requestQueue.push({
       request,
-      processRequest: (error: unknown) => {
+      processRequest: (error?: unknown) => {
         if (error) {
           reject(error);
         } else {
