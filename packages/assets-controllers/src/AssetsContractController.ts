@@ -1,3 +1,4 @@
+import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
@@ -14,7 +15,10 @@ import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import {
+  SupportedStakedBalanceNetworks,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
@@ -64,6 +68,13 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
 };
 
+export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
+  [SupportedStakedBalanceNetworks.mainnet]:
+    '0x4fef9d741011476750a243ac70b9789a63dd47df',
+  [SupportedStakedBalanceNetworks.holesky]:
+    '0x37bf0883c27365cffcd0c4202918df930989891f',
+} as const satisfies Record<Hex, string>;
+
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
@@ -94,6 +105,8 @@ export interface AssetsContractConfig extends BaseConfig {
 export interface BalanceMap {
   [tokenAddress: string]: BN;
 }
+
+export type StakedBalance = string | undefined;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
@@ -549,6 +562,84 @@ export class AssetsContractController extends BaseControllerV1<
       });
     }
     return nonZeroBalances;
+  }
+
+  async getStakedBalanceForChain(
+    address: string,
+    networkClientId?: NetworkClientId,
+  ): Promise<StakedBalance> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+    // eslint-disable-next-line prefer-const
+    let stakedBalance: StakedBalance;
+
+    if (
+      ![
+        SupportedStakedBalanceNetworks.mainnet,
+        SupportedStakedBalanceNetworks.holesky,
+      ].includes(chainId as SupportedStakedBalanceNetworks)
+    ) {
+      return stakedBalance;
+    }
+    if (
+      !((id): id is keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID =>
+        id in STAKING_CONTRACT_ADDRESS_BY_CHAINID)(chainId)
+    ) {
+      // Only fetch staked balance if contract address exists
+      return stakedBalance;
+    }
+    console.log('getStakedBalanceForChain', address, chainId);
+
+    const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
+
+    const abi = [
+      {
+        inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+        name: 'getShares',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+      {
+        inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+        name: 'convertToAssets',
+        outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+    ];
+
+    try {
+      const contract = new Contract(contractAddress, abi, provider);
+      const sharesToConvert = (1e18).toString();
+      const assetsResult = await contract.convertToAssets(sharesToConvert);
+      const sharesResult = await contract.getShares(address);
+      console.log(assetsResult, sharesResult);
+
+      if (sharesResult.isLessThanOrEqualTo('0')) {
+        throw new Error(
+          'share exchange rate calculation requires a share amount > 0',
+        );
+      }
+      // const ethAmount = assetsResult[0];
+      // const accountShares = sharesResult[0];
+      // BigNumber.from(ethAmount);
+      // BigNumber.from(accountShares);
+    } catch (error) {
+      console.log('error getting staked balances', error);
+    }
+
+    // const exchangeRate = this.calculateShareExchangeRate(
+    //   sharesToConvert,
+    //   ethAmount.toString(),
+    // );
+    // const assets = new BN(accountShares.toString())
+    //   .multipliedBy(exchangeRate)
+    //   .decimalPlaces(0);
+
+    stakedBalance = '0xDE0B6B3A7640000';
+
+    return stakedBalance;
   }
 }
 
