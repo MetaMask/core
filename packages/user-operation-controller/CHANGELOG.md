@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/rpc-errors` to `^7.0.1` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
 
 ## [16.0.0]
 
@@ -253,7 +258,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@16.0.0...@metamask/user-operation-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.1...@metamask/user-operation-controller@16.0.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.0...@metamask/user-operation-controller@15.0.1
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@14.0.1...@metamask/user-operation-controller@15.0.0
