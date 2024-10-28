@@ -401,7 +401,7 @@ export class QueuedRequestController extends BaseController<
     } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
-    const { promise: processedPromise, resolve: endRequest } =
+    const { promise: processedPromise, resolve: requestHasEnded } =
       createDeferredPromise({
         suppressUnhandledRejection: true,
       });
@@ -418,7 +418,7 @@ export class QueuedRequestController extends BaseController<
     });
     this.#updateQueuedRequestCount();
 
-    return { dequeuedPromise, endRequest };
+    return { dequeuedPromise, requestHasEnded };
   }
 
   /**
@@ -471,7 +471,7 @@ export class QueuedRequestController extends BaseController<
     }
 
     try {
-      let endRequest: (() => void) | undefined;
+      let requestHasEnded: (() => void) | undefined;
 
       // This case exists because request with methods like
       // wallet_addEthereumChain and wallet_switchEthereumChain
@@ -500,7 +500,7 @@ export class QueuedRequestController extends BaseController<
       ) {
         this.#showApprovalRequest();
         const dequeue = this.#waitForDequeue(request);
-        endRequest = dequeue.endRequest;
+        requestHasEnded = dequeue.requestHasEnded;
         await dequeue.dequeuedPromise;
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
@@ -511,7 +511,7 @@ export class QueuedRequestController extends BaseController<
       try {
         await requestNext();
       } finally {
-        endRequest?.();
+        requestHasEnded?.();
         this.#processingRequestCount -= 1;
       }
       return undefined;
