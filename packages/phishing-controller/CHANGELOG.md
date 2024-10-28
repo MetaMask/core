@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.3.0]
 
-### Uncategorized
+### Fixed
 
-- fix: extension performance issues ([#4853](https://github.com/MetaMask/core.git/pull/4853))
+- Fixed extension performance issues ([#4853](https://github.com/MetaMask/core.git/pull/4853))
 
 ## [12.2.0]
 
