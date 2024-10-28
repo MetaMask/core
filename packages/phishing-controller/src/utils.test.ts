@@ -4,7 +4,6 @@ import { ListKeys, ListNames } from './PhishingController';
 import {
   applyDiffs,
   domainToParts,
-  extractDomainName,
   fetchTimeNow,
   generateParentDomains,
   getHostnameFromUrl,
@@ -605,6 +604,21 @@ describe('getHostname', () => {
     expect(getHostnameFromUrl(url)).toBe(expectedHostname);
   });
 });
+
+/**
+ * Extracts the domain name (e.g., example.com) from a given hostname.
+ *
+ * @param hostname - The full hostname to extract the domain from.
+ * @returns The extracted domain name.
+ */
+const extractDomainName = (hostname: string): string => {
+  const parts = domainToParts(hostname.toLowerCase());
+  if (parts.length < 2) {
+    return hostname;
+  }
+  const domainParts = parts.slice(0, 2).reverse();
+  return domainParts.join('.');
+};
 
 describe('extractDomainName', () => {
   it('should extract the primary domain from a standard hostname', () => {

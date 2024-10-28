@@ -4,7 +4,7 @@ import {
 } from './PhishingDetector';
 import { formatHostnameToUrl } from './tests/utils';
 import { PhishingDetectorResultType } from './types';
-import { extractDomainName, sha256Hash } from './utils';
+import { sha256Hash } from './utils';
 
 describe('PhishingDetector', () => {
   describe('constructor', () => {
@@ -1306,7 +1306,7 @@ describe('PhishingDetector', () => {
             blocklist: [],
             fuzzylist: [],
             c2DomainBlocklist: [
-              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947',
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947', // example.com
             ],
             name: 'test-config',
             tolerance: 2,
@@ -1741,7 +1741,7 @@ describe('PhishingDetector', () => {
 
   it('should handle URLs with multiple subdomains correctly', async () => {
     const hostname = 'a.b.c.example.com';
-    const domainName = extractDomainName(hostname);
+    const domainName = 'example.com';
     const hostnameHash = sha256Hash(hostname.toLowerCase());
     const domainNameHash = sha256Hash(domainName.toLowerCase());
 

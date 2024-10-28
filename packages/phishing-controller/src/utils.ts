@@ -290,21 +290,6 @@ export const getHostnameFromUrl = (url: string): string | null => {
 };
 
 /**
- * Extracts the domain name (e.g., example.com) from a given hostname.
- *
- * @param hostname - The full hostname to extract the domain from.
- * @returns The extracted domain name.
- */
-export const extractDomainName = (hostname: string): string => {
-  const parts = domainToParts(hostname.toLowerCase());
-  if (parts.length < 2) {
-    return hostname;
-  }
-  const domainParts = parts.slice(0, 2).reverse();
-  return domainParts.join('.');
-};
-
-/**
  * Generates all possible parent domains up to a specified limit.
  *
  * @param sourceParts - The list of domain parts in normal order (e.g., ['evil', 'domain', 'co', 'uk']).
@@ -334,9 +319,9 @@ export const generateParentDomains = (
     // Single-segment hostname (e.g., 'uk')
     domains.push(sourceParts[0].toLowerCase());
   } else {
-    // Start with the base TLD (last two labels, e.g., 'co.uk')
-    const baseTLD = sourceParts.slice(-2).join('.');
-    domains.push(baseTLD.toLowerCase());
+    // Start with the base domain or TLD (last two labels, e.g., 'co.uk' or 'example.com')
+    const baseDomain = sourceParts.slice(-2).join('.');
+    domains.push(baseDomain.toLowerCase());
 
     // Iteratively add one subdomain level at a time, up to the specified limit
     for (
