@@ -234,7 +234,7 @@ describe('QueuedRequestController', () => {
       });
       // Trigger first request
       const firstRequest = controller.enqueueRequest(
-        buildRequest(),
+        { ...buildRequest(), origin: 'https://sameorigin.metamask.io' },
         () => new Promise((resolve) => setTimeout(resolve, 10)),
       );
       // ensure first request skips queue
@@ -244,6 +244,7 @@ describe('QueuedRequestController', () => {
       const secondRequest = controller.enqueueRequest(
         {
           ...buildRequest(),
+          origin: 'https://sameorigin.metamask.io',
           method: 'method_can_switch_network_without_approval',
         },
         secondRequestNext,
