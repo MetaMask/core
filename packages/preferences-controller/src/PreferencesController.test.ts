@@ -434,6 +434,45 @@ describe('PreferencesController', () => {
     controller.setUseTransactionSimulations(false);
     expect(controller.state.useTransactionSimulations).toBe(false);
   });
+
+  it('should set useSafeChainsListValidation', () => {
+    const controller = setupPreferencesController({
+      options: {
+        state: {
+          useSafeChainsListValidation: false,
+        },
+      },
+    });
+    expect(controller.state.useSafeChainsListValidation).toBe(false);
+    controller.setUseSafeChainsListValidation(true);
+    expect(controller.state.useSafeChainsListValidation).toBe(true);
+  });
+
+  it('should set tokenSortConfig', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.tokenSortConfig).toStrictEqual({
+      key: 'tokenFiatAmount',
+      order: 'dsc',
+      sortCallback: 'stringNumeric',
+    });
+    controller.setTokenSortConfig({
+      key: 'someToken',
+      order: 'asc',
+      sortCallback: 'stringNumeric',
+    });
+    expect(controller.state.tokenSortConfig).toStrictEqual({
+      key: 'someToken',
+      order: 'asc',
+      sortCallback: 'stringNumeric',
+    });
+  });
+
+  it('should set privacyMode', () => {
+    const controller = setupPreferencesController();
+    expect(controller.state.privacyMode).toBe(false);
+    controller.setPrivacyMode(true);
+    expect(controller.state.privacyMode).toBe(true);
+  });
 });
 
 /**
