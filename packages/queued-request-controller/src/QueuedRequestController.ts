@@ -456,14 +456,31 @@ export class QueuedRequestController extends BaseController<
 
     try {
       let endRequest: (() => void) | undefined;
+
+      // This case exists because request with methods like
+      // wallet_addEthereumChain and wallet_switchEthereumChain
+      // have the potential to change the globally selected network
+      // without prompting for user approval. When there are existing
+      // processing requests and a new request for one of the methods
+      // above is not queued but instead allowed to execute immediately
+      // and change the globally selected network, all existing processing
+      // requests get cleared. It is not obvious to the user why those
+      // requests were cleared as the new wallet_addEthereumChain or
+      // wallet_switchEthereumChain request may not have an
+      // associated approval with it. To deal with this potential
+      // edge case, we always queue these type of requests if there
+      // are existing requests still being processed.
+      const requestCouldClearProcessingBatchWithoutApproval =
+        this.#processingRequestCount > 0 &&
+          this.#canRequestSwitchNetworkWithoutApproval(request)
+
       // Queue request for later processing
       // Network switch is handled when this batch is processed
       if (
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
         this.#networkClientIdOfCurrentBatch !== request.networkClientId ||
-        (this.#processingRequestCount > 0 &&
-          this.#canRequestSwitchNetworkWithoutApproval(request))
+        requestCouldClearProcessingBatchWithoutApproval
       ) {
         this.#showApprovalRequest();
         const dequeue = this.#waitForDequeue(request);
