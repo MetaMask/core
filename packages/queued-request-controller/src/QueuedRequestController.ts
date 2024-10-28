@@ -103,7 +103,7 @@ type QueuedRequest = {
   /**
    * A deferred promise that resolves when the request is processed.
    */
-  processedPromise: Promise<void>;
+  requestHasBeenProcessed: Promise<void>;
 };
 
 /**
@@ -311,7 +311,7 @@ export class QueuedRequestController extends BaseController<
       try {
         firstRequest.processRequest(networkSwitchError);
         this.#updateQueuedRequestCount();
-        await firstRequest.processedPromise;
+        await firstRequest.requestHasBeenProcessed;
       } finally {
         this.#processingRequestCount -= 1;
       }
@@ -401,7 +401,7 @@ export class QueuedRequestController extends BaseController<
     } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
-    const { promise: processedPromise, resolve: requestHasEnded } =
+    const { promise: requestHasBeenProcessed, resolve: requestHasEnded } =
       createDeferredPromise({
         suppressUnhandledRejection: true,
       });
@@ -414,7 +414,7 @@ export class QueuedRequestController extends BaseController<
           resolve();
         }
       },
-      processedPromise,
+      requestHasBeenProcessed,
     });
     this.#updateQueuedRequestCount();
 
