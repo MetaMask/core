@@ -1,4 +1,4 @@
-import { BigNumber } from '@ethersproject/bignumber';
+// import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type { BaseConfig, BaseState } from '@metamask/base-controller';
@@ -568,8 +568,8 @@ export class AssetsContractController extends BaseControllerV1<
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<StakedBalance> {
-    const chainId = this.#getCorrectChainId(networkClientId);
-    const provider = this.#getCorrectProvider(networkClientId);
+    const chainId = this.getChainId(networkClientId);
+    const provider = this.getProvider(networkClientId);
     // eslint-disable-next-line prefer-const
     let stakedBalance: StakedBalance;
 
