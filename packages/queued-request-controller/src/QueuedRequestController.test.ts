@@ -1098,7 +1098,7 @@ describe('QueuedRequestController', () => {
       });
     });
 
-    describe('when a the first request in a batch can switch the network', () => {
+    describe('when the first request in a batch can switch the network', () => {
       it('waits on processing the request first in the current batch', async () => {
         const { messenger } = buildControllerMessenger({
           networkControllerGetState: jest.fn().mockReturnValue({
