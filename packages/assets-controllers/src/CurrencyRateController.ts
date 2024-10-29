@@ -184,13 +184,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       const rates = Object.entries(nativeCurrenciesToFetch).reduce(
         (acc, [nativeCurrency, fetchedCurrency]) => {
           const rate = fetchExchangeRateResponse[fetchedCurrency.toLowerCase()];
-          if (rate) {
-            acc[nativeCurrency] = {
-              conversionDate: Date.now() / 1000,
-              conversionRate: rate[currentCurrency.toLowerCase()],
-              usdConversionRate: rate.usd,
-            };
-          }
+          acc[nativeCurrency] = {
+            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
+            conversionRate: rate?.[currentCurrency.toLowerCase()] ?? null,
+            usdConversionRate: rate?.usd ?? null,
+          };
           return acc;
         },
         {} as CurrencyRateState['currencyRates'],
