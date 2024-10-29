@@ -7,14 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [20.2.0]
+## [21.0.0]
 
-### Uncategorized
+### Added
 
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- feat: remove global network from signature controller ([#4797](https://github.com/MetaMask/core/pull/4797))
-- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core/pull/4831))
-- Release 226.0.0 ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Add `chainId` and `networkClientId` to `SignatureRequest` and `LegacyStateMessage` types ([#4797](https://github.com/MetaMask/core/pull/4797))
+- Add `networkClientId` to `OriginalRequest` type ([#4797](https://github.com/MetaMask/core/pull/4797))
+
+### Changed
+
+- **BREAKING:** Make `request` argument required in `newUnsignedPersonalMessage` and `newUnsignedTypedMessage` methods ([#4797](https://github.com/MetaMask/core/pull/4797))
+- Throw if no `networkClientId` in `request` or if chain ID cannot be determined ([#4797](https://github.com/MetaMask/core/pull/4797))
+- Bump `@metamask/approval-controller` from `^7.1.0` to `^7.1.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/base-controller` from `7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+
+### Removed
+
+- Remove `getCurrentChainId` and `getAllState` callbacks from constructor options ([#4797](https://github.com/MetaMask/core/pull/4797))
 
 ## [20.1.0]
 

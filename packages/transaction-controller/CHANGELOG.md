@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.1.0]
 
-### Uncategorized
+### Added
 
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- fix: re-simulate transactions if security checks fail ([#4792](https://github.com/MetaMask/core/pull/4792))
+- Automatically re-simulate transactions based on security criteria ([#4792](https://github.com/MetaMask/core/pull/4792))
+  - If the security provider marks the transaction as malicious.
+  - If the simulated native balance change does not match the `value`.
+  - Set new `isUpdatedAfterSecurityCheck` property to `true` if the subsequent simulation response has changed.
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.5` to `^4.1.6` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/approval-controller` from `^7.1.0` to `^7.1.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/base-controller` from `7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
 
 ## [38.0.0]
 
