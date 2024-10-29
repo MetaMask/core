@@ -19,17 +19,19 @@ const validScopeObject: ScopeObject = {
 
 describe('Scope Transform', () => {
   describe('normalizeScope', () => {
-    it('returns the scope with empty accounts array when the scopeString is chain scoped when accounts are not defined', () => {
-      expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
-        'eip155:1': validScopeObject,
+    describe('scopeString is chain scoped', () => {
+      it('returns the scope with empty accounts array when accounts are not defined', () => {
+        expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
+          'eip155:1': validScopeObject,
+        });
       });
-    });
 
-    it('returns the scope as is when the scopeString is chain scoped and accounts are defined', () => {
-      expect(normalizeScope('eip155:1', validScopeObject)).toStrictEqual({
-        'eip155:1': validScopeObject,
+      it('returns the scope unchanged when accounts are defined', () => {
+        expect(normalizeScope('eip155:1', validScopeObject)).toStrictEqual({
+          'eip155:1': validScopeObject,
+        });
       });
-    });
+    })
 
     describe('scopeString is namespace scoped', () => {
       it('returns the scope as is when `references` is not defined', () => {
