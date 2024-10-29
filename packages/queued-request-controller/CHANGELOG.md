@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
 ### Uncategorized
 
 - feat: Add handling to `QueuedRequestController` for requests that can switch the network without prompting user approval ([#4846](https://github.com/MetaMask/core/pull/4846))
@@ -282,7 +284,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...@metamask/queued-request-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...@metamask/queued-request-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.1...@metamask/queued-request-controller@5.1.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.0...@metamask/queued-request-controller@5.0.1

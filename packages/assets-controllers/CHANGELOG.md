@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: swap tokenList with tokensChainsCache in tokenDetectionController ([#4821](https://github.com/MetaMask/core/pull/4821))
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-
 ## [40.0.0]
 
 ### Changed
