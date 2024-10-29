@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.5]
+
+### Changed
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [8.0.4]
 
 ### Fixed
@@ -177,7 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.5...HEAD
+[8.0.5]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.4...@metamask/json-rpc-middleware-stream@8.0.5
 [8.0.4]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.3...@metamask/json-rpc-middleware-stream@8.0.4
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.2...@metamask/json-rpc-middleware-stream@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.1...@metamask/json-rpc-middleware-stream@8.0.2
