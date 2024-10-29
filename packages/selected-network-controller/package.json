@@ -55,7 +55,7 @@
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
     "@metamask/network-controller": "^22.0.0",
-    "@metamask/permission-controller": "^11.0.2",
+    "@metamask/permission-controller": "^11.0.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
