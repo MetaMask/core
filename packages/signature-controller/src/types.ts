@@ -1,11 +1,14 @@
 import type { SIWEMessage } from '@metamask/controller-utils';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
-import type { Json } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 /** Original client request that triggered the signature request. */
 export type OriginalRequest = {
   /** Unique ID to identify the client request. */
   id?: number;
+
+  /** ID of the network client associated with the request. */
+  networkClientId?: string;
 
   /** Source of the client request. */
   origin?: string;
@@ -74,6 +77,9 @@ export type MessageParamsTyped = MessageParams & {
 };
 
 type SignatureRequestBase = {
+  /** ID of the associated chain. */
+  chainId: Hex;
+
   /** Error message that occurred during the signing. */
   error?: string;
 
@@ -82,6 +88,9 @@ type SignatureRequestBase = {
 
   /** Custom metadata stored with the request. */
   metadata?: Json;
+
+  /** ID of the associated network client. */
+  networkClientId: string;
 
   /** Signature hash resulting from the request. */
   rawSig?: string;
