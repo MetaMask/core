@@ -97,6 +97,7 @@ export type DecodedRequestInfo =
         type: string;
       };
     }
+  | 'IN_PROGRESS'
   | undefined;
 
 type SignatureRequestBase = {
