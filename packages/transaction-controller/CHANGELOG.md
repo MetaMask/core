@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+- fix: re-simulate transactions if security checks fail ([#4792](https://github.com/MetaMask/core/pull/4792))
+
 ## [38.0.0]
 
 ### Changed
