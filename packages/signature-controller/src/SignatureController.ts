@@ -922,7 +922,9 @@ export class SignatureController extends BaseController<
             origin,
             params: [
               params?.[0],
-              JSON.parse(convertNumbericValuestoQuotedString(params?.[1])),
+              JSON.parse(
+                convertNumbericValuestoQuotedString(params?.[1]) ?? '',
+              ),
             ],
           }),
           headers: { 'Content-Type': 'application/json' },
