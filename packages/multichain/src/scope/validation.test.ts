@@ -146,7 +146,6 @@ describe('Scope Validation', () => {
             'eip155:64': {},
           },
           {
-            // @ts-expect-error Intentionally invalid input
             'eip155:2': {},
             'eip155:5': validScopeObjectWithAccounts,
           },
