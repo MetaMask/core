@@ -176,7 +176,7 @@ Release `v2.0.0` is identical to `v1.0.1` aside from Node.js version requirement
 - Initial release, including `providerFromEngine` and `providerFromMiddleware`.
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.6...HEAD
-[4.1.5]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.5...@metamask/eth-json-rpc-provider@4.1.6
+[4.1.6]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.5...@metamask/eth-json-rpc-provider@4.1.6
 [4.1.5]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.4...@metamask/eth-json-rpc-provider@4.1.5
 [4.1.4]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.3...@metamask/eth-json-rpc-provider@4.1.4
 [4.1.3]: https://github.com/MetaMask/core/compare/@metamask/eth-json-rpc-provider@4.1.2...@metamask/eth-json-rpc-provider@4.1.3
