@@ -140,7 +140,6 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-
       if (
         !isEqual(requiredScopes, normalizedRequiredScopes) ||
         !isEqual(optionalScopes, normalizedOptionalScopes)
@@ -198,10 +197,7 @@ function removeAccountFilterFn(targetAddress: string) {
  * @param scopeObject - The scope object to remove the account from.
  * @param targetAddress - The address to remove from the scope object.
  */
-function removeAccountOnScope(
-  scopeObject: ScopeObject,
-  targetAddress: string,
-) {
+function removeAccountOnScope(scopeObject: ScopeObject, targetAddress: string) {
   if (scopeObject.accounts) {
     scopeObject.accounts = scopeObject.accounts.filter(
       removeAccountFilterFn(targetAddress),
