@@ -22,13 +22,19 @@ describe('Scope Transform', () => {
     describe('scopeString is chain scoped', () => {
       it('returns the scope with empty accounts array when accounts are not defined', () => {
         expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
-          'eip155:1': validScopeObject,
+          'eip155:1': {
+            ...externalScopeObject,
+            accounts: []
+          },
         });
       });
 
       it('returns the scope unchanged when accounts are defined', () => {
-        expect(normalizeScope('eip155:1', validScopeObject)).toStrictEqual({
-          'eip155:1': validScopeObject,
+        expect(normalizeScope('eip155:1', {...externalScopeObject, accounts: []})).toStrictEqual({
+          'eip155:1': {
+            ...externalScopeObject,
+            accounts: []
+          },
         });
       });
     })
