@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0]
+
+### Added
+
+- **BREAKING:** The `QueuedRequestController` now requires the `canRequestSwitchNetworkWithoutApproval` callback in its constructor params. ([#4846](https://github.com/MetaMask/core/pull/4846))
+
+### Changed
+
+- The `QueuedRequestController` now ensures that a request that can switch the globally selected network without approval is queued behind any existing pending requests. ([#4846](https://github.com/MetaMask/core/pull/4846))
+
+### Fixed
+
+- The `QueuedRequestController` now ensures that any queued requests for a origin are failed if a request that can switch the globally selected network without approval actually does change the globally selected network for that origin. ([#4846](https://github.com/MetaMask/core/pull/4846))
+
 ## [6.0.0]
 
 ### Changed
@@ -277,7 +291,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@7.0.0...HEAD
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@6.0.0...@metamask/queued-request-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.1.0...@metamask/queued-request-controller@6.0.0
 [5.1.0]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.1...@metamask/queued-request-controller@5.1.0
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/queued-request-controller@5.0.0...@metamask/queued-request-controller@5.0.1
