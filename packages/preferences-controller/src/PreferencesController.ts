@@ -44,6 +44,12 @@ export type EtherscanSupportedChains =
 export type EtherscanSupportedHexChainId =
   (typeof ETHERSCAN_SUPPORTED_CHAIN_IDS)[EtherscanSupportedChains];
 
+type TokenSortConfig = {
+  key: string;
+  order: 'asc' | 'dsc';
+  sortCallback: string;
+};
+
 /**
  * Preferences controller state
  */
@@ -121,7 +127,7 @@ export type PreferencesState = {
   /**
    * Controls which order tokens are sorted in
    */
-  tokenSortConfig: Record<string, string>;
+  tokenSortConfig: TokenSortConfig;
   /**
    * Controls whether balance and assets are hidden or not
    */
@@ -181,7 +187,7 @@ export type PreferencesControllerMessenger = RestrictedControllerMessenger<
  *
  * @returns The default PreferencesController state.
  */
-export function getDefaultPreferencesState() {
+export function getDefaultPreferencesState(): PreferencesState {
   return {
     featureFlags: {},
     identities: {},
@@ -552,7 +558,7 @@ export class PreferencesController extends BaseController<
    *
    * @param tokenSortConfig - a configuration representing the sort order of tokens.
    */
-  setTokenSortConfig(tokenSortConfig: Record<string, string>) {
+  setTokenSortConfig(tokenSortConfig: TokenSortConfig) {
     this.update((state) => {
       state.tokenSortConfig = tokenSortConfig;
     });
