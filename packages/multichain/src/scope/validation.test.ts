@@ -146,7 +146,8 @@ describe('Scope Validation', () => {
     it('does not throw an error if required scopes are defined but none are valid', () => {
       expect(
         validateScopes(
-          { 'eip155:1': {} as unknown as ExternalScopeObject },
+          // @ts-expect-error Intentionally invalid input
+          { 'eip155:1': {} },
           undefined,
         ),
       ).toStrictEqual({ validRequiredScopes: {}, validOptionalScopes: {} });
@@ -155,7 +156,8 @@ describe('Scope Validation', () => {
     it('does not throw an error if optional scopes are defined but none are valid', () => {
       expect(
         validateScopes(undefined, {
-          'eip155:1': {} as unknown as ExternalScopeObject,
+          // @ts-expect-error Intentionally invalid input
+          'eip155:1': {},
         }),
       ).toStrictEqual({ validRequiredScopes: {}, validOptionalScopes: {} });
     });
@@ -165,10 +167,12 @@ describe('Scope Validation', () => {
         validateScopes(
           {
             'eip155:1': validScopeObjectWithAccounts,
-            'eip155:64': {} as unknown as ExternalScopeObject,
+            // @ts-expect-error Intentionally invalid input
+            'eip155:64': {},
           },
           {
-            'eip155:2': {} as unknown as ExternalScopeObject,
+            // @ts-expect-error Intentionally invalid input
+            'eip155:2': {},
             'eip155:5': validScopeObjectWithAccounts,
           },
         ),

@@ -24,20 +24,22 @@ describe('Scope Transform', () => {
         expect(normalizeScope('eip155:1', externalScopeObject)).toStrictEqual({
           'eip155:1': {
             ...externalScopeObject,
-            accounts: []
+            accounts: [],
           },
         });
       });
 
       it('returns the scope unchanged when accounts are defined', () => {
-        expect(normalizeScope('eip155:1', {...externalScopeObject, accounts: []})).toStrictEqual({
+        expect(
+          normalizeScope('eip155:1', { ...externalScopeObject, accounts: [] }),
+        ).toStrictEqual({
           'eip155:1': {
             ...externalScopeObject,
-            accounts: []
+            accounts: [],
           },
         });
       });
-    })
+    });
 
     describe('scopeString is namespace scoped', () => {
       it('returns the scope as is when `references` is not defined', () => {

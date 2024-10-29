@@ -1,5 +1,3 @@
-import type { NonEmptyArray } from '@metamask/controller-utils';
-import type { CaveatConstraint } from '@metamask/permission-controller';
 import {
   CaveatMutatorOperation,
   PermissionType,
@@ -251,7 +249,7 @@ describe('caip25EndowmentBuilder', () => {
               methods: ['eth_call'],
               notifications: ['chainChanged'],
               accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
-            }
+            },
           },
           isMultichainOrigin: true,
         };
@@ -321,7 +319,6 @@ describe('caip25EndowmentBuilder', () => {
             isMultichainOrigin: true,
           },
         });
-
       });
 
       it('returns the caveat unchanged when the given account is not found in either requiredScopes or optionalScopes', () => {
@@ -386,7 +383,8 @@ describe('caip25EndowmentBuilder', () => {
 
       expect(() => {
         validator({
-          caveats: [] as unknown as NonEmptyArray<CaveatConstraint>,
+          // @ts-expect-error Intentionally invalid input
+          caveats: [],
           date: 1234,
           id: '1',
           invoker: 'test.com',
