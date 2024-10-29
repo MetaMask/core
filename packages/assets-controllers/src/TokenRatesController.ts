@@ -109,7 +109,7 @@ export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction;
 
-  /**
+/**
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
