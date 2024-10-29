@@ -20,6 +20,7 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
+  NetworkControllerActions,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { createDeferredPromise, type Hex } from '@metamask/utils';
@@ -108,7 +109,7 @@ export type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction;
 
-/**
+  /**
  * The external events available to the {@link TokenRatesController}.
  */
 export type AllowedEvents =
@@ -314,16 +315,40 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
-        const previousTokenAddresses = this.#getTokenAddresses(this.#chainId);
-        this.#allTokens = allTokens;
-        this.#allDetectedTokens = allDetectedTokens;
-
-        const newTokenAddresses = this.#getTokenAddresses(this.#chainId);
         if (
-          !isEqual(previousTokenAddresses, newTokenAddresses) &&
-          this.#pollState === PollState.Active
+          !this.#disabled &&
+          (!isEqual(this.#allTokens, allTokens) ||
+            !isEqual(this.#allDetectedTokens, allDetectedTokens))
         ) {
-          await this.updateExchangeRates();
+          this.#allTokens = allTokens;
+          this.#allDetectedTokens = allDetectedTokens;
+
+          const chainIds = [
+            ...new Set([
+              ...Object.keys(allTokens),
+              ...Object.keys(allDetectedTokens),
+            ]),
+          ];
+
+          const { networkConfigurationsByChainId } = this.messagingSystem.call(
+            'NetworkController:getState',
+          );
+
+          // TODO: This could be smarter and determine which specific chains
+          // the tokens changed on. For now, it refreshes prices on all chains.
+          await Promise.allSettled(
+            chainIds.map(async (chainId) => {
+              const nativeCurrency =
+                networkConfigurationsByChainId[chainId as Hex]?.nativeCurrency;
+
+              if (nativeCurrency) {
+                await this.updateExchangeRatesByChainId({
+                  chainId: chainId as Hex,
+                  nativeCurrency,
+                });
+              }
+            }),
+          );
         }
       },
       ({ allTokens, allDetectedTokens }) => {
