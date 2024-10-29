@@ -2,6 +2,7 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 
 import type { MessageParamsPersonal, MessageParamsTyped } from '../types';
 import {
+  convertNumbericValuestoQuotedString,
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './normalize';
@@ -39,5 +40,16 @@ describe('Normalize Utils', () => {
         expect(normalized.data).toBe('{"test":"data"}');
       },
     );
+  });
+
+  describe('convertNumbericValuestoQuotedString', () => {
+    it('wraps numeric value in a json string in quotes', async () => {
+      expect(convertNumbericValuestoQuotedString('{temp:123}')).toBe(
+        '{temp:"123"}',
+      );
+      expect(convertNumbericValuestoQuotedString('{temp:{test:123}}')).toBe(
+        '{temp:{test:"123"}}',
+      );
+    });
   });
 });
