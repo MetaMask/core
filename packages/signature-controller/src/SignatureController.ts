@@ -444,7 +444,6 @@ export class SignatureController extends BaseController<
     version,
     signingOptions,
     traceContext,
-    decodedRequest,
   }: {
     chainId?: Hex;
     messageParams: MessageParams;
@@ -454,7 +453,6 @@ export class SignatureController extends BaseController<
     version?: SignTypedDataVersion;
     signingOptions?: TypedSigningOptions;
     traceContext?: TraceContext;
-    decodedRequest?: DecodedRequestInfo;
   }): Promise<string> {
     log('Processing signature request', {
       messageParams,
@@ -474,7 +472,6 @@ export class SignatureController extends BaseController<
       signingOptions,
       type,
       version,
-      decodedRequest,
     });
 
     let resultCallbacks: AcceptResultCallbacks | undefined;
@@ -548,7 +545,6 @@ export class SignatureController extends BaseController<
     signingOptions,
     type,
     version,
-    decodedRequest,
   }: {
     chainId: Hex;
     messageParams: MessageParams;
@@ -556,7 +552,6 @@ export class SignatureController extends BaseController<
     signingOptions?: TypedSigningOptions;
     type: SignatureRequestType;
     version?: SignTypedDataVersion;
-    decodedRequest?: DecodedRequestInfo;
   }): SignatureRequest {
     const id = random();
     const origin = request?.origin ?? messageParams.origin;
@@ -583,7 +578,6 @@ export class SignatureController extends BaseController<
       time: Date.now(),
       type,
       version,
-      decodedRequest,
     } as SignatureRequest;
 
     this.#updateState((state) => {
@@ -909,10 +903,10 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     chainId: string,
   ) {
+    // Code below will invoke signature request decoding api for permits
     if (!this.#decodingApi) {
       return;
     }
-    // Code below will invoke signature request decoding api for permits
     let decodedRequest: DecodedRequestInfo;
     try {
       const { primaryType } = JSON.parse(request.params[1]);
