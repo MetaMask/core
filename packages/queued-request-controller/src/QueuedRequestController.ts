@@ -388,7 +388,6 @@ export class QueuedRequestController extends BaseController<
    * must be called after the request finishes execution.
    *
    * Internally, the controller triggers the above returned promise to resolve via the `processRequest`.
-   * It also may await a promise that resolves with the above returned callback.
    *
    * @param request - The JSON-RPC request to process.
    * @returns A promise resolves on dequeue and callback to notify request completion.
