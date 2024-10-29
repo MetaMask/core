@@ -109,7 +109,7 @@ describe('CAIP-25 permittedChains adapters', () => {
       });
     });
 
-    it('adds an optional scope for "wallet:eip155" if it does not already exist in the optional scopes', () => {
+    it('returns a version of the caveat value with a new optional scope for "wallet:eip155" if it does not already exist in the optional scopes', () => {
       const result = addPermittedEthChainId(
         {
           requiredScopes: {
