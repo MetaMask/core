@@ -165,7 +165,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
       // Map each native currency to the symbol we want to fetch for it.
       const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
-      const nativeCurrenciesToFetch = [...new Set(nativeCurrencies)].reduce(
+      const nativeCurrenciesToFetch = nativeCurrencies.reduce(
         (acc, nativeCurrency) => {
           acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
             ? FALL_BACK_VS_CURRENCY
@@ -177,20 +177,18 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
       const fetchExchangeRateResponse = await this.fetchMultiExchangeRate(
         currentCurrency,
-        Object.values(nativeCurrenciesToFetch),
+        [...new Set(Object.values(nativeCurrenciesToFetch))],
         this.includeUsdRate,
       );
 
       const rates = Object.entries(nativeCurrenciesToFetch).reduce(
         (acc, [nativeCurrency, fetchedCurrency]) => {
           const rate = fetchExchangeRateResponse[fetchedCurrency.toLowerCase()];
-          if (rate) {
-            acc[nativeCurrency] = {
-              conversionDate: Date.now() / 1000,
-              conversionRate: rate[currentCurrency.toLowerCase()],
-              usdConversionRate: rate.usd,
-            };
-          }
+          acc[nativeCurrency] = {
+            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
+            conversionRate: rate?.[currentCurrency.toLowerCase()] ?? null,
+            usdConversionRate: rate?.usd ?? null,
+          };
           return acc;
         },
         {} as CurrencyRateState['currencyRates'],
