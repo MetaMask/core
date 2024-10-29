@@ -42,7 +42,7 @@ type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };
-type TokensChainsCache = {
+export type TokensChainsCache = {
   [chainId: Hex]: DataCache;
 };
 
