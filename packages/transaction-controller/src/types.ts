@@ -1119,7 +1119,7 @@ export type TransactionError = {
 export type SecurityAlertResponse = {
   reason: string;
   features?: string[];
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // This is API specific hence naming convention is not followed.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: string;
   providerRequestsCount?: Record<string, number>;
@@ -1309,6 +1309,9 @@ export type SimulationError = {
 export type SimulationData = {
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
+
+  /** Whether the simulation response changed after a security check triggered a re-simulation. */
+  isUpdatedAfterSecurityCheck?: boolean;
 
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
