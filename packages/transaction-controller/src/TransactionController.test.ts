@@ -85,6 +85,7 @@ import {
   getTransactionLayer1GasFee,
   updateTransactionLayer1GasFee,
 } from './utils/layer1-gas-fee-flow';
+import { shouldResimulate } from './utils/resimulate';
 import { getSimulationData } from './utils/simulation';
 import {
   updatePostTransactionBalance,
@@ -109,9 +110,10 @@ jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
-jest.mock('./utils/swaps');
 jest.mock('./utils/layer1-gas-fee-flow');
+jest.mock('./utils/resimulate');
 jest.mock('./utils/simulation');
+jest.mock('./utils/swaps');
 jest.mock('uuid');
 
 // TODO: Replace `any` with type
@@ -482,6 +484,7 @@ describe('TransactionController', () => {
     getTransactionLayer1GasFee,
   );
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
+  const shouldResimulateMock = jest.mocked(shouldResimulate);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -1753,13 +1756,18 @@ describe('TransactionController', () => {
         await flushPromises();
 
         expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-        expect(getSimulationDataMock).toHaveBeenCalledWith({
-          chainId: MOCK_NETWORK.chainId,
-          data: undefined,
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_MOCK,
-          value: '0x0',
-        });
+        expect(getSimulationDataMock).toHaveBeenCalledWith(
+          {
+            chainId: MOCK_NETWORK.chainId,
+            data: undefined,
+            from: ACCOUNT_MOCK,
+            to: ACCOUNT_MOCK,
+            value: '0x0',
+          },
+          {
+            blockTime: undefined,
+          },
+        );
 
         expect(controller.state.transactions[0].simulationData).toStrictEqual(
           SIMULATION_DATA_MOCK,
@@ -5526,34 +5534,6 @@ describe('TransactionController', () => {
         .toThrow(`TransactionsController: Can only call updateEditableParams on an unapproved transaction.
       Current tx status: ${TransactionStatus.submitted}`);
     });
-
-    it.each(['value', 'to', 'data'])(
-      'updates simulation data if %s changes',
-      async (param) => {
-        const { controller } = setupController({
-          options: {
-            state: {
-              transactions: [
-                {
-                  ...transactionMeta,
-                },
-              ],
-            },
-          },
-        });
-
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
-
-        await controller.updateEditableParams(transactionMeta.id, {
-          ...transactionMeta.txParams,
-          [param]: ACCOUNT_2_MOCK,
-        });
-
-        await flushPromises();
-
-        expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
-      },
-    );
   });
 
   describe('abortTransactionSigning', () => {
@@ -5681,6 +5661,86 @@ describe('TransactionController', () => {
             networkClientId: NETWORK_CLIENT_ID_MOCK,
           },
         }),
+      );
+    });
+  });
+
+  describe('resimulate', () => {
+    it('triggers simulation if re-simulation detected on state update', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValueOnce({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationDataMock).toHaveBeenCalledWith(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+        {
+          blockTime: 123,
+        },
+      );
+    });
+
+    it('does not trigger simulation loop', async () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                ...TRANSACTION_META_MOCK,
+                status: TransactionStatus.unapproved,
+              },
+            ],
+          },
+        },
+        updateToInitialState: true,
+      });
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(0);
+
+      shouldResimulateMock.mockReturnValue({
+        blockTime: 123,
+        resimulate: true,
+      });
+
+      await controller.updateEditableParams(TRANSACTION_META_MOCK.id, {});
+
+      await flushPromises();
+
+      expect(getSimulationDataMock).toHaveBeenCalledTimes(1);
+      expect(getSimulationDataMock).toHaveBeenCalledWith(
+        {
+          from: ACCOUNT_MOCK,
+          to: ACCOUNT_2_MOCK,
+          value: TRANSACTION_META_MOCK.txParams.value,
+        },
+        {
+          blockTime: 123,
+        },
       );
     });
   });

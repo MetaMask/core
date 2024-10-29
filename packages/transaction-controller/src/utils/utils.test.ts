@@ -1,3 +1,5 @@
+import { BN } from 'bn.js';
+
 import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
@@ -273,6 +275,49 @@ describe('utils', () => {
 
     it('returns padded value if zero', () => {
       expect(util.padHexToEvenLength('0x0')).toBe('0x00');
+    });
+  });
+
+  describe('getPercentageChange', () => {
+    it('supports original and new value as zero', () => {
+      expect(util.getPercentageChange(new BN(0), new BN(0))).toBe(0);
+    });
+
+    it('supports original value as zero and new value not', () => {
+      expect(util.getPercentageChange(new BN(0), new BN(1))).toBe(100);
+    });
+
+    it('supports new value greater than original value', () => {
+      expect(util.getPercentageChange(new BN(10), new BN(11))).toBe(10);
+    });
+
+    it('supports new value less than original value', () => {
+      expect(util.getPercentageChange(new BN(11), new BN(10))).toBe(9);
+    });
+
+    it('supports large numbers', () => {
+      expect(
+        util.getPercentageChange(
+          new BN(
+            '100000000000000000000000000000000000000000000000000000000000000000000000000000000',
+          ),
+          new BN(
+            '200000000000000000000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        ),
+      ).toBe(100);
+    });
+
+    it('supports identical original and new value', () => {
+      expect(util.getPercentageChange(new BN(1), new BN(1))).toBe(0);
+    });
+
+    it('supports negative original value', () => {
+      expect(util.getPercentageChange(new BN(-1), new BN(2))).toBe(300);
+    });
+
+    it('supports negative new value', () => {
+      expect(util.getPercentageChange(new BN(2), new BN(-1))).toBe(150);
     });
   });
 });
