@@ -49,7 +49,7 @@ import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
+import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -105,6 +105,8 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
+import type { ResimulateResponse } from './utils/resimulate';
+import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
@@ -3546,15 +3548,17 @@ export class TransactionController extends BaseController<
       note,
       skipHistory,
       skipValidation,
+      skipResimulateCheck,
     }: {
       transactionId: string;
       note?: string;
       skipHistory?: boolean;
       skipValidation?: boolean;
+      skipResimulateCheck?: boolean;
     },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
-    let updatedTransactionParams: (keyof TransactionParams)[] = [];
+    let resimulateResponse: ResimulateResponse | undefined;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
@@ -3562,6 +3566,8 @@ export class TransactionController extends BaseController<
       );
 
       let transactionMeta = state.transactions[index];
+
+      const originalTransactionMeta = cloneDeep(transactionMeta);
 
       // eslint-disable-next-line n/callback-return
       transactionMeta = callback(transactionMeta) ?? transactionMeta;
@@ -3574,8 +3580,12 @@ export class TransactionController extends BaseController<
         validateTxParams(transactionMeta.txParams);
       }
 
-      updatedTransactionParams =
-        this.#checkIfTransactionParamsUpdated(transactionMeta);
+      if (!skipResimulateCheck && this.#isSimulationEnabled()) {
+        resimulateResponse = shouldResimulate(
+          originalTransactionMeta,
+          transactionMeta,
+        );
+      }
 
       const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
@@ -3592,64 +3602,35 @@ export class TransactionController extends BaseController<
       transactionId,
     ) as TransactionMeta;
 
-    if (updatedTransactionParams.length > 0) {
-      this.#onTransactionParamsUpdated(
-        transactionMeta,
-        updatedTransactionParams,
-      );
+    if (resimulateResponse?.resimulate) {
+      this.#updateSimulationData(transactionMeta, {
+        blockTime: resimulateResponse.blockTime,
+      }).catch((error) => {
+        log('Error during re-simulation', error);
+        throw error;
+      });
     }
 
     return transactionMeta;
   }
 
-  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
-    const { id: transactionId, txParams: newParams } = newTransactionMeta;
-
-    const originalParams = this.getTransaction(transactionId)?.txParams;
-
-    if (!originalParams || isEqual(originalParams, newParams)) {
-      return [];
-    }
-
-    const params = Object.keys(newParams) as (keyof TransactionParams)[];
-
-    const updatedProperties = params.filter(
-      (param) => newParams[param] !== originalParams[param],
-    );
-
-    log(
-      'Transaction parameters have been updated',
-      transactionId,
-      updatedProperties,
-      originalParams,
-      newParams,
-    );
-
-    return updatedProperties;
-  }
-
-  #onTransactionParamsUpdated(
-    transactionMeta: TransactionMeta,
-    updatedParams: (keyof TransactionParams)[],
-  ) {
-    if (
-      (['to', 'value', 'data'] as const).some((param) =>
-        updatedParams.includes(param),
-      )
-    ) {
-      log('Updating simulation data due to transaction parameter update');
-      this.#updateSimulationData(transactionMeta).catch((error) => {
-        log('Error updating simulation data', error);
-        throw error;
-      });
-    }
-  }
-
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
-    { traceContext }: { traceContext?: TraceContext } = {},
+    {
+      blockTime,
+      traceContext,
+    }: {
+      blockTime?: number;
+      traceContext?: TraceContext;
+    } = {},
   ) {
-    const { id: transactionId, chainId, txParams } = transactionMeta;
+    const {
+      id: transactionId,
+      chainId,
+      txParams,
+      simulationData: prevSimulationData,
+    } = transactionMeta;
+
     const { from, to, value, data } = txParams;
 
     let simulationData: SimulationData = {
@@ -3661,24 +3642,33 @@ export class TransactionController extends BaseController<
     };
 
     if (this.#isSimulationEnabled()) {
-      this.#updateTransactionInternal(
-        { transactionId, skipHistory: true },
-        (txMeta) => {
-          txMeta.simulationData = undefined;
-        },
-      );
-
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
-          getSimulationData({
-            chainId,
-            from: from as Hex,
-            to: to as Hex,
-            value: value as Hex,
-            data: data as Hex,
-          }),
+          getSimulationData(
+            {
+              chainId,
+              from: from as Hex,
+              to: to as Hex,
+              value: value as Hex,
+              data: data as Hex,
+            },
+            {
+              blockTime,
+            },
+          ),
       );
+
+      if (
+        blockTime &&
+        prevSimulationData &&
+        hasSimulationDataChanged(prevSimulationData, simulationData)
+      ) {
+        simulationData = {
+          ...simulationData,
+          isUpdatedAfterSecurityCheck: true,
+        };
+      }
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);
@@ -3698,6 +3688,7 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
+        skipResimulateCheck: Boolean(blockTime),
       },
       (txMeta) => {
         txMeta.simulationData = simulationData;
