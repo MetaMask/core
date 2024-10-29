@@ -50,6 +50,7 @@ describe('Normalize Utils', () => {
       expect(convertNumbericValuestoQuotedString('{temp:{test:123}}')).toBe(
         '{temp:{test:"123"}}',
       );
+      expect(convertNumbericValuestoQuotedString('')).toBe('');
     });
   });
 });

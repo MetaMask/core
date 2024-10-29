@@ -909,7 +909,7 @@ export class SignatureController extends BaseController<
     }
     let decodedRequest: DecodedRequestInfo;
     try {
-      const { primaryType } = JSON.parse(request.params[1]);
+      const { primaryType } = JSON.parse(request.params?.[1] ?? '');
       if (primaryType === 'Permit') {
         this.#updateMetadata(signatureRequestId, (draftMetadata) => {
           draftMetadata.decodedRequest = 'IN_PROGRESS';
@@ -921,8 +921,8 @@ export class SignatureController extends BaseController<
             method,
             origin,
             params: [
-              params[0],
-              JSON.parse(convertNumbericValuestoQuotedString(params[1])),
+              params?.[0],
+              JSON.parse(convertNumbericValuestoQuotedString(params?.[1])),
             ],
           }),
           headers: { 'Content-Type': 'application/json' },
