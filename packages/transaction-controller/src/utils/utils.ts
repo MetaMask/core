@@ -5,6 +5,7 @@ import {
   isStrictHexString,
 } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
+import BN from 'bn.js';
 
 import type {
   GasPriceValue,
@@ -226,4 +227,30 @@ export function padHexToEvenLength(hex: string) {
   const evenData = data.length % 2 === 0 ? data : `0${data}`;
 
   return prefix + evenData;
+}
+
+/**
+ * Calculate the absolute percentage change between two values.
+ *
+ * @param originalValue - The first value.
+ * @param newValue - The second value.
+ * @returns The percentage change from the first value to the second value.
+ * If the original value is zero and the new value is not, returns 100.
+ */
+export function getPercentageChange(originalValue: BN, newValue: BN): number {
+  const precisionFactor = new BN(10).pow(new BN(18));
+  const originalValuePrecision = originalValue.mul(precisionFactor);
+  const newValuePrecision = newValue.mul(precisionFactor);
+
+  const difference = newValuePrecision.sub(originalValuePrecision);
+
+  if (difference.isZero()) {
+    return 0;
+  }
+
+  if (originalValuePrecision.isZero() && !newValuePrecision.isZero()) {
+    return 100;
+  }
+
+  return difference.muln(100).div(originalValuePrecision).abs().toNumber();
 }
