@@ -20,7 +20,7 @@ export type OriginalRequest = {
   method?: string;
 
   /** Parameters in signature request */
-  params: string[];
+  params?: string[];
 };
 
 /** Options for signing typed data. */
