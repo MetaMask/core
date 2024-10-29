@@ -321,6 +321,8 @@ export class QueuedRequestController extends BaseController<
       if (this.#networkClientIdOfCurrentBatch !== selectedNetworkClientId) {
         this.#flushQueueForOrigin(this.#originOfCurrentBatch);
       }
+      // Re-trigger processing of next batch because the `this.#processingRequestCount` guard above
+      // prevents it from being triggered when it typically would, after the request resolves.
       this.#processNextBatchIfReady();
       return;
     }
