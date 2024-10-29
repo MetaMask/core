@@ -9,132 +9,107 @@ const validScopeObject: ExternalScopeObject = {
 
 describe('Scope Validation', () => {
   describe('isValidScope', () => {
-    it.each([
-      [
-        false,
-        'the scopeString is neither a CAIP namespace or CAIP chainId',
-        'not a namespace or a caip chain id',
-        validScopeObject,
-      ],
-      [
-        true,
-        'the scopeString is a valid CAIP namespace and the scopeObject is valid',
-        'eip155',
-        validScopeObject,
-      ],
-      [
-        true,
-        'the scopeString is a valid CAIP chainId and the scopeObject is valid',
-        'eip155:1',
-        validScopeObject,
-      ],
-      [
-        false,
-        'the scopeString is a CAIP chainId but references is nonempty',
-        'eip155:1',
-        {
+    it('returns false when the scopeString is neither a CAIP namespace or CAIP chainId', () => {
+      expect(
+        isValidScope('not a namespace or a caip chain id', validScopeObject),
+      ).toBe(false);
+    });
+
+    it('returns true when the scopeString is a valid CAIP namespace and the scopeObject is valid', () => {
+      expect(isValidScope('eip155', validScopeObject)).toBe(true);
+    });
+
+    it('returns true when the scopeString is a valid CAIP chainId and the scopeObject is valid', () => {
+      expect(isValidScope('eip155:1', validScopeObject)).toBe(true);
+    });
+
+    it('returns false when the scopeString is a CAIP chainId but references is nonempty', () => {
+      expect(
+        isValidScope('eip155:1', {
           ...validScopeObject,
           references: ['5'],
-        },
-      ],
-      [
-        false,
-        'the scopeString is a valid CAIP namespace but references are invalid CAIP references',
-        'eip155',
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when the scopeString is a valid CAIP namespace but references are invalid CAIP references', () => {
+      expect(
+        isValidScope('eip155', {
           ...validScopeObject,
           references: ['@'],
-        },
-      ],
-      [
-        false,
-        'methods contains empty string',
-        validScopeString,
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when methods contains empty string', () => {
+      expect(
+        isValidScope(validScopeString, {
           ...validScopeObject,
           methods: [''],
-        },
-      ],
-      [
-        false,
-        'methods contains non-string',
-        validScopeString,
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when methods contains non-string', () => {
+      expect(
+        isValidScope(validScopeString, {
           ...validScopeObject,
+          // @ts-expect-error Intentionally invalid input
           methods: [{ foo: 'bar' }],
-        },
-      ],
-      [
-        true,
-        'methods contains only strings',
-        validScopeString,
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true when methods contains only strings', () => {
+      expect(
+        isValidScope(validScopeString, {
           ...validScopeObject,
           methods: ['method1', 'method2'],
-        },
-      ],
-      [
-        false,
-        'notifications contains empty string',
-        validScopeString,
-        {
+        }),
+      ).toBe(true);
+    });
+
+    it('returns false when notifications contains empty string', () => {
+      expect(
+        isValidScope(validScopeString, {
           ...validScopeObject,
           notifications: [''],
-        },
-      ],
-      [
-        false,
-        'notifications contains non-string',
-        validScopeString,
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when notifications contains non-string', () => {
+      expect(
+        isValidScope(validScopeString, {
           ...validScopeObject,
+          // @ts-expect-error Intentionally invalid input
           notifications: [{ foo: 'bar' }],
-        },
-      ],
-      [
-        false,
-        'notifications contains non-string',
-        'eip155:1',
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when unexpected properties are defined', () => {
+      expect(
+        isValidScope(validScopeString, {
           ...validScopeObject,
-          notifications: [{ foo: 'bar' }],
-        },
-      ],
-      [
-        false,
-        'unexpected properties are defined',
-        validScopeString,
-        {
-          ...validScopeObject,
+          // @ts-expect-error Intentionally invalid input
           unexpectedParam: 'foobar',
-        },
-      ],
-      [
-        true,
-        'only expected properties are defined',
-        validScopeString,
-        {
+        }),
+      ).toBe(false);
+    });
+
+    it('returns true when only expected properties are defined', () => {
+      expect(
+        isValidScope(validScopeString, {
           references: [],
           methods: [],
           notifications: [],
           accounts: [],
           rpcDocuments: [],
           rpcEndpoints: [],
-        },
-      ],
-    ])(
-      'returns %s when %s',
-      (
-        expected: boolean,
-        _scenario: string,
-        scopeString: string,
-        scopeObject: unknown,
-      ) => {
-        expect(
-          isValidScope(scopeString, scopeObject as ExternalScopeObject),
-        ).toStrictEqual(expected);
-      },
-    );
+        }),
+      ).toBe(true);
+    });
   });
 
   describe('validateScopes', () => {
