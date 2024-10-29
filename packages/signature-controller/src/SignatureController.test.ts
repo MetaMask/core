@@ -923,7 +923,6 @@ describe('SignatureController', () => {
       );
 
       await flushPromises();
-      await Promise.resolve();
       expect(controller.state.signatureRequests[ID_MOCK].decodedRequest).toBe(
         'IN_PROGRESS',
       );
