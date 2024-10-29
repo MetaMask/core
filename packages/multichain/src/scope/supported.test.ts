@@ -1,5 +1,3 @@
-import type { CaipAccountId } from '@metamask/utils';
-
 import {
   KnownNotifications,
   KnownRpcMethods,
@@ -103,158 +101,156 @@ describe('Scope Support', () => {
   });
 
   describe('isSupportedAccount', () => {
-    it.each([
-      [
-        true,
-        'eoa account matching eip155 namespaced address exists',
-        'eip155:1:0xdeadbeef',
-        [
-          {
-            type: 'eip155:eoa',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-      [
-        true,
-        'eoa account matching eip155 namespaced address with different casing exists',
-        'eip155:1:0xDEADbeef',
-        [
-          {
-            type: 'eip155:eoa',
-            address: '0xdeadBEEF',
-          },
-        ],
-      ],
-      [
-        true,
-        'erc4337 account matching eip155 namespaced address exists',
-        'eip155:1:0xdeadbeef',
-        [
-          {
-            type: 'eip155:erc4337',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-      [
-        true,
-        'erc4337 account matching eip155 namespaced address with different casing exists',
-        'eip155:1:0xDEADbeef',
-        [
-          {
-            type: 'eip155:erc4337',
-            address: '0xdeadBEEF',
-          },
-        ],
-      ],
-      [
-        false,
-        'neither eoa or erc4337 account matching eip155 namespaced address exists',
-        'eip155:1:0xdeadbeef',
-        [
-          {
-            type: 'other',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
+    it('returns true if eoa account matching eip155 namespaced address exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:eoa',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('eip155:1:0xdeadbeef', getInternalAccounts),
+      ).toBe(true);
+    });
 
-      [
-        true,
-        'eoa account matching wallet:eip155 address exists',
-        'wallet:eip155:0xdeadbeef',
-        [
-          {
-            type: 'eip155:eoa',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-      [
-        true,
-        'eoa account matching wallet:eip155 address with different casing exists',
-        'wallet:eip155:0xDEADbeef',
-        [
-          {
-            type: 'eip155:eoa',
-            address: '0xdeadBEEF',
-          },
-        ],
-      ],
-      [
-        true,
-        'erc4337 account matching wallet:eip155 address exists',
-        'wallet:eip155:0xdeadbeef',
-        [
-          {
-            type: 'eip155:erc4337',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-      [
-        true,
-        'erc4337 account matching wallet:eip155 address with different casing exists',
-        'wallet:eip155:0xDEADbeef',
-        [
-          {
-            type: 'eip155:erc4337',
-            address: '0xdeadBEEF',
-          },
-        ],
-      ],
-      [
-        false,
-        'neither eoa or erc4337 account matching wallet:eip155 address exists',
-        'wallet:eip155:0xdeadbeef',
-        [
-          {
-            type: 'other',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-      [
-        false,
-        'wallet namespace with unknown reference',
-        'wallet:foobar:0xdeadbeef',
-        [
-          {
-            type: 'eip155:eoa',
-            address: '0xdeadbeef',
-          },
-          {
-            type: 'eip155:erc4337',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-      [
-        false,
-        'unknown namespace',
-        'foo:bar:0xdeadbeef',
-        [
-          {
-            type: 'eip155:eoa',
-            address: '0xdeadbeef',
-          },
-          {
-            type: 'eip155:erc4337',
-            address: '0xdeadbeef',
-          },
-        ],
-      ],
-    ])(
-      'returns %s if %s',
-      (result, _desc, account, getInternalAccountsValue) => {
-        const getInternalAccounts = jest
-          .fn()
-          .mockReturnValue(getInternalAccountsValue);
-        expect(
-          isSupportedAccount(account as CaipAccountId, getInternalAccounts),
-        ).toBe(result);
-      },
-    );
+    it('returns true if eoa account matching eip155 namespaced address with different casing exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:eoa',
+          address: '0xdeadBEEF',
+        },
+      ]);
+      expect(
+        isSupportedAccount('eip155:1:0xDEADbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns true if erc4337 account matching eip155 namespaced address exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:erc4337',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('eip155:1:0xdeadbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns true if erc4337 account matching eip155 namespaced address with different casing exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:erc4337',
+          address: '0xdeadBEEF',
+        },
+      ]);
+      expect(
+        isSupportedAccount('eip155:1:0xDEADbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns false if neither eoa or erc4337 account matching eip155 namespaced address exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'other',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('eip155:1:0xdeadbeef', getInternalAccounts),
+      ).toBe(false);
+    });
+
+    it('returns true if eoa account matching wallet:eip155 address exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:eoa',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('wallet:eip155:0xdeadbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns true if eoa account matching wallet:eip155 address with different casing exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:eoa',
+          address: '0xdeadBEEF',
+        },
+      ]);
+      expect(
+        isSupportedAccount('wallet:eip155:0xDEADbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns true if erc4337 account matching wallet:eip155 address exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:erc4337',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('wallet:eip155:0xdeadbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns true if erc4337 account matching wallet:eip155 address with different casing exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:erc4337',
+          address: '0xdeadBEEF',
+        },
+      ]);
+      expect(
+        isSupportedAccount('wallet:eip155:0xDEADbeef', getInternalAccounts),
+      ).toBe(true);
+    });
+
+    it('returns false if neither eoa or erc4337 account matching wallet:eip155 address exists', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'other',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('wallet:eip155:0xdeadbeef', getInternalAccounts),
+      ).toBe(false);
+    });
+
+    it('returns false if wallet namespace with unknown reference', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:eoa',
+          address: '0xdeadbeef',
+        },
+        {
+          type: 'eip155:erc4337',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('wallet:foobar:0xdeadbeef', getInternalAccounts),
+      ).toBe(false);
+    });
+
+    it('returns false if unknown namespace', () => {
+      const getInternalAccounts = jest.fn().mockReturnValue([
+        {
+          type: 'eip155:eoa',
+          address: '0xdeadbeef',
+        },
+        {
+          type: 'eip155:erc4337',
+          address: '0xdeadbeef',
+        },
+      ]);
+      expect(
+        isSupportedAccount('foo:bar:0xdeadbeef', getInternalAccounts),
+      ).toBe(false);
+    });
   });
 });
