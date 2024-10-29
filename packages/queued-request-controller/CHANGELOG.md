@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: Add handling to `QueuedRequestController` for requests that can switch the network without prompting user approval ([#4846](https://github.com/MetaMask/core/pull/4846))
+- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+
 ## [6.0.0]
 
 ### Changed
