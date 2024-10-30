@@ -33,6 +33,14 @@ const MOCK_RESULT = {
   ],
 };
 
+const MOCK_ERROR = {
+  error: {
+    message:
+      'Unsupported signature. Please contact our team about adding support.',
+    type: 'UNSUPPORTED_SIGNATURE',
+  },
+};
+
 describe('Decoding api', () => {
   it('return the data from api', async () => {
     nock('https://testdecodingurl.com')
@@ -51,7 +59,7 @@ describe('Decoding api', () => {
   it('return error from the api as it is', async () => {
     nock('https://testdecodingurl.com')
       .post('/signature?chainId=0x1')
-      .reply(200, JSON.stringify(MOCK_RESULT));
+      .reply(200, JSON.stringify(MOCK_ERROR));
 
     const result = await getDecodingData(
       PERMIT_REQUEST_MOCK,
@@ -59,6 +67,16 @@ describe('Decoding api', () => {
       'https://testdecodingurl.com',
     );
 
-    expect(result.stateChanges).toStrictEqual(MOCK_RESULT.stateChanges);
+    expect(result.error).toStrictEqual(MOCK_ERROR.error);
+  });
+
+  it('return failure error if there is an exception while validating', async () => {
+    const result = await getDecodingData(
+      PERMIT_REQUEST_MOCK,
+      '0x1',
+      'https://testdecodingurl.com',
+    );
+
+    expect(result.error.type).toBe('DECODING_FAILED_WITH_ERROR');
   });
 });

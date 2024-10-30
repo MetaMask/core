@@ -37,10 +37,10 @@ export async function getDecodingData(
       );
       return await response.json();
     }
-  } catch (error) {
+  } catch (error: unknown) {
     return {
       error: {
-        message: error as string,
+        message: (error as unknown as Error).message,
         type: 'DECODING_FAILED_WITH_ERROR',
       },
     };
