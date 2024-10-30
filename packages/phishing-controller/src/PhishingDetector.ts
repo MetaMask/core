@@ -61,7 +61,7 @@ export type PhishingDetectorConfiguration = {
 
 export type DappScanResponse = {
   domainName: string;
-  recommendedAction: 'BLOCK' | 'WARN' | 'NONE';
+  recommendedAction: RecommendedAction;
   riskFactors: {
     type: string;
     severity: string;
@@ -69,6 +69,20 @@ export type DappScanResponse = {
   }[];
   verified: boolean;
   status: string;
+};
+
+/**
+ * RecommendedAction represents the warning type based on the risk factors.
+ */
+type RecommendedAction = 'NONE' | 'WARN' | 'BLOCK';
+
+/**
+ * Enum-like object to provide named constants for RecommendedAction values.
+ */
+const RecommendedAction = {
+  None: 'NONE' as RecommendedAction,
+  Warn: 'WARN' as RecommendedAction,
+  Block: 'BLOCK' as RecommendedAction,
 };
 
 export class PhishingDetector {
@@ -302,7 +316,7 @@ export class PhishingDetector {
 
     const data = await this.#fetchDappScanResult(fqdn);
 
-    if (data && data.recommendedAction === 'BLOCK') {
+    if (data && data.recommendedAction === RecommendedAction.Block) {
       return {
         result: true,
         type: PhishingDetectorResultType.RealTimeDappScan,
