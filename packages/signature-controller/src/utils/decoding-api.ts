@@ -1,7 +1,7 @@
 import type { OriginalRequest } from '../types';
 import { convertNumericValuesToQuotedString } from './normalize';
 
-const API_ERRORS = {
+export const API_ERRORS = {
   UNSUPPORTED_SIGNATURE: 'UNSUPPORTED_SIGNATURE',
   DECODING_FAILED_WITH_ERROR: 'DECODING_FAILED_WITH_ERROR',
 };

@@ -18,6 +18,7 @@ import type {
   SignatureRequest,
 } from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
+import * as DecodingDataUtils from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -914,7 +915,22 @@ describe('SignatureController', () => {
 
     // eslint-disable-next-line jest/no-disabled-tests
     it('invoke decoding api for permits', async () => {
+      const MOCK_STATE_CHANGES = {
+        stateChanges: [
+          {
+            assetType: 'ERC20',
+            changeType: 'APPROVE',
+            address: '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
+            amount: '1461501637330902918203684832716283019655932542975',
+            contractAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
+          },
+        ],
+      };
       const { controller } = createController();
+
+      jest
+        .spyOn(DecodingDataUtils, 'getDecodingData')
+        .mockResolvedValue(MOCK_STATE_CHANGES);
 
       await controller.newUnsignedTypedMessage(
         PERMIT_PARAMS_MOCK,
@@ -923,10 +939,12 @@ describe('SignatureController', () => {
         { parseJsonData: false },
       );
 
-      await flushPromises();
       expect(controller.state.signatureRequests[ID_MOCK].decodingLoading).toBe(
         false,
       );
+      expect(
+        controller.state.signatureRequests[ID_MOCK].decodingData,
+      ).toStrictEqual(MOCK_STATE_CHANGES);
     });
   });
 
@@ -957,6 +975,8 @@ describe('SignatureController', () => {
     it('resolves defered signature request', async () => {
       const { controller } = createController();
       let resolved = false;
+
+      jest.spyOn(DecodingDataUtils, 'getDecodingData').mockResolvedValue({});
 
       const signaturePromise = controller
         .newUnsignedPersonalMessage(
@@ -1035,6 +1055,8 @@ describe('SignatureController', () => {
     it('rejects defered signature request', async () => {
       const { controller } = createController();
       let rejectedError;
+
+      jest.spyOn(DecodingDataUtils, 'getDecodingData').mockResolvedValue({});
 
       controller
         .newUnsignedPersonalMessage(
