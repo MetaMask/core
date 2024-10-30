@@ -16,6 +16,12 @@ import {
   sha256Hash,
 } from './utils';
 
+const DAPP_SCAN_API_BASE_URL = 'https://dapp-scanning.api.cx.metamask.io';
+const DAPP_SCAN_ENDPOINT = '/scan';
+const DAPP_SCAN_REQUEST_TIMEOUT = 5000; // 5 seconds in milliseconds
+
+// Phishing Detector Types
+
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
   blacklist?: string[];
@@ -53,6 +59,18 @@ export type PhishingDetectorConfiguration = {
   c2DomainBlocklist?: string[];
   fuzzylist: string[][];
   tolerance: number;
+};
+
+export type DappScanResponse = {
+  domainName: string;
+  recommendedAction: 'BLOCK' | 'WARN' | 'NONE';
+  riskFactors: {
+    type: string;
+    severity: string;
+    message: string;
+  }[];
+  verified: boolean;
+  status: string;
 };
 
 export class PhishingDetector {
@@ -154,29 +172,18 @@ export class PhishingDetector {
       };
     }
 
-    const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
+    const fqdn = this.#normalizeDomain(domain);
+    const sourceParts = domainToParts(fqdn);
 
-    const source = domainToParts(fqdn);
-
-    for (const { allowlist, name, version } of this.#configs) {
-      // if source matches allowlist hostname (or subdomain thereof), PASS
-      const allowlistMatch = matchPartsAgainstList(source, allowlist);
-      if (allowlistMatch) {
-        const match = domainPartsToDomain(allowlistMatch);
-        return {
-          match,
-          name,
-          result: false,
-          type: PhishingDetectorResultType.Allowlist,
-          version: version === undefined ? version : String(version),
-        };
-      }
+    const allowlistResult = this.#checkAllowlist(sourceParts);
+    if (allowlistResult) {
+      return allowlistResult;
     }
 
     for (const { blocklist, fuzzylist, name, tolerance, version } of this
       .#configs) {
       // if source matches blocklist hostname (or subdomain thereof), FAIL
-      const blocklistMatch = matchPartsAgainstList(source, blocklist);
+      const blocklistMatch = matchPartsAgainstList(sourceParts, blocklist);
       if (blocklistMatch) {
         const match = domainPartsToDomain(blocklistMatch);
         return {
@@ -190,7 +197,7 @@ export class PhishingDetector {
 
       if (tolerance > 0) {
         // check if near-match of whitelist domain, FAIL
-        let fuzzyForm = domainPartsToFuzzyForm(source);
+        let fuzzyForm = domainPartsToFuzzyForm(sourceParts);
         // strip www
         fuzzyForm = fuzzyForm.replace(/^www\./u, '');
         // check against fuzzylist
@@ -233,22 +240,12 @@ export class PhishingDetector {
       };
     }
 
-    const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
+    const fqdn = this.#normalizeDomain(hostname);
     const sourceParts = domainToParts(fqdn);
 
-    for (const { allowlist, name, version } of this.#configs) {
-      // if source matches allowlist hostname (or subdomain thereof), PASS
-      const allowlistMatch = matchPartsAgainstList(sourceParts, allowlist);
-      if (allowlistMatch) {
-        const match = domainPartsToDomain(allowlistMatch);
-        return {
-          match,
-          name,
-          result: false,
-          type: PhishingDetectorResultType.Allowlist,
-          version: version === undefined ? version : String(version),
-        };
-      }
+    const allowlistResult = this.#checkAllowlist(sourceParts);
+    if (allowlistResult) {
+      return allowlistResult;
     }
 
     const hostnameHash = sha256Hash(hostname.toLowerCase());
@@ -285,6 +282,124 @@ export class PhishingDetector {
       result: false,
       type: PhishingDetectorResultType.C2DomainBlocklist,
     };
+  }
+
+  async scanDomain(punycodeOrigin: string): Promise<PhishingDetectorResult> {
+    const fqdn = this.#normalizeDomain(punycodeOrigin);
+    const sourceParts = domainToParts(fqdn);
+
+    const allowlistResult = this.#checkAllowlist(sourceParts);
+    if (allowlistResult) {
+      return allowlistResult;
+    }
+
+    return await this.#fetchDappScanResult(fqdn);
+  }
+
+  /**
+   * Fetches the dApp scan result from the external API.
+   *
+   * @param fqdn - The fully qualified domain name to scan.
+   * @returns A PhishingDetectorResult based on the API response.
+   */
+  async #fetchDappScanResult(fqdn: string): Promise<PhishingDetectorResult> {
+    const apiUrl = `${DAPP_SCAN_API_BASE_URL}${DAPP_SCAN_ENDPOINT}?url=${fqdn}`;
+
+    try {
+      const response = await this.#fetchWithTimeout(
+        apiUrl,
+        DAPP_SCAN_REQUEST_TIMEOUT,
+      );
+
+      if (!response.ok) {
+        console.error(
+          `dApp Scan API error: ${response.status} ${response.statusText}`,
+        );
+        return {
+          result: false,
+          type: PhishingDetectorResultType.RealTimeDappScan,
+        };
+      }
+
+      const data: DappScanResponse = await response.json();
+
+      if (data.recommendedAction === 'BLOCK') {
+        return {
+          result: true,
+          type: PhishingDetectorResultType.RealTimeDappScan,
+          name: 'DappScan',
+          version: '1',
+          match: fqdn,
+        };
+      }
+
+      return {
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      };
+    } catch (error) {
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      console.error(`dApp Scan fetch error: ${error}`);
+      return {
+        result: false,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+      };
+    }
+  }
+
+  /**
+   * Checks if the domain is in the allowlist.
+   *
+   * @param sourceParts - The parts of the domain.
+   * @returns A PhishingDetectorResult if matched; otherwise, undefined.
+   */
+  #checkAllowlist(sourceParts: string[]): PhishingDetectorResult | undefined {
+    for (const { allowlist, name, version } of this.#configs) {
+      const allowlistMatch = matchPartsAgainstList(sourceParts, allowlist);
+      if (allowlistMatch) {
+        const match = domainPartsToDomain(allowlistMatch);
+        return {
+          match,
+          name,
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Normalizes the domain by removing any trailing dot.
+   *
+   * @param domain - The domain to normalize.
+   * @returns The normalized domain.
+   */
+  #normalizeDomain(domain: string): string {
+    return domain.endsWith('.') ? domain.slice(0, -1) : domain;
+  }
+
+  /**
+   * Fetch with a timeout.
+   *
+   * @param url - The URL to fetch.
+   * @param timeout - The timeout in milliseconds.
+   * @returns A promise that resolves to the fetch Response.
+   */
+  async #fetchWithTimeout(url: string, timeout: number): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        cache: 'no-cache',
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 }
 
