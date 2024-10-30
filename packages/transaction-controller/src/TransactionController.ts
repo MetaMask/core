@@ -3394,6 +3394,7 @@ export class TransactionController extends BaseController<
         this.publishTransaction(_ethQuery, transactionMeta, {
           skipSubmitHistory: true,
         }),
+      acceleratedPollingEnabled: true,
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),

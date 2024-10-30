@@ -97,6 +97,8 @@ export class PendingTransactionTracker {
 
   #acceleratedPollingCount: number;
 
+  #acceleratedPollingEnabled: boolean;
+
   constructor({
     blockTracker,
     getChainId,
@@ -105,6 +107,7 @@ export class PendingTransactionTracker {
     isResubmitEnabled,
     getGlobalLock,
     publishTransaction,
+    acceleratedPollingEnabled,
     hooks,
   }: {
     blockTracker: BlockTracker;
@@ -117,6 +120,7 @@ export class PendingTransactionTracker {
       ethQuery: EthQuery,
       transactionMeta: TransactionMeta,
     ) => Promise<string>;
+    acceleratedPollingEnabled: boolean;
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
@@ -139,6 +143,7 @@ export class PendingTransactionTracker {
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
     this.#acceleratedPollingCount = 0;
+    this.#acceleratedPollingEnabled = acceleratedPollingEnabled;
   }
 
   startIfPendingTransactions = () => {
@@ -175,7 +180,10 @@ export class PendingTransactionTracker {
       return;
     }
 
-    if (this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS) {
+    if (
+      this.#acceleratedPollingEnabled &&
+      this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS
+    ) {
       // Start accelerated polling
       this.#startAcceleratedPolling();
     } else {
@@ -201,30 +209,25 @@ export class PendingTransactionTracker {
 
   #startAcceleratedPolling() {
     const checkAndSchedule = async () => {
+      const releaseLock = await this.#getGlobalLock();
       try {
-        const releaseLock = await this.#getGlobalLock();
-        try {
-          await this.#checkTransactions();
-        } finally {
-          releaseLock();
-        }
+        await this.#checkTransactions();
+      } finally {
+        releaseLock();
+      }
 
-        // Only continue accelerated polling if we still have pending transactions
-        // and haven't exceeded our maximum accelerated polls
-        if (
-          this.#getPendingTransactions().length > 0 &&
-          this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS
-        ) {
-          this.#acceleratedPollingCount += 1;
-          // eslint-disable-next-line @typescript-eslint/no-misused-promises
-          setTimeout(checkAndSchedule, ACCELERATED_POLLING_INTERVAL);
-        } else {
-          // Switch to normal polling mode
-          this.#startNormalPolling();
-        }
-      } catch (error) {
-        log('Error during accelerated polling', error);
-        // Switch to normal polling mode on error
+      // If we no longer have pending transactions, stop polling
+      if (this.#getPendingTransactions().length === 0) {
+        this.stop();
+        return;
+      }
+      // If we still have pending transactions, and we are below the max poll, do an additional accelerated poll
+      if (this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS) {
+        this.#acceleratedPollingCount += 1;
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        setTimeout(checkAndSchedule, ACCELERATED_POLLING_INTERVAL);
+      } else {
+        // If we have reached the max poll, fall back to normal polling
         this.#startNormalPolling();
       }
     };
