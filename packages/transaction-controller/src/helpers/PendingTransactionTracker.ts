@@ -95,6 +95,8 @@ export class PendingTransactionTracker {
 
   #beforePublish: (transactionMeta: TransactionMeta) => boolean;
 
+  #acceleratedPollingCount: number;
+
   constructor({
     blockTracker,
     getChainId,
@@ -136,12 +138,14 @@ export class PendingTransactionTracker {
     this.#beforePublish = hooks?.beforePublish ?? (() => true);
     this.#beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ?? (() => true);
+    this.#acceleratedPollingCount = 0;
   }
 
   startIfPendingTransactions = () => {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (pendingTransactions.length) {
+      this.#resetAcceleratedPolling();
       this.#start();
     } else {
       this.stop();
@@ -171,7 +175,14 @@ export class PendingTransactionTracker {
       return;
     }
 
-    this.#blockTracker.on('latest', this.#listener);
+    if (this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS) {
+      // Start accelerated polling
+      this.#startAcceleratedPolling();
+    } else {
+      // Fall back to normal block-based polling
+      this.#startNormalPolling();
+    }
+
     this.#running = true;
 
     log('Started polling');
@@ -186,6 +197,50 @@ export class PendingTransactionTracker {
     this.#running = false;
 
     log('Stopped polling');
+  }
+
+  #startAcceleratedPolling() {
+    const checkAndSchedule = async () => {
+      try {
+        const releaseLock = await this.#getGlobalLock();
+        try {
+          await this.#checkTransactions();
+        } finally {
+          releaseLock();
+        }
+
+        // Only continue accelerated polling if we still have pending transactions
+        // and haven't exceeded our maximum accelerated polls
+        if (
+          this.#getPendingTransactions().length > 0 &&
+          this.#acceleratedPollingCount < MAX_ACCELERATED_POLLS
+        ) {
+          this.#acceleratedPollingCount += 1;
+          // eslint-disable-next-line @typescript-eslint/no-misused-promises
+          setTimeout(checkAndSchedule, ACCELERATED_POLLING_INTERVAL);
+        } else {
+          // Switch to normal polling mode
+          this.#startNormalPolling();
+        }
+      } catch (error) {
+        log('Error during accelerated polling', error);
+        // Switch to normal polling mode on error
+        this.#startNormalPolling();
+      }
+    };
+
+    // Start the first aggressive check
+    // eslint-disable-next-line no-void
+    void checkAndSchedule();
+  }
+
+  #startNormalPolling() {
+    this.#blockTracker.on('latest', this.#listener);
+  }
+
+  #resetAcceleratedPolling() {
+    // Reset counter when transaction list changes
+    this.#acceleratedPollingCount = 0;
   }
 
   async #onLatestBlock(latestBlockNumber: string) {
