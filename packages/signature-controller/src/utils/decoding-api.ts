@@ -20,18 +20,21 @@ export async function getDecodingData(
   try {
     const { method, origin, params } = request;
     if (request.method === 'eth_signTypedData_v4') {
-      const response = await fetch(`${decodingApiUrl}?chainId=${chainId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          method,
-          origin,
-          params: [
-            params?.[0],
-            JSON.parse(convertNumericValuesToQuotedString(params?.[1]) ?? ''),
-          ],
-        }),
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const response = await fetch(
+        `${decodingApiUrl}/signature?chainId=${chainId}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            method,
+            origin,
+            params: [
+              params?.[0],
+              JSON.parse(convertNumericValuesToQuotedString(params?.[1]) ?? ''),
+            ],
+          }),
+          headers: { 'Content-Type': 'application/json' },
+        },
+      );
       return await response.json();
     }
   } catch (error) {
