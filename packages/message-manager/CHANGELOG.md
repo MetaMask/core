@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+- chore: Bump `@metamask/utils` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Release 226.0.0 ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `eth-sig-util` dependency to `8.0.0` for `signature-controller` ([#4830](https://github.com/MetaMask/core/pull/4830))
+
 ## [11.0.0]
 
 ### Removed

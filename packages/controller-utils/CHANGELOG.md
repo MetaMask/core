@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: Move BigNumber.js to dependencies ([#4873](https://github.com/MetaMask/core/pull/4873))
+
 ## [11.4.1]
 
 ### Changed

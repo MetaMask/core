@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: use crypto compare multi api for currency rate controller ([#4852](https://github.com/MetaMask/core/pull/4852))
+- chore: swap tokenList with tokensChainsCache in tokenDetectionController ([#4821](https://github.com/MetaMask/core/pull/4821))
+- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+
 ## [40.0.0]
 
 ### Changed
