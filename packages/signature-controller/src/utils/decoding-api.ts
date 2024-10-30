@@ -33,8 +33,8 @@ export async function getDecodingData(
             method,
             origin,
             params: [
-              params?.[0],
-              JSON.parse(convertNumericValuesToQuotedString(params?.[1]) ?? ''),
+              params[0],
+              JSON.parse(convertNumericValuesToQuotedString(params[1])),
             ],
           }),
           headers: { 'Content-Type': 'application/json' },

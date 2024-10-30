@@ -53,6 +53,7 @@ const PARAMS_MOCK = {
 
 const REQUEST_MOCK = {
   networkClientId: NETWORK_CLIENT_ID_MOCK,
+  params: [],
 };
 
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {

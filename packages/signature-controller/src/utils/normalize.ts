@@ -66,9 +66,9 @@ function normalizePersonalMessageData(data: string) {
  * @param str - String of JSON to be fixed.
  * @returns String with all numeric values converted to quoted strings.
  */
-export function convertNumericValuesToQuotedString(str?: string) {
+export function convertNumericValuesToQuotedString(str: string) {
   if (!str) {
-    return str;
+    return '';
   }
   return str?.replace(/(?<=:\s*)(-?\d+(\.\d+)?)(?=[,\]}])/gu, '"$1"');
 }

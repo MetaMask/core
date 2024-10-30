@@ -17,7 +17,7 @@ export type OriginalRequest = {
   origin?: string;
 
   /** Parameters in signature request */
-  params?: string[];
+  params: string[];
 
   /** Response following a security scan of the request. */
   securityAlertResponse?: Record<string, Json>;
