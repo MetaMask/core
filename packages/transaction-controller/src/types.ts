@@ -621,9 +621,19 @@ export enum TransactionType {
   smart = 'smart',
 
   /**
-   * A staking transaction initiated from a MetaMask client.
+   * A transaction that claims staking rewards.
    */
-  staking = 'staking',
+  stakingClaim = 'stakingClaim',
+
+  /**
+   * A transaction that deposits tokens into a staking contract.
+   */
+  stakingDeposit = 'stakingDeposit',
+
+  /**
+   * A transaction that unstakes tokens from a staking contract.
+   */
+  stakingUnstake = 'stakingUnstake',
 
   /**
    * A transaction swapping one token for another through MetaMask Swaps.
