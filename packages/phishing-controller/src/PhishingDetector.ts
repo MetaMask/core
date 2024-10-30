@@ -20,8 +20,6 @@ const DAPP_SCAN_API_BASE_URL = 'https://dapp-scanning.api.cx.metamask.io';
 const DAPP_SCAN_ENDPOINT = '/scan';
 const DAPP_SCAN_REQUEST_TIMEOUT = 5000; // 5 seconds in milliseconds
 
-// Phishing Detector Types
-
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
   blacklist?: string[];
