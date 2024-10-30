@@ -433,7 +433,7 @@ describe('CurrencyRateController', () => {
         ETH: {
           conversionDate: getStubbedDate() / 1000,
           conversionRate: 2000.42,
-          usdConversionRate: undefined,
+          usdConversionRate: null,
         },
       },
     });
@@ -521,17 +521,17 @@ describe('CurrencyRateController', () => {
         BNB: {
           conversionDate,
           conversionRate: 500.1,
-          usdConversionRate: undefined,
+          usdConversionRate: null,
         },
         ETH: {
           conversionDate,
           conversionRate: 4000.42,
-          usdConversionRate: undefined,
+          usdConversionRate: null,
         },
         POL: {
           conversionDate,
           conversionRate: 0.3,
-          usdConversionRate: undefined,
+          usdConversionRate: null,
         },
       },
     });

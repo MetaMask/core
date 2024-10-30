@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.2` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.5` to `^4.1.6` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/json-rpc-engine` from `^10.0.0` to `^10.0.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.1` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [22.0.0]
 
 ### Changed
@@ -643,7 +653,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...HEAD
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.0...@metamask/network-controller@22.0.1
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.1.0...@metamask/network-controller@22.0.0
 [21.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.1...@metamask/network-controller@21.1.0
 [21.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.0...@metamask/network-controller@21.0.1
