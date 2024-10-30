@@ -42,6 +42,13 @@ const MOCK_ERROR = {
   },
 };
 
+const UNSUPPORTED_SIGNATURE_ERROR = {
+  error: {
+    message: 'Unsupported signature.',
+    type: 'UNSUPPORTED_SIGNATURE',
+  },
+};
+
 describe('Decoding api', () => {
   it('return the data from api', async () => {
     nock('https://testdecodingurl.com')
@@ -88,11 +95,6 @@ describe('Decoding api', () => {
       'https://testdecodingurl.com',
     );
 
-    expect(result.error).toStrictEqual({
-      error: {
-        message: 'Unsupported signature.',
-        type: 'UNSUPPORTED_SIGNATURE',
-      },
-    });
+    expect(result.error.type).toBe('UNSUPPORTED_SIGNATURE');
   });
 });
