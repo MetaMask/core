@@ -21,6 +21,9 @@ const RECEIPT_STATUS_SUCCESS = '0x1';
 const RECEIPT_STATUS_FAILURE = '0x0';
 const MAX_RETRY_BLOCK_DISTANCE = 50;
 
+const MAX_ACCELERATED_POLLS = 5;
+const ACCELERATED_POLLING_INTERVAL = 2000;
+
 const KNOWN_TRANSACTION_ERRORS = [
   'replacement transaction underpriced',
   'known transaction',
@@ -120,7 +123,6 @@ export class PendingTransactionTracker {
     };
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
-
     this.#blockTracker = blockTracker;
     this.#droppedBlockCountByHash = new Map();
     this.#getChainId = getChainId;
