@@ -1,4 +1,8 @@
+import nock from 'nock';
+
 import {
+  DAPP_SCAN_API_BASE_URL,
+  DAPP_SCAN_ENDPOINT,
   PhishingDetector,
   type PhishingDetectorOptions,
 } from './PhishingDetector';
@@ -1781,6 +1785,234 @@ describe('PhishingDetector', () => {
         });
       },
     );
+  });
+
+  describe('scanDomain', () => {
+    it('should return allowlist result if domain is in the allowlist', async () => {
+      const allowlistedDomain = 'example.com';
+
+      await withPhishingDetector(
+        [
+          {
+            allowlist: ['example.com'],
+            blocklist: [],
+            fuzzylist: [],
+            name: 'allowlist-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = await detector.scanDomain(allowlistedDomain);
+          expect(result).toStrictEqual({
+            match: 'example.com',
+            name: 'allowlist-config',
+            result: false,
+            type: PhishingDetectorResultType.Allowlist,
+            version: '1',
+          });
+        },
+      );
+    });
+
+    it('should return malicious result if dApp scan API recommends BLOCK', async () => {
+      const maliciousDomain = 'malicious.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${maliciousDomain}`)
+        .reply(200, {
+          domainName: maliciousDomain,
+          recommendedAction: 'BLOCK',
+          riskFactors: [
+            {
+              type: 'DRAINER',
+              severity: 'CRITICAL',
+              message: 'Domain identified as a wallet drainer.',
+            },
+          ],
+          verified: false,
+          status: 'COMPLETE',
+        });
+
+      await withPhishingDetector(
+        [
+          {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            name: 'api-block-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = await detector.scanDomain(maliciousDomain);
+          expect(result).toStrictEqual({
+            result: true,
+            type: PhishingDetectorResultType.RealTimeDappScan,
+            name: 'DappScan',
+            version: '1',
+            match: maliciousDomain,
+          });
+        },
+      );
+
+      expect(nock.isDone()).toBe(true);
+    });
+
+    it('should return safe result if dApp scan API does not recommend BLOCK', async () => {
+      const safeDomain = 'safe.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${safeDomain}`)
+        .reply(200, {
+          domainName: safeDomain,
+          recommendedAction: 'WARN',
+          riskFactors: [
+            {
+              type: 'SUSPICIOUS',
+              severity: 'MEDIUM',
+              message: 'Domain has suspicious activity.',
+            },
+          ],
+          verified: true,
+          status: 'COMPLETE',
+        });
+
+      await withPhishingDetector(
+        [
+          {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            name: 'api-warn-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = await detector.scanDomain(safeDomain);
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.RealTimeDappScan,
+          });
+        },
+      );
+
+      expect(nock.isDone()).toBe(true);
+    });
+
+    it('should return safe result if dApp scan API responds with non-OK status', async () => {
+      const domain = 'unknown.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${domain}`)
+        .reply(500, 'Internal Server Error');
+
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      await withPhishingDetector(
+        [
+          {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            name: 'api-error-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = await detector.scanDomain(domain);
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.RealTimeDappScan,
+          });
+        },
+      );
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'dApp Scan API error: 500 Internal Server Error',
+      );
+
+      consoleErrorSpy.mockRestore();
+
+      expect(nock.isDone()).toBe(true);
+    });
+
+    it('should return safe result if dApp scan API request fails due to network error', async () => {
+      const domain = 'network-error.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${domain}`)
+        .replyWithError('Network Failure');
+
+      const consoleErrorSpy = jest.spyOn(console, 'error');
+
+      await withPhishingDetector(
+        [
+          {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            name: 'api-network-error-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = await detector.scanDomain(domain);
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.RealTimeDappScan,
+          });
+        },
+      );
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('dApp Scan fetch error:'),
+      );
+
+      consoleErrorSpy.mockRestore();
+
+      expect(nock.isDone()).toBe(true);
+    });
+
+    it('should return safe result if domain is not in allowlist and API does not recommend BLOCK', async () => {
+      const domain = 'neutral.com';
+
+      nock(DAPP_SCAN_API_BASE_URL)
+        .get(`${DAPP_SCAN_ENDPOINT}?url=${domain}`)
+        .reply(200, {
+          domainName: domain,
+          recommendedAction: 'NONE',
+          riskFactors: [],
+          verified: true,
+          status: 'COMPLETE',
+        });
+
+      await withPhishingDetector(
+        [
+          {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            name: 'api-none-config',
+            version: 1,
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = await detector.scanDomain(domain);
+          expect(result).toStrictEqual({
+            result: false,
+            type: PhishingDetectorResultType.RealTimeDappScan,
+          });
+        },
+      );
+
+      expect(nock.isDone()).toBe(true);
+    });
   });
 });
 

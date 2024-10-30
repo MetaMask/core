@@ -8,17 +8,20 @@ import {
   domainPartsToDomain,
   domainPartsToFuzzyForm,
   domainToParts,
+  fetchWithTimeout,
   generateParentDomains,
   getDefaultPhishingDetectorConfig,
   getHostnameFromUrl,
   matchPartsAgainstList,
+  normalizeDomain,
   processConfigs,
   sha256Hash,
 } from './utils';
 
-const DAPP_SCAN_API_BASE_URL = 'https://dapp-scanning.api.cx.metamask.io';
-const DAPP_SCAN_ENDPOINT = '/scan';
-const DAPP_SCAN_REQUEST_TIMEOUT = 5000; // 5 seconds in milliseconds
+export const DAPP_SCAN_API_BASE_URL =
+  'https://dapp-scanning.api.cx.metamask.io';
+export const DAPP_SCAN_ENDPOINT = '/scan';
+export const DAPP_SCAN_REQUEST_TIMEOUT = 5000; // 5 seconds in milliseconds
 
 export type LegacyPhishingDetectorList = {
   whitelist?: string[];
@@ -71,9 +74,9 @@ export type DappScanResponse = {
   status: string;
 };
 
-type RecommendedAction = 'NONE' | 'WARN' | 'BLOCK';
+export type RecommendedAction = 'NONE' | 'WARN' | 'BLOCK';
 
-const RecommendedAction = {
+export const RecommendedAction = {
   None: 'NONE' as RecommendedAction,
   Warn: 'WARN' as RecommendedAction,
   Block: 'BLOCK' as RecommendedAction,
@@ -178,7 +181,7 @@ export class PhishingDetector {
       };
     }
 
-    const fqdn = this.#normalizeDomain(domain);
+    const fqdn = normalizeDomain(domain);
     const sourceParts = domainToParts(fqdn);
 
     const allowlistResult = this.#checkAllowlist(sourceParts);
@@ -246,7 +249,7 @@ export class PhishingDetector {
       };
     }
 
-    const fqdn = this.#normalizeDomain(hostname);
+    const fqdn = normalizeDomain(hostname);
     const sourceParts = domainToParts(fqdn);
 
     const allowlistResult = this.#checkAllowlist(sourceParts);
@@ -297,7 +300,7 @@ export class PhishingDetector {
    * @returns A PhishingDetectorResult indicating if the domain is safe or malicious.
    */
   async scanDomain(punycodeOrigin: string): Promise<PhishingDetectorResult> {
-    const fqdn = this.#normalizeDomain(punycodeOrigin);
+    const fqdn = normalizeDomain(punycodeOrigin);
 
     const sourceParts = domainToParts(fqdn);
     const allowlistResult = this.#checkAllowlist(sourceParts);
@@ -334,7 +337,7 @@ export class PhishingDetector {
     const apiUrl = `${DAPP_SCAN_API_BASE_URL}${DAPP_SCAN_ENDPOINT}?url=${fqdn}`;
 
     try {
-      const response = await this.#fetchWithTimeout(
+      const response = await fetchWithTimeout(
         apiUrl,
         DAPP_SCAN_REQUEST_TIMEOUT,
       );
@@ -376,38 +379,6 @@ export class PhishingDetector {
       }
     }
     return undefined;
-  }
-
-  /**
-   * Normalizes the domain by removing any trailing dot.
-   *
-   * @param domain - The domain to normalize.
-   * @returns The normalized domain.
-   */
-  #normalizeDomain(domain: string): string {
-    return domain.endsWith('.') ? domain.slice(0, -1) : domain;
-  }
-
-  /**
-   * Fetch with a timeout.
-   *
-   * @param url - The URL to fetch.
-   * @param timeout - The timeout in milliseconds.
-   * @returns A promise that resolves to the fetch Response.
-   */
-  async #fetchWithTimeout(url: string, timeout: number): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        cache: 'no-cache',
-      });
-      return response;
-    } finally {
-      clearTimeout(timeoutId);
-    }
   }
 }
 

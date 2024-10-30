@@ -1,3 +1,4 @@
+import nock from 'nock';
 import * as sinon from 'sinon';
 
 import { ListKeys, ListNames } from './PhishingController';
@@ -5,9 +6,11 @@ import {
   applyDiffs,
   domainToParts,
   fetchTimeNow,
+  fetchWithTimeout,
   generateParentDomains,
   getHostnameFromUrl,
   matchPartsAgainstList,
+  normalizeDomain,
   processConfigs,
   // processConfigs,
   processDomainList,
@@ -752,5 +755,36 @@ describe('generateParentDomains', () => {
     const filteredSourceParts = sourceParts.filter(Boolean);
     const expected = ['b.c', 'a.b.c'];
     expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+});
+
+describe('normalizeDomain', () => {
+  it('should remove trailing dot from domain', () => {
+    const domain = 'example.com.';
+    const result = normalizeDomain(domain);
+    expect(result).toBe('example.com');
+  });
+
+  it('should return domain unchanged if there is no trailing dot', () => {
+    const domain = 'example.com';
+    const result = normalizeDomain(domain);
+    expect(result).toBe(domain);
+  });
+});
+
+describe('fetchWithTimeout', () => {
+  const url = 'https://example.com';
+  const timeout = 100;
+
+  afterEach(() => {
+    nock.cleanAll();
+  });
+
+  it('should fetch successfully if response is within timeout', async () => {
+    nock(url).get('/').reply(200, 'Success');
+
+    const result = await fetchWithTimeout(url, timeout);
+    const text = await result.text();
+    expect(text).toBe('Success');
   });
 });

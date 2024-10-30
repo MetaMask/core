@@ -336,3 +336,38 @@ export const generateParentDomains = (
 
   return domains;
 };
+
+/**
+ * Normalizes the domain by removing any trailing dot.
+ *
+ * @param domain - The domain to normalize.
+ * @returns The normalized domain.
+ */
+export const normalizeDomain = (domain: string): string => {
+  return domain.endsWith('.') ? domain.slice(0, -1) : domain;
+};
+
+/**
+ * Fetch with a timeout.
+ *
+ * @param url - The URL to fetch.
+ * @param timeout - The timeout in milliseconds.
+ * @returns A promise that resolves to the fetch Response.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  timeout: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      cache: 'no-cache',
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
