@@ -1,7 +1,7 @@
 import type { OriginalRequest } from '../types';
 import { convertNumericValuesToQuotedString } from './normalize';
 
-export const API_ERRORS = {
+export const DECODING_API_ERRORS = {
   UNSUPPORTED_SIGNATURE: 'UNSUPPORTED_SIGNATURE',
   DECODING_FAILED_WITH_ERROR: 'DECODING_FAILED_WITH_ERROR',
 };
@@ -45,14 +45,14 @@ export async function getDecodingData(
     return {
       error: {
         message: 'Unsupported signature.',
-        type: API_ERRORS.UNSUPPORTED_SIGNATURE,
+        type: DECODING_API_ERRORS.UNSUPPORTED_SIGNATURE,
       },
     };
   } catch (error: unknown) {
     return {
       error: {
         message: (error as unknown as Error).message,
-        type: API_ERRORS.DECODING_FAILED_WITH_ERROR,
+        type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
       },
     };
   }

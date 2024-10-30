@@ -914,7 +914,7 @@ describe('SignatureController', () => {
     });
 
     // eslint-disable-next-line jest/no-disabled-tests
-    it('invoke decoding api for permits', async () => {
+    it('invoke getDecodingData to get decoding data', async () => {
       const MOCK_STATE_CHANGES = {
         stateChanges: [
           {
@@ -945,6 +945,30 @@ describe('SignatureController', () => {
       expect(
         controller.state.signatureRequests[ID_MOCK].decodingData,
       ).toStrictEqual(MOCK_STATE_CHANGES);
+    });
+
+    it('correctly set decoding data if getDecodingData fails', async () => {
+      const { controller } = createController();
+
+      jest
+        .spyOn(DecodingDataUtils, 'getDecodingData')
+        .mockRejectedValue(new Error('some error'));
+
+      await controller.newUnsignedTypedMessage(
+        PERMIT_PARAMS_MOCK,
+        PERMIT_REQUEST_MOCK,
+        SignTypedDataVersion.V4,
+        { parseJsonData: false },
+      );
+
+      expect(controller.state.signatureRequests[ID_MOCK].decodingLoading).toBe(
+        false,
+      );
+      expect(
+        controller.state.signatureRequests[ID_MOCK].decodingData?.error.type,
+      ).toStrictEqual(
+        DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+      );
     });
   });
 

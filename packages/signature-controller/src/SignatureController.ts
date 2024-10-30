@@ -44,7 +44,7 @@ import type {
   LegacyStateMessage,
   StateSIWEMessage,
 } from './types';
-import { API_ERRORS, getDecodingData } from './utils/decoding-api';
+import { DECODING_API_ERRORS, getDecodingData } from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -918,7 +918,7 @@ export class SignatureController extends BaseController<
             stateChanges: null,
             error: {
               message: (error as unknown as Error).message,
-              type: API_ERRORS.DECODING_FAILED_WITH_ERROR,
+              type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
             },
           };
           draftMetadata.decodingLoading = false;
