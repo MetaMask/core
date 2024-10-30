@@ -342,9 +342,11 @@ describe('validation', () => {
         'type',
         'wrong type',
         123,
-        `Expected one of \`${Object.values(TransactionType)
-          .map((value) => `"${value}"`)
-          .join(',')}\`, but received: 123`,
+        `Expected one of \`${
+          Object.values(TransactionType)
+            .map((value) => `"${value}"`)
+            .join(',') as string
+        }\`, but received: 123`,
       ],
     ])(
       'throws if %s is %s',
