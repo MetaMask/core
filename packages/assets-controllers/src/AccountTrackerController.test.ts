@@ -645,6 +645,7 @@ async function withController<ReturnValue>(
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
     ...options,
+    getStakedBalanceForChain: jest.fn(),
   });
 
   return await testFunction({
