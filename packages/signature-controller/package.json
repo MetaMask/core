@@ -62,6 +62,7 @@
     "@metamask/logging-controller": "^6.0.1",
     "@metamask/network-controller": "^22.0.0",
     "@types/jest": "^27.4.1",
+    "@types/node-fetch": "^2.6.11",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "nock": "^13.3.1",

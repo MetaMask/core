@@ -81,23 +81,29 @@ export type MessageParamsTyped = MessageParams & {
   version?: string;
 };
 
+/** Information about various state changes returned by decoding api. */
+type DecodingDataStateChanges = {
+  assetType: string;
+  changeType: string;
+  address: string;
+  amount: string;
+  contractAddress: string;
+}[];
+
+/** Error details for unfulfilled the decoding request. */
+type DecodingDataError = {
+  assetType: string;
+  changeType: string;
+  address: string;
+  amount: string;
+  contractAddress: string;
+}[];
+
 /** Decoding data about typed sign V4 signature request. */
-export type DecodingData =
-  /** Information about various state chainged returned by decoding api. */
-  | {
-      assetType: string;
-      changeType: string;
-      address: string;
-      amount: string;
-      contractAddress: string;
-    }
-  /** Error details for unfulfilled the decoding request. */
-  | {
-      error: {
-        message: string;
-        type: string;
-      };
-    };
+export type DecodingData = {
+  stateChanges: DecodingDataStateChanges | null;
+  error: DecodingDataError;
+};
 
 type SignatureRequestBase = {
   /** ID of the associated chain. */

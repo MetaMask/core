@@ -1,9 +1,11 @@
 import nock from 'nock';
-import fetch from 'node-fetch';
+import nodeFetch from 'node-fetch';
 
 import { getDecodingData } from './decoding-api';
 
-global.fetch = fetch;
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore-next-line
+global.fetch = nodeFetch;
 
 const PERMIT_REQUEST_MOCK = {
   method: 'eth_signTypedData_v4',
@@ -33,6 +35,20 @@ const MOCK_RESULT = {
 
 describe('Decoding api', () => {
   it('return the data from api', async () => {
+    nock('https://testdecodingurl.com')
+      .post('/signature?chainId=0x1')
+      .reply(200, JSON.stringify(MOCK_RESULT));
+
+    const result = await getDecodingData(
+      PERMIT_REQUEST_MOCK,
+      '0x1',
+      'https://testdecodingurl.com',
+    );
+
+    expect(result.stateChanges).toStrictEqual(MOCK_RESULT.stateChanges);
+  });
+
+  it('return error from the api as it is', async () => {
     nock('https://testdecodingurl.com')
       .post('/signature?chainId=0x1')
       .reply(200, JSON.stringify(MOCK_RESULT));
