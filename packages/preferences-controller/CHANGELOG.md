@@ -9,23 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [13.2.0]
 
-### Uncategorized
-
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
-- Release 226.0.0 ([#4834](https://github.com/MetaMask/core/pull/4834))
-- fix: Add useMultiRpcMigration to PreferencesController ([#4732](https://github.com/MetaMask/core/pull/4732))
-
 ### Added
 
-- Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
-  - Add `useSafeChainsListValidation` property to the `PreferencesController` state (default: `true`)
-  - Add `setUseSafeChainsListValidation` method to set this property
-- Add `tokenSortConfig` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
-  - Add `tokenSortConfig` property to the `PreferencesController` state (default value: `{ key: 'tokenFiatAmount', order: 'dsc', sortCallback: 'stringNumeric' }`)
-  - Add `setTokenSortConfig` method to set this property
-- Add `privacyMode` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
-  - Add `privacyMode` property to the `PreferencesController` state (default value: `false`)
-  - Add `setPrivacyMode` method to set this property
+- Add `useSafeChainsListValidation`, `tokenSortConfig`, and `privacyMode` preferences + setters ([#4860](https://github.com/MetaMask/core/pull/4860))
+- Add `useMultiRpcMigration` preference ([#4732](https://github.com/MetaMask/core/pull/4732))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.1` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862))
 
 ## [13.1.0]
 
