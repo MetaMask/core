@@ -77,13 +77,13 @@ export type MessageParamsTyped = MessageParams & {
         primaryType: string;
         message: Json;
       };
-  /** Signature method V1, V3 or V4 */
-  signatureMethod?: string;
   /** Version of the signTypedData request. */
   version?: string;
 };
 
-export type DecodedRequestInfo =
+/** Decoding data about typed sign V4 signature request. */
+export type DecodingData =
+  /** Information about various state chainged returned by decoding api. */
   | {
       assetType: string;
       changeType: string;
@@ -91,18 +91,23 @@ export type DecodedRequestInfo =
       amount: string;
       contractAddress: string;
     }
+  /** Error details for unfulfilled the decoding request. */
   | {
       error: {
         message: string;
         type: string;
       };
-    }
-  | 'IN_PROGRESS'
-  | undefined;
+    };
 
 type SignatureRequestBase = {
   /** ID of the associated chain. */
   chainId: Hex;
+
+  /** Response from message decoding api. */
+  decodingData?: DecodingData;
+
+  /** Field to know if decoding request is in progress */
+  decodingLoading?: boolean;
 
   /** Error message that occurred during the signing. */
   error?: string;
@@ -133,12 +138,6 @@ type SignatureRequestBase = {
 
   /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
-
-  /** Field to know if decoding request is in progress */
-  decodingLoading?: boolean;
-
-  /** Response from message decoding api. */
-  decodedRequest?: DecodedRequestInfo;
 };
 
 /** Legacy messages stored in the state. */

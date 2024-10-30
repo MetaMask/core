@@ -44,7 +44,7 @@ import type {
   LegacyStateMessage,
   StateSIWEMessage,
 } from './types';
-import { getDecodingResult } from './utils/decoding-api';
+import { getDecodingData } from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -905,16 +905,16 @@ export class SignatureController extends BaseController<
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.decodingLoading = true;
     });
-    getDecodingResult(request, chainId, this.#decodingApiUrl)
-      .then((decodedRequest) =>
+    getDecodingData(request, chainId, this.#decodingApiUrl)
+      .then((decodedData) =>
         this.#updateMetadata(signatureRequestId, (draftMetadata) => {
-          draftMetadata.decodedRequest = decodedRequest;
+          draftMetadata.decodingData = decodedData;
           draftMetadata.decodingLoading = false;
         }),
       )
       .catch((error) =>
         this.#updateMetadata(signatureRequestId, (draftMetadata) => {
-          draftMetadata.decodedRequest = {
+          draftMetadata.decodingData = {
             error: {
               message: error as string,
               type: 'DECODING_FAILED_WITH_ERROR',

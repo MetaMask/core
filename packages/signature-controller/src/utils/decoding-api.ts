@@ -1,4 +1,4 @@
-import type { DecodedRequestInfo, OriginalRequest } from '../types';
+import type { DecodingData, OriginalRequest } from '../types';
 import { convertNumbericValuestoQuotedString } from './normalize';
 
 /**
@@ -9,7 +9,7 @@ import { convertNumbericValuestoQuotedString } from './normalize';
  * @param chainId - chainId of network of signature request.
  * @returns Promise that resolved to give decoded data.
  */
-export async function getDecodingResult(
+export async function getDecodingData(
   request: OriginalRequest,
   chainId: string,
   decodingApiUrl?: string,
@@ -17,7 +17,7 @@ export async function getDecodingResult(
   if (!decodingApiUrl) {
     return undefined;
   }
-  let decodedRequest: DecodedRequestInfo;
+  let decodingData: DecodingData;
   try {
     const { method, origin, params } = request;
     if (request.method === 'eth_signTypedData_v4') {
@@ -33,15 +33,15 @@ export async function getDecodingResult(
         }),
         headers: { 'Content-Type': 'application/json' },
       });
-      decodedRequest = await response.json();
+      decodingData = await response.json();
     }
   } catch (error) {
-    decodedRequest = {
+    decodingData = {
       error: {
         message: error as string,
         type: 'DECODING_FAILED_WITH_ERROR',
       },
     };
   }
-  return decodedRequest;
+  return decodingData;
 }
