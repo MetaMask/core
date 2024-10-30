@@ -43,10 +43,9 @@ import type {
   TypedSigningOptions,
   LegacyStateMessage,
   StateSIWEMessage,
-  DecodedRequestInfo,
 } from './types';
+import { getDecodingResult } from './utils/decoding-api';
 import {
-  convertNumbericValuestoQuotedString,
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
 } from './utils/normalize';
@@ -158,6 +157,11 @@ export type SignatureControllerOptions = {
   ) => Promise<any>;
 
   /**
+   * Api used to get decoding data for permits.
+   */
+  decodingApiUrl?: string;
+
+  /**
    * Initial state of the controller.
    */
   state?: SignatureControllerState;
@@ -166,11 +170,6 @@ export type SignatureControllerOptions = {
    * Callback to record the duration of code.
    */
   trace?: TraceCallback;
-
-  /**
-   * Api used to get decoding data for permits.
-   */
-  decodingApi?: string;
 };
 
 /**
@@ -183,9 +182,9 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #trace: TraceCallback;
+  #decodingApiUrl?: string;
 
-  #decodingApi?: string;
+  #trace: TraceCallback;
 
   /**
    * Construct a Sign controller.
@@ -194,13 +193,13 @@ export class SignatureController extends BaseController<
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
-   * @param options.decodingApi - Api used to get decoded data for permits.
+   * @param options.decodingApiUrl - Api used to get decoded data for permits.
    */
   constructor({
+    decodingApiUrl,
     messenger,
     state,
     trace,
-    decodingApi,
   }: SignatureControllerOptions) {
     super({
       name: controllerName,
@@ -214,7 +213,7 @@ export class SignatureController extends BaseController<
 
     this.hub = new EventEmitter();
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
-    this.#decodingApi = decodingApi;
+    this.#decodingApiUrl = decodingApiUrl;
   }
 
   /**
@@ -903,61 +902,26 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     chainId: string,
   ) {
-    // Code below will invoke signature request decoding api for permits
-    if (!this.#decodingApi) {
-      return;
-    }
-    let decodedRequest: DecodedRequestInfo;
-    try {
-      const { primaryType } = JSON.parse(request.params?.[1] ?? '');
-      if (primaryType === 'Permit') {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.decodingLoading = true;
+    });
+    getDecodingResult(request, chainId, this.#decodingApiUrl)
+      .then((decodedRequest) =>
         this.#updateMetadata(signatureRequestId, (draftMetadata) => {
-          draftMetadata.decodedRequest = 'IN_PROGRESS';
-        });
-        const { method, origin, params } = request;
-        fetch(`${this.#decodingApi}?chainId=${chainId}`, {
-          method: 'POST',
-          body: JSON.stringify({
-            method,
-            origin,
-            params: [
-              params?.[0],
-              JSON.parse(
-                convertNumbericValuestoQuotedString(params?.[1]) ?? '',
-              ),
-            ],
-          }),
-          headers: { 'Content-Type': 'application/json' },
-        })
-          .then((response) => {
-            return response.json();
-          })
-          .then((result) => {
-            decodedRequest = result;
-          })
-          .catch((error) => {
-            decodedRequest = {
-              error: {
-                message: error as string,
-                type: 'DECODING_FAILED_WITH_ERROR',
-              },
-            };
-          })
-          .finally(() => {
-            this.#updateMetadata(signatureRequestId, (draftMetadata) => {
-              draftMetadata.decodedRequest = decodedRequest;
-            });
-          });
-      }
-    } catch (error) {
-      this.#updateMetadata(signatureRequestId, (draftMetadata) => {
-        draftMetadata.decodedRequest = {
-          error: {
-            message: error as string,
-            type: 'DECODING_FAILED_WITH_ERROR',
-          },
-        };
-      });
-    }
+          draftMetadata.decodedRequest = decodedRequest;
+          draftMetadata.decodingLoading = false;
+        }),
+      )
+      .catch((error) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodedRequest = {
+            error: {
+              message: error as string,
+              type: 'DECODING_FAILED_WITH_ERROR',
+            },
+          };
+          draftMetadata.decodingLoading = false;
+        }),
+      );
   }
 }

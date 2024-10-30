@@ -7,20 +7,20 @@ export type OriginalRequest = {
   /** Unique ID to identify the client request. */
   id?: number;
 
+  /** Method of signature request */
+  method?: string;
+
   /** ID of the network client associated with the request. */
   networkClientId?: string;
 
   /** Source of the client request. */
   origin?: string;
 
-  /** Response following a security scan of the request. */
-  securityAlertResponse?: Record<string, Json>;
-
-  /** Method of signature request */
-  method?: string;
-
   /** Parameters in signature request */
   params?: string[];
+
+  /** Response following a security scan of the request. */
+  securityAlertResponse?: Record<string, Json>;
 };
 
 /** Options for signing typed data. */
@@ -133,6 +133,9 @@ type SignatureRequestBase = {
 
   /** Version of the signTypedData request. */
   version?: SignTypedDataVersion;
+
+  /** Field to know if decoding request is in progress */
+  decodingLoading?: boolean;
 
   /** Response from message decoding api. */
   decodedRequest?: DecodedRequestInfo;
