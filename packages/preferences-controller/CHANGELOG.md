@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Add tokenNetworkFilter to preferencesController state TBD
+- Add tokenNetworkFilter to preferencesController state (default value: `{}`) ([#4875](https://github.com/MetaMask/core/pull/4875))
 
 ### Added
 
