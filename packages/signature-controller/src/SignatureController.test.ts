@@ -924,8 +924,8 @@ describe('SignatureController', () => {
       );
 
       await flushPromises();
-      expect(controller.state.signatureRequests[ID_MOCK].decodedRequest).toBe(
-        'IN_PROGRESS',
+      expect(controller.state.signatureRequests[ID_MOCK].decodingData).toBe(
+        'DUMMY',
       );
     });
   });
