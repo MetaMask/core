@@ -1,12 +1,12 @@
-import type { DecodingData, OriginalRequest } from '../types';
-import { convertNumbericValuestoQuotedString } from './normalize';
+import type { OriginalRequest } from '../types';
+import { convertNumericValuesToQuotedString } from './normalize';
 
 /**
  * The function calls decoding api for typed signature V4 requests and returns the result.
  *
  * @param request - Signature request.
- * @param decodingApiUrl - URL of decoding api.
  * @param chainId - chainId of network of signature request.
+ * @param decodingApiUrl - URL of decoding api.
  * @returns Promise that resolved to give decoded data.
  */
 export async function getDecodingData(
@@ -17,7 +17,6 @@ export async function getDecodingData(
   if (!decodingApiUrl) {
     return undefined;
   }
-  let decodingData: DecodingData;
   try {
     const { method, origin, params } = request;
     if (request.method === 'eth_signTypedData_v4') {
@@ -28,20 +27,20 @@ export async function getDecodingData(
           origin,
           params: [
             params?.[0],
-            JSON.parse(convertNumbericValuestoQuotedString(params?.[1]) ?? ''),
+            JSON.parse(convertNumericValuesToQuotedString(params?.[1]) ?? ''),
           ],
         }),
         headers: { 'Content-Type': 'application/json' },
       });
-      decodingData = await response.json();
+      return await response.json();
     }
   } catch (error) {
-    decodingData = {
+    return {
       error: {
         message: error as string,
         type: 'DECODING_FAILED_WITH_ERROR',
       },
     };
   }
-  return decodingData;
+  return undefined;
 }
