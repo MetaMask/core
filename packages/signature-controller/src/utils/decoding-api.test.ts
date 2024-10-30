@@ -1,6 +1,7 @@
 import nock from 'nock';
 import nodeFetch from 'node-fetch';
 
+import type { OriginalRequest } from '../types';
 import { getDecodingData } from './decoding-api';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -78,5 +79,20 @@ describe('Decoding api', () => {
     );
 
     expect(result.error.type).toBe('DECODING_FAILED_WITH_ERROR');
+  });
+
+  it('return undefined for request not of method eth_signTypedData_v4', async () => {
+    const result = await getDecodingData(
+      { method: 'eth_signTypedData_v3' } as OriginalRequest,
+      '0x1',
+      'https://testdecodingurl.com',
+    );
+
+    expect(result.error).toStrictEqual({
+      error: {
+        message: 'Unsupported signature.',
+        type: 'UNSUPPORTED_SIGNATURE',
+      },
+    });
   });
 });

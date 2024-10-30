@@ -37,6 +37,12 @@ export async function getDecodingData(
       );
       return await response.json();
     }
+    return {
+      error: {
+        message: 'Unsupported signature.',
+        type: 'UNSUPPORTED_SIGNATURE',
+      },
+    };
   } catch (error: unknown) {
     return {
       error: {
@@ -45,5 +51,4 @@ export async function getDecodingData(
       },
     };
   }
-  return undefined;
 }
