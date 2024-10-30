@@ -906,15 +906,16 @@ export class SignatureController extends BaseController<
       draftMetadata.decodingLoading = true;
     });
     getDecodingData(request, chainId, this.#decodingApiUrl)
-      .then((decodedData) =>
+      .then((decodingData) =>
         this.#updateMetadata(signatureRequestId, (draftMetadata) => {
-          draftMetadata.decodingData = decodedData;
+          draftMetadata.decodingData = decodingData;
           draftMetadata.decodingLoading = false;
         }),
       )
       .catch((error) =>
         this.#updateMetadata(signatureRequestId, (draftMetadata) => {
           draftMetadata.decodingData = {
+            stateChanges: null,
             error: {
               message: error as string,
               type: 'DECODING_FAILED_WITH_ERROR',

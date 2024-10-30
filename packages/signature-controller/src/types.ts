@@ -92,12 +92,9 @@ type DecodingDataStateChanges = {
 
 /** Error details for unfulfilled the decoding request. */
 type DecodingDataError = {
-  assetType: string;
-  changeType: string;
-  address: string;
-  amount: string;
-  contractAddress: string;
-}[];
+  message: string;
+  type: string;
+};
 
 /** Decoding data about typed sign V4 signature request. */
 export type DecodingData = {
