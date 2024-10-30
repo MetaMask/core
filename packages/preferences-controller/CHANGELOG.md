@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `useSafeChainsListValidation` property to the `PreferencesController` state (default: `true`)
+  - Add `setUseSafeChainsListValidation` method to set this property
+- Add `tokenSortConfig` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `tokenSortConfig` property to the `PreferencesController` state (default value: `{ key: 'tokenFiatAmount', order: 'dsc', sortCallback: 'stringNumeric' }`)
+  - Add `setTokenSortConfig` method to set this property
+- Add `privacyMode` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `privacyMode` property to the `PreferencesController` state (default value: `false`)
+  - Add `setPrivacyMode` method to set this property
+
 ## [13.1.0]
 
 ### Changed
