@@ -282,25 +282,50 @@ export class PhishingDetector {
     };
   }
 
+  /**
+   * Scans a domain to determine if it is malicious by:
+   * 1. Checking against the allowlist, and if found, returning a safe result.
+   * 2. Fetching data from the dApp scan API to analyze risk.
+   * 3. Checking if the API recommends blocking the domain based on its risk profile.
+   *
+   * @param punycodeOrigin - The punycode-encoded domain to scan.
+   * @returns A PhishingDetectorResult indicating if the domain is safe or malicious.
+   */
   async scanDomain(punycodeOrigin: string): Promise<PhishingDetectorResult> {
     const fqdn = this.#normalizeDomain(punycodeOrigin);
-    const sourceParts = domainToParts(fqdn);
 
+    const sourceParts = domainToParts(fqdn);
     const allowlistResult = this.#checkAllowlist(sourceParts);
     if (allowlistResult) {
       return allowlistResult;
     }
 
-    return await this.#fetchDappScanResult(fqdn);
+    const data = await this.#fetchDappScanResult(fqdn);
+
+    if (data && data.recommendedAction === 'BLOCK') {
+      return {
+        result: true,
+        type: PhishingDetectorResultType.RealTimeDappScan,
+        name: 'DappScan',
+        version: '1',
+        match: fqdn,
+      };
+    }
+
+    // Otherwise, return a safe result
+    return {
+      result: false,
+      type: PhishingDetectorResultType.RealTimeDappScan,
+    };
   }
 
   /**
-   * Fetches the dApp scan result from the external API.
+   * Fetches the raw dApp scan result data from the external API.
    *
    * @param fqdn - The fully qualified domain name to scan.
-   * @returns A PhishingDetectorResult based on the API response.
+   * @returns The raw data from the dApp scan API or null if the request fails.
    */
-  async #fetchDappScanResult(fqdn: string): Promise<PhishingDetectorResult> {
+  async #fetchDappScanResult(fqdn: string): Promise<DappScanResponse | null> {
     const apiUrl = `${DAPP_SCAN_API_BASE_URL}${DAPP_SCAN_ENDPOINT}?url=${fqdn}`;
 
     try {
@@ -313,35 +338,15 @@ export class PhishingDetector {
         console.error(
           `dApp Scan API error: ${response.status} ${response.statusText}`,
         );
-        return {
-          result: false,
-          type: PhishingDetectorResultType.RealTimeDappScan,
-        };
+        return null;
       }
 
       const data: DappScanResponse = await response.json();
-
-      if (data.recommendedAction === 'BLOCK') {
-        return {
-          result: true,
-          type: PhishingDetectorResultType.RealTimeDappScan,
-          name: 'DappScan',
-          version: '1',
-          match: fqdn,
-        };
-      }
-
-      return {
-        result: false,
-        type: PhishingDetectorResultType.RealTimeDappScan,
-      };
+      return data;
     } catch (error) {
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       console.error(`dApp Scan fetch error: ${error}`);
-      return {
-        result: false,
-        type: PhishingDetectorResultType.RealTimeDappScan,
-      };
+      return null;
     }
   }
 
