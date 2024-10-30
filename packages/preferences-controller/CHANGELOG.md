@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Add tokenNetworkFilter to preferencesController state TBD
+
 ### Added
 
 - Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
