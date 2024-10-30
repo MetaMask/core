@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.0.1]
+
 ### Uncategorized
 
 - Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
@@ -207,7 +209,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@12.0.0...@metamask/polling-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@11.0.0...@metamask/polling-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.1...@metamask/polling-controller@11.0.0
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/polling-controller@10.0.0...@metamask/polling-controller@10.0.1

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.4.2]
+
 ### Uncategorized
 
 - chore: Move BigNumber.js to dependencies ([#4873](https://github.com/MetaMask/core/pull/4873))
@@ -416,7 +418,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.2...HEAD
+[11.4.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.1...@metamask/controller-utils@11.4.2
 [11.4.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.0...@metamask/controller-utils@11.4.1
 [11.4.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.3.0...@metamask/controller-utils@11.4.0
 [11.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.2.0...@metamask/controller-utils@11.3.0

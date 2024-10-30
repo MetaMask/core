@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.1]
+
 ### Uncategorized
 
 - Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
@@ -332,7 +334,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.1...HEAD
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@11.0.0...@metamask/message-manager@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.1...@metamask/message-manager@11.0.0
 [10.1.1]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.1.0...@metamask/message-manager@10.1.1
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/message-manager@10.0.3...@metamask/message-manager@10.1.0
