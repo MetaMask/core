@@ -913,7 +913,7 @@ describe('SignatureController', () => {
     });
 
     // eslint-disable-next-line jest/no-disabled-tests
-    it.skip('invoke decoding api for permits', async () => {
+    it('invoke decoding api for permits', async () => {
       const { controller } = createController();
 
       await controller.newUnsignedTypedMessage(
@@ -924,8 +924,8 @@ describe('SignatureController', () => {
       );
 
       await flushPromises();
-      expect(controller.state.signatureRequests[ID_MOCK].decodingData).toBe(
-        'DUMMY',
+      expect(controller.state.signatureRequests[ID_MOCK].decodingLoading).toBe(
+        false,
       );
     });
   });
