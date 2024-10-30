@@ -71,14 +71,8 @@ export type DappScanResponse = {
   status: string;
 };
 
-/**
- * RecommendedAction represents the warning type based on the risk factors.
- */
 type RecommendedAction = 'NONE' | 'WARN' | 'BLOCK';
 
-/**
- * Enum-like object to provide named constants for RecommendedAction values.
- */
 const RecommendedAction = {
   None: 'NONE' as RecommendedAction,
   Warn: 'WARN' as RecommendedAction,
@@ -297,10 +291,7 @@ export class PhishingDetector {
   }
 
   /**
-   * Scans a domain to determine if it is malicious by:
-   * 1. Checking against the allowlist, and if found, returning a safe result.
-   * 2. Fetching data from the dApp scan API to analyze risk.
-   * 3. Checking if the API recommends blocking the domain based on its risk profile.
+   * Scans a domain to determine if it is malicious
    *
    * @param punycodeOrigin - The punycode-encoded domain to scan.
    * @returns A PhishingDetectorResult indicating if the domain is safe or malicious.
@@ -334,10 +325,10 @@ export class PhishingDetector {
   }
 
   /**
-   * Fetches the raw dApp scan result data from the external API.
+   * Fetches the dApp scan result data from the dapp scanning API.
    *
    * @param fqdn - The fully qualified domain name to scan.
-   * @returns The raw data from the dApp scan API or null if the request fails.
+   * @returns The data from the dApp scan API or null if the request fails.
    */
   async #fetchDappScanResult(fqdn: string): Promise<DappScanResponse | null> {
     const apiUrl = `${DAPP_SCAN_API_BASE_URL}${DAPP_SCAN_ENDPOINT}?url=${fqdn}`;
