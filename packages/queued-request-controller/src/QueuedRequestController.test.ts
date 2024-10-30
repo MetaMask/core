@@ -25,6 +25,7 @@ describe('QueuedRequestController', () => {
     const options: QueuedRequestControllerOptions = {
       messenger: buildQueuedRequestControllerMessenger(),
       shouldRequestSwitchNetwork: () => false,
+      canRequestSwitchNetworkWithoutApproval: () => false,
       clearPendingConfirmations: jest.fn(),
       showApprovalRequest: jest.fn(),
     };
@@ -220,6 +221,40 @@ describe('QueuedRequestController', () => {
       await secondRequest;
 
       expect(mockShowApprovalRequest).toHaveBeenCalledTimes(1);
+    });
+
+    it('queues request if a requests are already being processed on the same origin, but canRequestSwitchNetworkWithoutApproval returns true', async () => {
+      const controller = buildQueuedRequestController({
+        canRequestSwitchNetworkWithoutApproval: jest
+          .fn()
+          .mockImplementation(
+            (request) =>
+              request.method === 'method_can_switch_network_without_approval',
+          ),
+      });
+      // Trigger first request
+      const firstRequest = controller.enqueueRequest(
+        { ...buildRequest(), origin: 'https://sameorigin.metamask.io' },
+        () => new Promise((resolve) => setTimeout(resolve, 10)),
+      );
+      // ensure first request skips queue
+      expect(controller.state.queuedRequestCount).toBe(0);
+
+      const secondRequestNext = jest.fn();
+      const secondRequest = controller.enqueueRequest(
+        {
+          ...buildRequest(),
+          origin: 'https://sameorigin.metamask.io',
+          method: 'method_can_switch_network_without_approval',
+        },
+        secondRequestNext,
+      );
+
+      expect(controller.state.queuedRequestCount).toBe(1);
+      expect(secondRequestNext).not.toHaveBeenCalled();
+
+      await firstRequest;
+      await secondRequest;
     });
 
     it('drains batch from queue when current batch finishes', async () => {
@@ -1063,6 +1098,146 @@ describe('QueuedRequestController', () => {
       });
     });
 
+    describe('when the first request in a batch can switch the network', () => {
+      it('waits on processing the request first in the current batch', async () => {
+        const { messenger } = buildControllerMessenger({
+          networkControllerGetState: jest.fn().mockReturnValue({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'mainnet',
+          }),
+        });
+        const controller = buildQueuedRequestController({
+          messenger: buildQueuedRequestControllerMessenger(messenger),
+          canRequestSwitchNetworkWithoutApproval: jest
+            .fn()
+            .mockImplementation(
+              (request) =>
+                request.method === 'method_can_switch_network_without_approval',
+            ),
+        });
+
+        const firstRequest = controller.enqueueRequest(
+          buildRequest(),
+          () => new Promise((resolve) => setTimeout(resolve, 10)),
+        );
+        // ensure first request skips queue
+        expect(controller.state.queuedRequestCount).toBe(0);
+
+        const secondRequestNext = jest
+          .fn()
+          .mockImplementation(
+            () => new Promise((resolve) => setTimeout(resolve, 10)),
+          );
+        const secondRequest = controller.enqueueRequest(
+          {
+            ...buildRequest(),
+
+            method: 'method_can_switch_network_without_approval',
+          },
+          secondRequestNext,
+        );
+
+        const thirdRequestNext = jest
+          .fn()
+          .mockImplementation(
+            () => new Promise((resolve) => setTimeout(resolve, 10)),
+          );
+        const thirdRequest = controller.enqueueRequest(
+          buildRequest(),
+          thirdRequestNext,
+        );
+
+        // ensure test starts with two requests queued up
+        expect(controller.state.queuedRequestCount).toBe(2);
+        expect(secondRequestNext).not.toHaveBeenCalled();
+        expect(thirdRequestNext).not.toHaveBeenCalled();
+
+        // does not call the third request yet since it
+        // should be waiting for the second to complete
+        await firstRequest;
+        await secondRequest;
+        expect(secondRequestNext).toHaveBeenCalled();
+        expect(thirdRequestNext).not.toHaveBeenCalled();
+
+        await thirdRequest;
+        expect(thirdRequestNext).toHaveBeenCalled();
+      });
+
+      it('flushes the queue for the origin if the request changes the network', async () => {
+        const networkControllerGetState = jest.fn().mockReturnValue({
+          ...getDefaultNetworkControllerState(),
+          selectedNetworkClientId: 'mainnet',
+        });
+        const { messenger } = buildControllerMessenger({
+          networkControllerGetState,
+        });
+        const controller = buildQueuedRequestController({
+          messenger: buildQueuedRequestControllerMessenger(messenger),
+          canRequestSwitchNetworkWithoutApproval: jest
+            .fn()
+            .mockImplementation(
+              (request) =>
+                request.method === 'method_can_switch_network_without_approval',
+            ),
+        });
+
+        // no switch required
+        const firstRequest = controller.enqueueRequest(
+          buildRequest(),
+          () => new Promise((resolve) => setTimeout(resolve, 10)),
+        );
+        // ensure first request skips queue
+        expect(controller.state.queuedRequestCount).toBe(0);
+
+        const secondRequestNext = jest.fn().mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              networkControllerGetState.mockReturnValue({
+                ...getDefaultNetworkControllerState(),
+                selectedNetworkClientId: 'newNetworkClientId',
+              });
+              resolve(undefined);
+            }),
+        );
+        const secondRequest = controller.enqueueRequest(
+          {
+            ...buildRequest(),
+            method: 'method_can_switch_network_without_approval',
+          },
+          secondRequestNext,
+        );
+
+        const thirdRequestNext = jest
+          .fn()
+          .mockImplementation(
+            () => new Promise((resolve) => setTimeout(resolve, 10)),
+          );
+        const thirdRequest = controller.enqueueRequest(
+          buildRequest(),
+          thirdRequestNext,
+        );
+
+        // ensure test starts with two requests queued up
+        expect(controller.state.queuedRequestCount).toBe(2);
+        expect(secondRequestNext).not.toHaveBeenCalled();
+        expect(thirdRequestNext).not.toHaveBeenCalled();
+
+        // does not call the third request yet since it
+        // should not be in the same batch as the second
+        await firstRequest;
+        await secondRequest;
+        expect(secondRequestNext).toHaveBeenCalled();
+        expect(thirdRequestNext).not.toHaveBeenCalled();
+
+        await expect(thirdRequest).rejects.toThrow(
+          new Error(
+            'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+          ),
+        );
+        expect(thirdRequestNext).not.toHaveBeenCalled();
+      });
+    });
+
     describe('when a request fails', () => {
       it('throws error', async () => {
         const controller = buildQueuedRequestController();
@@ -1146,6 +1321,7 @@ describe('QueuedRequestController', () => {
         messenger: buildQueuedRequestControllerMessenger(messenger),
         shouldRequestSwitchNetwork: ({ method }) =>
           method === 'eth_sendTransaction',
+        canRequestSwitchNetworkWithoutApproval: () => false,
         clearPendingConfirmations: jest.fn(),
         showApprovalRequest: jest.fn(),
       };
@@ -1229,6 +1405,7 @@ describe('QueuedRequestController', () => {
         messenger: buildQueuedRequestControllerMessenger(messenger),
         shouldRequestSwitchNetwork: ({ method }) =>
           method === 'eth_sendTransaction',
+        canRequestSwitchNetworkWithoutApproval: () => false,
         clearPendingConfirmations: jest.fn(),
         showApprovalRequest: jest.fn(),
       };
@@ -1352,6 +1529,7 @@ function buildQueuedRequestController(
   const options: QueuedRequestControllerOptions = {
     messenger: buildQueuedRequestControllerMessenger(),
     shouldRequestSwitchNetwork: () => false,
+    canRequestSwitchNetworkWithoutApproval: () => false,
     clearPendingConfirmations: jest.fn(),
     showApprovalRequest: jest.fn(),
     ...overrideOptions,
