@@ -2060,6 +2060,17 @@ export class NftController extends BaseController<
       });
     }
   }
+
+  /**
+   * Reset the controller state to the initial state.
+   */
+  resetState() {
+    this.update((state) => {
+      state.allNftContracts = {};
+      state.allNfts = {};
+      state.ignoredNfts = [];
+    });
+  }
 }
 
 export default NftController;

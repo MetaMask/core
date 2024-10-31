@@ -1077,6 +1077,20 @@ export class TokensController extends BaseController<
     );
     return account?.address || '';
   }
+
+  /**
+   * Reset the controller state to the initial state.
+   */
+  resetState() {
+    this.update((state) => {
+      state.tokens = [];
+      state.ignoredTokens = [];
+      state.detectedTokens = [];
+      state.allTokens = {};
+      state.allIgnoredTokens = {};
+      state.allDetectedTokens = {};
+    });
+  }
 }
 
 export default TokensController;
