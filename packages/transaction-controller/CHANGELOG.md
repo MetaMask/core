@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [38.2.0]
+
+### Added
+
+- Add staking transaction types ([#4874](https://github.com/MetaMask/core/pull/4874))
+  - `stakingClaim`
+  - `stakingDeposit`
+  - `stakingUnstake`
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.1` to `^11.4.2` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/accounts-controller` from `^18.2.2` to `^18.2.3` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/network-controller` from `^22.0.0` to `^22.0.1` ([#4870](https://github.com/MetaMask/core/pull/4870))
+
 ## [38.1.0]
 
 ### Added
@@ -1088,7 +1103,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.2.0...HEAD
+[38.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.1.0...@metamask/transaction-controller@38.2.0
 [38.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.0.0...@metamask/transaction-controller@38.1.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.3.0...@metamask/transaction-controller@38.0.0
 [37.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.2.0...@metamask/transaction-controller@37.3.0

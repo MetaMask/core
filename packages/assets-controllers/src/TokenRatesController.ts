@@ -789,6 +789,15 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
 
     return updatedContractExchangeRates;
   }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultTokenRatesControllerState();
+    });
+  }
 }
 
 export default TokenRatesController;

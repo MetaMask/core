@@ -38,6 +38,7 @@ import type {
   AllowedEvents,
   Token,
   TokenRatesControllerMessenger,
+  TokenRatesControllerState,
 } from './TokenRatesController';
 import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
@@ -2339,6 +2340,56 @@ describe('TokenRatesController', () => {
           },
         );
       });
+    });
+  });
+
+  describe('resetState', () => {
+    it('resets the state to default state', async () => {
+      const initialState: TokenRatesControllerState = {
+        marketData: {
+          [ChainId.mainnet]: {
+            '0x02': {
+              currency: 'ETH',
+              priceChange1d: 0,
+              pricePercentChange1d: 0,
+              tokenAddress: '0x02',
+              allTimeHigh: 4000,
+              allTimeLow: 900,
+              circulatingSupply: 2000,
+              dilutedMarketCap: 100,
+              high1d: 200,
+              low1d: 100,
+              marketCap: 1000,
+              marketCapPercentChange1d: 100,
+              price: 0.001,
+              pricePercentChange14d: 100,
+              pricePercentChange1h: 1,
+              pricePercentChange1y: 200,
+              pricePercentChange200d: 300,
+              pricePercentChange30d: 200,
+              pricePercentChange7d: 100,
+              totalVolume: 100,
+            },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          controller.resetState();
+
+          expect(controller.state).toStrictEqual({
+            marketData: {},
+          });
+        },
+      );
     });
   });
 });
