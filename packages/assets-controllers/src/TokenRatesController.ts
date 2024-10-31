@@ -761,8 +761,8 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * Reset the controller state to the initial state.
    */
   resetState() {
-    this.update((state) => {
-      state.marketData = {};
+    this.update(() => {
+      return getDefaultTokenRatesControllerState();
     });
   }
 }

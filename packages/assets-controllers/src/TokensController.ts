@@ -1082,13 +1082,8 @@ export class TokensController extends BaseController<
    * Reset the controller state to the initial state.
    */
   resetState() {
-    this.update((state) => {
-      state.tokens = [];
-      state.ignoredTokens = [];
-      state.detectedTokens = [];
-      state.allTokens = {};
-      state.allIgnoredTokens = {};
-      state.allDetectedTokens = {};
+    this.update(() => {
+      return getDefaultTokensState();
     });
   }
 }

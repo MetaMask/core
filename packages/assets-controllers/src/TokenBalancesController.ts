@@ -225,8 +225,8 @@ export class TokenBalancesController extends BaseController<
    * Reset the controller state to the initial state.
    */
   resetState() {
-    this.update((state) => {
-      state.contractBalances = {};
+    this.update(() => {
+      return getDefaultTokenBalancesState();
     });
   }
 }
