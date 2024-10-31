@@ -211,6 +211,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   // Eventually we want to remove start/restart/stop controls in favor of new _executePoll API
   // Maintaining these functions for now until we can safely deprecate them for backwards compatibility
   /**
+   * Prepare to discard this method.
+   *
    * Start polling for the token list.
    */
   async start() {
@@ -221,6 +223,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * Prepare to discard this method.
+   *
    * Restart polling for the token list.
    */
   async restart() {
@@ -229,6 +233,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
+   * Prepare to discard this method.
+   *
    * Stop polling for the token list.
    */
   stop() {
@@ -236,7 +242,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Prepare to discard this controller.
+   * Prepare to discard this method.
    *
    * This stops any active polling.
    */
@@ -252,9 +258,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Starts a new polling interval for a given chainId
-   * @param input - The input for the poll.
-   * @param input.chainId - The chainId of the chain to trigger the fetch.
+   * Prepare to discard this method.
+   *
+   * Starts a new polling interval for a given chainId (this should be deprecated in favor of _executePoll)
    */
   async #startPolling(): Promise<void> {
     await safelyExecute(() => this.fetchTokenList(this.chainId));
@@ -266,7 +272,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * This starts a new polling loop for any given chain. Under the hood it is deduping polls
    *
    * @private
    * @param input - The input for the poll.
