@@ -6,6 +6,7 @@ import type {
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
   NetworkControllerStateChangeEvent,
+  NetworkState,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
@@ -111,12 +112,16 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
 
   private readonly cacheRefreshThreshold: number;
 
-  private readonly abortController: AbortController;
+  private chainId: Hex;
+
+  private abortController: AbortController;
 
   /**
    * Creates a TokenListController instance.
    *
    * @param options - The controller options.
+   * @param options.chainId - The chain ID of the current network.
+   * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
    * @param options.messenger - A restricted controller messenger.
@@ -124,13 +129,19 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */
   constructor({
+    chainId,
     preventPollingOnNetworkRestart = false,
+    onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
     messenger,
     state,
   }: {
+    chainId: Hex;
     preventPollingOnNetworkRestart?: boolean;
+    onNetworkStateChange?: (
+      listener: (networkState: NetworkState) => void,
+    ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
     messenger: TokenListControllerMessenger;
@@ -144,18 +155,67 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     });
     this.intervalDelay = interval;
     this.cacheRefreshThreshold = cacheRefreshThreshold;
+    this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
     this.abortController = new AbortController();
+    if (onNetworkStateChange) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      onNetworkStateChange(async (networkControllerState) => {
+        await this.#onNetworkControllerStateChange(networkControllerState);
+      });
+    } else {
+      this.messagingSystem.subscribe(
+        'NetworkController:stateChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
+        async (networkControllerState) => {
+          await this.#onNetworkControllerStateChange(networkControllerState);
+        },
+      );
+    }
+  }
+
+  /**
+   * Updates state and restarts polling on changes to the network controller
+   * state.
+   *
+   * @param networkControllerState - The updated network controller state.
+   */
+  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
+    const selectedNetworkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkControllerState.selectedNetworkClientId,
+    );
+    const { chainId } = selectedNetworkClient.configuration;
+
+    if (this.chainId !== chainId) {
+      this.abortController.abort();
+      this.abortController = new AbortController();
+      this.chainId = chainId;
+      if (this.state.preventPollingOnNetworkRestart) {
+        this.clearingTokenListData();
+      } else {
+        // Ensure tokenList is referencing data from correct network
+        this.update(() => {
+          return {
+            ...this.state,
+            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
+          };
+        });
+        await this.restart();
+      }
+    }
   }
 
   /**
    * Start polling for the token list.
    */
   async start() {
-    if (!isTokenListSupportedForNetwork(pollingInput.chainId)) {
+    if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
-    await this.#startPolling(pollingInput.chainId);
+    await this.#startPolling();
   }
 
   /**
@@ -163,7 +223,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   async restart() {
     this.stopPolling();
-    await this.#startPolling(pollingInput.chainId);
+    await this.#startPolling();
   }
 
   /**
@@ -194,12 +254,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    * @param input - The input for the poll.
    * @param input.chainId - The chainId of the chain to trigger the fetch.
    */
-  async #startPolling({ chainId }: TokenListPollingInput): Promise<void> {
-    await safelyExecute(() => this._executePoll({ chainId }));
+  async #startPolling(): Promise<void> {
+    await safelyExecute(() => this.fetchTokenList(this.chainId));
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this._executePoll({ chainId }));
+      await safelyExecute(() => this.fetchTokenList(this.chainId));
     }, this.intervalDelay);
   }
 
@@ -216,9 +276,9 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * Fetching token list from the Token Service API. This will fetch tokens across chains. It will update tokensChainsCache (scoped across chains), and also the tokenList (scoped for the selected chain)
    *
-   * @param chainId - The chainId of the network client triggering the fetch.
+   * @param chainId - The chainId of the current chain triggering the fetch.
    */
   async fetchTokenList(chainId: Hex): Promise<void> {
     const releaseLock = await this.mutex.acquire();
