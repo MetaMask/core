@@ -79,6 +79,9 @@ export type QueuedRequestControllerOptions = {
   shouldRequestSwitchNetwork: (
     request: QueuedRequestMiddlewareJsonRpcRequest,
   ) => boolean;
+  canRequestSwitchNetworkWithoutApproval: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
   clearPendingConfirmations: () => void;
   showApprovalRequest: () => void;
 };
@@ -88,19 +91,19 @@ export type QueuedRequestControllerOptions = {
  */
 type QueuedRequest = {
   /**
-   * The origin of the queued request.
+   * The request being queued.
    */
-  origin: string;
-
-  /**
-   * The networkClientId of the queuedRequest.
-   */
-  networkClientId: NetworkClientId;
+  request: QueuedRequestMiddlewareJsonRpcRequest;
 
   /**
    * A callback used to continue processing the request, called when the request is dequeued.
    */
-  processRequest: (error: unknown) => void;
+  processRequest: (error?: unknown) => void;
+
+  /**
+   * A deferred promise that resolves when the request is processed.
+   */
+  requestHasBeenProcessed: Promise<void>;
 };
 
 /**
@@ -160,6 +163,18 @@ export class QueuedRequestController extends BaseController<
   ) => boolean;
 
   /**
+   * This is a function that returns true if a request can change the
+   * globally selected network without prompting the user for approval.
+   * This is necessary to prevent UI/UX problems that can arise when methods
+   * change the globally selected network without prompting the user as the
+   * QueuedRequestController must clear any queued requests that come after
+   * the request that changed the globally selected network.
+   */
+  readonly #canRequestSwitchNetworkWithoutApproval: (
+    request: QueuedRequestMiddlewareJsonRpcRequest,
+  ) => boolean;
+
+  /**
    * This is a function that clears all pending confirmations across
    * several controllers that may handle them.
    */
@@ -177,6 +192,7 @@ export class QueuedRequestController extends BaseController<
    * @param options - Controller options.
    * @param options.messenger - The restricted controller messenger that facilitates communication with other controllers.
    * @param options.shouldRequestSwitchNetwork - A function that returns if a request requires the globally selected network to match the dapp selected network.
+   * @param options.canRequestSwitchNetworkWithoutApproval - A function that returns if a request will switch the globally selected network without prompting for user approval.
    * @param options.clearPendingConfirmations - A function that will clear all the pending confirmations.
    * @param options.showApprovalRequest - A function for opening the UI such that
    * the existing request can be displayed to the user.
@@ -184,6 +200,7 @@ export class QueuedRequestController extends BaseController<
   constructor({
     messenger,
     shouldRequestSwitchNetwork,
+    canRequestSwitchNetworkWithoutApproval,
     clearPendingConfirmations,
     showApprovalRequest,
   }: QueuedRequestControllerOptions) {
@@ -200,6 +217,8 @@ export class QueuedRequestController extends BaseController<
     });
 
     this.#shouldRequestSwitchNetwork = shouldRequestSwitchNetwork;
+    this.#canRequestSwitchNetworkWithoutApproval =
+      canRequestSwitchNetworkWithoutApproval;
     this.#clearPendingConfirmations = clearPendingConfirmations;
     this.#showApprovalRequest = showApprovalRequest;
     this.#registerMessageHandlers();
@@ -238,7 +257,7 @@ export class QueuedRequestController extends BaseController<
   // we intend to remove queueing for multichain requests in the future, so for now we have to live with this.
   #flushQueueForOrigin(flushOrigin: string) {
     this.#requestQueue
-      .filter(({ origin }) => origin === flushOrigin)
+      .filter(({ request }) => request.origin === flushOrigin)
       .forEach(({ processRequest }) => {
         processRequest(
           new Error(
@@ -247,7 +266,7 @@ export class QueuedRequestController extends BaseController<
         );
       });
     this.#requestQueue = this.#requestQueue.filter(
-      ({ origin }) => origin !== flushOrigin,
+      ({ request }) => request.origin !== flushOrigin,
     );
   }
 
@@ -263,30 +282,66 @@ export class QueuedRequestController extends BaseController<
    */
   async #processNextBatch() {
     const firstRequest = this.#requestQueue.shift() as QueuedRequest;
-    this.#originOfCurrentBatch = firstRequest.origin;
-    this.#networkClientIdOfCurrentBatch = firstRequest.networkClientId;
-    const batch = [firstRequest.processRequest];
+    this.#originOfCurrentBatch = firstRequest.request.origin;
+    this.#networkClientIdOfCurrentBatch = firstRequest.request.networkClientId;
+    const batch = [firstRequest];
 
-    // alternatively we could still batch by only origin but switch networks in batches by
-    // adding the network clientId to the values in the batch array
-    while (
-      this.#requestQueue[0]?.networkClientId ===
-        this.#networkClientIdOfCurrentBatch &&
-      this.#requestQueue[0]?.origin === this.#originOfCurrentBatch
-    ) {
-      const nextEntry = this.#requestQueue.shift() as QueuedRequest;
-      batch.push(nextEntry.processRequest);
-    }
-    // If globally selected network is different from origin selected network,
-    // switch network before processing batch
     let networkSwitchError: unknown;
     try {
-      await this.#switchNetworkIfNecessary(firstRequest.networkClientId);
+      // If globally selected network is different from origin selected network,
+      // switch network before processing batch
+      await this.#switchNetworkIfNecessary(
+        firstRequest.request.networkClientId,
+      );
     } catch (error: unknown) {
       networkSwitchError = error;
     }
 
-    for (const processRequest of batch) {
+    // If the first request might switch the network, process the request by
+    // itself. If the request does change the network, clear the queue for the
+    // origin since it any remaining requests are now invalidated
+    if (this.#canRequestSwitchNetworkWithoutApproval(firstRequest.request)) {
+      // This hack prevents the next batch from being processed
+      // after this request returns. This is necessary because
+      // we may need to flush the queue before the next set of requests
+      // are batched and processed, which we cannot do without blocking
+      // the queue from continuing by artificially increasing the processing
+      // request count
+      this.#processingRequestCount += 1;
+      try {
+        firstRequest.processRequest(networkSwitchError);
+        this.#updateQueuedRequestCount();
+        await firstRequest.requestHasBeenProcessed;
+      } finally {
+        this.#processingRequestCount -= 1;
+      }
+      const { selectedNetworkClientId } = this.messagingSystem.call(
+        'NetworkController:getState',
+      );
+      if (this.#networkClientIdOfCurrentBatch !== selectedNetworkClientId) {
+        this.#flushQueueForOrigin(this.#originOfCurrentBatch);
+      }
+      // Re-trigger processing of next batch because the `this.#processingRequestCount` guard above
+      // prevents it from being triggered when it typically would, after the request resolves.
+      this.#processNextBatchIfReady();
+      return;
+    }
+
+    // alternatively we could still batch by only origin but switch networks in batches by
+    // adding the network clientId to the values in the batch array
+    while (
+      this.#requestQueue[0]?.request.networkClientId ===
+        this.#networkClientIdOfCurrentBatch &&
+      this.#requestQueue[0]?.request.origin === this.#originOfCurrentBatch &&
+      !this.#canRequestSwitchNetworkWithoutApproval(
+        this.#requestQueue[0]?.request,
+      )
+    ) {
+      const nextEntry = this.#requestQueue.shift() as QueuedRequest;
+      batch.push(nextEntry);
+    }
+
+    for (const { processRequest } of batch) {
       processRequest(networkSwitchError);
     }
     this.#updateQueuedRequestCount();
@@ -329,30 +384,60 @@ export class QueuedRequestController extends BaseController<
     });
   }
 
-  async #waitForDequeue({
-    origin,
-    networkClientId,
-  }: {
-    origin: string;
-    networkClientId: NetworkClientId;
-  }): Promise<void> {
-    const { promise, reject, resolve } = createDeferredPromise({
+  /**
+   * Adds a request to the queue to be processed. A promise is returned that resolves/rejects when
+   * this request should continue execution/fail early. Additionally it returns a callback that
+   * must be called after the request finishes execution.
+   *
+   * Internally, the controller triggers the above returned promise to resolve via the `processRequest`.
+   *
+   * @param request - The JSON-RPC request to process.
+   * @returns A promise resolves on dequeue and callback to notify request completion.
+   */
+  #waitForDequeue(request: QueuedRequestMiddlewareJsonRpcRequest) {
+    const {
+      promise: dequeuedPromise,
+      reject,
+      resolve,
+    } = createDeferredPromise({
       suppressUnhandledRejection: true,
     });
+    const { promise: requestHasBeenProcessed, resolve: requestHasEnded } =
+      createDeferredPromise({
+        suppressUnhandledRejection: true,
+      });
     this.#requestQueue.push({
-      origin,
-      networkClientId,
-      processRequest: (error: unknown) => {
+      request,
+      processRequest: (error?: unknown) => {
         if (error) {
           reject(error);
         } else {
           resolve();
         }
       },
+      requestHasBeenProcessed,
     });
     this.#updateQueuedRequestCount();
 
-    return promise;
+    return { dequeuedPromise, requestHasEnded };
+  }
+
+  /**
+   * Prepares controller state for the next batch if the current
+   * batch is completed and starts processing the next batch if
+   * there are requests left in the queue.
+   */
+  #processNextBatchIfReady() {
+    if (this.#processingRequestCount === 0) {
+      this.#originOfCurrentBatch = undefined;
+      this.#networkClientIdOfCurrentBatch = undefined;
+      if (this.#requestQueue.length > 0) {
+        // The next batch is triggered here. We intentionally omit the `await` because we don't
+        // want the next batch to block resolution of the current request.
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        this.#processNextBatch();
+      }
+    }
   }
 
   /**
@@ -387,18 +472,37 @@ export class QueuedRequestController extends BaseController<
     }
 
     try {
+      let requestHasEnded: (() => void) | undefined;
+
+      // This case exists because request with methods like
+      // wallet_addEthereumChain and wallet_switchEthereumChain
+      // have the potential to change the globally selected network
+      // without prompting for user approval. When there are existing
+      // processing requests and a new request for one of the methods
+      // above is not queued but instead allowed to execute immediately
+      // and change the globally selected network, all existing processing
+      // requests get cleared. It is not obvious to the user why those
+      // requests were cleared as the new wallet_addEthereumChain or
+      // wallet_switchEthereumChain request may not have an
+      // associated approval with it. To deal with this potential
+      // edge case, we always queue these type of requests if there
+      // are existing requests still being processed.
+      const requestCouldClearProcessingBatchWithoutApproval =
+        this.#processingRequestCount > 0 &&
+        this.#canRequestSwitchNetworkWithoutApproval(request);
+
       // Queue request for later processing
       // Network switch is handled when this batch is processed
       if (
         this.state.queuedRequestCount > 0 ||
         this.#originOfCurrentBatch !== request.origin ||
-        this.#networkClientIdOfCurrentBatch !== request.networkClientId
+        this.#networkClientIdOfCurrentBatch !== request.networkClientId ||
+        requestCouldClearProcessingBatchWithoutApproval
       ) {
         this.#showApprovalRequest();
-        await this.#waitForDequeue({
-          origin: request.origin,
-          networkClientId: request.networkClientId,
-        });
+        const dequeue = this.#waitForDequeue(request);
+        requestHasEnded = dequeue.requestHasEnded;
+        await dequeue.dequeuedPromise;
       } else if (this.#shouldRequestSwitchNetwork(request)) {
         // Process request immediately
         // Requires switching network now if necessary
@@ -408,20 +512,12 @@ export class QueuedRequestController extends BaseController<
       try {
         await requestNext();
       } finally {
+        requestHasEnded?.();
         this.#processingRequestCount -= 1;
       }
       return undefined;
     } finally {
-      if (this.#processingRequestCount === 0) {
-        this.#originOfCurrentBatch = undefined;
-        this.#networkClientIdOfCurrentBatch = undefined;
-        if (this.#requestQueue.length > 0) {
-          // The next batch is triggered here. We intentionally omit the `await` because we don't
-          // want the next batch to block resolution of the current request.
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          this.#processNextBatch();
-        }
-      }
+      this.#processNextBatchIfReady();
     }
   }
 }

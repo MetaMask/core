@@ -69,6 +69,8 @@
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/assets-controller/package.json          @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
 /packages/assets-controller/CHANGELOG.md          @MetaMask/metamask-assets @MetaMask/wallet-framework-engineers
+/packages/chain-controller/package.json           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
+/packages/chain-controller/CHANGELOG.md           @MetaMask/accounts-engineers @MetaMask/wallet-framework-engineers
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/wallet-framework-engineers
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/wallet-framework-engineers
@@ -85,6 +87,8 @@
 /packages/notification-controller/CHANGELOG.md    @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
+/packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers
