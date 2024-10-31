@@ -1,3 +1,4 @@
+import { BigNumber } from '@ethersproject/bignumber';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import { NetworkClientType } from '@metamask/network-controller';
 
@@ -861,5 +862,79 @@ describe('AssetsContractController with NetworkClientId', () => {
     );
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
     messenger.clearEventSubscriptions('NetworkController:stateChange');
+  });
+
+  it('should get the staked ethereum balance for an address', async () => {
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.configure({ provider });
+
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        // getShares
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+                data: '0xf04da65b0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000de0b6b3a7640000',
+          },
+        },
+        // convertToAssets
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+                data: '0x07a2d13a0000000000000000000000000000000000000000000000000de0b6b3a7640000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000001bc16d674ec80000',
+          },
+        },
+      ],
+    });
+
+    const balance = await assetsContract.getStakedBalanceForChain(
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      'mainnet',
+    );
+
+    // exchange rate shares = 1e18
+    // exchange rate share to assets = 2e18
+    // user shares = 1e18
+    // user assets = 2e18
+
+    expect(balance).toBeDefined();
+    expect(balance).toBe('0x1bc16d674ec80000');
+    expect(BigNumber.from(balance).toString()).toBe((2e18).toString());
+
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should default staked ethereum balance to undefined if network is not supported', async () => {
+    const { assetsContract, provider } = await setupAssetContractControllers();
+    assetsContract.configure({ provider });
+
+    const balance = await assetsContract.getStakedBalanceForChain(
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+      'sepolia',
+    );
+
+    expect(balance).toBeUndefined();
   });
 });
