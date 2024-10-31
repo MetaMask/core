@@ -222,7 +222,7 @@ export class TokenBalancesController extends BaseController<
   }
 
   /**
-   * Reset the controller state to the initial state.
+   * Reset the controller state to the default state.
    */
   resetState() {
     this.update(() => {
