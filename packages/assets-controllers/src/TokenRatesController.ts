@@ -620,6 +620,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     }
 
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
+      chainId,
       tokenAddresses,
       nativeCurrency,
     });
@@ -724,6 +725,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * API, then convert the prices to our desired native currency.
    *
    * @param args - The arguments to this function.
+   * @param args.chainId - The chain id to fetch prices for.
    * @param args.tokenAddresses - Addresses for tokens.
    * @param args.nativeCurrency - The native currency in which to request
    * prices.
@@ -731,9 +733,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * native currency.
    */
   async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
+    chainId,
     tokenAddresses,
     nativeCurrency,
   }: {
+    chainId: Hex;
     tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
@@ -743,7 +747,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     ] = await Promise.all([
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses,
-        chainId: this.#chainId,
+        chainId,
         nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
       getCurrencyConversionRate({
