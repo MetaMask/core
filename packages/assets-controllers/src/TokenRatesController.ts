@@ -334,6 +334,9 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
             ),
         );
 
+        this.#allTokens = allTokens;
+        this.#allDetectedTokens = allDetectedTokens;
+
         const { networkConfigurationsByChainId } = this.messagingSystem.call(
           'NetworkController:getState',
         );
@@ -351,9 +354,6 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
             }
           }),
         );
-
-        this.#allTokens = allTokens;
-        this.#allDetectedTokens = allDetectedTokens;
       },
       ({ allTokens, allDetectedTokens }) => {
         return { allTokens, allDetectedTokens };
