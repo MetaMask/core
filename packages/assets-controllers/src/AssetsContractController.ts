@@ -705,8 +705,8 @@ export class AssetsContractController {
     address: string,
     networkClientId?: NetworkClientId,
   ): Promise<StakedBalance> {
-    const chainId = this.getChainId(networkClientId);
-    const provider = this.getProvider(networkClientId);
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
 
     // balance defaults to zero
     let balance: BigNumber = BigNumber.from(0);
