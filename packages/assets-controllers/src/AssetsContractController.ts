@@ -752,7 +752,7 @@ export class AssetsContractController {
 
       // convert shares to assets only if address shares > 0 else return default balance
       if (!userShares.lte(0)) {
-        balance = await contract.convertToAssets(userShares);
+        balance = await contract.convertToAssets(userShares.toString());
       }
     } catch (error) {
       // if we get an error, log and return the default value
