@@ -248,6 +248,123 @@ describe('AccountTrackerController', () => {
           },
         );
       });
+
+      it('should update staked balance when includeStakedAssets is enabled', async () => {
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x10'))
+          .mockReturnValueOnce(Promise.resolve('0x11'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+            },
+            isMultiAccountBalancesEnabled: false,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x10', stakedBalance: '0x1' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x10',
+                    stakedBalance: '0x1',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x0',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
+
+      it('should not update staked balance when includeStakedAssets is disabled', async () => {
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x13'))
+          .mockReturnValueOnce(Promise.resolve('0x14'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: false,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+            },
+            isMultiAccountBalancesEnabled: false,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x13' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x13',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x0',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
+
+      it('should update staked balance when includeStakedAssets and multi-account is enabled', async () => {
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x11'))
+          .mockReturnValueOnce(Promise.resolve('0x12'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x11', stakedBalance: '0x1' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x12', stakedBalance: '0x1' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x11',
+                    stakedBalance: '0x1',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x12',
+                    stakedBalance: '0x1',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
     });
 
     describe('with networkClientId', () => {
@@ -438,6 +555,185 @@ describe('AccountTrackerController', () => {
           },
         );
       });
+
+      it('should update staked balance when includeStakedAssets is enabled', async () => {
+        const networkClientId = 'holesky';
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x10'))
+          .mockReturnValueOnce(Promise.resolve('0x11'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+            },
+            isMultiAccountBalancesEnabled: false,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x4268',
+              }),
+            },
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x10', stakedBalance: '0x1' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x10',
+                    stakedBalance: '0x1',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x0',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
+
+      it('should not update staked balance when includeStakedAssets is disabled', async () => {
+        const networkClientId = 'holesky';
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x13'))
+          .mockReturnValueOnce(Promise.resolve('0x14'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: false,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+            },
+            isMultiAccountBalancesEnabled: false,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x4268',
+              }),
+            },
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x13' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x13',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x0',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
+
+      it('should update staked balance when includeStakedAssets and multi-account is enabled', async () => {
+        const networkClientId = 'holesky';
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x11'))
+          .mockReturnValueOnce(Promise.resolve('0x12'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x4268',
+              }),
+            },
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x11', stakedBalance: '0x1' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x12', stakedBalance: '0x1' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x11',
+                    stakedBalance: '0x1',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x12',
+                    stakedBalance: '0x1',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
+
+      it('should not update staked balance when includeStakedAssets and multi-account is enabled if network unsupported', async () => {
+        const networkClientId = 'polygon';
+        mockedQuery
+          .mockReturnValueOnce(Promise.resolve('0x11'))
+          .mockReturnValueOnce(Promise.resolve('0x12'));
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: jest.fn().mockResolvedValue(undefined),
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+            networkClientById: {
+              [networkClientId]: buildCustomNetworkClientConfiguration({
+                chainId: '0x89',
+              }),
+            },
+          },
+          async ({ controller }) => {
+            await controller.refresh();
+
+            expect(controller.state).toStrictEqual({
+              accounts: {
+                [CHECKSUM_ADDRESS_1]: { balance: '0x11' },
+                [CHECKSUM_ADDRESS_2]: { balance: '0x12' },
+              },
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x11',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x12',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
     });
   });
 
@@ -459,6 +755,33 @@ describe('AccountTrackerController', () => {
           ]);
           expect(result[ADDRESS_1].balance).toBe('0x10');
           expect(result[ADDRESS_2].balance).toBe('0x20');
+        },
+      );
+    });
+
+    it('should sync staked balance with addresses', async () => {
+      await withController(
+        {
+          options: {
+            includeStakedAssets: true,
+            getStakedBalanceForChain: jest.fn().mockResolvedValue('0x1'),
+          },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+            ADDRESS_2,
+          ]);
+          expect(result[ADDRESS_1].balance).toBe('0x10');
+          expect(result[ADDRESS_2].balance).toBe('0x20');
+          expect(result[ADDRESS_1].stakedBalance).toBe('0x1');
+          expect(result[ADDRESS_2].stakedBalance).toBe('0x1');
         },
       );
     });
@@ -647,8 +970,8 @@ async function withController<ReturnValue>(
 
   const controller = new AccountTrackerController({
     messenger: accountTrackerMessenger,
-    ...options,
     getStakedBalanceForChain: jest.fn(),
+    ...options,
   });
 
   return await testFunction({
