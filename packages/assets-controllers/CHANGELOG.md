@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `resetState` method to `NftController`, `TokensController`, `TokenBalancesController` and `TokenRatesController` to reset the controller's state back to their initial state ([#4880](https://github.com/MetaMask/core/pull/4880))
+
 ## [41.0.0]
 
 ### Changed
