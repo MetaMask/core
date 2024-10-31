@@ -26,7 +26,10 @@ import { type Hex, assert } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { cloneDeep } from 'lodash';
 
-import type { AssetsContractController } from './AssetsContractController';
+import type {
+  AssetsContractController,
+  StakedBalance,
+} from './AssetsContractController';
 
 /**
  * The name of the {@link AccountTrackerController}.
@@ -420,19 +423,19 @@ export class AccountTrackerController extends StaticIntervalPollingController<
   async syncBalanceWithAddresses(
     addresses: string[],
     networkClientId?: NetworkClientId,
-  ): Promise<Record<string, { balance: string }>> {
+  ): Promise<
+    Record<string, { balance: string; stakedBalance?: StakedBalance }>
+  > {
     const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
 
     return await Promise.all(
       addresses.map(
-        (
-          address,
-        ): Promise<[string, string, string | undefined] | undefined> => {
+        (address): Promise<[string, string, StakedBalance] | undefined> => {
           return safelyExecuteWithTimeout(async () => {
             assert(ethQuery, 'Provider not set.');
             const balance = await query(ethQuery, 'getBalance', [address]);
 
-            let stakedBalance: string | undefined;
+            let stakedBalance: StakedBalance;
             if (this.#includeStakedAssets) {
               stakedBalance = await this.#getStakedBalanceForChain(
                 address,
