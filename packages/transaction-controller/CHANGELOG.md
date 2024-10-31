@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [38.2.0]
 
-### Uncategorized
+### Added
 
-- feat: add staking transaction types ([#4874](https://github.com/MetaMask/core/pull/4874))
-- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Add staking transaction types ([#4874](https://github.com/MetaMask/core/pull/4874))
+  - `stakingClaim`
+  - `stakingDeposit`
+  - `stakingUnstake`
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.1` to `^11.4.2` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/accounts-controller` from `^18.2.2` to `^18.2.3` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/network-controller` from `^22.0.0` to `^22.0.1` ([#4870](https://github.com/MetaMask/core/pull/4870))
 
 ## [38.1.0]
 
