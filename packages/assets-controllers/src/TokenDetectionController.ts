@@ -201,6 +201,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   #accountsAPI = {
     isAccountsAPIEnabled: true,
     supportedNetworksCache: null as number[] | null,
+    platform: '' as 'extension' | 'mobile',
+
     async getSupportedNetworks() {
       /* istanbul ignore next */
       if (!this.isAccountsAPIEnabled) {
@@ -232,9 +234,13 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         );
       }
 
-      const result = await fetchMultiChainBalances(address, {
-        networks: [chainIdNumber],
-      });
+      const result = await fetchMultiChainBalances(
+        address,
+        {
+          networks: [chainIdNumber],
+        },
+        this.platform,
+      );
 
       return result.balances;
     },
@@ -250,6 +256,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.getBalancesInSingleCall - Gets the balances of a list of tokens for the given address.
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useAccountsAPI - Feature Switch for using the accounts API when detecting tokens (default: true)
+   * @param options.platform - Indicates whether the platform is extension or mobile
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -258,6 +265,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     trackMetaMetricsEvent,
     messenger,
     useAccountsAPI = true,
+    platform,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -277,6 +285,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     }) => void;
     messenger: TokenDetectionControllerMessenger;
     useAccountsAPI?: boolean;
+    platform: 'extension' | 'mobile';
   }) {
     super({
       name: controllerName,
@@ -315,6 +324,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#isUnlocked = isUnlocked;
 
     this.#accountsAPI.isAccountsAPIEnabled = useAccountsAPI;
+    this.#accountsAPI.platform = platform;
 
     this.#registerEventListeners();
   }
