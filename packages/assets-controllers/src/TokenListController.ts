@@ -208,6 +208,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     }
   }
 
+  // Eventually we want to remove start/restart/stop controls in favor of new _executePoll API
+  // Maintaining these functions for now until we can safely deprecate them for backwards compatibility
   /**
    * Start polling for the token list.
    */
@@ -304,7 +306,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         );
 
         if (tokensFromAPI) {
-          // Format tokens from API and update tokenList
+          // Format tokens from API (HTTP) and update tokenList
           tokenList = {};
           for (const token of tokensFromAPI) {
             tokenList[token.address] = {
