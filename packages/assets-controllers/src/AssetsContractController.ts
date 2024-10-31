@@ -748,22 +748,11 @@ export class AssetsContractController {
 
     try {
       const contract = new Contract(contractAddress, abi, provider);
-      const exchangeRateDenominator = BigNumber.from((1e18).toString());
-      const multiplier = exchangeRateDenominator;
       const userShares = await contract.getShares(address);
 
       // convert shares to assets only if address shares > 0 else return default balance
       if (!userShares.lte(0)) {
-        const exchangeRateNumerator = await contract.convertToAssets(
-          exchangeRateDenominator,
-        );
-        const exchangeRate = exchangeRateNumerator
-          .mul(multiplier)
-          .div(exchangeRateDenominator);
-
-        const userAssets = userShares.mul(exchangeRate).div(multiplier);
-
-        balance = userAssets;
+        balance = await contract.convertToAssets(userShares);
       }
     } catch (error) {
       // if we get an error, log and return the default value
