@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add staking transaction types ([#4874](https://github.com/MetaMask/core/pull/4874))
+- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
+
 ## [38.1.0]
 
 ### Added

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- [TokenDetectionController] pass header to accounts API ([#4877](https://github.com/MetaMask/core/pull/4877))
+
 ## [41.0.0]
 
 ### Changed
