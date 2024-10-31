@@ -323,18 +323,17 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       }
 
       // Update the state with a single update for both tokenList and tokenChainsCache
-      const updatedTokensChainsCache: TokensChainsCache = {
-        ...tokensChainsCache,
-        [chainId]: {
-          timestamp: Date.now(),
-          data: tokenList,
-        },
-      };
       this.update(() => {
         return {
           ...this.state,
           tokenList,
-          tokensChainsCache: updatedTokensChainsCache,
+          tokensChainsCache: {
+            ...tokensChainsCache,
+            [chainId]: {
+              timestamp: Date.now(),
+              data: tokenList,
+            },
+          },
         };
       });
     } finally {
