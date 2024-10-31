@@ -2931,6 +2931,7 @@ async function withController<ReturnValue>(
     trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     useAccountsAPI: false,
+    platform: 'extension',
     ...options,
   });
   try {
