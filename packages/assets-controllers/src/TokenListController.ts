@@ -286,6 +286,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
+      // Attempt to fetch cached tokens
       const cachedTokens = await safelyExecute(() =>
         this.#fetchFromCache(chainId),
       );
@@ -293,7 +294,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
         // Use non-expired cached tokens
         tokenList = { ...cachedTokens };
       } else {
-        // Fetch fresh token list
+        // Fetch fresh token list from the API
         const tokensFromAPI = await safelyExecute(
           () =>
             fetchTokenListByChainId(
@@ -302,30 +303,26 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
             ) as Promise<TokenListToken[]>,
         );
 
-        if (!tokensFromAPI) {
+        if (tokensFromAPI) {
+          // Format tokens from API and update tokenList
+          tokenList = {};
+          for (const token of tokensFromAPI) {
+            tokenList[token.address] = {
+              ...token,
+              aggregators: formatAggregatorNames(token.aggregators),
+              iconUrl: formatIconUrlWithProxy({
+                chainId,
+                tokenAddress: token.address,
+              }),
+            };
+          }
+        } else {
           // Fallback to expired cached tokens
           tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
-          this.update(() => {
-            return {
-              ...this.state,
-              tokenList,
-              tokensChainsCache,
-            };
-          });
-          return;
-        }
-        for (const token of tokensFromAPI) {
-          const formattedToken: TokenListToken = {
-            ...token,
-            aggregators: formatAggregatorNames(token.aggregators),
-            iconUrl: formatIconUrlWithProxy({
-              chainId,
-              tokenAddress: token.address,
-            }),
-          };
-          tokenList[token.address] = formattedToken;
         }
       }
+
+      // Update the state with a single update for both tokenList and tokenChainsCache
       const updatedTokensChainsCache: TokensChainsCache = {
         ...tokensChainsCache,
         [chainId]: {
