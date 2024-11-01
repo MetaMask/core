@@ -9,12 +9,12 @@ jobs:
   add-to-project:
     name: Add PR to Project Board
     runs-on: ubuntu-latest
-    
+
     # Define reusable variables
     env:
       TEAM_NAME: 'wallet-framework-engineers'
       TEAM_LABEL: 'team-wallet-framework'
-    
+
     steps:
       - name: Add PR to project board
         uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e
@@ -24,4 +24,3 @@ jobs:
         with:
           project-url: https://github.com/orgs/MetaMask/projects/113
           github-token: ${{ secrets.CORE_ADD_PRS_TO_PROJECT }}
-
