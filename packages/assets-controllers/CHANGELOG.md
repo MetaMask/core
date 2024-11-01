@@ -9,15 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [42.0.0]
 
-### Uncategorized
-
-- update TokenRatesController to poll on chain id instead of network client id ([#4887](https://github.com/MetaMask/core/pull/4887))
-- Update token rates controller for multi evm fetching ([#4866](https://github.com/MetaMask/core/pull/4866))
-- [TokenDetectionController] pass header to accounts API ([#4877](https://github.com/MetaMask/core/pull/4877))
-
 ### Added
 
 - Add `resetState` method to `NftController`, `TokensController`, `TokenBalancesController` and `TokenRatesController` to reset the controller's state back to their default state ([#4880](https://github.com/MetaMask/core/pull/4880))
+
+### Changed
+
+- **BREAKING**: A `platform` argument must now be passed to the `TokenDetectionController` constructor, indicating whether the platform is extension or mobile. ([#4877](https://github.com/MetaMask/core/pull/4877))
+- **BREAKING**: The `TokenRatesController` now accepts `{chainId: Hex}` as its polling input to `startPolling()` instead of `{networkClientId: NetworkClientId}` ([#4887](https://github.com/MetaMask/core/pull/4887))
+- When the `TokenRatesController`'s subscription to `TokensController:stateChange` is fired, token prices are now updated across all chain IDs whose tokens changed, instead of just the current chain. ([#4866](https://github.com/MetaMask/core/pull/4866))
+- The `TokenDetectionController` now passes a `x-metamask-clientproduct` header when calling the account API. ([#4877](https://github.com/MetaMask/core/pull/4877))
 
 ## [41.0.0]
 
