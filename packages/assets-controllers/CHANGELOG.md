@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [42.0.0]
+
 ### Uncategorized
 
 - update TokenRatesController to poll on chain id instead of network client id ([#4887](https://github.com/MetaMask/core/pull/4887))
@@ -1186,7 +1188,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@41.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@42.0.0...HEAD
+[42.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@41.0.0...@metamask/assets-controllers@42.0.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@40.0.0...@metamask/assets-controllers@41.0.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@39.0.0...@metamask/assets-controllers@40.0.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@38.3.0...@metamask/assets-controllers@39.0.0
