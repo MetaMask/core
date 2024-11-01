@@ -3,7 +3,7 @@ name: Create Update Issues
 on:
   workflow_call:
     secrets:
-      CREATE_UPDATE_ISSUES_TOKEN:
+      CORE_CREATE_UPDATE_ISSUES_TOKEN:
         description: GitHub token with permission to create issues in both mobile and extension repositories
         required: true
 
@@ -18,7 +18,7 @@ jobs:
 
       - name: Create Issues
         env:
-          GH_TOKEN: ${{ secrets.CREATE_UPDATE_ISSUES_TOKEN }}
+          GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
         run: |
           IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at HEAD && printf '\0')
 
