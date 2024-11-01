@@ -18,7 +18,9 @@ jobs:
     steps:
       - name: Add PR to project board
         uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e
-	if: ${{ github.event.requested_team.name == env.TEAM_NAME}}
+        if: |
+          github.event.requested_team.name == env.TEAM_NAME || 
+          contains(github.event.pull_request.labels.*.name, env.TEAM_LABEL)
         with:
           project-url: https://github.com/orgs/MetaMask/projects/113
           github-token: ${{ secrets.CORE_ADD_PRS_TO_PROJECT }}
