@@ -41,9 +41,9 @@ import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
 import { processSnapNotification } from './processors/process-snap-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
+import type { INotification } from './types';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
-import { INotification } from './types';
 
 // Mock type used for testing purposes
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
