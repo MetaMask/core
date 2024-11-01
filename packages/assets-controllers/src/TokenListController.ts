@@ -154,6 +154,7 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       state: { ...getDefaultTokenListState(), ...state },
     });
     this.intervalDelay = interval;
+    this.setIntervalLength(interval);
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
@@ -203,7 +204,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
             tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
           };
         });
-        await this.restart();
       }
     }
   }
@@ -211,46 +211,51 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   // Eventually we want to remove start/restart/stop controls in favor of new _executePoll API
   // Maintaining these functions for now until we can safely deprecate them for backwards compatibility
   /**
-   * Prepare to discard this method.
-   *
    * Start polling for the token list.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   async start() {
     if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
-    await this.#startPolling();
+    await this.#startDeprecatedPolling();
   }
 
   /**
-   * Prepare to discard this method.
-   *
    * Restart polling for the token list.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   async restart() {
     this.stopPolling();
-    await this.#startPolling();
+    await this.#startDeprecatedPolling();
   }
 
   /**
-   * Prepare to discard this method.
-   *
    * Stop polling for the token list.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   stop() {
     this.stopPolling();
   }
 
   /**
-   * Prepare to discard this method.
-   *
    * This stops any active polling.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   override destroy() {
     super.destroy();
     this.stopPolling();
   }
 
+  /**
+   * This stops any active polling intervals.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
+   */
   private stopPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -258,11 +263,12 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
   }
 
   /**
-   * Prepare to discard this method.
-   *
    * Starts a new polling interval for a given chainId (this should be deprecated in favor of _executePoll)
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  async #startPolling(): Promise<void> {
+  async #startDeprecatedPolling(): Promise<void> {
+    // renaming this to avoid collision with base class
     await safelyExecute(() => this.fetchTokenList(this.chainId));
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
@@ -290,7 +296,6 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
    */
   async fetchTokenList(chainId: Hex): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
@@ -334,7 +339,8 @@ export class TokenListController extends StaticIntervalPollingController<TokenLi
       this.update(() => {
         return {
           ...this.state,
-          tokenList,
+          tokenList:
+            this.chainId === chainId ? tokenList : this.state.tokenList,
           tokensChainsCache: {
             ...tokensChainsCache,
             [chainId]: {
