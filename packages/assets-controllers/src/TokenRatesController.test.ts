@@ -25,6 +25,7 @@ import { createMockInternalAccount } from '../../accounts-controller/src/tests/m
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
+  buildNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
@@ -1280,7 +1281,7 @@ describe('TokenRatesController', () => {
         },
         async ({ controller }) => {
           controller.startPolling({
-            networkClientId: 'mainnet',
+            chainId: ChainId.mainnet,
           });
 
           await advanceTime({ clock, duration: 0 });
@@ -1334,7 +1335,7 @@ describe('TokenRatesController', () => {
             },
             async ({ controller }) => {
               controller.startPolling({
-                networkClientId: 'mainnet',
+                chainId: ChainId.mainnet,
               });
               await advanceTime({ clock, duration: 0 });
 
@@ -1404,18 +1405,17 @@ describe('TokenRatesController', () => {
                 return currency !== 'LOL';
               },
             });
-            const selectedNetworkClientConfiguration =
-              buildCustomNetworkClientConfiguration({
-                chainId: ChainId.mainnet,
-                ticker: 'LOL',
-              });
             await withController(
               {
                 options: {
                   tokenPricesService,
                 },
-                mockNetworkClientConfigurationsByNetworkClientId: {
-                  mainnet: selectedNetworkClientConfiguration,
+                mockNetworkState: {
+                  networkConfigurationsByChainId: {
+                    [ChainId.mainnet]: buildNetworkConfiguration({
+                      nativeCurrency: 'LOL',
+                    }),
+                  },
                 },
                 mockTokensControllerState: {
                   allTokens: {
@@ -1440,7 +1440,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  networkClientId: 'mainnet',
+                  chainId: ChainId.mainnet,
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1542,7 +1542,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  networkClientId: 'mainnet',
+                  chainId: ChainId.mainnet,
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1585,7 +1585,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller }) => {
             const pollingToken = controller.startPolling({
-              networkClientId: 'mainnet',
+              chainId: ChainId.mainnet,
             });
             await advanceTime({ clock, duration: 0 });
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
