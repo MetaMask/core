@@ -314,17 +314,46 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
-        const previousTokenAddresses = this.#getTokenAddresses(this.#chainId);
+        if (this.#disabled) {
+          return;
+        }
+
+        const chainIds = [
+          ...new Set([
+            ...Object.keys(allTokens),
+            ...Object.keys(allDetectedTokens),
+          ]),
+        ] as Hex[];
+
+        const chainIdsToUpdate = chainIds.filter(
+          (chainId) =>
+            !isEqual(this.#allTokens[chainId], allTokens[chainId]) ||
+            !isEqual(
+              this.#allDetectedTokens[chainId],
+              allDetectedTokens[chainId],
+            ),
+        );
+
         this.#allTokens = allTokens;
         this.#allDetectedTokens = allDetectedTokens;
 
-        const newTokenAddresses = this.#getTokenAddresses(this.#chainId);
-        if (
-          !isEqual(previousTokenAddresses, newTokenAddresses) &&
-          this.#pollState === PollState.Active
-        ) {
-          await this.updateExchangeRates();
-        }
+        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+
+        await Promise.allSettled(
+          chainIdsToUpdate.map(async (chainId) => {
+            const nativeCurrency =
+              networkConfigurationsByChainId[chainId as Hex]?.nativeCurrency;
+
+            if (nativeCurrency) {
+              await this.updateExchangeRatesByChainId({
+                chainId: chainId as Hex,
+                nativeCurrency,
+              });
+            }
+          }),
+        );
       },
       ({ allTokens, allDetectedTokens }) => {
         return { allTokens, allDetectedTokens };
@@ -591,6 +620,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     }
 
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
+      chainId,
       tokenAddresses,
       nativeCurrency,
     });
@@ -695,6 +725,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * API, then convert the prices to our desired native currency.
    *
    * @param args - The arguments to this function.
+   * @param args.chainId - The chain id to fetch prices for.
    * @param args.tokenAddresses - Addresses for tokens.
    * @param args.nativeCurrency - The native currency in which to request
    * prices.
@@ -702,9 +733,11 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * native currency.
    */
   async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
+    chainId,
     tokenAddresses,
     nativeCurrency,
   }: {
+    chainId: Hex;
     tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
@@ -714,7 +747,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     ] = await Promise.all([
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses,
-        chainId: this.#chainId,
+        chainId,
         nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
       getCurrencyConversionRate({

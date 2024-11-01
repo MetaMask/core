@@ -152,7 +152,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
-              .spyOn(controller, 'updateExchangeRates')
+              .spyOn(controller, 'updateExchangeRatesByChainId')
               .mockResolvedValue();
             await controller.start();
             triggerTokensStateChange({
@@ -198,7 +198,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
-              .spyOn(controller, 'updateExchangeRates')
+              .spyOn(controller, 'updateExchangeRatesByChainId')
               .mockResolvedValue();
             await controller.start();
             triggerTokensStateChange({
