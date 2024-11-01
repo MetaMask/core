@@ -35,8 +35,8 @@ jobs:
               if [[ $version == *.0.0 ]]; then
                 # Fetch responsible team form file
                 teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test" --label "$teams"
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "consensys-vertical-apps/rr-auto-issue-test-2" --label "$teams"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$teams"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$teams"
               fi            
             fi
           done
