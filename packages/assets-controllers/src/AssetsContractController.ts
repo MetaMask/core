@@ -703,6 +703,13 @@ export class AssetsContractController {
     return nonZeroBalances;
   }
 
+  /**
+   * Get the staked ethereum balance for an address in a single call.
+   *
+   * @param address - The address to check staked ethereum balance for.
+   * @param networkClientId - Network Client ID to fetch the provider with.
+   * @returns The hex staked ethereum balance for address.
+   */
   async getStakedBalanceForChain(
     address: string,
     networkClientId?: NetworkClientId,
