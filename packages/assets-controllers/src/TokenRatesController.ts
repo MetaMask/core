@@ -16,7 +16,6 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type {
-  NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
@@ -223,7 +222,7 @@ export const getDefaultTokenRatesControllerState =
 
 /** The input to start polling for the {@link TokenRatesController} */
 export type TokenRatesPollingInput = {
-  networkClientId: NetworkClientId;
+  chainId: Hex;
 };
 
 /**
@@ -630,18 +629,24 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
    * Updates token rates for the given networkClientId
    *
    * @param input - The input for the poll.
-   * @param input.networkClientId - The network client ID used to get a ticker value.
+   * @param input.chainId - The chain id to poll token rates on.
    */
-  async _executePoll({
-    networkClientId,
-  }: TokenRatesPollingInput): Promise<void> {
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
+  async _executePoll({ chainId }: TokenRatesPollingInput): Promise<void> {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
     );
+
+    const networkConfiguration = networkConfigurationsByChainId[chainId];
+    if (!networkConfiguration) {
+      console.error(
+        `TokenRatesController: No network configuration found for chainId ${chainId}`,
+      );
+      return;
+    }
+
     await this.updateExchangeRatesByChainId({
-      chainId: networkClient.configuration.chainId,
-      nativeCurrency: networkClient.configuration.ticker,
+      chainId,
+      nativeCurrency: networkConfiguration.nativeCurrency,
     });
   }
 
