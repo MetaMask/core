@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- update TokenRatesController to poll on chain id instead of network client id ([#4887](https://github.com/MetaMask/core/pull/4887))
+- Update token rates controller for multi evm fetching ([#4866](https://github.com/MetaMask/core/pull/4866))
+- [TokenDetectionController] pass header to accounts API ([#4877](https://github.com/MetaMask/core/pull/4877))
+
 ### Added
 
 - Add `resetState` method to `NftController`, `TokensController`, `TokenBalancesController` and `TokenRatesController` to reset the controller's state back to their default state ([#4880](https://github.com/MetaMask/core/pull/4880))
