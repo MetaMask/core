@@ -9,8 +9,6 @@ jobs:
   add-to-project:
     name: Add PR to Project Board
     runs-on: ubuntu-latest
-
-    # Define reusable variables
     env:
       TEAM_NAME: 'wallet-framework-engineers'
       TEAM_LABEL: 'team-wallet-framework'
