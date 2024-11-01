@@ -9,6 +9,7 @@ on:
 
 jobs:
   create-update-issues:
+    environment: default-branch
     runs-on: ubuntu-latest
     steps:
       - name: Checkout head
