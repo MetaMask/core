@@ -35,7 +35,7 @@ describe('PreferencesController', () => {
         acc[curr] = true;
         return acc;
       }, {} as { [chainId in EtherscanSupportedHexChainId]: boolean }),
-      smartTransactionsOptInStatus: false,
+      smartTransactionsOptInStatus: true,
       useSafeChainsListValidation: true,
       tokenSortConfig: {
         key: 'tokenFiatAmount',
@@ -423,10 +423,10 @@ describe('PreferencesController', () => {
     expect(controller.state.showIncomingTransactions['0x1']).toBe(false);
   });
 
-  it('should set smartTransactionsOptInStatus', () => {
+  it('should set smartTransactionsOptInStatus to false', () => {
     const controller = setupPreferencesController();
-    controller.setSmartTransactionsOptInStatus(true);
-    expect(controller.state.smartTransactionsOptInStatus).toBe(true);
+    controller.setSmartTransactionsOptInStatus(false);
+    expect(controller.state.smartTransactionsOptInStatus).toBe(false);
   });
 
   it('should set useTransactionSimulations', () => {
