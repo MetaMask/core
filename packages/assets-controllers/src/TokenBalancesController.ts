@@ -179,6 +179,15 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       }
     });
   }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultTokenBalancesState();
+    });
+  }
 }
 
 export default TokenBalancesController;

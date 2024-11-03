@@ -9,6 +9,8 @@ import type {
   AllowedEvents,
   TokenBalancesControllerActions,
   TokenBalancesControllerEvents,
+  TokenBalancesControllerMessenger,
+  TokenBalancesControllerState,
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
 
@@ -193,6 +195,34 @@ describe('TokenBalancesController', () => {
           [tokenAddress]: '0x2',
         },
       },
+    });
+  });
+
+  describe('resetState', () => {
+    it('resets the state to default state', () => {
+      const initialState: TokenBalancesControllerState = {
+        contractBalances: {
+          '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
+        },
+      };
+
+      const { controller } = setupController({
+        config: {
+          state: initialState,
+          disabled: true,
+        },
+        mock: {
+          selectedAccount: createMockInternalAccount({ address: '0x1234' }),
+        },
+      });
+
+      expect(controller.state).toStrictEqual(initialState);
+
+      controller.resetState();
+
+      expect(controller.state).toStrictEqual({
+        contractBalances: {},
+      });
     });
   });
 });

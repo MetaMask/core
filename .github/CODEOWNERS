@@ -1,6 +1,9 @@
 # Lines starting with '#' are comments.
 # Each line is a file pattern followed by one or more owners.
 
+# Note: Please keep this synchronized with the `teams.json` file in the repository root.
+# That file is used for some automated workflows, and maps controller to owning team(s).
+
 *                                    @MetaMask/engineering
 /.github/                            @MetaMask/wallet-framework-engineers
 
