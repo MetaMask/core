@@ -1,6 +1,9 @@
 # Lines starting with '#' are comments.
 # Each line is a file pattern followed by one or more owners.
 
+# Note: Please keep this synchronized with the `teams.json` file in the repository root.
+# That file is used for some automated workflows, and maps controller to owning team(s).
+
 *                                    @MetaMask/engineering
 /.github/                            @MetaMask/wallet-framework-engineers
 
@@ -87,6 +90,8 @@
 /packages/notification-controller/CHANGELOG.md    @MetaMask/snaps-devs @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/wallet-framework-engineers
+/packages/phishing-controller/package.json    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
+/packages/phishing-controller/CHANGELOG.md    @MetaMask/product-safety @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/package.json    @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/profile-sync-controller/CHANGELOG.md    @MetaMask/notifications @MetaMask/wallet-framework-engineers
 /packages/queued-request-controller/package.json  @MetaMask/wallet-api-platform-engineers @MetaMask/wallet-framework-engineers

@@ -2308,6 +2308,88 @@ describe('TokensController', () => {
       });
     });
   });
+
+  describe('resetState', () => {
+    it('resets the state to default state', async () => {
+      const initialState: TokensControllerState = {
+        detectedTokens: [
+          {
+            address: '0x01',
+            symbol: 'barA',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+        ],
+        tokens: [
+          {
+            address: '0x02',
+            symbol: 'barB',
+            decimals: 2,
+            aggregators: [],
+            image: undefined,
+            name: undefined,
+          },
+        ],
+        allTokens: {
+          [ChainId.mainnet]: {
+            '0x0001': [
+              {
+                address: '0x03',
+                symbol: 'barC',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+        ignoredTokens: ['0x03'],
+        allIgnoredTokens: {
+          [ChainId.mainnet]: {
+            '0x0001': ['0x03'],
+          },
+        },
+        allDetectedTokens: {
+          [ChainId.mainnet]: {
+            '0x0001': [
+              {
+                address: '0x01',
+                symbol: 'barA',
+                decimals: 2,
+                aggregators: [],
+                image: undefined,
+                name: undefined,
+              },
+            ],
+          },
+        },
+      };
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          controller.resetState();
+
+          expect(controller.state).toStrictEqual({
+            tokens: [],
+            ignoredTokens: [],
+            detectedTokens: [],
+            allTokens: {},
+            allIgnoredTokens: {},
+            allDetectedTokens: {},
+          });
+        },
+      );
+    });
+  });
 });
 
 type WithControllerCallback<ReturnValue> = ({
