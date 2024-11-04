@@ -1,3 +1,5 @@
+import { EthMethod } from '@metamask/keyring-api';
+
 import type { OriginalRequest } from '../types';
 import { convertNumericValuesToQuotedString } from './normalize';
 
@@ -24,7 +26,7 @@ export async function decodeSignature(
   }
   try {
     const { method, origin, params } = request;
-    if (request.method === 'eth_signTypedData_v4') {
+    if (request.method === EthMethod.SignTypedDataV4) {
       const response = await fetch(
         `${decodingApiUrl}/signature?chainId=${chainId}`,
         {

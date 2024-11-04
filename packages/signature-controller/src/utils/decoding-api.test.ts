@@ -1,4 +1,3 @@
-import nock from 'nock';
 import nodeFetch from 'node-fetch';
 
 import type { OriginalRequest } from '../types';
@@ -43,10 +42,23 @@ const MOCK_ERROR = {
 };
 
 describe('Decoding api', () => {
+  let fetchMock: jest.MockedFunction<typeof fetch>;
+
+  /**
+   * Mock a JSON response from fetch.
+   * @param jsonResponse - The response body to return.
+   */
+  function mockFetchResponse(jsonResponse: unknown) {
+    fetchMock.mockResolvedValueOnce({
+      json: jest.fn().mockResolvedValue(jsonResponse),
+    } as unknown as Response);
+  }
+
   it('return the data from api', async () => {
-    nock('https://testdecodingurl.com')
-      .post('/signature?chainId=0x1')
-      .reply(200, JSON.stringify(MOCK_RESULT));
+    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
+      typeof fetch
+    >;
+    mockFetchResponse(MOCK_RESULT);
 
     const result = await decodeSignature(
       PERMIT_REQUEST_MOCK,
@@ -58,9 +70,10 @@ describe('Decoding api', () => {
   });
 
   it('return error from the api as it is', async () => {
-    nock('https://testdecodingurl.com')
-      .post('/signature?chainId=0x1')
-      .reply(200, JSON.stringify(MOCK_ERROR));
+    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
+      typeof fetch
+    >;
+    mockFetchResponse(MOCK_ERROR);
 
     const result = await decodeSignature(
       PERMIT_REQUEST_MOCK,
