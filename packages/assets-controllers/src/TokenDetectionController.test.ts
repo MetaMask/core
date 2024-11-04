@@ -1422,67 +1422,6 @@ describe('TokenDetectionController', () => {
     });
 
     describe('when "disabled" is false', () => {
-      it('should detect new tokens after switching network client id', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getAccount: selectedAccount,
-              getSelectedAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerNetworkDidChange,
-          }) => {
-            mockTokenListGetState({
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                '0x89': {
-                  timestamp: 0,
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                },
-              },
-            });
-
-            triggerNetworkDidChange({
-              ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'polygon',
-            });
-            await advanceTime({ clock, duration: 1 });
-
-            expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
-              [sampleTokenA],
-              {
-                chainId: '0x89',
-                selectedAddress: selectedAccount.address,
-              },
-            );
-          },
-        );
-      });
-
       it('should not detect new tokens after switching to a chain that does not support token detection', async () => {
         const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
           [sampleTokenA.address]: new BN(1),
@@ -2208,33 +2147,33 @@ describe('TokenDetectionController', () => {
             });
 
           controller.startPolling({
-            networkClientId: 'mainnet',
+            chainIds: ['0x1'],
             address: '0x1',
           });
           controller.startPolling({
-            networkClientId: 'sepolia',
+            chainIds: ['0xaa36a7'],
             address: '0xdeadbeef',
           });
           controller.startPolling({
-            networkClientId: 'goerli',
+            chainIds: ['0x5'],
             address: '0x3',
           });
           await advanceTime({ clock, duration: 0 });
 
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ chainIds: ['0x1'], selectedAddress: '0x1' }],
+            [{ chainIds: ['0xaa36a7'], selectedAddress: '0xdeadbeef' }],
+            [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
           ]);
 
           await advanceTime({ clock, duration: DEFAULT_INTERVAL });
           expect(spy.mock.calls).toMatchObject([
-            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
-            [{ networkClientId: 'mainnet', selectedAddress: '0x1' }],
-            [{ networkClientId: 'sepolia', selectedAddress: '0xdeadbeef' }],
-            [{ networkClientId: 'goerli', selectedAddress: '0x3' }],
+            [{ chainIds: ['0x1'], selectedAddress: '0x1' }],
+            [{ chainIds: ['0xaa36a7'], selectedAddress: '0xdeadbeef' }],
+            [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
+            [{ chainIds: ['0x1'], selectedAddress: '0x1' }],
+            [{ chainIds: ['0xaa36a7'], selectedAddress: '0xdeadbeef' }],
+            [{ chainIds: ['0x5'], selectedAddress: '0x3' }],
           ]);
         },
       );
@@ -2275,7 +2214,7 @@ describe('TokenDetectionController', () => {
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            networkClientId: NetworkType.goerli,
+            chainIds: ['0x5'],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).not.toHaveBeenCalledWith(
@@ -2319,7 +2258,7 @@ describe('TokenDetectionController', () => {
             useTokenDetection: false,
           });
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
           expect(callActionSpy).toHaveBeenLastCalledWith(
@@ -2381,7 +2320,7 @@ describe('TokenDetectionController', () => {
           });
 
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
 
@@ -2440,7 +2379,7 @@ describe('TokenDetectionController', () => {
           });
 
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
 
@@ -2505,7 +2444,7 @@ describe('TokenDetectionController', () => {
           });
 
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
           });
 
           expect(callActionSpy).toHaveBeenLastCalledWith(
@@ -2634,7 +2573,7 @@ describe('TokenDetectionController', () => {
 
           // Act
           await controller.detectTokens({
-            networkClientId: NetworkType.mainnet,
+            chainIds: ['0x1'],
             selectedAddress: selectedAccount.address,
           });
 
