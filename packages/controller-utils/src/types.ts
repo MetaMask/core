@@ -108,12 +108,12 @@ export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
 export const NetworkNickname = {
-  [BuiltInNetworkName.Mainnet]: 'Mainnet',
+  [BuiltInNetworkName.Mainnet]: 'Ethereum Mainnet',
   [BuiltInNetworkName.Goerli]: 'Goerli',
   [BuiltInNetworkName.Sepolia]: 'Sepolia',
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
   [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
-  [BuiltInNetworkName.LineaMainnet]: 'Linea Mainnet',
+  [BuiltInNetworkName.LineaMainnet]: 'Linea',
 } as const satisfies Record<InfuraNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
