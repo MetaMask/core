@@ -1274,4 +1274,140 @@ describe('AssetsContractController', () => {
     expect(uri.toLowerCase()).toStrictEqual(expectedUri);
     messenger.clearEventSubscriptions('NetworkController:networkDidChange');
   });
+
+  it('should get the staked ethereum balance for an address', async () => {
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        // getShares
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+                data: '0xf04da65b0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000de0b6b3a7640000',
+          },
+        },
+        // convertToAssets
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+                data: '0x07a2d13a0000000000000000000000000000000000000000000000000de0b6b3a7640000',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000001bc16d674ec80000',
+          },
+        },
+      ],
+    });
+
+    const balance = await assetsContract.getStakedBalanceForChain(
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    );
+
+    // exchange rate shares = 1e18
+    // exchange rate share to assets = 2e18
+    // user shares = 1e18
+    // user assets = 2e18
+
+    expect(balance).toBeDefined();
+    expect(balance).toBe('0x1bc16d674ec80000');
+    expect(BigNumber.from(balance).toString()).toBe((2e18).toString());
+
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should return default of zero hex as staked ethereum balance if user has no shares', async () => {
+    const errorSpy = jest.spyOn(console, 'error');
+    const { assetsContract, messenger, provider, networkClientConfiguration } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    mockNetworkWithDefaultChainId({
+      networkClientConfiguration,
+      mocks: [
+        // getShares
+        {
+          request: {
+            method: 'eth_call',
+            params: [
+              {
+                to: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+                data: '0xf04da65b0000000000000000000000005a3ca5cd63807ce5e4d7841ab32ce6b6d9bbba2d',
+              },
+              'latest',
+            ],
+          },
+          response: {
+            result:
+              '0x0000000000000000000000000000000000000000000000000000000000000000',
+          },
+        },
+      ],
+    });
+
+    const balance = await assetsContract.getStakedBalanceForChain(
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    );
+
+    expect(balance).toBeDefined();
+    expect(balance).toBe('0x00');
+    expect(BigNumber.from(balance).toString()).toBe('0');
+    expect(errorSpy).toHaveBeenCalledTimes(0);
+
+    errorSpy.mockRestore();
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should return default of zero hex as staked ethereum balance if there is any error thrown', async () => {
+    let error;
+    const errorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementationOnce((e) => {
+        error = e;
+      });
+    const { assetsContract, messenger, provider } =
+      await setupAssetContractControllers();
+    assetsContract.setProvider(provider);
+
+    const balance = await assetsContract.getStakedBalanceForChain(
+      TEST_ACCOUNT_PUBLIC_ADDRESS,
+    );
+
+    expect(balance).toBeDefined();
+    expect(balance).toBe('0x00');
+    expect(BigNumber.from(balance).toString()).toBe('0');
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledWith(error);
+
+    errorSpy.mockRestore();
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
+
+  it('should throw missing provider error when getting staked ethereum balance and missing provider', async () => {
+    const { assetsContract, messenger } = await setupAssetContractControllers();
+    await expect(
+      assetsContract.getStakedBalanceForChain(TEST_ACCOUNT_PUBLIC_ADDRESS),
+    ).rejects.toThrow(MISSING_PROVIDER_ERROR);
+    messenger.clearEventSubscriptions('NetworkController:networkDidChange');
+  });
 });
