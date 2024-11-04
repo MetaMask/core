@@ -157,7 +157,7 @@ export type SignatureControllerOptions = {
   ) => Promise<any>;
 
   /**
-   * Api used to get decoding data for permits.
+   * URL of API to retrieve decoding data for typed requests.
    */
   decodingApiUrl?: string;
 
