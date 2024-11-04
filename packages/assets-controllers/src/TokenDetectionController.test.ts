@@ -334,11 +334,17 @@ describe('TokenDetectionController', () => {
             getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockNetworkState }) => {
+        async ({ controller, mockNetworkState, mockGetNetworkClientById }) => {
           mockNetworkState({
             ...getDefaultNetworkControllerState(),
             selectedNetworkClientId: NetworkType.goerli,
           });
+          mockGetNetworkClientById(
+            () =>
+              ({
+                configuration: { chainId: '0x5' },
+              } as unknown as AutoManagedNetworkClient<CustomNetworkClientConfiguration>),
+          );
           await controller.start();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
@@ -1058,15 +1064,20 @@ describe('TokenDetectionController', () => {
             mockGetAccount(firstSelectedAccount);
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                '0x1': {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1111,15 +1122,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1170,15 +1186,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1224,15 +1245,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1288,15 +1314,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1341,15 +1372,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1528,15 +1564,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1581,15 +1622,20 @@ describe('TokenDetectionController', () => {
             }) => {
               mockTokenListGetState({
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  [ChainId.mainnet]: {
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
+                    timestamp: 0,
                   },
                 },
               });
@@ -1635,15 +1681,20 @@ describe('TokenDetectionController', () => {
           }) => {
             mockTokenListGetState({
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             });
@@ -1710,7 +1761,6 @@ describe('TokenDetectionController', () => {
             };
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList,
               tokensChainsCache: {
                 '0x1': {
                   timestamp: 0,
@@ -1760,7 +1810,7 @@ describe('TokenDetectionController', () => {
           }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {},
+              tokensChainsCache: {},
             };
             mockTokenListGetState(tokenListState);
 
@@ -1801,15 +1851,20 @@ describe('TokenDetectionController', () => {
             }) => {
               const tokenListState = {
                 ...getDefaultTokenListState(),
-                tokenList: {
-                  [sampleTokenA.address]: {
-                    name: sampleTokenA.name,
-                    symbol: sampleTokenA.symbol,
-                    decimals: sampleTokenA.decimals,
-                    address: sampleTokenA.address,
-                    occurrences: 1,
-                    aggregators: sampleTokenA.aggregators,
-                    iconUrl: sampleTokenA.image,
+                tokensChainsCache: {
+                  [ChainId.mainnet]: {
+                    data: {
+                      [sampleTokenA.address]: {
+                        name: sampleTokenA.name,
+                        symbol: sampleTokenA.symbol,
+                        decimals: sampleTokenA.decimals,
+                        address: sampleTokenA.address,
+                        occurrences: 1,
+                        aggregators: sampleTokenA.aggregators,
+                        iconUrl: sampleTokenA.image,
+                      },
+                    },
+                    timestamp: 0,
                   },
                 },
               };
@@ -1853,15 +1908,20 @@ describe('TokenDetectionController', () => {
           }) => {
             const tokenListState = {
               ...getDefaultTokenListState(),
-              tokenList: {
-                [sampleTokenA.address]: {
-                  name: sampleTokenA.name,
-                  symbol: sampleTokenA.symbol,
-                  decimals: sampleTokenA.decimals,
-                  address: sampleTokenA.address,
-                  occurrences: 1,
-                  aggregators: sampleTokenA.aggregators,
-                  iconUrl: sampleTokenA.image,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
                 },
               },
             };
@@ -1873,6 +1933,220 @@ describe('TokenDetectionController', () => {
             expect(callActionSpy).not.toHaveBeenCalledWith(
               'TokensController:addDetectedTokens',
             );
+          },
+        );
+      });
+    });
+
+    describe('when previous and incoming tokensChainsCache are equal with the same timestamp', () => {
+      it('should not call detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerTokenListStateChange,
+            controller,
+          }) => {
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
+                },
+              },
+            };
+            mockTokenListGetState(tokenListState);
+            // This should set the tokensChainsCache value
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+
+            // Re-trigger state change so that incoming list is equal the current list in state
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+            expect(mockTokens).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
+    });
+
+    describe('when previous and incoming tokensChainsCache are equal with different timestamp', () => {
+      it('should not call detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerTokenListStateChange,
+            controller,
+          }) => {
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
+                },
+              },
+            };
+            mockTokenListGetState(tokenListState);
+            // This should set the tokensChainsCache value
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+
+            // Re-trigger state change so that incoming list is equal the current list in state
+            triggerTokenListStateChange({
+              ...tokenListState,
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 3424, // same list with different timestamp should not trigger detectTokens again
+                },
+              },
+            });
+            await advanceTime({ clock, duration: 1 });
+            expect(mockTokens).toHaveBeenCalledTimes(0);
+          },
+        );
+      });
+    });
+
+    describe('when previous and incoming tokensChainsCache are not equal', () => {
+      it('should call detect tokens', async () => {
+        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+          [sampleTokenA.address]: new BN(1),
+        });
+        const selectedAccount = createMockInternalAccount({
+          address: '0x0000000000000000000000000000000000000001',
+        });
+        await withController(
+          {
+            options: {
+              disabled: false,
+              getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            },
+            mocks: {
+              getSelectedAccount: selectedAccount,
+              getAccount: selectedAccount,
+            },
+          },
+          async ({
+            mockTokenListGetState,
+            triggerTokenListStateChange,
+            controller,
+          }) => {
+            const tokenListState = {
+              ...getDefaultTokenListState(),
+              tokensChainsCache: {
+                [ChainId.mainnet]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 0,
+                },
+              },
+            };
+            mockTokenListGetState(tokenListState);
+            // This should set the tokensChainsCache value
+            triggerTokenListStateChange(tokenListState);
+            await advanceTime({ clock, duration: 1 });
+
+            const mockTokens = jest.spyOn(controller, 'detectTokens');
+
+            // Re-trigger state change so that incoming list is equal the current list in state
+            triggerTokenListStateChange({
+              ...tokenListState,
+              tokensChainsCache: {
+                ...tokenListState.tokensChainsCache,
+                [ChainId['linea-mainnet']]: {
+                  data: {
+                    [sampleTokenA.address]: {
+                      name: sampleTokenA.name,
+                      symbol: sampleTokenA.symbol,
+                      decimals: sampleTokenA.decimals,
+                      address: sampleTokenA.address,
+                      occurrences: 1,
+                      aggregators: sampleTokenA.aggregators,
+                      iconUrl: sampleTokenA.image,
+                    },
+                  },
+                  timestamp: 5546454,
+                },
+              },
+            });
+            await advanceTime({ clock, duration: 1 });
+            expect(mockTokens).toHaveBeenCalledTimes(1);
           },
         );
       });
@@ -1910,15 +2184,20 @@ describe('TokenDetectionController', () => {
         async ({ controller, mockTokenListGetState }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
-            tokenList: {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+                timestamp: 0,
               },
             },
           });
@@ -2652,6 +2931,7 @@ async function withController<ReturnValue>(
     trackMetaMetricsEvent: jest.fn(),
     messenger: buildTokenDetectionControllerMessenger(controllerMessenger),
     useAccountsAPI: false,
+    platform: 'extension',
     ...options,
   });
   try {

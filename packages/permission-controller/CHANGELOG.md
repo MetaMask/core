@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.0.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [11.0.2]
 
 ### Fixed
@@ -290,7 +296,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...HEAD
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3
 [11.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.1...@metamask/permission-controller@11.0.2
 [11.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.0...@metamask/permission-controller@11.0.1
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.1...@metamask/permission-controller@11.0.0

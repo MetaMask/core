@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Changed
 
-- **BREAKING:** Bump `@metamask/network-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+- Bump `@metamask/controller-utils` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+- Bump `@metamask/utils` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
 
 ## [14.0.1]
 
@@ -251,7 +255,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.1...@metamask/ens-controller@15.0.0
 [14.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@14.0.0...@metamask/ens-controller@14.0.1
 [14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@13.0.1...@metamask/ens-controller@14.0.0
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/ens-controller@13.0.0...@metamask/ens-controller@13.0.1

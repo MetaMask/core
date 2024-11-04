@@ -38,15 +38,21 @@ export async function fetchSupportedNetworks(): Promise<number[]> {
  * @param address - address to fetch balances from
  * @param options - params to pass down for a more refined search
  * @param options.networks - the networks (in decimal) that you want to filter by
+ * @param platform - indicates whether the platform is extension or mobile
  * @returns a Balances Response
  */
 export async function fetchMultiChainBalances(
   address: string,
-  options?: { networks?: number[] },
+  options: { networks?: number[] },
+  platform: 'extension' | 'mobile',
 ) {
   const url = getBalancesUrl(address, {
     networks: options?.networks?.join(),
   });
-  const response: GetBalancesResponse = await handleFetch(url);
+  const response: GetBalancesResponse = await handleFetch(url, {
+    headers: {
+      'x-metamask-clientproduct': `metamask-${platform}`,
+    },
+  });
   return response;
 }

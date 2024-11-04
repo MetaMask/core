@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [11.4.2]
+
+### Changed
+
+- Move BigNumber.js from devDependencies to dependencies ([#4873](https://github.com/MetaMask/core/pull/4873))
+
+## [11.4.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
 ## [11.4.0]
 
 ### Added
@@ -406,7 +418,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.2...HEAD
+[11.4.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.1...@metamask/controller-utils@11.4.2
+[11.4.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.0...@metamask/controller-utils@11.4.1
 [11.4.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.3.0...@metamask/controller-utils@11.4.0
 [11.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.2.0...@metamask/controller-utils@11.3.0
 [11.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.1.0...@metamask/controller-utils@11.2.0

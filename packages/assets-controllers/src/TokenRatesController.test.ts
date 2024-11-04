@@ -25,6 +25,7 @@ import { createMockInternalAccount } from '../../accounts-controller/src/tests/m
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
+  buildNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type {
@@ -38,6 +39,7 @@ import type {
   AllowedEvents,
   Token,
   TokenRatesControllerMessenger,
+  TokenRatesControllerState,
 } from './TokenRatesController';
 import { getDefaultTokensState } from './TokensController';
 import type { TokensControllerState } from './TokensController';
@@ -151,7 +153,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
-              .spyOn(controller, 'updateExchangeRates')
+              .spyOn(controller, 'updateExchangeRatesByChainId')
               .mockResolvedValue();
             await controller.start();
             triggerTokensStateChange({
@@ -197,7 +199,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller, triggerTokensStateChange }) => {
             const updateExchangeRatesSpy = jest
-              .spyOn(controller, 'updateExchangeRates')
+              .spyOn(controller, 'updateExchangeRatesByChainId')
               .mockResolvedValue();
             await controller.start();
             triggerTokensStateChange({
@@ -1279,7 +1281,7 @@ describe('TokenRatesController', () => {
         },
         async ({ controller }) => {
           controller.startPolling({
-            networkClientId: 'mainnet',
+            chainId: ChainId.mainnet,
           });
 
           await advanceTime({ clock, duration: 0 });
@@ -1333,7 +1335,7 @@ describe('TokenRatesController', () => {
             },
             async ({ controller }) => {
               controller.startPolling({
-                networkClientId: 'mainnet',
+                chainId: ChainId.mainnet,
               });
               await advanceTime({ clock, duration: 0 });
 
@@ -1403,18 +1405,17 @@ describe('TokenRatesController', () => {
                 return currency !== 'LOL';
               },
             });
-            const selectedNetworkClientConfiguration =
-              buildCustomNetworkClientConfiguration({
-                chainId: ChainId.mainnet,
-                ticker: 'LOL',
-              });
             await withController(
               {
                 options: {
                   tokenPricesService,
                 },
-                mockNetworkClientConfigurationsByNetworkClientId: {
-                  mainnet: selectedNetworkClientConfiguration,
+                mockNetworkState: {
+                  networkConfigurationsByChainId: {
+                    [ChainId.mainnet]: buildNetworkConfiguration({
+                      nativeCurrency: 'LOL',
+                    }),
+                  },
                 },
                 mockTokensControllerState: {
                   allTokens: {
@@ -1439,7 +1440,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  networkClientId: 'mainnet',
+                  chainId: ChainId.mainnet,
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1541,7 +1542,7 @@ describe('TokenRatesController', () => {
               },
               async ({ controller }) => {
                 controller.startPolling({
-                  networkClientId: 'mainnet',
+                  chainId: ChainId.mainnet,
                 });
                 // flush promises and advance setTimeouts they enqueue 3 times
                 // needed because fetch() doesn't resolve immediately, so any
@@ -1584,7 +1585,7 @@ describe('TokenRatesController', () => {
           },
           async ({ controller }) => {
             const pollingToken = controller.startPolling({
-              networkClientId: 'mainnet',
+              chainId: ChainId.mainnet,
             });
             await advanceTime({ clock, duration: 0 });
             expect(tokenPricesService.fetchTokenPrices).toHaveBeenCalledTimes(
@@ -2339,6 +2340,56 @@ describe('TokenRatesController', () => {
           },
         );
       });
+    });
+  });
+
+  describe('resetState', () => {
+    it('resets the state to default state', async () => {
+      const initialState: TokenRatesControllerState = {
+        marketData: {
+          [ChainId.mainnet]: {
+            '0x02': {
+              currency: 'ETH',
+              priceChange1d: 0,
+              pricePercentChange1d: 0,
+              tokenAddress: '0x02',
+              allTimeHigh: 4000,
+              allTimeLow: 900,
+              circulatingSupply: 2000,
+              dilutedMarketCap: 100,
+              high1d: 200,
+              low1d: 100,
+              marketCap: 1000,
+              marketCapPercentChange1d: 100,
+              price: 0.001,
+              pricePercentChange14d: 100,
+              pricePercentChange1h: 1,
+              pricePercentChange1y: 200,
+              pricePercentChange200d: 300,
+              pricePercentChange30d: 200,
+              pricePercentChange7d: 100,
+              totalVolume: 100,
+            },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: {
+            state: initialState,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual(initialState);
+
+          controller.resetState();
+
+          expect(controller.state).toStrictEqual({
+            marketData: {},
+          });
+        },
+      );
     });
   });
 });
