@@ -286,6 +286,8 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
       for (let i = 0; i < results.length; i++) {
         const { success, value } = results[i];
 
+        // todo: consider removing balance entries for tokens that were removed from state
+        //       rather than leaving stale balances
         if (success) {
           const { accountAddress, tokenAddress } = accountTokenPairs[i];
           ((state.tokenBalances[accountAddress] ??= {})[chainId] ??= {})[
