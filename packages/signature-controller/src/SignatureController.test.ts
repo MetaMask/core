@@ -971,6 +971,31 @@ describe('SignatureController', () => {
           DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
         );
       });
+
+      it('set decodingLoading to true while api request is in progress', async () => {
+        const { controller } = createController();
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockImplementation(() => {
+            return new Promise((resolve) => {
+              setTimeout(() => {
+                resolve({});
+              }, 300);
+            });
+          });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(true);
+      });
     });
   });
 
