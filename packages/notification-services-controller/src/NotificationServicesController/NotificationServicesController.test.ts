@@ -41,6 +41,7 @@ import { processFeatureAnnouncement } from './processors';
 import { processNotification } from './processors/process-notifications';
 import { processSnapNotification } from './processors/process-snap-notifications';
 import * as OnChainNotifications from './services/onchain-notifications';
+import type { INotification } from './types';
 import type { UserStorage } from './types/user-storage/user-storage';
 import * as Utils from './utils/utils';
 
@@ -834,7 +835,13 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     const controller = new NotificationServicesController({
       messenger: mocks.messenger,
       env: { featureAnnouncements: featureAnnouncementsEnv },
-      state: { isNotificationServicesEnabled: true },
+      state: {
+        isNotificationServicesEnabled: true,
+        metamaskNotificationsList: [
+          createMockFeatureAnnouncementRaw() as INotification,
+          createMockSnapNotification() as INotification,
+        ],
+      },
     });
 
     const promise = controller.disableNotificationServices();
@@ -847,6 +854,9 @@ describe('metamask-notifications - disableMetamaskNotifications()', () => {
     // Act - final state
     expect(controller.state.isUpdatingMetamaskNotifications).toBe(false);
     expect(controller.state.isNotificationServicesEnabled).toBe(false);
+    expect(controller.state.metamaskNotificationsList).toStrictEqual([
+      createMockSnapNotification(),
+    ]);
 
     expect(mocks.mockDisablePushNotifications).toHaveBeenCalled();
 

@@ -220,6 +220,15 @@ export class TokenBalancesController extends BaseController<
       state.contractBalances = newContractBalances;
     });
   }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultTokenBalancesState();
+    });
+  }
 }
 
 export default TokenBalancesController;
