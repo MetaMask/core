@@ -858,13 +858,13 @@ describe('TokenListController', () => {
     await controller.start();
     expect(controller.state.tokenList).toStrictEqual({});
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    // expect(controller.state.tokenList).toStrictEqual(
-    //   sampleSingleChainState.tokenList,
-    // );
+    expect(controller.state.tokenList).toStrictEqual(
+      sampleSingleChainState.tokenList,
+    );
 
-    // expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
-    //   sampleSingleChainState.tokensChainsCache[toHex(1)].data,
-    // );
+    expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
+      sampleSingleChainState.tokensChainsCache[toHex(1)].data,
+    );
     controller.destroy();
   });
 
@@ -1245,10 +1245,10 @@ describe('TokenListController', () => {
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
       await advanceTime({ clock, duration: pollingIntervalTime / 2 });
 
-      // expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
-      // await advanceTime({ clock, duration: pollingIntervalTime });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
+      await advanceTime({ clock, duration: pollingIntervalTime });
 
-      // expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should update tokenList state and tokensChainsCache', async () => {
