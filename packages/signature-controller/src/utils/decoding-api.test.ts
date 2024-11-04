@@ -2,7 +2,7 @@ import nock from 'nock';
 import nodeFetch from 'node-fetch';
 
 import type { OriginalRequest } from '../types';
-import { getDecodingData } from './decoding-api';
+import { decodeSignature } from './decoding-api';
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore-next-line
@@ -48,7 +48,7 @@ describe('Decoding api', () => {
       .post('/signature?chainId=0x1')
       .reply(200, JSON.stringify(MOCK_RESULT));
 
-    const result = await getDecodingData(
+    const result = await decodeSignature(
       PERMIT_REQUEST_MOCK,
       '0x1',
       'https://testdecodingurl.com',
@@ -62,7 +62,7 @@ describe('Decoding api', () => {
       .post('/signature?chainId=0x1')
       .reply(200, JSON.stringify(MOCK_ERROR));
 
-    const result = await getDecodingData(
+    const result = await decodeSignature(
       PERMIT_REQUEST_MOCK,
       '0x1',
       'https://testdecodingurl.com',
@@ -72,7 +72,7 @@ describe('Decoding api', () => {
   });
 
   it('return failure error if there is an exception while validating', async () => {
-    const result = await getDecodingData(
+    const result = await decodeSignature(
       PERMIT_REQUEST_MOCK,
       '0x1',
       'https://testdecodingurl.com',
@@ -82,7 +82,7 @@ describe('Decoding api', () => {
   });
 
   it('return undefined for request not of method eth_signTypedData_v4', async () => {
-    const result = await getDecodingData(
+    const result = await decodeSignature(
       { method: 'eth_signTypedData_v3' } as OriginalRequest,
       '0x1',
       'https://testdecodingurl.com',

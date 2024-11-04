@@ -914,62 +914,63 @@ describe('SignatureController', () => {
       ).toBe(SignTypedDataVersion.V3);
     });
 
-    // eslint-disable-next-line jest/no-disabled-tests
-    it('invoke getDecodingData to get decoding data', async () => {
-      const MOCK_STATE_CHANGES = {
-        stateChanges: [
-          {
-            assetType: 'ERC20',
-            changeType: 'APPROVE',
-            address: '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
-            amount: '1461501637330902918203684832716283019655932542975',
-            contractAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
-          },
-        ],
-      };
-      const { controller } = createController();
+    describe('decodeSignature', () => {
+      it('invoke decodeSignature to get decoding data', async () => {
+        const MOCK_STATE_CHANGES = {
+          stateChanges: [
+            {
+              assetType: 'ERC20',
+              changeType: 'APPROVE',
+              address: '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
+              amount: '1461501637330902918203684832716283019655932542975',
+              contractAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
+            },
+          ],
+        };
+        const { controller } = createController();
 
-      jest
-        .spyOn(DecodingDataUtils, 'getDecodingData')
-        .mockResolvedValue(MOCK_STATE_CHANGES);
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockResolvedValue(MOCK_STATE_CHANGES);
 
-      await controller.newUnsignedTypedMessage(
-        PERMIT_PARAMS_MOCK,
-        PERMIT_REQUEST_MOCK,
-        SignTypedDataVersion.V4,
-        { parseJsonData: false },
-      );
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
 
-      expect(controller.state.signatureRequests[ID_MOCK].decodingLoading).toBe(
-        false,
-      );
-      expect(
-        controller.state.signatureRequests[ID_MOCK].decodingData,
-      ).toStrictEqual(MOCK_STATE_CHANGES);
-    });
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toStrictEqual(MOCK_STATE_CHANGES);
+      });
 
-    it('correctly set decoding data if getDecodingData fails', async () => {
-      const { controller } = createController();
+      it('correctly set decoding data if decodeSignature fails', async () => {
+        const { controller } = createController();
 
-      jest
-        .spyOn(DecodingDataUtils, 'getDecodingData')
-        .mockRejectedValue(new Error('some error'));
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockRejectedValue(new Error('some error'));
 
-      await controller.newUnsignedTypedMessage(
-        PERMIT_PARAMS_MOCK,
-        PERMIT_REQUEST_MOCK,
-        SignTypedDataVersion.V4,
-        { parseJsonData: false },
-      );
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
 
-      expect(controller.state.signatureRequests[ID_MOCK].decodingLoading).toBe(
-        false,
-      );
-      expect(
-        controller.state.signatureRequests[ID_MOCK].decodingData?.error.type,
-      ).toStrictEqual(
-        DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
-      );
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData?.error.type,
+        ).toStrictEqual(
+          DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+        );
+      });
     });
   });
 
@@ -1001,7 +1002,7 @@ describe('SignatureController', () => {
       const { controller } = createController();
       let resolved = false;
 
-      jest.spyOn(DecodingDataUtils, 'getDecodingData').mockResolvedValue({});
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
 
       const signaturePromise = controller
         .newUnsignedPersonalMessage(
@@ -1081,7 +1082,7 @@ describe('SignatureController', () => {
       const { controller } = createController();
       let rejectedError;
 
-      jest.spyOn(DecodingDataUtils, 'getDecodingData').mockResolvedValue({});
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
 
       controller
         .newUnsignedPersonalMessage(

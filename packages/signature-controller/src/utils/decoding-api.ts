@@ -14,7 +14,7 @@ export const DECODING_API_ERRORS = {
  * @param decodingApiUrl - URL of decoding api.
  * @returns Promise that resolved to give decoded data.
  */
-export async function getDecodingData(
+export async function decodeSignature(
   request: OriginalRequest,
   chainId: string,
   decodingApiUrl?: string,

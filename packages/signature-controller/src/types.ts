@@ -81,14 +81,23 @@ export type MessageParamsTyped = MessageParams & {
   version?: string;
 };
 
-/** Information about various state changes returned by decoding api. */
-type DecodingDataStateChanges = {
+/** Information about a single state change returned by decoding api. */
+type DecodingDataStateChange = {
   assetType: string;
-  changeType: string;
+  changeType:
+    | 'RECEIVE'
+    | 'TRANSFER'
+    | 'APPROVE'
+    | 'REVOKE_APPROVE'
+    | 'BIDDING'
+    | 'LISTING';
   address: string;
   amount: string;
   contractAddress: string;
-}[];
+};
+
+/** Array of the various state changes returned by decoding api. */
+type DecodingDataStateChanges = DecodingDataStateChange[];
 
 /** Error details for unfulfilled the decoding request. */
 type DecodingDataError = {
