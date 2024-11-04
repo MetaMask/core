@@ -1,11 +1,5 @@
-import nodeFetch from 'node-fetch';
-
 import type { OriginalRequest } from '../types';
 import { decodeSignature } from './decoding-api';
-
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore-next-line
-global.fetch = nodeFetch;
 
 const PERMIT_REQUEST_MOCK = {
   method: 'eth_signTypedData_v4',
