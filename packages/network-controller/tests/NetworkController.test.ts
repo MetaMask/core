@@ -358,7 +358,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": Array [],
                 "chainId": "0x1",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Mainnet",
+                "name": "Ethereum Mainnet",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
@@ -428,7 +428,7 @@ describe('NetworkController', () => {
                 "blockExplorerUrls": Array [],
                 "chainId": "0xe708",
                 "defaultRpcEndpointIndex": 0,
-                "name": "Linea Mainnet",
+                "name": "Linea",
                 "nativeCurrency": "ETH",
                 "rpcEndpoints": Array [
                   Object {
@@ -3647,7 +3647,7 @@ describe('NetworkController', () => {
               }),
             ).toThrow(
               new Error(
-                "Could not add network with chain ID 0x1337 and Infura RPC endpoint for 'Mainnet' which represents 0x1, as the two conflict",
+                "Could not add network with chain ID 0x1337 and Infura RPC endpoint for 'Ethereum Mainnet' which represents 0x1, as the two conflict",
               ),
             );
           },
@@ -6531,7 +6531,7 @@ describe('NetworkController', () => {
                 ],
               }),
             ).rejects.toThrow(
-              "Could not update network to point to same RPC endpoint as existing network for chain 0x1 ('Mainnet')",
+              "Could not update network to point to same RPC endpoint as existing network for chain 0x1 ('Ethereum Mainnet')",
             );
           },
         );
