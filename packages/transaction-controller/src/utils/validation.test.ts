@@ -267,7 +267,7 @@ describe('validation', () => {
         );
       });
 
-      it('throws if gasPrice, maxPriorityFeePerGas or maxFeePerGas is not string', () => {
+      it('throws if gasPrice, maxPriorityFeePerGas or maxFeePerGas is not a valid hexadecimal', () => {
         expect(() =>
           validateTxParams({
             from: '0x1678a085c290ebd122dc42cba69373b5953b831d',
@@ -278,7 +278,7 @@ describe('validation', () => {
           } as any),
         ).toThrow(
           rpcErrors.invalidParams(
-            'Invalid transaction params: gasPrice is not a string. got: (1)',
+            'Invalid transaction params: gasPrice is not a valid hexadecimal. got: (1)',
           ),
         );
 
@@ -292,7 +292,7 @@ describe('validation', () => {
           } as any),
         ).toThrow(
           rpcErrors.invalidParams(
-            'Invalid transaction params: maxPriorityFeePerGas is not a string. got: (1)',
+            'Invalid transaction params: maxPriorityFeePerGas is not a valid hexadecimal. got: (1)',
           ),
         );
 
@@ -306,7 +306,7 @@ describe('validation', () => {
           } as any),
         ).toThrow(
           rpcErrors.invalidParams(
-            'Invalid transaction params: maxFeePerGas is not a string. got: (1)',
+            'Invalid transaction params: maxFeePerGas is not a valid hexadecimal. got: (1)',
           ),
         );
       });
