@@ -4094,13 +4094,13 @@ describe('TransactionController', () => {
         updateToInitialState: true,
       });
 
-      const gas = '0xgas';
-      const gasLimit = '0xgasLimit';
-      const gasPrice = '0xgasPrice';
-      const estimateUsed = '0xestimateUsed';
-      const estimateSuggested = '0xestimateSuggested';
-      const defaultGasEstimates = '0xdefaultGasEstimates';
-      const originalGasEstimate = '0xoriginalGasEstimate';
+      const gas = '0x1';
+      const gasLimit = '0x2';
+      const gasPrice = '0x12';
+      const estimateUsed = '0x3';
+      const estimateSuggested = '0x123';
+      const defaultGasEstimates = '0x124';
+      const originalGasEstimate = '0x134';
       const userEditedGasLimit = true;
       const userFeeLevel = '0xuserFeeLevel';
 
@@ -4132,8 +4132,8 @@ describe('TransactionController', () => {
     });
 
     it('updates provided 1559 gas values', async () => {
-      const maxPriorityFeePerGas = '0xmaxPriorityFeePerGas';
-      const maxFeePerGas = '0xmaxFeePerGas';
+      const maxPriorityFeePerGas = '0x01';
+      const maxFeePerGas = '0x01';
       const transactionId = '123';
 
       const { controller } = setupController({
