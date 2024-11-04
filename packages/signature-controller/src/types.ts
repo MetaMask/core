@@ -118,7 +118,7 @@ type SignatureRequestBase = {
   /** Response from message decoding api. */
   decodingData?: DecodingData;
 
-  /** Field to know if decoding request is in progress */
+  /** Whether decoding is in progress. */
   decodingLoading?: boolean;
 
   /** Error message that occurred during the signing. */
