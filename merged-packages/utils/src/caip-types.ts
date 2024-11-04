@@ -80,6 +80,8 @@ export type CaipAssetId = `${string}:${string}/${string}:${string}/${string}`;
 export enum KnownCaipNamespace {
   /** BIP-122 (Bitcoin) compatible chains. */
   Bip122 = 'bip122',
+  /** Solana compatible chains */
+  Solana = 'solana',
   /** EIP-155 compatible chains. */
   Eip155 = 'eip155',
   Wallet = 'wallet',
