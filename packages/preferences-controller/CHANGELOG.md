@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.2.0]
+
 ### Added
 
 - Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
@@ -18,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `privacyMode` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
   - Add `privacyMode` property to the `PreferencesController` state (default value: `false`)
   - Add `setPrivacyMode` method to set this property
+- Add `useMultiRpcMigration` preference ([#4732](https://github.com/MetaMask/core/pull/4732))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.2` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
 
 ## [13.1.0]
 
@@ -300,7 +308,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.2.0...HEAD
+[13.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.1.0...@metamask/preferences-controller@13.2.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.3...@metamask/preferences-controller@13.1.0
 [13.0.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.2...@metamask/preferences-controller@13.0.3
 [13.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...@metamask/preferences-controller@13.0.2
