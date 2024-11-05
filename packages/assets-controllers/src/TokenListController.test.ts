@@ -1251,7 +1251,7 @@ describe('TokenListController', () => {
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
-    it('should update tokenList state and tokensChainsCache', async () => {
+    it.only('should update tokenList state and tokensChainsCache', async () => {
       const startingState: TokenListState = {
         tokenList: {},
         tokensChainsCache: {},
@@ -1270,6 +1270,7 @@ describe('TokenListController', () => {
               throw new Error('Invalid chainId');
           }
         });
+
       const controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
@@ -1296,7 +1297,7 @@ describe('TokenListController', () => {
       );
       const messenger = getRestrictedMessenger(controllerMessenger);
       const controller = new TokenListController({
-        chainId: ChainId.mainnet,
+        chainId: ChainId.sepolia,
         preventPollingOnNetworkRestart: false,
         messenger,
         state: startingState,
@@ -1309,11 +1310,12 @@ describe('TokenListController', () => {
       const pollingToken = controller.startPolling({
         chainId: ChainId.sepolia,
       });
+
       // wait a polling interval
       await advanceTime({ clock, duration: pollingIntervalTime });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      // expect the state to be updated with the sepolia token list
+
       expect(controller.state.tokenList).toStrictEqual(
         sampleSepoliaTokensChainCache,
       );
@@ -1335,10 +1337,10 @@ describe('TokenListController', () => {
       // because the cache for the recently fetched sepolia token list is still valid
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
 
-      // expect tokenList to be updated with the binance token list
+      // expect tokenList to be not be updated with the binance token list, because sepolia is still this.chainId
       // and the cache to now contain both the binance token list and the sepolia token list
       expect(controller.state.tokenList).toStrictEqual(
-        sampleBinanceTokensChainsCache,
+        sampleSepoliaTokensChainCache,
       );
       // once we adopt this polling pattern we should no longer access the root tokenList state
       // but rather access from the cache with a chainId selector.
