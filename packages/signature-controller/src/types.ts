@@ -82,7 +82,7 @@ export type MessageParamsTyped = MessageParams & {
 };
 
 /** Information about a single state change returned by decoding api. */
-type DecodingDataStateChange = {
+export type DecodingDataStateChange = {
   assetType: string;
   changeType:
     | 'RECEIVE'
@@ -97,10 +97,10 @@ type DecodingDataStateChange = {
 };
 
 /** Array of the various state changes returned by decoding api. */
-type DecodingDataStateChanges = DecodingDataStateChange[];
+export type DecodingDataStateChanges = DecodingDataStateChange[];
 
 /** Error details for unfulfilled the decoding request. */
-type DecodingDataError = {
+export type DecodingDataError = {
   message: string;
   type: string;
 };
