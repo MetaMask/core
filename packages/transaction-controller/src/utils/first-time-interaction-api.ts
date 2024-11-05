@@ -3,7 +3,7 @@ import { createModuleLogger, type Hex } from '@metamask/utils';
 import { FirstTimeInteractionError } from '../errors';
 import { projectLogger } from '../logger';
 
-const BASE_URL = 'https://accounts.api.cx.metamask.io/';
+const BASE_URL = 'https://primitives.api.cx.metamask.io';
 const FAILED_TO_PARSE_MESSAGE = 'Failed to parse account address relationship.';
 
 const log = createModuleLogger(projectLogger, 'first-time-interaction-api');
