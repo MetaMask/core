@@ -80,6 +80,7 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
+import { getFirstTimeInteraction } from './utils/first-time-interaction-api';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -110,6 +111,7 @@ jest.mock('./helpers/GasFeePoller');
 jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
+jest.mock('./utils/first-time-interaction-api');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
@@ -487,6 +489,7 @@ describe('TransactionController', () => {
     getTransactionLayer1GasFee,
   );
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
+  const getFirstTimeInteractionMock = jest.mocked(getFirstTimeInteraction);
   const shouldResimulateMock = jest.mocked(shouldResimulate);
 
   let mockEthQuery: EthQuery;
@@ -870,6 +873,10 @@ describe('TransactionController', () => {
     updateSwapsTransactionMock.mockImplementation(
       (transactionMeta) => transactionMeta,
     );
+
+    getFirstTimeInteractionMock.mockResolvedValue({
+      isFirstTimeInteraction: undefined,
+    });
   });
 
   describe('constructor', () => {
@@ -1378,6 +1385,10 @@ describe('TransactionController', () => {
     it('adds unapproved transaction to state', async () => {
       const { controller } = setupController();
 
+      getFirstTimeInteractionMock.mockResolvedValueOnce({
+        isFirstTimeInteraction: true,
+      });
+
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
       const mockOrigin = 'origin';
       const mockSecurityAlertResponse = {
@@ -1412,6 +1423,8 @@ describe('TransactionController', () => {
         },
       );
 
+      await flushPromises();
+
       const transactionMeta = controller.state.transactions[0];
 
       expect(updateSwapsTransactionMock).toHaveBeenCalledTimes(1);
@@ -1426,6 +1439,7 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
         mockSendFlowHistory,
       );
+      expect(controller.state.transactions[0].firstTimeInteraction).toBe(true);
     });
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {

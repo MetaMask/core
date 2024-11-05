@@ -90,6 +90,11 @@ import {
   SimulationErrorCode,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
+import type { FirstTimeInteractionResponse } from './utils/first-time-interaction-api';
+import {
+  type FirstTimeInteractionRequest,
+  getFirstTimeInteraction,
+} from './utils/first-time-interaction-api';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -123,6 +128,7 @@ import {
   normalizeGasFeeValues,
 } from './utils/utils';
 import {
+  validateFirstTimeInteraction,
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
@@ -1147,6 +1153,13 @@ export class TransactionController extends BaseController<
           traceContext,
         }).catch((error) => {
           log('Error while updating simulation data', error);
+          throw error;
+        });
+
+        this.#updateFirstInteraction(addedTransactionMeta, {
+          traceContext,
+        }).catch((error) => {
+          log('Error while updating first interaction', error);
           throw error;
         });
       } else {
@@ -3612,6 +3625,73 @@ export class TransactionController extends BaseController<
     }
 
     return transactionMeta;
+  }
+
+  async #updateFirstInteraction(
+    transactionMeta: TransactionMeta,
+    {
+      traceContext,
+    }: {
+      traceContext?: TraceContext;
+    } = {},
+  ) {
+    const {
+      chainId,
+      id: transactionId,
+      txParams: { to, from },
+    } = transactionMeta;
+
+    const request: FirstTimeInteractionRequest = {
+      chainId,
+      to,
+      from,
+    };
+
+    let firstTimeInteractionResponse: FirstTimeInteractionResponse;
+
+    try {
+      validateFirstTimeInteraction(request);
+
+      firstTimeInteractionResponse = await this.#trace(
+        { name: 'FirstTimeInteraction', parentContext: traceContext },
+        () => getFirstTimeInteraction(request),
+      );
+    } catch (error) {
+      log('Error during first interaction check', error);
+      firstTimeInteractionResponse = {
+        isFirstTimeInteraction: undefined,
+      };
+    }
+
+    const finalTransactionMeta = this.getTransaction(transactionId);
+
+    /* istanbul ignore if */
+    if (!finalTransactionMeta) {
+      log(
+        'Cannot update first time interaction as transaction not found',
+        transactionId,
+        firstTimeInteractionResponse,
+      );
+
+      return;
+    }
+
+    this.#updateTransactionInternal(
+      {
+        transactionId,
+        note: 'TransactionController#updateFirstInteraction - Update first time interaction',
+      },
+      (txMeta) => {
+        txMeta.firstTimeInteraction =
+          firstTimeInteractionResponse.isFirstTimeInteraction;
+      },
+    );
+
+    log(
+      'Updated first time interaction',
+      transactionId,
+      firstTimeInteractionResponse,
+    );
   }
 
   async #updateSimulationData(

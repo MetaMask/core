@@ -5,6 +5,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
 
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
+import type { FirstTimeInteractionRequest } from './first-time-interaction-api';
 import { isEIP1559Transaction } from './utils';
 
 type GasFieldsToValidate = 'gasPrice' | 'maxFeePerGas' | 'maxPriorityFeePerGas';
@@ -64,6 +65,20 @@ export function validateTxParams(
   validateParamData(txParams.data);
   validateParamChainId(txParams.chainId);
   validateGasFeeParams(txParams);
+}
+
+/**
+ * Validates the request for the first time interaction API.
+ *
+ * @param request - The request to validate.
+ */
+export function validateFirstTimeInteraction(
+  request: FirstTimeInteractionRequest,
+) {
+  const { chainId, from, to } = request;
+  validateParamTo(to);
+  validateParamFrom(from);
+  validateParamChainId(chainId);
 }
 
 /**
@@ -181,6 +196,18 @@ function validateParamFrom(from: string) {
   }
   if (!isValidHexAddress(from)) {
     throw rpcErrors.invalidParams('Invalid "from" address.');
+  }
+}
+
+/**
+ * Validates the recipient address in a transaction's parameters.
+ *
+ * @param to - The to property to validate.
+ * @throws Throws an error if the recipient address is invalid.
+ */
+function validateParamTo(to?: string) {
+  if (!to || typeof to !== 'string') {
+    throw rpcErrors.invalidParams(`Invalid "to" address`);
   }
 }
 
