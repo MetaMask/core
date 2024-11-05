@@ -1,6 +1,6 @@
 {
   "name": "@metamask/queued-request-controller",
-  "version": "5.1.0",
+  "version": "7.0.0",
   "description": "Includes a controller and middleware that implements a request queue",
   "keywords": [
     "MetaMask",
@@ -47,17 +47,17 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/base-controller": "^7.0.1",
-    "@metamask/controller-utils": "^11.4.0",
-    "@metamask/json-rpc-engine": "^10.0.0",
+    "@metamask/base-controller": "^7.0.2",
+    "@metamask/controller-utils": "^11.4.2",
+    "@metamask/json-rpc-engine": "^10.0.1",
     "@metamask/rpc-errors": "^7.0.1",
     "@metamask/swappable-obj-proxy": "^2.2.0",
     "@metamask/utils": "^10.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^22.0.0",
-    "@metamask/selected-network-controller": "^18.0.2",
+    "@metamask/network-controller": "^22.0.1",
+    "@metamask/selected-network-controller": "^19.0.0",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
     "immer": "^9.0.6",
@@ -72,7 +72,7 @@
   },
   "peerDependencies": {
     "@metamask/network-controller": "^22.0.0",
-    "@metamask/selected-network-controller": "^18.0.0"
+    "@metamask/selected-network-controller": "^19.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
