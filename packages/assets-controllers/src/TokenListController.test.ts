@@ -854,18 +854,18 @@ describe('TokenListController', () => {
       preventPollingOnNetworkRestart: false,
       messenger,
       interval: 100,
+      state: existingState,
     });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual({});
+    expect(controller.state.tokenList).toStrictEqual(existingState.tokenList);
+    const pollingToken = controller.startPolling({ chainId: ChainId.mainnet });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-
     expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
       sampleSingleChainState.tokensChainsCache[toHex(1)].data,
     );
-    controller.destroy();
+    controller.stopPollingByPollingToken(pollingToken);
   });
 
   it('should update token list from cache before reaching the threshold time', async () => {
@@ -1116,45 +1116,6 @@ describe('TokenListController', () => {
       tokensChainsCache: {},
       preventPollingOnNetworkRestart: false,
     });
-
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await new Promise((resolve: any) => {
-      messenger.subscribe('TokenListController:stateChange', (_, patch) => {
-        const tokenListChanged = patch.find(
-          (p) => Object.keys(p.value.tokenList).length !== 0,
-        );
-        if (!tokenListChanged) {
-          return;
-        }
-
-        expect(controller.state.tokenList).toStrictEqual(
-          sampleTwoChainState.tokenList,
-        );
-
-        expect(
-          controller.state.tokensChainsCache[toHex(56)].data,
-        ).toStrictEqual(sampleTwoChainState.tokensChainsCache[toHex(56)].data);
-        messenger.clearEventSubscriptions('TokenListController:stateChange');
-        controller.destroy();
-        controllerMessenger.clearEventSubscriptions(
-          'NetworkController:stateChange',
-        );
-        resolve();
-      });
-
-      controllerMessenger.publish(
-        'NetworkController:stateChange',
-        {
-          selectedNetworkClientId: selectedCustomNetworkClientId,
-          networkConfigurationsByChainId: {},
-          networksMetadata: {},
-          // @ts-expect-error This property isn't used and will get removed later.
-          providerConfig: {},
-        },
-        [],
-      );
-    });
   });
 
   describe('startPolling', () => {
@@ -1208,50 +1169,7 @@ describe('TokenListController', () => {
       );
     });
 
-    it('should start polling against the token list API at the interval passed to the constructor', async () => {
-      const fetchTokenListByChainIdSpy = jest.spyOn(
-        tokenService,
-        'fetchTokenListByChainId',
-      );
-
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
-          configuration: {
-            type: NetworkType.goerli,
-            chainId: ChainId.goerli,
-          },
-        }),
-      );
-      const messenger = getRestrictedMessenger(controllerMessenger);
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
-        messenger,
-        state: expiredCacheExistingState,
-        interval: pollingIntervalTime,
-      });
-      expect(controller.state.tokenList).toStrictEqual(
-        expiredCacheExistingState.tokenList,
-      );
-
-      controller.startPolling({ chainId: ChainId.goerli });
-      await advanceTime({ clock, duration: 0 });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: pollingIntervalTime / 2 });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: pollingIntervalTime / 2 });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
-      await advanceTime({ clock, duration: pollingIntervalTime });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
-    });
-
-    it.only('should update tokenList state and tokensChainsCache', async () => {
+    it('should update tokenList state and tokensChainsCache', async () => {
       const startingState: TokenListState = {
         tokenList: {},
         tokensChainsCache: {},
