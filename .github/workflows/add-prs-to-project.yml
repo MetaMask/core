@@ -21,4 +21,4 @@ jobs:
           contains(github.event.pull_request.labels.*.name, env.TEAM_LABEL)
         with:
           project-url: https://github.com/users/desi/projects/1
-          github-token: ${{ secrets.CORE_ADD_PRS_TO_PROJECT }}
+          github-token: ${{ secrets.CORE_ADD_PRS_TO_PROJECT_TEST }}
