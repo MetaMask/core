@@ -49,6 +49,7 @@ import {
   STATIC_MAINNET_TOKEN_LIST,
   TokenDetectionController,
   controllerName,
+  mapChainIdWithTokenListMap,
 } from './TokenDetectionController';
 import {
   getDefaultTokenListState,
@@ -398,6 +399,80 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+            [sampleTokenA],
+            {
+              chainId: ChainId.mainnet,
+              selectedAddress: selectedAccount.address,
+            },
+          );
+        },
+      );
+    });
+
+    it('should not call add tokens if balance is not available on account api', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+        },
+
+        async ({ controller, mockTokenListGetState, callActionSpy }) => {
+          mockMultiChainAccountsService();
+
+          const mockAPI = mockMultiChainAccountsService();
+          mockAPI.mockFetchMultiChainBalances.mockResolvedValue({
+            count: 0,
+            balances: [
+              {
+                object: 'token',
+                address: '0xaddress',
+                name: 'Mock Token',
+                symbol: 'MOCK',
+                decimals: 18,
+                balance: '10.18',
+                chainId: 2,
+              },
+            ],
+            unprocessedNetworks: [],
+          });
+
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {
+                  test: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: 'test',
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          await controller.start();
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA],
             {
@@ -2520,6 +2595,54 @@ describe('TokenDetectionController', () => {
       );
     });
 
+    it('should fallback to rpc call', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
+        [sampleTokenA.address]: new BN(1),
+      });
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+            useAccountsAPI: true, // USING ACCOUNTS API
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({
+          controller,
+          mockNetworkState,
+          triggerPreferencesStateChange,
+          callActionSpy,
+        }) => {
+          const mockAPI = mockMultiChainAccountsService();
+          mockAPI.mockFetchMultiChainBalances.mockRejectedValue(
+            new Error('Mock Error'),
+          );
+          mockNetworkState({
+            ...getDefaultNetworkControllerState(),
+            selectedNetworkClientId: 'polygon',
+          });
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: false,
+          });
+          await controller.detectTokens({
+            chainIds: ['0x5'],
+            selectedAddress: selectedAccount.address,
+          });
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addDetectedTokens',
+          );
+        },
+      );
+    });
+
     /**
      * Test Utility - Arrange and Act `detectTokens()` with the Accounts API feature
      * RPC flow will return `sampleTokenA` and the Accounts API flow will use `sampleTokenB`
@@ -2730,6 +2853,57 @@ describe('TokenDetectionController', () => {
 
       expect(mockFetchMultiChainBalances).toHaveBeenCalled();
       assertTokensNeverAdded();
+    });
+  });
+
+  describe('mapChainIdWithTokenListMap', () => {
+    it('should return an empty object when given an empty input', () => {
+      const tokensChainsCache = {};
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual({});
+    });
+
+    it('should return the same structure when there is no "data" property in the object', () => {
+      const tokensChainsCache = {
+        chain1: { info: 'no data property' },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual(tokensChainsCache); // Expect unchanged structure
+    });
+
+    it('should map "data" property if present in the object', () => {
+      const tokensChainsCache = {
+        chain1: { data: 'someData' },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual({ chain1: 'someData' });
+    });
+
+    it('should handle multiple chains with mixed "data" properties', () => {
+      const tokensChainsCache = {
+        chain1: { data: 'someData1' },
+        chain2: { info: 'no data property' },
+        chain3: { data: 'someData3' },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+
+      expect(result).toStrictEqual({
+        chain1: 'someData1',
+        chain2: { info: 'no data property' },
+        chain3: 'someData3',
+      });
+    });
+
+    it('should handle nested object with "data" property correctly', () => {
+      const tokensChainsCache = {
+        chain1: {
+          data: {
+            nested: 'nestedData',
+          },
+        },
+      };
+      const result = mapChainIdWithTokenListMap(tokensChainsCache);
+      expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
     });
   });
 });

@@ -95,7 +95,9 @@ export const STATIC_MAINNET_TOKEN_LIST = Object.entries<LegacyToken>(
  * @param tokensChainsCache - TokensChainsCache input object
  * @returns returns the map of chainId with TokenListMap
  */
-function mapChainIdWithTokenListMap(tokensChainsCache: TokensChainsCache) {
+export function mapChainIdWithTokenListMap(
+  tokensChainsCache: TokensChainsCache,
+) {
   return mapValues(tokensChainsCache, (value) => {
     if (isObject(value) && 'data' in value) {
       return get(value, ['data']);
@@ -224,45 +226,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return result;
     },
 
-    async getMultiChainBalances(address: string, chainId: Hex) {
-      if (!this.isAccountsAPIEnabled) {
-        throw new Error('Accounts API Feature Switch is disabled');
-      }
-
-      const chainIdNumber = hexToNumber(chainId);
-      const supportedNetworks = await this.getSupportedNetworks();
-
-      if (!supportedNetworks || !supportedNetworks.includes(chainIdNumber)) {
-        const supportedNetworksErrStr = (supportedNetworks ?? []).toString();
-        throw new Error(
-          `Unsupported Network: supported networks ${supportedNetworksErrStr}, network: ${chainIdNumber}`,
-        );
-      }
-
-      const result = await fetchMultiChainBalances(
-        address,
-        {
-          networks: [chainIdNumber],
-        },
-        this.platform,
-      );
-
-      return result.balances;
-    },
-    async getMultiNetworksBalances(address: string, chainIds: Hex[]) {
-      if (!this.isAccountsAPIEnabled) {
-        throw new Error('Accounts API Feature Switch is disabled');
-      }
-
+    async getMultiNetworksBalances(
+      address: string,
+      chainIds: Hex[],
+      supportedNetworks: number[] | null,
+    ) {
       const chainIdNumbers = chainIds.map((chainId) => hexToNumber(chainId));
-
-      const supportedNetworks = await this.getSupportedNetworks();
 
       if (
         !supportedNetworks ||
         !chainIdNumbers.every((id) => supportedNetworks.includes(id))
       ) {
-        console.log('INSIDE IF -------');
         const supportedNetworksErrStr = (supportedNetworks ?? []).toString();
         throw new Error(
           `Unsupported Network: supported networks ${supportedNetworksErrStr}, requested networks: ${chainIdNumbers.toString()}`,
@@ -517,7 +491,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #getCorrectNetworkClientIdByChainId(
     chainIds: Hex[] | undefined,
-  ): { chainId: Hex; networkClientId: NetworkClientId }[] | null {
+  ): { chainId: Hex; networkClientId: NetworkClientId }[] {
     const { networkConfigurationsByChainId, selectedNetworkClientId } =
       this.messagingSystem.call('NetworkController:getState');
 
@@ -527,21 +501,16 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         selectedNetworkClientId,
       );
 
-      if (networkConfiguration) {
-        return [
-          {
-            chainId: networkConfiguration.chainId,
-            networkClientId: selectedNetworkClientId,
-          },
-        ];
-      }
-      console.log('HERE TO COVER ++++++');
-      return null;
+      return [
+        {
+          chainId: networkConfiguration?.chainId ?? ChainId.mainnet,
+          networkClientId: selectedNetworkClientId,
+        },
+      ];
     }
 
     return chainIds.map((chainId) => {
       const configuration = networkConfigurationsByChainId[chainId];
-
       return {
         chainId,
         networkClientId:
@@ -551,22 +520,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
-  #getCorrectChainIdAndNetworkClientId(networkClientId?: NetworkClientId): {
-    chainId: Hex;
-    networkClientId: NetworkClientId;
-  } {
-    if (networkClientId) {
-      const networkConfiguration = this.messagingSystem.call(
-        'NetworkController:getNetworkConfigurationByNetworkClientId',
-        networkClientId,
-      );
-      if (networkConfiguration) {
-        return {
-          chainId: networkConfiguration.chainId,
-          networkClientId,
-        };
-      }
-    }
+  #getCorrectChainIdAndNetworkClientId() {
     const { selectedNetworkClientId } = this.messagingSystem.call(
       'NetworkController:getState',
     );
@@ -638,10 +592,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   async #attemptAccountAPIDetection(
     chainsToDetectUsingAccountAPI: Hex[],
     addressToDetect: string,
+    supportedNetworks: number[] | null,
   ) {
     return await this.#addDetectedTokensViaAPI({
       chainIds: chainsToDetectUsingAccountAPI,
       selectedAddress: addressToDetect,
+      supportedNetworks,
     });
   }
 
@@ -736,10 +692,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     const addressToDetect = selectedAddress ?? this.#getSelectedAddress();
     const clientNetworks = this.#getCorrectNetworkClientIdByChainId(chainIds);
 
-    if (!clientNetworks) {
-      return;
-    }
-
     let supportedNetworks;
     if (this.#accountsAPI.isAccountsAPIEnabled) {
       supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
@@ -748,10 +700,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       this.#getChainsToDetect(clientNetworks, supportedNetworks);
 
     // Try detecting tokens via Account API first, fallback to RPC if API fails
-    if (supportedNetworks) {
+    if (supportedNetworks && chainsToDetectUsingAccountAPI.length > 0) {
       const apiResult = await this.#attemptAccountAPIDetection(
         chainsToDetectUsingAccountAPI,
         addressToDetect,
+        supportedNetworks,
       );
       if (apiResult?.result === 'success') {
         return;
@@ -765,11 +718,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       );
     }
 
-    // If no supported networks, fallback to RPC with all client networks
-    const finalChainsToDetect = supportedNetworks
-      ? chainsToDetectUsingRpc
-      : clientNetworks;
-    await this.#detectTokensUsingRpc(finalChainsToDetect, addressToDetect);
+    await this.#detectTokensUsingRpc(chainsToDetectUsingRpc, addressToDetect);
   }
 
   #getSlicesOfTokensToDetect({
@@ -847,19 +796,22 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options - method arguments
    * @param options.selectedAddress - address to check against
    * @param options.chainIds - array of chainIds to check tokens for
+   * @param options.supportedNetworks - array of chainIds to check tokens for
    * @returns a success or failed object
    */
   async #addDetectedTokensViaAPI({
     selectedAddress,
     chainIds,
+    supportedNetworks,
   }: {
     selectedAddress: string;
     chainIds: Hex[];
+    supportedNetworks: number[] | null;
   }) {
     return await safelyExecute(async () => {
       // Fetch balances for multiple chain IDs at once
       const tokenBalancesByChain = await this.#accountsAPI
-        .getMultiNetworksBalances(selectedAddress, chainIds)
+        .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
       if (
@@ -977,6 +929,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       // Retrieve token data from cache to safely add it
       const tokenData = this.#tokensChainsCache[chainId]?.data[tokenAddress];
 
+      // We need specific data from tokensChainsCache to correctly create a token
+      // So even if we have a token that was detected correctly by the API, if its missing data we cannot safely add it.
       if (!tokenData) {
         return;
       }
