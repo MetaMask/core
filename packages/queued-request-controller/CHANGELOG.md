@@ -9,10 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [7.0.1]
 
-### Uncategorized
+### Fixed
 
-- fix: issue where `QueuedRequestController.state.queuedRequestCount` is not updated after flushing requests for an origin ([#4898](https://github.com/MetaMask/core/pull/4898))
-- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Fix issue where `queuedRequestCount` state is not updated after flushing requests for an origin ([#4898](https://github.com/MetaMask/core/pull/4898))
 
 ## [7.0.0]
 
