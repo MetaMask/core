@@ -1,8 +1,9 @@
+import { EthMethod } from '../constants';
 import type { OriginalRequest } from '../types';
 import { decodeSignature } from './decoding-api';
 
 const PERMIT_REQUEST_MOCK = {
-  method: 'eth_signTypedData_v4',
+  method: EthMethod.SignTypedDataV4,
   params: [
     '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
     '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
