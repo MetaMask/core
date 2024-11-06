@@ -193,14 +193,3 @@ export enum SignatureRequestType {
   PersonalSign = 'personal_sign',
   TypedSign = 'eth_signTypedData',
 }
-
-/**
- * Supported signature methods.
- */
-export declare enum EthMethod {
-  PersonalSign = 'personal_sign',
-  SignTransaction = 'eth_signTransaction',
-  SignTypedDataV1 = 'eth_signTypedData_v1',
-  SignTypedDataV3 = 'eth_signTypedData_v3',
-  SignTypedDataV4 = 'eth_signTypedData_v4',
-}
