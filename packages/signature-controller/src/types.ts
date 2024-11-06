@@ -81,16 +81,19 @@ export type MessageParamsTyped = MessageParams & {
   version?: string;
 };
 
+/** Different decoding data state change types */
+export type DecodingDataChangeType =
+  | 'RECEIVE'
+  | 'TRANSFER'
+  | 'APPROVE'
+  | 'REVOKE_APPROVE'
+  | 'BIDDING'
+  | 'LISTING';
+
 /** Information about a single state change returned by decoding api. */
 export type DecodingDataStateChange = {
   assetType: string;
-  changeType:
-    | 'RECEIVE'
-    | 'TRANSFER'
-    | 'APPROVE'
-    | 'REVOKE_APPROVE'
-    | 'BIDDING'
-    | 'LISTING';
+  changeType: DecodingDataChangeType;
   address: string;
   amount: string;
   contractAddress: string;
@@ -108,7 +111,7 @@ export type DecodingDataError = {
 /** Decoding data about typed sign V4 signature request. */
 export type DecodingData = {
   stateChanges: DecodingDataStateChanges | null;
-  error: DecodingDataError;
+  error?: DecodingDataError;
 };
 
 type SignatureRequestBase = {

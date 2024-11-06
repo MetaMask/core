@@ -1,5 +1,4 @@
-import { EthMethod } from '@metamask/keyring-api';
-
+import { EthMethod } from '../constants';
 import type { OriginalRequest } from '../types';
 import { convertNumericValuesToQuotedString } from './normalize';
 
