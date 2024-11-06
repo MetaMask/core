@@ -966,7 +966,7 @@ describe('SignatureController', () => {
           controller.state.signatureRequests[ID_MOCK].decodingLoading,
         ).toBe(false);
         expect(
-          controller.state.signatureRequests[ID_MOCK].decodingData?.error.type,
+          controller.state.signatureRequests[ID_MOCK].decodingData?.error?.type,
         ).toStrictEqual(
           DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
         );
