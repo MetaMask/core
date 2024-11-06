@@ -97,6 +97,7 @@ export type DecodingDataStateChange = {
   address: string;
   amount: string;
   contractAddress: string;
+  tokenID?: string;
 };
 
 /** Array of the various state changes returned by decoding api. */
