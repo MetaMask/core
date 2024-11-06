@@ -262,6 +262,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         !supportedNetworks ||
         !chainIdNumbers.every((id) => supportedNetworks.includes(id))
       ) {
+        console.log('INSIDE IF -------');
         const supportedNetworksErrStr = (supportedNetworks ?? []).toString();
         throw new Error(
           `Unsupported Network: supported networks ${supportedNetworksErrStr}, requested networks: ${chainIdNumbers.toString()}`,
@@ -534,28 +535,18 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           },
         ];
       }
+      console.log('HERE TO COVER ++++++');
       return null;
     }
 
     return chainIds.map((chainId) => {
       const configuration = networkConfigurationsByChainId[chainId];
 
-      if (!configuration) {
-        console.error(`No configuration found for chainId: ${chainId}`);
-        return { chainId, networkClientId: '' }; // TODO: handle this case where chainId is defined but there's no rpc added
-      }
-
-      const { rpcEndpoints } = configuration;
-
-      const matchingEndpoint = rpcEndpoints.find(
-        (endpoint) => endpoint.networkClientId === selectedNetworkClientId,
-      );
-
       return {
         chainId,
-        networkClientId: matchingEndpoint
-          ? matchingEndpoint.networkClientId
-          : rpcEndpoints[0].networkClientId,
+        networkClientId:
+          configuration.rpcEndpoints[configuration.defaultRpcEndpointIndex]
+            .networkClientId,
       };
     });
   }
@@ -628,7 +619,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   #getChainsToDetect(
     clientNetworks: NetworkClient[],
-    supportedNetworks: number[] | null,
+    supportedNetworks: number[] | null | undefined,
   ) {
     const chainsToDetectUsingAccountAPI: Hex[] = [];
     const chainsToDetectUsingRpc: NetworkClient[] = [];
@@ -749,7 +740,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
       return;
     }
 
-    const supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
+    let supportedNetworks;
+    if (this.#accountsAPI.isAccountsAPIEnabled) {
+      supportedNetworks = await this.#accountsAPI.getSupportedNetworks();
+    }
     const { chainsToDetectUsingRpc, chainsToDetectUsingAccountAPI } =
       this.#getChainsToDetect(clientNetworks, supportedNetworks);
 
@@ -875,7 +869,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         return { result: 'failed' } as const;
       }
 
-      console.log('chainIds +++++', chainIds);
       // Process each chain ID individually
       for (const chainId of chainIds) {
         const isTokenDetectionInactiveInMainnet =
@@ -894,14 +887,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
           selectedAddress,
         });
 
-        console.log('tokenBalancesByChain -----', tokenBalancesByChain);
-
         // Filter balances for the current chainId
         const tokenBalances = tokenBalancesByChain.filter(
           (balance) => balance.chainId === hexToNumber(chainId),
         );
-
-        console.log('tokenBalances -----++++', tokenBalances);
 
         if (!tokenBalances || tokenBalances.length === 0) {
           continue;
@@ -915,15 +904,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             chainId,
           );
 
-        console.log('tokensWithBalance +++++', tokensWithBalance);
-
         if (tokensWithBalance.length) {
-          console.log(
-            'INSIDE IF ===================>',
-            tokensWithBalance,
-            selectedAddress,
-            chainId,
-          );
           this.#trackMetaMetricsEvent({
             event: 'Token Detected',
             category: 'Wallet',
@@ -938,12 +919,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
             },
           });
 
-          console.log(
-            'INSIDE IF ===================>',
-            tokensWithBalance,
-            selectedAddress,
-            chainId,
-          );
           await this.messagingSystem.call(
             'TokensController:addDetectedTokens',
             tokensWithBalance,
@@ -991,31 +966,17 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     const tokenCandidateSet = new Set<string>(tokenCandidateSlices.flat());
 
-    console.log('tokenCandidateSet -----', tokenCandidateSet);
-    console.log('tokenBalances -----', tokenBalances);
-
     tokenBalances?.forEach((token) => {
       const tokenAddress = token.address;
-
-      console.log('tokenAddress -----', tokenAddress);
-
-      console.log('tokenCandidateSet -----', tokenCandidateSet);
-      console.log(
-        '!tokenCandidateSet.has(tokenAddress) -----',
-        !tokenCandidateSet.has(tokenAddress),
-      );
 
       // Make sure the token to add is in our candidate list
       if (!tokenCandidateSet.has(tokenAddress)) {
         return;
       }
 
-      console.log('tokenAddress -----', tokenAddress);
-
       // Retrieve token data from cache to safely add it
       const tokenData = this.#tokensChainsCache[chainId]?.data[tokenAddress];
 
-      console.log('tokenData ********', tokenData);
       if (!tokenData) {
         return;
       }
@@ -1047,7 +1008,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     networkClientId: NetworkClientId;
     chainId: Hex;
   }): Promise<void> {
-    console.log('INSIDE addDetectedTokens:::::');
     await safelyExecute(async () => {
       const balances = await this.#getBalancesInSingleCall(
         selectedAddress,
@@ -1072,7 +1032,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         });
       }
 
-      console.log('tokensWithBalance 2 ++++++', tokensWithBalance);
       if (tokensWithBalance.length) {
         this.#trackMetaMetricsEvent({
           event: 'Token Detected',

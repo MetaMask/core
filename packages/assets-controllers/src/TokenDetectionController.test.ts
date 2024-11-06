@@ -397,8 +397,6 @@ describe('TokenDetectionController', () => {
 
           await controller.start();
 
-          console.log(callActionSpy.mock.calls);
-
           expect(callActionSpy).toHaveBeenCalledWith(
             'TokensController:addDetectedTokens',
             [sampleTokenA],
@@ -482,7 +480,7 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it.skip('should update detectedTokens when new tokens are detected', async () => {
+    it('should update detectedTokens when new tokens are detected', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
         [sampleTokenA.address]: new BN(1),
         [sampleTokenB.address]: new BN(1),
@@ -496,7 +494,6 @@ describe('TokenDetectionController', () => {
           options: {
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
             interval,
-            useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getAccount: selectedAccount,
@@ -2260,7 +2257,7 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it.skip('should detect and add tokens from the `@metamask/contract-metadata` legacy token list if token detection is disabled and current network is mainnet', async () => {
+    it('should detect and add tokens from the `@metamask/contract-metadata` legacy token list if token detection is disabled and current network is mainnet', async () => {
       const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue(
         Object.keys(STATIC_MAINNET_TOKEN_LIST).reduce<Record<string, BN>>(
           (acc, address) => {
@@ -2278,7 +2275,7 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            useAccountsAPI: true, // USING ACCOUNTS API
+            // useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: selectedAccount,
