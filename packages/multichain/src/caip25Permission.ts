@@ -206,26 +206,25 @@ function removeAccountFromScopeObject(
 /**
  * Removes the target account from the scope object.
  *
- * @param existingScopes - The scope object to remove the account from.
+ * @param caip25CaveatValue - The CAIP-25 permission caveat value from which to remove the account (across all chain scopes).
  * @param targetAddress - The address to remove from the scope object. Not a CAIP-10 formatted address because it will be removed across each chain scope.
  * @returns The updated scope object.
  */
 function removeAccount(
-  existingScopes: Caip25CaveatValue,
+  caip25CaveatValue: Caip25CaveatValue,
   targetAddress: string,
 ) {
-  const copyOfExistingScopes = cloneDeep(existingScopes);
+  const copyOfCaveatValue = cloneDeep(caip25CaveatValue);
 
-  [
-    copyOfExistingScopes.requiredScopes,
-    copyOfExistingScopes.optionalScopes,
-  ].forEach((scopes) => {
-    Object.entries(scopes).forEach(([, scopeObject]) => {
-      removeAccountFromScopeObject(scopeObject, targetAddress);
-    });
-  });
+  [copyOfCaveatValue.requiredScopes, copyOfCaveatValue.optionalScopes].forEach(
+    (scopes) => {
+      Object.entries(scopes).forEach(([, scopeObject]) => {
+        removeAccountFromScopeObject(scopeObject, targetAddress);
+      });
+    },
+  );
 
-  const noChange = isEqual(copyOfExistingScopes, existingScopes);
+  const noChange = isEqual(copyOfCaveatValue, caip25CaveatValue);
 
   if (noChange) {
     return {
@@ -235,7 +234,7 @@ function removeAccount(
 
   return {
     operation: CaveatMutatorOperation.UpdateValue,
-    value: copyOfExistingScopes,
+    value: copyOfCaveatValue,
   };
 }
 
