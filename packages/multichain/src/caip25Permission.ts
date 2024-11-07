@@ -192,7 +192,10 @@ function removeAccountFilterFn(targetAddress: string) {
  * @param scopeObject - The scope object to remove the account from.
  * @param targetAddress - The address to remove from the scope object.
  */
-function removeAccountOnScope(scopeObject: ScopeObject, targetAddress: string) {
+function removeAccountFromScopeObject(
+  scopeObject: ScopeObject,
+  targetAddress: string,
+) {
   if (scopeObject.accounts) {
     scopeObject.accounts = scopeObject.accounts.filter(
       removeAccountFilterFn(targetAddress),
@@ -218,7 +221,7 @@ function removeAccount(
     copyOfExistingScopes.optionalScopes,
   ].forEach((scopes) => {
     Object.entries(scopes).forEach(([, scopeObject]) => {
-      removeAccountOnScope(scopeObject, targetAddress);
+      removeAccountFromScopeObject(scopeObject, targetAddress);
     });
   });
 
