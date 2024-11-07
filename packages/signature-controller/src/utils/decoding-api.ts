@@ -1,5 +1,4 @@
-import { EthMethod } from '../constants';
-import { type OriginalRequest } from '../types';
+import { EthMethod, type OriginalRequest } from '../types';
 import { convertNumericValuesToQuotedString } from './normalize';
 
 export const DECODING_API_ERRORS = {

@@ -2,7 +2,26 @@ import type { SIWEMessage } from '@metamask/controller-utils';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex, Json } from '@metamask/utils';
 
-import type { DecodingDataChangeType } from './constants';
+/**
+ * Supported signature methods.
+ */
+export enum EthMethod {
+  PersonalSign = 'personal_sign',
+  SignTransaction = 'eth_signTransaction',
+  SignTypedDataV1 = 'eth_signTypedData_v1',
+  SignTypedDataV3 = 'eth_signTypedData_v3',
+  SignTypedDataV4 = 'eth_signTypedData_v4',
+}
+
+/** Different decoding data state change types */
+export enum DecodingDataChangeType {
+  Receive = 'RECEIVE',
+  Transfer = 'TRANSFER',
+  Approve = 'APPROVE',
+  Revoke = 'REVOKE_APPROVE',
+  Bidding = 'BIDDING',
+  Listing = 'LISTING',
+}
 
 /** Original client request that triggered the signature request. */
 export type OriginalRequest = {
