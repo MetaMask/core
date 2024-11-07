@@ -83,11 +83,6 @@ export const parseScopeString = (
   return {};
 };
 
-// ScopeString for ecosystems that aren't chain specific
-export enum KnownWalletScopeString {
-  Eip155 = 'wallet:eip155',
-}
-
 // Known CAIP Namespaces excluding "wallet"
 export type NonWalletKnownCaipNamespace = Exclude<
   KnownCaipNamespace,

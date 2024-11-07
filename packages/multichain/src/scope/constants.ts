@@ -1,18 +1,13 @@
 import MetaMaskOpenRPCDocument from '@metamask/api-specs';
-import type { KnownCaipNamespace } from '@metamask/utils';
 
-// ScopeString for ecosystems that aren't chain specific
+import type { NonWalletKnownCaipNamespace } from './types';
+
+// ScopeStrings for offchain methods that are not specific to a chainId but are specific to a CAIP namespace
 export enum KnownWalletScopeString {
   Eip155 = 'wallet:eip155',
 }
 
-// Known CAIP Namespaces excluding "wallet"
-export type NonWalletKnownCaipNamespace = Exclude<
-  KnownCaipNamespace,
-  KnownCaipNamespace.Wallet
->;
-
-// Methods that do not belong to an ecosystem
+// Methods that do not belong exclusively to any CAIP namespace
 export const KnownWalletRpcMethods: string[] = [
   'wallet_registerOnboarding',
   'wallet_scanQRCode',
@@ -33,7 +28,7 @@ export const KnownRpcMethods: Record<NonWalletKnownCaipNamespace, string[]> = {
   bip122: [],
 };
 
-// Methods for ecosystems that aren't chain specific
+// Methods for CAIP namespaces that aren't chain specific
 export const KnownWalletNamespaceRpcMethods: Record<
   NonWalletKnownCaipNamespace,
   string[]
@@ -42,7 +37,6 @@ export const KnownWalletNamespaceRpcMethods: Record<
   bip122: [],
 };
 
-// Notifications
 export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
   {
     eip155: ['eth_subscription'],
