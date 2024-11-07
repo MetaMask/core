@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: gas limit estimation ([#4897](https://github.com/MetaMask/core/pull/4897))
+- fix: Add validation to ensure gas fields are valid hexadecimal ([#4854](https://github.com/MetaMask/core/pull/4854))
+
 ## [38.2.0]
 
 ### Added
