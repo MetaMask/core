@@ -36,23 +36,26 @@ export const normalizeScope = (
   const { references, ...scopeObject } = externalScopeObject;
   const { namespace, reference } = parseScopeString(scopeString);
 
-  const normalizedScopeObject = {
+  const normalizedScopeObject: ScopeObject = {
     accounts: [],
     ...scopeObject,
   };
 
-  // Scope is already a CAIP-2 ID and has no references to flatten
-  if (!namespace || reference || !references || references?.length === 0) {
-    return { [scopeString]: normalizedScopeObject };
-  }
+  const shouldFlatten =
+    namespace &&
+    !reference &&
+    references !== undefined &&
+    references.length > 0;
 
-  const scopeMap: ScopesObject = {};
-  references.forEach((nestedReference: CaipReference) => {
-    scopeMap[`${namespace}:${nestedReference}`] = cloneDeep(
-      normalizedScopeObject,
+  if (shouldFlatten) {
+    return Object.fromEntries(
+      references.map((ref: CaipReference) => [
+        `${namespace}:${ref}`,
+        cloneDeep(normalizedScopeObject),
+      ]),
     );
-  });
-  return scopeMap;
+  }
+  return { [scopeString]: normalizedScopeObject };
 };
 
 export const mergeScopeObject = (
