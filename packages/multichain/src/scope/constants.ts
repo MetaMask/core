@@ -30,6 +30,7 @@ const Eip155Methods = MetaMaskOpenRPCDocument.methods
 // Methods for ecosystem that are chain specific
 export const KnownRpcMethods: Record<NonWalletKnownCaipNamespace, string[]> = {
   eip155: Eip155Methods,
+  bip122: [],
 };
 
 // Methods for ecosystems that aren't chain specific
@@ -38,10 +39,12 @@ export const KnownWalletNamespaceRpcMethods: Record<
   string[]
 > = {
   eip155: WalletEip155Methods,
+  bip122: [],
 };
 
 // Notifications
 export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
   {
     eip155: ['eth_subscription'],
+    bip122: [],
   };
