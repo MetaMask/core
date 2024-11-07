@@ -6,11 +6,11 @@ import {
   isSupportedNotification,
   isSupportedScopeString,
 } from './supported';
-import type { ScopeObject, ScopesObject } from './types';
+import type { InternalScopeObject, InternalScopesObject } from './types';
 
 export const assertScopeSupported = (
   scopeString: string,
-  scopeObject: ScopeObject,
+  scopeObject: InternalScopeObject,
   {
     isChainIdSupported,
   }: {
@@ -56,7 +56,7 @@ export const assertScopeSupported = (
 };
 
 export const assertScopesSupported = (
-  scopes: ScopesObject,
+  scopes: InternalScopesObject,
   {
     isChainIdSupported,
   }: {

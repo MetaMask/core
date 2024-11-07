@@ -4,14 +4,14 @@ import {
   mergeScopeObject,
   normalizeAndMergeScopes,
 } from './transform';
-import type { ExternalScopeObject, ScopeObject } from './types';
+import type { ExternalScopeObject, InternalScopeObject } from './types';
 
 const externalScopeObject: ExternalScopeObject = {
   methods: [],
   notifications: [],
 };
 
-const validScopeObject: ScopeObject = {
+const validScopeObject: InternalScopeObject = {
   methods: [],
   notifications: [],
   accounts: [],

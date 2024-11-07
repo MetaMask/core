@@ -5,7 +5,7 @@ import { KnownCaipNamespace } from '@metamask/utils';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { ScopesObject, ScopeString } from '../scope/types';
+import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { KnownWalletScopeString, parseScopeString } from '../scope/types';
 
 export const getPermittedEthChainIds = (
@@ -61,24 +61,24 @@ export const addPermittedEthChainId = (
 };
 
 const filterEthScopesObjectByChainId = (
-  scopesObject: ScopesObject,
+  scopesObject: InternalScopesObject,
   chainIds: Hex[],
 ) => {
-  const updatedScopesObject: ScopesObject = {};
+  const updatedScopesObject: InternalScopesObject = {};
 
   Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
     const { namespace, reference } = parseScopeString(scopeString);
     if (!reference) {
-      updatedScopesObject[scopeString as ScopeString] = scopeObject;
+      updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
       return;
     }
     if (namespace === KnownCaipNamespace.Eip155) {
       const chainId = toHex(reference);
       if (chainIds.includes(chainId)) {
-        updatedScopesObject[scopeString as ScopeString] = scopeObject;
+        updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
       }
     } else {
-      updatedScopesObject[scopeString as ScopeString] = scopeObject;
+      updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
     }
   });
 

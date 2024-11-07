@@ -4,9 +4,9 @@ import { cloneDeep } from 'lodash';
 import type {
   ExternalScopeObject,
   ExternalScopesObject,
-  ScopeString,
-  ScopeObject,
-  ScopesObject,
+  InternalScopeString,
+  InternalScopeObject,
+  InternalScopesObject,
 } from './types';
 import { parseScopeString } from './types';
 
@@ -22,7 +22,7 @@ export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
 
 /**
  * Normalizes a ScopeString and ExternalScopeObject into a separate
- * ScopeString and ScopeObject for each reference in the `references`
+ * InternalScopeString and InternalScopeObject for each reference in the `references`
  * value if defined and adds an empty `accounts` array if not defined.
  *
  * @param scopeString - The string representing the scope
@@ -32,11 +32,11 @@ export const getUniqueArrayItems = <Value>(list: Value[]): Value[] => {
 export const normalizeScope = (
   scopeString: string,
   externalScopeObject: ExternalScopeObject,
-): ScopesObject => {
+): InternalScopesObject => {
   const { references, ...scopeObject } = externalScopeObject;
   const { namespace, reference } = parseScopeString(scopeString);
 
-  const normalizedScopeObject: ScopeObject = {
+  const normalizedScopeObject: InternalScopeObject = {
     accounts: [],
     ...scopeObject,
   };
@@ -59,10 +59,10 @@ export const normalizeScope = (
 };
 
 export const mergeScopeObject = (
-  scopeObjectA: ScopeObject,
-  scopeObjectB: ScopeObject,
+  scopeObjectA: InternalScopeObject,
+  scopeObjectB: InternalScopeObject,
 ) => {
-  const mergedScopeObject: ScopeObject = {
+  const mergedScopeObject: InternalScopeObject = {
     methods: getUniqueArrayItems([
       ...scopeObjectA.methods,
       ...scopeObjectB.methods,
@@ -95,13 +95,13 @@ export const mergeScopeObject = (
 };
 
 export const mergeScopes = (
-  scopeA: ScopesObject,
-  scopeB: ScopesObject,
-): ScopesObject => {
-  const scope: ScopesObject = {};
+  scopeA: InternalScopesObject,
+  scopeB: InternalScopesObject,
+): InternalScopesObject => {
+  const scope: InternalScopesObject = {};
 
   Object.entries(scopeA).forEach(([_scopeString, scopeObjectA]) => {
-    const scopeString = _scopeString as ScopeString;
+    const scopeString = _scopeString as InternalScopeString;
     const scopeObjectB = scopeB[scopeString];
 
     scope[scopeString] = scopeObjectB
@@ -110,7 +110,7 @@ export const mergeScopes = (
   });
 
   Object.entries(scopeB).forEach(([_scopeString, scopeObjectB]) => {
-    const scopeString = _scopeString as ScopeString;
+    const scopeString = _scopeString as InternalScopeString;
     const scopeObjectA = scopeA[scopeString];
 
     if (!scopeObjectA) {
@@ -123,8 +123,8 @@ export const mergeScopes = (
 
 export const normalizeAndMergeScopes = (
   scopes: ExternalScopesObject,
-): ScopesObject => {
-  let mergedScopes: ScopesObject = {};
+): InternalScopesObject => {
+  let mergedScopes: InternalScopesObject = {};
   Object.keys(scopes).forEach((scopeString) => {
     const normalizedScopes = normalizeScope(scopeString, scopes[scopeString]);
     mergedScopes = mergeScopes(mergedScopes, normalizedScopes);

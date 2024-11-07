@@ -891,7 +891,7 @@ describe('caip25EndowmentBuilder', () => {
       );
     });
 
-    it('does not throw if the input requiredScopes and optionalScopes ScopesObject are already validated and normalized', () => {
+    it('does not throw if the input requiredScopes and optionalScopes InternalScopesObject are already validated and normalized', () => {
       MockScopeAuthorization.validateAndNormalizeScopes.mockReturnValue({
         normalizedRequiredScopes: {
           'eip155:1': {

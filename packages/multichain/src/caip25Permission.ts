@@ -23,13 +23,13 @@ import { assertScopesSupported } from './scope/assert';
 import { validateAndNormalizeScopes } from './scope/authorization';
 import type {
   ExternalScopeString,
-  ScopeObject,
-  ScopesObject,
+  InternalScopeObject,
+  InternalScopesObject,
 } from './scope/types';
 
 export type Caip25CaveatValue = {
-  requiredScopes: ScopesObject;
-  optionalScopes: ScopesObject;
+  requiredScopes: InternalScopesObject;
+  optionalScopes: InternalScopesObject;
   sessionProperties?: Record<string, Json>;
   isMultichainOrigin: boolean;
 };
@@ -193,7 +193,7 @@ function removeAccountFilterFn(targetAddress: string) {
  * @param targetAddress - The address to remove from the scope object.
  */
 function removeAccountFromScopeObject(
-  scopeObject: ScopeObject,
+  scopeObject: InternalScopeObject,
   targetAddress: string,
 ) {
   if (scopeObject.accounts) {

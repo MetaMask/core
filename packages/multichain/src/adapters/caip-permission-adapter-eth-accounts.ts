@@ -7,10 +7,10 @@ import {
 
 import type { Caip25CaveatValue } from '../caip25Permission';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { ScopesObject, ScopeString } from '../scope/types';
+import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { KnownWalletScopeString, parseScopeString } from '../scope/types';
 
-const isEip155ScopeString = (scopeString: ScopeString) => {
+const isEip155ScopeString = (scopeString: InternalScopeString) => {
   const { namespace } = parseScopeString(scopeString);
 
   return (
@@ -45,19 +45,19 @@ export const getEthAccounts = (
 };
 
 const setEthAccountsForScopesObject = (
-  scopesObject: ScopesObject,
+  scopesObject: InternalScopesObject,
   accounts: Hex[],
 ) => {
-  const updatedScopesObject: ScopesObject = {};
+  const updatedScopesObject: InternalScopesObject = {};
 
   Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
     const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet;
 
     if (
-      !isEip155ScopeString(scopeString as ScopeString) &&
+      !isEip155ScopeString(scopeString as InternalScopeString) &&
       !isWalletNamespace
     ) {
-      updatedScopesObject[scopeString as ScopeString] = scopeObject;
+      updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
       return;
     }
 
@@ -68,7 +68,7 @@ const setEthAccountsForScopesObject = (
           : `${scopeString}:${account}`) as CaipAccountId,
     );
 
-    updatedScopesObject[scopeString as ScopeString] = {
+    updatedScopesObject[scopeString as InternalScopeString] = {
       ...scopeObject,
       accounts: caipAccounts,
     };

@@ -20,9 +20,9 @@ export type {
   ExternalScopeString,
   ExternalScopeObject,
   ExternalScopesObject,
-  ScopeString,
-  ScopeObject,
-  ScopesObject,
+  InternalScopeString,
+  InternalScopeObject,
+  InternalScopesObject,
   ScopedProperties,
   NonWalletKnownCaipNamespace,
 } from './scope/types';

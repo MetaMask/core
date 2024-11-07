@@ -35,6 +35,7 @@ export const isValidScope = (
   if (reference && references && references.length > 0) {
     return false;
   }
+
   if (namespace && references) {
     const areReferencesValid = references.every((nestedReference) => {
       return isCaipReference(nestedReference);
