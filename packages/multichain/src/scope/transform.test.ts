@@ -74,6 +74,14 @@ describe('Scope Transform', () => {
           normalizedScopes['eip155:5'].methods,
         );
       });
+
+      it('returns the scope as is when `references` is an empty array', () => {
+        expect(
+          normalizeScope('eip155', { ...validScopeObject, references: [] }),
+        ).toStrictEqual({
+          eip155: validScopeObject,
+        });
+      });
     });
   });
 

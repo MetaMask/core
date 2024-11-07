@@ -42,7 +42,7 @@ export const normalizeScope = (
   };
 
   // Scope is already a CAIP-2 ID and has no references to flatten
-  if (!namespace || reference || !references) {
+  if (!namespace || reference || !references || references?.length === 0) {
     return { [scopeString]: normalizedScopeObject };
   }
 
