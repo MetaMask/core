@@ -11,6 +11,11 @@ import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
 import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
+/**
+ * Checks if a scope string is either an EIP155 or wallet namespaced scope string.
+ * @param scopeString - The scope string to check.
+ * @returns True if the scope string is an EIP155 or wallet namespaced scope string, false otherwise.
+ */
 const isEip155ScopeString = (scopeString: InternalScopeString) => {
   const { namespace } = parseScopeString(scopeString);
 
@@ -20,6 +25,11 @@ const isEip155ScopeString = (scopeString: InternalScopeString) => {
   );
 };
 
+/**
+ * Gets the Ethereum (EIP155 namespaced) accounts from the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to get the Ethereum accounts from.
+ * @returns An array of Ethereum accounts.
+ */
 export const getEthAccounts = (
   caip25CaveatValue: Pick<
     Caip25CaveatValue,
@@ -45,6 +55,12 @@ export const getEthAccounts = (
   return getUniqueArrayItems(ethAccounts);
 };
 
+/**
+ * Sets the Ethereum (EIP155 namespaced) accounts for the given scopes object.
+ * @param scopesObject - The scopes object to set the Ethereum accounts for.
+ * @param accounts - The Ethereum accounts to set.
+ * @returns The updated scopes object with the Ethereum accounts set.
+ */
 const setEthAccountsForScopesObject = (
   scopesObject: InternalScopesObject,
   accounts: Hex[],
@@ -78,6 +94,12 @@ const setEthAccountsForScopesObject = (
   return updatedScopesObject;
 };
 
+/**
+ * Sets the Ethereum (EIP155 namespaced) accounts for the given CAIP-25 caveat value.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the Ethereum accounts for.
+ * @param accounts - The Ethereum accounts to set.
+ * @returns The updated CAIP-25 caveat value with the Ethereum accounts set.
+ */
 export const setEthAccounts = (
   caip25CaveatValue: Caip25CaveatValue,
   accounts: Hex[],

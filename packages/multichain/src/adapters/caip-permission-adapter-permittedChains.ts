@@ -12,6 +12,11 @@ import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
 import type { InternalScopesObject, InternalScopeString } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
+/**
+ * Gets the Ethereum (EIP155 namespaced) chainIDs from the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value from which to get the Ethereum chainIDs.
+ * @returns An array of Ethereum chainIDs.
+ */
 export const getPermittedEthChainIds = (
   caip25CaveatValue: Pick<
     Caip25CaveatValue,
@@ -34,6 +39,12 @@ export const getPermittedEthChainIds = (
   return getUniqueArrayItems(ethChainIds);
 };
 
+/**
+ * Adds an Ethereum (EIP155 namespaced) chainID to the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to add the Ethereum chainID to.
+ * @param chainId - The Ethereum chainID to add.
+ * @returns The updated CAIP-25 caveat value with the added Ethereum chainID.
+ */
 export const addPermittedEthChainId = (
   caip25CaveatValue: Caip25CaveatValue,
   chainId: Hex,
@@ -64,6 +75,12 @@ export const addPermittedEthChainId = (
   };
 };
 
+/**
+ * Filters the scopes object to only include the scopes for the given chainIDs.
+ * @param scopesObject - The scopes object to filter.
+ * @param chainIds - The chainIDs to filter the scopes object by.
+ * @returns The filtered scopes object.
+ */
 const filterEthScopesObjectByChainId = (
   scopesObject: InternalScopesObject,
   chainIds: Hex[],
@@ -89,6 +106,12 @@ const filterEthScopesObjectByChainId = (
   return updatedScopesObject;
 };
 
+/**
+ * Sets the permitted Ethereum (EIP155 namespaced) chainIDs for the required and optional scopes.
+ * @param caip25CaveatValue - The CAIP-25 caveat value to set the permitted Ethereum chainIDs for.
+ * @param chainIds - The Ethereum chainIDs to set as permitted.
+ * @returns The updated CAIP-25 caveat value with the permitted Ethereum chainIDs.
+ */
 export const setPermittedEthChainIds = (
   caip25CaveatValue: Caip25CaveatValue,
   chainIds: Hex[],
