@@ -1,6 +1,11 @@
 /* eslint-disable jsdoc/require-jsdoc */
 
-import { BNToHex, hexToBN, query } from '@metamask/controller-utils';
+import {
+  BNToHex,
+  fractionBN,
+  hexToBN,
+  query,
+} from '@metamask/controller-utils';
 import type EthQuery from '@metamask/eth-query';
 import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
@@ -20,7 +25,8 @@ export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
-export const GAS_ESTIMATE_FALLBACK_MULTIPLIER = 0.35;
+export const GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
+export const MAX_GAS_BLOCK_PERCENT = 90;
 
 export async function updateGas(request: UpdateGasRequest) {
   const { txMeta } = request;
@@ -49,22 +55,28 @@ export async function estimateGas(
   const request = { ...txParams };
   const { data, value } = request;
 
-  const { gasLimit: gasLimitHex, number: blockNumber } = await getLatestBlock(
+  const { gasLimit: blockGasLimit, number: blockNumber } = await getLatestBlock(
     ethQuery,
   );
 
-  const gasLimitBN = hexToBN(gasLimitHex);
+  const blockGasLimitBN = hexToBN(blockGasLimit);
+
+  const fallback = BNToHex(
+    fractionBN(blockGasLimitBN, GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT, 100),
+  );
 
   request.data = data ? add0x(data) : data;
-  request.gas = BNToHex(gasLimitBN.muln(GAS_ESTIMATE_FALLBACK_MULTIPLIER));
   request.value = value || '0x0';
 
-  let estimatedGas = request.gas;
-  let simulationFails;
+  delete request.gasPrice;
+  delete request.maxFeePerGas;
+  delete request.maxPriorityFeePerGas;
+
+  let estimatedGas = fallback;
+  let simulationFails: TransactionMeta['simulationFails'];
 
   try {
     estimatedGas = await query(ethQuery, 'estimateGas', [request]);
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
@@ -72,15 +84,15 @@ export async function estimateGas(
       errorKey: error.errorKey,
       debug: {
         blockNumber,
-        blockGasLimit: gasLimitHex,
+        blockGasLimit,
       },
     };
 
-    log('Estimation failed', { ...simulationFails, fallback: estimateGas });
+    log('Estimation failed', { ...simulationFails, fallback });
   }
 
   return {
-    blockGasLimit: gasLimitHex,
+    blockGasLimit,
     estimatedGas,
     simulationFails,
   };
@@ -92,8 +104,14 @@ export function addGasBuffer(
   multiplier: number,
 ) {
   const estimatedGasBN = hexToBN(estimatedGas);
-  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
-  const paddedGasBN = estimatedGasBN.muln(multiplier);
+
+  const maxGasBN = fractionBN(
+    hexToBN(blockGasLimit),
+    MAX_GAS_BLOCK_PERCENT,
+    100,
+  );
+
+  const paddedGasBN = fractionBN(estimatedGasBN, multiplier * 100, 100);
 
   if (estimatedGasBN.gt(maxGasBN)) {
     const estimatedGasHex = add0x(estimatedGas);
