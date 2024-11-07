@@ -912,11 +912,6 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     chainId: string,
   ) {
-    console.log(
-      !this.#isDecodeSignatureRequestEnabled?.(),
-      !this.#decodingApiUrl,
-      !this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl,
-    );
     if (!this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl) {
       return;
     }
