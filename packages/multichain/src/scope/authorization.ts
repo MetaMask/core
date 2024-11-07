@@ -8,6 +8,9 @@ import type {
 } from './types';
 import { validateScopes } from './validation';
 
+/**
+ * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
+ */
 export type Caip25Authorization = (
   | {
       requiredScopes: ExternalScopesObject;
