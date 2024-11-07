@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.8]
 
-### Fixed
-
-- prevent parallel account syncs ([#4901](https://github.com/MetaMask/core/pull/4901))
-
 ### Changed
 
 - **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+
+### Fixed
+
+- prevent multiple parallel account syncs by checking the value of `isAccountSyncingInProgress` before dispatching account syncing ([#4901](https://github.com/MetaMask/core/pull/4901))
 
 ## [0.9.7]
 
