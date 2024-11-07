@@ -32,14 +32,18 @@ export type ExternalScopesObject = Record<
   ExternalScopeObject
 >;
 
-// These non-prefixed types represent CAIP-217 Scope and
-// ScopeObject as defined by the spec but without
-// namespace-only Scopes (except for "wallet") and without
-// the `references` array of CAIP References on the ScopeObject.
-// These deviations from the spec are necessary as MetaMask
-// does not support wildcarded Scopes, i.e. Scopes that only
-// specify a namespace but no specific reference.
+/**
+ * Represents a `scopeString` as defined in
+ * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
+ * CAIP namespaces (aside from "wallet") are disallowed for our internal representations of CAIP-25 session scopes
+ */
 export type ScopeString = CaipChainId | KnownCaipNamespace.Wallet;
+/**
+ * Represents a `scopeObject` as defined in
+ * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
+ * the `references` property is disallowed for our internal representations of CAIP-25 session scopes.
+ * e.g. We flatten each reference into its own scopeObject before storing them in a `endowment:caip25` permission.
+ */
 export type ScopeObject = {
   methods: string[];
   notifications: string[];
@@ -47,6 +51,12 @@ export type ScopeObject = {
   rpcDocuments?: string[];
   rpcEndpoints?: string[];
 };
+/**
+ * Represents a keyed `scopeObject` as defined in
+ * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
+ * `scopeObject`s do not contain `references` in our internal representations of CAIP-25 session scopes.
+ * e.g. We flatten each reference into its own scopeObject before storing them in a `endowment:caip25` permission.
+ */
 export type ScopesObject = Record<CaipChainId, ScopeObject> & {
   [KnownCaipNamespace.Wallet]?: ScopeObject;
 };
