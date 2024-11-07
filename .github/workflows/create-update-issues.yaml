@@ -32,12 +32,16 @@ jobs:
               # Extract version number
               version="${tag##*@}"
 
-              # Check if version number ends with .0.0
-              if [[ $version == *.0.0 ]]; then
-                # Fetch responsible team from file
+
+               # Check if it's a breaking change (x.0.0 for >=1.0.0 or 0.x.0 for <1.0.0)
+               if [[ $version =~ ^[1-9][0-9]*\.0\.0$ || ($version =~ ^0\.[0-9]+\.0$ && $version != "0.0.0") ]]; then
+                 # Fetch responsible team from file
+                 teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
                 teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$teams"
-                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$teams"
+
+                 gh issue create --title "Update ${package_name} to version ${version} (Breaking Change)" --body "Please update ${package_name} to version ${version}. This is a breaking change." --repo "MetaMask/metamask-extension" --label "$teams"
+                 gh issue create --title "Update ${package_name} to version ${version} (Breaking Change)" --body "Please update ${package_name} to version ${version}. This is a breaking change." --repo "MetaMask/metamask-mobile" --label "$teams"
+               fi
               fi
             fi
           done
