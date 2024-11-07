@@ -2,6 +2,8 @@ import type { SIWEMessage } from '@metamask/controller-utils';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex, Json } from '@metamask/utils';
 
+import type { DecodingDataChangeType } from './constants';
+
 /** Original client request that triggered the signature request. */
 export type OriginalRequest = {
   /** Unique ID to identify the client request. */
@@ -81,19 +83,10 @@ export type MessageParamsTyped = MessageParams & {
   version?: string;
 };
 
-/** Different decoding data state change types */
-export type DecodingDataChangeType =
-  | 'RECEIVE'
-  | 'TRANSFER'
-  | 'APPROVE'
-  | 'REVOKE_APPROVE'
-  | 'BIDDING'
-  | 'LISTING';
-
 /** Information about a single state change returned by decoding api. */
 export type DecodingDataStateChange = {
   assetType: string;
-  changeType: DecodingDataChangeType;
+  changeType: (typeof DecodingDataChangeType)[keyof typeof DecodingDataChangeType];
   address: string;
   amount: string;
   contractAddress: string;

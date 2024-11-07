@@ -8,3 +8,13 @@ export const EthMethod = {
   SignTypedDataV3: 'eth_signTypedData_v3',
   SignTypedDataV4: 'eth_signTypedData_v4',
 };
+
+/** Different decoding data state change types */
+export const DecodingDataChangeType = {
+  Receive: 'RECEIVE',
+  Transfer: 'TRANSFER',
+  Approve: 'APPROVE',
+  Revoke: 'REVOKE_APPROVE',
+  Bidding: 'BIDDING',
+  Listing: 'LISTING',
+};
