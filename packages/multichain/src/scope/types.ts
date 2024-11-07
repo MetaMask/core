@@ -12,13 +12,21 @@ import type {
   Json,
 } from '@metamask/utils';
 
-// These External prefixed types represent the CAIP-217
-// Scope and ScopeObject as defined in the spec.
+/**
+ * Represents a `scopeString` as defined in [CAIP-217](https://chainagnostic.org/CAIPs/caip-217).
+ */
 export type ExternalScopeString = CaipChainId | CaipNamespace;
+/**
+ * Represents a `scopeObject` as defined in [CAIP-217](https://chainagnostic.org/CAIPs/caip-217).
+ */
 export type ExternalScopeObject = Omit<ScopeObject, 'accounts'> & {
   references?: CaipReference[];
   accounts?: CaipAccountId[];
 };
+/**
+ * Represents a `scope` as defined in [CAIP-217](https://chainagnostic.org/CAIPs/caip-217).
+ * TODO update the language in CAIP-217 to use "scope" instead of "scopeObject" for this full record type.
+ */
 export type ExternalScopesObject = Record<
   ExternalScopeString,
   ExternalScopeObject
