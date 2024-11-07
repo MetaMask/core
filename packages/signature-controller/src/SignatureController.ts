@@ -140,6 +140,8 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
+type FeatureFlags = { disableDecodingApi: boolean };
+
 export type SignatureControllerOptions = {
   /**
    * Restricted controller messenger required by the signature controller.
@@ -160,6 +162,11 @@ export type SignatureControllerOptions = {
    * URL of API to retrieve decoding data for typed requests.
    */
   decodingApiUrl?: string;
+
+  /**
+   * Function to get features flag information
+   */
+  getFeatureFlags?: () => FeatureFlags;
 
   /**
    * Initial state of the controller.
@@ -184,19 +191,23 @@ export class SignatureController extends BaseController<
 
   #decodingApiUrl?: string;
 
+  #getFeatureFlags?: () => { disableDecodingApi: boolean };
+
   #trace: TraceCallback;
 
   /**
    * Construct a Sign controller.
    *
    * @param options - The controller options.
+   * @param options.decodingApiUrl - Api used to get decoded data for permits.
+   * @param options.getFeatureFlags - Function to get required feature flags.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
-   * @param options.decodingApiUrl - Api used to get decoded data for permits.
    */
   constructor({
     decodingApiUrl,
+    getFeatureFlags,
     messenger,
     state,
     trace,
@@ -214,6 +225,7 @@ export class SignatureController extends BaseController<
     this.hub = new EventEmitter();
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#decodingApiUrl = decodingApiUrl;
+    this.#getFeatureFlags = getFeatureFlags;
   }
 
   /**
@@ -902,6 +914,13 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     chainId: string,
   ) {
+    if (
+      !this.#getFeatureFlags ||
+      this.#getFeatureFlags().disableDecodingApi ||
+      !this.#decodingApiUrl
+    ) {
+      return;
+    }
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {
       draftMetadata.decodingLoading = true;
     });

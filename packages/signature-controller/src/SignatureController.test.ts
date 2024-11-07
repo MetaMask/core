@@ -927,7 +927,10 @@ describe('SignatureController', () => {
             },
           ],
         };
-        const { controller } = createController();
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          getFeatureFlags: () => ({ disableDecodingApi: false }),
+        });
 
         jest
           .spyOn(DecodingDataUtils, 'decodeSignature')
@@ -948,8 +951,74 @@ describe('SignatureController', () => {
         ).toStrictEqual(MOCK_STATE_CHANGES);
       });
 
+      it('does not invoke decodeSignature if decodingApiUrl is not defined', async () => {
+        const { controller } = createController({
+          decodingApiUrl: undefined,
+          getFeatureFlags: () => ({ disableDecodingApi: false }),
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('does not invoke decodeSignature if featureFLag disableDecodingApi is true', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          getFeatureFlags: () => ({ disableDecodingApi: true }),
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('does not invoke decodeSignature if getFeatureFlags is not defined', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          getFeatureFlags: undefined,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
       it('correctly set decoding data if decodeSignature fails', async () => {
-        const { controller } = createController();
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          getFeatureFlags: () => ({ disableDecodingApi: false }),
+        });
 
         jest
           .spyOn(DecodingDataUtils, 'decodeSignature')
@@ -973,7 +1042,10 @@ describe('SignatureController', () => {
       });
 
       it('set decodingLoading to true while api request is in progress', async () => {
-        const { controller } = createController();
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          getFeatureFlags: () => ({ disableDecodingApi: false }),
+        });
 
         jest
           .spyOn(DecodingDataUtils, 'decodeSignature')

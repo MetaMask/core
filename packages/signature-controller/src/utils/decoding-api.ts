@@ -18,11 +18,8 @@ export const DECODING_API_ERRORS = {
 export async function decodeSignature(
   request: OriginalRequest,
   chainId: string,
-  decodingApiUrl?: string,
+  decodingApiUrl: string,
 ) {
-  if (!decodingApiUrl) {
-    return undefined;
-  }
   try {
     const { method, origin, params } = request;
     if (request.method === EthMethod.SignTypedDataV4) {
