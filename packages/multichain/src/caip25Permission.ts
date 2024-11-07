@@ -173,16 +173,6 @@ export const Caip25CaveatMutators = {
   },
 };
 
-const reduceKeysHelper = <Key extends string, Value>(
-  acc: Record<Key, Value>,
-  [key, value]: [Key, Value],
-) => {
-  return {
-    ...acc,
-    [key]: value,
-  };
-};
-
 /**
  * Removes the account from the scope object.
  *
@@ -279,8 +269,8 @@ function removeScope(
     return {
       operation: CaveatMutatorOperation.UpdateValue,
       value: {
-        requiredScopes: newRequiredScopes.reduce(reduceKeysHelper, {}),
-        optionalScopes: newOptionalScopes.reduce(reduceKeysHelper, {}),
+        requiredScopes: Object.fromEntries(newRequiredScopes),
+        optionalScopes: Object.fromEntries(newOptionalScopes),
       },
     };
   }
