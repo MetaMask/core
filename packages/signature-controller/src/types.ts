@@ -7,11 +7,17 @@ export type OriginalRequest = {
   /** Unique ID to identify the client request. */
   id?: number;
 
+  /** Method of signature request */
+  method?: string;
+
   /** ID of the network client associated with the request. */
   networkClientId?: string;
 
   /** Source of the client request. */
   origin?: string;
+
+  /** Parameters in signature request */
+  params: string[];
 
   /** Response following a security scan of the request. */
   securityAlertResponse?: Record<string, Json>;
@@ -71,14 +77,53 @@ export type MessageParamsTyped = MessageParams & {
         primaryType: string;
         message: Json;
       };
-
   /** Version of the signTypedData request. */
   version?: string;
+};
+
+/** Different decoding data state change types */
+export type DecodingDataChangeType =
+  | 'RECEIVE'
+  | 'TRANSFER'
+  | 'APPROVE'
+  | 'REVOKE_APPROVE'
+  | 'BIDDING'
+  | 'LISTING';
+
+/** Information about a single state change returned by decoding api. */
+export type DecodingDataStateChange = {
+  assetType: string;
+  changeType: DecodingDataChangeType;
+  address: string;
+  amount: string;
+  contractAddress: string;
+  tokenID?: string;
+};
+
+/** Array of the various state changes returned by decoding api. */
+export type DecodingDataStateChanges = DecodingDataStateChange[];
+
+/** Error details for unfulfilled the decoding request. */
+export type DecodingDataError = {
+  message: string;
+  type: string;
+};
+
+/** Decoding data about typed sign V4 signature request. */
+export type DecodingData = {
+  stateChanges: DecodingDataStateChanges | null;
+  error?: DecodingDataError;
 };
 
 type SignatureRequestBase = {
   /** ID of the associated chain. */
   chainId: Hex;
+
+  /** Response from message decoding api. */
+  decodingData?: DecodingData;
+
+  /** Whether decoding is in progress. */
+  decodingLoading?: boolean;
 
   /** Error message that occurred during the signing. */
   error?: string;

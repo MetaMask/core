@@ -18,6 +18,7 @@ import type {
   SignatureRequest,
 } from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
+import * as DecodingDataUtils from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -52,6 +53,7 @@ const PARAMS_MOCK = {
 
 const REQUEST_MOCK = {
   networkClientId: NETWORK_CLIENT_ID_MOCK,
+  params: [],
 };
 
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
@@ -62,6 +64,27 @@ const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
   status: SignatureRequestStatus.Signed,
   time: Date.now(),
   type: SignatureRequestType.PersonalSign,
+};
+
+const PERMIT_PARAMS_MOCK = {
+  data: '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
+  from: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+  version: 'V4',
+  signatureMethod: 'eth_signTypedData_v4',
+};
+
+const PERMIT_REQUEST_MOCK = {
+  method: 'eth_signTypedData_v4',
+  params: [
+    '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+    '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
+  ],
+  jsonrpc: '2.0',
+  id: 1680528590,
+  origin: 'https://metamask.github.io',
+  networkClientId: 'mainnet',
+  tabId: 1048807181,
+  traceContext: null,
 };
 
 /**
@@ -890,6 +913,90 @@ describe('SignatureController', () => {
         ).version,
       ).toBe(SignTypedDataVersion.V3);
     });
+
+    describe('decodeSignature', () => {
+      it('invoke decodeSignature to get decoding data', async () => {
+        const MOCK_STATE_CHANGES = {
+          stateChanges: [
+            {
+              assetType: 'ERC20',
+              changeType: 'APPROVE',
+              address: '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
+              amount: '1461501637330902918203684832716283019655932542975',
+              contractAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
+            },
+          ],
+        };
+        const { controller } = createController();
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockResolvedValue(MOCK_STATE_CHANGES);
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toStrictEqual(MOCK_STATE_CHANGES);
+      });
+
+      it('correctly set decoding data if decodeSignature fails', async () => {
+        const { controller } = createController();
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockRejectedValue(new Error('some error'));
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData?.error?.type,
+        ).toStrictEqual(
+          DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+        );
+      });
+
+      it('set decodingLoading to true while api request is in progress', async () => {
+        const { controller } = createController();
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockImplementation(() => {
+            return new Promise((resolve) => {
+              setTimeout(() => {
+                resolve({});
+              }, 300);
+            });
+          });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(true);
+      });
+    });
   });
 
   describe('setDeferredSignSuccess', () => {
@@ -919,6 +1026,8 @@ describe('SignatureController', () => {
     it('resolves defered signature request', async () => {
       const { controller } = createController();
       let resolved = false;
+
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
 
       const signaturePromise = controller
         .newUnsignedPersonalMessage(
@@ -997,6 +1106,8 @@ describe('SignatureController', () => {
     it('rejects defered signature request', async () => {
       const { controller } = createController();
       let rejectedError;
+
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
 
       controller
         .newUnsignedPersonalMessage(
