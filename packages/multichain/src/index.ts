@@ -15,6 +15,7 @@ export {
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownNotifications,
+  KnownWalletScopeString,
 } from './scope/constants';
 export type {
   ExternalScopeString,
@@ -26,7 +27,7 @@ export type {
   ScopedProperties,
   NonWalletKnownCaipNamespace,
 } from './scope/types';
-export { parseScopeString, KnownWalletScopeString } from './scope/types';
+export { parseScopeString } from './scope/types';
 export {
   isSupportedScopeString,
   isSupportedAccount,

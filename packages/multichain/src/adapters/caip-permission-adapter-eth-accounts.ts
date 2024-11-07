@@ -6,9 +6,10 @@ import {
 } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
+import { KnownWalletScopeString } from '../scope/constants';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
 import type { InternalScopesObject, InternalScopeString } from '../scope/types';
-import { KnownWalletScopeString, parseScopeString } from '../scope/types';
+import { parseScopeString } from '../scope/types';
 
 const isEip155ScopeString = (scopeString: InternalScopeString) => {
   const { namespace } = parseScopeString(scopeString);
