@@ -35,7 +35,7 @@ export type ExternalScopesObject = Record<
 /**
  * Represents a `scopeString` as defined in
  * [CAIP-217](https://chainagnostic.org/CAIPs/caip-217), with the exception that
- * CAIP namespaces (aside from "wallet") are disallowed for our internal representations of CAIP-25 session scopes
+ * CAIP namespaces without a reference (aside from "wallet") are disallowed for our internal representations of CAIP-25 session scopes
  */
 export type InternalScopeString = CaipChainId | KnownCaipNamespace.Wallet;
 /**
