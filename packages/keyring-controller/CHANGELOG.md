@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **BREAKING** Remove `addNewAccountWithoutUpdate` method ([#4845](https://github.com/MetaMask/core/pull/4845))
+
+## [17.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+
 ## [17.3.0]
 
 ### Changed
@@ -567,7 +579,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.1...HEAD
+[17.3.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.0...@metamask/keyring-controller@17.3.1
 [17.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.2...@metamask/keyring-controller@17.3.0
 [17.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.1...@metamask/keyring-controller@17.2.2
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.0...@metamask/keyring-controller@17.2.1

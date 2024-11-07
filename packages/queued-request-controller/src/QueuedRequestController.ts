@@ -268,6 +268,7 @@ export class QueuedRequestController extends BaseController<
     this.#requestQueue = this.#requestQueue.filter(
       ({ request }) => request.origin !== flushOrigin,
     );
+    this.#updateQueuedRequestCount();
   }
 
   /**
