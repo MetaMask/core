@@ -152,6 +152,11 @@ const specificationBuilder: PermissionSpecificationBuilder<
   };
 };
 
+/**
+ * The `caip25` endowment specification builder. Passed to the
+ * `PermissionController` for constructing and validating the
+ * `endowment:caip25` permission.
+ */
 export const caip25EndowmentBuilder = Object.freeze({
   targetName: Caip25EndowmentPermissionName,
   specificationBuilder,
