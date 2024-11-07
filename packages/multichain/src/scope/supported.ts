@@ -1,5 +1,5 @@
 import { toHex, isEqualCaseInsensitive } from '@metamask/controller-utils';
-import type { CaipAccountId, Hex, CaipChainId } from '@metamask/utils';
+import type { CaipAccountId, Hex } from '@metamask/utils';
 import { KnownCaipNamespace, parseCaipAccountId } from '@metamask/utils';
 
 import {
@@ -15,7 +15,7 @@ export const isSupportedScopeString = (
   scopeString: string,
   isChainIdSupported: (chainId: Hex) => boolean,
 ) => {
-  const { namespace, reference } = parseScopeString(scopeString as CaipChainId);
+  const { namespace, reference } = parseScopeString(scopeString);
 
   switch (namespace) {
     case KnownCaipNamespace.Wallet:
