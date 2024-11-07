@@ -140,8 +140,6 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
   never
 >;
 
-type FeatureFlags = { disableDecodingApi: boolean };
-
 export type SignatureControllerOptions = {
   /**
    * Restricted controller messenger required by the signature controller.
@@ -164,9 +162,9 @@ export type SignatureControllerOptions = {
   decodingApiUrl?: string;
 
   /**
-   * Function to get features flag information
+   * Function to check if decoding signature request is enabled
    */
-  getFeatureFlags?: () => FeatureFlags;
+  isDecodeSignatureRequestEnabled?: () => boolean;
 
   /**
    * Initial state of the controller.
@@ -191,7 +189,7 @@ export class SignatureController extends BaseController<
 
   #decodingApiUrl?: string;
 
-  #getFeatureFlags?: () => { disableDecodingApi: boolean };
+  #isDecodeSignatureRequestEnabled?: () => boolean;
 
   #trace: TraceCallback;
 
@@ -200,14 +198,14 @@ export class SignatureController extends BaseController<
    *
    * @param options - The controller options.
    * @param options.decodingApiUrl - Api used to get decoded data for permits.
-   * @param options.getFeatureFlags - Function to get required feature flags.
+   * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
   constructor({
     decodingApiUrl,
-    getFeatureFlags,
+    isDecodeSignatureRequestEnabled,
     messenger,
     state,
     trace,
@@ -225,7 +223,7 @@ export class SignatureController extends BaseController<
     this.hub = new EventEmitter();
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
     this.#decodingApiUrl = decodingApiUrl;
-    this.#getFeatureFlags = getFeatureFlags;
+    this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;
   }
 
   /**
@@ -914,11 +912,12 @@ export class SignatureController extends BaseController<
     request: OriginalRequest,
     chainId: string,
   ) {
-    if (
-      !this.#getFeatureFlags ||
-      this.#getFeatureFlags().disableDecodingApi ||
-      !this.#decodingApiUrl
-    ) {
+    console.log(
+      !this.#isDecodeSignatureRequestEnabled?.(),
+      !this.#decodingApiUrl,
+      !this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl,
+    );
+    if (!this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl) {
       return;
     }
     this.#updateMetadata(signatureRequestId, (draftMetadata) => {

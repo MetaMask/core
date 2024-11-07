@@ -929,7 +929,7 @@ describe('SignatureController', () => {
         };
         const { controller } = createController({
           decodingApiUrl: 'www.test.com',
-          getFeatureFlags: () => ({ disableDecodingApi: false }),
+          isDecodeSignatureRequestEnabled: () => true,
         });
 
         jest
@@ -954,7 +954,7 @@ describe('SignatureController', () => {
       it('does not invoke decodeSignature if decodingApiUrl is not defined', async () => {
         const { controller } = createController({
           decodingApiUrl: undefined,
-          getFeatureFlags: () => ({ disableDecodingApi: false }),
+          isDecodeSignatureRequestEnabled: () => true,
         });
 
         await controller.newUnsignedTypedMessage(
@@ -975,7 +975,7 @@ describe('SignatureController', () => {
       it('does not invoke decodeSignature if featureFLag disableDecodingApi is true', async () => {
         const { controller } = createController({
           decodingApiUrl: 'www.test.com',
-          getFeatureFlags: () => ({ disableDecodingApi: true }),
+          isDecodeSignatureRequestEnabled: () => false,
         });
 
         await controller.newUnsignedTypedMessage(
@@ -993,10 +993,10 @@ describe('SignatureController', () => {
         ).toBeUndefined();
       });
 
-      it('does not invoke decodeSignature if getFeatureFlags is not defined', async () => {
+      it('does not invoke decodeSignature if isDecodeSignatureRequestEnabled is not defined', async () => {
         const { controller } = createController({
           decodingApiUrl: 'www.test.com',
-          getFeatureFlags: undefined,
+          isDecodeSignatureRequestEnabled: undefined,
         });
 
         await controller.newUnsignedTypedMessage(
@@ -1017,7 +1017,7 @@ describe('SignatureController', () => {
       it('correctly set decoding data if decodeSignature fails', async () => {
         const { controller } = createController({
           decodingApiUrl: 'www.test.com',
-          getFeatureFlags: () => ({ disableDecodingApi: false }),
+          isDecodeSignatureRequestEnabled: () => true,
         });
 
         jest
@@ -1044,7 +1044,7 @@ describe('SignatureController', () => {
       it('set decodingLoading to true while api request is in progress', async () => {
         const { controller } = createController({
           decodingApiUrl: 'www.test.com',
-          getFeatureFlags: () => ({ disableDecodingApi: false }),
+          isDecodeSignatureRequestEnabled: () => true,
         });
 
         jest
