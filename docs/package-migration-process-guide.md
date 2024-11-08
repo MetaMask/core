@@ -14,7 +14,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### 2. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
 
-### **[PR#2]** 4. Align dependency versions and TypeScript, ESLint, Prettier configurations with the core monorepo
+### **[PR#2]** 3. Align dependency versions and TypeScript, ESLint, Prettier configurations with the core monorepo
 
 - If the dependency versions of the migration target are ahead of core, consider updating the core dependencies first.
 - Apply the configurations of the core monorepo to the source repo files.
@@ -22,17 +22,17 @@ This document outlines the process for migrating a MetaMask library into the cor
 - Resolve any errors or issues resulting from these changes.
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/28)
 
-### **[PR#3]** 5. Review the `metamask-module-template`, and add any missing files or elements (e.g. LICENSE)
+### **[PR#3]** 4. Review the `metamask-module-template`, and add any missing files or elements (e.g. LICENSE)
 
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/24)
 
-### **[PR#4]** 6. Rename the migration target package so that it is prepended by the `@metamask/` namespace (skip if not applicable)
+### **[PR#4]** 5. Rename the migration target package so that it is prepended by the `@metamask/` namespace (skip if not applicable)
 
 - Modify the "name" field in `package.json`.
 - Update the title of the README.md.
 - Add a CHANGELOG entry for the rename.
 
-### **[PR#5]** 7. Create a new release of the migration target from the source repo
+### **[PR#5]** 6. Create a new release of the migration target from the source repo
 
 - All subsequent releases of the migration target will be made from the core monorepo.
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/29)
