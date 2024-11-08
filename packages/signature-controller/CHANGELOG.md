@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `isDecodeSignatureRequestEnabled` constructor callback to determine if decoding API should be used ([#4903](https://github.com/MetaMask/core/pull/4903))
-- Integrating signature decoding api ([#4855](https://github.com/MetaMask/core/pull/4855))
+- Add `decodingApiUrl` constructor property to specify URL of API to provide additional decoding data. ([#4855](https://github.com/MetaMask/core/pull/4855))
 
 ## [21.0.0]
 
