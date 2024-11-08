@@ -1,5 +1,4 @@
-import { EthMethod } from '../constants';
-import { type OriginalRequest } from '../types';
+import { EthMethod, type OriginalRequest } from '../types';
 import { decodeSignature } from './decoding-api';
 
 const PERMIT_REQUEST_MOCK = {
