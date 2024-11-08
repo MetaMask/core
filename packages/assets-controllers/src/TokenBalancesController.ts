@@ -11,6 +11,8 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
+  NetworkState,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type {
@@ -20,8 +22,10 @@ import type {
 } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
+import type { Patch } from 'immer';
 import { isEqual } from 'lodash';
 
+import type { MulticallResult } from './multicall';
 import { multicallOrFallback } from './multicall';
 import type { Token } from './TokenRatesController';
 import type {
@@ -89,7 +93,8 @@ export type TokenBalancesControllerEvents =
 
 export type AllowedEvents =
   | TokensControllerStateChangeEvent
-  | PreferencesControllerStateChangeEvent;
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerStateChangeEvent;
 
 export type TokenBalancesControllerMessenger = RestrictedControllerMessenger<
   typeof controllerName,
@@ -155,13 +160,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.setIntervalLength(interval);
 
-    // Set initial preference, and subscribe to changes
+    // Set initial preference for querying multiple accounts, and subscribe to changes
     this.#queryMultipleAccounts = this.#calculateQueryMultipleAccounts(
       this.messagingSystem.call('PreferencesController:getState'),
     );
     this.messagingSystem.subscribe(
       'PreferencesController:stateChange',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onPreferencesStateChange.bind(this),
     );
 
@@ -173,12 +177,23 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
 
     this.messagingSystem.subscribe(
       'TokensController:stateChange',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       this.#onTokensStateChange.bind(this),
+    );
+
+    // Subscribe to network state changes
+    this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      this.#onNetworkStateChange.bind(this),
     );
   }
 
-  // Determines whether to query all accounts, or just the selected account
+  /**
+   * Determines whether to query all accounts, or just the selected account.
+   * @param preferences - The preferences state.
+   * @param preferences.isMultiAccountBalancesEnabled - whether to query all accounts (mobile).
+   * @param preferences.useMultiAccountBalanceChecker - whether to query all accounts (extension).
+   * @returns true if all accounts should be queried.
+   */
   #calculateQueryMultipleAccounts = ({
     isMultiAccountBalancesEnabled,
     useMultiAccountBalanceChecker,
@@ -189,8 +204,12 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     );
   };
 
-  // Updates the user preference for whether to query multiple accounts
-  #onPreferencesStateChange = async (preferences: PreferencesState) => {
+  /**
+   * Handles the event for preferences state changes.
+   * @param preferences - The preferences state.
+   */
+  #onPreferencesStateChange = (preferences: PreferencesState) => {
+    // Update the user preference for whether to query multiple accounts.
     const queryMultipleAccounts =
       this.#calculateQueryMultipleAccounts(preferences);
 
@@ -199,19 +218,21 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     this.#queryMultipleAccounts = queryMultipleAccounts;
 
     if (refresh) {
-      await Promise.allSettled(
-        this.#getChainIds(this.#allTokens, this.#allDetectedTokens).map(
-          async (chainId) => this._executePoll({ chainId }),
-        ),
-      );
+      this.updateBalances().catch(console.error);
     }
   };
 
-  // Refreshes token balances on chains whose tokens have changed
-  #onTokensStateChange = async ({
+  /**
+   * Handles the event for tokens state changes.
+   * @param state - The token state.
+   * @param state.allTokens - The state for imported tokens across all chains.
+   * @param state.allDetectedTokens - The state for detected tokens across all chains.
+   */
+  #onTokensStateChange = ({
     allTokens,
     allDetectedTokens,
   }: TokensControllerState) => {
+    // Refresh token balances on chains whose tokens have changed.
     const chainIds = this.#getChainIds(allTokens, allDetectedTokens);
     const chainIdsToUpdate = chainIds.filter(
       (chainId) =>
@@ -222,12 +243,38 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     this.#allTokens = allTokens;
     this.#allDetectedTokens = allDetectedTokens;
 
-    await Promise.allSettled(
-      chainIdsToUpdate.map(async (chainId) => this._executePoll({ chainId })),
-    );
+    this.updateBalances({ chainIds: chainIdsToUpdate }).catch(console.error);
   };
 
-  // Returns an array of chain ids that have tokens
+  /**
+   * Handles the event for network state changes.
+   * @param _ - The network state.
+   * @param patches - An array of patch operations performed on the network state.
+   */
+  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    // Remove state for deleted networks
+    for (const patch of patches) {
+      if (
+        patch.op === 'remove' &&
+        patch.path[0] === 'networkConfigurationsByChainId'
+      ) {
+        const removedChainId = patch.path[1] as Hex;
+
+        this.update((state) => {
+          for (const accountAddress of Object.keys(state.tokenBalances)) {
+            delete state.tokenBalances[accountAddress as Hex][removedChainId];
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Returns an array of chain ids that have tokens.
+   * @param allTokens - The state for imported tokens across all chains.
+   * @param allDetectedTokens - The state for detected tokens across all chains.
+   * @returns An array of chain ids that have tokens.
+   */
   #getChainIds = (
     allTokens: TokensControllerState['allTokens'],
     allDetectedTokens: TokensControllerState['allDetectedTokens'],
@@ -244,7 +291,30 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
    * @param input - The input for the poll.
    * @param input.chainId - The chain id to poll token balances on.
    */
-  async _executePoll({ chainId }: TokenBalancesPollingInput): Promise<void> {
+  async _executePoll({ chainId }: TokenBalancesPollingInput) {
+    await this.updateBalancesByChainId({ chainId });
+  }
+
+  /**
+   * Updates the token balances for the given chain ids.
+   * @param input - The input for the update.
+   * @param input.chainIds - The chain ids to update token balances for.
+   * Or omitted to update all chains that contain tokens.
+   */
+  async updateBalances({ chainIds }: { chainIds?: Hex[] } = {}) {
+    chainIds ??= this.#getChainIds(this.#allTokens, this.#allDetectedTokens);
+
+    await Promise.allSettled(
+      chainIds.map((chainId) => this.updateBalancesByChainId({ chainId })),
+    );
+  }
+
+  /**
+   * Updates token balances for the given chain id.
+   * @param input - The input for the update.
+   * @param input.chainId - The chain id to update token balances on.
+   */
+  async updateBalancesByChainId({ chainId }: { chainId: Hex }) {
     const { address: selectedAccountAddress } = this.messagingSystem.call(
       'AccountsController:getSelectedAccount',
     );
@@ -268,28 +338,36 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     Object.entries(this.#allTokens[chainId] ?? {}).forEach(addTokens);
     Object.entries(this.#allDetectedTokens[chainId] ?? {}).forEach(addTokens);
 
-    if (accountTokenPairs.length === 0) {
-      return;
+    let results: MulticallResult[] = [];
+
+    if (accountTokenPairs.length > 0) {
+      const provider = new Web3Provider(
+        this.#getNetworkClient(chainId).provider,
+      );
+
+      const calls = accountTokenPairs.map(
+        ({ accountAddress, tokenAddress }) => ({
+          contract: new Contract(tokenAddress, abiERC20, provider),
+          functionSignature: 'balanceOf(address)',
+          arguments: [accountAddress],
+        }),
+      );
+
+      results = await multicallOrFallback(calls, chainId, provider);
     }
 
-    const provider = new Web3Provider(this.#getNetworkClient(chainId).provider);
-
-    const calls = accountTokenPairs.map(({ accountAddress, tokenAddress }) => ({
-      contract: new Contract(tokenAddress, abiERC20, provider),
-      functionSignature: 'balanceOf(address)',
-      arguments: [accountAddress],
-    }));
-
-    const results = await multicallOrFallback(calls, chainId, provider);
-
     this.update((state) => {
+      // Reset so that when accounts or tokens are removed,
+      // their balances are removed rather than left stale.
+      for (const accountAddress of Object.keys(state.tokenBalances)) {
+        state.tokenBalances[accountAddress as Hex][chainId] = {};
+      }
+
       for (let i = 0; i < results.length; i++) {
         const { success, value } = results[i];
+        const { accountAddress, tokenAddress } = accountTokenPairs[i];
 
-        // todo: consider removing balance entries for tokens that were removed from state
-        //       rather than leaving stale balances
         if (success) {
-          const { accountAddress, tokenAddress } = accountTokenPairs[i];
           ((state.tokenBalances[accountAddress] ??= {})[chainId] ??= {})[
             tokenAddress
           ] = toHex(value as BN);
@@ -298,7 +376,6 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     });
   }
 
-  // TODO: needed?
   /**
    * Reset the controller state to the default state.
    */
@@ -308,7 +385,11 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
     });
   }
 
-  // Returns the network client for a given chain id
+  /**
+   * Returns the network client for a given chain id
+   * @param chainId - The chain id to get the network client for.
+   * @returns The network client for the given chain id.
+   */
   #getNetworkClient(chainId: Hex) {
     const { networkConfigurationsByChainId } = this.messagingSystem.call(
       'NetworkController:getState',

@@ -2477,6 +2477,7 @@ async function withController<ReturnValue>(
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
+      'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
     ],

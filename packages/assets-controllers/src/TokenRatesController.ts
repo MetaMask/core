@@ -365,7 +365,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ selectedNetworkClientId }) => {
+      async ({ selectedNetworkClientId }, patches) => {
         const {
           configuration: { chainId, ticker },
         } = this.messagingSystem.call(
@@ -378,6 +378,19 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
           this.#ticker = ticker;
           if (this.#pollState === PollState.Active) {
             await this.updateExchangeRates();
+          }
+        }
+
+        // Remove state for deleted networks
+        for (const patch of patches) {
+          if (
+            patch.op === 'remove' &&
+            patch.path[0] === 'networkConfigurationsByChainId'
+          ) {
+            const removedChainId = patch.path[1] as Hex;
+            this.update((state) => {
+              delete state.marketData[removedChainId];
+            });
           }
         }
       },

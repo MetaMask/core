@@ -1,4 +1,5 @@
 import { ControllerMessenger } from '@metamask/base-controller';
+import { toHex } from '@metamask/controller-utils';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
 
@@ -9,46 +10,80 @@ import type {
   AllowedEvents,
   TokenBalancesControllerActions,
   TokenBalancesControllerEvents,
-  TokenBalancesControllerMessenger,
   TokenBalancesControllerState,
 } from './TokenBalancesController';
 import { TokenBalancesController } from './TokenBalancesController';
+import type { TokensControllerState } from './TokensController';
 
 const setupController = ({
   config,
+  tokens = { allTokens: {}, allDetectedTokens: {} },
 }: {
   config?: Partial<ConstructorParameters<typeof TokenBalancesController>[0]>;
-}): TokenBalancesController => {
-  const controllerMessenger = new ControllerMessenger<
+  tokens?: Partial<TokensControllerState>;
+} = {}) => {
+  const messenger = new ControllerMessenger<
     TokenBalancesControllerActions | AllowedActions,
     TokenBalancesControllerEvents | AllowedEvents
   >();
 
-  const messenger = controllerMessenger.getRestricted({
+  const tokenBalancesMessenger = messenger.getRestricted({
     name: 'TokenBalancesController',
-    allowedActions: ['NetworkController:getNetworkClientById'],
-    allowedEvents: [],
+    allowedActions: [
+      'NetworkController:getState',
+      'NetworkController:getNetworkClientById',
+      'PreferencesController:getState',
+      'TokensController:getState',
+      'AccountsController:getSelectedAccount',
+    ],
+    allowedEvents: [
+      'NetworkController:stateChange',
+      'PreferencesController:stateChange',
+      'TokensController:stateChange',
+    ],
   });
 
-  controllerMessenger.registerActionHandler(
-    'NetworkController:getNetworkClientById',
-    jest.fn().mockImplementation((networkClientId) => {
-      let chainId;
-      if (networkClientId === 'mainnet') {
-        chainId = '0x1';
-      } else if (networkClientId === 'sepolia') {
-        chainId = '0xaa36a7';
-      } else {
-        throw new Error('unknown networkClientId');
-      }
-      return {
-        configuration: { chainId },
-        provider: jest.fn(),
-      };
-    }),
+  messenger.registerActionHandler(
+    'NetworkController:getState',
+    jest.fn().mockImplementation(() => ({
+      networkConfigurationsByChainId: {
+        '0x1': {
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{}],
+        },
+      },
+    })),
   );
 
-  return new TokenBalancesController({ messenger, ...config });
+  messenger.registerActionHandler(
+    'PreferencesController:getState',
+    jest.fn().mockImplementation(() => ({})),
+  );
+
+  messenger.registerActionHandler(
+    'TokensController:getState',
+    jest.fn().mockImplementation(() => tokens),
+  );
+
+  messenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    jest.fn().mockImplementation(() => ({
+      address: '0x0000000000000000000000000000000000000000',
+    })),
+  );
+
+  messenger.registerActionHandler(
+    'NetworkController:getNetworkClientById',
+    jest.fn().mockReturnValue({ provider: jest.fn() }),
+  );
+
+  return {
+    controller: new TokenBalancesController({
+      messenger: tokenBalancesMessenger,
+      ...config,
+    }),
+    messenger,
+  };
 };
 
 describe('TokenBalancesController', () => {
@@ -63,7 +98,7 @@ describe('TokenBalancesController', () => {
   });
 
   it('should set default state', () => {
-    const controller = setupController({});
+    const { controller } = setupController();
     expect(controller.state).toStrictEqual({ tokenBalances: {} });
   });
 
@@ -74,12 +109,9 @@ describe('TokenBalancesController', () => {
     );
 
     const interval = 10;
-    const controller = setupController({ config: { interval } });
+    const { controller } = setupController({ config: { interval } });
 
-    controller.startPolling({
-      networkClientId: 'mainnet',
-      tokensPerAccount: {},
-    });
+    controller.startPolling({ chainId: '0x1' });
 
     await advanceTime({ clock, duration: 1 });
     expect(pollSpy).toHaveBeenCalled();
@@ -89,131 +121,216 @@ describe('TokenBalancesController', () => {
     expect(pollSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('should update balances on success', async () => {
-    const controller = setupController({});
+  it('should update balances on poll', async () => {
+    const chainId = '0x1';
+    const accountAddress = '0x0000000000000000000000000000000000000000';
+    const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [accountAddress]: [
+            { address: tokenAddress, symbol: 's', decimals: 0 },
+          ],
+        },
+      },
+    };
+
+    const { controller } = setupController({ tokens });
     expect(controller.state.tokenBalances).toStrictEqual({});
 
+    const balance = 123456;
     jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
       {
         success: true,
-        value: new BN(2),
+        value: new BN(balance),
       },
     ]);
 
-    const accountAddresss = '0x0000000000000000000000000000000000000000';
-    const tokenAddress = '0x0000000000000000000000000000000000000001';
-
-    await controller._executePoll({
-      networkClientId: 'mainnet',
-      tokensPerAccount: {
-        [accountAddresss]: [tokenAddress],
-      },
-    });
+    await controller._executePoll({ chainId });
 
     expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddresss]: {
-        '0x1': {
-          [tokenAddress]: '0x2',
+      [accountAddress]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance),
         },
       },
     });
   });
 
   it('should update balances when they change', async () => {
-    const controller = setupController({});
-    expect(controller.state.tokenBalances).toStrictEqual({});
-
-    const accountAddresss = '0x0000000000000000000000000000000000000000';
+    const chainId = '0x1';
+    const accountAddress = '0x0000000000000000000000000000000000000000';
     const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-    for (let i = 0; i < 10; i++) {
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [accountAddress]: [
+            { address: tokenAddress, symbol: 's', decimals: 0 },
+          ],
+        },
+      },
+    };
+
+    const { controller } = setupController({ tokens });
+    expect(controller.state.tokenBalances).toStrictEqual({});
+
+    for (let balance = 0; balance < 10; balance++) {
       jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
         {
           success: true,
-          value: new BN(i),
+          value: new BN(balance),
         },
       ]);
 
-      await controller._executePoll({
-        networkClientId: 'mainnet',
-        tokensPerAccount: {
-          [accountAddresss]: [tokenAddress],
-        },
-      });
+      await controller._executePoll({ chainId });
 
       expect(controller.state.tokenBalances).toStrictEqual({
-        [accountAddresss]: {
-          '0x1': {
-            [tokenAddress]: `0x${i}`,
+        [accountAddress]: {
+          [chainId]: {
+            [tokenAddress]: toHex(balance),
           },
         },
       });
     }
   });
 
-  it('should not update balances on failure', async () => {
-    const controller = setupController({});
+  it('updates balances when tokens are added', async () => {
+    const chainId = '0x1';
+    const { controller, messenger } = setupController();
 
-    const accountAddresss = '0x0000000000000000000000000000000000000000';
-    const tokenAddress = '0x0000000000000000000000000000000000000001';
+    // No tokens initially
+    await controller._executePoll({ chainId });
+    expect(controller.state.tokenBalances).toStrictEqual({});
 
-    // Initial successfull call
+    const balance = 123456;
     jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
       {
         success: true,
-        value: new BN(2),
+        value: new BN(balance),
       },
     ]);
 
-    await controller._executePoll({
-      networkClientId: 'mainnet',
-      tokensPerAccount: {
-        [accountAddresss]: [tokenAddress],
-      },
-    });
+    // Publish an update with a token
+    const accountAddress = '0x0000000000000000000000000000000000000000';
+    const tokenAddress = '0x0000000000000000000000000000000000000001';
 
-    expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddresss]: {
-        '0x1': {
-          [tokenAddress]: '0x2',
+    messenger.publish(
+      'TokensController:stateChange',
+      {
+        tokens: [],
+        detectedTokens: [],
+        ignoredTokens: [],
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+        allTokens: {
+          [chainId]: {
+            [accountAddress]: [
+              { address: tokenAddress, decimals: 0, symbol: 'S' },
+            ],
+          },
         },
       },
-    });
+      [],
+    );
 
-    // Failed call
-    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
-      {
-        success: false,
-        value: '',
-      },
-    ]);
+    await advanceTime({ clock, duration: 1 });
 
-    // State should not change
     expect(controller.state.tokenBalances).toStrictEqual({
-      [accountAddresss]: {
-        '0x1': {
-          [tokenAddress]: '0x2',
+      [accountAddress]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance),
         },
       },
     });
   });
 
+  it('removes balances when tokens are removed', async () => {
+    const chainId = '0x1';
+    const accountAddress = '0x0000000000000000000000000000000000000000';
+    const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+    // Start with a token
+    const initialTokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [accountAddress]: [
+            { address: tokenAddress, symbol: 's', decimals: 0 },
+          ],
+        },
+      },
+    };
+
+    const { controller, messenger } = setupController({
+      tokens: initialTokens,
+    });
+
+    // Set initial balance
+    const balance = 123456;
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
+      {
+        success: true,
+        value: new BN(balance),
+      },
+    ]);
+
+    await controller._executePoll({ chainId });
+
+    // Verify initial balance is set
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [accountAddress]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance),
+        },
+      },
+    });
+
+    // Publish an update with no tokens
+    messenger.publish(
+      'TokensController:stateChange',
+      {
+        tokens: [],
+        detectedTokens: [],
+        ignoredTokens: [],
+        allDetectedTokens: {},
+        allIgnoredTokens: {},
+        allTokens: { [chainId]: {} },
+      },
+      [],
+    );
+
+    await advanceTime({ clock, duration: 1 });
+
+    // Verify balance was removed
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [accountAddress]: {
+        [chainId]: {}, // Empty balances object
+      },
+    });
+  });
+
+  // TODO: More tests
+  // TODO: More tests
+  // TODO: More tests
+
   describe('resetState', () => {
     it('resets the state to default state', () => {
       const initialState: TokenBalancesControllerState = {
-        contractBalances: {
-          '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
+        tokenBalances: {
+          '0x0000000000000000000000000000000000000001': {
+            '0x1': {
+              '0x86fa049857e0209aa7d9e616f7eb3b3b78ecfdb0': toHex(new BN(1)),
+            },
+          },
         },
       };
 
       const { controller } = setupController({
-        config: {
-          state: initialState,
-          disabled: true,
-        },
-        mock: {
-          selectedAccount: createMockInternalAccount({ address: '0x1234' }),
-        },
+        config: { state: initialState },
       });
 
       expect(controller.state).toStrictEqual(initialState);
@@ -221,7 +338,7 @@ describe('TokenBalancesController', () => {
       controller.resetState();
 
       expect(controller.state).toStrictEqual({
-        contractBalances: {},
+        tokenBalances: {},
       });
     });
   });

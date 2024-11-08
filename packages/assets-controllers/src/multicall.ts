@@ -294,21 +294,21 @@ type Call = {
   arguments: unknown[];
 };
 
-type Result = { success: boolean; value: unknown };
+export type MulticallResult = { success: boolean; value: unknown };
 
 const multicall = async (
   calls: Call[],
   multicallAddress: Hex,
   provider: Web3Provider,
   maxCallsPerMulticall: number,
-): Promise<Result[]> => {
+): Promise<MulticallResult[]> => {
   const multicallContract = new Contract(
     multicallAddress,
     multicallAbi,
     provider,
   );
 
-  return await reduceInBatchesSerially<Call, Result[]>({
+  return await reduceInBatchesSerially<Call, MulticallResult[]>({
     values: calls,
     batchSize: maxCallsPerMulticall,
     initialResult: [],
@@ -347,8 +347,8 @@ const multicall = async (
 const fallback = async (
   calls: Call[],
   maxCallsParallel: number,
-): Promise<Result[]> => {
-  return await reduceInBatchesSerially<Call, Result[]>({
+): Promise<MulticallResult[]> => {
+  return await reduceInBatchesSerially<Call, MulticallResult[]>({
     values: calls,
     batchSize: maxCallsParallel,
     initialResult: [],
@@ -384,9 +384,9 @@ export const multicallOrFallback = async (
   calls: Call[],
   chainId: Hex,
   provider: Web3Provider,
-  maxCallsPerMulticall = 1000,
+  maxCallsPerMulticall = 300,
   maxCallsParallel = 20,
-): Promise<Result[]> => {
+): Promise<MulticallResult[]> => {
   if (calls.length === 0) {
     return [];
   }
