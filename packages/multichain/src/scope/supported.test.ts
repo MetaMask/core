@@ -26,6 +26,14 @@ describe('Scope Support', () => {
       expect(isSupportedNotification('eip155', 'anything else')).toBe(false);
       expect(isSupportedNotification('', '')).toBe(false);
     });
+
+    it('returns false for unknown namespaces', () => {
+      expect(isSupportedNotification('unknown', 'anything else')).toBe(false);
+    });
+
+    it('returns false for wallet namespace', () => {
+      expect(isSupportedNotification('wallet', 'anything else')).toBe(false);
+    });
   });
 
   describe('isSupportedMethod', () => {
