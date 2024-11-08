@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: enable smart transactions by default for new users ([#4885](https://github.com/MetaMask/core/pull/4885))
+
 ## [13.2.0]
 
 ### Added

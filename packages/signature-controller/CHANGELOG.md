@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Add getFeatureFlags to SignatureController to be able to pass disable DecodingApi flag ([#4903](https://github.com/MetaMask/core/pull/4903))
+- feat: integrating signature decoding api ([#4855](https://github.com/MetaMask/core/pull/4855))
+- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
+
 ## [21.0.0]
 
 ### Added
