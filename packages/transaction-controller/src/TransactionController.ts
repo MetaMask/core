@@ -57,7 +57,7 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
-import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { AccountsApiRemoteTransactionSource } from './helpers/AccountsApiRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -887,16 +887,7 @@ export class TransactionController extends BaseController<
     });
     this.#multichainTrackingHelper.initialize();
 
-    const etherscanRemoteTransactionSource =
-      new EtherscanRemoteTransactionSource({
-        apiKeysByChainId: incomingTransactions.etherscanApiKeysByChainId,
-        includeTokenTransfers: incomingTransactions.includeTokenTransfers,
-      });
-
-    this.incomingTransactionHelper = this.#createIncomingTransactionHelper({
-      blockTracker,
-      etherscanRemoteTransactionSource,
-    });
+    this.incomingTransactionHelper = this.#createIncomingTransactionHelper();
 
     this.pendingTransactionTracker = this.#createPendingTransactionTracker({
       provider,
@@ -1518,6 +1509,7 @@ export class TransactionController extends BaseController<
       });
       return;
     }
+
     const currentChainId = this.getChainId();
     const newTransactions = this.state.transactions.filter(
       ({ chainId, txParams }) => {
@@ -3342,25 +3334,18 @@ export class TransactionController extends BaseController<
   }
 
   #createIncomingTransactionHelper({
-    blockTracker,
-    etherscanRemoteTransactionSource,
     chainId,
   }: {
-    blockTracker: BlockTracker;
-    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
     chainId?: Hex;
-  }): IncomingTransactionHelper {
+  } = {}): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
-      blockTracker,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
-      getLocalTransactions: () => this.state.transactions,
-      getChainId: chainId ? () => chainId : this.getChainId.bind(this),
+      getChainIds: chainId ? () => [chainId] : () => [this.getChainId()],
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource: etherscanRemoteTransactionSource,
+      remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       transactionLimit: this.#transactionHistoryLimit,
-      updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });
 
     this.#addIncomingTransactionHelperListeners(incomingTransactionHelper);

@@ -859,17 +859,17 @@ export interface RemoteTransactionSourceRequest {
   /**
    * The address of the account to fetch transactions for.
    */
-  address: string;
+  address: Hex;
 
   /**
    * The chainId of the current network.
    */
-  currentChainId: Hex;
+  chainIds: Hex[];
 
   /**
    * Block number to start fetching transactions from.
    */
-  fromBlock?: number;
+  fromBlocksByChainId: Record<Hex, number | undefined>;
 
   /**
    * Maximum number of transactions to retrieve.
@@ -889,7 +889,7 @@ export interface RemoteTransactionSource {
    * @param chainId - The chainId of the current network.
    * @returns Whether the remote transaction source supports the specified network.
    */
-  isSupportedNetwork: (chainId: Hex) => boolean;
+  isChainsSupported: (chainIds: Hex[]) => boolean;
 
   /**
    * @returns An array of additional keys to use when caching the last fetched block number.
