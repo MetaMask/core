@@ -28,7 +28,7 @@ const Eip155Methods = MetaMaskOpenRPCDocument.methods
   .filter((method: string) => !KnownWalletRpcMethods.includes(method));
 
 /**
- * Methods for ecosystem that are chain specific.
+ * Methods by ecosystem that are chain specific.
  */
 export const KnownRpcMethods: Record<NonWalletKnownCaipNamespace, string[]> = {
   eip155: Eip155Methods,
