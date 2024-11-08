@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core.git/pull/4862))
-- Release 220.0.0 ([#4798](https://github.com/MetaMask/core.git/pull/4798))
-
 ## [9.0.1]
 
 ### Fixed
@@ -204,22 +199,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@9.0.1...HEAD
-[9.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1
-[9.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@8.0.0...@metamask/composable-controller@9.0.0
-[8.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@7.0.0...@metamask/composable-controller@8.0.0
-[7.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@6.0.2...@metamask/composable-controller@7.0.0
-[6.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@6.0.1...@metamask/composable-controller@6.0.2
-[6.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@6.0.0...@metamask/composable-controller@6.0.1
-[6.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@5.0.1...@metamask/composable-controller@6.0.0
-[5.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@5.0.0...@metamask/composable-controller@5.0.1
-[5.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@4.0.0...@metamask/composable-controller@5.0.0
-[4.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@3.0.3...@metamask/composable-controller@4.0.0
-[3.0.3]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@3.0.2...@metamask/composable-controller@3.0.3
-[3.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@3.0.1...@metamask/composable-controller@3.0.2
-[3.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@3.0.0...@metamask/composable-controller@3.0.1
-[3.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@2.0.0...@metamask/composable-controller@3.0.0
-[2.0.0]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@1.0.2...@metamask/composable-controller@2.0.0
-[1.0.2]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@1.0.1...@metamask/composable-controller@1.0.2
-[1.0.1]: https://github.com/MetaMask/core.git/compare/@metamask/composable-controller@1.0.0...@metamask/composable-controller@1.0.1
-[1.0.0]: https://github.com/MetaMask/core.git/releases/tag/@metamask/composable-controller@1.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...HEAD
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@8.0.0...@metamask/composable-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@7.0.0...@metamask/composable-controller@8.0.0
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.2...@metamask/composable-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.1...@metamask/composable-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@6.0.0...@metamask/composable-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@5.0.1...@metamask/composable-controller@6.0.0
+[5.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@5.0.0...@metamask/composable-controller@5.0.1
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@4.0.0...@metamask/composable-controller@5.0.0
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.3...@metamask/composable-controller@4.0.0
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.2...@metamask/composable-controller@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.1...@metamask/composable-controller@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@3.0.0...@metamask/composable-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@2.0.0...@metamask/composable-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@1.0.2...@metamask/composable-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@1.0.1...@metamask/composable-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@1.0.0...@metamask/composable-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/composable-controller@1.0.0
