@@ -1,9 +1,5 @@
 import { assertScopeSupported, assertScopesSupported } from './assert';
-import {
-  REQUESTED_CHAINS_NOT_SUPPORTED_ERROR,
-  REQUESTED_METHODS_NOT_SUPPORTED_ERROR,
-  REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR,
-} from './errors';
+import { Caip25Errors } from './errors';
 import * as Supported from './supported';
 import type { InternalScopeObject } from './types';
 
@@ -45,7 +41,7 @@ describe('Scope Assert', () => {
           assertScopeSupported('scopeString', validScopeObject, {
             isChainIdSupported,
           });
-        }).toThrow(REQUESTED_CHAINS_NOT_SUPPORTED_ERROR);
+        }).toThrow(Caip25Errors.requestedChainsNotSupportedError());
       });
     });
 
@@ -89,7 +85,7 @@ describe('Scope Assert', () => {
               isChainIdSupported,
             },
           );
-        }).toThrow(REQUESTED_METHODS_NOT_SUPPORTED_ERROR);
+        }).toThrow(Caip25Errors.requestedMethodsNotSupportedError());
       });
 
       it('checks if the notifications are supported', () => {
@@ -129,7 +125,7 @@ describe('Scope Assert', () => {
               isChainIdSupported,
             },
           );
-        }).toThrow(REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR);
+        }).toThrow(Caip25Errors.requestedNotificationsNotSupportedError());
       });
 
       it('does not throw if the scopeObject is valid', () => {
@@ -179,7 +175,7 @@ describe('Scope Assert', () => {
             isChainIdSupported,
           },
         );
-      }).toThrow(REQUESTED_CHAINS_NOT_SUPPORTED_ERROR);
+      }).toThrow(Caip25Errors.requestedChainsNotSupportedError());
     });
 
     it('does not throw an error if all scopes are valid', () => {

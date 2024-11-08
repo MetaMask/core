@@ -1,10 +1,6 @@
 import type { Hex } from '@metamask/utils';
 
-import {
-  REQUESTED_CHAINS_NOT_SUPPORTED_ERROR,
-  REQUESTED_METHODS_NOT_SUPPORTED_ERROR,
-  REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR,
-} from './errors';
+import { Caip25Errors } from './errors';
 import {
   isSupportedMethod,
   isSupportedNotification,
@@ -30,7 +26,7 @@ export const assertScopeSupported = (
 ) => {
   const { methods, notifications } = scopeObject;
   if (!isSupportedScopeString(scopeString, isChainIdSupported)) {
-    throw REQUESTED_CHAINS_NOT_SUPPORTED_ERROR;
+    throw Caip25Errors.requestedChainsNotSupportedError();
   }
 
   const allMethodsSupported = methods.every((method) =>
@@ -38,7 +34,7 @@ export const assertScopeSupported = (
   );
 
   if (!allMethodsSupported) {
-    throw REQUESTED_METHODS_NOT_SUPPORTED_ERROR;
+    throw Caip25Errors.requestedMethodsNotSupportedError();
   }
 
   if (
@@ -47,7 +43,7 @@ export const assertScopeSupported = (
       isSupportedNotification(scopeString, notification),
     )
   ) {
-    throw REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR;
+    throw Caip25Errors.requestedNotificationsNotSupportedError();
   }
 };
 
