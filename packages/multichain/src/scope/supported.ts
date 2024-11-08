@@ -79,21 +79,25 @@ export const isSupportedMethod = (
 ): boolean => {
   const { namespace, reference } = parseScopeString(scopeString);
 
+  if (!namespace || !isKnownCaipNamespace(namespace)) {
+    return false;
+  }
+
   if (namespace === KnownCaipNamespace.Wallet) {
     if (reference) {
-      return (
-        KnownWalletNamespaceRpcMethods[
-          reference as NonWalletKnownCaipNamespace
-        ] || []
-      ).includes(method);
+      if (
+        !isKnownCaipNamespace(reference) ||
+        reference === KnownCaipNamespace.Wallet
+      ) {
+        return false;
+      }
+      return KnownWalletNamespaceRpcMethods[reference].includes(method);
     }
 
     return KnownWalletRpcMethods.includes(method);
   }
 
-  return (
-    KnownRpcMethods[namespace as NonWalletKnownCaipNamespace] || []
-  ).includes(method);
+  return KnownRpcMethods[namespace].includes(method);
 };
 
 /**
@@ -108,7 +112,27 @@ export const isSupportedNotification = (
 ): boolean => {
   const { namespace } = parseScopeString(scopeString);
 
+  if (!namespace || !isKnownCaipNamespace(namespace)) {
+    return false;
+  }
+
   return (
     KnownNotifications[namespace as NonWalletKnownCaipNamespace] || []
   ).includes(notification);
 };
+
+/**
+ * Checks whether the given namespace is a known CAIP namespace.
+ *
+ * @param namespace - The namespace to check
+ * @returns Whether the given namespace is a known CAIP namespace.
+ */
+function isKnownCaipNamespace(
+  namespace: string,
+): namespace is KnownCaipNamespace {
+  const nonWalletKnownCaipNamespaces = Object.keys(KnownCaipNamespace)
+    .filter((key) => key !== KnownCaipNamespace.Wallet)
+    .map((key) => key.toLowerCase());
+
+  return nonWalletKnownCaipNamespaces.includes(namespace);
+}
