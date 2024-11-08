@@ -1,5 +1,5 @@
 import type { ExternalScopeObject } from './types';
-import { isValidScope, validateScopes } from './validation';
+import { isValidScope, getValidScopes } from './validation';
 
 const validScopeString = 'eip155:1';
 const validScopeObject: ExternalScopeObject = {
@@ -122,7 +122,7 @@ describe('Scope Validation', () => {
     });
   });
 
-  describe('validateScopes', () => {
+  describe('getValidScopes', () => {
     const validScopeObjectWithAccounts = {
       ...validScopeObject,
       accounts: [],
@@ -130,7 +130,7 @@ describe('Scope Validation', () => {
 
     it('does not throw an error if required scopes are defined but none are valid', () => {
       expect(
-        validateScopes(
+        getValidScopes(
           // @ts-expect-error Intentionally invalid input
           { 'eip155:1': {} },
           undefined,
@@ -140,7 +140,7 @@ describe('Scope Validation', () => {
 
     it('does not throw an error if optional scopes are defined but none are valid', () => {
       expect(
-        validateScopes(undefined, {
+        getValidScopes(undefined, {
           // @ts-expect-error Intentionally invalid input
           'eip155:1': {},
         }),
@@ -149,7 +149,7 @@ describe('Scope Validation', () => {
 
     it('returns the valid required and optional scopes', () => {
       expect(
-        validateScopes(
+        getValidScopes(
           {
             'eip155:1': validScopeObjectWithAccounts,
             // @ts-expect-error Intentionally invalid input

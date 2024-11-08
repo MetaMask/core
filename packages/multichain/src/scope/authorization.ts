@@ -6,7 +6,7 @@ import type {
   ExternalScopeString,
   InternalScopesObject,
 } from './types';
-import { validateScopes } from './validation';
+import { getValidScopes } from './validation';
 
 /**
  * Represents the parameters of a [CAIP-25](https://chainagnostic.org/CAIPs/caip-25) request.
@@ -38,7 +38,7 @@ export const validateAndNormalizeScopes = (
   normalizedRequiredScopes: InternalScopesObject;
   normalizedOptionalScopes: InternalScopesObject;
 } => {
-  const { validRequiredScopes, validOptionalScopes } = validateScopes(
+  const { validRequiredScopes, validOptionalScopes } = getValidScopes(
     requiredScopes,
     optionalScopes,
   );

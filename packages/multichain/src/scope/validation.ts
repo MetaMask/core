@@ -89,12 +89,12 @@ export const isValidScope = (
 };
 
 /**
- * Validates a set of scopes according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ * Filters out invalid scopes and returns valid sets of required and optional scopes according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
  * @param requiredScopes - The required scopes to validate.
  * @param optionalScopes - The optional scopes to validate.
- * @returns An object containing the valid required scopes and optional scopes.
+ * @returns An object containing valid required scopes and optional scopes.
  */
-export const validateScopes = (
+export const getValidScopes = (
   requiredScopes?: ExternalScopesObject,
   optionalScopes?: ExternalScopesObject,
 ) => {

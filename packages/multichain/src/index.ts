@@ -40,7 +40,7 @@ export {
   mergeScopes,
   normalizeAndMergeScopes,
 } from './scope/transform';
-export { isValidScope, validateScopes } from './scope/validation';
+export { isValidScope, getValidScopes } from './scope/validation';
 
 export type { Caip25CaveatValue } from './caip25Permission';
 export {
