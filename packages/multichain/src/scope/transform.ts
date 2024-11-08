@@ -94,6 +94,12 @@ export const mergeScopeObject = (
   return mergedScopeObject;
 };
 
+/**
+ * Merges two InternalScopeObjects
+ * @param scopeA - The first scope object to merge.
+ * @param scopeB - The second scope object to merge.
+ * @returns The merged scope object.
+ */
 export const mergeScopes = (
   scopeA: InternalScopesObject,
   scopeB: InternalScopesObject,
@@ -121,6 +127,11 @@ export const mergeScopes = (
   return scope;
 };
 
+/**
+ * Normalizes and merges a set of ExternalScopesObjects into a InternalScopesObject (i.e. a set of InternalScopeObjects where references are flattened).
+ * @param scopes - The external scopes to normalize and merge.
+ * @returns The normalized and merged scopes.
+ */
 export const normalizeAndMergeScopes = (
   scopes: ExternalScopesObject,
 ): InternalScopesObject => {

@@ -25,6 +25,12 @@ export type Caip25Authorization = (
   scopedProperties?: Record<ExternalScopeString, Json>;
 };
 
+/**
+ * Validates and normalizes a set of scopes according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ * @param requiredScopes - The required scopes to validate and normalize.
+ * @param optionalScopes - The optional scopes to validate and normalize.
+ * @returns An object containing the normalized required scopes and normalized optional scopes.
+ */
 export const validateAndNormalizeScopes = (
   requiredScopes: ExternalScopesObject,
   optionalScopes: ExternalScopesObject,

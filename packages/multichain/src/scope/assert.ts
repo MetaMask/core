@@ -8,6 +8,13 @@ import {
 } from './supported';
 import type { InternalScopeObject, InternalScopesObject } from './types';
 
+/**
+ * Asserts that a scope string and its associated scope object are supported.
+ * @param scopeString - The scope string against which to assert support.
+ * @param scopeObject - The scope object against which to assert support.
+ * @param options - An object containing the following properties:
+ * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
+ */
 export const assertScopeSupported = (
   scopeString: string,
   scopeObject: InternalScopeObject,
@@ -55,6 +62,12 @@ export const assertScopeSupported = (
   }
 };
 
+/**
+ * Asserts that all scope strings and their associated scope objects are supported.
+ * @param scopes - The scopes object against which to assert support.
+ * @param options - An object containing the following properties:
+ * @param options.isChainIdSupported - A predicate that determines if a chainID is supported.
+ */
 export const assertScopesSupported = (
   scopes: InternalScopesObject,
   {

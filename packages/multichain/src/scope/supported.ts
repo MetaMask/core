@@ -11,6 +11,12 @@ import {
 import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
 import { parseScopeString } from './types';
 
+/**
+ * Determines if a scope string is supported.
+ * @param scopeString - The scope string to check.
+ * @param isChainIdSupported - A predicate that determines if a chainID is supported.
+ * @returns A boolean indicating if the scope string is supported.
+ */
 export const isSupportedScopeString = (
   scopeString: string,
   isChainIdSupported: (chainId: Hex) => boolean,
@@ -27,6 +33,12 @@ export const isSupportedScopeString = (
   }
 };
 
+/**
+ * Determines if an account is supported by the wallet (i.e. on a keyring known to the wallet).
+ * @param account - The CAIP account ID to check.
+ * @param getInternalAccounts - A function that returns the internal accounts.
+ * @returns A boolean indicating if the account is supported by the wallet.
+ */
 export const isSupportedAccount = (
   account: CaipAccountId,
   getInternalAccounts: () => { type: string; address: string }[],
@@ -55,6 +67,12 @@ export const isSupportedAccount = (
   }
 };
 
+/**
+ * Determines if a method is supported by the wallet.
+ * @param scopeString - The scope string to check.
+ * @param method - The method to check.
+ * @returns A boolean indicating if the method is supported by the wallet.
+ */
 export const isSupportedMethod = (
   scopeString: ExternalScopeString,
   method: string,
@@ -78,6 +96,12 @@ export const isSupportedMethod = (
   ).includes(method);
 };
 
+/**
+ * Determines if a notification is supported by the wallet.
+ * @param scopeString - The scope string to check.
+ * @param notification - The notification to check.
+ * @returns A boolean indicating if the notification is supported by the wallet.
+ */
 export const isSupportedNotification = (
   scopeString: ExternalScopeString,
   notification: string,

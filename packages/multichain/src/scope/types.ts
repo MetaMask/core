@@ -65,6 +65,11 @@ export type ScopedProperties = Record<CaipChainId, Record<string, Json>> & {
   [KnownCaipNamespace.Wallet]?: Record<string, Json>;
 };
 
+/**
+ * Parses a scope string into a namespace and reference.
+ * @param scopeString - The scope string to parse.
+ * @returns An object containing the namespace and reference.
+ */
 export const parseScopeString = (
   scopeString: string,
 ): {
@@ -83,7 +88,9 @@ export const parseScopeString = (
   return {};
 };
 
-// Known CAIP Namespaces excluding "wallet"
+/**
+ * CAIP namespaces excluding "wallet" currently supported by/known to the wallet.
+ */
 export type NonWalletKnownCaipNamespace = Exclude<
   KnownCaipNamespace,
   KnownCaipNamespace.Wallet

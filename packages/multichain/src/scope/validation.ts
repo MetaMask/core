@@ -7,6 +7,12 @@ import type {
 } from './types';
 import { parseScopeString } from './types';
 
+/**
+ * Validates a scope object according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ * @param scopeString - The scope string to validate.
+ * @param scopeObject - The scope object to validate.
+ * @returns A boolean indicating if the scope object is valid according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ */
 export const isValidScope = (
   scopeString: ExternalScopeString,
   scopeObject: ExternalScopeObject,
@@ -68,6 +74,12 @@ export const isValidScope = (
   return true;
 };
 
+/**
+ * Validates a set of scopes according to the [CAIP-217](https://chainagnostic.org/CAIPs/caip-217) spec.
+ * @param requiredScopes - The required scopes to validate.
+ * @param optionalScopes - The optional scopes to validate.
+ * @returns An object containing the valid required scopes and optional scopes.
+ */
 export const validateScopes = (
   requiredScopes?: ExternalScopesObject,
   optionalScopes?: ExternalScopesObject,
