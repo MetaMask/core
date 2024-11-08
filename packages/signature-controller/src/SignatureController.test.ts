@@ -18,6 +18,7 @@ import type {
   SignatureRequest,
 } from './types';
 import { SignatureRequestStatus, SignatureRequestType } from './types';
+import * as DecodingDataUtils from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -34,6 +35,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 const ID_MOCK = '123-456';
 const CHAIN_ID_MOCK = '0x1';
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const FROM_MOCK = '0x456DEF';
 const DATA_MOCK = '0xABC123';
 const SIGNATURE_HASH_MOCK = '0x123ABC';
@@ -49,12 +51,40 @@ const PARAMS_MOCK = {
   version: SignTypedDataVersion.V1,
 };
 
+const REQUEST_MOCK = {
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  params: [],
+};
+
 const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
+  chainId: CHAIN_ID_MOCK,
   id: ID_MOCK,
   messageParams: PARAMS_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   status: SignatureRequestStatus.Signed,
   time: Date.now(),
   type: SignatureRequestType.PersonalSign,
+};
+
+const PERMIT_PARAMS_MOCK = {
+  data: '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
+  from: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+  version: 'V4',
+  signatureMethod: 'eth_signTypedData_v4',
+};
+
+const PERMIT_REQUEST_MOCK = {
+  method: 'eth_signTypedData_v4',
+  params: [
+    '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+    '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
+  ],
+  jsonrpc: '2.0',
+  id: 1680528590,
+  origin: 'https://metamask.github.io',
+  networkClientId: 'mainnet',
+  tabId: 1048807181,
+  traceContext: null,
 };
 
 /**
@@ -66,6 +96,7 @@ function createMessengerMock() {
   const approvalControllerAddRequestMock = jest.fn();
   const keyringControllerSignPersonalMessageMock = jest.fn();
   const keyringControllerSignTypedMessageMock = jest.fn();
+  const networkControllerGetNetworkClientByIdMock = jest.fn();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const callMock = (method: string, ...args: any[]) => {
@@ -78,6 +109,8 @@ function createMessengerMock() {
         return keyringControllerSignPersonalMessageMock(...args);
       case 'KeyringController:signTypedMessage':
         return keyringControllerSignTypedMessageMock(...args);
+      case 'NetworkController:getNetworkClientById':
+        return networkControllerGetNetworkClientByIdMock(...args);
       default:
         throw new Error(`Messenger method not recognised: ${method}`);
     }
@@ -92,6 +125,12 @@ function createMessengerMock() {
 
   approvalControllerAddRequestMock.mockResolvedValue({});
   loggingControllerAddMock.mockResolvedValue({});
+
+  networkControllerGetNetworkClientByIdMock.mockReturnValue({
+    configuration: {
+      chainId: CHAIN_ID_MOCK,
+    },
+  });
 
   return {
     approvalControllerAddRequestMock,
@@ -112,7 +151,6 @@ function createController(options?: Partial<SignatureControllerOptions>) {
 
   const controller = new SignatureController({
     messenger: messengerMocks.messenger,
-    getCurrentChainId: () => CHAIN_ID_MOCK,
     ...options,
   });
 
@@ -338,7 +376,7 @@ describe('SignatureController', () => {
       'newUnsignedPersonalMessage',
       (
         controller: SignatureController,
-        request?: OriginalRequest,
+        request: OriginalRequest,
         params?: Partial<MessageParamsPersonal>,
       ) =>
         controller.newUnsignedPersonalMessage(
@@ -351,7 +389,7 @@ describe('SignatureController', () => {
       'newUnsignedTypedMessage',
       (
         controller: SignatureController,
-        request?: OriginalRequest,
+        request: OriginalRequest,
         params?: Partial<MessageParamsTyped>,
       ) =>
         controller.newUnsignedTypedMessage(
@@ -372,7 +410,7 @@ describe('SignatureController', () => {
       approvalControllerAddRequestMock.mockRejectedValueOnce(error);
 
       await expect(
-        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {}),
+        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, REQUEST_MOCK),
       ).rejects.toMatchObject({
         message: ERROR_MESSAGE_MOCK,
         code: ERROR_CODE_MOCK,
@@ -403,7 +441,7 @@ describe('SignatureController', () => {
         SIGNATURE_HASH_MOCK,
       );
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(resultCallbackSuccessMock).toHaveBeenCalledTimes(1);
       expect(resultCallbackSuccessMock).toHaveBeenCalledWith(
@@ -418,7 +456,7 @@ describe('SignatureController', () => {
 
       controller.hub.on(`${ID_MOCK}:finished`, listener);
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       const state = controller.state.signatureRequests[ID_MOCK];
 
@@ -438,7 +476,7 @@ describe('SignatureController', () => {
 
       approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
 
-      await fn(controller).catch(() => {
+      await fn(controller, REQUEST_MOCK).catch(() => {
         // Ignore error
       });
 
@@ -451,7 +489,7 @@ describe('SignatureController', () => {
     it('adds logs to logging controller if approved', async () => {
       const { controller, loggingControllerAddMock } = createController();
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
 
@@ -485,7 +523,7 @@ describe('SignatureController', () => {
 
       approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
 
-      await expect(fn(controller)).rejects.toThrow(errorMock);
+      await expect(fn(controller, REQUEST_MOCK)).rejects.toThrow(errorMock);
 
       expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
 
@@ -511,7 +549,7 @@ describe('SignatureController', () => {
     it('populates origin from request if present', async () => {
       const { controller } = createController();
 
-      await fn(controller, { origin: 'test' });
+      await fn(controller, { ...REQUEST_MOCK, origin: 'test' });
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.origin,
@@ -521,7 +559,7 @@ describe('SignatureController', () => {
     it('populates origin from message params if no request', async () => {
       const { controller } = createController();
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.origin,
@@ -531,7 +569,7 @@ describe('SignatureController', () => {
     it('populates request ID from request', async () => {
       const { controller } = createController();
 
-      await fn(controller, { id: 123 });
+      await fn(controller, { ...REQUEST_MOCK, id: 123 });
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.requestId,
@@ -541,11 +579,19 @@ describe('SignatureController', () => {
     it('populates metamask ID using ID', async () => {
       const { controller } = createController();
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(
         controller.state.signatureRequests[ID_MOCK].messageParams.metamaskId,
       ).toBe(ID_MOCK);
+    });
+
+    it('throws if no network client ID in request', async () => {
+      const { controller } = createController();
+
+      await expect(fn(controller, {} as OriginalRequest)).rejects.toThrow(
+        'Network client ID not found in request',
+      );
     });
 
     it('emits unapproved message event', async () => {
@@ -555,7 +601,7 @@ describe('SignatureController', () => {
 
       controller.hub.on('unapprovedMessage', listener);
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith({
@@ -583,7 +629,7 @@ describe('SignatureController', () => {
 
       controller.hub.on(`${type}:signed`, listener);
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(listener).toHaveBeenCalledTimes(1);
       expect(listener).toHaveBeenCalledWith({
@@ -608,7 +654,7 @@ describe('SignatureController', () => {
       keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
       keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
 
-      await fn(controller).catch(() => {
+      await fn(controller, REQUEST_MOCK).catch(() => {
         // Ignore error
       });
 
@@ -639,7 +685,9 @@ describe('SignatureController', () => {
       keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
       keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
 
-      await expect(fn(controller)).rejects.toThrow(ERROR_MESSAGE_MOCK);
+      await expect(fn(controller, REQUEST_MOCK)).rejects.toThrow(
+        ERROR_MESSAGE_MOCK,
+      );
 
       expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
       expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
@@ -649,7 +697,7 @@ describe('SignatureController', () => {
       const { controller, approvalControllerAddRequestMock } =
         createController();
 
-      await fn(controller);
+      await fn(controller, REQUEST_MOCK);
 
       expect(approvalControllerAddRequestMock).toHaveBeenCalledTimes(1);
       expect(approvalControllerAddRequestMock).toHaveBeenCalledWith(
@@ -671,7 +719,7 @@ describe('SignatureController', () => {
       const { controller, approvalControllerAddRequestMock } =
         createController();
 
-      await fn(controller, undefined, { origin: undefined });
+      await fn(controller, REQUEST_MOCK, { origin: undefined });
 
       expect(approvalControllerAddRequestMock).toHaveBeenCalledTimes(1);
       expect(approvalControllerAddRequestMock).toHaveBeenCalledWith(
@@ -688,6 +736,19 @@ describe('SignatureController', () => {
         true,
       );
     });
+
+    it('persists network client ID and chain ID in metadata', async () => {
+      const { controller } = createController();
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(controller.state.signatureRequests[ID_MOCK]).toStrictEqual(
+        expect.objectContaining({
+          chainId: CHAIN_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        }),
+      );
+    });
   });
 
   describe('newUnsignedPersonalMessage', () => {
@@ -701,7 +762,7 @@ describe('SignatureController', () => {
 
       const result = await controller.newUnsignedPersonalMessage(
         { ...PARAMS_MOCK },
-        {},
+        REQUEST_MOCK,
       );
 
       expect(result).toBe(SIGNATURE_HASH_MOCK);
@@ -717,7 +778,10 @@ describe('SignatureController', () => {
 
       detectSIWEMock.mockReturnValueOnce(siweMock);
 
-      await controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, {});
+      await controller.newUnsignedPersonalMessage(
+        { ...PARAMS_MOCK },
+        REQUEST_MOCK,
+      );
 
       const messageParams = controller.state.signatureRequests[ID_MOCK]
         .messageParams as MessageParamsPersonal;
@@ -737,7 +801,7 @@ describe('SignatureController', () => {
 
       const result = await controller.newUnsignedTypedMessage(
         PARAMS_MOCK,
-        {},
+        REQUEST_MOCK,
         SignTypedDataVersion.V1,
         { parseJsonData: false },
       );
@@ -760,7 +824,7 @@ describe('SignatureController', () => {
             ...PARAMS_MOCK,
             data: JSON.stringify({ test: 123 }),
           },
-          {},
+          REQUEST_MOCK,
           version as SignTypedDataVersion,
           { parseJsonData: true },
         );
@@ -791,7 +855,7 @@ describe('SignatureController', () => {
           ...PARAMS_MOCK,
           data: JSON.stringify({ test: 123 }),
         },
-        {},
+        REQUEST_MOCK,
         SignTypedDataVersion.V1,
         { parseJsonData: true },
       );
@@ -818,7 +882,7 @@ describe('SignatureController', () => {
       await expect(
         controller.newUnsignedTypedMessage(
           PARAMS_MOCK,
-          {},
+          REQUEST_MOCK,
           SignTypedDataVersion.V3,
           { parseJsonData: false },
         ),
@@ -837,7 +901,7 @@ describe('SignatureController', () => {
 
       await controller.newUnsignedTypedMessage(
         PARAMS_MOCK,
-        {},
+        REQUEST_MOCK,
         SignTypedDataVersion.V3,
         { parseJsonData: false },
       );
@@ -848,6 +912,162 @@ describe('SignatureController', () => {
             .messageParams as MessageParamsTyped
         ).version,
       ).toBe(SignTypedDataVersion.V3);
+    });
+
+    describe('decodeSignature', () => {
+      it('invoke decodeSignature to get decoding data', async () => {
+        const MOCK_STATE_CHANGES = {
+          stateChanges: [
+            {
+              assetType: 'ERC20',
+              changeType: 'APPROVE',
+              address: '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
+              amount: '1461501637330902918203684832716283019655932542975',
+              contractAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
+            },
+          ],
+        };
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockResolvedValue(MOCK_STATE_CHANGES);
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toStrictEqual(MOCK_STATE_CHANGES);
+      });
+
+      it('does not invoke decodeSignature if decodingApiUrl is not defined', async () => {
+        const { controller } = createController({
+          decodingApiUrl: undefined,
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('does not invoke decodeSignature if featureFLag disableDecodingApi is true', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => false,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('does not invoke decodeSignature if isDecodeSignatureRequestEnabled is not defined', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: undefined,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('correctly set decoding data if decodeSignature fails', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockRejectedValue(new Error('some error'));
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData?.error?.type,
+        ).toStrictEqual(
+          DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+        );
+      });
+
+      it('set decodingLoading to true while api request is in progress', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockImplementation(() => {
+            return new Promise((resolve) => {
+              setTimeout(() => {
+                resolve({});
+              }, 300);
+            });
+          });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(true);
+      });
     });
   });
 
@@ -879,13 +1099,15 @@ describe('SignatureController', () => {
       const { controller } = createController();
       let resolved = false;
 
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
+
       const signaturePromise = controller
         .newUnsignedPersonalMessage(
           {
             ...PARAMS_MOCK,
             deferSetAsSigned: true,
           },
-          {},
+          REQUEST_MOCK,
         )
         .then((result) => {
           resolved = true;
@@ -957,13 +1179,15 @@ describe('SignatureController', () => {
       const { controller } = createController();
       let rejectedError;
 
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
+
       controller
         .newUnsignedPersonalMessage(
           {
             ...PARAMS_MOCK,
             deferSetAsSigned: true,
           },
-          {},
+          REQUEST_MOCK,
         )
         .catch((error) => {
           rejectedError = error;

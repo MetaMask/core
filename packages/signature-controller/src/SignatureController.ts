@@ -27,6 +27,7 @@ import {
   SigningStage,
   type AddLog,
 } from '@metamask/logging-controller';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import/no-nodejs-modules
@@ -45,6 +46,7 @@ import type {
   LegacyStateMessage,
   StateSIWEMessage,
 } from './types';
+import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
 import {
   normalizePersonalMessageParams,
   normalizeTypedMessageParams,
@@ -115,7 +117,8 @@ type AllowedActions =
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
-  | AddLog;
+  | AddLog
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type GetSignatureState = ControllerGetStateAction<
   typeof controllerName,
@@ -141,16 +144,6 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 
 export type SignatureControllerOptions = {
   /**
-   * @deprecated No longer in use.
-   */
-  getAllState?: () => unknown;
-
-  /**
-   * Callback that returns the current chain ID.
-   */
-  getCurrentChainId: () => Hex;
-
-  /**
    * Restricted controller messenger required by the signature controller.
    */
   messenger: SignatureControllerMessenger;
@@ -164,6 +157,16 @@ export type SignatureControllerOptions = {
     methodName: string,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
+
+  /**
+   * URL of API to retrieve decoding data for typed requests.
+   */
+  decodingApiUrl?: string;
+
+  /**
+   * Function to check if decoding signature request is enabled
+   */
+  isDecodeSignatureRequestEnabled?: () => boolean;
 
   /**
    * Initial state of the controller.
@@ -186,7 +189,9 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  #getCurrentChainId: () => Hex;
+  #decodingApiUrl?: string;
+
+  #isDecodeSignatureRequestEnabled?: () => boolean;
 
   #trace: TraceCallback;
 
@@ -194,13 +199,15 @@ export class SignatureController extends BaseController<
    * Construct a Sign controller.
    *
    * @param options - The controller options.
-   * @param options.getCurrentChainId - A function that returns the current chain ID.
+   * @param options.decodingApiUrl - Api used to get decoded data for permits.
+   * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
    * @param options.messenger - The restricted controller messenger for the sign controller.
    * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
   constructor({
-    getCurrentChainId,
+    decodingApiUrl,
+    isDecodeSignatureRequestEnabled,
     messenger,
     state,
     trace,
@@ -216,8 +223,9 @@ export class SignatureController extends BaseController<
     });
 
     this.hub = new EventEmitter();
-    this.#getCurrentChainId = getCurrentChainId;
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
+    this.#decodingApiUrl = decodingApiUrl;
+    this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;
   }
 
   /**
@@ -298,7 +306,7 @@ export class SignatureController extends BaseController<
    */
   async newUnsignedPersonalMessage(
     messageParams: MessageParamsPersonal,
-    request?: OriginalRequest,
+    request: OriginalRequest,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
     validatePersonalSignatureRequest(messageParams);
@@ -332,15 +340,17 @@ export class SignatureController extends BaseController<
    */
   async newUnsignedTypedMessage(
     messageParams: MessageParamsTyped,
-    request: OriginalRequest | undefined,
+    request: OriginalRequest,
     version: string,
     signingOptions?: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
+    const chainId = this.#getChainId(request);
+
     validateTypedSignatureRequest(
       messageParams,
       version as SignTypedDataVersion,
-      this.#getCurrentChainId(),
+      chainId,
     );
 
     const normalizedMessageParams = normalizeTypedMessageParams(
@@ -349,13 +359,13 @@ export class SignatureController extends BaseController<
     );
 
     return this.#processSignatureRequest({
+      approvalType: ApprovalType.EthSignTypedData,
       messageParams: normalizedMessageParams,
       request,
-      type: SignatureRequestType.TypedSign,
-      approvalType: ApprovalType.EthSignTypedData,
-      version: version as SignTypedDataVersion,
       signingOptions,
       traceContext: options.traceContext,
+      type: SignatureRequestType.TypedSign,
+      version: version as SignTypedDataVersion,
     });
   }
 
@@ -437,6 +447,7 @@ export class SignatureController extends BaseController<
   }
 
   async #processSignatureRequest({
+    chainId: optionChainId,
     messageParams,
     request,
     type,
@@ -445,8 +456,9 @@ export class SignatureController extends BaseController<
     signingOptions,
     traceContext,
   }: {
+    chainId?: Hex;
     messageParams: MessageParams;
-    request?: OriginalRequest;
+    request: OriginalRequest;
     type: SignatureRequestType;
     approvalType: ApprovalType;
     version?: SignTypedDataVersion;
@@ -460,9 +472,12 @@ export class SignatureController extends BaseController<
       version,
     });
 
+    const chainId = optionChainId ?? this.#getChainId(request);
+
     this.#addLog(type, version, SigningStage.Proposed, messageParams);
 
     const metadata = this.#addMetadata({
+      chainId,
       messageParams,
       request,
       signingOptions,
@@ -474,6 +489,7 @@ export class SignatureController extends BaseController<
     let approveOrSignError: unknown;
 
     const finalMetadataPromise = this.#waitForFinished(metadata.id);
+    this.#decodePermitSignatureRequest(metadata.id, request, chainId);
 
     try {
       resultCallbacks = await this.#processApproval({
@@ -534,12 +550,14 @@ export class SignatureController extends BaseController<
   }
 
   #addMetadata({
+    chainId,
     messageParams,
     request,
     signingOptions,
     type,
     version,
   }: {
+    chainId: Hex;
     messageParams: MessageParams;
     request?: OriginalRequest;
     signingOptions?: TypedSigningOptions;
@@ -550,6 +568,7 @@ export class SignatureController extends BaseController<
     const origin = request?.origin ?? messageParams.origin;
     const requestId = request?.id;
     const securityAlertResponse = request?.securityAlertResponse;
+    const networkClientId = request?.networkClientId;
 
     const finalMessageParams = {
       ...messageParams,
@@ -560,8 +579,10 @@ export class SignatureController extends BaseController<
     };
 
     const metadata = {
-      id,
+      chainId,
+      id: random(),
       messageParams: finalMessageParams,
+      networkClientId,
       securityAlertResponse,
       signingOptions,
       status: SignatureRequestStatus.Unapproved,
@@ -573,6 +594,8 @@ export class SignatureController extends BaseController<
     this.#updateState((state) => {
       state.signatureRequests[metadata.id] = metadata;
     });
+
+    log('Added signature request', metadata);
 
     this.hub.emit('unapprovedMessage', {
       messageParams,
@@ -869,5 +892,52 @@ export class SignatureController extends BaseController<
     }
 
     return SigningMethod.EthSignTypedData;
+  }
+
+  #getChainId(request: OriginalRequest): Hex {
+    const { networkClientId } = request;
+
+    if (!networkClientId) {
+      throw new Error('Network client ID not found in request');
+    }
+
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+
+    return networkClient.configuration.chainId;
+  }
+
+  #decodePermitSignatureRequest(
+    signatureRequestId: string,
+    request: OriginalRequest,
+    chainId: string,
+  ) {
+    if (!this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl) {
+      return;
+    }
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.decodingLoading = true;
+    });
+    decodeSignature(request, chainId, this.#decodingApiUrl)
+      .then((decodingData) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodingData = decodingData;
+          draftMetadata.decodingLoading = false;
+        }),
+      )
+      .catch((error) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodingData = {
+            stateChanges: null,
+            error: {
+              message: (error as unknown as Error).message,
+              type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+            },
+          };
+          draftMetadata.decodingLoading = false;
+        }),
+      );
   }
 }

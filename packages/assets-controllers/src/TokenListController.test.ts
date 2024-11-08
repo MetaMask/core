@@ -854,18 +854,18 @@ describe('TokenListController', () => {
       preventPollingOnNetworkRestart: false,
       messenger,
       interval: 100,
+      state: existingState,
     });
-    await controller.start();
-    expect(controller.state.tokenList).toStrictEqual({});
+    expect(controller.state.tokenList).toStrictEqual(existingState.tokenList);
+    const pollingToken = controller.startPolling({ chainId: ChainId.mainnet });
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     expect(controller.state.tokenList).toStrictEqual(
       sampleSingleChainState.tokenList,
     );
-
     expect(controller.state.tokensChainsCache[toHex(1)].data).toStrictEqual(
       sampleSingleChainState.tokensChainsCache[toHex(1)].data,
     );
-    controller.destroy();
+    controller.stopPollingByPollingToken(pollingToken);
   });
 
   it('should update token list from cache before reaching the threshold time', async () => {
@@ -1116,45 +1116,6 @@ describe('TokenListController', () => {
       tokensChainsCache: {},
       preventPollingOnNetworkRestart: false,
     });
-
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await new Promise((resolve: any) => {
-      messenger.subscribe('TokenListController:stateChange', (_, patch) => {
-        const tokenListChanged = patch.find(
-          (p) => Object.keys(p.value.tokenList).length !== 0,
-        );
-        if (!tokenListChanged) {
-          return;
-        }
-
-        expect(controller.state.tokenList).toStrictEqual(
-          sampleTwoChainState.tokenList,
-        );
-
-        expect(
-          controller.state.tokensChainsCache[toHex(56)].data,
-        ).toStrictEqual(sampleTwoChainState.tokensChainsCache[toHex(56)].data);
-        messenger.clearEventSubscriptions('TokenListController:stateChange');
-        controller.destroy();
-        controllerMessenger.clearEventSubscriptions(
-          'NetworkController:stateChange',
-        );
-        resolve();
-      });
-
-      controllerMessenger.publish(
-        'NetworkController:stateChange',
-        {
-          selectedNetworkClientId: selectedCustomNetworkClientId,
-          networkConfigurationsByChainId: {},
-          networksMetadata: {},
-          // @ts-expect-error This property isn't used and will get removed later.
-          providerConfig: {},
-        },
-        [],
-      );
-    });
   });
 
   describe('startPolling', () => {
@@ -1200,55 +1161,12 @@ describe('TokenListController', () => {
         expiredCacheExistingState.tokenList,
       );
 
-      controller.startPolling({ networkClientId: 'sepolia' });
+      controller.startPolling({ chainId: ChainId.sepolia });
       await advanceTime({ clock, duration: 0 });
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
       );
-    });
-
-    it('should start polling against the token list API at the interval passed to the constructor', async () => {
-      const fetchTokenListByChainIdSpy = jest.spyOn(
-        tokenService,
-        'fetchTokenListByChainId',
-      );
-
-      const controllerMessenger = getControllerMessenger();
-      controllerMessenger.registerActionHandler(
-        'NetworkController:getNetworkClientById',
-        jest.fn().mockReturnValue({
-          configuration: {
-            type: NetworkType.goerli,
-            chainId: ChainId.goerli,
-          },
-        }),
-      );
-      const messenger = getRestrictedMessenger(controllerMessenger);
-      const controller = new TokenListController({
-        chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
-        messenger,
-        state: expiredCacheExistingState,
-        interval: pollingIntervalTime,
-      });
-      expect(controller.state.tokenList).toStrictEqual(
-        expiredCacheExistingState.tokenList,
-      );
-
-      controller.startPolling({ networkClientId: 'goerli' });
-      await advanceTime({ clock, duration: 0 });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: pollingIntervalTime / 2 });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: pollingIntervalTime / 2 });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
-      await advanceTime({ clock, duration: pollingIntervalTime });
-
-      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(3);
     });
 
     it('should update tokenList state and tokensChainsCache', async () => {
@@ -1270,6 +1188,7 @@ describe('TokenListController', () => {
               throw new Error('Invalid chainId');
           }
         });
+
       const controllerMessenger = getControllerMessenger();
       controllerMessenger.registerActionHandler(
         'NetworkController:getNetworkClientById',
@@ -1296,7 +1215,7 @@ describe('TokenListController', () => {
       );
       const messenger = getRestrictedMessenger(controllerMessenger);
       const controller = new TokenListController({
-        chainId: ChainId.mainnet,
+        chainId: ChainId.sepolia,
         preventPollingOnNetworkRestart: false,
         messenger,
         state: startingState,
@@ -1307,13 +1226,14 @@ describe('TokenListController', () => {
 
       // start polling for sepolia
       const pollingToken = controller.startPolling({
-        networkClientId: 'sepolia',
+        chainId: ChainId.sepolia,
       });
+
       // wait a polling interval
       await advanceTime({ clock, duration: pollingIntervalTime });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
-      // expect the state to be updated with the sepolia token list
+
       expect(controller.state.tokenList).toStrictEqual(
         sampleSepoliaTokensChainCache,
       );
@@ -1327,7 +1247,7 @@ describe('TokenListController', () => {
 
       // start polling for binance
       controller.startPolling({
-        networkClientId: 'binance-network-client-id',
+        chainId: '0x38',
       });
       await advanceTime({ clock, duration: pollingIntervalTime });
 
@@ -1335,10 +1255,10 @@ describe('TokenListController', () => {
       // because the cache for the recently fetched sepolia token list is still valid
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(2);
 
-      // expect tokenList to be updated with the binance token list
+      // expect tokenList to be not be updated with the binance token list, because sepolia is still this.chainId
       // and the cache to now contain both the binance token list and the sepolia token list
       expect(controller.state.tokenList).toStrictEqual(
-        sampleBinanceTokensChainsCache,
+        sampleSepoliaTokensChainCache,
       );
       // once we adopt this polling pattern we should no longer access the root tokenList state
       // but rather access from the cache with a chainId selector.
