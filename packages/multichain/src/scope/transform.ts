@@ -4,7 +4,6 @@ import { cloneDeep } from 'lodash';
 import type {
   ExternalScopeObject,
   ExternalScopesObject,
-  InternalScopeString,
   InternalScopeObject,
   InternalScopesObject,
 } from './types';
@@ -123,7 +122,7 @@ export const mergeScopes = (
   });
 
   Object.entries(scopeB).forEach(([_scopeString, scopeObjectB]) => {
-     // Cast needed because index type is returned as `string` by `Object.entries`
+    // Cast needed because index type is returned as `string` by `Object.entries`
     const scopeString = _scopeString as keyof typeof scopeB;
     const scopeObjectA = scopeA[scopeString];
 
