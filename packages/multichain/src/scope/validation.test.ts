@@ -23,20 +23,20 @@ describe('Scope Validation', () => {
       expect(isValidScope('eip155:1', validScopeObject)).toBe(true);
     });
 
-    it('returns false when the scopeString is a CAIP chainId but references is nonempty', () => {
-      expect(
-        isValidScope('eip155:1', {
-          ...validScopeObject,
-          references: ['5'],
-        }),
-      ).toBe(false);
-    });
-
     it('returns false when the scopeString is a valid CAIP namespace but references are invalid CAIP references', () => {
       expect(
         isValidScope('eip155', {
           ...validScopeObject,
           references: ['@'],
+        }),
+      ).toBe(false);
+    });
+
+    it('returns false when the scopeString is a CAIP chainId but references is defined', () => {
+      expect(
+        isValidScope('eip155:1', {
+          ...validScopeObject,
+          references: [],
         }),
       ).toBe(false);
     });
@@ -111,12 +111,18 @@ describe('Scope Validation', () => {
     it('returns true when only expected properties are defined', () => {
       expect(
         isValidScope(validScopeString, {
-          references: [],
           methods: [],
           notifications: [],
           accounts: [],
           rpcDocuments: [],
           rpcEndpoints: [],
+        }),
+      ).toBe(true);
+
+      expect(
+        isValidScope('eip155', {
+          ...validScopeObject,
+          references: ['1'],
         }),
       ).toBe(true);
     });

@@ -50,7 +50,7 @@ export const isValidScope = (
 
   // If references are present, reference must be absent and all references must be valid
   if (references) {
-    if (reference && references.length > 0) {
+    if (reference) {
       return false;
     }
 
