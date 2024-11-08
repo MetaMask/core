@@ -3,6 +3,7 @@ import type { InternalAccount } from '@metamask/keyring-api';
 import type nock from 'nock';
 
 import encryption, { createSHA256Hash } from '../../shared/encryption';
+import { UserStorageFeatureNames } from '../../shared/storage-schema';
 import type {
   AuthenticationControllerGetBearerToken,
   AuthenticationControllerGetSessionProfile,
@@ -76,7 +77,7 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     const result = await controller.performGetStorage(
-      'notifications.notification_settings',
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
     );
     mockAPI.done();
     expect(result).toBe(MOCK_STORAGE_DATA);
@@ -94,7 +95,9 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
     });
 
     await expect(
-      controller.performGetStorage('notifications.notification_settings'),
+      controller.performGetStorage(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -129,7 +132,9 @@ describe('user-storage/user-storage-controller - performGetStorage() tests', () 
       });
 
       await expect(
-        controller.performGetStorage('notifications.notification_settings'),
+        controller.performGetStorage(
+          `${UserStorageFeatureNames.Notifications}.notification_settings`,
+        ),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -151,7 +156,7 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
     });
 
     const result = await controller.performGetStorageAllFeatureEntries(
-      'notifications',
+      UserStorageFeatureNames.Notifications,
     );
     mockAPI.done();
     expect(result).toStrictEqual([MOCK_STORAGE_DATA]);
@@ -169,7 +174,9 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
     });
 
     await expect(
-      controller.performGetStorageAllFeatureEntries('notifications'),
+      controller.performGetStorageAllFeatureEntries(
+        UserStorageFeatureNames.Notifications,
+      ),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -204,7 +211,9 @@ describe('user-storage/user-storage-controller - performGetStorageAllFeatureEntr
       });
 
       await expect(
-        controller.performGetStorageAllFeatureEntries('notifications'),
+        controller.performGetStorageAllFeatureEntries(
+          UserStorageFeatureNames.Notifications,
+        ),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -226,7 +235,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
 
     await controller.performSetStorage(
-      'notifications.notification_settings',
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
       'new data',
     );
     expect(mockAPI.isDone()).toBe(true);
@@ -245,7 +254,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
     await expect(
       controller.performSetStorage(
-        'notifications.notification_settings',
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -283,7 +292,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
 
       await expect(
         controller.performSetStorage(
-          'notifications.notification_settings',
+          `${UserStorageFeatureNames.Notifications}.notification_settings`,
           'new data',
         ),
       ).rejects.toThrow(expect.any(Error));
@@ -293,7 +302,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
   it('rejects if api call fails', async () => {
     const { messengerMocks } = arrangeMocks({
       mockAPI: mockEndpointUpsertUserStorage(
-        'notifications.notification_settings',
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
         { status: 500 },
       ),
     });
@@ -303,7 +312,7 @@ describe('user-storage/user-storage-controller - performSetStorage() tests', () 
     });
     await expect(
       controller.performSetStorage(
-        'notifications.notification_settings',
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
         'new data',
       ),
     ).rejects.toThrow(expect.any(Error));
@@ -315,7 +324,7 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
     return {
       messengerMocks: mockUserStorageMessenger(),
       mockAPI: mockEndpointBatchUpsertUserStorage(
-        'notifications',
+        UserStorageFeatureNames.Notifications,
         mockResponseStatus ? { status: mockResponseStatus } : undefined,
       ),
     };
@@ -328,9 +337,10 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
       getMetaMetricsState: () => true,
     });
 
-    await controller.performBatchSetStorage('notifications', [
-      ['notifications.notification_settings', 'new data'],
-    ]);
+    await controller.performBatchSetStorage(
+      UserStorageFeatureNames.Notifications,
+      [['notification_settings', 'new data']],
+    );
     expect(mockAPI.isDone()).toBe(true);
   });
 
@@ -346,8 +356,8 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
     });
 
     await expect(
-      controller.performBatchSetStorage('notifications', [
-        ['notifications.notification_settings', 'new data'],
+      controller.performBatchSetStorage(UserStorageFeatureNames.Notifications, [
+        ['notification_settings', 'new data'],
       ]),
     ).rejects.toThrow(expect.any(Error));
   });
@@ -383,9 +393,10 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
       });
 
       await expect(
-        controller.performBatchSetStorage('notifications', [
-          ['notifications.notification_settings', 'new data'],
-        ]),
+        controller.performBatchSetStorage(
+          UserStorageFeatureNames.Notifications,
+          [['notification_settings', 'new data']],
+        ),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -398,8 +409,8 @@ describe('user-storage/user-storage-controller - performBatchSetStorage() tests'
     });
 
     await expect(
-      controller.performBatchSetStorage('notifications', [
-        ['notifications.notification_settings', 'new data'],
+      controller.performBatchSetStorage(UserStorageFeatureNames.Notifications, [
+        ['notification_settings', 'new data'],
       ]),
     ).rejects.toThrow(expect.any(Error));
     mockAPI.done();
@@ -411,7 +422,7 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
     return {
       messengerMocks: mockUserStorageMessenger(),
       mockAPI: mockEndpointDeleteUserStorage(
-        'notifications.notification_settings',
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
         mockResponseStatus ? { status: mockResponseStatus } : undefined,
       ),
     };
@@ -425,7 +436,7 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
     });
 
     await controller.performDeleteStorage(
-      'notifications.notification_settings',
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
     );
     mockAPI.done();
 
@@ -444,7 +455,9 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
     });
 
     await expect(
-      controller.performDeleteStorage('notifications.notification_settings'),
+      controller.performDeleteStorage(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -479,7 +492,9 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
       });
 
       await expect(
-        controller.performDeleteStorage('notifications.notification_settings'),
+        controller.performDeleteStorage(
+          `${UserStorageFeatureNames.Notifications}.notification_settings`,
+        ),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -492,7 +507,9 @@ describe('user-storage/user-storage-controller - performDeleteStorage() tests', 
     });
 
     await expect(
-      controller.performDeleteStorage('notifications.notification_settings'),
+      controller.performDeleteStorage(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(expect.any(Error));
     mockAPI.done();
   });
@@ -503,7 +520,7 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
     return {
       messengerMocks: mockUserStorageMessenger(),
       mockAPI: mockEndpointDeleteUserStorageAllFeatureEntries(
-        'notifications',
+        UserStorageFeatureNames.Notifications,
         mockResponseStatus ? { status: mockResponseStatus } : undefined,
       ),
     };
@@ -516,7 +533,9 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
       getMetaMetricsState: () => true,
     });
 
-    await controller.performDeleteStorageAllFeatureEntries('notifications');
+    await controller.performDeleteStorageAllFeatureEntries(
+      UserStorageFeatureNames.Notifications,
+    );
     mockAPI.done();
 
     expect(mockAPI.isDone()).toBe(true);
@@ -534,7 +553,9 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
     });
 
     await expect(
-      controller.performDeleteStorageAllFeatureEntries('notifications'),
+      controller.performDeleteStorageAllFeatureEntries(
+        UserStorageFeatureNames.Notifications,
+      ),
     ).rejects.toThrow(expect.any(Error));
   });
 
@@ -569,7 +590,9 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
       });
 
       await expect(
-        controller.performDeleteStorageAllFeatureEntries('notifications'),
+        controller.performDeleteStorageAllFeatureEntries(
+          UserStorageFeatureNames.Notifications,
+        ),
       ).rejects.toThrow(expect.any(Error));
     },
   );
@@ -582,7 +605,9 @@ describe('user-storage/user-storage-controller - performDeleteStorageAllFeatureE
     });
 
     await expect(
-      controller.performDeleteStorageAllFeatureEntries('notifications'),
+      controller.performDeleteStorageAllFeatureEntries(
+        UserStorageFeatureNames.Notifications,
+      ),
     ).rejects.toThrow(expect.any(Error));
     mockAPI.done();
   });
@@ -702,7 +727,9 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: {
           mockEndpointGetUserStorage:
-            await mockEndpointGetUserStorageAllFeatureEntries('accounts'),
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              UserStorageFeatureNames.Accounts,
+            ),
         },
       };
     };
@@ -740,7 +767,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
-              'accounts',
+              UserStorageFeatureNames.Accounts,
               await mockUserStorageAccountsResponse(),
             ),
         },
@@ -782,12 +809,12 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
-              'accounts',
+              UserStorageFeatureNames.Accounts,
               mockUserStorageAccountsResponse,
             ),
           mockEndpointBatchUpsertUserStorage:
             mockEndpointBatchUpsertUserStorage(
-              'accounts',
+              UserStorageFeatureNames.Accounts,
               undefined,
               async (_uri, requestBody) => {
                 const decryptedBody = await decryptBatchUpsertBody(
@@ -846,7 +873,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
-              'accounts',
+              UserStorageFeatureNames.Accounts,
               await mockUserStorageAccountsResponse(),
             ),
         },
@@ -894,7 +921,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
-              'accounts',
+              UserStorageFeatureNames.Accounts,
               await mockUserStorageAccountsResponse(),
             ),
         },
@@ -950,11 +977,13 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
-              'accounts',
+              UserStorageFeatureNames.Accounts,
               await mockUserStorageAccountsResponse(),
             ),
           mockEndpointBatchUpsertUserStorage:
-            mockEndpointBatchUpsertUserStorage('accounts'),
+            mockEndpointBatchUpsertUserStorage(
+              UserStorageFeatureNames.Accounts,
+            ),
         },
       };
     };
@@ -1001,7 +1030,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
           },
@@ -1038,11 +1067,13 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
             mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
+              mockEndpointBatchUpsertUserStorage(
+                UserStorageFeatureNames.Accounts,
+              ),
           },
         };
       };
@@ -1078,11 +1109,13 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
             mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
+              mockEndpointBatchUpsertUserStorage(
+                UserStorageFeatureNames.Accounts,
+              ),
           },
         };
       };
@@ -1129,7 +1162,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
           },
@@ -1172,7 +1205,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
           },
@@ -1209,11 +1242,13 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
             mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
+              mockEndpointBatchUpsertUserStorage(
+                UserStorageFeatureNames.Accounts,
+              ),
           },
         };
       };
@@ -1249,7 +1284,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
           },
@@ -1302,7 +1337,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
           },
@@ -1345,7 +1380,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
           },
@@ -1391,7 +1426,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 mockGetEntriesResponse,
               ),
           },
@@ -1436,11 +1471,13 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
           mockAPI: {
             mockEndpointGetUserStorage:
               await mockEndpointGetUserStorageAllFeatureEntries(
-                'accounts',
+                UserStorageFeatureNames.Accounts,
                 await mockUserStorageAccountsResponse(),
               ),
             mockEndpointBatchUpsertUserStorage:
-              mockEndpointBatchUpsertUserStorage('accounts'),
+              mockEndpointBatchUpsertUserStorage(
+                UserStorageFeatureNames.Accounts,
+              ),
           },
         };
       };
@@ -1504,7 +1541,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointUpsertUserStorage(
-          `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+          `${UserStorageFeatureNames.Accounts}.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
         ),
       };
     };
@@ -1530,7 +1567,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointUpsertUserStorage(
-          `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+          `${UserStorageFeatureNames.Accounts}.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
         ),
       };
     };
@@ -1556,7 +1593,7 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
       return {
         messengerMocks: mockUserStorageMessenger(),
         mockAPI: mockEndpointUpsertUserStorage(
-          `accounts.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
+          `${UserStorageFeatureNames.Accounts}.${MOCK_INTERNAL_ACCOUNTS.ONE[0].address}`,
           { status: 500 },
         ),
       };

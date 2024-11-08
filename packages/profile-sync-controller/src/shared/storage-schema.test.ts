@@ -2,6 +2,7 @@ import {
   createEntryPath,
   getFeatureAndKeyFromPath,
   USER_STORAGE_SCHEMA,
+  UserStorageFeatureNames,
 } from './storage-schema';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -12,11 +13,11 @@ describe('user-storage/schema.ts', () => {
     it('should correctly construct user storage url', () => {
       expect(
         createEntryPath(
-          'notifications.notification_settings',
+          `${UserStorageFeatureNames.Notifications}.notification_settings`,
           'dbdc994804e591f7bef6695e525543712358dd5c952bd257560b629887972588',
         ),
       ).toBe(
-        'notifications/94739860a3472f61e0802706abbbbf7c8d843f8ec0ad0bef3964e52fb9b72132',
+        `${UserStorageFeatureNames.Notifications}/94739860a3472f61e0802706abbbbf7c8d843f8ec0ad0bef3964e52fb9b72132`,
       );
     });
 
@@ -37,7 +38,7 @@ describe('user-storage/schema.ts', () => {
     });
 
     it('should throw error if key is invalid', () => {
-      const feature = 'notifications';
+      const feature = UserStorageFeatureNames.Notifications;
       const path = `${feature}.invalid`;
       const validKeys = USER_STORAGE_SCHEMA[feature].join(', ');
 
@@ -49,19 +50,19 @@ describe('user-storage/schema.ts', () => {
     });
 
     it('should return feature and key from path', () => {
-      const path = 'notifications.notification_settings';
+      const path = `${UserStorageFeatureNames.Notifications}.notification_settings`;
       const result = getFeatureAndKeyFromPath(path);
       expect(result).toStrictEqual({
-        feature: 'notifications',
+        feature: UserStorageFeatureNames.Notifications,
         key: 'notification_settings',
       });
     });
 
     it('should return feature and key from path with arbitrary key', () => {
-      const path = 'accounts.0x123';
+      const path = `${UserStorageFeatureNames.Accounts}.0x123`;
       const result = getFeatureAndKeyFromPath(path);
       expect(result).toStrictEqual({
-        feature: 'accounts',
+        feature: UserStorageFeatureNames.Accounts,
         key: '0x123',
       });
     });

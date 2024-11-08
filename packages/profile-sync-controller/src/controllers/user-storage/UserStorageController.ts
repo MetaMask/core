@@ -23,10 +23,11 @@ import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSHA256Hash } from '../../shared/encryption';
-import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
+import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
+import {
+  UserStorageFeatureNames,
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -340,7 +341,9 @@ export default class UserStorageController extends BaseController<
       UserStorageAccount[] | null
     > => {
       const rawAccountsListResponse =
-        await this.performGetStorageAllFeatureEntries('accounts');
+        await this.performGetStorageAllFeatureEntries(
+          UserStorageFeatureNames.Accounts,
+        );
 
       return (
         rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ??
@@ -355,7 +358,7 @@ export default class UserStorageController extends BaseController<
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `accounts.${internalAccount.address}`,
+        `${UserStorageFeatureNames.Accounts}.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -371,7 +374,7 @@ export default class UserStorageController extends BaseController<
         internalAccountsList.map(mapInternalAccountToUserStorageAccount);
 
       await this.performBatchSetStorage(
-        'accounts',
+        UserStorageFeatureNames.Accounts,
         internalAccountsListFormattedForUserStorage.map((account) => [
           account.a,
           JSON.stringify(account),
@@ -671,9 +674,11 @@ export default class UserStorageController extends BaseController<
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  public async performBatchSetStorage(
-    path: UserStoragePathWithFeatureOnly,
-    values: [UserStoragePathWithKeyOnly, string][],
+  public async performBatchSetStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: [UserStorageFeatureKeys<FeatureName>, string][],
   ): Promise<void> {
     this.#assertProfileSyncingEnabled();
 
@@ -959,7 +964,7 @@ export default class UserStorageController extends BaseController<
 
       // Save the internal accounts list to the user storage
       await this.performBatchSetStorage(
-        'accounts',
+        UserStorageFeatureNames.Accounts,
         internalAccountsToBeSavedToUserStorage.map((account) => [
           account.address,
           JSON.stringify(mapInternalAccountToUserStorageAccount(account)),

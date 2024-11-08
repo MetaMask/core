@@ -2,6 +2,7 @@ import nock from 'nock';
 
 import encryption from '../../shared/encryption';
 import { Env } from '../../shared/env';
+import { UserStorageFeatureNames } from '../../shared/storage-schema';
 import { STORAGE_URL } from '../user-storage';
 
 type MockReply = {
@@ -12,11 +13,11 @@ type MockReply = {
 // Example mock notifications storage entry (wildcard)
 const MOCK_STORAGE_URL = STORAGE_URL(
   Env.DEV,
-  'notifications/notification_settings',
+  `${UserStorageFeatureNames.Notifications}.notification_settings`,
 );
 const MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES = STORAGE_URL(
   Env.DEV,
-  'notifications',
+  UserStorageFeatureNames.Notifications,
 );
 
 export const MOCK_STORAGE_KEY = 'MOCK_STORAGE_KEY';

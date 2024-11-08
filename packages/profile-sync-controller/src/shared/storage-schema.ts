@@ -9,31 +9,33 @@ import { createSHA256Hash } from './encryption';
  */
 const ALLOW_ARBITRARY_KEYS = 'ALLOW_ARBITRARY_KEYS' as const;
 
+export enum UserStorageFeatureNames {
+  Notifications = 'notifications',
+  Accounts = 'accounts_v2',
+  Networks = 'networks',
+}
+
 export const USER_STORAGE_SCHEMA = {
-  notifications: ['notification_settings'],
-  accounts: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
-  networks: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
+  [UserStorageFeatureNames.Notifications]: ['notification_settings'],
+  [UserStorageFeatureNames.Accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
+  [UserStorageFeatureNames.Networks]: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
 
-export type UserStorageFeatures = keyof UserStorageSchema;
-export type UserStorageFeatureKeys<Feature extends UserStorageFeatures> =
+export type UserStorageFeatureKeys<Feature extends UserStorageFeatureNames> =
   UserStorageSchema[Feature][0] extends typeof ALLOW_ARBITRARY_KEYS
     ? string
     : UserStorageSchema[Feature][number];
 
 type UserStorageFeatureAndKey = {
-  feature: UserStorageFeatures;
-  key: UserStorageFeatureKeys<UserStorageFeatures>;
+  feature: UserStorageFeatureNames;
+  key: UserStorageFeatureKeys<UserStorageFeatureNames>;
 };
 
-export type UserStoragePathWithFeatureOnly = keyof UserStorageSchema;
-export type UserStoragePathWithKeyOnly = {
-  [K in UserStorageFeatures]: `${UserStorageFeatureKeys<K>}`;
-}[UserStoragePathWithFeatureOnly];
+export type UserStoragePathWithFeatureOnly = UserStorageFeatureNames;
 export type UserStoragePathWithFeatureAndKey = {
-  [K in UserStorageFeatures]: `${K}.${UserStorageFeatureKeys<K>}`;
+  [K in UserStorageFeatureNames]: `${K}.${UserStorageFeatureKeys<K>}`;
 }[UserStoragePathWithFeatureOnly];
 
 export const getFeatureAndKeyFromPath = (
@@ -48,8 +50,8 @@ export const getFeatureAndKeyFromPath = (
   }
 
   const [feature, key] = path.split('.') as [
-    UserStorageFeatures,
-    UserStorageFeatureKeys<UserStorageFeatures>,
+    UserStorageFeatureNames,
+    UserStorageFeatureKeys<UserStorageFeatureNames>,
   ];
 
   if (!(feature in USER_STORAGE_SCHEMA)) {

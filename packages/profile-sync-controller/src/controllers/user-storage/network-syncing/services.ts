@@ -1,3 +1,4 @@
+import { UserStorageFeatureNames } from '../../../shared/storage-schema';
 import type { UserStorageBaseOptions } from '../services';
 import {
   getUserStorageAllFeatureEntries,
@@ -35,7 +36,7 @@ export async function getAllRemoteNetworks(
   const rawResults =
     (await getUserStorageAllFeatureEntries({
       ...opts,
-      path: 'networks',
+      path: UserStorageFeatureNames.Networks,
     })) ?? [];
 
   const results = rawResults

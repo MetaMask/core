@@ -1,7 +1,7 @@
-import type { UserStoragePathWithKeyOnly } from 'src/shared/storage-schema';
-
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { Env } from '../shared/env';
+import type { UserStorageFeatureKeys } from '../shared/storage-schema';
+import { UserStorageFeatureNames } from '../shared/storage-schema';
 import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
 import {
   MOCK_NOTIFICATIONS_DATA,
@@ -40,13 +40,16 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications.notification_settings', data);
+    await userStorage.setItem(
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      data,
+    );
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
     const response = await userStorage.getItem(
-      'notifications.notification_settings',
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
@@ -68,13 +71,16 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications.notification_settings', data);
+    await userStorage.setItem(
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      data,
+    );
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
     const response = await userStorage.getItem(
-      'notifications.notification_settings',
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
@@ -88,14 +94,17 @@ describe('User Storage', () => {
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
-      'notifications',
+      UserStorageFeatureNames.Notifications,
     );
     expect(mockGetAll.isDone()).toBe(true);
     expect(responseAllFeatureEntries).toStrictEqual([data]);
   });
 
   it('batch set items', async () => {
-    const dataToStore: [UserStoragePathWithKeyOnly, string][] = [
+    const dataToStore: [
+      UserStorageFeatureKeys<UserStorageFeatureNames.Accounts>,
+      string,
+    ][] = [
       ['0x123', JSON.stringify(MOCK_NOTIFICATIONS_DATA)],
       ['0x456', JSON.stringify(MOCK_NOTIFICATIONS_DATA)],
     ];
@@ -130,7 +139,10 @@ describe('User Storage', () => {
       },
     );
 
-    await userStorage.batchSetItems('accounts', dataToStore);
+    await userStorage.batchSetItems(
+      UserStorageFeatureNames.Accounts,
+      dataToStore,
+    );
     expect(mockPut.isDone()).toBe(true);
   });
 
@@ -140,7 +152,9 @@ describe('User Storage', () => {
 
     const mockDelete = await handleMockUserStorageDelete();
 
-    await userStorage.deleteItem('notifications.notification_settings');
+    await userStorage.deleteItem(
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+    );
     expect(mockDelete.isDone()).toBe(true);
   });
 
@@ -157,7 +171,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.deleteItem('notifications.notification_settings'),
+      userStorage.deleteItem(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -167,7 +183,9 @@ describe('User Storage', () => {
 
     const mockDelete = await handleMockUserStorageDeleteAllFeatureEntries();
 
-    await userStorage.deleteAllFeatureItems('notifications');
+    await userStorage.deleteAllFeatureItems(
+      UserStorageFeatureNames.Notifications,
+    );
     expect(mockDelete.isDone()).toBe(true);
   });
 
@@ -184,7 +202,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.deleteAllFeatureItems('notifications'),
+      userStorage.deleteAllFeatureItems(UserStorageFeatureNames.Notifications),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -202,7 +220,10 @@ describe('User Storage', () => {
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     await expect(
-      userStorage.setItem('notifications.notification_settings', data),
+      userStorage.setItem(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+        data,
+      ),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -219,7 +240,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.batchSetItems('notifications', [['key', 'value']]),
+      userStorage.batchSetItems(UserStorageFeatureNames.Notifications, [
+        ['notification_settings', 'value'],
+      ]),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -236,7 +259,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications.notification_settings'),
+      userStorage.getItem(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -253,7 +278,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getAllFeatureItems('notifications'),
+      userStorage.getAllFeatureItems(UserStorageFeatureNames.Notifications),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -270,7 +295,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications.notification_settings'),
+      userStorage.getItem(
+        `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(NotFoundError);
   });
 
@@ -285,7 +312,7 @@ describe('User Storage', () => {
     handleMockUserStoragePut();
 
     await userStorage.setItem(
-      'notifications.notification_settings',
+      `${UserStorageFeatureNames.Notifications}.notification_settings`,
       'some fake data',
     );
     expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key
