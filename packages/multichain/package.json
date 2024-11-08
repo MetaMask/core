@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/api-specs": "^0.10.12",
-    "@metamask/controller-utils": "^11.4.1",
+    "@metamask/controller-utils": "^11.4.2",
     "@metamask/eth-json-rpc-filters": "^7.0.0",
     "@metamask/rpc-errors": "^7.0.1",
     "@metamask/utils": "^10.0.0",
@@ -56,7 +56,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/network-controller": "^22.0.0",
+    "@metamask/network-controller": "^22.0.1",
     "@metamask/permission-controller": "^11.0.3",
     "@types/jest": "^27.4.1",
     "deepmerge": "^4.2.2",
