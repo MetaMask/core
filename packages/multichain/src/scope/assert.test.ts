@@ -1,6 +1,9 @@
-import { JsonRpcError } from '@metamask/rpc-errors';
-
 import { assertScopeSupported, assertScopesSupported } from './assert';
+import {
+  REQUESTED_CHAINS_NOT_SUPPORTED_ERROR,
+  REQUESTED_METHODS_NOT_SUPPORTED_ERROR,
+  REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR,
+} from './errors';
 import * as Supported from './supported';
 import type { InternalScopeObject } from './types';
 
@@ -42,9 +45,7 @@ describe('Scope Assert', () => {
           assertScopeSupported('scopeString', validScopeObject, {
             isChainIdSupported,
           });
-        }).toThrow(
-          new JsonRpcError(5100, 'Requested chains are not supported'),
-        );
+        }).toThrow(REQUESTED_CHAINS_NOT_SUPPORTED_ERROR);
       });
     });
 
@@ -88,9 +89,7 @@ describe('Scope Assert', () => {
               isChainIdSupported,
             },
           );
-        }).toThrow(
-          new JsonRpcError(5101, 'Requested methods are not supported'),
-        );
+        }).toThrow(REQUESTED_METHODS_NOT_SUPPORTED_ERROR);
       });
 
       it('checks if the notifications are supported', () => {
@@ -130,9 +129,7 @@ describe('Scope Assert', () => {
               isChainIdSupported,
             },
           );
-        }).toThrow(
-          new JsonRpcError(5102, 'Requested notifications are not supported'),
-        );
+        }).toThrow(REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR);
       });
 
       it('does not throw if the scopeObject is valid', () => {
@@ -182,7 +179,7 @@ describe('Scope Assert', () => {
             isChainIdSupported,
           },
         );
-      }).toThrow(new JsonRpcError(5100, 'Requested chains are not supported'));
+      }).toThrow(REQUESTED_CHAINS_NOT_SUPPORTED_ERROR);
     });
 
     it('does not throw an error if all scopes are valid', () => {

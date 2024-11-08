@@ -1,6 +1,10 @@
-import { JsonRpcError } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
+import {
+  REQUESTED_CHAINS_NOT_SUPPORTED_ERROR,
+  REQUESTED_METHODS_NOT_SUPPORTED_ERROR,
+  REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR,
+} from './errors';
 import {
   isSupportedMethod,
   isSupportedNotification,
@@ -26,7 +30,7 @@ export const assertScopeSupported = (
 ) => {
   const { methods, notifications } = scopeObject;
   if (!isSupportedScopeString(scopeString, isChainIdSupported)) {
-    throw new JsonRpcError(5100, 'Requested chains are not supported');
+    throw REQUESTED_CHAINS_NOT_SUPPORTED_ERROR;
   }
 
   const allMethodsSupported = methods.every((method) =>
@@ -34,15 +38,7 @@ export const assertScopeSupported = (
   );
 
   if (!allMethodsSupported) {
-    // not sure which one of these to use
-    // When provider evaluates requested methods to not be supported
-    //   code = 5101
-    //   message = "Requested methods are not supported"
-    // When provider does not recognize one or more requested method(s)
-    //   code = 5201
-    //   message = "Unknown method(s) requested"
-
-    throw new JsonRpcError(5101, 'Requested methods are not supported');
+    throw REQUESTED_METHODS_NOT_SUPPORTED_ERROR;
   }
 
   if (
@@ -51,14 +47,7 @@ export const assertScopeSupported = (
       isSupportedNotification(scopeString, notification),
     )
   ) {
-    // not sure which one of these to use
-    // When provider evaluates requested notifications to not be supported
-    //   code = 5102
-    //   message = "Requested notifications are not supported"
-    // When provider does not recognize one or more requested notification(s)
-    //   code = 5202
-    //   message = "Unknown notification(s) requested"
-    throw new JsonRpcError(5102, 'Requested notifications are not supported');
+    throw REQUESTED_NOTIFICATIONS_NOT_SUPPORTED_ERROR;
   }
 };
 
