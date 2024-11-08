@@ -224,7 +224,7 @@ export function getDefaultPreferencesState(): PreferencesState {
     useNftDetection: false,
     useTokenDetection: true,
     useMultiRpcMigration: true,
-    smartTransactionsOptInStatus: false,
+    smartTransactionsOptInStatus: true,
     useTransactionSimulations: true,
     useSafeChainsListValidation: true,
     tokenSortConfig: {

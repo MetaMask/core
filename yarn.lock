@@ -2146,7 +2146,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/network-controller": "npm:^22.0.1"
     "@metamask/polling-controller": "npm:^12.0.1"
-    "@metamask/preferences-controller": "npm:^13.2.0"
+    "@metamask/preferences-controller": "npm:^13.3.0"
     "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/utils": "npm:^10.0.0"
     "@types/bn.js": "npm:^5.1.5"
@@ -2361,7 +2361,7 @@ __metadata:
     "@babel/plugin-transform-modules-commonjs": "npm:^7.23.3"
     "@babel/preset-typescript": "npm:^7.23.3"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
-    "@metamask/create-release-branch": "npm:^3.0.0"
+    "@metamask/create-release-branch": "npm:^3.1.0"
     "@metamask/eslint-config": "npm:^12.2.0"
     "@metamask/eslint-config-jest": "npm:^12.1.0"
     "@metamask/eslint-config-nodejs": "npm:^12.1.0"
@@ -2407,9 +2407,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/create-release-branch@npm:^3.0.0":
-  version: 3.0.1
-  resolution: "@metamask/create-release-branch@npm:3.0.1"
+"@metamask/create-release-branch@npm:^3.1.0":
+  version: 3.1.0
+  resolution: "@metamask/create-release-branch@npm:3.1.0"
   dependencies:
     "@metamask/action-utils": "npm:^1.0.0"
     "@metamask/auto-changelog": "npm:~3.3.0"
@@ -2418,6 +2418,7 @@ __metadata:
     execa: "npm:^8.0.1"
     pony-cause: "npm:^2.1.9"
     semver: "npm:^7.5.4"
+    validate-npm-package-name: "npm:^5.0.0"
     which: "npm:^3.0.0"
     yaml: "npm:^2.2.2"
     yargs: "npm:^17.7.1"
@@ -2425,7 +2426,7 @@ __metadata:
     prettier: ^2
   bin:
     create-release-branch: bin/create-release-branch.js
-  checksum: 10/7a0b0044d64d9446bfb5de17311d06f6f52544c79367d4bb3963c060b43e9d6dde5215ef555d590a37175e1a6aa9313d2042eb06faed4c8eb73c4d17593ab47e
+  checksum: 10/a922c04e16ad4d2e5472a783d1a2e3e45724708bca2288f6257552669da305b3b25e492475692084f4ad19ac87a51921ebfa01e9f2c43b22e953ed88db48511d
   languageName: node
   linkType: hard
 
@@ -3126,7 +3127,7 @@ __metadata:
     "@metamask/base-controller": "npm:^7.0.2"
     "@metamask/controller-utils": "npm:^11.4.2"
     "@metamask/keyring-controller": "npm:^17.3.1"
-    "@metamask/profile-sync-controller": "npm:^0.9.7"
+    "@metamask/profile-sync-controller": "npm:^0.9.8"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
     "@types/readable-stream": "npm:^2.3.0"
@@ -3286,7 +3287,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/preferences-controller@npm:^13.2.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
+"@metamask/preferences-controller@npm:^13.3.0, @metamask/preferences-controller@workspace:packages/preferences-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/preferences-controller@workspace:packages/preferences-controller"
   dependencies:
@@ -3307,7 +3308,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/profile-sync-controller@npm:^0.9.7, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
+"@metamask/profile-sync-controller@npm:^0.9.8, @metamask/profile-sync-controller@workspace:packages/profile-sync-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/profile-sync-controller@workspace:packages/profile-sync-controller"
   dependencies:
@@ -3677,7 +3678,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^38.2.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^38.3.0, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
@@ -3745,7 +3746,7 @@ __metadata:
     "@metamask/polling-controller": "npm:^12.0.1"
     "@metamask/rpc-errors": "npm:^7.0.1"
     "@metamask/superstruct": "npm:^3.1.0"
-    "@metamask/transaction-controller": "npm:^38.2.0"
+    "@metamask/transaction-controller": "npm:^38.3.0"
     "@metamask/utils": "npm:^10.0.0"
     "@types/jest": "npm:^27.4.1"
     bn.js: "npm:^5.2.1"

@@ -2,16 +2,43 @@ import type { SIWEMessage } from '@metamask/controller-utils';
 import type { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex, Json } from '@metamask/utils';
 
+/**
+ * Supported signature methods.
+ */
+export enum EthMethod {
+  PersonalSign = 'personal_sign',
+  SignTransaction = 'eth_signTransaction',
+  SignTypedDataV1 = 'eth_signTypedData_v1',
+  SignTypedDataV3 = 'eth_signTypedData_v3',
+  SignTypedDataV4 = 'eth_signTypedData_v4',
+}
+
+/** Different decoding data state change types */
+export enum DecodingDataChangeType {
+  Receive = 'RECEIVE',
+  Transfer = 'TRANSFER',
+  Approve = 'APPROVE',
+  Revoke = 'REVOKE_APPROVE',
+  Bidding = 'BIDDING',
+  Listing = 'LISTING',
+}
+
 /** Original client request that triggered the signature request. */
 export type OriginalRequest = {
   /** Unique ID to identify the client request. */
   id?: number;
+
+  /** Method of signature request */
+  method?: string;
 
   /** ID of the network client associated with the request. */
   networkClientId?: string;
 
   /** Source of the client request. */
   origin?: string;
+
+  /** Parameters in signature request */
+  params: string[];
 
   /** Response following a security scan of the request. */
   securityAlertResponse?: Record<string, Json>;
@@ -71,14 +98,44 @@ export type MessageParamsTyped = MessageParams & {
         primaryType: string;
         message: Json;
       };
-
   /** Version of the signTypedData request. */
   version?: string;
+};
+
+/** Information about a single state change returned by decoding api. */
+export type DecodingDataStateChange = {
+  assetType: string;
+  changeType: (typeof DecodingDataChangeType)[keyof typeof DecodingDataChangeType];
+  address: string;
+  amount: string;
+  contractAddress: string;
+  tokenID?: string;
+};
+
+/** Array of the various state changes returned by decoding api. */
+export type DecodingDataStateChanges = DecodingDataStateChange[];
+
+/** Error details for unfulfilled the decoding request. */
+export type DecodingDataError = {
+  message: string;
+  type: string;
+};
+
+/** Decoding data about typed sign V4 signature request. */
+export type DecodingData = {
+  stateChanges: DecodingDataStateChanges | null;
+  error?: DecodingDataError;
 };
 
 type SignatureRequestBase = {
   /** ID of the associated chain. */
   chainId: Hex;
+
+  /** Response from message decoding api. */
+  decodingData?: DecodingData;
+
+  /** Whether decoding is in progress. */
+  decodingLoading?: boolean;
 
   /** Error message that occurred during the signing. */
   error?: string;
