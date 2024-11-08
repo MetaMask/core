@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add isDecodeSignatureRequestEnabled to SignatureController constructor to be able to check if decoding api should be invoked for the signature ([#4903](https://github.com/MetaMask/core/pull/4903))
+- Add `isDecodeSignatureRequestEnabled` constructor callback to determine if decoding API should be used ([#4903](https://github.com/MetaMask/core/pull/4903))
 - Integrating signature decoding api ([#4855](https://github.com/MetaMask/core/pull/4855))
 
 ## [21.0.0]
