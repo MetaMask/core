@@ -1,6 +1,6 @@
 {
   "name": "@metamask/preferences-controller",
-  "version": "13.2.0",
+  "version": "13.3.0",
   "description": "Manages user-configurable settings for MetaMask",
   "keywords": [
     "MetaMask",
