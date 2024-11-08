@@ -51,7 +51,6 @@ describe('Scope Validation', () => {
       expect(isValidScope('eip155', validScopeObject)).toBe(false);
     });
 
-
     it('returns false when methods contains empty string', () => {
       expect(
         isValidScope(validScopeString, {
