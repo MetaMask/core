@@ -15,8 +15,8 @@ describe('Scope Validation', () => {
       ).toBe(false);
     });
 
-    it('returns true when the scopeString is a valid CAIP namespace and the scopeObject is valid', () => {
-      expect(isValidScope('eip155', validScopeObject)).toBe(true);
+    it('returns true when the scopeString is "wallet" and the scopeObject does not contain references', () => {
+      expect(isValidScope('wallet', validScopeObject)).toBe(true);
     });
 
     it('returns true when the scopeString is a valid CAIP chainId and the scopeObject is valid', () => {
@@ -40,6 +40,17 @@ describe('Scope Validation', () => {
         }),
       ).toBe(false);
     });
+
+    it('returns false when the scopeString is a valid CAIP namespace (other than "wallet") but references is an empty array', () => {
+      expect(
+        isValidScope('eip155', { ...validScopeObject, references: [] }),
+      ).toBe(false);
+    });
+
+    it('returns false when the scopeString is a valid CAIP namespace (other than "wallet") but references is undefined', () => {
+      expect(isValidScope('eip155', validScopeObject)).toBe(false);
+    });
+
 
     it('returns false when methods contains empty string', () => {
       expect(

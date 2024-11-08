@@ -19,7 +19,8 @@ export const isValidScope = (
 ): boolean => {
   const { namespace, reference } = parseScopeString(scopeString);
 
-  if (!namespace && !reference) {
+  // Namespace is required
+  if (!namespace) {
     return false;
   }
 
@@ -30,22 +31,32 @@ export const isValidScope = (
     accounts,
     rpcDocuments,
     rpcEndpoints,
-    ...restScopeObject
+    ...extraProperties
   } = scopeObject;
 
+  // Methods and notifications are required
   if (!methods || !notifications) {
     return false;
   }
 
-  // These assume that the namespace has a notion of chainIds
-  if (reference && references && references.length > 0) {
+  // For namespaces other than 'wallet', either reference or non-empty references array must be present
+  if (
+    namespace !== 'wallet' &&
+    !reference &&
+    (!references || references.length === 0)
+  ) {
     return false;
   }
 
-  if (namespace && references) {
-    const areReferencesValid = references.every((nestedReference) => {
-      return isCaipReference(nestedReference);
-    });
+  // If references are present, reference must be absent and all references must be valid
+  if (references) {
+    if (reference && references.length > 0) {
+      return false;
+    }
+
+    const areReferencesValid = references.every((nestedReference) =>
+      isCaipReference(nestedReference),
+    );
 
     if (!areReferencesValid) {
       return false;
@@ -53,21 +64,24 @@ export const isValidScope = (
   }
 
   const areMethodsValid = methods.every(
-    (method) => typeof method === 'string' && method !== '',
+    (method) => typeof method === 'string' && method.trim() !== '',
   );
+
   if (!areMethodsValid) {
     return false;
   }
 
   const areNotificationsValid = notifications.every(
-    (notification) => typeof notification === 'string' && notification !== '',
+    (notification) =>
+      typeof notification === 'string' && notification.trim() !== '',
   );
+
   if (!areNotificationsValid) {
     return false;
   }
 
-  // unexpected properties found on scopeObject
-  if (Object.keys(restScopeObject).length !== 0) {
+  // Ensure no unexpected properties are present in the scope object
+  if (Object.keys(extraProperties).length > 0) {
     return false;
   }
 
