@@ -8,7 +8,7 @@ import {
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from './constants';
-import type { NonWalletKnownCaipNamespace, ExternalScopeString } from './types';
+import type { ExternalScopeString } from './types';
 import { parseScopeString } from './types';
 
 /**
@@ -112,11 +112,15 @@ export const isSupportedNotification = (
 ): boolean => {
   const { namespace } = parseScopeString(scopeString);
 
-  if (!namespace || !isNonWalletKnownCaipNamespace(namespace)) {
+  if (
+    !namespace ||
+    !isKnownCaipNamespace(namespace) ||
+    namespace === KnownCaipNamespace.Wallet
+  ) {
     return false;
   }
 
-  return (KnownNotifications[namespace] || []).includes(notification);
+  return KnownNotifications[namespace].includes(notification);
 };
 
 /**
@@ -131,22 +135,6 @@ function isKnownCaipNamespace(
   const knownNamespaces = Object.keys(KnownCaipNamespace).map((key) =>
     key.toLowerCase(),
   );
-
-  return knownNamespaces.includes(namespace);
-}
-
-/**
- * Checks whether the given namespace is a known non-wallet CAIP namespace.
- *
- * @param namespace - The namespace to check
- * @returns Whether the given namespace is a known non-wallet CAIP namespace.
- */
-function isNonWalletKnownCaipNamespace(
-  namespace: string,
-): namespace is NonWalletKnownCaipNamespace {
-  const knownNamespaces = Object.keys(KnownCaipNamespace)
-    .filter((key) => key !== KnownCaipNamespace.Wallet)
-    .map((key) => key.toLowerCase());
 
   return knownNamespaces.includes(namespace);
 }
