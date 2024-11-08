@@ -113,7 +113,8 @@ export const mergeScopes = (
   const scope: InternalScopesObject = {};
 
   Object.entries(scopeA).forEach(([_scopeString, scopeObjectA]) => {
-    const scopeString = _scopeString as InternalScopeString;
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = _scopeString as keyof typeof scopeA;
     const scopeObjectB = scopeB[scopeString];
 
     scope[scopeString] = scopeObjectB
@@ -122,7 +123,8 @@ export const mergeScopes = (
   });
 
   Object.entries(scopeB).forEach(([_scopeString, scopeObjectB]) => {
-    const scopeString = _scopeString as InternalScopeString;
+     // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = _scopeString as keyof typeof scopeB;
     const scopeObjectA = scopeA[scopeString];
 
     if (!scopeObjectA) {
