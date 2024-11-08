@@ -12,13 +12,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 - [Example PR](https://github.com/MetaMask/eth-json-rpc-provider/pull/38)
 
-### 2. Disable `dependabot` dependency version updates and security alerts
-
-- [Disable dependabot alerts](https://docs.github.com/en/code-security/dependabot/dependabot-alerts/configuring-dependabot-alerts#enabling-or-disabling-dependabot-alerts-for-a-repository) for the repo.
-- [Disable dependabot dependency version updates](https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuring-dependabot-version-updates#disabling-dependabot-version-updates) from settings, or delete the source repo's `.github/dependabot.yml` file.
-- Contact a [**maintainer**](https://github.com/orgs/MetaMask/teams/engineering?query=role%3Amaintainer) to perform this step.
-
-### 3. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
+### 2. Add the source repo to the ZenHub workspace repo filter so that its issues/PRs show up on the board
 
 ### **[PR#2]** 4. Align dependency versions and TypeScript, ESLint, Prettier configurations with the core monorepo
 
