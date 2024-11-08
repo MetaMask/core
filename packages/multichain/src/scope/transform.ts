@@ -58,6 +58,12 @@ export const normalizeScope = (
   return { [scopeString]: normalizedScopeObject };
 };
 
+/**
+ * Merges two InternalScopeObjects
+ * @param scopeObjectA - The first scope object to merge.
+ * @param scopeObjectB - The second scope object to merge.
+ * @returns The merged scope object.
+ */
 export const mergeScopeObject = (
   scopeObjectA: InternalScopeObject,
   scopeObjectB: InternalScopeObject,
