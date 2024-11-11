@@ -21,18 +21,18 @@ const validScopeObject: ExternalScopeObject = {
 describe('Scope Authorization', () => {
   describe('validateAndNormalizeScopes', () => {
     it('validates the scopes', () => {
-      try {
-        validateAndNormalizeScopes(
-          {
-            'eip155:1': validScopeObject,
-          },
-          {
-            'eip155:5': validScopeObject,
-          },
-        );
-      } catch (err) {
-        // noop
-      }
+      MockValidation.getValidScopes.mockReturnValue({
+        validRequiredScopes: {},
+        validOptionalScopes: {},
+      });
+      validateAndNormalizeScopes(
+        {
+          'eip155:1': validScopeObject,
+        },
+        {
+          'eip155:5': validScopeObject,
+        },
+      );
       expect(MockValidation.getValidScopes).toHaveBeenCalledWith(
         {
           'eip155:1': validScopeObject,
