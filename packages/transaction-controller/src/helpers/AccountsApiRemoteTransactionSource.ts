@@ -3,6 +3,8 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import { v1 as random } from 'uuid';
 
+import type { GetAccountTransactionsResponse } from '../api/accounts-api';
+import { getAccountTransactionsAllPages } from '../api/accounts-api';
 import { CHAIN_IDS } from '../constants';
 import { incomingTransactionsLogger as log } from '../logger';
 import type {
@@ -12,8 +14,6 @@ import type {
   TransactionMeta,
 } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
-import type { GetAccountTransactionsResponse } from '../utils/accounts-api';
-import { getAccountTransactionsAllPages } from '../utils/accounts-api';
 
 const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.MAINNET,
