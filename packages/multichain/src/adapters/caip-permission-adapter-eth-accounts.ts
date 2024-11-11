@@ -69,7 +69,7 @@ const setEthAccountsForScopesObject = (
 
   Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
     const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet;
-
+    const { namespace, reference } = parseScopeString(scopeString);
     if (
       !isEip155ScopeString(scopeString as InternalScopeString) &&
       !isWalletNamespace
@@ -77,13 +77,18 @@ const setEthAccountsForScopesObject = (
       updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
       return;
     }
-
-    const caipAccounts = accounts.map<CaipAccountId>(
-      (account) =>
-        (isWalletNamespace
-          ? `${KnownWalletScopeString.Eip155}:${account}`
-          : `${scopeString}:${account}`),
-    );
+    let caipAccounts: CaipAccountId[] = [];
+    if (isWalletNamespace) {
+      caipAccounts = accounts.map<CaipAccountId>(
+        (account) => `${KnownWalletScopeString.Eip155}:${account}`,
+      );
+    } else if (namespace && reference) {
+      caipAccounts = accounts.map<CaipAccountId>(
+        (account) => `${namespace}:${reference}:${account}`,
+      );
+    } else {
+      throw new Error('Invalid scope string');
+    }
 
     updatedScopesObject[scopeString as InternalScopeString] = {
       ...scopeObject,

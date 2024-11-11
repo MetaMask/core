@@ -6,6 +6,39 @@ import {
 
 describe('CAIP-25 eth_accounts adapters', () => {
   describe('getEthAccounts', () => {
+    it('returns an empty array if the required scopes are empty', () => {
+      const ethAccounts = getEthAccounts({
+        requiredScopes: {},
+        optionalScopes: {},
+      });
+      expect(ethAccounts).toStrictEqual([]);
+    });
+    it('returns an empty array if the scope objects have no accounts', () => {
+      const ethAccounts = getEthAccounts({
+        requiredScopes: {
+          'eip155:1': { methods: [], notifications: [], accounts: [] },
+          'eip155:2': { methods: [], notifications: [], accounts: [] },
+        },
+        optionalScopes: {},
+      });
+      expect(ethAccounts).toStrictEqual([]);
+    });
+    it('returns an empty array if the scope objects have no eth accounts', () => {
+      const ethAccounts = getEthAccounts({
+        requiredScopes: {
+          'bip122:000000000019d6689c085ae165831e93': {
+            methods: [],
+            notifications: [],
+            accounts: [
+              'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
+            ],
+          },
+        },
+        optionalScopes: {},
+      });
+      expect(ethAccounts).toStrictEqual([]);
+    });
+
     it('returns the unique set of EIP155 accounts from the CAIP-25 caveat value', () => {
       const ethAccounts = getEthAccounts({
         requiredScopes: {
