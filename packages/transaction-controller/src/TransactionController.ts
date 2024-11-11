@@ -3343,7 +3343,6 @@ export class TransactionController extends BaseController<
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
       getChainIds: chainId ? () => [chainId] : () => [this.getChainId()],
       isEnabled: this.#incomingTransactionOptions.isEnabled,
-      queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
       remoteTransactionSource: new AccountsApiRemoteTransactionSource(),
       transactionLimit: this.#transactionHistoryLimit,
     });

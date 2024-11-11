@@ -862,14 +862,14 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
-   * The chainId of the current network.
+   * The IDs of the chains to query.
    */
   chainIds: Hex[];
 
   /**
-   * Block number to start fetching transactions from.
+   * Timestamp to start fetching transactions from.
    */
-  fromBlocksByChainId: Record<Hex, number | undefined>;
+  startTimestampByChainId: Record<Hex, number>;
 
   /**
    * Maximum number of transactions to retrieve.

@@ -5,17 +5,17 @@ import EventEmitter from 'events';
 import { incomingTransactionsLogger as log } from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
+const FIRST_QUERY_HISTORY_DURATION = 1000 * 60 * 60 * 24 * 2; // 2 Days
+
 /**
  * Configuration options for the IncomingTransactionHelper
  *
  * @property includeTokenTransfers - Whether or not to include ERC20 token transfers.
  * @property isEnabled - Whether or not incoming transaction retrieval is enabled.
- * @property queryEntireHistory - Whether to initially query the entire transaction history or only recent blocks.
  */
 export type IncomingTransactionOptions = {
   includeTokenTransfers?: boolean;
   isEnabled?: () => boolean;
-  queryEntireHistory?: boolean;
 };
 
 const INTERVAL = 1000 * 30; // 30 Seconds
@@ -35,8 +35,6 @@ export class IncomingTransactionHelper {
 
   #isRunning: boolean;
 
-  #queryEntireHistory: boolean;
-
   #remoteTransactionSource: RemoteTransactionSource;
 
   #timeoutId?: unknown;
@@ -48,7 +46,6 @@ export class IncomingTransactionHelper {
     getLastFetchedBlockNumbers,
     getChainIds,
     isEnabled,
-    queryEntireHistory,
     remoteTransactionSource,
     transactionLimit,
   }: {
@@ -70,7 +67,6 @@ export class IncomingTransactionHelper {
     this.#getChainIds = getChainIds;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
-    this.#queryEntireHistory = queryEntireHistory ?? true;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#transactionLimit = transactionLimit;
   }
@@ -119,12 +115,9 @@ export class IncomingTransactionHelper {
       return;
     }
 
-    const additionalLastFetchedKeys =
-      this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
-
     const account = this.#getCurrentAccount();
     const chainIds = this.#getChainIds();
-    const fromBlocksByChainId = this.#getFromBlocks(chainIds);
+    const startTimestampByChainId = this.#getStartTimestampByChainId(chainIds);
 
     let remoteTransactions: TransactionMeta[] = [];
 
@@ -133,7 +126,7 @@ export class IncomingTransactionHelper {
         await this.#remoteTransactionSource.fetchTransactions({
           address: account.address as Hex,
           chainIds,
-          fromBlocksByChainId,
+          startTimestampByChainId,
           limit: this.#transactionLimit,
         });
     } catch (error: unknown) {
@@ -153,11 +146,7 @@ export class IncomingTransactionHelper {
     }
 
     for (const chainId of chainIds) {
-      this.#updateLastFetchedBlockNumber(
-        chainId,
-        remoteTransactions,
-        additionalLastFetchedKeys,
-      );
+      this.#updateLastFetchedTimestamp(chainId, remoteTransactions);
     }
   }
 
@@ -165,75 +154,56 @@ export class IncomingTransactionHelper {
     transactions.sort((a, b) => (a.time < b.time ? -1 : 1));
   }
 
-  #getLastFetchedBlockNumberDec(chainId: Hex): number {
-    const additionalLastFetchedKeys =
-      this.#remoteTransactionSource.getLastBlockVariations?.() ?? [];
+  #getStartTimestampByChainId(chainIds: Hex[]): Record<Hex, number> {
+    return chainIds.reduce((acc, chainId) => {
+      const lastFetchedTimestamp = this.#getLastFetchedTimestamp(chainId);
 
-    const lastFetchedKey = this.#getBlockNumberKey(
-      chainId,
-      additionalLastFetchedKeys,
-    );
+      const startTimestamp = lastFetchedTimestamp
+        ? lastFetchedTimestamp + 1
+        : Date.now() - FIRST_QUERY_HISTORY_DURATION;
 
+      return { ...acc, [chainId]: startTimestamp };
+    }, {});
+  }
+
+  #getLastFetchedTimestamp(chainId: Hex): number {
+    const lastFetchedKey = this.#getTimestampKey(chainId);
     const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
     return lastFetchedBlockNumbers[lastFetchedKey];
   }
 
-  #getFromBlocks(chainIds: Hex[]): Record<Hex, number | undefined> {
-    return chainIds.reduce((acc, chainId) => {
-      const lastFetchedBlockNumber =
-        this.#getLastFetchedBlockNumberDec(chainId);
-
-      const fromBlock = lastFetchedBlockNumber
-        ? lastFetchedBlockNumber + 1
-        : undefined;
-      return { ...acc, [chainId]: fromBlock };
-    }, {});
-  }
-
-  #updateLastFetchedBlockNumber(
-    chainId: Hex,
-    remoteTxs: TransactionMeta[],
-    additionalKeys: string[],
-  ) {
+  #updateLastFetchedTimestamp(chainId: Hex, remoteTxs: TransactionMeta[]) {
     const chainTxs = remoteTxs.filter((tx) => tx.chainId === chainId);
-
-    let lastFetchedBlockNumber = -1;
+    let lastFetchedTimestamp = -1;
 
     for (const tx of chainTxs) {
-      const currentBlockNumberValue = tx.blockNumber
-        ? parseInt(tx.blockNumber, 10)
-        : -1;
-
-      lastFetchedBlockNumber = Math.max(
-        lastFetchedBlockNumber,
-        currentBlockNumberValue,
-      );
+      lastFetchedTimestamp = Math.max(lastFetchedTimestamp, tx.time);
     }
 
-    if (lastFetchedBlockNumber === -1) {
+    if (lastFetchedTimestamp === -1) {
       return;
     }
 
-    const lastFetchedKey = this.#getBlockNumberKey(chainId, additionalKeys);
-    const lastFetchedBlockNumbers = this.#getLastFetchedBlockNumbers();
-    const previousValue = lastFetchedBlockNumbers[lastFetchedKey];
+    const lastFetchedKey = this.#getTimestampKey(chainId);
+    const lastFetchedTimestamps = this.#getLastFetchedBlockNumbers();
+    const previousValue = lastFetchedTimestamps[lastFetchedKey];
 
-    if (previousValue >= lastFetchedBlockNumber) {
+    if (previousValue >= lastFetchedTimestamp) {
       return;
     }
 
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers: {
-        ...lastFetchedBlockNumbers,
-        [lastFetchedKey]: lastFetchedBlockNumber,
+        ...lastFetchedTimestamps,
+        [lastFetchedKey]: lastFetchedTimestamp,
       },
-      blockNumber: lastFetchedBlockNumber,
+      blockNumber: lastFetchedTimestamp,
     });
   }
 
-  #getBlockNumberKey(chainId: Hex, additionalKeys: string[]): string {
+  #getTimestampKey(chainId: Hex): string {
     const currentAccount = this.#getCurrentAccount()?.address.toLowerCase();
-    return [chainId, currentAccount, ...additionalKeys].join('#');
+    return [chainId, currentAccount].join('#');
   }
 
   #canStart(): boolean {

@@ -13,7 +13,7 @@ import type {
 } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
 import type { GetAccountTransactionsResponse } from '../utils/accounts-api';
-import { getAccountTransactions } from '../utils/accounts-api';
+import { getAccountTransactionsAllPages } from '../utils/accounts-api';
 
 const SUPPORTED_CHAIN_IDS: Hex[] = [
   CHAIN_IDS.MAINNET,
@@ -36,45 +36,50 @@ export class AccountsApiRemoteTransactionSource
     return chainIds.every((chainId) => SUPPORTED_CHAIN_IDS.includes(chainId));
   }
 
-  getLastBlockVariations(): string[] {
-    return [];
-  }
-
   async fetchTransactions(
     request: RemoteTransactionSourceRequest,
   ): Promise<TransactionMeta[]> {
     log('Fetching transactions from accounts API', request);
 
-    const { address, chainIds, fromBlocksByChainId } = request;
+    const { address, chainIds, limit, startTimestampByChainId } = request;
 
-    const response = await getAccountTransactions({
+    const startTimestamp = Math.round(
+      Math.min(...Object.values(startTimestampByChainId)) / 1000,
+    );
+
+    const endTimestamp = Math.round(Date.now() / 1000);
+
+    const response = await getAccountTransactionsAllPages({
       address,
       chainIds,
+      startTimestamp,
+      endTimestamp,
     });
 
-    // TODO: Handle pagination and transaction limit.
+    const incomingTransactions = response.filter(
+      (tx) =>
+        tx.to === address || tx.valueTransfers.some((vt) => vt.to === address),
+    );
 
-    log('Fetched raw transactions from accounts API', response);
+    log(
+      'Fetched incoming transactions from accounts API',
+      incomingTransactions,
+    );
 
-    const transactions = response.data
+    let transactions = incomingTransactions
       .filter((tx) => {
-        if (
-          tx.to !== address &&
-          !tx.valueTransfers.some((vt) => vt.to === address)
-        ) {
-          return false;
-        }
-
         const chainId = `0x${tx.chainId.toString(16)}` as Hex;
-        const fromBlock = fromBlocksByChainId[chainId];
+        const chainStartTimestamp = startTimestampByChainId[chainId];
+        const timestamp = new Date(tx.timestamp).getTime();
+        const isNew = timestamp >= chainStartTimestamp;
 
-        if (fromBlock && tx.blockNumber < fromBlock) {
-          return false;
-        }
-
-        return true;
+        return isNew;
       })
       .map((tx) => this.#normalizeTransaction(address, tx));
+
+    if (limit) {
+      transactions = transactions.slice(0, limit);
+    }
 
     log('Filtered and normalized transactions from accounts API', transactions);
 
