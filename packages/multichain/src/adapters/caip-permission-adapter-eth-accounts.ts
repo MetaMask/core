@@ -67,14 +67,13 @@ const setEthAccountsForScopesObject = (
 ) => {
   const updatedScopesObject: InternalScopesObject = {};
 
-  Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
+  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = key as keyof typeof scopesObject;
     const isWalletNamespace = scopeString === KnownCaipNamespace.Wallet;
     const { namespace, reference } = parseScopeString(scopeString);
-    if (
-      !isEip155ScopeString(scopeString as InternalScopeString) &&
-      !isWalletNamespace
-    ) {
-      updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
+    if (!isEip155ScopeString(scopeString) && !isWalletNamespace) {
+      updatedScopesObject[scopeString] = scopeObject;
       return;
     }
     let caipAccounts: CaipAccountId[] = [];
@@ -90,7 +89,7 @@ const setEthAccountsForScopesObject = (
       throw new Error('Invalid scope string');
     }
 
-    updatedScopesObject[scopeString as InternalScopeString] = {
+    updatedScopesObject[scopeString] = {
       ...scopeObject,
       accounts: caipAccounts,
     };
