@@ -78,11 +78,11 @@ const setEthAccountsForScopesObject = (
       return;
     }
 
-    const caipAccounts = accounts.map(
+    const caipAccounts = accounts.map<CaipAccountId>(
       (account) =>
         (isWalletNamespace
           ? `${KnownWalletScopeString.Eip155}:${account}`
-          : `${scopeString}:${account}`) as CaipAccountId,
+          : `${scopeString}:${account}`),
     );
 
     updatedScopesObject[scopeString as InternalScopeString] = {
