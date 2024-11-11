@@ -321,6 +321,18 @@ describe('Scope Transform', () => {
         },
       });
     });
+    it('returns an empty object when no scopes are provided', () => {
+      expect(mergeScopes({}, {})).toStrictEqual({});
+    });
+
+    it('returns an unchanged scope when two identical scopeObjects are provided', () => {
+      expect(
+        mergeScopes(
+          { 'eip155:1': validScopeObject },
+          { 'eip155:1': validScopeObject },
+        ),
+      ).toStrictEqual({ 'eip155:1': validScopeObject });
+    });
   });
 
   describe('normalizeAndMergeScopes', () => {
@@ -346,6 +358,22 @@ describe('Scope Transform', () => {
           ...validScopeObject,
           methods: ['a', 'b'],
         },
+      });
+    });
+    it('returns an empty object when no scopes are provided', () => {
+      expect(normalizeAndMergeScopes({})).toStrictEqual({});
+    });
+    it('return an unchanged scope when scopeObjects are already normalized (i.e. none contain references to flatten)', () => {
+      expect(
+        normalizeAndMergeScopes({
+          'eip155:1': validScopeObject,
+          'eip155:2': validScopeObject,
+          'eip155:3': validScopeObject,
+        }),
+      ).toStrictEqual({
+        'eip155:1': validScopeObject,
+        'eip155:2': validScopeObject,
+        'eip155:3': validScopeObject,
       });
     });
   });
