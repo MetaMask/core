@@ -1,11 +1,12 @@
 import type { BlockTracker } from '@metamask/network-controller';
 import { createModuleLogger } from '@metamask/utils';
+import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
 import type { TransactionMeta } from '../types';
 
-const ACCELERATED_COUNT_MAX = 5;
-const ACCELERATED_INTERVAL = 2000;
+export const ACCELERATED_COUNT_MAX = 5;
+export const ACCELERATED_INTERVAL = 2000;
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
@@ -66,11 +67,12 @@ export class TransactionPoller {
 
     const newPendingTransactionIds = pendingTransactions.map((tx) => tx.id);
 
-    const hasNewId = newPendingTransactionIds.some(
-      (id) => !currentPendingTransactionIds.includes(id),
+    const hasUpdatedIds = !isEqual(
+      currentPendingTransactionIds,
+      newPendingTransactionIds,
     );
 
-    if (!this.#running || !hasNewId) {
+    if (!this.#running || !hasUpdatedIds) {
       return;
     }
 
