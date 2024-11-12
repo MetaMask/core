@@ -100,6 +100,8 @@ const setEthAccountsForScopesObject = (
 
 /**
  * Sets the Ethereum (EIP155 namespaced) accounts for the given CAIP-25 caveat value.
+ * We set the same accounts for all the scopes that are EIP155 or Wallet namespaced because
+ * we do not provide UI/UX flows for selecting different accounts across different chains.
  * @param caip25CaveatValue - The CAIP-25 caveat value to set the Ethereum accounts for.
  * @param accounts - The Ethereum accounts to set.
  * @returns The updated CAIP-25 caveat value with the Ethereum accounts set.
