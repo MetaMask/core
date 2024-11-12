@@ -12,6 +12,7 @@ import {
 } from '@metamask/permission-controller';
 import type { CaipAccountId, Json } from '@metamask/utils';
 import {
+  hasProperty,
   parseCaipAccountId,
   type Hex,
   type NonEmptyArray,
@@ -19,7 +20,10 @@ import {
 import { cloneDeep, isEqual } from 'lodash';
 
 import { getEthAccounts } from './adapters/caip-permission-adapter-eth-accounts';
-import { assertScopesSupported } from './scope/assert';
+import {
+  assertScopesSupported,
+  assertIsExternalScopesObject,
+} from './scope/assert';
 import { validateAndNormalizeScopes } from './scope/authorization';
 import type {
   ExternalScopeString,
@@ -89,18 +93,21 @@ const specificationBuilder: PermissionSpecificationBuilder<
         );
       }
 
-      const { requiredScopes, optionalScopes, isMultichainOrigin } =
-        caip25Caveat.value as Caip25CaveatValue;
-
       if (
-        !requiredScopes ||
-        !optionalScopes ||
-        typeof isMultichainOrigin !== 'boolean'
+        !caip25Caveat.value ||
+        !hasProperty(caip25Caveat.value, 'requiredScopes') ||
+        !hasProperty(caip25Caveat.value, 'optionalScopes') ||
+        !hasProperty(caip25Caveat.value, 'isMultichainOrigin') ||
+        typeof caip25Caveat.value.isMultichainOrigin !== 'boolean'
       ) {
         throw new Error(
           `${Caip25EndowmentPermissionName} error: Received invalid value for caveat of type "${Caip25CaveatType}".`,
         );
       }
+      const { requiredScopes, optionalScopes } = caip25Caveat.value;
+
+      assertIsExternalScopesObject(requiredScopes);
+      assertIsExternalScopesObject(optionalScopes);
 
       const { normalizedRequiredScopes, normalizedOptionalScopes } =
         validateAndNormalizeScopes(requiredScopes, optionalScopes);
