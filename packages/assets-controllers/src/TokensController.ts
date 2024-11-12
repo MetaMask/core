@@ -462,13 +462,16 @@ export class TokensController extends BaseController<
    */
   async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
     const releaseLock = await this.#mutex.acquire();
-    const { tokens, detectedTokens, ignoredTokens } = this.state;
+    const { ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
     // Used later to dedupe imported tokens
-    const newTokensMap = tokens.reduce((output, current) => {
-      output[current.address] = current;
-      return output;
-    }, {} as { [address: string]: Token });
+    const newTokensMap = Object.values(tokensToImport).reduce(
+      (output, token) => {
+        output[token.address] = token;
+        return output;
+      },
+      {} as { [address: string]: Token },
+    );
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =
@@ -488,9 +491,6 @@ export class TokensController extends BaseController<
       });
       const newTokens = Object.values(newTokensMap);
 
-      const newDetectedTokens = detectedTokens.filter(
-        (token) => !importedTokensMap[token.address.toLowerCase()],
-      );
       const newIgnoredTokens = ignoredTokens.filter(
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
@@ -502,6 +502,14 @@ export class TokensController extends BaseController<
           networkClientId,
         ).configuration.chainId;
       }
+
+      const detectedTokensForGivenChain = interactingChainId
+        ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
+        : [];
+
+      const newDetectedTokens = detectedTokensForGivenChain?.filter(
+        (t) => !importedTokensMap[t.address.toLowerCase()],
+      );
 
       const { newAllTokens, newAllDetectedTokens, newAllIgnoredTokens } =
         this.#getNewAllTokensState({
