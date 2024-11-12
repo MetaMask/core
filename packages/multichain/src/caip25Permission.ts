@@ -246,8 +246,8 @@ function removeAccount(
 }
 
 /**
- * Removes the target account from the value arrays of all
- * `endowment:caip25` caveats. No-ops if the target scopeString is not in
+ * Removes the target account from the value arrays of the given
+ * `endowment:caip25` caveat. No-ops if the target scopeString is not in
  * the existing scopes.
  *
  * @param caip25CaveatValue - The CAIP-25 permission caveat value to remove the scope from.
