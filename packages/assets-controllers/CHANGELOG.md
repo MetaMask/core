@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING**: The polling input for`TokenListController` is now `{chainId: Hex}` instead of `{networkClientId: NetworkClientId}`. ([#4878](https://github.com/MetaMask/core/pull/4878))
 - **BREAKING**: The polling input for`TokenDetectionController` is now `{ chainIds: Hex[]; address: string; }` instead of `{ networkClientId: NetworkClientId; address: string; }`. ([#4894](https://github.com/MetaMask/core/pull/4894))
 - **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
-- Bump `@metamask/preferences-controller` from `^13.2.0` to `^14.0.0` ([#4909](https://github.com/MetaMask/core/pull/4909), [#4915](https://github.com/MetaMask/core/pull/49491509))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^13.2.0` to `^14.0.0` ([#4909](https://github.com/MetaMask/core/pull/4909), [#4915](https://github.com/MetaMask/core/pull/4915))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
 - Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [42.0.0]
