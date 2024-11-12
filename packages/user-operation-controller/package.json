@@ -80,7 +80,7 @@
     "@metamask/gas-fee-controller": "^22.0.0",
     "@metamask/keyring-controller": "^18.0.0",
     "@metamask/network-controller": "^22.0.0",
-    "@metamask/transaction-controller": "^38.0.0"
+    "@metamask/transaction-controller": "^39.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
