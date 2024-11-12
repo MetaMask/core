@@ -112,6 +112,11 @@ export const SWAP_TRANSACTION_TYPES = [
   TransactionType.swapApproval,
 ];
 
+export const BRIDGE_TRANSACTION_TYPES = [
+  TransactionType.bridge,
+  TransactionType.bridgeApproval,
+];
+
 /**
  * Updates the transaction meta object with the swap information
  *
@@ -196,6 +201,90 @@ export function updateSwapsTransaction(
   if (transactionType === TransactionType.swap) {
     updatedTransactionMeta = updateSwapTransaction(transactionMeta, swapsMeta);
     messenger.publish('TransactionController:transactionNewSwap', {
+      transactionMeta: updatedTransactionMeta,
+    });
+  }
+
+  return updatedTransactionMeta;
+}
+
+/**
+ * Updates the transaction meta object with the swap information
+ *
+ * @param transactionMeta - The transaction meta object to update
+ * @param transactionType - The type of the transaction
+ * @param swaps - The swaps object
+ * @param swaps.hasApproveTx - Whether the swap has an approval transaction
+ * @param swaps.meta - The swap meta object
+ * @param updateSwapsTransactionRequest - Dependency bag
+ * @param updateSwapsTransactionRequest.isBridgeDisabled - Whether bridges are disabled
+ * @param updateSwapsTransactionRequest.cancelTransaction - Function to cancel a transaction
+ * @param updateSwapsTransactionRequest.messenger - TransactionController messenger
+ * @returns A copy of the transaction meta object with updates, or the same
+ * transaction meta object if no updates were made.
+ */
+export function updateBridgeTypesTransaction(
+  transactionMeta: TransactionMeta,
+  transactionType: TransactionType,
+  swaps: {
+    hasApproveTx?: boolean;
+    meta?: Partial<TransactionMeta>;
+  },
+  {
+    isBridgeDisabled,
+    cancelTransaction,
+    messenger,
+  }: {
+    isBridgeDisabled: boolean;
+    cancelTransaction: (transactionId: string) => void;
+    messenger: TransactionControllerMessenger;
+  },
+): TransactionMeta {
+  if (isBridgeDisabled || !BRIDGE_TRANSACTION_TYPES.includes(transactionType)) {
+    return transactionMeta;
+  }
+
+  // The simulationFails property is added if the estimateGas call fails. In cases
+  // when no swaps approval tx is required, this indicates that the swap will likely
+  // fail. There was an earlier estimateGas call made by the swaps controller,
+  // but it is possible that external conditions have change since then, and
+  // a previously succeeding estimate gas call could now fail. By checking for
+  // the `simulationFails` property here, we can reduce the number of swap
+  // transactions that get published to the blockchain only to fail and thereby
+  // waste the user's funds on gas.
+  if (
+    transactionType === TransactionType.bridge &&
+    swaps?.hasApproveTx === false &&
+    transactionMeta.simulationFails
+  ) {
+    cancelTransaction(transactionMeta.id);
+    throw new Error('Simulation failed');
+  }
+
+  const swapsMeta = swaps?.meta as Partial<TransactionMeta>;
+
+  if (!swapsMeta) {
+    return transactionMeta;
+  }
+
+  let updatedTransactionMeta = transactionMeta;
+
+  if (transactionType === TransactionType.bridgeApproval) {
+    updatedTransactionMeta = updateBridgeApprovalTransaction(
+      transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish('TransactionController:transactionNewBridgeApproval', {
+      transactionMeta: updatedTransactionMeta,
+    });
+  }
+
+  if (transactionType === TransactionType.bridge) {
+    updatedTransactionMeta = updateBridgeTransaction(
+      transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish('TransactionController:transactionNewBridge', {
       transactionMeta: updatedTransactionMeta,
     });
   }
@@ -430,6 +519,89 @@ function updateSwapApprovalTransaction(
   }) as Partial<TransactionMeta>;
 
   return merge({}, transactionMeta, swapApprovalTransaction);
+}
+
+/**
+ * Updates the transaction meta object with the bridge approval information
+ *
+ * @param transactionMeta - Transaction meta object to update
+ * @param propsToUpdate - Properties to update
+ * @param propsToUpdate.type - Type of the transaction
+ * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
+ * @returns The updated transaction meta object.
+ */
+export function updateBridgeApprovalTransaction(
+  transactionMeta: TransactionMeta,
+  { type, sourceTokenSymbol }: Partial<TransactionMeta>,
+): TransactionMeta {
+  validateIfTransactionUnapproved(
+    transactionMeta,
+    'updateBridgeApprovalTransaction',
+  );
+
+  let bridgeApprovalTransaction = {
+    type,
+    sourceTokenSymbol,
+  } as Partial<TransactionMeta>;
+  bridgeApprovalTransaction = pickBy({
+    type,
+    sourceTokenSymbol,
+  }) as Partial<TransactionMeta>;
+
+  return merge({}, transactionMeta, bridgeApprovalTransaction);
+}
+
+/**
+ * Updates the transaction meta object with the swap information
+ *
+ * @param transactionMeta - Transaction meta object to update
+ * @param propsToUpdate - Properties to update
+ * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
+ * @param propsToUpdate.destinationTokenSymbol - Symbol of the token to be received
+ * @param propsToUpdate.type - Type of the transaction
+ * @param propsToUpdate.destinationTokenDecimals - Decimals of the token to be received
+ * @param propsToUpdate.destinationTokenAddress - Address of the token to be received
+ * @param propsToUpdate.swapMetaData - Metadata of the swap
+ * @param propsToUpdate.swapTokenValue - Value of the token to be swapped
+ * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
+ * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
+ * @param propsToUpdate.destinationChainId - The hex chain ID of the destination chain
+ * @returns The updated transaction meta object.
+ */
+export function updateBridgeTransaction(
+  transactionMeta: TransactionMeta,
+  {
+    destinationChainId,
+    sourceTokenSymbol,
+    destinationTokenSymbol,
+    type,
+    destinationTokenDecimals,
+    destinationTokenAddress,
+    swapMetaData,
+    swapTokenValue,
+    estimatedBaseFee,
+    approvalTxId,
+  }: Partial<TransactionMeta>,
+): TransactionMeta {
+  validateIfTransactionUnapproved(transactionMeta, 'updateBridgeTransaction');
+
+  let bridgeTransaction = {
+    sourceTokenSymbol,
+    destinationTokenSymbol,
+    type,
+    destinationTokenDecimals,
+    destinationTokenAddress,
+    swapMetaData,
+    swapTokenValue,
+    estimatedBaseFee,
+    approvalTxId,
+    destinationChainId,
+  };
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  bridgeTransaction = pickBy(bridgeTransaction) as any;
+
+  return merge({}, transactionMeta, bridgeTransaction);
 }
 
 /**

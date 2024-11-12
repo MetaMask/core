@@ -114,6 +114,7 @@ import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
+  updateBridgeTypesTransaction,
   updatePostTransactionBalance,
   updateSwapsTransaction,
 } from './utils/swaps';
@@ -251,6 +252,7 @@ export type PendingTransactionOptions = {
  * @property disableHistory - Whether to disable storing history in transaction metadata.
  * @property disableSendFlowHistory - Explicitly disable transaction metadata history.
  * @property disableSwaps - Whether to disable additional processing on swaps transactions.
+ * @property disableBridge - Whether to disable additional processing on bridge transactions.
  * @property getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
  * @property getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
  * @property getExternalPendingTransactions - Callback to retrieve pending transactions from external sources.
@@ -284,6 +286,7 @@ export type TransactionControllerOptions = {
   disableHistory: boolean;
   disableSendFlowHistory: boolean;
   disableSwaps: boolean;
+  disableBridge: boolean;
   getCurrentAccountEIP1559Compatibility?: () => Promise<boolean>;
   getCurrentNetworkEIP1559Compatibility: () => Promise<boolean>;
   getExternalPendingTransactions?: (
@@ -468,6 +471,22 @@ export type TransactionControllerTransactionNewSwapAndSendEvent = {
 };
 
 /**
+ * Represents the `TransactionController:transactionNewBridgeApproval` event.
+ */
+export type TransactionControllerTransactionNewBridgeApprovalEvent = {
+  type: `${typeof controllerName}:transactionNewBridgeApproval`;
+  payload: [{ transactionMeta: TransactionMeta }];
+};
+
+/**
+ * Represents the `TransactionController:transactionNewBridge` event.
+ */
+export type TransactionControllerTransactionNewBridgeEvent = {
+  type: `${typeof controllerName}:transactionNewBridge`;
+  payload: [{ transactionMeta: TransactionMeta }];
+};
+
+/**
  * Represents the `TransactionController:transactionPublishingSkipped` event.
  */
 export type TransactionControllerTransactionPublishingSkipped = {
@@ -537,6 +556,8 @@ export type TransactionControllerEvents =
   | TransactionControllerTransactionNewSwapApprovalEvent
   | TransactionControllerTransactionNewSwapEvent
   | TransactionControllerTransactionNewSwapAndSendEvent
+  | TransactionControllerTransactionNewBridgeApprovalEvent
+  | TransactionControllerTransactionNewBridgeEvent
   | TransactionControllerTransactionPublishingSkipped
   | TransactionControllerTransactionRejectedEvent
   | TransactionControllerTransactionStatusUpdatedEvent
@@ -590,6 +611,8 @@ export class TransactionController extends BaseController<
   private readonly isHistoryDisabled: boolean;
 
   private readonly isSwapsDisabled: boolean;
+
+  private readonly isBridgeDisabled: boolean;
 
   private readonly isSendFlowHistoryDisabled: boolean;
 
@@ -753,6 +776,7 @@ export class TransactionController extends BaseController<
    * @param options.blockTracker - The block tracker used to poll for new blocks data.
    * @param options.disableHistory - Whether to disable storing history in transaction metadata.
    * @param options.disableSendFlowHistory - Explicitly disable transaction metadata history.
+   * @param options.disableBridge - Whether to disable additional processing on bridge transactions.
    * @param options.disableSwaps - Whether to disable additional processing on swaps transactions.
    * @param options.getCurrentAccountEIP1559Compatibility - Whether or not the account supports EIP-1559.
    * @param options.getCurrentNetworkEIP1559Compatibility - Whether or not the network supports EIP-1559.
@@ -783,6 +807,7 @@ export class TransactionController extends BaseController<
     disableHistory,
     disableSendFlowHistory,
     disableSwaps,
+    disableBridge,
     getCurrentAccountEIP1559Compatibility,
     getCurrentNetworkEIP1559Compatibility,
     getExternalPendingTransactions,
@@ -824,6 +849,7 @@ export class TransactionController extends BaseController<
     this.isSwapsDisabled = disableSwaps ?? false;
     this.#isFirstTimeInteractionEnabled =
       isFirstTimeInteractionEnabled ?? (() => true);
+    this.isBridgeDisabled = disableBridge ?? false;
     this.#isSimulationEnabled = isSimulationEnabled ?? (() => true);
     // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider });
@@ -1148,6 +1174,17 @@ export class TransactionController extends BaseController<
         swaps,
         {
           isSwapsDisabled: this.isSwapsDisabled,
+          cancelTransaction: this.cancelTransaction.bind(this),
+          messenger: this.messagingSystem,
+        },
+      );
+
+      addedTransactionMeta = updateBridgeTypesTransaction(
+        addedTransactionMeta,
+        transactionType,
+        swaps,
+        {
+          isBridgeDisabled: this.isBridgeDisabled,
           cancelTransaction: this.cancelTransaction.bind(this),
           messenger: this.messagingSystem,
         },

@@ -122,7 +122,7 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
-   * The hex chain ID of the destination chain of a bridge transaction.
+   * The Network ID as per EIP-155 of the destination chain of a bridge transaction.
    */
   destinationChainId?: Hex;
 
@@ -347,11 +347,6 @@ type TransactionMetaBase = {
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
-
-  /**
-   * The hex chain ID of the source chain of a bridge transaction.
-   */
-  sourceChainId?: Hex;
 
   /**
    * The address of the token being swapped
