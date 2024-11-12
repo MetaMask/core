@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: adjust network names ([#4865](https://github.com/MetaMask/core/pull/4865))
+
 ## [11.4.2]
 
 ### Changed

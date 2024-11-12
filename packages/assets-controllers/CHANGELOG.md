@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: clean-up token autodetection ([#4916](https://github.com/MetaMask/core/pull/4916))
+- feat: multi-chain-token-detection ([#4894](https://github.com/MetaMask/core/pull/4894))
+- Release/244.0.0 ([#4909](https://github.com/MetaMask/core/pull/4909))
+- feat: Integrate new `TokenListController` polling pattern [Core] ([#4878](https://github.com/MetaMask/core/pull/4878))
+- feat: Show Staked ETH position in mobile homepage along with other tokens ([#4879](https://github.com/MetaMask/core/pull/4879))
+
 ## [42.0.0]
 
 ### Added
