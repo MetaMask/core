@@ -118,6 +118,7 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 
 type ControllerConfig = {
   accountSyncing?: {
+    maxNumberOfAccountsToAdd?: number;
     /**
      * Callback that fires when account sync adds an account.
      * This is used for analytics.
@@ -274,17 +275,26 @@ export default class UserStorageController extends BaseController<
 
   #accounts = {
     // This is replaced with the actual value in the constructor
-    // We will remove this once the feature will be released
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
-    addedAccountsCount: 0,
+    maxNumberOfAccountsToAdd: 0,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
 
-        return (
-          this.#accounts.isAccountSyncingEnabled && this.#auth.isAuthEnabled()
-        );
+        if (this.#accounts.isAccountSyncingInProgress) {
+          return false;
+        }
+
+        if (!this.#accounts.isAccountSyncingEnabled) {
+          return false;
+        }
+
+        if (!this.#auth.isAuthEnabled()) {
+          return false;
+        }
+
+        return true;
       } catch {
         return false;
       }
@@ -294,8 +304,7 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountAdded',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
-            this.#accounts.addedAccountsCount += 1;
+          if (!this.#accounts.canSync()) {
             return;
           }
 
@@ -307,7 +316,7 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountRenamed',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
+          if (!this.#accounts.canSync()) {
             return;
           }
           await this.saveInternalAccountToUserStorage(account);
@@ -439,6 +448,9 @@ export default class UserStorageController extends BaseController<
     this.#accounts.isAccountSyncingEnabled = Boolean(
       env?.isAccountSyncingEnabled,
     );
+
+    this.#accounts.maxNumberOfAccountsToAdd =
+      config?.accountSyncing?.maxNumberOfAccountsToAdd ?? 100;
 
     this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
@@ -819,7 +831,6 @@ export default class UserStorageController extends BaseController<
 
     try {
       this.#accounts.isAccountSyncingInProgress = true;
-      this.#accounts.addedAccountsCount = 0;
 
       const profileId = await this.#auth.getProfileId();
 
@@ -849,7 +860,10 @@ export default class UserStorageController extends BaseController<
       // so we only add new accounts if the user has more accounts than the internal accounts list
       if (!hasMoreInternalAccountsThanUserStorageAccounts) {
         const numberOfAccountsToAdd =
-          userStorageAccountsList.length - internalAccountsList.length;
+          Math.min(
+            userStorageAccountsList.length,
+            this.#accounts.maxNumberOfAccountsToAdd,
+          ) - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
 

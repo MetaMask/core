@@ -198,6 +198,84 @@ describe('TokensController', () => {
     });
   });
 
+  it('should add tokens and update existing ones and detected tokens', async () => {
+    const selectedAddress = '0x0001';
+    const selectedAccount = createMockInternalAccount({
+      address: selectedAddress,
+    });
+    await withController(
+      {
+        mockNetworkClientConfigurationsByNetworkClientId: {
+          networkClientId1: buildCustomNetworkClientConfiguration({
+            chainId: '0x1',
+          }),
+        },
+        mocks: {
+          getSelectedAccount: selectedAccount,
+          getAccount: selectedAccount,
+        },
+      },
+      async ({ controller }) => {
+        await controller.addDetectedTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'barA',
+              decimals: 2,
+            },
+          ],
+          {
+            selectedAddress: '0x0001',
+            chainId: '0x1',
+          },
+        );
+
+        await controller.addTokens(
+          [
+            {
+              address: '0x01',
+              symbol: 'barA',
+              decimals: 2,
+              aggregators: [],
+              name: 'Token1',
+            },
+            {
+              address: '0x02',
+              symbol: 'barB',
+              decimals: 2,
+              aggregators: [],
+              name: 'Token2',
+            },
+          ],
+          'networkClientId1',
+        );
+
+        expect(controller.state.allTokens).toStrictEqual({
+          '0x1': {
+            '0x0001': [
+              {
+                address: '0x01',
+                symbol: 'barA',
+                decimals: 2,
+                aggregators: [],
+                name: 'Token1',
+                image: undefined,
+              },
+              {
+                address: '0x02',
+                symbol: 'barB',
+                decimals: 2,
+                aggregators: [],
+                name: 'Token2',
+                image: undefined,
+              },
+            ],
+          },
+        });
+      },
+    );
+  });
+
   it('should add detected tokens', async () => {
     await withController(async ({ controller }) => {
       await controller.addDetectedTokens([
@@ -2134,6 +2212,66 @@ describe('TokensController', () => {
           await controller.addDetectedTokens(dummyTokens);
           await controller.addTokens(dummyTokens);
 
+          expect(
+            controller.state.allDetectedTokens[ChainId.mainnet][
+              selectedAddress
+            ],
+          ).toStrictEqual([]);
+        },
+      );
+    });
+
+    it('should clear allDetectedTokens under chain ID and selected address when a detected token is added to tokens list', async () => {
+      const selectedAddress = '0x1';
+      const selectedAccount = createMockInternalAccount({
+        address: selectedAddress,
+      });
+      const tokenAddress = '0x01';
+      const dummyDetectedTokens = [
+        {
+          address: tokenAddress,
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          isERC721: undefined,
+          name: undefined,
+          image: undefined,
+        },
+      ];
+      const dummyTokens = [
+        {
+          address: tokenAddress,
+          symbol: 'barA',
+          decimals: 2,
+          aggregators: [],
+          isERC721: undefined,
+          name: undefined,
+          image: undefined,
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            chainId: ChainId.mainnet,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+          },
+        },
+        async ({ controller }) => {
+          // First, add detected tokens
+          await controller.addDetectedTokens(dummyDetectedTokens);
+          expect(
+            controller.state.allDetectedTokens[ChainId.mainnet][
+              selectedAddress
+            ],
+          ).toStrictEqual(dummyDetectedTokens);
+
+          // Now, add the same token to the tokens list
+          await controller.addTokens(dummyTokens);
+
+          // Check that allDetectedTokens for the selected address is cleared
           expect(
             controller.state.allDetectedTokens[ChainId.mainnet][
               selectedAddress
