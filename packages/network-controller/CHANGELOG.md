@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `getDefaultNetworkConfigurationsByChainId` returns the updated display names for mainnet and linea. `Ethereum Mainnet` instead of `Mainnet`, and `Linea` instead of `Linea Mainnet`. ([#4865](https://github.com/MetaMask/core/pull/4865))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
 
 ## [22.0.1]
 
