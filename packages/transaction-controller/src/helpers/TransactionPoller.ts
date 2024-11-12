@@ -6,10 +6,15 @@ import { projectLogger } from '../logger';
 import type { TransactionMeta } from '../types';
 
 export const ACCELERATED_COUNT_MAX = 5;
-export const ACCELERATED_INTERVAL = 2000;
+export const ACCELERATED_INTERVAL = 1000 * 2; // 2 Seconds
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
 
+/**
+ * Helper class to orchestrate when to poll pending transactions.
+ * Initially starts polling via a timeout chain every 2 seconds up to 5 times.
+ * Following that, it will poll on every new block via the block tracker.
+ */
 export class TransactionPoller {
   #acceleratedCount = 0;
 
@@ -29,6 +34,10 @@ export class TransactionPoller {
     this.#blockTracker = blockTracker;
   }
 
+  /**
+   * Start the poller with a listener that will be called on every interval.
+   * @param listener - The listener to call on every interval.
+   */
   start(listener: (latestBlockNumber: string) => Promise<void>) {
     if (this.#running) {
       return;
@@ -42,6 +51,10 @@ export class TransactionPoller {
     log('Started');
   }
 
+  /**
+   * Stop the poller.
+   * Remove all timeouts and block tracker listeners.
+   */
   stop() {
     if (!this.#running) {
       return;
@@ -58,6 +71,12 @@ export class TransactionPoller {
     log('Stopped');
   }
 
+  /**
+   * Notify the poller of the pending transactions being monitored.
+   * This will reset to the accelerated polling and reset the count
+   * when new transactions are added or removed.
+   * @param pendingTransactions - The pending transactions to poll.
+   */
   setPendingTransactions(pendingTransactions: TransactionMeta[]) {
     const currentPendingTransactionIds = (this.#pendingTransactions ?? []).map(
       (tx) => tx.id,
