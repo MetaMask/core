@@ -9,9 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.13.0]
 
-### Uncategorized
+### Changed
 
-- Release 242.0.0 ([#4902](https://github.com/MetaMask/core/pull/4902))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^17.0.0` to `^18.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- Bump `@metamask/profile-sync-controller` from `^0.9.7` to `^0.9.8` ([#4902](https://github.com/MetaMask/core/pull/4902))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.5.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [0.12.1]
 
@@ -245,8 +247,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.13.0...HEAD
-[0.13.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.1...@metamask/notification-services-controller@0.13.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.2...HEAD
+[0.12.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.1...@metamask/notification-services-controller@0.12.2
 [0.12.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.12.0...@metamask/notification-services-controller@0.12.1
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.11.0...@metamask/notification-services-controller@0.12.0
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@0.10.0...@metamask/notification-services-controller@0.11.0

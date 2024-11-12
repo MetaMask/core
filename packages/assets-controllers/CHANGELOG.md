@@ -9,13 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [43.0.0]
 
-### Uncategorized
+### Added
 
-- fix: clean-up token autodetection ([#4916](https://github.com/MetaMask/core/pull/4916))
-- feat: multi-chain-token-detection ([#4894](https://github.com/MetaMask/core/pull/4894))
-- Release/244.0.0 ([#4909](https://github.com/MetaMask/core/pull/4909))
-- feat: Integrate new `TokenListController` polling pattern [Core] ([#4878](https://github.com/MetaMask/core/pull/4878))
-- feat: Show Staked ETH position in mobile homepage along with other tokens ([#4879](https://github.com/MetaMask/core/pull/4879))
+- `AccountTrackerController` now tracks balances of staked ETH for each account, under the state property `stakedBalance`. ([#4879](https://github.com/MetaMask/core/pull/4879))
+
+### Changed
+
+- **BREAKING**: The polling input for`TokenListController` is now `{chainId: Hex}` instead of `{networkClientId: NetworkClientId}`. ([#4878](https://github.com/MetaMask/core/pull/4878))
+- **BREAKING**: The polling input for`TokenDetectionController` is now `{ chainIds: Hex[]; address: string; }` instead of `{ networkClientId: NetworkClientId; address: string; }`. ([#4894](https://github.com/MetaMask/core/pull/4894))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- Bump `@metamask/preferences-controller` from `^13.2.0` to `^13.3.0` ([#4909](https://github.com/MetaMask/core/pull/4909))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [42.0.0]
 

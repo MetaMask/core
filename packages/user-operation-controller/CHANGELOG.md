@@ -9,14 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [18.0.0]
 
-### Uncategorized
+### Changed
 
-- Release 241.0.0 ([#4900](https://github.com/MetaMask/core/pull/4900))
-- Release 237.0.0 ([#4882](https://github.com/MetaMask/core/pull/4882))
-- feat: add staking transaction types ([#4874](https://github.com/MetaMask/core/pull/4874))
-- Release 236.0.0 ([#4870](https://github.com/MetaMask/core/pull/4870))
-- Release 234.0.0 ([#4864](https://github.com/MetaMask/core/pull/4864))
-- Release 233.0.0 ([#4862](https://github.com/MetaMask/core/pull/4862))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^17.3.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/polling-controller` from `^12.0.0` to `^12.0.1` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/network-controller` from `^22.0.0` to `^22.0.1` ([#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/transaction-controller` from `^38.0.0` to `^38.3.0` ([#4864](https://github.com/MetaMask/core/pull/4864), [#4882](https://github.com/MetaMask/core/pull/4882), [#4900](https://github.com/MetaMask/core/pull/4900))
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.3` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870), [#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/approval-controller` from `^7.1.0` to `^7.1.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
 
 ## [17.0.0]
 
@@ -269,8 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@18.0.0...HEAD
-[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@17.0.0...@metamask/user-operation-controller@18.0.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@17.0.1...HEAD
+[17.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@17.0.0...@metamask/user-operation-controller@17.0.1
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@16.0.0...@metamask/user-operation-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.1...@metamask/user-operation-controller@16.0.0
 [15.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@15.0.0...@metamask/user-operation-controller@15.0.1
