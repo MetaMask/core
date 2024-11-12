@@ -40,7 +40,8 @@ export const getPermittedEthChainIds = (
 };
 
 /**
- * Adds an Ethereum (EIP155 namespaced) chainID to the required and optional scopes.
+ * Adds an Ethereum (EIP155 namespaced) chainID to the optional scopes if it is not already present
+ * in either the pre-existing required or optional scopes.
  * @param caip25CaveatValue - The CAIP-25 caveat value to add the Ethereum chainID to.
  * @param chainId - The Ethereum chainID to add.
  * @returns The updated CAIP-25 caveat value with the added Ethereum chainID.
