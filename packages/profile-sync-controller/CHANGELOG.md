@@ -14,7 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.2.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^18.1.1` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
 
-
 ## [0.9.8]
 
 ### Changed
