@@ -122,7 +122,7 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
-   * The hex chain ID of the destination chain.
+   * The hex chain ID of the destination chain of a bridge transaction.
    */
   destinationChainId?: Hex;
 
@@ -349,7 +349,7 @@ type TransactionMetaBase = {
   submittedTime?: number;
 
   /**
-   * The hex chain ID of the source chain.
+   * The hex chain ID of the source chain of a bridge transaction.
    */
   sourceChainId?: Hex;
 
