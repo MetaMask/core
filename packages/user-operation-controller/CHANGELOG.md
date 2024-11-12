@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` from `^17.3.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- **BREAKING:** Bump peer depepdency `@metamask/keyring-controller` from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
 - Bump `@metamask/polling-controller` from `^12.0.0` to `^12.0.1` ([#4870](https://github.com/MetaMask/core/pull/4870))
 - Bump `@metamask/transaction-controller` from `^38.0.0` to `^38.3.0` ([#4864](https://github.com/MetaMask/core/pull/4864), [#4882](https://github.com/MetaMask/core/pull/4882), [#4900](https://github.com/MetaMask/core/pull/4900))
 - Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
