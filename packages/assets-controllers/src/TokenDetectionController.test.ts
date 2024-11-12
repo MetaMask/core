@@ -373,7 +373,6 @@ describe('TokenDetectionController', () => {
           },
         },
 
-        // Salim ....
         async ({ controller, mockTokenListGetState, callActionSpy }) => {
           mockMultiChainAccountsService();
           mockTokenListGetState({
@@ -2350,7 +2349,6 @@ describe('TokenDetectionController', () => {
           options: {
             disabled: false,
             getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            // useAccountsAPI: true, // USING ACCOUNTS API
           },
           mocks: {
             getSelectedAccount: selectedAccount,
