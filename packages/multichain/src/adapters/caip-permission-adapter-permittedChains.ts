@@ -87,19 +87,21 @@ const filterEthScopesObjectByChainId = (
 ) => {
   const updatedScopesObject: InternalScopesObject = {};
 
-  Object.entries(scopesObject).forEach(([scopeString, scopeObject]) => {
+  Object.entries(scopesObject).forEach(([key, scopeObject]) => {
+    // Cast needed because index type is returned as `string` by `Object.entries`
+    const scopeString = key as keyof typeof scopesObject;
     const { namespace, reference } = parseScopeString(scopeString);
     if (!reference) {
-      updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
+      updatedScopesObject[scopeString] = scopeObject;
       return;
     }
     if (namespace === KnownCaipNamespace.Eip155) {
       const chainId = toHex(reference);
       if (chainIds.includes(chainId)) {
-        updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
+        updatedScopesObject[scopeString] = scopeObject;
       }
     } else {
-      updatedScopesObject[scopeString as InternalScopeString] = scopeObject;
+      updatedScopesObject[scopeString] = scopeObject;
     }
   });
 
