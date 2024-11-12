@@ -9,7 +9,7 @@ import {
   KnownWalletScopeString,
 } from '../scope/constants';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
-import type { InternalScopesObject, InternalScopeString } from '../scope/types';
+import type { InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
 
 /**
@@ -77,9 +77,12 @@ export const addPermittedEthChainId = (
 };
 
 /**
- * Filters the scopes object to only include the scopes for the given chainIDs.
+ * Filters the scopes object to only include:
+ * - Scopes without references (e.g. "wallet:")
+ * - EIP155 scopes for the given chainIDs
+ * - Non EIP155 scopes (e.g. "bip122:" or any other non ethereum namespaces)
  * @param scopesObject - The scopes object to filter.
- * @param chainIds - The chainIDs to filter the scopes object by.
+ * @param chainIds - The chainIDs to filter EIP155 scopes by.
  * @returns The filtered scopes object.
  */
 const filterEthScopesObjectByChainId = (
