@@ -24,7 +24,7 @@ import type {
 } from '../types';
 import { GasFeeEstimateType, UserFeeLevel } from '../types';
 import { getGasFeeFlow } from './gas-flow';
-import { SWAP_TRANSACTION_TYPES } from './swaps';
+import { BRIDGE_TRANSACTION_TYPES, SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
@@ -58,9 +58,11 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   const isSwap = SWAP_TRANSACTION_TYPES.includes(
     txMeta.type as TransactionType,
   );
-  const savedGasFees = isSwap
-    ? undefined
-    : request.getSavedGasFees(txMeta.chainId);
+  const isBridge = BRIDGE_TRANSACTION_TYPES.includes(
+    txMeta.type as TransactionType,
+  );
+  const savedGasFees =
+    isSwap || isBridge ? undefined : request.getSavedGasFees(txMeta.chainId);
 
   const suggestedGasFees = await getSuggestedGasFees(request);
 
