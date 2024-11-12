@@ -122,6 +122,11 @@ type TransactionMetaBase = {
   deviceConfirmedOn?: WalletDevice;
 
   /**
+   * The hex chain ID of the destination chain.
+   */
+  destinationChainId?: Hex;
+
+  /**
    * The address of the token being received of swap transaction.
    */
   destinationTokenAddress?: string;
@@ -342,6 +347,11 @@ type TransactionMetaBase = {
    * The time the transaction was submitted to the network, in Unix epoch time (ms).
    */
   submittedTime?: number;
+
+  /**
+   * The hex chain ID of the source chain.
+   */
+  sourceChainId?: Hex;
 
   /**
    * The address of the token being swapped
