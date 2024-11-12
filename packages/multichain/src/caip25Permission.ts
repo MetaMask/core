@@ -212,7 +212,7 @@ function removeAccountFromScopeObject(
  */
 function removeAccount(
   caip25CaveatValue: Caip25CaveatValue,
-  targetAddress: string,
+  targetAddress: Hex,
 ) {
   const copyOfCaveatValue = cloneDeep(caip25CaveatValue);
 
