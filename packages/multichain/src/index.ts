@@ -29,12 +29,6 @@ export type {
 } from './scope/types';
 export { parseScopeString } from './scope/types';
 export {
-  isSupportedScopeString,
-  isSupportedAccount,
-  isSupportedMethod,
-  isSupportedNotification,
-} from './scope/supported';
-export {
   normalizeScope,
   mergeScopeObject,
   mergeScopes,
