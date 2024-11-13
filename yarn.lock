@@ -2135,6 +2135,7 @@ __metadata:
   resolution: "@metamask/assets-controllers@workspace:packages/assets-controllers"
   dependencies:
     "@ethereumjs/util": "npm:^8.1.0"
+    "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/address": "npm:^5.7.0"
     "@ethersproject/bignumber": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [44.0.0]
+
+### Changed
+
+- **BREAKING**: The `TokenBalancesController` state is now across all chains and accounts under the field `tokenBalances`, as a mapping from account address -> chain id -> token address -> balance. ([#4782](https://github.com/MetaMask/core/pull/4782))
+
+- **BREAKING**: The `TokenBalancesController` now extends `StaticIntervalPollingController`, and the new polling API `startPolling` must be used to initiate polling (`startPolling`, `stopPollingByPollingToken`). ([#4782](https://github.com/MetaMask/core/pull/4782))
+
+- **BREAKING**: `TokenBalancesController` now requires subscriptions to the `PreferencesController:stateChange` and `NetworkController:stateChange` events. And access to the `NetworkController:getNetworkClientById`, `NetworkController:getState`, `TokensController:getState`, and `PreferencesController:getState` actions. ([#4782](https://github.com/MetaMask/core/pull/4782))
+
+- **BREAKING**: `TokensController` requires a subscription to the `NetworkController:stateChange` event. It now now removes state for chain IDs when their network is removed. ([#4782](https://github.com/MetaMask/core/pull/4782))
+
+- `TokenRatesController` now removes state for chain IDs when their network is removed. ([#4782](https://github.com/MetaMask/core/pull/4782))
+
 ## [43.1.1]
 
 ### Changed
@@ -1216,7 +1230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@44.0.0...HEAD
+[44.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.1...@metamask/assets-controllers@44.0.0
 [43.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.0...@metamask/assets-controllers@43.1.1
 [43.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.0.0...@metamask/assets-controllers@43.1.0
 [43.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@42.0.0...@metamask/assets-controllers@43.0.0

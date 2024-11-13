@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controllers",
-  "version": "43.1.1",
+  "version": "44.0.0",
   "description": "Controllers which manage interactions involving ERC-20, ERC-721, and ERC-1155 tokens (including NFTs)",
   "keywords": [
     "MetaMask",
@@ -48,6 +48,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^8.1.0",
+    "@ethersproject/abi": "^5.7.0",
     "@ethersproject/address": "^5.7.0",
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/contracts": "^5.7.0",
