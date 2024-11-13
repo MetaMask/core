@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
 ## [18.2.3]
 
 ### Changed
@@ -337,7 +343,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@19.0.0...HEAD
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.3...@metamask/accounts-controller@19.0.0
 [18.2.3]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.2...@metamask/accounts-controller@18.2.3
 [18.2.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.1...@metamask/accounts-controller@18.2.2
 [18.2.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@18.2.0...@metamask/accounts-controller@18.2.1
