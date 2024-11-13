@@ -3,11 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 
 import type { Caip25CaveatValue } from '../caip25Permission';
-import {
-  KnownNotifications,
-  KnownRpcMethods,
-  KnownWalletScopeString,
-} from '../scope/constants';
+import { KnownNotifications, KnownRpcMethods } from '../scope/constants';
 import { getUniqueArrayItems, mergeScopes } from '../scope/transform';
 import type { InternalScopesObject } from '../scope/types';
 import { parseScopeString } from '../scope/types';
