@@ -4,7 +4,10 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import EventEmitter from 'events';
 
-import { incomingTransactionsLogger as log } from '../logger';
+import {
+  createModuleLogger,
+  incomingTransactionsLogger as log,
+} from '../logger';
 import type { RemoteTransactionSource, TransactionMeta } from '../types';
 
 const RECENT_HISTORY_BLOCK_RANGE = 10;
@@ -49,6 +52,8 @@ export class IncomingTransactionHelper {
   #isEnabled: () => boolean;
 
   #isRunning: boolean;
+
+  #log: debug.Debugger;
 
   #mutex = new Mutex();
 
@@ -96,6 +101,7 @@ export class IncomingTransactionHelper {
     this.#getChainId = getChainId;
     this.#isEnabled = isEnabled ?? (() => true);
     this.#isRunning = false;
+    this.#log = createModuleLogger(log, getChainId());
     this.#queryEntireHistory = queryEntireHistory ?? true;
     this.#remoteTransactionSource = remoteTransactionSource;
     this.#transactionLimit = transactionLimit;
@@ -121,6 +127,8 @@ export class IncomingTransactionHelper {
       return;
     }
 
+    this.#log('Starting polling');
+
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#blockTracker.addListener('latest', this.#onLatestBlock);
@@ -128,16 +136,22 @@ export class IncomingTransactionHelper {
   }
 
   stop() {
+    if (!this.#isRunning) {
+      return;
+    }
+
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#blockTracker.removeListener('latest', this.#onLatestBlock);
     this.#isRunning = false;
+
+    this.#log('Stopped polling');
   }
 
   async update(latestBlockNumberHex?: Hex): Promise<void> {
     const releaseLock = await this.#mutex.acquire();
 
-    log('Checking for incoming transactions');
+    this.#log('Checking');
 
     try {
       if (!this.#canStart()) {
@@ -169,7 +183,7 @@ export class IncomingTransactionHelper {
         // TODO: Replace `any` with type
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
-        log('Error while fetching remote transactions', error);
+        this.#log('Error while fetching remote transactions', error);
         return;
       }
       if (!this.#updateTransactions) {
@@ -197,7 +211,7 @@ export class IncomingTransactionHelper {
         this.#sortTransactionsByTime(newTransactions);
         this.#sortTransactionsByTime(updatedTransactions);
 
-        log('Found incoming transactions', {
+        this.#log('Found incoming transactions', {
           new: newTransactions,
           updated: updatedTransactions,
         });

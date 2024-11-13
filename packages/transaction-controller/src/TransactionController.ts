@@ -1086,20 +1086,16 @@ export class TransactionController extends BaseController<
     };
   }
 
-  startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
+  startIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
     this.#multichainTrackingHelper.startIncomingTransactionPolling(
       networkClientIds,
     );
   }
 
-  stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
+  stopIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
     this.#multichainTrackingHelper.stopIncomingTransactionPolling(
       networkClientIds,
     );
-  }
-
-  stopAllIncomingTransactionPolling() {
-    this.#multichainTrackingHelper.stopAllIncomingTransactionPolling();
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {

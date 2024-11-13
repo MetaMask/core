@@ -243,14 +243,22 @@ export class MultichainTrackingHelper {
     }
   }
 
-  startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    networkClientIds.forEach((networkClientId) => {
+  startIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
+    const finalNetworkClientIds = networkClientIds ?? [
+      ...this.#trackingMap.keys(),
+    ];
+
+    finalNetworkClientIds.forEach((networkClientId) => {
       this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.start();
     });
   }
 
-  stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
-    networkClientIds.forEach((networkClientId) => {
+  stopIncomingTransactionPolling(networkClientIds?: NetworkClientId[]) {
+    const finalNetworkClientIds = networkClientIds ?? [
+      ...this.#trackingMap.keys(),
+    ];
+
+    finalNetworkClientIds.forEach((networkClientId) => {
       this.#trackingMap.get(networkClientId)?.incomingTransactionHelper.stop();
     });
   }

@@ -400,7 +400,7 @@ describe('TransactionController Integration', () => {
   });
 
   describe('multichain transaction lifecycle', () => {
-    describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
+    describe('when a transaction is added with a networkClientId', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -1437,47 +1437,7 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it('should stop the global incoming transaction helper when no networkClientIds provided', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-      const selectedAccountMock = createMockInternalAccount({
-        address: selectedAddress,
-      });
-
-      const { transactionController } = await setupController(
-        {},
-        { selectedAccount: selectedAccountMock },
-      );
-
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x2'),
-        ],
-      });
-      nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.mainnet].chainId))
-        .get(
-          `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-        )
-        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-      transactionController.startIncomingTransactionPolling();
-
-      transactionController.stopIncomingTransactionPolling();
-      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-
-      expect(transactionController.state.transactions).toStrictEqual([]);
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        {},
-      );
-      transactionController.destroy();
-    });
-  });
-
-  describe('stopAllIncomingTransactionPolling', () => {
-    it('should not poll for incoming transactions on any network client', async () => {
+    it('should not poll for incoming transactions on any network client if no network client IDs provided', async () => {
       const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
       const selectedAccountMock = createMockInternalAccount({
         address: selectedAddress,
@@ -1510,7 +1470,7 @@ describe('TransactionController Integration', () => {
         }),
       );
 
-      transactionController.stopAllIncomingTransactionPolling();
+      transactionController.stopIncomingTransactionPolling();
       await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
 
       expect(transactionController.state.transactions).toStrictEqual([]);
