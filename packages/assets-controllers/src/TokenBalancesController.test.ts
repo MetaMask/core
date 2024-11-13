@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { NetworkState } from '@metamask/network-controller';
 import type { PreferencesState } from '@metamask/preferences-controller';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
@@ -404,6 +405,51 @@ describe('TokenBalancesController', () => {
         },
       },
     });
+  });
+
+  it('removes balances when networks are deleted', async () => {
+    const chainId = '0x1';
+    const accountAddress = '0x0000000000000000000000000000000000000000';
+    const tokenAddress = '0x0000000000000000000000000000000000000001';
+
+    // Start with a token balance
+    const initialState = {
+      tokenBalances: {
+        [accountAddress]: {
+          [chainId]: {
+            [tokenAddress]: toHex(123456),
+          },
+        },
+      },
+    };
+
+    const { controller, messenger } = setupController({
+      config: { state: initialState },
+    });
+
+    // Verify initial state matches
+    expect(controller.state.tokenBalances).toStrictEqual(
+      initialState.tokenBalances,
+    );
+
+    // Simulate network deletion by publishing a network state change
+    messenger.publish(
+      'NetworkController:stateChange',
+      {
+        networkConfigurationsByChainId: {},
+      } as NetworkState,
+      [
+        {
+          op: 'remove',
+          path: ['networkConfigurationsByChainId', chainId],
+        },
+      ],
+    );
+
+    // Verify the balances for the deleted network were removed
+    expect(
+      controller.state.tokenBalances[accountAddress][chainId],
+    ).toBeUndefined();
   });
 
   describe('resetState', () => {
