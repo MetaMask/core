@@ -31,6 +31,11 @@ import type {
   InternalScopesObject,
 } from './scope/types';
 
+/**
+ * The CAIP-25 permission caveat value.
+ * This permission contains the required and optional scopes and session properties from the [CAIP-25](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md) request that initiated the permission session.
+ * It also contains a boolean (isMultichainOrigin) indicating if the permission session is multichain, which may be needed to determine implicit permissioning.
+ */
 export type Caip25CaveatValue = {
   requiredScopes: InternalScopesObject;
   optionalScopes: InternalScopesObject;
@@ -38,8 +43,16 @@ export type Caip25CaveatValue = {
   isMultichainOrigin: boolean;
 };
 
+/**
+ * The name of the CAIP-25 permission caveat.
+ */
 export const Caip25CaveatType = 'authorizedScopes';
 
+/**
+ * Creates a CAIP-25 permission caveat.
+ * @param value - The CAIP-25 permission caveat value.
+ * @returns The CAIP-25 permission caveat (now including the type).
+ */
 export const createCaip25Caveat = (value: Caip25CaveatValue) => {
   return {
     type: Caip25CaveatType,
@@ -47,6 +60,9 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
   };
 };
 
+/**
+ * The target name of the CAIP-25 endowment permission.
+ */
 export const Caip25EndowmentPermissionName = 'endowment:caip25';
 
 type Caip25EndowmentSpecification = ValidPermissionSpecification<{
