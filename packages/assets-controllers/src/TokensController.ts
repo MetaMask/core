@@ -462,16 +462,16 @@ export class TokensController extends BaseController<
    */
   async addTokens(tokensToImport: Token[], networkClientId?: NetworkClientId) {
     const releaseLock = await this.#mutex.acquire();
-    const { ignoredTokens, allDetectedTokens } = this.state;
+    const { allTokens, ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
     // Used later to dedupe imported tokens
-    const newTokensMap = Object.values(tokensToImport).reduce(
-      (output, token) => {
-        output[token.address] = token;
-        return output;
-      },
-      {} as { [address: string]: Token },
-    );
+    const newTokensMap = [
+      ...(allTokens[this.#chainId]?.[this.#getSelectedAccount().address] || []),
+      ...tokensToImport,
+    ].reduce((output, token) => {
+      output[token.address] = token;
+      return output;
+    }, {} as { [address: string]: Token });
     try {
       tokensToImport.forEach((tokenToAdd) => {
         const { address, symbol, decimals, image, aggregators, name } =
