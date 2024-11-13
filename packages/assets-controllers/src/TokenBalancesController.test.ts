@@ -1,5 +1,6 @@
 import { ControllerMessenger } from '@metamask/base-controller';
 import { toHex } from '@metamask/controller-utils';
+import type { PreferencesState } from '@metamask/preferences-controller';
 import BN from 'bn.js';
 import { useFakeTimers } from 'sinon';
 
@@ -313,9 +314,97 @@ describe('TokenBalancesController', () => {
     });
   });
 
-  // TODO: More tests
-  // TODO: More tests
-  // TODO: More tests
+  it('updates balances for all accounts when multi-account balances is enabled', async () => {
+    const chainId = '0x1';
+    const account1 = '0x0000000000000000000000000000000000000001';
+    const account2 = '0x0000000000000000000000000000000000000002';
+    const tokenAddress = '0x0000000000000000000000000000000000000003';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [account1]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+          [account2]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+        },
+      },
+    };
+
+    const { controller, messenger } = setupController({ tokens });
+
+    // Enable multi account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: true } as PreferencesState,
+      [],
+    );
+
+    const balance1 = 100;
+    const balance2 = 200;
+    jest.spyOn(multicall, 'multicallOrFallback').mockResolvedValue([
+      { success: true, value: new BN(balance1) },
+      { success: true, value: new BN(balance2) },
+    ]);
+
+    await controller._executePoll({ chainId });
+
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [account1]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance1),
+        },
+      },
+      [account2]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance2),
+        },
+      },
+    });
+  });
+
+  it('only updates selected account balance when multi-account balances is disabled', async () => {
+    const chainId = '0x1';
+    const selectedAccount = '0x0000000000000000000000000000000000000000';
+    const otherAccount = '0x0000000000000000000000000000000000000001';
+    const tokenAddress = '0x0000000000000000000000000000000000000002';
+
+    const tokens = {
+      allDetectedTokens: {},
+      allTokens: {
+        [chainId]: {
+          [selectedAccount]: [
+            { address: tokenAddress, symbol: 's', decimals: 0 },
+          ],
+          [otherAccount]: [{ address: tokenAddress, symbol: 's', decimals: 0 }],
+        },
+      },
+    };
+
+    const { controller, messenger } = setupController({ tokens });
+
+    // Disable multi-account balances
+    messenger.publish(
+      'PreferencesController:stateChange',
+      { isMultiAccountBalancesEnabled: false } as PreferencesState,
+      [],
+    );
+
+    const balance = 100;
+    jest
+      .spyOn(multicall, 'multicallOrFallback')
+      .mockResolvedValue([{ success: true, value: new BN(balance) }]);
+
+    await controller._executePoll({ chainId });
+
+    // Should only contain balance for selected account
+    expect(controller.state.tokenBalances).toStrictEqual({
+      [selectedAccount]: {
+        [chainId]: {
+          [tokenAddress]: toHex(balance),
+        },
+      },
+    });
+  });
 
   describe('resetState', () => {
     it('resets the state to default state', () => {
