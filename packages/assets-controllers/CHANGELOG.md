@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [43.1.1]
+
+### Changed
+
+- Fix a bug in `TokensController.addTokens` where tokens could be added from the wrong chain. ([#4924](https://github.com/MetaMask/core/pull/4924))
+
 ## [43.1.0]
 
 ### Added
@@ -1210,7 +1216,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.1...HEAD
+[43.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.0...@metamask/assets-controllers@43.1.1
 [43.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.0.0...@metamask/assets-controllers@43.1.0
 [43.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@42.0.0...@metamask/assets-controllers@43.0.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@41.0.0...@metamask/assets-controllers@42.0.0
