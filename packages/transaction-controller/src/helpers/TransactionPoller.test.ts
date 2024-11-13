@@ -250,11 +250,6 @@ describe('TransactionPoller', () => {
         BLOCK_TRACKER_MOCK.on.mock.calls[0][1](BLOCK_NUMBER_MOCK);
         await flushPromises();
 
-        for (let i = 0; i < ACCELERATED_COUNT_MAX; i++) {
-          jest.runOnlyPendingTimers();
-          await flushPromises();
-        }
-
         poller.setPendingTransactions(newPendingTransactions);
 
         for (let i = 0; i < ACCELERATED_COUNT_MAX; i++) {
