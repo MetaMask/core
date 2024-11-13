@@ -17,6 +17,7 @@ import { getDefaultNetworkControllerState } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 import assert from 'assert';
+import type { Patch } from 'immer';
 import nock from 'nock';
 import { useFakeTimers } from 'sinon';
 
@@ -1034,6 +1035,94 @@ describe('TokenRatesController', () => {
           },
         );
       });
+    });
+
+    it('removes state when networks are deleted', async () => {
+      const marketData = {
+        [ChainId.mainnet]: {
+          '0x123456': {
+            currency: 'ETH',
+            priceChange1d: 0,
+            pricePercentChange1d: 0,
+            tokenAddress: '0x02',
+            allTimeHigh: 4000,
+            allTimeLow: 900,
+            circulatingSupply: 2000,
+            dilutedMarketCap: 100,
+            high1d: 200,
+            low1d: 100,
+            marketCap: 1000,
+            marketCapPercentChange1d: 100,
+            price: 0.001,
+            pricePercentChange14d: 100,
+            pricePercentChange1h: 1,
+            pricePercentChange1y: 200,
+            pricePercentChange200d: 300,
+            pricePercentChange30d: 200,
+            pricePercentChange7d: 100,
+            totalVolume: 100,
+          },
+        },
+        [ChainId['linea-mainnet']]: {
+          '0x789': {
+            currency: 'ETH',
+            priceChange1d: 0,
+            pricePercentChange1d: 0,
+            tokenAddress: '0x02',
+            allTimeHigh: 4000,
+            allTimeLow: 900,
+            circulatingSupply: 2000,
+            dilutedMarketCap: 100,
+            high1d: 200,
+            low1d: 100,
+            marketCap: 1000,
+            marketCapPercentChange1d: 100,
+            price: 0.001,
+            pricePercentChange14d: 100,
+            pricePercentChange1h: 1,
+            pricePercentChange1y: 200,
+            pricePercentChange200d: 300,
+            pricePercentChange30d: 200,
+            pricePercentChange7d: 100,
+            totalVolume: 100,
+          },
+        },
+      } as const;
+
+      await withController(
+        {
+          options: {
+            state: {
+              marketData,
+            },
+          },
+        },
+        async ({ controller, triggerNetworkStateChange }) => {
+          // Verify initial state with both networks
+          expect(controller.state.marketData).toStrictEqual(marketData);
+
+          triggerNetworkStateChange(
+            {
+              selectedNetworkClientId: 'mainnet',
+              networkConfigurationsByChainId: {},
+            } as NetworkState,
+            [
+              {
+                op: 'remove',
+                path: [
+                  'networkConfigurationsByChainId',
+                  ChainId['linea-mainnet'],
+                ],
+              },
+            ],
+          );
+
+          // Verify linea removed
+          expect(controller.state.marketData).toStrictEqual({
+            [ChainId.mainnet]: marketData[ChainId.mainnet],
+          });
+        },
+      );
     });
   });
 
@@ -2410,7 +2499,7 @@ type WithControllerCallback<ReturnValue> = ({
   controller: TokenRatesController;
   triggerSelectedAccountChange: (state: InternalAccount) => void;
   triggerTokensStateChange: (state: TokensControllerState) => void;
-  triggerNetworkStateChange: (state: NetworkState) => void;
+  triggerNetworkStateChange: (state: NetworkState, patches?: Patch[]) => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -2507,8 +2596,15 @@ async function withController<ReturnValue>(
       triggerTokensStateChange: (state: TokensControllerState) => {
         controllerMessenger.publish('TokensController:stateChange', state, []);
       },
-      triggerNetworkStateChange: (state: NetworkState) => {
-        controllerMessenger.publish('NetworkController:stateChange', state, []);
+      triggerNetworkStateChange: (
+        state: NetworkState,
+        patches: Patch[] = [],
+      ) => {
+        controllerMessenger.publish(
+          'NetworkController:stateChange',
+          state,
+          patches,
+        );
       },
     });
   } finally {
