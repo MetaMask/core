@@ -17,8 +17,10 @@ import type { InternalAccount } from '@metamask/keyring-api';
 import type {
   NetworkClientConfiguration,
   NetworkClientId,
+  NetworkState,
 } from '@metamask/network-controller';
 import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type { Patch } from 'immer';
 import nock from 'nock';
 import * as sinon from 'sinon';
 import { v1 as uuidV1 } from 'uuid';
@@ -2447,6 +2449,64 @@ describe('TokensController', () => {
     });
   });
 
+  describe('when NetworkController:stateChange is published', () => {
+    it('removes tokens for removed networks', async () => {
+      const initialState = {
+        allTokens: {
+          '0x1': {
+            '0x134': [
+              {
+                address: '0x01',
+                symbol: 'TKN1',
+                decimals: 18,
+                aggregators: [],
+                name: 'Token 1',
+              },
+            ],
+          },
+          '0x5': {
+            // goerli
+            '0x456': [
+              {
+                address: '0x02',
+                symbol: 'TKN2',
+                decimals: 18,
+                aggregators: [],
+                name: 'Token 2',
+              },
+            ],
+          },
+        },
+        tokens: [],
+        ignoredTokens: [],
+        detectedTokens: [],
+        allIgnoredTokens: {},
+        allDetectedTokens: {},
+      };
+
+      await withController(
+        { options: { state: initialState } },
+        async ({ controller, triggerNetworkStateChange }) => {
+          // Verify initial state
+          expect(controller.state).toStrictEqual(initialState);
+
+          // Simulate removing goerli
+          triggerNetworkStateChange({} as NetworkState, [
+            {
+              op: 'remove',
+              path: ['networkConfigurationsByChainId', '0x5'],
+            },
+          ]);
+
+          // Verify tokens were removed on goerli
+          expect(controller.state.allTokens).toStrictEqual({
+            '0x1': initialState.allTokens['0x1'],
+          });
+        },
+      );
+    });
+  });
+
   describe('resetState', () => {
     it('resets the state to default state', async () => {
       const initialState: TokensControllerState = {
@@ -2544,6 +2604,10 @@ type WithControllerCallback<ReturnValue> = ({
   messenger: UnrestrictedMessenger;
   approvalController: ApprovalController;
   triggerSelectedAccountChange: (internalAccount: InternalAccount) => void;
+  triggerNetworkStateChange: (
+    networkState: NetworkState,
+    patches: Patch[],
+  ) => void;
   getAccountHandler: jest.Mock;
   getSelectedAccountHandler: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
@@ -2615,6 +2679,7 @@ async function withController<ReturnValue>(
     ],
     allowedEvents: [
       'NetworkController:networkDidChange',
+      'NetworkController:stateChange',
       'AccountsController:selectedEvmAccountChange',
       'TokenListController:stateChange',
     ],
@@ -2674,12 +2739,20 @@ async function withController<ReturnValue>(
     getNetworkClientById,
   );
 
+  const triggerNetworkStateChange = (
+    networkState: NetworkState,
+    patches: Patch[],
+  ) => {
+    messenger.publish('NetworkController:stateChange', networkState, patches);
+  };
+
   return await fn({
     controller,
     changeNetwork,
     messenger,
     approvalController,
     triggerSelectedAccountChange,
+    triggerNetworkStateChange,
     getAccountHandler,
     getSelectedAccountHandler,
   });

@@ -30,12 +30,14 @@ import type {
   NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerStateChangeEvent,
   NetworkState,
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
+import type { Patch } from 'immer';
 import { v1 as random } from 'uuid';
 
 import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
@@ -150,6 +152,7 @@ export type TokensControllerStateChangeEvent = ControllerStateChangeEvent<
 export type TokensControllerEvents = TokensControllerStateChangeEvent;
 
 export type AllowedEvents =
+  | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
   | TokenListStateChange
   | AccountsControllerSelectedEvmAccountChangeEvent;
@@ -247,6 +250,11 @@ export class TokensController extends BaseController<
     );
 
     this.messagingSystem.subscribe(
+      'NetworkController:stateChange',
+      this.#onNetworkStateChange.bind(this),
+    );
+
+    this.messagingSystem.subscribe(
       'TokenListController:stateChange',
       ({ tokenList }) => {
         const { tokens } = this.state;
@@ -281,6 +289,29 @@ export class TokensController extends BaseController<
       state.detectedTokens =
         allDetectedTokens[chainId]?.[selectedAddress] || [];
     });
+  }
+
+  /**
+   * Handles the event when the network state changes.
+   * @param _ - The network state.
+   * @param patches - An array of patch operations performed on the network state.
+   */
+  #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    // Remove state for deleted networks
+    for (const patch of patches) {
+      if (
+        patch.op === 'remove' &&
+        patch.path[0] === 'networkConfigurationsByChainId'
+      ) {
+        const removedChainId = patch.path[1] as Hex;
+
+        this.update((state) => {
+          delete state.allTokens[removedChainId];
+          delete state.allIgnoredTokens[removedChainId];
+          delete state.allDetectedTokens[removedChainId];
+        });
+      }
+    }
   }
 
   /**
