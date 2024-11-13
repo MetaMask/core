@@ -67,6 +67,35 @@ describe('multicall', () => {
       ]);
     });
 
+    it('should handle the multicall contract returning false for success', async () => {
+      // Mock an unsuccessful multicall
+      jest
+        .spyOn(provider, 'call')
+        .mockResolvedValue(
+          defaultAbiCoder.encode(
+            ['tuple(bool,bytes)[]'],
+            [
+              calls.map((_, i) => [
+                false,
+                defaultAbiCoder.encode(['uint256'], [i + 1]),
+              ]),
+            ],
+          ),
+        );
+
+      const results = await multicallOrFallback(calls, '0x1', provider);
+      expect(results).toMatchObject([
+        {
+          success: false,
+          value: undefined,
+        },
+        {
+          success: false,
+          value: undefined,
+        },
+      ]);
+    });
+
     it('should fallback to parallel calls on unsupported chains', async () => {
       // Mock return values for each call
       let timesCalled = 0;
