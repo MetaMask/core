@@ -1,5 +1,5 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import { ChainId } from '@metamask/controller-utils';
+import { ChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
@@ -523,7 +523,9 @@ describe('MultichainTrackingHelper', () => {
 
         await expect(
           helper.getNonceLock('0xdeadbeef', 'mainnet'),
-        ).rejects.toThrow('missing nonceTracker for networkClientId');
+        ).rejects.toThrow(
+          `Missing nonce tracker for network client ID - ${NetworkType.mainnet}`,
+        );
       });
 
       it('throws an error and releases nonce lock by chainId if unable to acquire nonce lock from the NonceTracker', async () => {
@@ -613,83 +615,12 @@ describe('MultichainTrackingHelper', () => {
     });
   });
 
-  describe('getEthQuery', () => {
+  describe('getNetworkClient', () => {
     describe('when given networkClientId and chainId', () => {
-      it('returns EthQuery with the networkClientId provider when available', () => {
+      it('returns the network client of the networkClientId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const ethQuery = helper.getEthQuery({
-          networkClientId: 'goerli',
-          chainId: '0xa',
-        });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.goerli);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
-      });
-
-      it('returns EthQuery with a fallback networkClient provider matching the chainId when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({
-          networkClientId: 'missingNetworkClientId',
-          chainId: '0xa',
-        });
-        expect(ethQuery.provider).toBe(
-          MOCK_PROVIDERS['customNetworkClientId-1'],
-        );
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(2);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'missingNetworkClientId',
-        );
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xa',
-        );
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'customNetworkClientId-1',
-        );
-      });
-    });
-
-    describe('when given only networkClientId', () => {
-      it('returns EthQuery with the networkClientId provider when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({ networkClientId: 'goerli' });
-        expect(ethQuery.provider).toBe(MOCK_PROVIDERS.goerli);
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
-      });
-    });
-
-    describe('when given only chainId', () => {
-      it('returns EthQuery with a fallback networkClient provider matching the chainId when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const ethQuery = helper.getEthQuery({ chainId: '0xa' });
-        expect(ethQuery.provider).toBe(
-          MOCK_PROVIDERS['customNetworkClientId-1'],
-        );
-
-        expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
-        expect(options.findNetworkClientIdByChainId).toHaveBeenCalledWith(
-          '0xa',
-        );
-        expect(options.getNetworkClientById).toHaveBeenCalledWith(
-          'customNetworkClientId-1',
-        );
-      });
-    });
-  });
-
-  describe('getProvider', () => {
-    describe('when given networkClientId and chainId', () => {
-      it('returns the provider of the networkClientId when available', () => {
-        const { options, helper } = newMultichainTrackingHelper();
-
-        const provider = helper.getProvider({
+        const { provider } = helper.getNetworkClient({
           networkClientId: 'goerli',
           chainId: '0xa',
         });
@@ -699,10 +630,10 @@ describe('MultichainTrackingHelper', () => {
         expect(options.getNetworkClientById).toHaveBeenCalledWith('goerli');
       });
 
-      it('returns a fallback networkClient provider matching the chainId when available', () => {
+      it('returns a fallback network client matching the chainId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const provider = helper.getProvider({
+        const { provider } = helper.getNetworkClient({
           networkClientId: 'missingNetworkClientId',
           chainId: '0xa',
         });
@@ -722,10 +653,12 @@ describe('MultichainTrackingHelper', () => {
     });
 
     describe('when given only networkClientId', () => {
-      it('returns the provider of the networkClientId when available', () => {
+      it('returns the network client of the networkClientId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const provider = helper.getProvider({ networkClientId: 'goerli' });
+        const { provider } = helper.getNetworkClient({
+          networkClientId: 'goerli',
+        });
         expect(provider).toBe(MOCK_PROVIDERS.goerli);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);
@@ -734,10 +667,10 @@ describe('MultichainTrackingHelper', () => {
     });
 
     describe('when given only chainId', () => {
-      it('returns a fallback networkClient provider matching the chainId when available', () => {
+      it('returns a fallback network client matching the chainId when available', () => {
         const { options, helper } = newMultichainTrackingHelper();
 
-        const provider = helper.getProvider({ chainId: '0xa' });
+        const { provider } = helper.getNetworkClient({ chainId: '0xa' });
         expect(provider).toBe(MOCK_PROVIDERS['customNetworkClientId-1']);
 
         expect(options.getNetworkClientById).toHaveBeenCalledTimes(1);

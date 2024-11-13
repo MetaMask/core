@@ -207,6 +207,7 @@ export class EtherscanRemoteTransactionSource
       chainId: currentChainId,
       hash: txMeta.hash,
       id: random({ msecs: time }),
+      networkClientId: 'incoming',
       status: TransactionStatus.confirmed,
       time,
       txParams: {

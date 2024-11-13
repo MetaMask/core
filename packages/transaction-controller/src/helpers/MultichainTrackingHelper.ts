@@ -1,4 +1,3 @@
-import EthQuery from '@metamask/eth-query';
 import type {
   NetworkClientId,
   NetworkController,
@@ -11,7 +10,7 @@ import type { NonceLock, NonceTracker } from '@metamask/nonce-tracker';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import { incomingTransactionsLogger as log } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger';
 import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
 import type {
   IncomingTransactionHelper,
@@ -25,6 +24,8 @@ import type { PendingTransactionTracker } from './PendingTransactionTracker';
 type NetworkClientRegistry = ReturnType<
   NetworkController['getNetworkClientRegistry']
 >;
+
+const log = createModuleLogger(projectLogger, 'multichain-tracking');
 
 export type MultichainTrackingHelperOptions = {
   incomingTransactionOptions: IncomingTransactionOptions;
@@ -140,6 +141,7 @@ export class MultichainTrackingHelper {
 
     onNetworkStateChange((_, patches) => {
       const networkClients = this.#getNetworkClientRegistry();
+
       patches.forEach(({ op, path }) => {
         if (op === 'remove' && path[0] === 'networkConfigurations') {
           const networkClientId = path[1] as NetworkClientId;
@@ -153,40 +155,14 @@ export class MultichainTrackingHelper {
 
   initialize() {
     const networkClients = this.#getNetworkClientRegistry();
+
     this.#refreshTrackingMap(networkClients);
+
+    log('Initialized');
   }
 
   has(networkClientId: NetworkClientId) {
     return this.#trackingMap.has(networkClientId);
-  }
-
-  getEthQuery({
-    networkClientId,
-    chainId,
-  }: {
-    networkClientId?: NetworkClientId;
-    chainId?: Hex;
-  } = {}): EthQuery {
-    return new EthQuery(this.getProvider({ networkClientId, chainId }));
-  }
-
-  getProvider({
-    networkClientId,
-    chainId,
-  }: {
-    networkClientId?: NetworkClientId;
-    chainId?: Hex;
-  } = {}): Provider {
-    const networkClient = this.#getNetworkClient({
-      networkClientId,
-      chainId,
-    });
-
-    if (!networkClient) {
-      throw new Error('missing networkClient');
-    }
-
-    return networkClient?.provider;
   }
 
   /**
@@ -228,25 +204,21 @@ export class MultichainTrackingHelper {
    */
   async getNonceLock(
     address: string,
-    networkClientId?: NetworkClientId,
+    networkClientId: NetworkClientId,
   ): Promise<NonceLock> {
-    let releaseLockForChainIdKey: (() => void) | undefined;
-    let nonceTracker;
-    if (networkClientId) {
-      const networkClient = this.#getNetworkClientById(networkClientId);
-      releaseLockForChainIdKey = await this.acquireNonceLockForChainIdKey({
-        chainId: networkClient.configuration.chainId,
-        key: address,
-      });
-      const trackers = this.#trackingMap.get(networkClientId);
-      if (!trackers) {
-        throw new Error('missing nonceTracker for networkClientId');
-      }
-      nonceTracker = trackers.nonceTracker;
-    }
+    const networkClient = this.#getNetworkClientById(networkClientId);
+
+    const releaseLockForChainIdKey = await this.acquireNonceLockForChainIdKey({
+      chainId: networkClient.configuration.chainId,
+      key: address,
+    });
+
+    const nonceTracker = this.#trackingMap.get(networkClientId)?.nonceTracker;
 
     if (!nonceTracker) {
-      throw new Error('missing nonceTracker');
+      throw new Error(
+        `Missing nonce tracker for network client ID - ${networkClientId}`,
+      );
     }
 
     // Acquires the lock for the chainId + address and the nonceLock from the nonceTracker, then
@@ -255,12 +227,15 @@ export class MultichainTrackingHelper {
     // lock for the chainId.
     try {
       const nonceLock = await nonceTracker.getNonceLock(address);
+
+      const releaseLock = () => {
+        nonceLock.releaseLock();
+        releaseLockForChainIdKey?.();
+      };
+
       return {
         ...nonceLock,
-        releaseLock: () => {
-          nonceLock.releaseLock();
-          releaseLockForChainIdKey?.();
-        },
+        releaseLock,
       };
     } catch (err) {
       releaseLockForChainIdKey?.();
@@ -317,6 +292,45 @@ export class MultichainTrackingHelper {
     }
   }
 
+  getNetworkClient({
+    chainId,
+    networkClientId: requestNetworkClientId,
+  }: {
+    chainId?: Hex;
+    networkClientId?: NetworkClientId;
+  }): NetworkClient & { id: NetworkClientId } {
+    if (!requestNetworkClientId && !chainId) {
+      throw new Error(
+        'Cannot locate network client without networkClientId or chainId',
+      );
+    }
+
+    let networkClient: NetworkClient | undefined;
+    let networkClientId = requestNetworkClientId;
+
+    try {
+      if (requestNetworkClientId) {
+        networkClient = this.#getNetworkClientById(requestNetworkClientId);
+      }
+    } catch (error) {
+      log('No network client found with ID', requestNetworkClientId);
+
+      if (!chainId) {
+        throw error;
+      }
+    }
+
+    if (!networkClient && chainId) {
+      networkClientId = this.#findNetworkClientIdByChainId(chainId);
+      networkClient = this.#getNetworkClientById(networkClientId);
+    }
+
+    return {
+      ...(networkClient as NetworkClient),
+      id: networkClientId as NetworkClientId,
+    };
+  }
+
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
     this.#refreshEtherscanRemoteTransactionSources(networkClients);
 
@@ -327,6 +341,7 @@ export class MultichainTrackingHelper {
     const networkClientIdsToRemove = existingNetworkClientIds.filter(
       (id) => !networkClientIds.includes(id),
     );
+
     networkClientIdsToRemove.forEach((id) => {
       this.#stopTrackingByNetworkClientId(id);
     });
@@ -335,9 +350,18 @@ export class MultichainTrackingHelper {
     const networkClientIdsToAdd = networkClientIds.filter(
       (id) => !existingNetworkClientIds.includes(id),
     );
+
     networkClientIdsToAdd.forEach((id) => {
       this.#startTrackingByNetworkClientId(id);
     });
+
+    if (networkClientIdsToAdd.length) {
+      log('Added trackers', networkClientIdsToAdd);
+    }
+
+    if (networkClientIdsToRemove.length) {
+      log('Removed trackers', networkClientIdsToRemove);
+    }
   };
 
   #stopTrackingByNetworkClientId(networkClientId: NetworkClientId) {
@@ -369,11 +393,15 @@ export class MultichainTrackingHelper {
 
     let etherscanRemoteTransactionSource =
       this.#etherscanRemoteTransactionSourcesMap.get(chainId);
+
     if (!etherscanRemoteTransactionSource) {
       etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
         includeTokenTransfers:
           this.#incomingTransactionOptions.includeTokenTransfers,
       });
+
+      log('Created Etherscan remote transaction source', chainId);
+
       this.#etherscanRemoteTransactionSourcesMap.set(
         chainId,
         etherscanRemoteTransactionSource,
@@ -426,32 +454,4 @@ export class MultichainTrackingHelper {
       this.#etherscanRemoteTransactionSourcesMap.delete(chainId);
     });
   };
-
-  #getNetworkClient({
-    networkClientId,
-    chainId,
-  }: {
-    networkClientId?: NetworkClientId;
-    chainId?: Hex;
-  } = {}): NetworkClient | undefined {
-    let networkClient: NetworkClient | undefined;
-
-    if (networkClientId) {
-      try {
-        networkClient = this.#getNetworkClientById(networkClientId);
-      } catch (err) {
-        log('failed to get network client by networkClientId');
-      }
-    }
-    if (!networkClient && chainId) {
-      try {
-        const networkClientIdForChainId =
-          this.#findNetworkClientIdByChainId(chainId);
-        networkClient = this.#getNetworkClientById(networkClientIdForChainId);
-      } catch (err) {
-        log('failed to get network client by chainId');
-      }
-    }
-    return networkClient;
-  }
 }

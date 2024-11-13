@@ -95,6 +95,7 @@ const EXPECTED_NORMALISED_TRANSACTION_BASE = {
   chainId: undefined,
   hash: ETHERSCAN_TRANSACTION_SUCCESS_MOCK.hash,
   id: ID_MOCK,
+  networkClientId: 'incoming',
   status: TransactionStatus.confirmed,
   time: 1543596356000,
   txParams: {
