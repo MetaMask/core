@@ -1,4 +1,5 @@
 import {
+  assertIsStrictHexString,
   type CaipAccountId,
   type Hex,
   KnownCaipNamespace,
@@ -35,8 +36,8 @@ export const getEthAccounts = (
     Caip25CaveatValue,
     'requiredScopes' | 'optionalScopes'
   >,
-) => {
-  const ethAccounts: string[] = [];
+): Hex[] => {
+  const ethAccounts: Hex[] = [];
   const sessionScopes = mergeScopes(
     caip25CaveatValue.requiredScopes,
     caip25CaveatValue.optionalScopes,
@@ -47,6 +48,9 @@ export const getEthAccounts = (
       const { address, chainId } = parseCaipAccountId(account);
 
       if (isEip155ScopeString(chainId)) {
+        // This address should always be a valid Hex string because
+        // it's an EIP155/Ethereum account
+        assertIsStrictHexString(address);
         ethAccounts.push(address);
       }
     });
@@ -66,7 +70,6 @@ const setEthAccountsForScopesObject = (
   accounts: Hex[],
 ) => {
   const updatedScopesObject: InternalScopesObject = {};
-
   Object.entries(scopesObject).forEach(([key, scopeObject]) => {
     // Cast needed because index type is returned as `string` by `Object.entries`
     const scopeString = key as keyof typeof scopesObject;
@@ -76,6 +79,7 @@ const setEthAccountsForScopesObject = (
       updatedScopesObject[scopeString] = scopeObject;
       return;
     }
+
     let caipAccounts: CaipAccountId[] = [];
     if (isWalletNamespace) {
       caipAccounts = accounts.map<CaipAccountId>(
@@ -85,8 +89,6 @@ const setEthAccountsForScopesObject = (
       caipAccounts = accounts.map<CaipAccountId>(
         (account) => `${namespace}:${reference}:${account}`,
       );
-    } else {
-      throw new Error('Invalid scope string');
     }
 
     updatedScopesObject[scopeString] = {
