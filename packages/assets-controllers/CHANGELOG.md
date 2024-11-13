@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [43.1.1]
 
-### Uncategorized
+### Changed
 
-- fix: fix token import flow ([#4924](https://github.com/MetaMask/core/pull/4924))
+- Fix a bug in `TokensController.addTokens` where tokens could be added from the wrong chain. ([#4924](https://github.com/MetaMask/core/pull/4924))
 
 ## [43.1.0]
 
