@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [43.1.1]
+
+### Changed
+
+- Fix a bug in `TokensController.addTokens` where tokens could be added from the wrong chain. ([#4924](https://github.com/MetaMask/core/pull/4924))
+
+## [43.1.0]
+
+### Added
+
+- Add Solana to the polled exchange rates ([#4914](https://github.com/MetaMask/core/pull/4914))
+
+## [43.0.0]
+
+### Added
+
+- `AccountTrackerController` now tracks balances of staked ETH for each account, under the state property `stakedBalance`. ([#4879](https://github.com/MetaMask/core/pull/4879))
+
+### Changed
+
+- **BREAKING**: The polling input for`TokenListController` is now `{chainId: Hex}` instead of `{networkClientId: NetworkClientId}`. ([#4878](https://github.com/MetaMask/core/pull/4878))
+- **BREAKING**: The polling input for`TokenDetectionController` is now `{ chainIds: Hex[]; address: string; }` instead of `{ networkClientId: NetworkClientId; address: string; }`. ([#4894](https://github.com/MetaMask/core/pull/4894))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/preferences-controller` peer dependency from `^13.2.0` to `^14.0.0` ([#4909](https://github.com/MetaMask/core/pull/4909), [#4915](https://github.com/MetaMask/core/pull/4915))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4195](https://github.com/MetaMask/core/pull/4195))
+
 ## [42.0.0]
 
 ### Added
@@ -1189,7 +1216,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@42.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.1...HEAD
+[43.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.1.0...@metamask/assets-controllers@43.1.1
+[43.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@43.0.0...@metamask/assets-controllers@43.1.0
+[43.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@42.0.0...@metamask/assets-controllers@43.0.0
 [42.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@41.0.0...@metamask/assets-controllers@42.0.0
 [41.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@40.0.0...@metamask/assets-controllers@41.0.0
 [40.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@39.0.0...@metamask/assets-controllers@40.0.0

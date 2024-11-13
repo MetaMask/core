@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^7.0.2",
-    "@metamask/controller-utils": "^11.4.2",
+    "@metamask/controller-utils": "^11.4.3",
     "@noble/hashes": "^1.4.0",
     "@types/punycode": "^2.1.0",
     "ethereum-cryptography": "^2.1.2",
