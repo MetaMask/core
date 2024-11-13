@@ -335,6 +335,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<Tok
           )
         : undefined;
 
+    // Balances will be updated for both imported and detected tokens
     Object.entries(this.#allTokens[chainId] ?? {}).forEach(addTokens);
     Object.entries(this.#allDetectedTokens[chainId] ?? {}).forEach(addTokens);
 
