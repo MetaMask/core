@@ -109,57 +109,6 @@ describe('CAIP-25 permittedChains adapters', () => {
       });
     });
 
-    it('returns a version of the caveat value with a new optional scope for "wallet:eip155" if it does not already exist in the optional scopes', () => {
-      const result = addPermittedEthChainId(
-        {
-          requiredScopes: {
-            'eip155:1': {
-              methods: [],
-              notifications: [],
-              accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
-            },
-          },
-          optionalScopes: {
-            'eip155:100': {
-              methods: [],
-              notifications: [],
-              accounts: ['eip155:100:0x100'],
-            },
-          },
-          isMultichainOrigin: false,
-        },
-        '0x65',
-      );
-
-      expect(result).toStrictEqual({
-        requiredScopes: {
-          'eip155:1': {
-            methods: [],
-            notifications: [],
-            accounts: ['eip155:1:0x1', 'eip155:1:0x2'],
-          },
-        },
-        optionalScopes: {
-          'eip155:100': {
-            methods: [],
-            notifications: [],
-            accounts: ['eip155:100:0x100'],
-          },
-          'eip155:101': {
-            methods: KnownRpcMethods.eip155,
-            notifications: KnownNotifications.eip155,
-            accounts: [],
-          },
-          'wallet:eip155': {
-            methods: [],
-            notifications: [],
-            accounts: [],
-          },
-        },
-        isMultichainOrigin: false,
-      });
-    });
-
     it('does not modify the input CAIP-25 caveat value object', () => {
       const input: Caip25CaveatValue = {
         requiredScopes: {
@@ -352,11 +301,6 @@ describe('CAIP-25 permittedChains adapters', () => {
           'eip155:101': {
             methods: KnownRpcMethods.eip155,
             notifications: KnownNotifications.eip155,
-            accounts: [],
-          },
-          'wallet:eip155': {
-            methods: [],
-            notifications: [],
             accounts: [],
           },
         },

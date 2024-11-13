@@ -61,11 +61,6 @@ export const addPermittedEthChainId = (
   return {
     ...caip25CaveatValue,
     optionalScopes: {
-      [KnownWalletScopeString.Eip155]: {
-        methods: [],
-        notifications: [],
-        accounts: [],
-      },
       ...caip25CaveatValue.optionalScopes,
       [scopeString]: {
         methods: KnownRpcMethods.eip155,
