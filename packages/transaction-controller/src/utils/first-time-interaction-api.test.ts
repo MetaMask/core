@@ -3,7 +3,10 @@ import type {
   FirstTimeInteractionRequest,
   FirstTimeInteractionResponse,
 } from './first-time-interaction-api';
-import { getFirstTimeInteraction } from './first-time-interaction-api';
+import {
+  BASE_URL,
+  getFirstTimeInteraction,
+} from './first-time-interaction-api';
 
 describe('FirstTimeInteraction API Utils', () => {
   let fetchMock: jest.MockedFunction<typeof fetch>;
@@ -95,7 +98,7 @@ describe('FirstTimeInteraction API Utils', () => {
 
       // The values are not undefined
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-      const expectedUrl = `https://primitives.api.cx.metamask.io/v1/networks/${chainId}/accounts/${from}/relationships/${to}`;
+      const expectedUrl = `${BASE_URL}/v1/networks/${chainId}/accounts/${from}/relationships/${to}`;
       expect(fetchMock).toHaveBeenCalledWith(expectedUrl, { method: 'GET' });
     });
   });
