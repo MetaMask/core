@@ -180,7 +180,7 @@ export function assertIsExternalScopesObject(
   obj: unknown,
 ): asserts obj is ExternalScopesObject {
   if (typeof obj !== 'object' || obj === null) {
-    throw new Error('Object is not an ExternalScopesObject');
+    throw new Error('ExternalScopesObject must be an object');
   }
 
   for (const [scopeString, scopeObject] of Object.entries(obj)) {
