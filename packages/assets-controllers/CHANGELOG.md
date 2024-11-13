@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: add Solana to the polled exchange rates ([#4914](https://github.com/MetaMask/core/pull/4914))
+
 ## [43.0.0]
 
 ### Added
