@@ -524,7 +524,9 @@ describe('MultichainTrackingHelper', () => {
         await expect(
           helper.getNonceLock('0xdeadbeef', 'mainnet'),
         ).rejects.toThrow(
-          `Missing nonce tracker for network client ID - ${NetworkType.mainnet}`,
+          `Missing nonce tracker for network client ID - ${
+            NetworkType.mainnet as string
+          }`,
         );
       });
 

@@ -962,7 +962,9 @@ export class TransactionController extends BaseController<
     txParams = normalizeTransactionParams(txParams);
 
     if (!this.#multichainTrackingHelper.has(networkClientId)) {
-      throw new Error(`Network client not found - ${networkClientId}`);
+      throw new Error(
+        `Network client not found - ${networkClientId as string}`,
+      );
     }
 
     const isEIP1559Compatible = await this.getEIP1559Compatibility(

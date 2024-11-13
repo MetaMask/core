@@ -217,7 +217,9 @@ export class MultichainTrackingHelper {
 
     if (!nonceTracker) {
       throw new Error(
-        `Missing nonce tracker for network client ID - ${networkClientId}`,
+        `Missing nonce tracker for network client ID - ${
+          networkClientId as string
+        }`,
       );
     }
 

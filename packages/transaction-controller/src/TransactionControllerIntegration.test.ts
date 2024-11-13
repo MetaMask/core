@@ -1107,7 +1107,9 @@ describe('TransactionController Integration', () => {
         },
       ),
     ).rejects.toThrow(
-      `Network client not found - ${networkConfiguration.rpcEndpoints[0].networkClientId}`,
+      `Network client not found - ${
+        networkConfiguration.rpcEndpoints[0].networkClientId as string
+      }`,
     );
 
     expect(transactionController).toBeDefined();
