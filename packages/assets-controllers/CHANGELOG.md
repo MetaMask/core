@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: fix token import flow ([#4924](https://github.com/MetaMask/core/pull/4924))
+
 ## [43.1.0]
 
 ### Added
