@@ -24,8 +24,6 @@ describe('@metamask/multichain', () => {
         "mergeScopeObject",
         "mergeScopes",
         "normalizeAndMergeScopes",
-        "isValidScope",
-        "getValidScopes",
         "Caip25CaveatType",
         "createCaip25Caveat",
         "Caip25EndowmentPermissionName",

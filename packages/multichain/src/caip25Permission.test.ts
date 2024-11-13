@@ -20,8 +20,10 @@ jest.mock('./scope/authorization', () => ({
 const MockScopeAuthorization = jest.mocked(ScopeAuthorization);
 
 jest.mock('./scope/assert', () => ({
+  ...jest.requireActual('./scope/assert'),
   assertScopesSupported: jest.fn(),
 }));
+
 const MockScopeAssert = jest.mocked(ScopeAssert);
 
 const { removeAccount, removeScope } = Caip25CaveatMutators[Caip25CaveatType];
