@@ -213,6 +213,7 @@ const setupController = async (
     disableHistory: false,
     disableSendFlowHistory: false,
     disableSwaps: false,
+    disableBridge: false,
     getCurrentNetworkEIP1559Compatibility: async (
       networkClientId?: NetworkClientId,
     ) => {
