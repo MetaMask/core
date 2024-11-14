@@ -622,6 +622,7 @@ describe('TransactionController', () => {
       disableHistory: false,
       disableSendFlowHistory: false,
       disableSwaps: false,
+      disableBridge: false,
       getCurrentNetworkEIP1559Compatibility: async () => false,
       getNetworkState: () => networkState,
       // TODO: Replace with a real type
