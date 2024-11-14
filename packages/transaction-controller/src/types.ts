@@ -69,6 +69,11 @@ type TransactionMetaBase = {
   blockTimestamp?: string;
 
   /**
+   *
+   */
+  bridgeSteps?: BridgeStep[];
+
+  /**
    * Network code as per EIP-155 for this transaction.
    */
   chainId: Hex;
@@ -1359,3 +1364,37 @@ export type SubmitHistoryEntry = {
 export type InternalAccount = ReturnType<
   AccountsController['getSelectedAccount']
 >;
+enum BridgeActionTypes {
+  BRIDGE = 'bridge',
+  SWAP = 'swap',
+  REFUEL = 'refuel',
+}
+
+type BridgeProtocol = {
+  name: string;
+  displayName?: string;
+  icon?: string;
+};
+
+/**
+ * A step in a bridge transaction.
+ */
+export type BridgeStep = {
+  action: BridgeActionTypes;
+  srcChainId: Hex;
+  destChainId?: Hex;
+  srcAsset: BridgeAsset;
+  destAsset: BridgeAsset;
+  srcAmount: string;
+  destAmount: string;
+  protocol: BridgeProtocol;
+};
+
+export type BridgeAsset = {
+  chainId: Hex;
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  icon?: string;
+};
