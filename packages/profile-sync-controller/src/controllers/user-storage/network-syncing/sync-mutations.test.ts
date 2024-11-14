@@ -1,6 +1,6 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 
-import { UserStorageFeatureNames } from '../../../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import { MOCK_STORAGE_KEY } from '../__fixtures__';
 import { mockEndpointUpsertUserStorage } from '../__fixtures__/mockServices';
 import type { UserStorageBaseOptions } from '../services';
@@ -39,7 +39,7 @@ describe('network-syncing/sync - updateNetwork() / addNetwork() / deleteNetwork(
   it.each(testMatrix)('should successfully call $fnName', async ({ act }) => {
     const mockNetwork = arrangeMockNetwork();
     const mockUpsertAPI = mockEndpointUpsertUserStorage(
-      `${UserStorageFeatureNames.Networks}.0x1337`,
+      `${USER_STORAGE_FEATURE_NAMES.networks}.0x1337`,
     );
     await act(mockNetwork);
     expect(mockUpsertAPI.isDone()).toBe(true);
@@ -50,7 +50,7 @@ describe('network-syncing/sync - updateNetwork() / addNetwork() / deleteNetwork(
     async ({ act }) => {
       const mockNetwork = arrangeMockNetwork();
       const mockUpsertAPI = mockEndpointUpsertUserStorage(
-        `${UserStorageFeatureNames.Networks}.0x1337`,
+        `${USER_STORAGE_FEATURE_NAMES.networks}.0x1337`,
         {
           status: 500,
         },

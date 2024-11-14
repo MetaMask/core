@@ -1,4 +1,4 @@
-import { UserStorageFeatureNames } from '../../../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
 import {
   MOCK_STORAGE_KEY,
   createMockAllFeatureEntriesResponse,
@@ -45,7 +45,7 @@ describe('network-syncing/services - getAllRemoteNetworks()', () => {
 
     return {
       mockGetAllAPI: await mockEndpointGetUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Networks,
+        USER_STORAGE_FEATURE_NAMES.networks,
         payload,
       ),
     };
@@ -103,7 +103,7 @@ describe('network-syncing/services - upsertRemoteNetwork()', () => {
       storageOps: storageOpts,
       mockNetwork,
       mockUpsertAPI: mockEndpointUpsertUserStorage(
-        `${UserStorageFeatureNames.Networks}.0x1337`,
+        `${USER_STORAGE_FEATURE_NAMES.networks}.0x1337`,
       ),
     };
   };

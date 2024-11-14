@@ -25,7 +25,7 @@ import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 import { createSHA256Hash } from '../../shared/encryption';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
 import {
-  UserStorageFeatureNames,
+  USER_STORAGE_FEATURE_NAMES,
   type UserStoragePathWithFeatureAndKey,
   type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
@@ -342,7 +342,7 @@ export default class UserStorageController extends BaseController<
     > => {
       const rawAccountsListResponse =
         await this.performGetStorageAllFeatureEntries(
-          UserStorageFeatureNames.Accounts,
+          USER_STORAGE_FEATURE_NAMES.accounts,
         );
 
       return (
@@ -358,7 +358,7 @@ export default class UserStorageController extends BaseController<
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `${UserStorageFeatureNames.Accounts}.${internalAccount.address}`,
+        `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -374,7 +374,7 @@ export default class UserStorageController extends BaseController<
         internalAccountsList.map(mapInternalAccountToUserStorageAccount);
 
       await this.performBatchSetStorage(
-        UserStorageFeatureNames.Accounts,
+        USER_STORAGE_FEATURE_NAMES.accounts,
         internalAccountsListFormattedForUserStorage.map((account) => [
           account.a,
           JSON.stringify(account),
@@ -964,7 +964,7 @@ export default class UserStorageController extends BaseController<
 
       // Save the internal accounts list to the user storage
       await this.performBatchSetStorage(
-        UserStorageFeatureNames.Accounts,
+        USER_STORAGE_FEATURE_NAMES.accounts,
         internalAccountsToBeSavedToUserStorage.map((account) => [
           account.address,
           JSON.stringify(mapInternalAccountToUserStorageAccount(account)),

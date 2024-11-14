@@ -1,6 +1,6 @@
 import encryption, { createSHA256Hash } from '../../shared/encryption';
 import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
-import { UserStorageFeatureNames } from '../../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../../shared/storage-schema';
 import {
   mockEndpointGetUserStorage,
   mockEndpointUpsertUserStorage,
@@ -27,7 +27,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
   const actCallGetUserStorage = async () => {
     return await getUserStorage({
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      path: `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       storageKey: MOCK_STORAGE_KEY,
     });
   };
@@ -42,7 +42,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
 
   it('returns null if endpoint does not have entry', async () => {
     const mockGetUserStorage = await mockEndpointGetUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       { status: 404 },
     );
     const result = await actCallGetUserStorage();
@@ -53,7 +53,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
 
   it('returns null if endpoint fails', async () => {
     const mockGetUserStorage = await mockEndpointGetUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       { status: 500 },
     );
     const result = await actCallGetUserStorage();
@@ -68,7 +68,7 @@ describe('user-storage/services.ts - getUserStorage() tests', () => {
       Data: 'Bad Encrypted Data',
     };
     const mockGetUserStorage = await mockEndpointGetUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       {
         status: 200,
         body: badResponseData,
@@ -85,7 +85,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
   const actCallGetUserStorageAllFeatureEntries = async () => {
     return await getUserStorageAllFeatureEntries({
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: UserStorageFeatureNames.Notifications,
+      path: USER_STORAGE_FEATURE_NAMES.notifications,
       storageKey: MOCK_STORAGE_KEY,
     });
   };
@@ -93,7 +93,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
   it('returns user storage data', async () => {
     const mockGetUserStorageAllFeatureEntries =
       await mockEndpointGetUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Notifications,
+        USER_STORAGE_FEATURE_NAMES.notifications,
       );
     const result = await actCallGetUserStorageAllFeatureEntries();
 
@@ -104,7 +104,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
   it('returns null if endpoint does not have entry', async () => {
     const mockGetUserStorage =
       await mockEndpointGetUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Notifications,
+        USER_STORAGE_FEATURE_NAMES.notifications,
         {
           status: 404,
         },
@@ -118,7 +118,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
   it('returns null if endpoint fails', async () => {
     const mockGetUserStorage =
       await mockEndpointGetUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Notifications,
+        USER_STORAGE_FEATURE_NAMES.notifications,
         {
           status: 500,
         },
@@ -136,7 +136,7 @@ describe('user-storage/services.ts - getUserStorageAllFeatureEntries() tests', (
     };
     const mockGetUserStorage =
       await mockEndpointGetUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Notifications,
+        USER_STORAGE_FEATURE_NAMES.notifications,
         {
           status: 200,
           body: badResponseData,
@@ -153,14 +153,14 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
   const actCallUpsertUserStorage = async () => {
     return await upsertUserStorage(MOCK_STORAGE_DATA, {
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      path: `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       storageKey: MOCK_STORAGE_KEY,
     });
   };
 
   it('invokes upsert endpoint with no errors', async () => {
     const mockUpsertUserStorage = mockEndpointUpsertUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       undefined,
       async (requestBody) => {
         if (typeof requestBody === 'string') {
@@ -183,7 +183,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
 
   it('throws error if unable to upsert user storage', async () => {
     const mockUpsertUserStorage = mockEndpointUpsertUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       {
         status: 500,
       },
@@ -196,7 +196,7 @@ describe('user-storage/services.ts - upsertUserStorage() tests', () => {
 
 describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
   const dataToStore: [
-    UserStorageFeatureKeys<UserStorageFeatureNames.Accounts>,
+    UserStorageFeatureKeys<typeof USER_STORAGE_FEATURE_NAMES.accounts>,
     string,
   ][] = [
     ['0x123', MOCK_STORAGE_DATA],
@@ -206,14 +206,14 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
   const actCallBatchUpsertUserStorage = async () => {
     return await batchUpsertUserStorage(dataToStore, {
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: UserStorageFeatureNames.Accounts,
+      path: USER_STORAGE_FEATURE_NAMES.accounts,
       storageKey: MOCK_STORAGE_KEY,
     });
   };
 
   it('invokes upsert endpoint with no errors', async () => {
     const mockUpsertUserStorage = mockEndpointBatchUpsertUserStorage(
-      UserStorageFeatureNames.Accounts,
+      USER_STORAGE_FEATURE_NAMES.accounts,
       undefined,
       async (_uri, requestBody) => {
         if (typeof requestBody === 'string') {
@@ -247,7 +247,7 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
 
   it('throws error if unable to upsert user storage', async () => {
     const mockUpsertUserStorage = mockEndpointBatchUpsertUserStorage(
-      UserStorageFeatureNames.Accounts,
+      USER_STORAGE_FEATURE_NAMES.accounts,
       {
         status: 500,
       },
@@ -263,7 +263,7 @@ describe('user-storage/services.ts - batchUpsertUserStorage() tests', () => {
 describe('user-storage/services.ts - deleteUserStorage() tests', () => {
   const actCallDeleteUserStorage = async () => {
     return await deleteUserStorage({
-      path: `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      path: `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       bearerToken: 'MOCK_BEARER_TOKEN',
       storageKey: MOCK_STORAGE_KEY,
     });
@@ -271,7 +271,7 @@ describe('user-storage/services.ts - deleteUserStorage() tests', () => {
 
   it('invokes delete endpoint with no errors', async () => {
     const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
     );
 
     await actCallDeleteUserStorage();
@@ -281,7 +281,7 @@ describe('user-storage/services.ts - deleteUserStorage() tests', () => {
 
   it('throws error if unable to delete user storage', async () => {
     const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       { status: 500 },
     );
 
@@ -291,7 +291,7 @@ describe('user-storage/services.ts - deleteUserStorage() tests', () => {
 
   it('throws error if feature not found', async () => {
     const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       { status: 404 },
     );
 
@@ -303,7 +303,7 @@ describe('user-storage/services.ts - deleteUserStorage() tests', () => {
 
   it('throws error if unable to get user storage', async () => {
     const mockDeleteUserStorage = mockEndpointDeleteUserStorage(
-      `${UserStorageFeatureNames.Notifications}.notification_settings`,
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       { status: 400 },
     );
 
@@ -318,7 +318,7 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
   const actCallDeleteUserStorageAllFeatureEntries = async () => {
     return await deleteUserStorageAllFeatureEntries({
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: UserStorageFeatureNames.Accounts,
+      path: USER_STORAGE_FEATURE_NAMES.accounts,
       storageKey: MOCK_STORAGE_KEY,
     });
   };
@@ -326,7 +326,7 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
   it('invokes delete endpoint with no errors', async () => {
     const mockDeleteUserStorage =
       mockEndpointDeleteUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Accounts,
+        USER_STORAGE_FEATURE_NAMES.accounts,
         undefined,
       );
 
@@ -338,7 +338,7 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
   it('throws error if unable to delete user storage', async () => {
     const mockDeleteUserStorage =
       mockEndpointDeleteUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Accounts,
+        USER_STORAGE_FEATURE_NAMES.accounts,
         {
           status: 500,
         },
@@ -353,7 +353,7 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
   it('throws error if feature not found', async () => {
     const mockDeleteUserStorage =
       mockEndpointDeleteUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Accounts,
+        USER_STORAGE_FEATURE_NAMES.accounts,
         {
           status: 404,
         },
@@ -368,7 +368,7 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
   it('throws error if unable to get user storage', async () => {
     const mockDeleteUserStorage =
       mockEndpointDeleteUserStorageAllFeatureEntries(
-        UserStorageFeatureNames.Accounts,
+        USER_STORAGE_FEATURE_NAMES.accounts,
         {
           status: 400,
         },

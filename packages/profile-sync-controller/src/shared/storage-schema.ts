@@ -9,16 +9,19 @@ import { createSHA256Hash } from './encryption';
  */
 const ALLOW_ARBITRARY_KEYS = 'ALLOW_ARBITRARY_KEYS' as const;
 
-export enum UserStorageFeatureNames {
-  Notifications = 'notifications',
-  Accounts = 'accounts_v2',
-  Networks = 'networks',
-}
+export const USER_STORAGE_FEATURE_NAMES = {
+  notifications: 'notifications',
+  accounts: 'accounts_v2',
+  networks: 'networks',
+} as const;
+
+export type UserStorageFeatureNames =
+  (typeof USER_STORAGE_FEATURE_NAMES)[keyof typeof USER_STORAGE_FEATURE_NAMES];
 
 export const USER_STORAGE_SCHEMA = {
-  [UserStorageFeatureNames.Notifications]: ['notification_settings'],
-  [UserStorageFeatureNames.Accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
-  [UserStorageFeatureNames.Networks]: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
+  [USER_STORAGE_FEATURE_NAMES.notifications]: ['notification_settings'],
+  [USER_STORAGE_FEATURE_NAMES.accounts]: [ALLOW_ARBITRARY_KEYS], // keyed by account addresses
+  [USER_STORAGE_FEATURE_NAMES.networks]: [ALLOW_ARBITRARY_KEYS], // keyed by chains/networks
 } as const;
 
 type UserStorageSchema = typeof USER_STORAGE_SCHEMA;
