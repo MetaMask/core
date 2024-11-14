@@ -30,6 +30,7 @@
     { "path": "./packages/profile-sync-controller" },
     { "path": "./packages/queued-request-controller" },
     { "path": "./packages/rate-limit-controller" },
+    { "path": "./packages/remote-feature-flag-controller" },
     { "path": "./packages/selected-network-controller" },
     { "path": "./packages/signature-controller" },
     { "path": "./packages/transaction-controller" },

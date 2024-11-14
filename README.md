@@ -51,6 +51,7 @@ Each package in this repository has its own README where you can find installati
 - [`@metamask/profile-sync-controller`](packages/profile-sync-controller)
 - [`@metamask/queued-request-controller`](packages/queued-request-controller)
 - [`@metamask/rate-limit-controller`](packages/rate-limit-controller)
+- [`@metamask/remote-feature-flag-controller`](packages/remote-feature-flag-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -162,8 +163,8 @@ linkStyle default opacity:0.5
   preferences_controller --> keyring_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
-  profile_sync_controller --> accounts_controller;
   profile_sync_controller --> network_controller;
+  profile_sync_controller --> accounts_controller;
   queued_request_controller --> base_controller;
   queued_request_controller --> controller_utils;
   queued_request_controller --> json_rpc_engine;
@@ -179,6 +180,7 @@ linkStyle default opacity:0.5
   signature_controller --> approval_controller;
   signature_controller --> keyring_controller;
   signature_controller --> logging_controller;
+  signature_controller --> network_controller;
   transaction_controller --> base_controller;
   transaction_controller --> controller_utils;
   transaction_controller --> accounts_controller;
