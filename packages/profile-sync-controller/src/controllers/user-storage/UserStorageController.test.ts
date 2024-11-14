@@ -887,6 +887,87 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
     }
   });
 
+  describe('handles corrupted user storage gracefully', () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.TWO_DEFAULT_NAMES_WITH_ONE_BOGUS,
+        ),
+      };
+    };
+
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList:
+              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              'accounts',
+              await mockUserStorageAccountsResponse(),
+            ),
+          mockEndpointDeleteUserStorage: mockEndpointDeleteUserStorage(
+            `accounts.${MOCK_USER_STORAGE_ACCOUNTS.TWO_DEFAULT_NAMES_WITH_ONE_BOGUS[1].a}`,
+          ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage('accounts'),
+        },
+      };
+    };
+
+    it('does not create internal accounts if user storage contains bogus default accounts with the same account number but a different address.', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+      expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(0);
+    });
+
+    it('does not save the bogus account to user storage - preventing the infinite account creation bug', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
+    });
+
+    it('deletes this bogus account from user storage', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+      expect(mockAPI.mockEndpointDeleteUserStorage.isDone()).toBe(true);
+    });
+  });
+
   it('fires the onAccountAdded callback when adding an account', async () => {
     const mockUserStorageAccountsResponse = async () => {
       return {
