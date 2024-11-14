@@ -849,6 +849,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               'accounts',
               await mockUserStorageAccountsResponse(),
             ),
+          mockEndpointsDeleteUserStorage:
+            MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
+              (account) =>
+                !MOCK_INTERNAL_ACCOUNTS.ONE.find(
+                  (internalAccount) => internalAccount.address === account.a,
+                ),
+            ).map((account) =>
+              mockEndpointDeleteUserStorage(`accounts.${account.a}`),
+            ),
         },
       };
     };
@@ -872,6 +881,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
+
+    for (const mockEndpoint of mockAPI.mockEndpointsDeleteUserStorage) {
+      expect(mockEndpoint.isDone()).toBe(true);
+    }
   });
 
   it('fires the onAccountAdded callback when adding an account', async () => {
@@ -896,6 +909,15 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
             await mockEndpointGetUserStorageAllFeatureEntries(
               'accounts',
               await mockUserStorageAccountsResponse(),
+            ),
+          mockEndpointsDeleteUserStorage:
+            MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
+              (account) =>
+                !MOCK_INTERNAL_ACCOUNTS.ONE.find(
+                  (internalAccount) => internalAccount.address === account.a,
+                ),
+            ).map((account) =>
+              mockEndpointDeleteUserStorage(`accounts.${account.a}`),
             ),
         },
       };
@@ -925,6 +947,10 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
+
+    for (const mockEndpoint of mockAPI.mockEndpointsDeleteUserStorage) {
+      expect(mockEndpoint.isDone()).toBe(true);
+    }
   });
 
   it('does not create internal accounts if user storage has less accounts', async () => {
