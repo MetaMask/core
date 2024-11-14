@@ -701,25 +701,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     // Try detecting tokens via Account API first if conditions allow
     if (supportedNetworks && chainsToDetectUsingAccountAPI.length > 0) {
-      const apiResult = await this.#attemptAccountAPIDetection(
+      await this.#attemptAccountAPIDetection(
         chainsToDetectUsingAccountAPI,
         addressToDetect,
         supportedNetworks,
-      );
-
-      // If API succeeds and no chains are left for RPC detection, we can return early
-      if (
-        apiResult?.result === 'success' &&
-        chainsToDetectUsingRpc.length === 0
-      ) {
-        return;
-      }
-
-      // If API fails or chainsToDetectUsingRpc still has items, add chains to RPC detection
-      this.#addChainsToRpcDetection(
-        chainsToDetectUsingRpc,
-        chainsToDetectUsingAccountAPI,
-        clientNetworks,
       );
     }
 
