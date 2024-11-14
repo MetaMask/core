@@ -860,7 +860,6 @@ export class TransactionController extends BaseController<
       isMultichainEnabled,
       provider,
       nonceTracker: this.nonceTracker,
-      incomingTransactionOptions: incomingTransactions,
       findNetworkClientIdByChainId,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
         return this.messagingSystem.call(
@@ -869,13 +868,9 @@ export class TransactionController extends BaseController<
         );
       }) as NetworkController['getNetworkClientById'],
       getNetworkClientRegistry,
-      removeIncomingTransactionHelperListeners:
-        this.#removeIncomingTransactionHelperListeners.bind(this),
       removePendingTransactionTrackerListeners:
         this.#removePendingTransactionTrackerListeners.bind(this),
       createNonceTracker: this.#createNonceTracker.bind(this),
-      createIncomingTransactionHelper:
-        this.#createIncomingTransactionHelper.bind(this),
       createPendingTransactionTracker:
         this.#createPendingTransactionTracker.bind(this),
       onNetworkStateChange: (listener) => {
@@ -1164,36 +1159,23 @@ export class TransactionController extends BaseController<
   startIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
     if (networkClientIds.length === 0) {
       this.incomingTransactionHelper.start();
-      return;
     }
-    this.#multichainTrackingHelper.startIncomingTransactionPolling(
-      networkClientIds,
-    );
   }
 
   stopIncomingTransactionPolling(networkClientIds: NetworkClientId[] = []) {
     if (networkClientIds.length === 0) {
       this.incomingTransactionHelper.stop();
-      return;
     }
-    this.#multichainTrackingHelper.stopIncomingTransactionPolling(
-      networkClientIds,
-    );
   }
 
   stopAllIncomingTransactionPolling() {
     this.incomingTransactionHelper.stop();
-    this.#multichainTrackingHelper.stopAllIncomingTransactionPolling();
   }
 
   async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
     if (networkClientIds.length === 0) {
       await this.incomingTransactionHelper.update();
-      return;
     }
-    await this.#multichainTrackingHelper.updateIncomingTransactions(
-      networkClientIds,
-    );
   }
 
   /**
