@@ -601,6 +601,24 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
+  #addChainsToRpcDetection(
+    chainsToDetectUsingRpc: NetworkClient[],
+    chainsToDetectUsingAccountAPI: Hex[],
+    clientNetworks: NetworkClient[],
+  ): void {
+    chainsToDetectUsingAccountAPI.forEach((chainId) => {
+      const networkEntry = clientNetworks.find(
+        (network) => network.chainId === chainId,
+      );
+      if (networkEntry) {
+        chainsToDetectUsingRpc.push({
+          chainId: networkEntry.chainId,
+          networkClientId: networkEntry.networkClientId,
+        });
+      }
+    });
+  }
+
   #shouldDetectTokens(chainId: Hex): boolean {
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
       return false;
@@ -683,11 +701,20 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     // Try detecting tokens via Account API first if conditions allow
     if (supportedNetworks && chainsToDetectUsingAccountAPI.length > 0) {
-      await this.#attemptAccountAPIDetection(
+      const apiResult = await this.#attemptAccountAPIDetection(
         chainsToDetectUsingAccountAPI,
         addressToDetect,
         supportedNetworks,
       );
+
+      // If the account API call failed, have those chains fall back to RPC detection
+      if (apiResult?.result === 'failed') {
+        this.#addChainsToRpcDetection(
+          chainsToDetectUsingRpc,
+          chainsToDetectUsingAccountAPI,
+          clientNetworks,
+        );
+      }
     }
 
     // Proceed with RPC detection if there are chains remaining in chainsToDetectUsingRpc
@@ -789,10 +816,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
         .getMultiNetworksBalances(selectedAddress, chainIds, supportedNetworks)
         .catch(() => null);
 
-      if (
-        !tokenBalancesByChain ||
-        Object.keys(tokenBalancesByChain).length === 0
-      ) {
+      if (tokenBalancesByChain === null) {
         return { result: 'failed' } as const;
       }
 
