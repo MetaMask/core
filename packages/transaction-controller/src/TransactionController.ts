@@ -45,13 +45,17 @@ import type {
 import { NonceTracker } from '@metamask/nonce-tracker';
 import { errorCodes, rpcErrors, providerErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
-import { add0x } from '@metamask/utils';
+import { add0x, hexToNumber } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
 import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
+import {
+  getAccountAddressRelationship,
+  type GetAccountAddressRelationshipRequest,
+} from './api/accounts-api';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
@@ -90,11 +94,6 @@ import {
   SimulationErrorCode,
 } from './types';
 import { validateConfirmedExternalTransaction } from './utils/external-transactions';
-import type { FirstTimeInteractionResponse } from './utils/first-time-interaction-api';
-import {
-  type FirstTimeInteractionRequest,
-  getFirstTimeInteraction,
-} from './utils/first-time-interaction-api';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -128,7 +127,7 @@ import {
   normalizeGasFeeValues,
 } from './utils/utils';
 import {
-  validateFirstTimeInteraction,
+  validateAccountAddressRelationshipRequest,
   validateTransactionOrigin,
   validateTxParams,
 } from './utils/validation';
@@ -1156,11 +1155,10 @@ export class TransactionController extends BaseController<
           throw error;
         });
 
-        this.#updateFirstInteraction(addedTransactionMeta, {
+        this.#updateFirstInteractionProperties(addedTransactionMeta, {
           traceContext,
         }).catch((error) => {
-          log('Error while updating first interaction', error);
-          throw error;
+          log('Error while updating first interaction properties', error);
         });
       } else {
         log('Skipping simulation as approval not required');
@@ -3627,7 +3625,7 @@ export class TransactionController extends BaseController<
     return transactionMeta;
   }
 
-  async #updateFirstInteraction(
+  async #updateFirstInteractionProperties(
     transactionMeta: TransactionMeta,
     {
       traceContext,
@@ -3641,36 +3639,27 @@ export class TransactionController extends BaseController<
       txParams: { to, from },
     } = transactionMeta;
 
-    const request: FirstTimeInteractionRequest = {
-      chainId,
-      to,
+    const request: GetAccountAddressRelationshipRequest = {
+      chainId: hexToNumber(chainId),
+      to: to as string, // This is validated in validateAccountAddressRelationshipRequest
       from,
     };
 
-    let firstTimeInteractionResponse: FirstTimeInteractionResponse;
+    validateAccountAddressRelationshipRequest(request);
 
-    try {
-      validateFirstTimeInteraction(request);
-
-      firstTimeInteractionResponse = await this.#trace(
-        { name: 'FirstTimeInteraction', parentContext: traceContext },
-        () => getFirstTimeInteraction(request),
-      );
-    } catch (error) {
-      log('Error during first interaction check', error);
-      firstTimeInteractionResponse = {
-        isFirstTimeInteraction: undefined,
-      };
-    }
+    const accountAddressRelationshipResponse = await this.#trace(
+      { name: 'Account Address Relationship', parentContext: traceContext },
+      () => getAccountAddressRelationship(request),
+    );
 
     const finalTransactionMeta = this.getTransaction(transactionId);
 
     /* istanbul ignore if */
     if (!finalTransactionMeta) {
       log(
-        'Cannot update first time interaction as transaction not found',
+        'Cannot update first time interaction properties as transaction not found',
         transactionId,
-        firstTimeInteractionResponse,
+        accountAddressRelationshipResponse,
       );
 
       return;
@@ -3683,14 +3672,17 @@ export class TransactionController extends BaseController<
       },
       (txMeta) => {
         txMeta.firstTimeInteraction =
-          firstTimeInteractionResponse.isFirstTimeInteraction;
+          accountAddressRelationshipResponse.isFirstTimeInteraction;
+
+        txMeta.isFirstTimeInteractionDisabled =
+          accountAddressRelationshipResponse.isFirstTimeInteractionDisabled;
       },
     );
 
     log(
-      'Updated first time interaction',
+      'Updated first time interaction properties',
       transactionId,
-      firstTimeInteractionResponse,
+      accountAddressRelationshipResponse,
     );
   }
 

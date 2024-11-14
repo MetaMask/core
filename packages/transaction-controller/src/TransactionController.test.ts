@@ -46,6 +46,7 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import { getAccountAddressRelationship } from './api/accounts-api';
 import { CHAIN_IDS } from './constants';
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
 import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
@@ -80,7 +81,6 @@ import {
   TransactionType,
   WalletDevice,
 } from './types';
-import { getFirstTimeInteraction } from './utils/first-time-interaction-api';
 import { addGasBuffer, estimateGas, updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getGasFeeFlow } from './utils/gas-flow';
@@ -104,6 +104,7 @@ const MOCK_V1_UUID = '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d';
 const TRANSACTION_HASH_MOCK = '0x123456';
 
 jest.mock('@metamask/eth-query');
+jest.mock('./api/accounts-api');
 jest.mock('./gas-flows/DefaultGasFeeFlow');
 jest.mock('./gas-flows/LineaGasFeeFlow');
 jest.mock('./gas-flows/TestGasFeeFlow');
@@ -111,7 +112,6 @@ jest.mock('./helpers/GasFeePoller');
 jest.mock('./helpers/IncomingTransactionHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
-jest.mock('./utils/first-time-interaction-api');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/gas-flow');
@@ -489,8 +489,10 @@ describe('TransactionController', () => {
     getTransactionLayer1GasFee,
   );
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
-  const getFirstTimeInteractionMock = jest.mocked(getFirstTimeInteraction);
   const shouldResimulateMock = jest.mocked(shouldResimulate);
+  const getAccountAddressRelationshipMock = jest.mocked(
+    getAccountAddressRelationship,
+  );
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -874,8 +876,9 @@ describe('TransactionController', () => {
       (transactionMeta) => transactionMeta,
     );
 
-    getFirstTimeInteractionMock.mockResolvedValue({
+    getAccountAddressRelationshipMock.mockResolvedValue({
       isFirstTimeInteraction: undefined,
+      isFirstTimeInteractionDisabled: false,
     });
   });
 
@@ -1385,8 +1388,9 @@ describe('TransactionController', () => {
     it('adds unapproved transaction to state', async () => {
       const { controller } = setupController();
 
-      getFirstTimeInteractionMock.mockResolvedValueOnce({
+      getAccountAddressRelationshipMock.mockResolvedValueOnce({
         isFirstTimeInteraction: true,
+        isFirstTimeInteractionDisabled: false,
       });
 
       const mockDeviceConfirmedOn = WalletDevice.OTHER;
@@ -2225,7 +2229,7 @@ describe('TransactionController', () => {
 
         const mockActionId = 'mockActionId';
 
-        const { result, transactionMeta } = await controller.addTransaction(
+        const { result } = await controller.addTransaction(
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_MOCK,
@@ -2245,10 +2249,14 @@ describe('TransactionController', () => {
         await finishedPromise;
 
         expect(rejectedEventListener).toHaveBeenCalledTimes(1);
-        expect(rejectedEventListener).toHaveBeenCalledWith({
-          transactionMeta: { ...transactionMeta, status: 'rejected' },
-          actionId: mockActionId,
-        });
+        expect(rejectedEventListener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            transactionMeta: expect.objectContaining({
+              status: 'rejected',
+            }),
+            actionId: mockActionId,
+          }),
+        );
       });
     });
 

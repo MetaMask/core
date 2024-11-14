@@ -172,6 +172,11 @@ type TransactionMetaBase = {
    */
   firstTimeInteraction?: boolean;
 
+  /**
+   * Whether the first time interaction is disabled.
+   */
+  isFirstTimeInteractionDisabled?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 

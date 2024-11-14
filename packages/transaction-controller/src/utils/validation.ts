@@ -4,8 +4,8 @@ import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import { isStrictHexString } from '@metamask/utils';
 
+import type { GetAccountAddressRelationshipRequest } from '../api/accounts-api';
 import { TransactionEnvelopeType, type TransactionParams } from '../types';
-import type { FirstTimeInteractionRequest } from './first-time-interaction-api';
 import { isEIP1559Transaction } from './utils';
 
 type GasFieldsToValidate = 'gasPrice' | 'maxFeePerGas' | 'maxPriorityFeePerGas';
@@ -72,13 +72,11 @@ export function validateTxParams(
  *
  * @param request - The request to validate.
  */
-export function validateFirstTimeInteraction(
-  request: FirstTimeInteractionRequest,
+export function validateAccountAddressRelationshipRequest(
+  request: GetAccountAddressRelationshipRequest,
 ) {
-  const { chainId, from, to } = request;
+  const { to } = request;
   validateParamTo(to);
-  validateParamFrom(from);
-  validateParamChainId(chainId);
 }
 
 /**
