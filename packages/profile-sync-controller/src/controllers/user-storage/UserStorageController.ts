@@ -881,7 +881,7 @@ export default class UserStorageController extends BaseController<
           }
 
           const isAccountAlreadyInInternalAccountsList =
-            internalAccountsList.length > accountNumber;
+            internalAccountsList.length >= accountNumber;
 
           if (isAccountAlreadyInInternalAccountsList) {
             numberOfAccountsToAdd -= 1;
