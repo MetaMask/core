@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/accounts-controller` from `^18.0.0` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [38.3.0]
+
+### Added
+
+- Validate gas fee properties to ensure they are valid hexadecimal strings ([#4854](https://github.com/MetaMask/core/pull/4854))
+
+### Fixed
+
+- Fix gas limit estimation on new transactions and via `estimateGas` and `estimateGasBuffered` methods ([#4897](https://github.com/MetaMask/core/pull/4897))
+
 ## [38.2.0]
 
 ### Added
@@ -1103,7 +1120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@39.0.0...HEAD
+[39.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.3.0...@metamask/transaction-controller@39.0.0
+[38.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.2.0...@metamask/transaction-controller@38.3.0
 [38.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.1.0...@metamask/transaction-controller@38.2.0
 [38.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@38.0.0...@metamask/transaction-controller@38.1.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@37.3.0...@metamask/transaction-controller@38.0.0

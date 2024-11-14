@@ -34,6 +34,58 @@ describe('QueuedRequestController', () => {
     expect(controller.state).toStrictEqual({ queuedRequestCount: 0 });
   });
 
+  it('updates queuedRequestCount when flushing requests for an origin', async () => {
+    const { messenger } = buildControllerMessenger();
+    const controller = new QueuedRequestController({
+      messenger: buildQueuedRequestControllerMessenger(messenger),
+      shouldRequestSwitchNetwork: () => false,
+      canRequestSwitchNetworkWithoutApproval: () => false,
+      clearPendingConfirmations: jest.fn(),
+      showApprovalRequest: jest.fn(),
+    });
+
+    const firstRequest = controller.enqueueRequest(
+      { ...buildRequest(), origin: 'https://example.com' },
+      () => Promise.resolve(),
+    );
+    const secondRequest = controller.enqueueRequest(
+      { ...buildRequest(), origin: 'https://example2.com' },
+      () => Promise.resolve(),
+    );
+    const thirdRequest = controller.enqueueRequest(
+      { ...buildRequest(), origin: 'https://example2.com' },
+      () => Promise.resolve(),
+    );
+
+    expect(controller.state.queuedRequestCount).toBe(2);
+
+    // When the selected network changes for a domain, the queued requests for that domain/origin are flushed
+    messenger.publish(
+      'SelectedNetworkController:stateChange',
+      { domains: {} },
+      [
+        {
+          op: 'replace',
+          path: ['domains', 'https://example2.com'],
+        },
+      ],
+    );
+
+    expect(controller.state.queuedRequestCount).toBe(0);
+
+    await firstRequest;
+    await expect(secondRequest).rejects.toThrow(
+      new Error(
+        'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+      ),
+    );
+    await expect(thirdRequest).rejects.toThrow(
+      new Error(
+        'The request has been rejected due to a change in selected network. Please verify the selected network and retry the request.',
+      ),
+    );
+  });
+
   describe('enqueueRequest', () => {
     it('throws an error if networkClientId is not provided', async () => {
       const controller = buildQueuedRequestController();

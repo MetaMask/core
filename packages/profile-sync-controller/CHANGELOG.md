@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.2.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^18.1.1` to `^19.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [0.9.8]
+
 ### Changed
 
 - **BREAKING:** Bump `@metamask/network-controller` peer dependency to `^22.0.0` ([#4841](https://github.com/MetaMask/core/pull/4841))
+
+### Fixed
+
+- prevent multiple parallel account syncs by checking the value of `isAccountSyncingInProgress` before dispatching account syncing ([#4901](https://github.com/MetaMask/core/pull/4901))
 
 ## [0.9.7]
 
@@ -282,7 +295,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.8...@metamask/profile-sync-controller@1.0.0
+[0.9.8]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.7...@metamask/profile-sync-controller@0.9.8
 [0.9.7]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.6...@metamask/profile-sync-controller@0.9.7
 [0.9.6]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.5...@metamask/profile-sync-controller@0.9.6
 [0.9.5]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.4...@metamask/profile-sync-controller@0.9.5
