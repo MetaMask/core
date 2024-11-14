@@ -71,7 +71,6 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export type { EtherscanTransactionMeta } from './utils/etherscan';
 export {
   DISPLAYED_TRANSACTION_HISTORY_PATHS,
   MAX_TRANSACTION_HISTORY_LENGTH,
