@@ -2,6 +2,18 @@
 
 This monorepo is a collection of packages used across multiple MetaMask clients (e.g. [`metamask-extension`](https://github.com/MetaMask/metamask-extension/), [`metamask-mobile`](https://github.com/MetaMask/metamask-mobile/)).
 
+## Installing
+
+You'll need yarn 4 installed. We recommend installing it using [corepack](https://nodejs.org/api/corepack.html):
+
+```
+corepack enable
+corepack install --global yarn@4
+corepack use yarn@4
+```
+
+Then you should be able to install the monorepo dependencies with `yarn`.
+
 ## Modules
 
 This repository contains the following packages [^fn1]:
