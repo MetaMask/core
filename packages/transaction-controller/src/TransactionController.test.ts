@@ -1443,7 +1443,41 @@ describe('TransactionController', () => {
       expect(controller.state.transactions[0].sendFlowHistory).toStrictEqual(
         mockSendFlowHistory,
       );
-      expect(controller.state.transactions[0].firstTimeInteraction).toBe(true);
+      expect(controller.state.transactions[0].isFirstTimeInteraction).toBe(
+        true,
+      );
+    });
+
+    it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [
+              {
+                id: '1',
+                chainId: MOCK_NETWORK.chainId,
+                status: TransactionStatus.confirmed as const,
+                time: 123456789,
+                txParams: {
+                  from: ACCOUNT_MOCK,
+                  to: ACCOUNT_MOCK,
+                },
+                isFirstTimeInteraction: false, // Ensure this is set
+              },
+            ],
+          },
+        },
+      });
+    
+      // Add second transaction with the same from, to, and chainId
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      await flushPromises();
+    
+      expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(false);
     });
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {

@@ -170,7 +170,7 @@ type TransactionMetaBase = {
   /**
    * Whether the transaction is the first time interaction.
    */
-  firstTimeInteraction?: boolean;
+  isFirstTimeInteraction?: boolean;
 
   /**
    * Whether the first time interaction is disabled.

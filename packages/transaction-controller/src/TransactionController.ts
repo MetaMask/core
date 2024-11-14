@@ -1095,15 +1095,17 @@ export class TransactionController extends BaseController<
           dappSuggestedGasFees,
           deviceConfirmedOn,
           id: random(),
+          isFirstTimeInteraction: false,
+          isFirstTimeInteractionDisabled: false,
+          networkClientId,
           origin,
           securityAlertResponse,
           status: TransactionStatus.unapproved as const,
           time: Date.now(),
           txParams,
+          type: transactionType,
           userEditedGasLimit: false,
           verifiedOnBlockchain: false,
-          type: transactionType,
-          networkClientId,
         };
 
     await this.#trace(
@@ -1161,7 +1163,9 @@ export class TransactionController extends BaseController<
           log('Error while updating first interaction properties', error);
         });
       } else {
-        log('Skipping simulation as approval not required');
+        log(
+          'Skipping simulation & first interaction update as approval not required',
+        );
       }
 
       this.messagingSystem.publish(
@@ -3647,10 +3651,25 @@ export class TransactionController extends BaseController<
 
     validateAccountAddressRelationshipRequest(request);
 
-    const accountAddressRelationshipResponse = await this.#trace(
-      { name: 'Account Address Relationship', parentContext: traceContext },
-      () => getAccountAddressRelationship(request),
+    const existingTransaction = this.state.transactions.find(
+      (tx) =>
+        tx.chainId === chainId &&
+        tx.txParams.from === from &&
+        tx.txParams.to === to &&
+        tx.id !== transactionId,
     );
+
+    // Check if there is an existing transaction with the same from, to, and chainId
+    // else we continue to check the account address relationship from API
+    if (existingTransaction) {
+      return;
+    }
+
+    const { isFirstTimeInteractionDisabled, isFirstTimeInteraction } =
+      await this.#trace(
+        { name: 'Account Address Relationship', parentContext: traceContext },
+        () => getAccountAddressRelationship(request),
+      );
 
     const finalTransactionMeta = this.getTransaction(transactionId);
 
@@ -3659,9 +3678,7 @@ export class TransactionController extends BaseController<
       log(
         'Cannot update first time interaction properties as transaction not found',
         transactionId,
-        accountAddressRelationshipResponse,
       );
-
       return;
     }
 
@@ -3671,19 +3688,15 @@ export class TransactionController extends BaseController<
         note: 'TransactionController#updateFirstInteraction - Update first time interaction',
       },
       (txMeta) => {
-        txMeta.firstTimeInteraction =
-          accountAddressRelationshipResponse.isFirstTimeInteraction;
-
-        txMeta.isFirstTimeInteractionDisabled =
-          accountAddressRelationshipResponse.isFirstTimeInteractionDisabled;
+        txMeta.isFirstTimeInteraction = isFirstTimeInteraction;
+        txMeta.isFirstTimeInteractionDisabled = isFirstTimeInteractionDisabled;
       },
     );
 
-    log(
-      'Updated first time interaction properties',
-      transactionId,
-      accountAddressRelationshipResponse,
-    );
+    log('Updated first time interaction properties', transactionId, {
+      isFirstTimeInteractionDisabled,
+      isFirstTimeInteraction,
+    });
   }
 
   async #updateSimulationData(
