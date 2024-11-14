@@ -566,36 +566,55 @@ export function updateBridgeApprovalTransaction(
  * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
  * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
  * @param propsToUpdate.destinationChainId - The hex chain ID of the destination chain
+ * @param propsToUpdate.bridgeSteps - The steps of the bridge transaction
+ * @param propsToUpdate.sourceTokenAmount - The raw amount of the source token
+ * @param propsToUpdate.sourceTokenDecimals - The decimals of the source token
+ * @param propsToUpdate.sourceTokenAddress - The address of the source token
+ * @param propsToUpdate.destinationTokenAmount - The raw amount of the destination token
  * @returns The updated transaction meta object.
  */
 export function updateBridgeTransaction(
   transactionMeta: TransactionMeta,
   {
-    destinationChainId,
+    sourceTokenAmount,
     sourceTokenSymbol,
+    sourceTokenDecimals,
+    sourceTokenAddress,
+
+    destinationTokenAmount,
     destinationTokenSymbol,
-    type,
     destinationTokenDecimals,
     destinationTokenAddress,
+
+    type,
+    destinationChainId,
     swapMetaData,
     swapTokenValue,
     estimatedBaseFee,
     approvalTxId,
+    bridgeSteps,
   }: Partial<TransactionMeta>,
 ): TransactionMeta {
   validateIfTransactionUnapproved(transactionMeta, 'updateBridgeTransaction');
 
   let bridgeTransaction = {
+    sourceTokenAddress,
     sourceTokenSymbol,
-    destinationTokenSymbol,
-    type,
-    destinationTokenDecimals,
+    sourceTokenAmount,
+    sourceTokenDecimals,
+
     destinationTokenAddress,
+    destinationTokenSymbol,
+    destinationTokenAmount,
+    destinationTokenDecimals,
+
+    type,
     swapMetaData,
     swapTokenValue,
     estimatedBaseFee,
     approvalTxId,
     destinationChainId,
+    bridgeSteps,
   };
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
