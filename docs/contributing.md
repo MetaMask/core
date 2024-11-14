@@ -197,20 +197,20 @@ Now for the process itself:
 
 3. **Include more packages as necessary.**
 
-   Some packages in the monorepo have dependencies on other packages elsewhere in the monorepo. Because of this, changes that span multiple packages may need to be grouped together in the same release. If the tool thinks that there are some packages you've left out that it would be important to include, it will pause and let you know.
+   Some packages in the monorepo have dependencies on other packages elsewhere in the monorepo. To ensure that clients are able to upgrade without receiving compile time or runtime errors, you may need to include some of these dependencies in your release. If the tool thinks that there are some packages you've left out, it will pause and let you know what they are.
 
-   To address the errors, you'll need to reopen the YAML file and include the packages it mentions. You also have the option to skip any packages you think aren't an issue, but be careful that you understand the risks. (If you have any questions about what you're seeing, let the Wallet Framework team know.)
+   To address the errors, you'll need to copy the path to the YAML file, reopen it in your editor, and include the packages it mentions. You also have the option to skip any packages you think aren't an issue, but make sure you've checked. (If you have any questions about this step, let the Wallet Framework team know.)
 
-   Once you've made the requisite changes to the YAML file, save and re-run `yarn create-release-branch`.
+   Once you've made the requisite changes to the YAML file, save it and re-run `yarn create-release-branch`. You may need to repeat this step multiple times until you don't see any more errors.
 
 4. **Review and update changelogs for relevant packages.**
 
-   Great! At this point, you should notice two things about each package you intend to release:
+   Once the tool proceeds without issue, you will be on the new release branch. In addition, each package you intend to release has been updated in two ways:
 
    - The version in `package.json` has been bumped.
    - A new section has been added at the top of `CHANGELOG` for the new version.
 
-   Now you need to review the changelog entries and ensure that they are helpful for consumers:
+   At this point, you need to review the changelog entries and ensure that they are helpful for consumers:
 
    - Categorize entries appropriately following the ["Keep a Changelog"](https://keepachangelog.com/en/1.0.0/) guidelines. Ensure that no changes are listed under "Uncategorized".
    - Remove changelog entries that don't affect consumers of the package (e.g. lockfile changes or development environment changes). Exceptions may be made for changes that might be of interest despite not having an effect upon the published package (e.g. major test improvements, security improvements, improved documentation, etc.).
