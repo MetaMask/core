@@ -158,8 +158,6 @@ export class IncomingTransactionHelper {
     return chainIds.reduce((acc, chainId) => {
       const lastFetchedTimestamp = this.#getLastFetchedTimestamp(chainId);
 
-      console.log('#MATT CHEESE', Date.now(), FIRST_QUERY_HISTORY_DURATION);
-
       const startTimestamp = lastFetchedTimestamp
         ? lastFetchedTimestamp + 1
         : Date.now() - FIRST_QUERY_HISTORY_DURATION;
@@ -182,8 +180,6 @@ export class IncomingTransactionHelper {
       lastFetchedTimestamp = Math.max(lastFetchedTimestamp, tx.time);
     }
 
-    console.log('#MATT LFT', lastFetchedTimestamp);
-
     if (lastFetchedTimestamp === -1) {
       return;
     }
@@ -197,8 +193,6 @@ export class IncomingTransactionHelper {
     if (previousValue >= lastFetchedTimestamp) {
       return;
     }
-
-    console.log('#MATT EMIT');
 
     this.hub.emit('updatedLastFetchedBlockNumbers', {
       lastFetchedBlockNumbers: {
