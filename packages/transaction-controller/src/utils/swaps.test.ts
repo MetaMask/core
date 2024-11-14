@@ -16,6 +16,7 @@ import {
   updatePostTransactionBalance,
   UPDATE_POST_TX_BALANCE_ATTEMPTS,
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
+  updateBridgeTypesTransaction,
 } from './swaps';
 
 jest.mock('@metamask/controller-utils');
@@ -373,6 +374,291 @@ describe('updateSwapsTransaction', () => {
       sourceTokenAmount,
       sourceTokenDecimals,
       swapAndSendRecipient,
+    });
+  });
+});
+
+describe('updateBridgeTypesTransaction', () => {
+  let transactionMeta: TransactionMeta;
+  let transactionType: TransactionType;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let swaps: any;
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let request: any;
+  let messenger: TransactionControllerMessenger;
+
+  beforeEach(() => {
+    transactionMeta = {
+      id: '1',
+      simulationFails: undefined,
+      status: TransactionStatus.unapproved,
+    } as TransactionMeta;
+    transactionType = TransactionType.bridge;
+    swaps = {
+      hasApproveTx: false,
+      meta: {
+        sourceTokenSymbol: 'ETH',
+        destinationTokenSymbol: 'DAI',
+      },
+    };
+    messenger = new ControllerMessenger<
+      TransactionControllerActions | AllowedActions,
+      TransactionControllerEvents | AllowedEvents
+    >().getRestricted({
+      name: 'TransactionController',
+      allowedActions: [
+        'ApprovalController:addRequest',
+        'NetworkController:getNetworkClientById',
+        'NetworkController:findNetworkClientIdByChainId',
+      ],
+      allowedEvents: [],
+    });
+    request = {
+      isBridgeDisabled: false,
+      cancelTransaction: jest.fn(),
+      messenger,
+    };
+  });
+
+  it('should not update if bridge types are disabled', async () => {
+    request.isBridgeDisabled = true;
+    jest.spyOn(messenger, 'call');
+    updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(request.cancelTransaction).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalled();
+  });
+
+  it('should not update if transaction type is not bridge, bridgeApproval', async () => {
+    transactionType = TransactionType.deployContract;
+    jest.spyOn(messenger, 'call');
+    updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(request.cancelTransaction).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalled();
+  });
+
+  it('should cancel transaction if simulation fails', async () => {
+    transactionMeta.simulationFails = {
+      reason: 'Simulation failed',
+      // TODO: Replace `any` with type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    expect(() =>
+      updateBridgeTypesTransaction(
+        transactionMeta,
+        transactionType,
+        swaps,
+        request,
+      ),
+    ).toThrow('Simulation failed');
+    expect(request.cancelTransaction).toHaveBeenCalledWith(transactionMeta.id);
+  });
+
+  it('should not update or call bridge events if bridge meta is not defined', async () => {
+    swaps.meta = undefined;
+    jest.spyOn(messenger, 'call');
+    updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(request.cancelTransaction).not.toHaveBeenCalled();
+    expect(messenger.call).not.toHaveBeenCalled();
+  });
+
+  it('should update bridge transaction and publish TransactionController:transactionNewBridge', async () => {
+    const type = TransactionType.bridge;
+
+    const sourceTokenAddress = '0xsrc';
+    const sourceTokenSymbol = 'ETH';
+    const sourceTokenAmount = '123';
+    const sourceTokenDecimals = '18';
+
+    const destinationTokenAddress = '0xdest';
+    const destinationTokenSymbol = 'DAI';
+    const destinationTokenAmount = '456';
+    const destinationTokenDecimals = '18';
+
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    swaps.meta = {
+      type,
+      sourceTokenSymbol,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      destinationTokenSymbol,
+      destinationTokenAddress,
+      destinationTokenAmount,
+      destinationTokenDecimals,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    };
+
+    const transactionNewBridgeEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewBridge',
+      transactionNewBridgeEventListener,
+    );
+
+    updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+
+    expect(transactionNewBridgeEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        type,
+        sourceTokenSymbol,
+        sourceTokenAddress,
+        sourceTokenAmount,
+        sourceTokenDecimals,
+        destinationTokenSymbol,
+        destinationTokenAddress,
+        destinationTokenAmount,
+        destinationTokenDecimals,
+        swapMetaData,
+        swapTokenValue,
+        estimatedBaseFee,
+        approvalTxId,
+      },
+    });
+  });
+
+  it('should return the bridge transaction updated with information', () => {
+    const type = TransactionType.bridge;
+
+    const sourceTokenAddress = '0xsrc';
+    const sourceTokenSymbol = 'ETH';
+    const sourceTokenAmount = '123';
+    const sourceTokenDecimals = '18';
+
+    const destinationTokenAddress = '0xdest';
+    const destinationTokenSymbol = 'DAI';
+    const destinationTokenAmount = '456';
+    const destinationTokenDecimals = '18';
+
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    swaps.meta = {
+      type,
+      sourceTokenSymbol,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      destinationTokenSymbol,
+      destinationTokenAddress,
+      destinationTokenAmount,
+      destinationTokenDecimals,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    };
+
+    const updatedBridgeTransaction = updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(updatedBridgeTransaction).toStrictEqual({
+      ...transactionMeta,
+      type,
+      sourceTokenSymbol,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      destinationTokenSymbol,
+      destinationTokenAddress,
+      destinationTokenAmount,
+      destinationTokenDecimals,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+    });
+  });
+
+  it('should update bridge approval transaction and publish TransactionController:transactionNewBridgeApproval', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const type = TransactionType.bridgeApproval;
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      type,
+    };
+    transactionType = TransactionType.bridgeApproval;
+
+    const transactionNewBridgeApprovalEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewBridgeApproval',
+      transactionNewBridgeApprovalEventListener,
+    );
+
+    updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(transactionNewBridgeApprovalEventListener).toHaveBeenCalledTimes(1);
+    expect(transactionNewBridgeApprovalEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        sourceTokenSymbol,
+        type,
+      },
+    });
+  });
+
+  it('should return the bridge approval transaction updated with information', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const type = TransactionType.bridgeApproval;
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      type,
+    };
+    transactionType = TransactionType.bridgeApproval;
+
+    const updatedBridgeTransaction = updateBridgeTypesTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(updatedBridgeTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      type,
     });
   });
 });
