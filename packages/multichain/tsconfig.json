@@ -3,6 +3,13 @@
   "compilerOptions": {
     "baseUrl": "./"
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../permission-controller"
+    }
+  ],
   "include": ["../../types", "./src"]
 }
