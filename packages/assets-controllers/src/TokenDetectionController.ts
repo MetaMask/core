@@ -601,24 +601,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     });
   }
 
-  #addChainsToRpcDetection(
-    chainsToDetectUsingRpc: NetworkClient[],
-    chainsToDetectUsingAccountAPI: Hex[],
-    clientNetworks: NetworkClient[],
-  ): void {
-    chainsToDetectUsingAccountAPI.forEach((chainId) => {
-      const networkEntry = clientNetworks.find(
-        (network) => network.chainId === chainId,
-      );
-      if (networkEntry) {
-        chainsToDetectUsingRpc.push({
-          chainId: networkEntry.chainId,
-          networkClientId: networkEntry.networkClientId,
-        });
-      }
-    });
-  }
-
   #shouldDetectTokens(chainId: Hex): boolean {
     if (!isTokenDetectionSupportedForNetwork(chainId)) {
       return false;
