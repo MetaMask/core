@@ -1013,9 +1013,7 @@ export default class UserStorageController extends BaseController<
       );
 
       for (const account of userStorageAccountsToBeDeleted) {
-        await this.performDeleteStorage(
-          `${USER_STORAGE_FEATURE_NAMES.accounts}.${account.a}`,
-        );
+        await this.performDeleteStorage(`accounts.${account.a}`);
       }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
