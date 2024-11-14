@@ -39,6 +39,7 @@ import type {
 } from '../authentication/AuthenticationController';
 import type { UserStorageAccount } from './accounts/user-storage';
 import {
+  getDefaultNameAccountNumber,
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
@@ -847,46 +848,84 @@ export default class UserStorageController extends BaseController<
 
       // Compare internal accounts list with user storage accounts list
       // First step: compare lengths
-      let internalAccountsList = await this.#accounts.getInternalAccountsList();
+      const internalAccountsList =
+        await this.#accounts.getInternalAccountsList();
 
       if (!internalAccountsList || !internalAccountsList.length) {
         throw new Error(`Failed to get internal accounts list`);
       }
 
-      const hasMoreInternalAccountsThanUserStorageAccounts =
-        internalAccountsList.length > userStorageAccountsList.length;
+      const hasMoreUserStorageAccountsThanInternalAccounts =
+        userStorageAccountsList.length > internalAccountsList.length;
 
       // We don't want to remove existing accounts for a user
-      // so we only add new accounts if the user has more accounts than the internal accounts list
-      if (!hasMoreInternalAccountsThanUserStorageAccounts) {
-        const numberOfAccountsToAdd =
+      // so we only add new accounts if the user has more accounts in user storage than internal accounts
+      if (hasMoreUserStorageAccountsThanInternalAccounts) {
+        let numberOfAccountsToAdd =
           Math.min(
             userStorageAccountsList.length,
             this.#accounts.maxNumberOfAccountsToAdd,
           ) - internalAccountsList.length;
 
+        // Do not add user storage accounts that are already in the internal accounts list
+        // This is done following a bug where user storage would have unrelated accounts saved
+        // This only happened with default accounts, hence the specific logic
+        const userStorageAccountsThatHaveDefaultNames =
+          userStorageAccountsList.filter((account) =>
+            isNameDefaultAccountName(account.n),
+          );
+        for (const account of userStorageAccountsThatHaveDefaultNames) {
+          const accountNumber = getDefaultNameAccountNumber(account.n);
+          if (!accountNumber) {
+            continue;
+          }
+
+          const isAccountAlreadyInInternalAccountsList =
+            internalAccountsList.length > accountNumber;
+
+          if (isAccountAlreadyInInternalAccountsList) {
+            numberOfAccountsToAdd -= 1;
+          }
+        }
+
         // Create new accounts to match the user storage accounts list
+        if (numberOfAccountsToAdd > 0) {
+          for (let i = 0; i < numberOfAccountsToAdd; i++) {
+            await this.messagingSystem.call('KeyringController:addNewAccount');
 
-        for (let i = 0; i < numberOfAccountsToAdd; i++) {
-          await this.messagingSystem.call('KeyringController:addNewAccount');
-
-          this.#config?.accountSyncing?.onAccountAdded?.(profileId);
+            this.#config?.accountSyncing?.onAccountAdded?.(profileId);
+          }
         }
       }
 
       // Second step: compare account names
       // Get the internal accounts list again since new accounts might have been added in the previous step
-      internalAccountsList = await this.#accounts.getInternalAccountsList();
+      const refreshedInternalAccountsList =
+        await this.#accounts.getInternalAccountsList();
 
-      for (const internalAccount of internalAccountsList) {
+      const newlyAddedAccounts = refreshedInternalAccountsList.filter(
+        (account) =>
+          !internalAccountsList.find((a) => a.address === account.address),
+      );
+
+      for (const internalAccount of refreshedInternalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
         );
 
+        // If the account is not present in user storage
         if (!userStorageAccount) {
+          // If the account was just added in the previous step, skip saving it, it's likely to be a bogus account
+          if (newlyAddedAccounts.includes(internalAccount)) {
+            continue;
+          }
+          // Otherwise, it means that this internal account was present before the sync, and needs to be saved to the user storage
           internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
+
+        // From this point on, we know that the account is present in
+        // both the internal accounts list and the user storage accounts list
 
         // One or both accounts have default names
         const isInternalAccountNameDefault = isNameDefaultAccountName(
@@ -965,6 +1004,19 @@ export default class UserStorageController extends BaseController<
           JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
         ]),
       );
+
+      // In case we have corrupted user storage with accounts that don't exist in the internal accounts list
+      // Delete those accounts from the user storage
+      const userStorageAccountsToBeDeleted = userStorageAccountsList.filter(
+        (account) =>
+          !refreshedInternalAccountsList.find((a) => a.address === account.a),
+      );
+
+      for (const account of userStorageAccountsToBeDeleted) {
+        await this.performDeleteStorage(
+          `${USER_STORAGE_FEATURE_NAMES.accounts}.${account.a}`,
+        );
+      }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(

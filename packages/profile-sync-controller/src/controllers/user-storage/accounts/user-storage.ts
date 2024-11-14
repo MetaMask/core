@@ -36,6 +36,14 @@ export const isNameDefaultAccountName = (name: string) => {
   });
 };
 
+export const getDefaultNameAccountNumber = (name: string) => {
+  const match = LOCALIZED_DEFAULT_ACCOUNT_NAMES.map((prefix) => {
+    return new RegExp(`^${prefix} ([0-9]+)$`, 'u').exec(name);
+  }).find(Boolean);
+
+  return match ? Number(match[1]) : undefined;
+};
+
 /**
  * Map an internal account to a user storage account
  * @param internalAccount - An internal account
