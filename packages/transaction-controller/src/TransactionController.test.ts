@@ -1566,6 +1566,8 @@ describe('TransactionController', () => {
         dappSuggestedGasFees: undefined,
         deviceConfirmedOn: undefined,
         id: expect.any(String),
+        isFirstTimeInteraction: false,
+        isFirstTimeInteractionDisabled: false,
         networkClientId: MOCK_NETWORK.state.selectedNetworkClientId,
         origin: undefined,
         securityAlertResponse: undefined,
