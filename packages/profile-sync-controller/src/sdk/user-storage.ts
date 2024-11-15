@@ -88,7 +88,7 @@ export class UserStorage {
   }
 
   async batchDeleteItems<FeatureName extends UserStorageFeatureNames>(
-    path: UserStoragePathWithFeatureOnly,
+    path: FeatureName,
     values: UserStorageFeatureKeys<FeatureName>[],
   ) {
     return this.#batchDeleteUserStorage(path, values);
@@ -393,9 +393,9 @@ export class UserStorage {
     }
   }
 
-  async #batchDeleteUserStorage(
-    path: UserStoragePathWithFeatureOnly,
-    data: UserStoragePathWithKeyOnly[],
+  async #batchDeleteUserStorage<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    data: UserStorageFeatureKeys<FeatureName>[],
   ): Promise<void> {
     try {
       if (!data.length) {

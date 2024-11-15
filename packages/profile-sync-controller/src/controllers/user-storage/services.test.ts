@@ -391,14 +391,14 @@ describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
   const actCallBatchDeleteUserStorage = async () => {
     return await batchDeleteUserStorage(keysToDelete, {
       bearerToken: 'MOCK_BEARER_TOKEN',
-      path: 'accounts',
+      path: USER_STORAGE_FEATURE_NAMES.accounts,
       storageKey: MOCK_STORAGE_KEY,
     });
   };
 
   it('invokes upsert endpoint with no errors', async () => {
     const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      'accounts',
+      USER_STORAGE_FEATURE_NAMES.accounts,
       undefined,
       async (_uri, requestBody) => {
         if (typeof requestBody === 'string') {
@@ -420,7 +420,7 @@ describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
 
   it('throws error if unable to upsert user storage', async () => {
     const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
-      'accounts',
+      USER_STORAGE_FEATURE_NAMES.accounts,
       {
         status: 500,
       },

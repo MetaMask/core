@@ -210,7 +210,9 @@ describe('User Storage', () => {
   });
 
   it('user storage: batch delete items', async () => {
-    const keysToDelete: UserStoragePathWithKeyOnly[] = ['0x123', '0x456'];
+    const keysToDelete: UserStorageFeatureKeys<
+      typeof USER_STORAGE_FEATURE_NAMES.accounts
+    >[] = ['0x123', '0x456'];
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
 
@@ -229,7 +231,7 @@ describe('User Storage', () => {
       },
     );
 
-    await userStorage.batchDeleteItems('accounts', keysToDelete);
+    await userStorage.batchDeleteItems('accounts_v2', keysToDelete);
     expect(mockPut.isDone()).toBe(true);
   });
 
@@ -286,7 +288,10 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.batchDeleteItems('notifications', ['key', 'key2']),
+      userStorage.batchDeleteItems(USER_STORAGE_FEATURE_NAMES.accounts, [
+        'key',
+        'key2',
+      ]),
     ).rejects.toThrow(UserStorageError);
   });
 
