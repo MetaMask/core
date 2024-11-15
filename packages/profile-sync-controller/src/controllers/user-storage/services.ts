@@ -293,9 +293,6 @@ export async function batchDeleteUserStorage(
 
   const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
 
-  console.log('body', `batch_delete: ${JSON.stringify(encryptedData)}`);
-  console.log('url', url.toString());
-
   const res = await fetch(url.toString(), {
     method: 'PUT',
     headers: {
