@@ -269,6 +269,46 @@ export async function deleteUserStorage(
 }
 
 /**
+ * User Storage Service - Delete multiple storage entries for one specific feature.
+ * You cannot use this method to delete multiple features at once.
+ *
+ * @param data - data to delete, in the form of an array entryKey[]
+ * @param opts - storage options
+ */
+export async function batchDeleteUserStorage(
+  data: string[],
+  opts: UserStorageBatchUpsertOptions,
+): Promise<void> {
+  if (!data.length) {
+    return;
+  }
+
+  const { bearerToken, path, storageKey } = opts;
+
+  const encryptedData: string[] = [];
+
+  for (const d of data) {
+    encryptedData.push(createSHA256Hash(d + storageKey));
+  }
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    body: JSON.stringify({ batch_delete: encryptedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch delete data');
+  }
+}
+
+/**
  * User Storage Service - Delete all storage entries for a specific feature.
  *
  * @param opts - User Storage Options

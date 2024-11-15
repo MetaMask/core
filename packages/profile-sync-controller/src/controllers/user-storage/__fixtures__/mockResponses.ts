@@ -121,6 +121,16 @@ export const getMockUserStorageBatchPutResponse = (
   } satisfies MockResponse;
 };
 
+export const getMockUserStorageBatchDeleteResponse = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
+) => {
+  return {
+    url: getMockUserStorageEndpoint(path),
+    requestMethod: 'PUT',
+    response: null,
+  } satisfies MockResponse;
+};
+
 export const deleteMockUserStorageResponse = (
   path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
 ) => {
