@@ -495,9 +495,20 @@ export class TokensController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, ignoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
+
+    let interactingChainId;
+    if (networkClientId) {
+      interactingChainId = this.messagingSystem.call(
+        'NetworkController:getNetworkClientById',
+        networkClientId,
+      ).configuration.chainId;
+    }
+
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[this.#chainId]?.[this.#getSelectedAccount().address] || []),
+      ...(allTokens[interactingChainId ?? this.#chainId]?.[
+        this.#getSelectedAccount().address
+      ] || []),
       ...tokensToImport,
     ].reduce((output, token) => {
       output[token.address] = token;
@@ -525,14 +536,6 @@ export class TokensController extends BaseController<
       const newIgnoredTokens = ignoredTokens.filter(
         (tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()],
       );
-
-      let interactingChainId;
-      if (networkClientId) {
-        interactingChainId = this.messagingSystem.call(
-          'NetworkController:getNetworkClientById',
-          networkClientId,
-        ).configuration.chainId;
-      }
 
       const detectedTokensForGivenChain = interactingChainId
         ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
