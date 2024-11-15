@@ -9,45 +9,55 @@ import type {
   RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { ApprovalType, ORIGIN_METAMASK } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
+import {
+  ApprovalType,
+  detectSIWE,
+  ORIGIN_METAMASK,
+} from '@metamask/controller-utils';
 import type {
   KeyringControllerSignMessageAction,
   KeyringControllerSignPersonalMessageAction,
   KeyringControllerSignTypedMessageAction,
-  SignTypedDataVersion,
 } from '@metamask/keyring-controller';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import {
   SigningMethod,
-  SigningStage,
   LogType,
+  SigningStage,
+  type AddLog,
 } from '@metamask/logging-controller';
-import type { AddLog } from '@metamask/logging-controller';
-import type {
-  PersonalMessageParams,
-  PersonalMessageParamsMetamask,
-  TypedMessageParams,
-  TypedMessageParamsMetamask,
-  AbstractMessageManager,
-  AbstractMessage,
-  MessageManagerState,
-  AbstractMessageParams,
-  AbstractMessageParamsMetamask,
-  OriginalRequest,
-  TypedMessage,
-  PersonalMessage,
-} from '@metamask/message-manager';
-import {
-  PersonalMessageManager,
-  TypedMessageManager,
-} from '@metamask/message-manager';
+import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import EventEmitter from 'events';
-import { cloneDeep } from 'lodash';
+import { v1 as random } from 'uuid';
+
+import { projectLogger as log } from './logger';
+import { SignatureRequestStatus, SignatureRequestType } from './types';
+import type {
+  MessageParamsPersonal,
+  MessageParamsTyped,
+  OriginalRequest,
+  SignatureRequest,
+  MessageParams,
+  TypedSigningOptions,
+  LegacyStateMessage,
+  StateSIWEMessage,
+} from './types';
+import { DECODING_API_ERRORS, decodeSignature } from './utils/decoding-api';
+import {
+  normalizePersonalMessageParams,
+  normalizeTypedMessageParams,
+} from './utils/normalize';
+import {
+  validatePersonalSignatureRequest,
+  validateTypedSignatureRequest,
+} from './utils/validation';
 
 const controllerName = 'SignatureController';
 
 const stateMetadata = {
+  signatureRequests: { persist: false, anonymous: false },
   unapprovedPersonalMsgs: { persist: false, anonymous: false },
   unapprovedTypedMessages: { persist: false, anonymous: false },
   unapprovedPersonalMsgCount: { persist: false, anonymous: false },
@@ -55,24 +65,48 @@ const stateMetadata = {
 };
 
 const getDefaultState = () => ({
+  signatureRequests: {},
   unapprovedPersonalMsgs: {},
   unapprovedTypedMessages: {},
   unapprovedPersonalMsgCount: 0,
   unapprovedTypedMessagesCount: 0,
 });
 
-type CoreMessage = AbstractMessage & {
-  messageParams: AbstractMessageParams;
-};
+/** List of statuses that will not be updated and trigger the finished event. */
+const FINAL_STATUSES: SignatureRequestStatus[] = [
+  SignatureRequestStatus.Signed,
+  SignatureRequestStatus.Rejected,
+  SignatureRequestStatus.Errored,
+];
 
-type StateMessage = Required<AbstractMessage> & {
-  msgParams: Required<AbstractMessageParams>;
-};
+export type SignatureControllerState = {
+  /**
+   * Map of all signature requests including all types and statuses, keyed by ID.
+   */
+  signatureRequests: Record<string, SignatureRequest>;
 
-type SignatureControllerState = {
-  unapprovedPersonalMsgs: Record<string, StateMessage>;
-  unapprovedTypedMessages: Record<string, StateMessage>;
+  /**
+   * Map of personal messages with the unapproved status, keyed by ID.
+   * @deprecated - Use `signatureRequests` instead.
+   */
+  unapprovedPersonalMsgs: Record<string, LegacyStateMessage>;
+
+  /**
+   * Map of typed messages with the unapproved status, keyed by ID.
+   * @deprecated - Use `signatureRequests` instead.
+   */
+  unapprovedTypedMessages: Record<string, LegacyStateMessage>;
+
+  /**
+   * Number of unapproved personal messages.
+   * @deprecated - Use `signatureRequests` instead.
+   */
   unapprovedPersonalMsgCount: number;
+
+  /**
+   * Number of unapproved typed messages.
+   * @deprecated - Use `signatureRequests` instead.
+   */
   unapprovedTypedMessagesCount: number;
 };
 
@@ -81,11 +115,8 @@ type AllowedActions =
   | KeyringControllerSignMessageAction
   | KeyringControllerSignPersonalMessageAction
   | KeyringControllerSignTypedMessageAction
-  | AddLog;
-
-type TypedMessageSigningOptions = {
-  parseJsonData: boolean;
-};
+  | AddLog
+  | NetworkControllerGetNetworkClientByIdAction;
 
 export type GetSignatureState = ControllerGetStateAction<
   typeof controllerName,
@@ -110,17 +141,39 @@ export type SignatureControllerMessenger = RestrictedControllerMessenger<
 >;
 
 export type SignatureControllerOptions = {
-  getAllState: () => unknown;
-  getCurrentChainId: () => Hex;
+  /**
+   * Restricted controller messenger required by the signature controller.
+   */
   messenger: SignatureControllerMessenger;
+
+  /**
+   * @deprecated No longer in use.
+   */
   securityProviderRequest?: (
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     requestData: any,
     methodName: string,
-    // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => Promise<any>;
+
+  /**
+   * URL of API to retrieve decoding data for typed requests.
+   */
+  decodingApiUrl?: string;
+
+  /**
+   * Function to check if decoding signature request is enabled
+   */
+  isDecodeSignatureRequestEnabled?: () => boolean;
+
+  /**
+   * Initial state of the controller.
+   */
+  state?: SignatureControllerState;
+
+  /**
+   * Callback to record the duration of code.
+   */
   trace?: TraceCallback;
 };
 
@@ -134,13 +187,9 @@ export class SignatureController extends BaseController<
 > {
   hub: EventEmitter;
 
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #getAllState: () => any;
+  #decodingApiUrl?: string;
 
-  #personalMessageManager: PersonalMessageManager;
-
-  #typedMessageManager: TypedMessageManager;
+  #isDecodeSignatureRequestEnabled?: () => boolean;
 
   #trace: TraceCallback;
 
@@ -148,113 +197,69 @@ export class SignatureController extends BaseController<
    * Construct a Sign controller.
    *
    * @param options - The controller options.
+   * @param options.decodingApiUrl - Api used to get decoded data for permits.
+   * @param options.isDecodeSignatureRequestEnabled - Function to check is decoding signature request is enabled.
    * @param options.messenger - The restricted controller messenger for the sign controller.
-   * @param options.getAllState - Callback to retrieve all user state.
-   * @param options.securityProviderRequest - A function for verifying a message, whether it is malicious or not.
-   * @param options.getCurrentChainId - A function for retrieving the current chainId.
+   * @param options.state - Initial state to set on this controller.
    * @param options.trace - Callback to generate trace information.
    */
   constructor({
-    getAllState,
-    getCurrentChainId,
+    decodingApiUrl,
+    isDecodeSignatureRequestEnabled,
     messenger,
-    securityProviderRequest,
+    state,
     trace,
   }: SignatureControllerOptions) {
     super({
       name: controllerName,
       metadata: stateMetadata,
       messenger,
-      state: getDefaultState(),
+      state: {
+        ...getDefaultState(),
+        ...state,
+      },
     });
 
-    this.#getAllState = getAllState;
-
     this.hub = new EventEmitter();
-    this.#personalMessageManager = new PersonalMessageManager(
-      undefined,
-      undefined,
-      securityProviderRequest,
-    );
-    this.#typedMessageManager = new TypedMessageManager(
-      undefined,
-      undefined,
-      securityProviderRequest,
-      undefined,
-      getCurrentChainId,
-    );
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
-
-    this.#handleMessageManagerEvents(
-      this.#personalMessageManager,
-      'unapprovedPersonalMessage',
-    );
-    this.#handleMessageManagerEvents(
-      this.#typedMessageManager,
-      'unapprovedTypedMessage',
-    );
-
-    this.#subscribeToMessageState(
-      this.#personalMessageManager,
-      (state, newMessages, messageCount) => {
-        state.unapprovedPersonalMsgs = newMessages;
-        state.unapprovedPersonalMsgCount = messageCount;
-      },
-    );
-
-    this.#subscribeToMessageState(
-      this.#typedMessageManager,
-      (state, newMessages, messageCount) => {
-        state.unapprovedTypedMessages = newMessages;
-        state.unapprovedTypedMessagesCount = messageCount;
-      },
-    );
+    this.#decodingApiUrl = decodingApiUrl;
+    this.#isDecodeSignatureRequestEnabled = isDecodeSignatureRequestEnabled;
   }
 
   /**
    * A getter for the number of 'unapproved' PersonalMessages in this.messages.
-   *
+   * @deprecated Use `signatureRequests` state instead.
    * @returns The number of 'unapproved' PersonalMessages in this.messages
    */
   get unapprovedPersonalMessagesCount(): number {
-    return this.#personalMessageManager.getUnapprovedMessagesCount();
+    return this.state.unapprovedPersonalMsgCount;
   }
 
   /**
    * A getter for the number of 'unapproved' TypedMessages in this.messages.
-   *
+   * @deprecated Use `signatureRequests` state instead.
    * @returns The number of 'unapproved' TypedMessages in this.messages
    */
   get unapprovedTypedMessagesCount(): number {
-    return this.#typedMessageManager.getUnapprovedMessagesCount();
+    return this.state.unapprovedTypedMessagesCount;
   }
 
   /**
    * A getter for returning all messages.
-   *
+   * @deprecated Use `signatureRequests` state instead.
    * @returns The object containing all messages.
    */
-  get messages(): { [id: string]: PersonalMessage | TypedMessage } {
-    const messages = [
-      ...this.#typedMessageManager.getAllMessages(),
-      ...this.#personalMessageManager.getAllMessages(),
-    ];
-
-    const messagesObject = messages.reduce<{
-      [id: string]: PersonalMessage | TypedMessage;
-    }>((acc, message) => {
-      acc[message.id] = message;
-      return acc;
-    }, {});
-
-    return messagesObject;
+  get messages(): { [id: string]: SignatureRequest } {
+    return this.state.signatureRequests;
   }
 
   /**
    * Reset the controller state to the initial state.
    */
   resetState() {
-    this.update(() => getDefaultState());
+    this.#updateState((state) => {
+      Object.assign(state, getDefaultState());
+    });
   }
 
   /**
@@ -263,585 +268,483 @@ export class SignatureController extends BaseController<
    * @param reason - A message to indicate why.
    */
   rejectUnapproved(reason?: string) {
-    this.#rejectUnapproved(this.#personalMessageManager, reason);
-    this.#rejectUnapproved(this.#typedMessageManager, reason);
+    const unapprovedSignatureRequests = Object.values(
+      this.state.signatureRequests,
+    ).filter(
+      (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
+    );
+
+    for (const metadata of unapprovedSignatureRequests) {
+      this.#rejectSignatureRequest(metadata.id, reason);
+    }
   }
 
   /**
    * Clears all unapproved messages from memory.
    */
   clearUnapproved() {
-    this.#clearUnapproved(this.#personalMessageManager);
-    this.#clearUnapproved(this.#typedMessageManager);
+    this.#updateState((state) => {
+      Object.values(state.signatureRequests)
+        .filter(
+          (metadata) => metadata.status === SignatureRequestStatus.Unapproved,
+        )
+        .forEach((metadata) => delete state.signatureRequests[metadata.id]);
+    });
   }
 
   /**
-   * Called when a dapp uses the personal_sign method.
+   * Called when a dApp uses the personal_sign method.
+   * We currently provide personal_sign mostly for legacy dApps.
    *
-   * We currently define personal_sign mostly for legacy Dapps.
-   *
-   * @param messageParams - The params of the message to sign & return to the Dapp.
-   * @param req - The original request, containing the origin.
+   * @param messageParams - The params of the message to sign and return to the dApp.
+   * @param request - The original request, containing the origin.
    * @param options - An options bag for the method.
    * @param options.traceContext - The parent context for any new traces.
-   * @returns Promise resolving to the raw data of the signature request.
+   * @returns Promise resolving to the raw signature hash generated from the signature request.
    */
   async newUnsignedPersonalMessage(
-    messageParams: PersonalMessageParams,
-    req: OriginalRequest,
+    messageParams: MessageParamsPersonal,
+    request: OriginalRequest,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
-    return this.#newUnsignedAbstractMessage(
-      this.#personalMessageManager,
-      ApprovalType.PersonalSign,
-      SigningMethod.PersonalSign,
-      'Personal Message',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#signPersonalMessage.bind(this),
+    validatePersonalSignatureRequest(messageParams);
+
+    const normalizedMessageParams =
+      normalizePersonalMessageParams(messageParams);
+
+    normalizedMessageParams.siwe = detectSIWE(
       messageParams,
-      req,
-      undefined,
-      undefined,
-      options.traceContext,
-    );
+    ) as StateSIWEMessage;
+
+    return this.#processSignatureRequest({
+      messageParams: normalizedMessageParams,
+      request,
+      type: SignatureRequestType.PersonalSign,
+      approvalType: ApprovalType.PersonalSign,
+      traceContext: options.traceContext,
+    });
   }
 
   /**
-   * Called when a dapp uses the eth_signTypedData method, per EIP 712.
+   * Called when a dapp uses the eth_signTypedData method, per EIP-712.
    *
-   * @param messageParams - The params passed to eth_signTypedData.
-   * @param req - The original request, containing the origin.
-   * @param version - The version indicating the format of the typed data.
-   * @param signingOpts - An options bag for signing.
-   * @param signingOpts.parseJsonData - Whether to parse the JSON before signing.
+   * @param messageParams - The params of the message to sign and return to the dApp.
+   * @param request - The original request, containing the origin.
+   * @param version - The version of the signTypedData request.
+   * @param signingOptions - Options for signing the typed message.
    * @param options - An options bag for the method.
    * @param options.traceContext - The parent context for any new traces.
-   * @returns Promise resolving to the raw data of the signature request.
+   * @returns Promise resolving to the raw signature hash generated from the signature request.
    */
   async newUnsignedTypedMessage(
-    messageParams: TypedMessageParams,
-    req: OriginalRequest,
+    messageParams: MessageParamsTyped,
+    request: OriginalRequest,
     version: string,
-    signingOpts: TypedMessageSigningOptions,
+    signingOptions?: TypedSigningOptions,
     options: { traceContext?: TraceContext } = {},
   ): Promise<string> {
-    const signTypeForLogger = this.#getSignTypeForLogger(version);
-    return this.#newUnsignedAbstractMessage(
-      this.#typedMessageManager,
-      ApprovalType.EthSignTypedData,
-      signTypeForLogger,
-      'Typed Message',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#signTypedMessage.bind(this),
+    const chainId = this.#getChainId(request);
+
+    validateTypedSignatureRequest(
       messageParams,
-      req,
-      version,
-      signingOpts,
-      options.traceContext,
+      version as SignTypedDataVersion,
+      chainId,
     );
+
+    const normalizedMessageParams = normalizeTypedMessageParams(
+      messageParams,
+      version as SignTypedDataVersion,
+    );
+
+    return this.#processSignatureRequest({
+      approvalType: ApprovalType.EthSignTypedData,
+      messageParams: normalizedMessageParams,
+      request,
+      signingOptions,
+      traceContext: options.traceContext,
+      type: SignatureRequestType.TypedSign,
+      version: version as SignTypedDataVersion,
+    });
   }
 
   /**
-   * Called to update the message status as signed.
+   * Provide a signature for a pending signature request that used `deferSetAsSigned`.
+   * Changes the status of the signature request to `signed`.
    *
-   * @param messageId - The id of the Message to update.
-   * @param signature - The data to update the message with.
+   * @param signatureRequestId - The ID of the signature request.
+   * @param signature - The signature to provide.
    */
-  // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setDeferredSignSuccess(messageId: string, signature: any) {
-    this.#tryForEachMessageManager(
-      this.#trySetDeferredSignSuccess,
-      messageId,
-      signature,
-    );
+  setDeferredSignSuccess(signatureRequestId: string, signature: any) {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.rawSig = signature;
+      draftMetadata.status = SignatureRequestStatus.Signed;
+    });
   }
 
   /**
-   * Called when the message metadata needs to be updated.
-   *
-   * @param messageId - The id of the message to update.
-   * @param metadata - The data to update the metadata property in the message.
+   * Set custom metadata on a signature request.
+   * @param signatureRequestId - The ID of the signature request.
+   * @param metadata - The custom metadata to set.
    */
-  setMessageMetadata(messageId: string, metadata: Json) {
-    this.#tryForEachMessageManager(
-      this.#trySetMessageMetadata,
-      messageId,
-      metadata,
-    );
+  setMessageMetadata(signatureRequestId: string, metadata: Json) {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.metadata = metadata;
+    });
   }
 
   /**
-   * Called to cancel a signing message.
+   * Reject a pending signature request that used `deferSetAsSigned`.
+   * Changes the status of the signature request to `rejected`.
    *
-   * @param messageId - The id of the Message to update.
+   * @param signatureRequestId - The ID of the signature request.
    */
-  setDeferredSignError(messageId: string) {
-    this.#tryForEachMessageManager(this.#trySetDeferredSignError, messageId);
+  setDeferredSignError(signatureRequestId: string) {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Rejected;
+    });
   }
 
-  setTypedMessageInProgress(messageId: string) {
-    this.#typedMessageManager.setMessageStatusInProgress(messageId);
+  /**
+   * Set the status of a signature request to 'inProgress'.
+   *
+   * @param signatureRequestId - The ID of the signature request.
+   */
+  setTypedMessageInProgress(signatureRequestId: string) {
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.InProgress;
+    });
   }
 
-  setPersonalMessageInProgress(messageId: string) {
-    this.#personalMessageManager.setMessageStatusInProgress(messageId);
+  /**
+   * Set the status of a signature request to 'inProgress'.
+   *
+   * @param signatureRequestId - The ID of the signature request.
+   */
+  setPersonalMessageInProgress(signatureRequestId: string) {
+    this.setTypedMessageInProgress(signatureRequestId);
   }
 
-  async #newUnsignedAbstractMessage<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    SO,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    approvalType: ApprovalType,
-    signTypeForLogger: SigningMethod,
-    messageName: string,
-    signMessage: (messageParams: PM, signingOpts?: SO) => void,
-    messageParams: PM,
-    req: OriginalRequest,
-    version?: string,
-    signingOpts?: SO,
-    traceContext?: TraceContext,
-  ) {
+  #parseTypedData(
+    messageParams: MessageParamsTyped,
+    version?: SignTypedDataVersion,
+  ): MessageParamsTyped {
+    if (
+      ![SignTypedDataVersion.V3, SignTypedDataVersion.V4].includes(
+        version as SignTypedDataVersion,
+      ) ||
+      typeof messageParams.data !== 'string'
+    ) {
+      return messageParams;
+    }
+
+    return {
+      ...messageParams,
+      data: JSON.parse(messageParams.data),
+    };
+  }
+
+  async #processSignatureRequest({
+    chainId: optionChainId,
+    messageParams,
+    request,
+    type,
+    approvalType,
+    version,
+    signingOptions,
+    traceContext,
+  }: {
+    chainId?: Hex;
+    messageParams: MessageParams;
+    request: OriginalRequest;
+    type: SignatureRequestType;
+    approvalType: ApprovalType;
+    version?: SignTypedDataVersion;
+    signingOptions?: TypedSigningOptions;
+    traceContext?: TraceContext;
+  }): Promise<string> {
+    log('Processing signature request', {
+      messageParams,
+      request,
+      type,
+      version,
+    });
+
+    const chainId = optionChainId ?? this.#getChainId(request);
+
+    this.#addLog(type, version, SigningStage.Proposed, messageParams);
+
+    const metadata = this.#addMetadata({
+      chainId,
+      messageParams,
+      request,
+      signingOptions,
+      type,
+      version,
+    });
+
     let resultCallbacks: AcceptResultCallbacks | undefined;
+    let approveOrSignError: unknown;
+
+    const finalMetadataPromise = this.#waitForFinished(metadata.id);
+    this.#decodePermitSignatureRequest(metadata.id, request, chainId);
+
     try {
-      const messageId = await messageManager.addUnapprovedMessage(
-        messageParams,
-        req,
-        version,
-      );
+      resultCallbacks = await this.#processApproval({
+        approvalType,
+        metadata,
+        request,
+        traceContext,
+      });
 
-      const messageParamsWithId = {
-        ...messageParams,
-        metamaskId: messageId,
-        ...(version && { version }),
-      };
+      await this.#approveAndSignRequest(metadata, traceContext);
+    } catch (error) {
+      log('Signature request failed', error);
+      approveOrSignError = error;
+    }
 
-      const signaturePromise = messageManager.waitForFinishStatus(
-        messageParamsWithId,
-        messageName,
-      );
+    const finalMetadata = await finalMetadataPromise;
 
-      try {
-        // Signature request is proposed to the user
-        this.#addLog(
-          signTypeForLogger,
-          SigningStage.Proposed,
-          messageParamsWithId,
-        );
+    const {
+      error,
+      id,
+      messageParams: finalMessageParams,
+      rawSig: signature,
+    } = finalMetadata;
 
-        const acceptResult = await this.#trace(
-          { name: 'Await Approval', parentContext: traceContext },
-          (context) =>
-            this.#requestApproval(messageParamsWithId, approvalType, {
-              traceContext: context,
-              actionId: req?.id?.toString(),
-            }),
-        );
+    switch (finalMetadata.status) {
+      case SignatureRequestStatus.Signed:
+        log('Signature request finished', { id, signature });
+        this.#addLog(type, version, SigningStage.Signed, finalMessageParams);
+        resultCallbacks?.success(signature);
+        return finalMetadata.rawSig as string;
 
-        resultCallbacks = acceptResult.resultCallbacks;
-      } catch (error) {
-        // User rejected the signature request
-        this.#addLog(
-          signTypeForLogger,
-          SigningStage.Rejected,
-          messageParamsWithId,
-        );
+      case SignatureRequestStatus.Rejected:
+        /* istanbul ignore next */
+        const rejectedError = (approveOrSignError ??
+          new Error(
+            `MetaMask ${type} Signature: User denied message signature.`,
+          )) as Error;
 
-        this.#cancelAbstractMessage(messageManager, messageId);
-        throw error;
-      }
+        resultCallbacks?.error(rejectedError);
+        throw rejectedError;
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
+      case SignatureRequestStatus.Errored:
+        /* istanbul ignore next */
+        const erroredError = (approveOrSignError ??
+          new Error(`MetaMask ${type} Signature: ${error as string}`)) as Error;
 
-      await this.#trace({ name: 'Sign', parentContext: traceContext }, () =>
-        signMessage(messageParamsWithId, signingOpts),
-      );
-
-      const signatureResult = await signaturePromise;
-
-      // Signature operation is completed
-      this.#addLog(signTypeForLogger, SigningStage.Signed, messageParamsWithId);
+        resultCallbacks?.error(erroredError);
+        throw erroredError;
 
       /* istanbul ignore next */
-      resultCallbacks?.success(signatureResult);
-
-      return signatureResult;
-    } catch (error) {
-      resultCallbacks?.error(error as Error);
-      throw error;
-    }
-  }
-
-  /**
-   * Signifies a user's approval to sign a personal_sign message in queue.
-   * Triggers signing, and the callback function from newUnsignedPersonalMessage.
-   *
-   * @param msgParams - The params of the message to sign & return to the Dapp.
-   * @returns Signature result from signing.
-   */
-  async #signPersonalMessage(msgParams: PersonalMessageParamsMetamask) {
-    return await this.#signAbstractMessage(
-      this.#personalMessageManager,
-      ApprovalType.PersonalSign,
-      msgParams,
-      async (cleanMsgParams) =>
-        await this.messagingSystem.call(
-          'KeyringController:signPersonalMessage',
-          cleanMsgParams,
-        ),
-    );
-  }
-
-  /**
-   * The method for a user approving a call to eth_signTypedData, per EIP 712.
-   * Triggers the callback in newUnsignedTypedMessage.
-   *
-   * @param msgParams - The params passed to eth_signTypedData.
-   * @param opts - The options for the method.
-   * @param opts.parseJsonData - Whether to parse JSON data before calling the KeyringController.
-   * @returns Signature result from signing.
-   */
-  async #signTypedMessage(
-    msgParams: TypedMessageParamsMetamask,
-    /* istanbul ignore next */
-    opts = { parseJsonData: true },
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): Promise<any> {
-    const { version } = msgParams;
-    return await this.#signAbstractMessage(
-      this.#typedMessageManager,
-      ApprovalType.EthSignTypedData,
-      msgParams,
-      async (cleanMsgParams) => {
-        const finalMessageParams = opts.parseJsonData
-          ? this.#removeJsonData(cleanMsgParams, version as string)
-          : cleanMsgParams;
-
-        return await this.messagingSystem.call(
-          'KeyringController:signTypedMessage',
-          finalMessageParams,
-          version as SignTypedDataVersion,
+      default:
+        throw new Error(
+          `MetaMask ${type} Signature: Unknown problem: ${JSON.stringify(
+            finalMessageParams,
+          )}`,
         );
-      },
-    );
-  }
-
-  #tryForEachMessageManager(
-    callbackFn: (
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messageManager: AbstractMessageManager<any, any, any>,
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ...args: any[]
-    ) => boolean,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ...args: any
-  ) {
-    const messageManagers = [
-      this.#personalMessageManager,
-      this.#typedMessageManager,
-    ];
-
-    for (const manager of messageManagers) {
-      if (callbackFn(manager, ...args)) {
-        return true;
-      }
-    }
-    throw new Error('Message not found');
-  }
-
-  #trySetDeferredSignSuccess(
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messageManager: AbstractMessageManager<any, any, any>,
-    messageId: string,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    signature: any,
-  ) {
-    try {
-      messageManager.setMessageStatusSigned(messageId, signature);
-      return true;
-    } catch (error) {
-      return false;
     }
   }
 
-  #trySetMessageMetadata(
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messageManager: AbstractMessageManager<any, any, any>,
-    messageId: string,
-    metadata: Json,
-  ) {
-    try {
-      messageManager.setMetadata(messageId, metadata);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
+  #addMetadata({
+    chainId,
+    messageParams,
+    request,
+    signingOptions,
+    type,
+    version,
+  }: {
+    chainId: Hex;
+    messageParams: MessageParams;
+    request?: OriginalRequest;
+    signingOptions?: TypedSigningOptions;
+    type: SignatureRequestType;
+    version?: SignTypedDataVersion;
+  }): SignatureRequest {
+    const id = random();
+    const origin = request?.origin ?? messageParams.origin;
+    const requestId = request?.id;
+    const securityAlertResponse = request?.securityAlertResponse;
+    const networkClientId = request?.networkClientId;
 
-  #trySetDeferredSignError(
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    messageManager: AbstractMessageManager<any, any, any>,
-    messageId: string,
-  ) {
-    try {
-      messageManager.rejectMessage(messageId);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
+    const finalMessageParams = {
+      ...messageParams,
+      metamaskId: id,
+      origin,
+      requestId,
+      version,
+    };
 
-  #rejectUnapproved<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(messageManager: AbstractMessageManager<M, P, PM>, reason?: string) {
-    Object.keys(messageManager.getUnapprovedMessages()).forEach((messageId) => {
-      this.#cancelAbstractMessage(messageManager, messageId, reason);
-    });
-  }
+    const metadata = {
+      chainId,
+      id: random(),
+      messageParams: finalMessageParams,
+      networkClientId,
+      securityAlertResponse,
+      signingOptions,
+      status: SignatureRequestStatus.Unapproved,
+      time: Date.now(),
+      type,
+      version,
+    } as SignatureRequest;
 
-  #clearUnapproved<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(messageManager: AbstractMessageManager<M, P, PM>) {
-    messageManager.update({
-      unapprovedMessages: {},
-      unapprovedMessagesCount: 0,
-    });
-  }
-
-  async #signAbstractMessage<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    methodName: string,
-    msgParams: PM,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getSignature: (cleanMessageParams: P) => Promise<any>,
-  ) {
-    console.info(`MetaMaskController - ${methodName}`);
-
-    const messageId = msgParams.metamaskId as string;
-
-    try {
-      const cleanMessageParams = await messageManager.approveMessage(msgParams);
-
-      try {
-        const signature = await getSignature(cleanMessageParams);
-
-        this.hub.emit(`${methodName}:signed`, { signature, messageId });
-
-        if (!cleanMessageParams.deferSetAsSigned) {
-          messageManager.setMessageStatusSigned(messageId, signature);
-        }
-
-        return signature;
-      } catch (error) {
-        this.hub.emit(`${messageId}:signError`, { error });
-        throw error;
-      }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      console.info(`MetaMaskController - ${methodName} failed.`, error);
-      this.#errorMessage(messageManager, messageId, error.message);
-      throw error;
-    }
-  }
-
-  #errorMessage<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    messageId: string,
-    error: string,
-  ) {
-    if (messageManager instanceof TypedMessageManager) {
-      messageManager.setMessageStatusErrored(messageId, error);
-    } else {
-      this.#cancelAbstractMessage(messageManager, messageId);
-    }
-  }
-
-  #cancelAbstractMessage<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    messageId: string,
-    reason?: string,
-  ) {
-    if (reason) {
-      const message = this.#getMessage(messageId);
-      this.hub.emit('cancelWithReason', { message, reason });
-    }
-    messageManager.rejectMessage(messageId);
-  }
-
-  #handleMessageManagerEvents<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(messageManager: AbstractMessageManager<M, P, PM>, eventName: string) {
-    messageManager.hub.on('updateBadge', () => {
-      this.hub.emit('updateBadge');
+    this.#updateState((state) => {
+      state.signatureRequests[metadata.id] = metadata;
     });
 
-    messageManager.hub.on(
-      'unapprovedMessage',
-      (msgParams: AbstractMessageParamsMetamask) => {
-        this.hub.emit(eventName, msgParams);
-      },
-    );
+    log('Added signature request', metadata);
+
+    this.hub.emit('unapprovedMessage', {
+      messageParams,
+      metamaskId: metadata.id,
+    });
+
+    return metadata;
   }
 
-  #subscribeToMessageState<
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    M extends AbstractMessage,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    P extends AbstractMessageParams,
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
-    PM extends AbstractMessageParamsMetamask,
-  >(
-    messageManager: AbstractMessageManager<M, P, PM>,
-    updateState: (
-      state: SignatureControllerState,
-      newMessages: Record<string, StateMessage>,
-      messageCount: number,
-    ) => void,
-  ) {
-    messageManager.subscribe((state: MessageManagerState<AbstractMessage>) => {
-      const newMessages = this.#migrateMessages(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        state.unapprovedMessages as any,
+  async #processApproval({
+    approvalType,
+    metadata,
+    request,
+    traceContext,
+  }: {
+    approvalType: ApprovalType;
+    metadata: SignatureRequest;
+    request?: OriginalRequest;
+    traceContext?: TraceContext;
+  }): Promise<AcceptResultCallbacks | undefined> {
+    const { id, messageParams, type, version } = metadata;
+
+    try {
+      const acceptResult = await this.#trace(
+        { name: 'Await Approval', parentContext: traceContext },
+        (context) =>
+          this.#requestApproval(metadata, approvalType, {
+            traceContext: context,
+            actionId: request?.id?.toString(),
+          }),
       );
 
-      this.update(() => {
-        const newState = { ...this.state };
-        updateState(newState, newMessages, state.unapprovedMessagesCount);
-        return newState;
+      return acceptResult.resultCallbacks;
+    } catch (error) {
+      log('User rejected request', { id, error });
+
+      this.#addLog(type, version, SigningStage.Rejected, messageParams);
+      this.#rejectSignatureRequest(id);
+
+      throw error;
+    }
+  }
+
+  async #approveAndSignRequest(
+    metadata: SignatureRequest,
+    traceContext?: TraceContext,
+  ) {
+    const { id } = metadata;
+
+    this.#updateMetadata(id, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Approved;
+    });
+
+    await this.#trace({ name: 'Sign', parentContext: traceContext }, () =>
+      this.#signRequest(metadata),
+    );
+  }
+
+  async #signRequest(metadata: SignatureRequest) {
+    const { id, messageParams, signingOptions, type } = metadata;
+
+    try {
+      let signature: string;
+
+      switch (type) {
+        case SignatureRequestType.PersonalSign:
+          signature = await this.messagingSystem.call(
+            'KeyringController:signPersonalMessage',
+            // Keyring controller temporarily using message manager types.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            messageParams as any,
+          );
+          break;
+
+        case SignatureRequestType.TypedSign:
+          const finalRequest = signingOptions?.parseJsonData
+            ? this.#parseTypedData(messageParams, metadata.version)
+            : messageParams;
+
+          signature = await this.messagingSystem.call(
+            'KeyringController:signTypedMessage',
+            finalRequest,
+            metadata.version as SignTypedDataVersion,
+          );
+          break;
+
+        /* istanbul ignore next */
+        default:
+          throw new Error(`Unknown signature request type: ${type as string}`);
+      }
+
+      this.hub.emit(`${type}:signed`, { signature, messageId: id });
+
+      if (messageParams.deferSetAsSigned) {
+        return;
+      }
+
+      this.#updateMetadata(id, (draftMetadata) => {
+        draftMetadata.rawSig = signature;
+        draftMetadata.status = SignatureRequestStatus.Signed;
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
+      if (type === SignatureRequestType.TypedSign) {
+        this.#errorSignatureRequest(id, error.message);
+      } else {
+        this.#rejectSignatureRequest(id);
+      }
+
+      this.hub.emit(`${id}:signError`, { error });
+
+      throw error;
+    }
+  }
+
+  #errorSignatureRequest(id: string, error: string) {
+    this.#updateMetadata(id, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Errored;
+      draftMetadata.error = error;
+    });
+  }
+
+  #rejectSignatureRequest(signatureRequestId: string, reason?: string) {
+    if (reason) {
+      const metadata = this.state.signatureRequests[signatureRequestId];
+      this.hub.emit('cancelWithReason', { metadata, reason });
+    }
+
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.status = SignatureRequestStatus.Rejected;
+    });
+  }
+
+  async #waitForFinished(id: string): Promise<SignatureRequest> {
+    return new Promise((resolve) => {
+      this.hub.once(`${id}:finished`, (metadata: SignatureRequest) => {
+        resolve(metadata);
       });
     });
   }
 
-  #migrateMessages(
-    coreMessages: Record<string, CoreMessage>,
-  ): Record<string, StateMessage> {
-    const stateMessages: Record<string, StateMessage> = {};
-
-    for (const messageId of Object.keys(coreMessages)) {
-      const coreMessage = coreMessages[messageId];
-      const stateMessage = this.#migrateMessage(coreMessage);
-
-      stateMessages[messageId] = stateMessage;
-    }
-
-    return stateMessages;
-  }
-
-  #migrateMessage(coreMessage: CoreMessage): StateMessage {
-    const { messageParams, ...coreMessageData } = coreMessage;
-
-    // Core message managers use messageParams but frontend uses msgParams with lots of references
-    const stateMessage = {
-      ...coreMessageData,
-      msgParams: messageParams,
-    };
-
-    return stateMessage as StateMessage;
-  }
-
-  #getMessage(messageId: string): StateMessage {
-    return {
-      ...this.state.unapprovedPersonalMsgs,
-      ...this.state.unapprovedTypedMessages,
-    }[messageId];
-  }
-
   async #requestApproval(
-    msgParams: AbstractMessageParamsMetamask,
+    metadata: SignatureRequest,
     type: ApprovalType,
     {
       traceContext,
       actionId,
     }: { traceContext?: TraceContext; actionId?: string },
   ): Promise<AddResult> {
-    const id = msgParams.metamaskId as string;
-    const origin = msgParams.origin || ORIGIN_METAMASK;
-
-    // We are explicitly cloning the message params here to prevent the mutation errors on development mode
-    // Because sending it through the messaging system will make the object read only
-    const clonedMsgParams = cloneDeep(msgParams);
+    const { id, messageParams } = metadata;
+    const origin = messageParams.origin || ORIGIN_METAMASK;
 
     await this.#trace({
       name: 'Notification Display',
@@ -855,32 +758,105 @@ export class SignatureController extends BaseController<
         id,
         origin,
         type,
-        requestData: clonedMsgParams as Required<AbstractMessageParamsMetamask>,
+        requestData: { ...messageParams },
         expectsResult: true,
       },
       true,
     )) as Promise<AddResult>;
   }
 
-  #removeJsonData(
-    messageParams: TypedMessageParams,
-    version: string,
-  ): TypedMessageParams {
-    if (version === 'V1' || typeof messageParams.data !== 'string') {
-      return messageParams;
+  #updateMetadata(
+    id: string,
+    callback: (metadata: SignatureRequest) => void,
+  ): SignatureRequest {
+    let statusChanged = false;
+
+    const { nextState } = this.#updateState((state) => {
+      const metadata = state.signatureRequests[id];
+
+      if (!metadata) {
+        throw new Error(`Signature request with id ${id} not found`);
+      }
+
+      const originalStatus = metadata.status;
+
+      // eslint-disable-next-line n/callback-return
+      callback(metadata);
+
+      statusChanged = metadata.status !== originalStatus;
+    });
+
+    const updatedMetadata = nextState.signatureRequests[id];
+
+    if (
+      statusChanged &&
+      FINAL_STATUSES.includes(updatedMetadata.status as SignatureRequestStatus)
+    ) {
+      this.hub.emit(`${id}:finished`, updatedMetadata);
     }
 
-    return {
-      ...messageParams,
-      data: JSON.parse(messageParams.data),
-    };
+    return updatedMetadata;
+  }
+
+  #updateState(callback: (state: SignatureControllerState) => void) {
+    return this.update((state) => {
+      // eslint-disable-next-line n/callback-return, n/no-callback-literal
+      callback(state as unknown as SignatureControllerState);
+
+      const unapprovedRequests = Object.values(state.signatureRequests).filter(
+        (request) => request.status === SignatureRequestStatus.Unapproved,
+      ) as unknown as SignatureRequest[];
+
+      const personalSignMessages = this.#generateLegacyState(
+        unapprovedRequests,
+        SignatureRequestType.PersonalSign,
+      );
+
+      const typedSignMessages = this.#generateLegacyState(
+        unapprovedRequests,
+        SignatureRequestType.TypedSign,
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.unapprovedPersonalMsgs = personalSignMessages as any;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      state.unapprovedTypedMessages = typedSignMessages as any;
+
+      state.unapprovedPersonalMsgCount =
+        Object.values(personalSignMessages).length;
+
+      state.unapprovedTypedMessagesCount =
+        Object.values(typedSignMessages).length;
+    });
+  }
+
+  #generateLegacyState(
+    signatureRequests: SignatureRequest[],
+    type: SignatureRequestType,
+  ): Record<string, LegacyStateMessage> {
+    return signatureRequests
+      .filter((request) => request.type === type)
+      .reduce<Record<string, LegacyStateMessage>>(
+        (acc, request) => ({
+          ...acc,
+          [request.id]: { ...request, msgParams: request.messageParams },
+        }),
+        {},
+      );
   }
 
   #addLog(
-    signingMethod: SigningMethod,
+    signatureRequestType: SignatureRequestType,
+    version: SignTypedDataVersion | undefined,
     stage: SigningStage,
-    signingData: AbstractMessageParamsMetamask,
+    signingData: MessageParams,
   ): void {
+    const signingMethod = this.#getSignTypeForLogger(
+      signatureRequestType,
+      version,
+    );
+
     this.messagingSystem.call('LoggingController:add', {
       type: LogType.EthSignLog,
       data: {
@@ -891,13 +867,75 @@ export class SignatureController extends BaseController<
     });
   }
 
-  #getSignTypeForLogger(version: string): SigningMethod {
-    let signTypeForLogger = SigningMethod.EthSignTypedData;
-    if (version === 'V3') {
-      signTypeForLogger = SigningMethod.EthSignTypedDataV3;
-    } else if (version === 'V4') {
-      signTypeForLogger = SigningMethod.EthSignTypedDataV4;
+  #getSignTypeForLogger(
+    requestType: SignatureRequestType,
+    version?: SignTypedDataVersion,
+  ): SigningMethod {
+    if (requestType === SignatureRequestType.PersonalSign) {
+      return SigningMethod.PersonalSign;
     }
-    return signTypeForLogger;
+
+    if (
+      requestType === SignatureRequestType.TypedSign &&
+      version === SignTypedDataVersion.V3
+    ) {
+      return SigningMethod.EthSignTypedDataV3;
+    }
+
+    if (
+      requestType === SignatureRequestType.TypedSign &&
+      version === SignTypedDataVersion.V4
+    ) {
+      return SigningMethod.EthSignTypedDataV4;
+    }
+
+    return SigningMethod.EthSignTypedData;
+  }
+
+  #getChainId(request: OriginalRequest): Hex {
+    const { networkClientId } = request;
+
+    if (!networkClientId) {
+      throw new Error('Network client ID not found in request');
+    }
+
+    const networkClient = this.messagingSystem.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+
+    return networkClient.configuration.chainId;
+  }
+
+  #decodePermitSignatureRequest(
+    signatureRequestId: string,
+    request: OriginalRequest,
+    chainId: string,
+  ) {
+    if (!this.#isDecodeSignatureRequestEnabled?.() || !this.#decodingApiUrl) {
+      return;
+    }
+    this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+      draftMetadata.decodingLoading = true;
+    });
+    decodeSignature(request, chainId, this.#decodingApiUrl)
+      .then((decodingData) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodingData = decodingData;
+          draftMetadata.decodingLoading = false;
+        }),
+      )
+      .catch((error) =>
+        this.#updateMetadata(signatureRequestId, (draftMetadata) => {
+          draftMetadata.decodingData = {
+            stateChanges: null,
+            error: {
+              message: (error as unknown as Error).message,
+              type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+            },
+          };
+          draftMetadata.decodingLoading = false;
+        }),
+      );
   }
 }

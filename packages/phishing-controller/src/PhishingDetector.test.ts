@@ -4,6 +4,7 @@ import {
 } from './PhishingDetector';
 import { formatHostnameToUrl } from './tests/utils';
 import { PhishingDetectorResultType } from './types';
+import { sha256Hash } from './utils';
 
 describe('PhishingDetector', () => {
   describe('constructor', () => {
@@ -75,7 +76,7 @@ describe('PhishingDetector', () => {
         );
       });
 
-      [
+      it.each([
         undefined,
         null,
         true,
@@ -88,46 +89,116 @@ describe('PhishingDetector', () => {
           return { name: 'test', version: 1 };
         },
         {},
-      ].forEach((mockInvalidName) => {
-        it('throws an error when config name is invalid', async () => {
-          await expect(
-            withPhishingDetector(
-              [
-                {
-                  allowlist: [],
-                  blocklist: ['blocked-by-first.com'],
-                  fuzzylist: [],
-                  // @ts-expect-error testing invalid input
-                  name: mockInvalidName,
-                  tolerance: 2,
-                  version: 1,
-                },
-              ],
-              async () => mockInvalidName,
-            ),
-          ).rejects.toThrow("Invalid config parameter: 'name'");
-        });
+      ])('logs an error when config name is %p', async (mockInvalidName) => {
+        // Mock console.error to track error logs without cluttering test output
+        const consoleErrorMock = jest.spyOn(console, 'error');
+
+        let detector;
+
+        await withPhishingDetector(
+          [
+            {
+              allowlist: [],
+              blocklist: ['blocked-by-first.com'],
+              fuzzylist: [],
+              // @ts-expect-error Testing invalid input
+              name: mockInvalidName,
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector: d }) => {
+            detector = d;
+          },
+        );
+
+        // Ensure the detector is still defined
+        expect(detector).toBeDefined();
+
+        // Check that console.error was called (you can further specify the error if needed)
+        expect(console.error).toHaveBeenCalled();
+
+        // Restore the original console.error implementation
+        consoleErrorMock.mockRestore();
       });
 
-      it('throws an error when tolerance is provided without fuzzylist', async () => {
-        await expect(
-          withPhishingDetector(
-            [
-              // @ts-expect-error testing invalid input
-              {
-                allowlist: [],
-                blocklist: [],
-                name: 'first',
-                tolerance: 2,
-                version: 1,
-              },
-            ],
-            async () => null,
-          ),
-        ).rejects.toThrow('Fuzzylist tolerance provided without fuzzylist');
+      it('drops the invalid config and retains the valid config', async () => {
+        const consoleErrorMock = jest.spyOn(console, 'error');
+
+        let detector: PhishingDetector | undefined;
+
+        await withPhishingDetector(
+          [
+            // Invalid config
+            {
+              allowlist: [],
+              blocklist: ['blocked-by-first.com'],
+              fuzzylist: [],
+              name: undefined,
+              tolerance: 2,
+              version: 1,
+            },
+            // Valid config
+            {
+              allowlist: [],
+              blocklist: ['blocked-by-second.com'],
+              fuzzylist: [],
+              name: 'MetaMask',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector: d }) => {
+            detector = d;
+          },
+        );
+
+        expect(detector).toBeDefined();
+
+        const result = detector?.check('https://blocked-by-second.com');
+
+        expect(result).toBeDefined();
+        expect(result?.type).toBe('blocklist');
+
+        const resultInvalid = detector?.check('https://blocked-by-first.com');
+
+        expect(resultInvalid).toBeDefined();
+        expect(resultInvalid?.type).toBe('all');
+
+        expect(console.error).toHaveBeenCalled();
+
+        consoleErrorMock.mockRestore();
       });
 
-      [
+      it('logs an error when tolerance is provided without fuzzylist', async () => {
+        const consoleErrorMock = jest.spyOn(console, 'error');
+
+        let detector;
+
+        await withPhishingDetector(
+          [
+            // @ts-expect-error testing invalid input
+            {
+              allowlist: [],
+              blocklist: [],
+              name: 'first',
+              tolerance: 2,
+              version: 1,
+            },
+          ],
+          async ({ detector: d }) => {
+            detector = d;
+          },
+        );
+
+        expect(detector).toBeDefined();
+
+        expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+
+        consoleErrorMock.mockRestore();
+      });
+
+      it.each([
         undefined,
         null,
         true,
@@ -137,26 +208,41 @@ describe('PhishingDetector', () => {
           return { name: 'test', version: 1 };
         },
         {},
-      ].forEach((mockInvalidVersion) => {
-        it('throws an error when config version is invalid', async () => {
-          await expect(
-            withPhishingDetector(
-              [
-                {
-                  allowlist: [],
-                  blocklist: ['blocked-by-first.com'],
-                  fuzzylist: [],
-                  name: 'first',
-                  tolerance: 2,
-                  // @ts-expect-error testing invalid input
-                  version: mockInvalidVersion,
-                },
-              ],
-              async () => null,
-            ),
-          ).rejects.toThrow("Invalid config parameter: 'version'");
-        });
-      });
+      ])(
+        'logs an error when config version is %p',
+        async (mockInvalidVersion) => {
+          // Mock console.error to track error logs without cluttering test output
+          const consoleErrorMock = jest.spyOn(console, 'error');
+
+          let detector;
+
+          await withPhishingDetector(
+            [
+              {
+                allowlist: [],
+                blocklist: ['blocked-by-first.com'],
+                fuzzylist: [],
+                name: 'first',
+                tolerance: 2,
+                // @ts-expect-error Testing invalid input
+                version: mockInvalidVersion,
+              },
+            ],
+            async ({ detector: d }) => {
+              detector = d;
+            },
+          );
+
+          // Ensure the detector is still defined
+          expect(detector).toBeDefined();
+
+          // Check that console.error was called with an error
+          expect(console.error).toHaveBeenCalledWith(expect.any(Error));
+
+          // Restore the original console.error implementation
+          consoleErrorMock.mockRestore();
+        },
+      );
     });
 
     describe('with legacy config', () => {
@@ -1213,6 +1299,33 @@ describe('PhishingDetector', () => {
       );
     });
 
+    it('check the hash against c2DomainBlocklist, returning the correct result without a version with sub domains', async () => {
+      await withPhishingDetector(
+        [
+          {
+            blocklist: [],
+            fuzzylist: [],
+            c2DomainBlocklist: [
+              'a379a6f6eeafb9a55e378c118034e2751e682fab9f2d30ab13d2125586ce1947', // example.com
+            ],
+            name: 'test-config',
+            tolerance: 2,
+          },
+        ],
+        async ({ detector }) => {
+          const result = detector.isMaliciousC2Domain(
+            'https://sub.sub.evil.example.com',
+          );
+          expect(result).toStrictEqual({
+            name: 'test-config',
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: undefined,
+          });
+        },
+      );
+    });
+
     it('should return false if URL is invalid', async () => {
       await withPhishingDetector(
         [
@@ -1452,6 +1565,222 @@ describe('PhishingDetector', () => {
         },
       );
     });
+  });
+
+  it('should block a specific subdomain but not the parent domain', async () => {
+    const blockedSubdomain = '123.pages.dev';
+    const blockedSubdomainHash = sha256Hash(blockedSubdomain.toLowerCase());
+
+    await withPhishingDetector(
+      [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          c2DomainBlocklist: [blockedSubdomainHash],
+          name: 'subdomain-only-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ],
+      async ({ detector }) => {
+        const blockedUrl = 'https://123.pages.dev';
+        const unblockedUrl = 'https://pages.dev';
+
+        // Expect the specific subdomain to be blocked
+        const blockedResult = detector.isMaliciousC2Domain(blockedUrl);
+        expect(blockedResult).toStrictEqual({
+          name: 'subdomain-only-config',
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: '1',
+        });
+
+        // Expect the parent domain to not be blocked
+        const unblockedResult = detector.isMaliciousC2Domain(unblockedUrl);
+        expect(unblockedResult).toStrictEqual({
+          result: false,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+        });
+      },
+    );
+  });
+
+  it('should block the parent domain and its subdomains', async () => {
+    const blockedDomain = 'malicious.xyz';
+    const blockedDomainHash = sha256Hash(blockedDomain.toLowerCase());
+
+    await withPhishingDetector(
+      [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          c2DomainBlocklist: [blockedDomainHash],
+          name: 'parent-domain-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ],
+      async ({ detector }) => {
+        const blockedParentUrl = 'https://malicious.xyz';
+        const blockedSubdomainUrl = 'https://123.malicious.xyz';
+
+        // Expect the parent domain to be blocked
+        const blockedParentResult =
+          detector.isMaliciousC2Domain(blockedParentUrl);
+        expect(blockedParentResult).toStrictEqual({
+          name: 'parent-domain-config',
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: '1',
+        });
+
+        // Expect the subdomain to also be blocked because the parent domain is blocked
+        const blockedSubdomainResult =
+          detector.isMaliciousC2Domain(blockedSubdomainUrl);
+        expect(blockedSubdomainResult).toStrictEqual({
+          name: 'parent-domain-config',
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: '1',
+        });
+      },
+    );
+  });
+
+  it('should not block unrelated subdomains if parent domain is not blocked', async () => {
+    const blockedSubdomain = '123.pages.dev';
+    const blockedSubdomainHash = sha256Hash(blockedSubdomain.toLowerCase());
+
+    await withPhishingDetector(
+      [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          c2DomainBlocklist: [blockedSubdomainHash],
+          name: 'unrelated-subdomain-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ],
+      async ({ detector }) => {
+        const blockedUrl = 'https://123.pages.dev';
+        const unrelatedSubdomainUrl = 'https://456.pages.dev';
+        const parentDomainUrl = 'https://pages.dev';
+
+        // Expect the specific subdomain to be blocked
+        const blockedResult = detector.isMaliciousC2Domain(blockedUrl);
+        expect(blockedResult).toStrictEqual({
+          name: 'unrelated-subdomain-config',
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: '1',
+        });
+
+        // Expect unrelated subdomain to not be blocked
+        const unrelatedResult = detector.isMaliciousC2Domain(
+          unrelatedSubdomainUrl,
+        );
+        expect(unrelatedResult).toStrictEqual({
+          result: false,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+        });
+
+        // Expect the parent domain to not be blocked
+        const parentResult = detector.isMaliciousC2Domain(parentDomainUrl);
+        expect(parentResult).toStrictEqual({
+          result: false,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+        });
+      },
+    );
+  });
+
+  it('should prioritize allowlist over blocklist even if subdomain is blocked', async () => {
+    const blockedSubdomain = 'blocked.example.com';
+    const blockedSubdomainHash = sha256Hash(blockedSubdomain.toLowerCase());
+
+    await withPhishingDetector(
+      [
+        {
+          allowlist: ['example.com'],
+          blocklist: [],
+          fuzzylist: [],
+          c2DomainBlocklist: [blockedSubdomainHash],
+          name: 'allowlist-over-blocklist-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ],
+      async ({ detector }) => {
+        const blockedSubdomainUrl = 'https://blocked.example.com';
+        const allowlistedUrl = 'https://example.com';
+
+        // Expect the subdomain to be allowed because the parent domain is in the allowlist
+        const subdomainResult =
+          detector.isMaliciousC2Domain(blockedSubdomainUrl);
+        expect(subdomainResult).toStrictEqual({
+          match: 'example.com',
+          name: 'allowlist-over-blocklist-config',
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: '1',
+        });
+
+        // Ensure the parent domain is also allowed
+        const allowlistedResult = detector.isMaliciousC2Domain(allowlistedUrl);
+        expect(allowlistedResult).toStrictEqual({
+          match: 'example.com',
+          name: 'allowlist-over-blocklist-config',
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: '1',
+        });
+      },
+    );
+  });
+
+  it('should handle URLs with multiple subdomains correctly', async () => {
+    const hostname = 'a.b.c.example.com';
+    const domainName = 'example.com';
+    const hostnameHash = sha256Hash(hostname.toLowerCase());
+    const domainNameHash = sha256Hash(domainName.toLowerCase());
+
+    await withPhishingDetector(
+      [
+        {
+          blocklist: [],
+          fuzzylist: [],
+          c2DomainBlocklist: [hostnameHash, domainNameHash],
+          name: 'multi-subdomain-config',
+          version: 1,
+          tolerance: 2,
+        },
+      ],
+      async ({ detector }) => {
+        const deepSubdomainUrl = 'https://a.b.c.example.com';
+        const parentDomainUrl = 'https://example.com';
+
+        // Expect the subdomain to be blocked because its specific hostname is on the blocklist
+        const deepSubdomainResult =
+          detector.isMaliciousC2Domain(deepSubdomainUrl);
+        expect(deepSubdomainResult).toStrictEqual({
+          name: 'multi-subdomain-config',
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: '1',
+        });
+
+        // Expect the parent domain to be blocked because it's on the blocklist
+        const parentDomainResult =
+          detector.isMaliciousC2Domain(parentDomainUrl);
+        expect(parentDomainResult).toStrictEqual({
+          name: 'multi-subdomain-config',
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: '1',
+        });
+      },
+    );
   });
 });
 

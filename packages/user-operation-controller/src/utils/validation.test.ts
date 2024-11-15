@@ -1,5 +1,6 @@
 /* eslint-disable jest/expect-expect */
 
+import { TransactionType } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash';
 
 import type {
@@ -341,7 +342,9 @@ describe('validation', () => {
         'type',
         'wrong type',
         123,
-        'Expected one of `"cancel","contractInteraction","contractDeployment","eth_decrypt","eth_getEncryptionPublicKey","incoming","personal_sign","retry","simpleSend","eth_signTypedData","smart","swap","swapAndSend","swapApproval","approve","safetransferfrom","transfer","transferfrom","setapprovalforall","increaseAllowance"`, but received: 123',
+        `Expected one of \`${Object.values(TransactionType)
+          .map((value) => `"${value as string}"`)
+          .join(',')}\`, but received: 123`,
       ],
     ])(
       'throws if %s is %s',

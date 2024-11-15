@@ -1,3 +1,4 @@
+import type { Env } from '../shared/env';
 import { SIWEJwtBearerAuth } from './authentication-jwt-bearer/flow-siwe';
 import { SRPJwtBearerAuth } from './authentication-jwt-bearer/flow-srp';
 import {
@@ -6,13 +7,7 @@ import {
 } from './authentication-jwt-bearer/services';
 import type { UserProfile, Pair } from './authentication-jwt-bearer/types';
 import { AuthType } from './authentication-jwt-bearer/types';
-import type { Env } from './env';
 import { PairError, UnsupportedAuthTypeError } from './errors';
-import { getMetaMaskProviderEIP6963 } from './utils/eip-6963-metamask-provider';
-import {
-  connectSnap,
-  isSnapConnected,
-} from './utils/messaging-signing-snap-requests';
 
 // Computing the Classes, so we only get back the public methods for the interface.
 // TODO: Either fix this lint violation or explain why it's necessary to ignore.
@@ -54,22 +49,13 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
   }
 
   async connectSnap(): Promise<string> {
-    const provider = await getMetaMaskProviderEIP6963();
-    if (!provider) {
-      throw new Error('failed to get MetaMaskProviderEIP6963 provider');
-    }
-    const res = await connectSnap(provider);
-    return res;
+    this.#assertSRP(this.#type, this.#sdk);
+    return this.#sdk.connectSnap();
   }
 
   async isSnapConnected(): Promise<boolean> {
-    const provider = await getMetaMaskProviderEIP6963();
-    if (!provider) {
-      return false;
-    }
-
-    const isConnected = await isSnapConnected(provider);
-    return isConnected;
+    this.#assertSRP(this.#type, this.#sdk);
+    return this.#sdk.isSnapConnected();
   }
 
   async getUserProfile(): Promise<UserProfile> {
@@ -132,14 +118,27 @@ export class JwtBearerAuth implements SIWEInterface, SRPInterface {
 
   #assertSIWE(
     type: AuthType,
-    sdk: SIWEJwtBearerAuth | SRPJwtBearerAuth,
-  ): asserts sdk is SIWEJwtBearerAuth {
+    _sdk: SIWEJwtBearerAuth | SRPJwtBearerAuth,
+  ): asserts _sdk is SIWEJwtBearerAuth {
     if (type === AuthType.SiWE) {
       return;
     }
 
     throw new UnsupportedAuthTypeError(
       'This method is only available via SIWE auth type',
+    );
+  }
+
+  #assertSRP(
+    type: AuthType,
+    _sdk: SIWEJwtBearerAuth | SRPJwtBearerAuth,
+  ): asserts _sdk is SRPJwtBearerAuth {
+    if (type === AuthType.SRP) {
+      return;
+    }
+
+    throw new UnsupportedAuthTypeError(
+      'This method is only available via SRP auth type',
     );
   }
 }

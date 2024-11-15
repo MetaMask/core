@@ -1,13 +1,14 @@
+import encryption, { createSHA256Hash } from '../shared/encryption';
+import type { Env } from '../shared/env';
+import { getEnvUrls } from '../shared/env';
 import type {
+  UserStorageFeatureKeys,
+  UserStorageFeatureNames,
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-} from '../controllers/user-storage/schema';
-import { createEntryPath } from '../controllers/user-storage/schema';
-import type { GetUserStorageAllFeatureEntriesResponse } from '../controllers/user-storage/services';
+} from '../shared/storage-schema';
+import { createEntryPath } from '../shared/storage-schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
-import encryption, { createSHA256Hash } from './encryption';
-import type { Env } from './env';
-import { getEnvUrls } from './env';
 import { NotFoundError, UserStorageError } from './errors';
 
 export const STORAGE_URL = (env: Env, encryptedPath: string) =>
@@ -26,6 +27,13 @@ export type StorageOptions = {
 export type UserStorageOptions = {
   storage?: StorageOptions;
 };
+
+type GetUserStorageAllFeatureEntriesResponse = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  HashedKey: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  Data: string;
+}[];
 
 type ErrorMessage = {
   message: string;
@@ -52,6 +60,13 @@ export class UserStorage {
     await this.#upsertUserStorage(path, value);
   }
 
+  async batchSetItems<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    values: [UserStorageFeatureKeys<FeatureName>, string][],
+  ) {
+    await this.#batchUpsertUserStorage(path, values);
+  }
+
   async getItem(path: UserStoragePathWithFeatureAndKey): Promise<string> {
     return this.#getUserStorage(path);
   }
@@ -60,6 +75,23 @@ export class UserStorage {
     path: UserStoragePathWithFeatureOnly,
   ): Promise<string[] | null> {
     return this.#getUserStorageAllFeatureEntries(path);
+  }
+
+  async deleteItem(path: UserStoragePathWithFeatureAndKey): Promise<void> {
+    return this.#deleteUserStorage(path);
+  }
+
+  async deleteAllFeatureItems(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    return this.#deleteUserStorageAllFeatureEntries(path);
+  }
+
+  async batchDeleteItems<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    values: UserStorageFeatureKeys<FeatureName>[],
+  ) {
+    return this.#batchDeleteUserStorage(path, values);
   }
 
   async getStorageKey(): Promise<string> {
@@ -84,7 +116,7 @@ export class UserStorage {
     try {
       const headers = await this.#getAuthorizationHeader();
       const storageKey = await this.getStorageKey();
-      const encryptedData = encryption.encryptString(data, storageKey);
+      const encryptedData = await encryption.encryptString(data, storageKey);
       const encryptedPath = createEntryPath(path, storageKey);
 
       const url = new URL(STORAGE_URL(this.env, encryptedPath));
@@ -113,6 +145,57 @@ export class UserStorage {
         e instanceof Error ? e.message : JSON.stringify(e ?? '');
       throw new UserStorageError(
         `failed to upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchUpsertUserStorage<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    data: [UserStorageFeatureKeys<FeatureName>, string][],
+  ): Promise<void> {
+    try {
+      if (!data.length) {
+        return;
+      }
+
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+
+      const encryptedData = await Promise.all(
+        data.map(async (d) => {
+          return [
+            this.#createEntryKey(d[0], storageKey),
+            await encryption.encryptString(d[1], storageKey),
+          ];
+        }),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
@@ -220,6 +303,139 @@ export class UserStorage {
 
       throw new UserStorageError(
         `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorage(
+    path: UserStoragePathWithFeatureAndKey,
+  ): Promise<void> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(
+          `feature/key set not found for path '${path}'.`,
+        );
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorageAllFeatureEntries(
+    path: UserStoragePathWithFeatureOnly,
+  ): Promise<void> {
+    try {
+      const headers = await this.#getAuthorizationHeader();
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(`feature not found for path '${path}'.`);
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchDeleteUserStorage<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    data: UserStorageFeatureKeys<FeatureName>[],
+  ): Promise<void> {
+    try {
+      if (!data.length) {
+        return;
+      }
+
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+
+      const encryptedData = await Promise.all(
+        data.map(async (d) => this.#createEntryKey(d, storageKey)),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        body: JSON.stringify({ batch_delete: encryptedData }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch delete user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }
