@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Add required `networkClientId` argument to `handleMethodData` method.
+
+### Changed
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Require `networkClientId` option in `addTransaction` method.
+  - Require `networkClientId` property in `TransactionMeta` type.
+  - Change `wipeTransactions` method arguments to optional object containing `address` and `chainId` properties.
+  - Require `networkClientId` argument in `estimateGas`, `estimateGasBuffered` and `getNonceLock` methods.
+
+### Removed
+
+- **BREAKING:** Remove global network usage ([#4920](https://github.com/MetaMask/core/pull/4920))
+  - Remove the `blockTracker`, `isMultichainEnabled`, `onNetworkStateChange` and `provider` constructor options.
+  - Remove `filterToCurrentNetwork` option from `getTransactions` method.
+
 ## [39.0.0]
 
 ### Changed
