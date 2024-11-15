@@ -12,17 +12,16 @@ import type {
 
 /**
  * Represents the conversion rates from one currency to others, including the conversion date.
- * The `conversionRate` field is a string that maps a cryptocurrency code (e.g., "BTC") to its
- * conversion rate. For this field we use string as the data type to avoid potential rounding
- * errors and precision loss.
- * The `usdConversionRate` provides the conversion rate to USD as a string, or `null` if the
- * conversion rate to USD is not available. We also use string for the same reason as stated before.
+ * The `conversionRate` field is a number that maps a cryptocurrency code (e.g., "BTC") to its
+ * conversion rate.
+ * The `usdConversionRate` provides the conversion rate to USD as a number, or `null` if the
+ * conversion rate to USD is not available.
  * The `conversionDate` is a Unix timestamp (number) indicating when the conversion rate was last updated.
  */
 export type Rate = {
-  conversionRate: string;
+  conversionRate: number;
   conversionDate: number;
-  usdConversionRate?: string;
+  usdConversionRate?: number;
 };
 
 /**

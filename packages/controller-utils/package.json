@@ -1,6 +1,6 @@
 {
   "name": "@metamask/controller-utils",
-  "version": "11.1.0",
+  "version": "11.4.3",
   "description": "Data and convenience functions shared by multiple packages",
   "keywords": [
     "MetaMask",
@@ -18,19 +18,24 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "files": [
     "dist/"
   ],
   "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/controller-utils",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/controller-utils",
@@ -45,9 +50,10 @@
     "@ethereumjs/util": "^8.1.0",
     "@metamask/eth-query": "^4.0.0",
     "@metamask/ethjs-unit": "^0.3.0",
-    "@metamask/utils": "^9.1.0",
+    "@metamask/utils": "^10.0.0",
     "@spruceid/siwe-parser": "2.1.0",
     "@types/bn.js": "^5.1.5",
+    "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "eth-ens-namehash": "^2.0.8",
     "fast-deep-equal": "^3.1.3"

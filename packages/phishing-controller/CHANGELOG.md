@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [12.3.0]
+
+### Fixed
+
+- Fixed extension performance issues ([#4853](https://github.com/MetaMask/core/pull/4853))
+
+## [12.2.0]
+
+### Changed
+
+- Changed the c2 blocklist fetch interval from 15 minutes to 5 minutes ([#4850](https://github.com/MetaMask/core/pull/4850))
+
+## [12.1.0]
+
+### Fixed
+
+- Update the phishing detector validation to drop invalid configs from detector ([#4820](https://github.com/MetaMask/core/pull/4820))
+
+## [12.0.3]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [12.0.2]
+
+### Fixed
+
+- Export `PhishingDetectorResultType` enum type ([#4674](https://github.com/MetaMask/core/pull/4674))
+- Export `PhishingDetector` type ([#4553](https://github.com/MetaMask/core/pull/4553))
+
 ## [12.0.1]
 
 ### Added
@@ -262,7 +305,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.3.0...HEAD
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.2.0...@metamask/phishing-controller@12.3.0
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.1.0...@metamask/phishing-controller@12.2.0
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.3...@metamask/phishing-controller@12.1.0
+[12.0.3]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.2...@metamask/phishing-controller@12.0.3
+[12.0.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.1...@metamask/phishing-controller@12.0.2
 [12.0.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@12.0.0...@metamask/phishing-controller@12.0.1
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@11.0.0...@metamask/phishing-controller@12.0.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@10.1.1...@metamask/phishing-controller@11.0.0

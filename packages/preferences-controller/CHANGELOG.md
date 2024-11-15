@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [13.3.0]
+
+### Changed
+
+- Enable smart transactions by default for new users ([#4885](https://github.com/MetaMask/core/pull/4885))
+
+## [13.2.0]
+
+### Added
+
+- Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `useSafeChainsListValidation` property to the `PreferencesController` state (default: `true`)
+  - Add `setUseSafeChainsListValidation` method to set this property
+- Add `tokenSortConfig` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `tokenSortConfig` property to the `PreferencesController` state (default value: `{ key: 'tokenFiatAmount', order: 'dsc', sortCallback: 'stringNumeric' }`)
+  - Add `setTokenSortConfig` method to set this property
+- Add `privacyMode` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `privacyMode` property to the `PreferencesController` state (default value: `false`)
+  - Add `setPrivacyMode` method to set this property
+- Add `useMultiRpcMigration` preference ([#4732](https://github.com/MetaMask/core/pull/4732))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.2` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+
+## [13.1.0]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
+
+## [13.0.3]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [13.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
 ## [13.0.1]
 
 ### Changed
@@ -256,7 +321,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@14.0.0...HEAD
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.3.0...@metamask/preferences-controller@14.0.0
+[13.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.2.0...@metamask/preferences-controller@13.3.0
+[13.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.1.0...@metamask/preferences-controller@13.2.0
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.3...@metamask/preferences-controller@13.1.0
+[13.0.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.2...@metamask/preferences-controller@13.0.3
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...@metamask/preferences-controller@13.0.2
 [13.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.0...@metamask/preferences-controller@13.0.1
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@12.0.0...@metamask/preferences-controller@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...@metamask/preferences-controller@12.0.0

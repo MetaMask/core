@@ -21,6 +21,7 @@ import {
   convertHexToDecimal,
   isInfuraNetworkType,
 } from '@metamask/controller-utils';
+import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
@@ -48,7 +49,7 @@ import { add0x } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import { MethodRegistry } from 'eth-method-registry';
 import { EventEmitter } from 'events';
-import { cloneDeep, mapValues, merge, pickBy, sortBy, isEqual } from 'lodash';
+import { cloneDeep, mapValues, merge, pickBy, sortBy } from 'lodash';
 import { v1 as random } from 'uuid';
 
 import { DefaultGasFeeFlow } from './gas-flows/DefaultGasFeeFlow';
@@ -78,10 +79,9 @@ import type {
   SimulationData,
   GasFeeEstimates,
   GasFeeFlowResponse,
-  TraceCallback,
-  TraceContext,
   GasPriceValue,
   FeeMarketEIP1559Values,
+  SubmitHistoryEntry,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -105,6 +105,8 @@ import {
   getAndFormatTransactionsForNonceTracker,
   getNextNonce,
 } from './utils/nonce';
+import type { ResimulateResponse } from './utils/resimulate';
+import { hasSimulationDataChanged, shouldResimulate } from './utils/resimulate';
 import { getTransactionParamsWithIncreasedGasFee } from './utils/retry';
 import { getSimulationData } from './utils/simulation';
 import {
@@ -142,9 +144,14 @@ const metadata = {
     persist: true,
     anonymous: false,
   },
+  submitHistory: {
+    persist: true,
+    anonymous: false,
+  },
 };
 
 export const HARDFORK = Hardfork.London;
+const SUBMIT_HISTORY_LIMIT = 100;
 
 /**
  * Object with new transaction's meta and a promise resolving to the
@@ -197,6 +204,7 @@ export type TransactionControllerState = {
   transactions: TransactionMeta[];
   methodData: Record<string, MethodData>;
   lastFetchedBlockNumbers: { [key: string]: number };
+  submitHistory: SubmitHistoryEntry[];
 };
 
 /**
@@ -282,9 +290,12 @@ export type TransactionControllerOptions = {
   ) => Promise<GasFeeState>;
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
   getNetworkState: () => NetworkState;
-  getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  getPermittedAccounts?: (origin?: string) => Promise<string[]>;
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
-  incomingTransactions?: IncomingTransactionOptions;
+  incomingTransactions?: IncomingTransactionOptions & {
+    /** API keys to be used for Etherscan requests to prevent rate limiting. */
+    etherscanApiKeysByChainId?: Record<Hex, string>;
+  };
   isMultichainEnabled: boolean;
   isSimulationEnabled?: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -306,7 +317,6 @@ export type TransactionControllerOptions = {
       transactionMeta: TransactionMeta,
       signedTx: TypedTransaction,
     ) => boolean;
-    beforeApproveOnInit?: (transactionMeta: TransactionMeta) => boolean;
     beforeCheckPendingTransaction?: (
       transactionMeta: TransactionMeta,
     ) => boolean;
@@ -557,6 +567,7 @@ function getDefaultTransactionControllerState(): TransactionControllerState {
     methodData: {},
     transactions: [],
     lastFetchedBlockNumbers: {},
+    submitHistory: [],
   };
 }
 
@@ -600,7 +611,9 @@ export class TransactionController extends BaseController<
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
 
-  private readonly getPermittedAccounts: (origin?: string) => Promise<string[]>;
+  private readonly getPermittedAccounts?: (
+    origin?: string,
+  ) => Promise<string[]>;
 
   private readonly getExternalPendingTransactions: (
     address: string,
@@ -634,10 +647,6 @@ export class TransactionController extends BaseController<
     signedTx: TypedTransaction,
   ) => boolean;
 
-  private readonly beforeApproveOnInit: (
-    transactionMeta: TransactionMeta,
-  ) => boolean;
-
   private readonly beforeCheckPendingTransaction: (
     transactionMeta: TransactionMeta,
   ) => boolean;
@@ -658,24 +667,48 @@ export class TransactionController extends BaseController<
     error: Error,
     actionId?: string,
   ) {
-    const newTransactionMeta = merge({}, transactionMeta, {
-      error: normalizeTxError(error),
-      status: TransactionStatus.failed as const,
-    });
+    let newTransactionMeta: TransactionMeta;
+
+    try {
+      newTransactionMeta = this.#updateTransactionInternal(
+        {
+          transactionId: transactionMeta.id,
+          note: 'TransactionController#failTransaction - Add error message and set status to failed',
+          skipValidation: true,
+        },
+        (draftTransactionMeta) => {
+          draftTransactionMeta.status = TransactionStatus.failed;
+
+          (
+            draftTransactionMeta as TransactionMeta & {
+              status: TransactionStatus.failed;
+            }
+          ).error = normalizeTxError(error);
+        },
+      );
+    } catch (err: unknown) {
+      log('Failed to mark transaction as failed', err);
+
+      newTransactionMeta = {
+        ...transactionMeta,
+        status: TransactionStatus.failed,
+        error: normalizeTxError(error),
+      };
+    }
+
     this.messagingSystem.publish(`${controllerName}:transactionFailed`, {
       actionId,
       error: error.message,
       transactionMeta: newTransactionMeta,
     });
-    this.updateTransaction(
-      newTransactionMeta,
-      'TransactionController#failTransaction - Add error message and set status to failed',
-    );
+
     this.onTransactionStatusChange(newTransactionMeta);
+
     this.messagingSystem.publish(
       `${controllerName}:transactionFinished`,
       newTransactionMeta,
     );
+
     this.#internalEvents.emit(
       `${transactionMeta.id}:finished`,
       newTransactionMeta,
@@ -801,7 +834,6 @@ export class TransactionController extends BaseController<
     this.#trace = trace ?? (((_request, fn) => fn?.()) as TraceCallback);
 
     this.afterSign = hooks?.afterSign ?? (() => true);
-    this.beforeApproveOnInit = hooks?.beforeApproveOnInit ?? (() => true);
     this.beforeCheckPendingTransaction =
       hooks?.beforeCheckPendingTransaction ??
       /* istanbul ignore next */
@@ -857,6 +889,7 @@ export class TransactionController extends BaseController<
 
     const etherscanRemoteTransactionSource =
       new EtherscanRemoteTransactionSource({
+        apiKeysByChainId: incomingTransactions.etherscanApiKeysByChainId,
         includeTokenTransfers: incomingTransactions.includeTokenTransfers,
       });
 
@@ -909,7 +942,6 @@ export class TransactionController extends BaseController<
     onNetworkStateChange(() => {
       log('Detected network change', this.getChainId());
       this.pendingTransactionTracker.startIfPendingTransactions();
-      this.onBootCleanup();
     });
 
     this.onBootCleanup();
@@ -1023,7 +1055,7 @@ export class TransactionController extends BaseController<
 
     validateTxParams(txParams, isEIP1559Compatible);
 
-    if (origin) {
+    if (origin && this.getPermittedAccounts) {
       await validateTransactionOrigin(
         await this.getPermittedAccounts(origin),
         this.#getSelectedAccount().address,
@@ -1339,24 +1371,25 @@ export class TransactionController extends BaseController<
       chainId: transactionMeta.chainId,
     });
 
-    const hash = await this.publishTransactionForRetry(
-      ethQuery,
-      rawTx,
-      transactionMeta,
-    );
-
     const newTransactionMeta = {
       ...transactionMetaWithRsv,
+      actionId,
       estimatedBaseFee,
       id: random(),
-      time: Date.now(),
-      hash,
-      actionId,
       originalGasEstimate: transactionMeta.txParams.gas,
-      type: transactionType,
-      txParams: newTxParams,
       originalType: transactionMeta.type,
+      rawTx,
+      time: Date.now(),
+      txParams: newTxParams,
+      type: transactionType,
     };
+
+    const hash = await this.publishTransactionForRetry(ethQuery, {
+      ...newTransactionMeta,
+      origin: label,
+    });
+
+    newTransactionMeta.hash = hash;
 
     this.addMetadata(newTransactionMeta);
 
@@ -2012,30 +2045,6 @@ export class TransactionController extends BaseController<
   }
 
   /**
-   * Creates approvals for all unapproved transactions persisted.
-   */
-  initApprovals() {
-    const chainId = this.getChainId();
-    const unapprovedTxs = this.state.transactions.filter(
-      (transaction) =>
-        transaction.status === TransactionStatus.unapproved &&
-        transaction.chainId === chainId &&
-        !transaction.isUserOperation,
-    );
-
-    for (const txMeta of unapprovedTxs) {
-      this.processApproval(txMeta, {
-        shouldShowRequest: false,
-      }).catch((error) => {
-        if (error?.code === errorCodes.provider.userRejectedRequest) {
-          return;
-        }
-        console.error('Error during persisted transaction approval', error);
-      });
-    }
-  }
-
-  /**
    * Search transaction metadata for matching entries.
    *
    * @param opts - Options bag.
@@ -2350,24 +2359,23 @@ export class TransactionController extends BaseController<
   }
 
   private onBootCleanup() {
-    this.submitApprovedTransactions();
+    this.clearUnapprovedTransactions();
+    this.failIncompleteTransactions();
   }
 
-  /**
-   * Force submit approved transactions for all chains.
-   */
-  private submitApprovedTransactions() {
-    const approvedTransactions = this.state.transactions.filter(
-      (transaction) => transaction.status === TransactionStatus.approved,
+  private failIncompleteTransactions() {
+    const incompleteTransactions = this.state.transactions.filter(
+      (transaction) =>
+        [TransactionStatus.approved, TransactionStatus.signed].includes(
+          transaction.status,
+        ),
     );
 
-    for (const transactionMeta of approvedTransactions) {
-      if (this.beforeApproveOnInit(transactionMeta)) {
-        this.approveTransaction(transactionMeta.id).catch((error) => {
-          /* istanbul ignore next */
-          console.error('Error while submitting persisted transaction', error);
-        });
-      }
+    for (const transactionMeta of incompleteTransactions) {
+      this.failTransaction(
+        transactionMeta,
+        new Error('Transaction incomplete at startup'),
+      );
     }
   }
 
@@ -2618,7 +2626,10 @@ export class TransactionController extends BaseController<
           ));
 
           if (hash === undefined) {
-            hash = await this.publishTransaction(ethQuery, rawTx);
+            hash = await this.publishTransaction(ethQuery, {
+              ...transactionMeta,
+              rawTx,
+            });
           }
         },
       );
@@ -2665,9 +2676,18 @@ export class TransactionController extends BaseController<
 
   private async publishTransaction(
     ethQuery: EthQuery,
-    rawTransaction: string,
+    transactionMeta: TransactionMeta,
+    { skipSubmitHistory }: { skipSubmitHistory?: boolean } = {},
   ): Promise<string> {
-    return await query(ethQuery, 'sendRawTransaction', [rawTransaction]);
+    const transactionHash = await query(ethQuery, 'sendRawTransaction', [
+      transactionMeta.rawTx,
+    ]);
+
+    if (skipSubmitHistory !== true) {
+      this.#updateSubmitHistory(transactionMeta, transactionHash);
+    }
+
+    return transactionHash;
   }
 
   /**
@@ -3334,6 +3354,7 @@ export class TransactionController extends BaseController<
       blockTracker,
       getCurrentAccount: () => this.#getSelectedAccount(),
       getLastFetchedBlockNumbers: () => this.state.lastFetchedBlockNumbers,
+      getLocalTransactions: () => this.state.transactions,
       getChainId: chainId ? () => chainId : this.getChainId.bind(this),
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
@@ -3360,9 +3381,6 @@ export class TransactionController extends BaseController<
     const getChainId = chainId ? () => chainId : this.getChainId.bind(this);
 
     const pendingTransactionTracker = new PendingTransactionTracker({
-      approveTransaction: async (transactionId: string) => {
-        await this.approveTransaction(transactionId);
-      },
       blockTracker,
       getChainId,
       getEthQuery: () => ethQuery,
@@ -3372,7 +3390,10 @@ export class TransactionController extends BaseController<
         this.#multichainTrackingHelper.acquireNonceLockForChainIdKey({
           chainId: getChainId(),
         }),
-      publishTransaction: this.publishTransaction.bind(this),
+      publishTransaction: (_ethQuery, transactionMeta) =>
+        this.publishTransaction(_ethQuery, transactionMeta, {
+          skipSubmitHistory: true,
+        }),
       hooks: {
         beforeCheckPendingTransaction:
           this.beforeCheckPendingTransaction.bind(this),
@@ -3478,12 +3499,10 @@ export class TransactionController extends BaseController<
 
   private async publishTransactionForRetry(
     ethQuery: EthQuery,
-    rawTx: string,
     transactionMeta: TransactionMeta,
   ): Promise<string> {
     try {
-      const hash = await this.publishTransaction(ethQuery, rawTx);
-      return hash;
+      return await this.publishTransaction(ethQuery, transactionMeta);
     } catch (error: unknown) {
       if (this.isTransactionAlreadyConfirmedError(error as Error)) {
         await this.pendingTransactionTracker.forceCheckTransaction(
@@ -3528,10 +3547,18 @@ export class TransactionController extends BaseController<
       transactionId,
       note,
       skipHistory,
-    }: { transactionId: string; note?: string; skipHistory?: boolean },
+      skipValidation,
+      skipResimulateCheck,
+    }: {
+      transactionId: string;
+      note?: string;
+      skipHistory?: boolean;
+      skipValidation?: boolean;
+      skipResimulateCheck?: boolean;
+    },
     callback: (transactionMeta: TransactionMeta) => TransactionMeta | void,
   ): Readonly<TransactionMeta> {
-    let updatedTransactionParams: (keyof TransactionParams)[] = [];
+    let resimulateResponse: ResimulateResponse | undefined;
 
     this.update((state) => {
       const index = state.transactions.findIndex(
@@ -3540,17 +3567,25 @@ export class TransactionController extends BaseController<
 
       let transactionMeta = state.transactions[index];
 
+      const originalTransactionMeta = cloneDeep(transactionMeta);
+
       // eslint-disable-next-line n/callback-return
       transactionMeta = callback(transactionMeta) ?? transactionMeta;
 
-      transactionMeta.txParams = normalizeTransactionParams(
-        transactionMeta.txParams,
-      );
+      if (skipValidation !== true) {
+        transactionMeta.txParams = normalizeTransactionParams(
+          transactionMeta.txParams,
+        );
 
-      validateTxParams(transactionMeta.txParams);
+        validateTxParams(transactionMeta.txParams);
+      }
 
-      updatedTransactionParams =
-        this.#checkIfTransactionParamsUpdated(transactionMeta);
+      if (!skipResimulateCheck && this.#isSimulationEnabled()) {
+        resimulateResponse = shouldResimulate(
+          originalTransactionMeta,
+          transactionMeta,
+        );
+      }
 
       const shouldSkipHistory = this.isHistoryDisabled || skipHistory;
 
@@ -3567,64 +3602,35 @@ export class TransactionController extends BaseController<
       transactionId,
     ) as TransactionMeta;
 
-    if (updatedTransactionParams.length > 0) {
-      this.#onTransactionParamsUpdated(
-        transactionMeta,
-        updatedTransactionParams,
-      );
+    if (resimulateResponse?.resimulate) {
+      this.#updateSimulationData(transactionMeta, {
+        blockTime: resimulateResponse.blockTime,
+      }).catch((error) => {
+        log('Error during re-simulation', error);
+        throw error;
+      });
     }
 
     return transactionMeta;
   }
 
-  #checkIfTransactionParamsUpdated(newTransactionMeta: TransactionMeta) {
-    const { id: transactionId, txParams: newParams } = newTransactionMeta;
-
-    const originalParams = this.getTransaction(transactionId)?.txParams;
-
-    if (!originalParams || isEqual(originalParams, newParams)) {
-      return [];
-    }
-
-    const params = Object.keys(newParams) as (keyof TransactionParams)[];
-
-    const updatedProperties = params.filter(
-      (param) => newParams[param] !== originalParams[param],
-    );
-
-    log(
-      'Transaction parameters have been updated',
-      transactionId,
-      updatedProperties,
-      originalParams,
-      newParams,
-    );
-
-    return updatedProperties;
-  }
-
-  #onTransactionParamsUpdated(
-    transactionMeta: TransactionMeta,
-    updatedParams: (keyof TransactionParams)[],
-  ) {
-    if (
-      (['to', 'value', 'data'] as const).some((param) =>
-        updatedParams.includes(param),
-      )
-    ) {
-      log('Updating simulation data due to transaction parameter update');
-      this.#updateSimulationData(transactionMeta).catch((error) => {
-        log('Error updating simulation data', error);
-        throw error;
-      });
-    }
-  }
-
   async #updateSimulationData(
     transactionMeta: TransactionMeta,
-    { traceContext }: { traceContext?: TraceContext } = {},
+    {
+      blockTime,
+      traceContext,
+    }: {
+      blockTime?: number;
+      traceContext?: TraceContext;
+    } = {},
   ) {
-    const { id: transactionId, chainId, txParams } = transactionMeta;
+    const {
+      id: transactionId,
+      chainId,
+      txParams,
+      simulationData: prevSimulationData,
+    } = transactionMeta;
+
     const { from, to, value, data } = txParams;
 
     let simulationData: SimulationData = {
@@ -3636,24 +3642,33 @@ export class TransactionController extends BaseController<
     };
 
     if (this.#isSimulationEnabled()) {
-      this.#updateTransactionInternal(
-        { transactionId, skipHistory: true },
-        (txMeta) => {
-          txMeta.simulationData = undefined;
-        },
-      );
-
       simulationData = await this.#trace(
         { name: 'Simulate', parentContext: traceContext },
         () =>
-          getSimulationData({
-            chainId,
-            from: from as Hex,
-            to: to as Hex,
-            value: value as Hex,
-            data: data as Hex,
-          }),
+          getSimulationData(
+            {
+              chainId,
+              from: from as Hex,
+              to: to as Hex,
+              value: value as Hex,
+              data: data as Hex,
+            },
+            {
+              blockTime,
+            },
+          ),
       );
+
+      if (
+        blockTime &&
+        prevSimulationData &&
+        hasSimulationDataChanged(prevSimulationData, simulationData)
+      ) {
+        simulationData = {
+          ...simulationData,
+          isUpdatedAfterSecurityCheck: true,
+        };
+      }
     }
 
     const finalTransactionMeta = this.getTransaction(transactionId);
@@ -3673,6 +3688,7 @@ export class TransactionController extends BaseController<
       {
         transactionId,
         note: 'TransactionController#updateSimulationData - Update simulation data',
+        skipResimulateCheck: Boolean(blockTime),
       },
       (txMeta) => {
         txMeta.simulationData = simulationData;
@@ -3765,5 +3781,43 @@ export class TransactionController extends BaseController<
 
   #getSelectedAccount() {
     return this.messagingSystem.call('AccountsController:getSelectedAccount');
+  }
+
+  #updateSubmitHistory(transactionMeta: TransactionMeta, hash: string): void {
+    const { chainId, networkClientId, origin, rawTx, txParams } =
+      transactionMeta;
+
+    const { networkConfigurationsByChainId } = this.getNetworkState();
+    const networkConfiguration = networkConfigurationsByChainId[chainId as Hex];
+
+    const endpoint = networkConfiguration?.rpcEndpoints.find(
+      (currentEndpoint) => currentEndpoint.networkClientId === networkClientId,
+    );
+
+    const networkUrl = endpoint?.url;
+    const networkType = endpoint?.name ?? networkClientId;
+
+    const submitHistoryEntry: SubmitHistoryEntry = {
+      chainId,
+      hash,
+      networkType,
+      networkUrl,
+      origin,
+      rawTransaction: rawTx as string,
+      time: Date.now(),
+      transaction: txParams,
+    };
+
+    log('Updating submit history', submitHistoryEntry);
+
+    this.update((state) => {
+      const { submitHistory } = state;
+
+      if (submitHistory.length === SUBMIT_HISTORY_LIMIT) {
+        submitHistory.pop();
+      }
+
+      submitHistory.unshift(submitHistoryEntry);
+    });
   }
 }

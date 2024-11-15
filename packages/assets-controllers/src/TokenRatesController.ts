@@ -16,7 +16,6 @@ import {
 } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-api';
 import type {
-  NetworkClientId,
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerStateChangeEvent,
@@ -221,11 +220,16 @@ export const getDefaultTokenRatesControllerState =
     };
   };
 
+/** The input to start polling for the {@link TokenRatesController} */
+export type TokenRatesPollingInput = {
+  chainId: Hex;
+};
+
 /**
  * Controller that passively polls on a set interval for token-to-fiat exchange rates
  * for tokens stored in the TokensController
  */
-export class TokenRatesController extends StaticIntervalPollingController<
+export class TokenRatesController extends StaticIntervalPollingController<TokenRatesPollingInput>()<
   typeof controllerName,
   TokenRatesControllerState,
   TokenRatesControllerMessenger
@@ -301,8 +305,6 @@ export class TokenRatesController extends StaticIntervalPollingController<
     this.#subscribeToTokensStateChange();
 
     this.#subscribeToNetworkStateChange();
-
-    this.#subscribeToAccountChange();
   }
 
   #subscribeToTokensStateChange() {
@@ -311,17 +313,46 @@ export class TokenRatesController extends StaticIntervalPollingController<
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ allTokens, allDetectedTokens }) => {
-        const previousTokenAddresses = this.#getTokenAddresses(this.#chainId);
+        if (this.#disabled) {
+          return;
+        }
+
+        const chainIds = [
+          ...new Set([
+            ...Object.keys(allTokens),
+            ...Object.keys(allDetectedTokens),
+          ]),
+        ] as Hex[];
+
+        const chainIdsToUpdate = chainIds.filter(
+          (chainId) =>
+            !isEqual(this.#allTokens[chainId], allTokens[chainId]) ||
+            !isEqual(
+              this.#allDetectedTokens[chainId],
+              allDetectedTokens[chainId],
+            ),
+        );
+
         this.#allTokens = allTokens;
         this.#allDetectedTokens = allDetectedTokens;
 
-        const newTokenAddresses = this.#getTokenAddresses(this.#chainId);
-        if (
-          !isEqual(previousTokenAddresses, newTokenAddresses) &&
-          this.#pollState === PollState.Active
-        ) {
-          await this.updateExchangeRates();
-        }
+        const { networkConfigurationsByChainId } = this.messagingSystem.call(
+          'NetworkController:getState',
+        );
+
+        await Promise.allSettled(
+          chainIdsToUpdate.map(async (chainId) => {
+            const nativeCurrency =
+              networkConfigurationsByChainId[chainId as Hex]?.nativeCurrency;
+
+            if (nativeCurrency) {
+              await this.updateExchangeRatesByChainId({
+                chainId: chainId as Hex,
+                nativeCurrency,
+              });
+            }
+          }),
+        );
       },
       ({ allTokens, allDetectedTokens }) => {
         return { allTokens, allDetectedTokens };
@@ -334,7 +365,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
       'NetworkController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async ({ selectedNetworkClientId }) => {
+      async ({ selectedNetworkClientId }, patches) => {
         const {
           configuration: { chainId, ticker },
         } = this.messagingSystem.call(
@@ -343,29 +374,23 @@ export class TokenRatesController extends StaticIntervalPollingController<
         );
 
         if (this.#chainId !== chainId || this.#ticker !== ticker) {
-          this.update((state) => {
-            state.marketData = {};
-          });
           this.#chainId = chainId;
           this.#ticker = ticker;
           if (this.#pollState === PollState.Active) {
             await this.updateExchangeRates();
           }
         }
-      },
-    );
-  }
 
-  #subscribeToAccountChange() {
-    this.messagingSystem.subscribe(
-      'AccountsController:selectedEvmAccountChange',
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (selectedAccount) => {
-        if (this.#selectedAccountId !== selectedAccount.id) {
-          this.#selectedAccountId = selectedAccount.id;
-          if (this.#pollState === PollState.Active) {
-            await this.updateExchangeRates();
+        // Remove state for deleted networks
+        for (const patch of patches) {
+          if (
+            patch.op === 'remove' &&
+            patch.path[0] === 'networkConfigurationsByChainId'
+          ) {
+            const removedChainId = patch.path[1] as Hex;
+            this.update((state) => {
+              delete state.marketData[removedChainId];
+            });
           }
         }
       },
@@ -373,28 +398,21 @@ export class TokenRatesController extends StaticIntervalPollingController<
   }
 
   /**
-   * Get the user's tokens for the given chain.
+   * Get the tokens for the given chain.
    *
    * @param chainId - The chain ID.
    * @returns The list of tokens addresses for the current chain
    */
   #getTokenAddresses(chainId: Hex): Hex[] {
-    const selectedAccount = this.messagingSystem.call(
-      'AccountsController:getAccount',
-      this.#selectedAccountId,
-    );
-    const selectedAddress = selectedAccount?.address ?? '';
-    const tokens = this.#allTokens[chainId]?.[selectedAddress] || [];
-    const detectedTokens =
-      this.#allDetectedTokens[chainId]?.[selectedAddress] || [];
+    const getTokens = (allTokens: Record<Hex, { address: string }[]>) =>
+      Object.values(allTokens ?? {}).flatMap((tokens) =>
+        tokens.map(({ address }) => toHex(toChecksumHexAddress(address))),
+      );
 
-    return [
-      ...new Set(
-        [...tokens, ...detectedTokens].map((token) =>
-          toHex(toChecksumHexAddress(token.address)),
-        ),
-      ),
-    ].sort();
+    const tokenAddresses = getTokens(this.#allTokens[chainId]);
+    const detectedTokenAddresses = getTokens(this.#allDetectedTokens[chainId]);
+
+    return [...new Set([...tokenAddresses, ...detectedTokenAddresses])].sort();
   }
 
   /**
@@ -551,7 +569,10 @@ export class TokenRatesController extends StaticIntervalPollingController<
       };
 
       this.update((state) => {
-        state.marketData = marketData;
+        state.marketData = {
+          ...state.marketData,
+          ...marketData,
+        };
       });
       updateSucceeded();
     } catch (error: unknown) {
@@ -611,6 +632,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
     }
 
     return await this.#fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
+      chainId,
       tokenAddresses,
       nativeCurrency,
     });
@@ -619,17 +641,25 @@ export class TokenRatesController extends StaticIntervalPollingController<
   /**
    * Updates token rates for the given networkClientId
    *
-   * @param networkClientId - The network client ID used to get a ticker value.
-   * @returns The controller state.
+   * @param input - The input for the poll.
+   * @param input.chainId - The chain id to poll token rates on.
    */
-  async _executePoll(networkClientId: NetworkClientId): Promise<void> {
-    const networkClient = this.messagingSystem.call(
-      'NetworkController:getNetworkClientById',
-      networkClientId,
+  async _executePoll({ chainId }: TokenRatesPollingInput): Promise<void> {
+    const { networkConfigurationsByChainId } = this.messagingSystem.call(
+      'NetworkController:getState',
     );
+
+    const networkConfiguration = networkConfigurationsByChainId[chainId];
+    if (!networkConfiguration) {
+      console.error(
+        `TokenRatesController: No network configuration found for chainId ${chainId}`,
+      );
+      return;
+    }
+
     await this.updateExchangeRatesByChainId({
-      chainId: networkClient.configuration.chainId,
-      nativeCurrency: networkClient.configuration.ticker,
+      chainId,
+      nativeCurrency: networkConfiguration.nativeCurrency,
     });
   }
 
@@ -713,6 +743,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * API, then convert the prices to our desired native currency.
    *
    * @param args - The arguments to this function.
+   * @param args.chainId - The chain id to fetch prices for.
    * @param args.tokenAddresses - Addresses for tokens.
    * @param args.nativeCurrency - The native currency in which to request
    * prices.
@@ -720,9 +751,11 @@ export class TokenRatesController extends StaticIntervalPollingController<
    * native currency.
    */
   async #fetchAndMapExchangeRatesForUnsupportedNativeCurrency({
+    chainId,
     tokenAddresses,
     nativeCurrency,
   }: {
+    chainId: Hex;
     tokenAddresses: Hex[];
     nativeCurrency: string;
   }): Promise<ContractMarketData> {
@@ -732,7 +765,7 @@ export class TokenRatesController extends StaticIntervalPollingController<
     ] = await Promise.all([
       this.#fetchAndMapExchangeRatesForSupportedNativeCurrency({
         tokenAddresses,
-        chainId: this.#chainId,
+        chainId,
         nativeCurrency: FALL_BACK_VS_CURRENCY,
       }),
       getCurrencyConversionRate({
@@ -745,6 +778,12 @@ export class TokenRatesController extends StaticIntervalPollingController<
       return {};
     }
 
+    // Converts the price in the fallback currency to the native currency
+    const convertFallbackToNative = (value: number | undefined) =>
+      value !== undefined && value !== null
+        ? value * fallbackCurrencyToNativeCurrencyConversionRate
+        : undefined;
+
     const updatedContractExchangeRates = Object.entries(
       contractExchangeInformations,
     ).reduce((acc, [tokenAddress, token]) => {
@@ -752,15 +791,30 @@ export class TokenRatesController extends StaticIntervalPollingController<
         ...acc,
         [tokenAddress]: {
           ...token,
-          price: token.price
-            ? token.price * fallbackCurrencyToNativeCurrencyConversionRate
-            : undefined,
+          currency: nativeCurrency,
+          price: convertFallbackToNative(token.price),
+          marketCap: convertFallbackToNative(token.marketCap),
+          allTimeHigh: convertFallbackToNative(token.allTimeHigh),
+          allTimeLow: convertFallbackToNative(token.allTimeLow),
+          totalVolume: convertFallbackToNative(token.totalVolume),
+          high1d: convertFallbackToNative(token.high1d),
+          low1d: convertFallbackToNative(token.low1d),
+          dilutedMarketCap: convertFallbackToNative(token.dilutedMarketCap),
         },
       };
       return acc;
     }, {});
 
     return updatedContractExchangeRates;
+  }
+
+  /**
+   * Reset the controller state to the default state.
+   */
+  resetState() {
+    this.update(() => {
+      return getDefaultTokenRatesControllerState();
+    });
   }
 }
 

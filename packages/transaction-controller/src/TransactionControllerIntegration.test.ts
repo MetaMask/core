@@ -286,7 +286,7 @@ describe('TransactionController Integration', () => {
     });
 
     // eslint-disable-next-line jest/no-disabled-tests
-    it('should submit all approved transactions in state', async () => {
+    it('should fail all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
           InfuraNetworkType.goerli,
@@ -396,10 +396,10 @@ describe('TransactionController Integration', () => {
 
       expect(transactionController.state.transactions).toMatchObject([
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
       ]);
       transactionController.destroy();
@@ -1102,7 +1102,7 @@ describe('TransactionController Integration', () => {
     const { networkController, transactionController } =
       await setupController();
 
-    const networkConfiguration = await networkController.addNetwork(
+    const networkConfiguration = networkController.addNetwork(
       buildAddNetworkFields(),
     );
 
@@ -1146,7 +1146,7 @@ describe('TransactionController Integration', () => {
           isMultichainEnabled: false,
         });
 
-      const networkConfiguration = await networkController.addNetwork(
+      const networkConfiguration = networkController.addNetwork(
         buildAddNetworkFields(),
       );
 
@@ -1186,7 +1186,7 @@ describe('TransactionController Integration', () => {
           getNetworkClientRegistry: getNetworkClientRegistrySpy,
         });
 
-      await networkController.addNetwork(buildAddNetworkFields());
+      networkController.addNetwork(buildAddNetworkFields());
 
       expect(getNetworkClientRegistrySpy).not.toHaveBeenCalled();
       transactionController.destroy();
@@ -1202,7 +1202,7 @@ describe('TransactionController Integration', () => {
         'getNetworkClientRegistry',
       );
 
-      await networkController.addNetwork(buildAddNetworkFields());
+      networkController.addNetwork(buildAddNetworkFields());
 
       expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
       transactionController.destroy();

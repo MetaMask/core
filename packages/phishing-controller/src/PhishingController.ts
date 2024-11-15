@@ -5,7 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
-import { toASCII } from 'punycode/';
+import { toASCII } from 'punycode/punycode.js';
 
 import { PhishingDetector } from './PhishingDetector';
 import {
@@ -28,7 +28,7 @@ export const CLIENT_SIDE_DETECION_BASE_URL =
   'https://client-side-detection.api.cx.metamask.io';
 export const C2_DOMAIN_BLOCKLIST_ENDPOINT = '/v1/request-blocklist';
 
-export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 15 * 60; // 15 mins in seconds
+export const C2_DOMAIN_BLOCKLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const HOTLIST_REFRESH_INTERVAL = 5 * 60; // 5 mins in seconds
 export const STALELIST_REFRESH_INTERVAL = 30 * 24 * 60 * 60; // 30 days in seconds
 

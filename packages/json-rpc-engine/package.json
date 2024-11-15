@@ -1,6 +1,6 @@
 {
   "name": "@metamask/json-rpc-engine",
-  "version": "9.0.2",
+  "version": "10.0.1",
   "description": "A tool for processing JSON-RPC messages",
   "keywords": [
     "MetaMask",
@@ -18,14 +18,19 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "directories": {
     "test": "test"
   },
@@ -33,7 +38,7 @@
     "dist/"
   ],
   "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-engine --tag-prefix-before-package-rename json-rpc-engine@ --version-before-package-rename 6.1.0",
@@ -51,9 +56,9 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/rpc-errors": "^6.3.1",
+    "@metamask/rpc-errors": "^7.0.1",
     "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^9.1.0"
+    "@metamask/utils": "^10.0.0"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

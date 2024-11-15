@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../permission-controller"
+    }
+  ],
+  "include": ["../../types", "./src"]
+}

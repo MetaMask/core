@@ -5,9 +5,11 @@ import {
   applyDiffs,
   domainToParts,
   fetchTimeNow,
+  generateParentDomains,
   getHostnameFromUrl,
   matchPartsAgainstList,
   processConfigs,
+  // processConfigs,
   processDomainList,
   roundToNearestMinute,
   sha256Hash,
@@ -287,30 +289,151 @@ describe('domainToParts', () => {
 });
 
 describe('processConfigs', () => {
-  it('correctly converts a list of configs to a list of processed configs', () => {
+  let consoleErrorMock: jest.SpyInstance;
+
+  beforeEach(() => {
+    consoleErrorMock = jest.spyOn(console, 'error');
+  });
+
+  afterEach(() => {
+    consoleErrorMock.mockRestore();
+  });
+
+  it('correctly processes a list of valid configs', () => {
     const configs = [
       {
         allowlist: ['example.com'],
         blocklist: ['sub.example.com'],
         fuzzylist: ['fuzzy.example.com'],
         tolerance: 2,
+        version: 1,
+        name: 'MetaMask',
       },
     ];
 
     const result = processConfigs(configs);
 
-    expect(result).toStrictEqual([
-      {
-        allowlist: [['com', 'example']],
-        blocklist: [['com', 'example', 'sub']],
-        fuzzylist: [['com', 'example', 'fuzzy']],
-        tolerance: 2,
-      },
-    ]);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('MetaMask');
+
+    expect(console.error).not.toHaveBeenCalled();
   });
 
-  it('can be called with no arguments', () => {
-    expect(processConfigs()).toStrictEqual([]);
+  it('filters out invalid configs and logs errors', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: [],
+        tolerance: 2,
+        version: 1,
+        name: 'MetaMask',
+      },
+      {
+        allowlist: [],
+        version: 1,
+        name: undefined,
+      },
+    ];
+
+    const result = processConfigs(configs);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('MetaMask');
+
+    expect(console.error).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns an empty array when called with no arguments', () => {
+    const result = processConfigs();
+    expect(result).toStrictEqual([]);
+  });
+
+  it('filters out invalid configs and logs errors with multiple configs', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: [],
+        tolerance: 2,
+        version: 1,
+        name: 'MetaMask',
+      },
+      {
+        allowlist: [],
+        version: 1,
+        name: undefined,
+      },
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        fuzzylist: [],
+        tolerance: 2,
+        version: 1,
+        name: 'name',
+      },
+      {
+        allowlist: [],
+        version: 1,
+        name: '',
+      },
+    ];
+
+    const result = processConfigs(configs);
+
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe('MetaMask');
+    expect(result[1].name).toBe('name');
+
+    expect(console.error).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns an empty array when all configs are invalid', () => {
+    const configs = [
+      {
+        allowlist: [],
+        version: 1,
+        name: undefined,
+      },
+      {
+        blocklist: [],
+        fuzzylist: [],
+        tolerance: 2,
+        version: null,
+        name: '',
+      },
+    ];
+
+    // @ts-expect-error testing invalid input
+    const result = processConfigs(configs);
+
+    expect(result).toStrictEqual([]);
+
+    expect(console.error).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs errors for invalid tolerance or version types', () => {
+    const configs = [
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        tolerance: 'invalid',
+        version: 1,
+      },
+      {
+        allowlist: ['example.com'],
+        blocklist: ['sub.example.com'],
+        tolerance: 2,
+        version: {},
+      },
+    ];
+
+    // @ts-expect-error testing invalid input
+    const result = processConfigs(configs);
+
+    expect(result).toStrictEqual([]);
+
+    expect(console.error).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -479,5 +602,155 @@ describe('getHostname', () => {
     const url = 'https://www.example.com/path#section';
     const expectedHostname = 'www.example.com';
     expect(getHostnameFromUrl(url)).toBe(expectedHostname);
+  });
+});
+
+/**
+ * Extracts the domain name (e.g., example.com) from a given hostname.
+ *
+ * @param hostname - The full hostname to extract the domain from.
+ * @returns The extracted domain name.
+ */
+const extractDomainName = (hostname: string): string => {
+  const parts = domainToParts(hostname.toLowerCase());
+  if (parts.length < 2) {
+    return hostname;
+  }
+  const domainParts = parts.slice(0, 2).reverse();
+  return domainParts.join('.');
+};
+
+describe('extractDomainName', () => {
+  it('should extract the primary domain from a standard hostname', () => {
+    const hostname = 'www.example.com';
+    const expected = 'example.com';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should extract the primary domain from a hostname with multiple subdomains', () => {
+    const hostname = 'a.b.c.example.com';
+    const expected = 'example.com';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should return single-segment hostnames as-is', () => {
+    const hostname = 'localhost';
+    const expected = 'localhost';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should extract the last two segments from a hostname with a multi-level TLD', () => {
+    const hostname = 'sub.example.co.uk';
+    const expected = 'co.uk';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should handle hostnames with uppercase letters correctly', () => {
+    const hostname = 'ExAmPlE.CoM';
+    const expected = 'example.com';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+
+  it('should return an empty string when given an empty hostname', () => {
+    const hostname = '';
+    const expected = '';
+    const result = extractDomainName(hostname);
+    expect(result).toBe(expected);
+  });
+});
+
+describe('generateParentDomains', () => {
+  it('should return an empty array when sourceParts is empty', () => {
+    expect(generateParentDomains([], 5)).toStrictEqual([]);
+  });
+
+  it('should handle single-segment hostname correctly', () => {
+    const sourceParts = ['uk'];
+    const expected = ['uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle two-segment hostname correctly', () => {
+    const sourceParts = ['co', 'uk'];
+    const expected = ['co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle three-segment hostname correctly', () => {
+    const sourceParts = ['domain', 'co', 'uk'];
+    const expected = ['co.uk', 'domain.co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle four-segment hostname within limit', () => {
+    const sourceParts = ['evil', 'domain', 'co', 'uk'];
+    const expected = ['co.uk', 'domain.co.uk', 'evil.domain.co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle five-segment hostname within limit', () => {
+    const sourceParts = ['fifth', 'evil', 'domain', 'co', 'uk'];
+    const expected = [
+      'co.uk',
+      'domain.co.uk',
+      'evil.domain.co.uk',
+      'fifth.evil.domain.co.uk',
+    ];
+    expect(generateParentDomains(sourceParts, 5)).toStrictEqual(expected);
+  });
+
+  it('should handle hostnames exceeding the limit', () => {
+    const sourceParts = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const limit = 5;
+    const expected = ['f.g', 'e.f.g', 'd.e.f.g', 'c.d.e.f.g', 'b.c.d.e.f.g'];
+    expect(generateParentDomains(sourceParts, limit)).toStrictEqual(expected);
+  });
+
+  it('should lowercase all domain parts', () => {
+    const sourceParts = ['Evil', 'Domain', 'Co', 'Uk'];
+    const expected = ['co.uk', 'domain.co.uk', 'evil.domain.co.uk'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle hostnames with empty labels correctly', () => {
+    const sourceParts = ['a', '', 'b', 'example', 'com'];
+    // Assuming that empty strings are already filtered out before calling the function
+    // Thus, sourceParts should be ['a', 'b', 'example', 'com']
+    const filteredSourceParts = sourceParts.filter(Boolean);
+    const expected = ['example.com', 'b.example.com', 'a.b.example.com'];
+    expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle numeric labels correctly', () => {
+    const sourceParts = ['123', 'example', 'com'];
+    const expected = ['example.com', '123.example.com'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle special characters in labels correctly', () => {
+    const sourceParts = ['sub-domain', 'example', 'com'];
+    const expected = ['example.com', 'sub-domain.example.com'];
+    expect(generateParentDomains(sourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle mixed case and empty labels correctly', () => {
+    const sourceParts = ['A', '', 'B', 'Example', 'Com'];
+    // After filtering: ['A', 'B', 'Example', 'Com']
+    const filteredSourceParts = sourceParts.filter(Boolean);
+    const expected = ['example.com', 'b.example.com', 'a.b.example.com'];
+    expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
+  });
+
+  it('should handle trailing empty labels correctly', () => {
+    const sourceParts = ['a', 'b', 'c', ''];
+    // After filtering: ['a', 'b', 'c']
+    const filteredSourceParts = sourceParts.filter(Boolean);
+    const expected = ['b.c', 'a.b.c'];
+    expect(generateParentDomains(filteredSourceParts)).toStrictEqual(expected);
   });
 });

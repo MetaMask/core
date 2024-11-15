@@ -13,6 +13,15 @@ const semver = require('semver');
 const { inspect } = require('util');
 
 /**
+ * These packages and ranges are allowed to mismatch expected consistency checks
+ * Only intended as temporary measures to faciliate upgrades and releases.
+ * This should trend towards empty.
+ */
+const ALLOWED_INCONSISTENT_DEPENDENCIES = {
+  // '@metamask/json-rpc-engine': ['^9.0.3'],
+};
+
+/**
  * Aliases for the Yarn type definitions, to make the code more readable.
  *
  * @typedef {import('@yarnpkg/types').Yarn.Constraints.Yarn} Yarn
@@ -101,7 +110,7 @@ module.exports = defineConfig({
         expectWorkspaceField(
           workspace,
           'scripts.build',
-          'tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean',
+          'ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
         );
 
         // All non-root packages must have the same "build:docs" script.
@@ -379,9 +388,14 @@ async function workspaceFileExists(workspace, path) {
 function expectWorkspaceField(workspace, fieldName, expectedValue = undefined) {
   const fieldValue = get(workspace.manifest, fieldName);
 
-  if (expectedValue) {
+  if (expectedValue !== undefined && expectedValue !== null) {
     workspace.set(fieldName, expectedValue);
-  } else if (fieldValue === undefined || fieldValue === null) {
+  } else if (expectedValue === null) {
+    workspace.unset(fieldName);
+  } else if (
+    expectedValue === undefined &&
+    (fieldValue === undefined || fieldValue === null)
+  ) {
     workspace.error(`Missing required field "${fieldName}".`);
   }
 }
@@ -488,20 +502,35 @@ async function expectWorkspaceLicense(workspace) {
 function expectCorrectWorkspaceExports(workspace) {
   // All non-root packages must provide the location of the ESM-compatible
   // JavaScript entrypoint and its matching type declaration file.
-  expectWorkspaceField(workspace, 'exports["."].import', './dist/index.mjs');
   expectWorkspaceField(
     workspace,
-    'exports["."].types',
-    './dist/types/index.d.ts',
+    'exports["."].import.types',
+    './dist/index.d.mts',
   );
-  // TODO: This was copied from the module template: enable when ready
-  // expectWorkspaceField(workspace, 'module', './dist/index.mjs');
+  expectWorkspaceField(
+    workspace,
+    'exports["."].import.default',
+    './dist/index.mjs',
+  );
 
   // All non-root package must provide the location of the CommonJS-compatible
   // entrypoint and its matching type declaration file.
-  expectWorkspaceField(workspace, 'exports["."].require', './dist/index.js');
-  expectWorkspaceField(workspace, 'main', './dist/index.js');
-  expectWorkspaceField(workspace, 'types', './dist/types/index.d.ts');
+  expectWorkspaceField(
+    workspace,
+    'exports["."].require.types',
+    './dist/index.d.cts',
+  );
+  expectWorkspaceField(
+    workspace,
+    'exports["."].require.default',
+    './dist/index.cjs',
+  );
+  expectWorkspaceField(workspace, 'main', './dist/index.cjs');
+  expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
+
+  // Types should not be set in the export object directly, but rather in the
+  // `import` and `require` subfields.
+  expectWorkspaceField(workspace, 'exports["."].types', null);
 
   // All non-root packages must export a `package.json` file.
   expectWorkspaceField(
@@ -574,6 +603,11 @@ function expectUpToDateWorkspaceDependenciesAndDevDependencies(
       dependencyWorkspace !== null &&
       dependency.type !== 'peerDependencies'
     ) {
+      const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependency.ident];
+      if (ignoredRanges?.includes(dependency.range)) {
+        continue;
+      }
+
       dependency.update(`^${dependencyWorkspace.manifest.version}`);
     }
   }
@@ -695,6 +729,28 @@ function expectControllerDependenciesListedAsPeerDependencies(
 }
 
 /**
+ * Filter out dependency ranges which are not to be considered in `expectConsistentDependenciesAndDevDependencies`.
+ *
+ * @param {string} dependencyIdent - The dependency being filtered for
+ * @param {Map<string, Dependency>} dependenciesByRange - Dependencies by range
+ * @returns {Map<string, Dependency>} The resulting map.
+ */
+function getInconsistentDependenciesAndDevDependencies(
+  dependencyIdent,
+  dependenciesByRange,
+) {
+  const ignoredRanges = ALLOWED_INCONSISTENT_DEPENDENCIES[dependencyIdent];
+  if (!ignoredRanges) {
+    return dependenciesByRange;
+  }
+  return new Map(
+    Object.entries(dependenciesByRange).filter(
+      ([range]) => !ignoredRanges.includes(range),
+    ),
+  );
+}
+
+/**
  * Expect that all version ranges in `dependencies` and `devDependencies` for
  * the same dependency across the entire monorepo are the same. As it is
  * impossible to compare NPM version ranges, let the user decide if there are
@@ -712,18 +768,24 @@ function expectConsistentDependenciesAndDevDependencies(Yarn) {
     dependencyIdent,
     dependenciesByRange,
   ] of nonPeerDependenciesByIdent.entries()) {
-    const dependencyRanges = [...dependenciesByRange.keys()].sort();
-    if (dependenciesByRange.size > 1) {
-      for (const dependencies of dependenciesByRange.values()) {
-        for (const dependency of dependencies) {
-          dependency.error(
-            `Expected version range for ${dependencyIdent} (in ${
-              dependency.type
-            }) to be consistent across monorepo. Pick one: ${inspect(
-              dependencyRanges,
-            )}`,
-          );
-        }
+    if (dependenciesByRange.size <= 1) {
+      continue;
+    }
+    const dependenciesToConsider =
+      getInconsistentDependenciesAndDevDependencies(
+        dependencyIdent,
+        dependenciesByRange,
+      );
+    const dependencyRanges = [...dependenciesToConsider.keys()].sort();
+    for (const dependencies of dependenciesToConsider.values()) {
+      for (const dependency of dependencies) {
+        dependency.error(
+          `Expected version range for ${dependencyIdent} (in ${
+            dependency.type
+          }) to be consistent across monorepo. Pick one: ${inspect(
+            dependencyRanges,
+          )}`,
+        );
       }
     }
   }

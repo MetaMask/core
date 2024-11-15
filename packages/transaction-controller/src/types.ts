@@ -542,15 +542,27 @@ export enum WalletDevice {
   OTHER = 'other_device',
 }
 
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * The type of the transaction.
  */
 export enum TransactionType {
   /**
+   * A transaction that bridges tokens to a different chain through Metamask Bridge.
+   */
+  bridge = 'bridge',
+
+  /**
+   * Similar to the approve type, a bridge approval is a special case of ERC20
+   * approve method that requests an allowance of the token to spend on behalf
+   * of the user for the MetaMask Bridge contract. The first bridge for any token
+   * will have an accompanying bridgeApproval transaction.
+   */
+  bridgeApproval = 'bridgeApproval',
+
+  /**
    * A transaction sending a network's native asset to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   cancel = 'cancel',
 
   /**
@@ -558,43 +570,31 @@ export enum TransactionType {
    * have not treated as a special case, such as approve, transfer, and
    * transferfrom.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   contractInteraction = 'contractInteraction',
 
   /**
    * A transaction that deployed a smart contract.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   deployContract = 'contractDeployment',
 
   /**
    * A transaction for Ethereum decryption.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ethDecrypt = 'eth_decrypt',
 
   /**
    * A transaction for getting an encryption public key.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   ethGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
 
   /**
    * An incoming (deposit) transaction.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   incoming = 'incoming',
 
   /**
    * A transaction for personal sign.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   personalSign = 'personal_sign',
 
   /**
@@ -603,43 +603,46 @@ export enum TransactionType {
    * to speed up pending transactions. This is accomplished by creating a new tx with
    * the same nonce and higher gas fees.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   retry = 'retry',
 
   /**
    * A transaction sending a network's native asset to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   simpleSend = 'simpleSend',
 
   /**
    * A transaction that is signing typed data.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   signTypedData = 'eth_signTypedData',
 
   /**
    * A transaction sending a network's native asset to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   smart = 'smart',
+
+  /**
+   * A transaction that claims staking rewards.
+   */
+  stakingClaim = 'stakingClaim',
+
+  /**
+   * A transaction that deposits tokens into a staking contract.
+   */
+  stakingDeposit = 'stakingDeposit',
+
+  /**
+   * A transaction that unstakes tokens from a staking contract.
+   */
+  stakingUnstake = 'stakingUnstake',
 
   /**
    * A transaction swapping one token for another through MetaMask Swaps.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   swap = 'swap',
 
   /**
    * A transaction swapping one token for another through MetaMask Swaps, then sending the swapped token to a recipient.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   swapAndSend = 'swapAndSend',
 
   /**
@@ -648,16 +651,12 @@ export enum TransactionType {
    * of the user for the MetaMask Swaps contract. The first swap for any token
    * will have an accompanying swapApproval transaction.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   swapApproval = 'swapApproval',
 
   /**
    * A token transaction requesting an allowance of the token to spend on
    * behalf of the user.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodApprove = 'approve',
 
   /**
@@ -666,16 +665,12 @@ export enum TransactionType {
    * this method the contract checks to ensure that the receiver is an address
    * capable of handling the token being sent.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodSafeTransferFrom = 'safetransferfrom',
 
   /**
    * A token transaction where the user is sending tokens that they own to
    * another address.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodTransfer = 'transfer',
 
   /**
@@ -683,25 +678,20 @@ export enum TransactionType {
    * has an allowance of. For more information on allowances, see the approve
    * type.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodTransferFrom = 'transferfrom',
 
   /**
    * A token transaction requesting an allowance of all of a user's tokens to
    * spend on behalf of the user.
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodSetApprovalForAll = 'setapprovalforall',
 
   /**
    * Increase the allowance by a given increment
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   tokenMethodIncreaseAllowance = 'increaseAllowance',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * Standard data concerning a transaction to be processed by the blockchain.
@@ -1102,7 +1092,7 @@ export type TransactionError = {
 export type SecurityAlertResponse = {
   reason: string;
   features?: string[];
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+  // This is API specific hence naming convention is not followed.
   // eslint-disable-next-line @typescript-eslint/naming-convention
   result_type: string;
   providerRequestsCount?: Record<string, number>;
@@ -1293,49 +1283,15 @@ export type SimulationData = {
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
+  /** Whether the simulation response changed after a security check triggered a re-simulation. */
+  isUpdatedAfterSecurityCheck?: boolean;
+
   /** Data concerning a change to the user's native balance. */
   nativeBalanceChange?: SimulationBalanceChange;
 
   /** Data concerning a change to the user's token balances. */
   tokenBalanceChanges: SimulationTokenBalanceChange[];
 };
-
-/** A context in which to execute a trace, in order to generate nested timings. */
-export type TraceContext = unknown;
-
-/** Request to trace an operation. */
-export type TraceRequest = {
-  /** Additional data to include in the trace. */
-  data?: Record<string, number | string | boolean>;
-
-  /** Name of the operation. */
-  name: string;
-
-  /**
-   * Unique identifier for the trace.
-   * Required if starting a trace and not providing a callback.
-   */
-  id?: string;
-
-  /** Trace context in which to execute the operation. */
-  parentContext?: TraceContext;
-
-  /** Additional tags to include in the trace to filter results. */
-  tags?: Record<string, number | string | boolean>;
-};
-
-/** Callback that traces the performance of an operation. */
-export type TraceCallback = <ReturnType>(
-  /** Request to trace the performance of an operation. */
-  request: TraceRequest,
-
-  /**
-   * Callback to trace.
-   * Thrown errors will not be caught, but the trace will still be recorded.
-   * @param context - The context in which the operation is running.
-   */
-  fn?: (context?: TraceContext) => ReturnType,
-) => Promise<ReturnType>;
 
 /** Gas fee properties for a legacy transaction. */
 export type GasPriceValue = {
@@ -1350,4 +1306,41 @@ export type FeeMarketEIP1559Values = {
 
   /** Maximum amount per gas to give to the validator as an incentive. */
   maxPriorityFeePerGas: string;
+};
+
+/**
+ * Data concerning a successfully submitted transaction.
+ * Used for debugging purposes.
+ */
+export type SubmitHistoryEntry = {
+  /** The chain ID of the transaction as a hexadecimal string. */
+  chainId?: Hex;
+
+  /** The hash of the transaction returned from the RPC provider. */
+  hash: string;
+
+  /** True if the entry was generated using the migration and existing transaction metadata. */
+  migration?: boolean;
+
+  /** The type of the network where the transaction was submitted. */
+  networkType?: string;
+
+  /**
+   * The URL of the network the transaction was submitted to.
+   * A single network URL if it was recorded when submitted.
+   * An array of potential network URLs if it cannot be confirmed since the migration was used.
+   */
+  networkUrl?: string | string[];
+
+  /** The origin of the transaction. */
+  origin?: string;
+
+  /** The raw transaction data that was submitted. */
+  rawTransaction: string;
+
+  /** When the transaction was submitted. */
+  time: number;
+
+  /** The transaction parameters that were submitted. */
+  transaction: TransactionParams;
 };

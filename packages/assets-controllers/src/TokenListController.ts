@@ -5,7 +5,6 @@ import type {
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
 import type {
-  NetworkClientId,
   NetworkControllerStateChangeEvent,
   NetworkState,
   NetworkControllerGetNetworkClientByIdAction,
@@ -42,7 +41,7 @@ type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };
-type TokensChainsCache = {
+export type TokensChainsCache = {
   [chainId: Hex]: DataCache;
 };
 
@@ -92,10 +91,15 @@ export const getDefaultTokenListState = (): TokenListState => {
   };
 };
 
+/** The input to start polling for the {@link TokenListController} */
+type TokenListPollingInput = {
+  chainId: Hex;
+};
+
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends StaticIntervalPollingController<
+export class TokenListController extends StaticIntervalPollingController<TokenListPollingInput>()<
   typeof name,
   TokenListState,
   TokenListControllerMessenger
@@ -150,6 +154,7 @@ export class TokenListController extends StaticIntervalPollingController<
       state: { ...getDefaultTokenListState(), ...state },
     });
     this.intervalDelay = interval;
+    this.setIntervalLength(interval);
     this.cacheRefreshThreshold = cacheRefreshThreshold;
     this.chainId = chainId;
     this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
@@ -199,46 +204,58 @@ export class TokenListController extends StaticIntervalPollingController<
             tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
           };
         });
-        await this.restart();
       }
     }
   }
 
+  // Eventually we want to remove start/restart/stop controls in favor of new _executePoll API
+  // Maintaining these functions for now until we can safely deprecate them for backwards compatibility
   /**
    * Start polling for the token list.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   async start() {
     if (!isTokenListSupportedForNetwork(this.chainId)) {
       return;
     }
-    await this.startPolling();
+    await this.#startDeprecatedPolling();
   }
 
   /**
    * Restart polling for the token list.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   async restart() {
     this.stopPolling();
-    await this.startPolling();
+    await this.#startDeprecatedPolling();
   }
 
   /**
    * Stop polling for the token list.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   stop() {
     this.stopPolling();
   }
 
   /**
-   * Prepare to discard this controller.
-   *
    * This stops any active polling.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
   override destroy() {
     super.destroy();
     this.stopPolling();
   }
 
+  /**
+   * This stops any active polling intervals.
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
+   */
   private stopPolling() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
@@ -246,46 +263,43 @@ export class TokenListController extends StaticIntervalPollingController<
   }
 
   /**
-   * Starts a new polling interval.
+   * Starts a new polling interval for a given chainId (this should be deprecated in favor of _executePoll)
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  private async startPolling(): Promise<void> {
-    await safelyExecute(() => this.fetchTokenList());
+  async #startDeprecatedPolling(): Promise<void> {
+    // renaming this to avoid collision with base class
+    await safelyExecute(() => this.fetchTokenList(this.chainId));
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this.fetchTokenList());
+      await safelyExecute(() => this.fetchTokenList(this.chainId));
     }, this.intervalDelay);
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * This starts a new polling loop for any given chain. Under the hood it is deduping polls
    *
    * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @param input - The input for the poll.
+   * @param input.chainId - The chainId of the chain to trigger the fetch.
    * @returns A promise that resolves when this operation completes.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
-    return this.fetchTokenList(networkClientId);
+  async _executePoll({ chainId }: TokenListPollingInput): Promise<void> {
+    return this.fetchTokenList(chainId);
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * Fetching token list from the Token Service API. This will fetch tokens across chains. It will update tokensChainsCache (scoped across chains), and also the tokenList (scoped for the selected chain)
    *
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @param chainId - The chainId of the current chain triggering the fetch.
    */
-  async fetchTokenList(networkClientId?: NetworkClientId): Promise<void> {
+  async fetchTokenList(chainId: Hex): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    let networkClient;
-    if (networkClientId) {
-      networkClient = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
-    }
-    const chainId = networkClient?.configuration.chainId ?? this.chainId;
     try {
       const { tokensChainsCache } = this.state;
       let tokenList: TokenListMap = {};
+      // Attempt to fetch cached tokens
       const cachedTokens = await safelyExecute(() =>
         this.#fetchFromCache(chainId),
       );
@@ -293,7 +307,7 @@ export class TokenListController extends StaticIntervalPollingController<
         // Use non-expired cached tokens
         tokenList = { ...cachedTokens };
       } else {
-        // Fetch fresh token list
+        // Fetch fresh token list from the API
         const tokensFromAPI = await safelyExecute(
           () =>
             fetchTokenListByChainId(
@@ -302,42 +316,38 @@ export class TokenListController extends StaticIntervalPollingController<
             ) as Promise<TokenListToken[]>,
         );
 
-        if (!tokensFromAPI) {
+        if (tokensFromAPI) {
+          // Format tokens from API (HTTP) and update tokenList
+          tokenList = {};
+          for (const token of tokensFromAPI) {
+            tokenList[token.address] = {
+              ...token,
+              aggregators: formatAggregatorNames(token.aggregators),
+              iconUrl: formatIconUrlWithProxy({
+                chainId,
+                tokenAddress: token.address,
+              }),
+            };
+          }
+        } else {
           // Fallback to expired cached tokens
           tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
-          this.update(() => {
-            return {
-              ...this.state,
-              tokenList,
-              tokensChainsCache,
-            };
-          });
-          return;
-        }
-        for (const token of tokensFromAPI) {
-          const formattedToken: TokenListToken = {
-            ...token,
-            aggregators: formatAggregatorNames(token.aggregators),
-            iconUrl: formatIconUrlWithProxy({
-              chainId,
-              tokenAddress: token.address,
-            }),
-          };
-          tokenList[token.address] = formattedToken;
         }
       }
-      const updatedTokensChainsCache: TokensChainsCache = {
-        ...tokensChainsCache,
-        [chainId]: {
-          timestamp: Date.now(),
-          data: tokenList,
-        },
-      };
+
+      // Update the state with a single update for both tokenList and tokenChainsCache
       this.update(() => {
         return {
           ...this.state,
-          tokenList,
-          tokensChainsCache: updatedTokensChainsCache,
+          tokenList:
+            this.chainId === chainId ? tokenList : this.state.tokenList,
+          tokensChainsCache: {
+            ...tokensChainsCache,
+            [chainId]: {
+              timestamp: Date.now(),
+              data: tokenList,
+            },
+          },
         };
       });
     } finally {

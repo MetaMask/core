@@ -181,6 +181,13 @@ export type AcceptOptions = {
    * If false or unspecified, the promise will resolve immediately.
    */
   waitForResult?: boolean;
+
+  /**
+   * Whether to delete the approval request after a result callback is called.
+   * If false or unspecified, the approval request will be deleted immediately.
+   * Ignored if `waitForResult` is false or unspecified.
+   */
+  deleteAfterResult?: boolean;
 };
 
 export type StartFlowOptions = OptionalField<
@@ -688,9 +695,15 @@ export class ApprovalController extends BaseController<
   ): Promise<AcceptResult> {
     // Safe to cast as the delete method below will throw if the ID is not found
     const approval = this.get(id) as ApprovalRequest<ApprovalRequestData>;
-    const requestPromise = this.#deleteApprovalAndGetCallbacks(id);
+    const requestPromise = this.#getCallbacks(id);
+    let requestDeleted = false;
 
-    return new Promise((resolve, reject) => {
+    if (!options?.deleteAfterResult || !options.waitForResult) {
+      this.#delete(id);
+      requestDeleted = true;
+    }
+
+    return new Promise<AcceptResult>((resolve, reject) => {
       const resultCallbacks: AcceptResultCallbacks = {
         success: (acceptValue?: unknown) => resolve({ value: acceptValue }),
         error: reject,
@@ -712,6 +725,10 @@ export class ApprovalController extends BaseController<
       if (!options?.waitForResult) {
         resolve({ value: undefined });
       }
+    }).finally(() => {
+      if (!requestDeleted) {
+        this.#delete(id);
+      }
     });
   }
 
@@ -723,7 +740,9 @@ export class ApprovalController extends BaseController<
    * @param error - The error to reject the approval promise with.
    */
   reject(id: string, error: unknown): void {
-    this.#deleteApprovalAndGetCallbacks(id).reject(error);
+    const callbacks = this.#getCallbacks(id);
+    this.#delete(id);
+    callbacks.reject(error);
   }
 
   /**
@@ -1022,20 +1041,21 @@ export class ApprovalController extends BaseController<
   }
 
   /**
-   * Deletes the approval with the given id. The approval promise must be
-   * resolved or reject before this method is called.
+   * Deletes the approval with the given id.
+   *
    * Deletion is an internal operation because approval state is solely
    * managed by this controller.
    *
    * @param id - The id of the approval request to be deleted.
    */
   #delete(id: string): void {
+    if (!this.#approvals.has(id)) {
+      throw new ApprovalRequestNotFoundError(id);
+    }
+
     this.#approvals.delete(id);
 
-    // This method is only called after verifying that the approval with the
-    // specified id exists.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { origin, type } = this.state.pendingApprovals[id]!;
+    const { origin, type } = this.state.pendingApprovals[id];
 
     const originMap = this.#origins.get(origin) as Map<string, number>;
     const originTotalCount = this.getApprovalCount({ origin });
@@ -1055,21 +1075,13 @@ export class ApprovalController extends BaseController<
     });
   }
 
-  /**
-   * Gets the approval callbacks for the given id, deletes the entry, and then
-   * returns the callbacks for promise resolution.
-   * Throws an error if no approval is found for the given id.
-   *
-   * @param id - The id of the approval request.
-   * @returns The promise callbacks associated with the approval request.
-   */
-  #deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
+  #getCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this.#approvals.get(id);
+
     if (!callbacks) {
       throw new ApprovalRequestNotFoundError(id);
     }
 
-    this.#delete(id);
     return callbacks;
   }
 

@@ -1,0 +1,44 @@
+name: Create Update Issues
+
+on:
+  workflow_call:
+    secrets:
+      CORE_CREATE_UPDATE_ISSUES_TOKEN:
+        description: GitHub token with permission to create issues in both mobile and extension repositories
+        required: true
+
+jobs:
+  create-update-issues:
+    environment: default-branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout head
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
+      - name: Create Issues
+        env:
+          GH_TOKEN: ${{ secrets.CORE_CREATE_UPDATE_ISSUES_TOKEN }}
+        run: |
+          IFS=$'\n' read -r -d '' -a tag_array < <(git tag --points-at HEAD && printf '\0')
+
+          for tag in "${tag_array[@]}"; do
+            if [[ "${tag}" == @metamask/*  ]] ; then
+              # Extract package name without the leading '@'
+              package_name="${tag#@}"
+              package_name="${package_name%@*}"
+
+              # Extract version number
+              version="${tag##*@}"
+
+              # Check if version number ends with .0.0
+              if [[ $version == *.0.0 ]]; then
+                # Fetch responsible team from file
+                teams=$(jq -r --arg key "$package_name" '.[$key]' teams.json)
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-extension" --label "$teams"
+                gh issue create --title "Update ${package_name} to version ${version}" --body "Please update ${package_name} to version ${version}" --repo "MetaMask/metamask-mobile" --label "$teams"
+              fi
+            fi
+          done
+        shell: bash

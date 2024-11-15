@@ -2,6 +2,7 @@ import type {
   RestrictedControllerMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
@@ -33,7 +34,6 @@ export type NotificationServicesPushControllerEnablePushNotificationsAction = {
   type: `${typeof controllerName}:enablePushNotifications`;
   handler: NotificationServicesPushController['enablePushNotifications'];
 };
-
 export type NotificationServicesPushControllerDisablePushNotificationsAction = {
   type: `${typeof controllerName}:disablePushNotifications`;
   handler: NotificationServicesPushController['disablePushNotifications'];
@@ -43,12 +43,17 @@ export type NotificationServicesPushControllerUpdateTriggerPushNotificationsActi
     type: `${typeof controllerName}:updateTriggerPushNotifications`;
     handler: NotificationServicesPushController['updateTriggerPushNotifications'];
   };
+export type NotificationServicesPushControllerSubscribeToNotificationsAction = {
+  type: `${typeof controllerName}:subscribeToPushNotifications`;
+  handler: NotificationServicesPushController['subscribeToPushNotifications'];
+};
 
 export type Actions =
   | NotificationServicesPushControllerGetStateAction
   | NotificationServicesPushControllerEnablePushNotificationsAction
   | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction;
+  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
+  | NotificationServicesPushControllerSubscribeToNotificationsAction;
 
 export type AllowedActions =
   AuthenticationController.AuthenticationControllerGetBearerToken;
@@ -88,7 +93,7 @@ export type NotificationServicesPushControllerMessenger =
 export const defaultState: NotificationServicesPushControllerState = {
   fcmToken: '',
 };
-const metadata = {
+const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   fcmToken: {
     persist: true,
     anonymous: true,
@@ -182,6 +187,10 @@ export default class NotificationServicesPushController extends BaseController<
       'NotificationServicesPushController:updateTriggerPushNotifications',
       this.updateTriggerPushNotifications.bind(this),
     );
+    this.messagingSystem.registerActionHandler(
+      'NotificationServicesPushController:subscribeToPushNotifications',
+      this.subscribeToPushNotifications.bind(this),
+    );
   }
 
   async #getAndAssertBearerToken() {
@@ -198,38 +207,14 @@ export default class NotificationServicesPushController extends BaseController<
     return bearerToken;
   }
 
-  /**
-   * Enables push notifications for the application.
-   *
-   * This method sets up the necessary infrastructure for handling push notifications by:
-   * 1. Registering the service worker to listen for messages.
-   * 2. Fetching the Firebase Cloud Messaging (FCM) token from Firebase.
-   * 3. Sending the FCM token to the server responsible for sending notifications, to register the device.
-   *
-   * @param UUIDs - An array of UUIDs to enable push notifications for.
-   */
-  async enablePushNotifications(UUIDs: string[]) {
-    if (!this.#config.isPushEnabled) {
-      return;
+  async subscribeToPushNotifications() {
+    if (this.#pushListenerUnsubscribe) {
+      this.#pushListenerUnsubscribe();
+      this.#pushListenerUnsubscribe = undefined;
     }
 
-    const bearerToken = await this.#getAndAssertBearerToken();
-
     try {
-      // Activate Push Notifications
-      const regToken = await activatePushNotifications({
-        bearerToken,
-        triggers: UUIDs,
-        env: this.#env,
-        createRegToken,
-        platform: this.#config.platform,
-      });
-
-      if (!regToken) {
-        return;
-      }
-
-      this.#pushListenerUnsubscribe ??= await listenToPushNotifications({
+      this.#pushListenerUnsubscribe = await listenToPushNotifications({
         env: this.#env,
         listenToPushReceived: async (n) => {
           this.messagingSystem.publish(
@@ -249,15 +234,57 @@ export default class NotificationServicesPushController extends BaseController<
           this.#config.onPushNotificationClicked(e, n);
         },
       });
-
-      // Update state
-      this.update((state) => {
-        state.fcmToken = regToken;
-      });
-    } catch (error) {
-      log.error('Failed to enable push notifications:', error);
-      throw new Error('Failed to enable push notifications');
+    } catch (e) {
+      // Do nothing, we are silently failing if push notification registration fails
     }
+  }
+
+  /**
+   * Enables push notifications for the application.
+   *
+   * This method sets up the necessary infrastructure for handling push notifications by:
+   * 1. Registering the service worker to listen for messages.
+   * 2. Fetching the Firebase Cloud Messaging (FCM) token from Firebase.
+   * 3. Sending the FCM token to the server responsible for sending notifications, to register the device.
+   *
+   * @param UUIDs - An array of UUIDs to enable push notifications for.
+   * @param fcmToken - The optional FCM token to use for push notifications.
+   */
+  async enablePushNotifications(UUIDs: string[], fcmToken?: string) {
+    if (!this.#config.isPushEnabled) {
+      return;
+    }
+
+    // Handle creating new reg token (if available)
+    try {
+      const bearerToken = await this.#getAndAssertBearerToken().catch(
+        () => null,
+      );
+
+      // If there is a bearer token, lets try to refresh/create new reg token
+      if (bearerToken) {
+        // Activate Push Notifications
+        const regToken = await activatePushNotifications({
+          bearerToken,
+          triggers: UUIDs,
+          env: this.#env,
+          fcmToken,
+          createRegToken,
+          platform: this.#config.platform,
+        }).catch(() => null);
+
+        if (regToken) {
+          this.update((state) => {
+            state.fcmToken = regToken;
+          });
+        }
+      }
+    } catch {
+      // Do nothing, we are silently failing
+    }
+
+    // New token created, (re)subscribe to push notifications
+    await this.subscribeToPushNotifications();
   }
 
   /**

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "0.2.1",
+  "version": "0.13.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
     "MetaMask",
@@ -18,46 +18,76 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./notification-services": {
-      "import": "./dist/NotificationServicesController/index.mjs",
-      "require": "./dist/NotificationServicesController/index.js",
-      "types": "./dist/types/NotificationServicesController/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/index.d.mts",
+        "default": "./dist/NotificationServicesController/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/index.d.cts",
+        "default": "./dist/NotificationServicesController/index.cjs"
+      }
     },
     "./notification-services/ui": {
-      "import": "./dist/NotificationServicesController/ui/index.mjs",
-      "require": "./dist/NotificationServicesController/ui/index.js",
-      "types": "./dist/types/NotificationServicesController/ui/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/ui/index.d.mts",
+        "default": "./dist/NotificationServicesController/ui/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/ui/index.d.cts",
+        "default": "./dist/NotificationServicesController/ui/index.cjs"
+      }
     },
     "./notification-services/mocks": {
-      "import": "./dist/NotificationServicesController/__fixtures__/index.mjs",
-      "require": "./dist/NotificationServicesController/__fixtures__/index.js",
-      "types": "./dist/types/NotificationServicesController/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesController/__fixtures__/index.d.mts",
+        "default": "./dist/NotificationServicesController/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesController/__fixtures__/index.d.cts",
+        "default": "./dist/NotificationServicesController/__fixtures__/index.cjs"
+      }
     },
     "./push-services": {
-      "import": "./dist/NotificationServicesPushController/index.mjs",
-      "require": "./dist/NotificationServicesPushController/index.js",
-      "types": "./dist/types/NotificationServicesPushController/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesPushController/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/index.cjs"
+      }
     },
     "./push-services/mocks": {
-      "import": "./dist/NotificationServicesPushController/__fixtures__/index.mjs",
-      "require": "./dist/NotificationServicesPushController/__fixtures__/index.js",
-      "types": "./dist/types/NotificationServicesPushController/__fixtures__/index.d.ts"
+      "import": {
+        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.mts",
+        "default": "./dist/NotificationServicesPushController/__fixtures__/index.mjs"
+      },
+      "require": {
+        "types": "./dist/NotificationServicesPushController/__fixtures__/index.d.cts",
+        "default": "./dist/NotificationServicesPushController/__fixtures__/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "files": [
     "dist/",
     "notification-services/",
     "push-services/"
   ],
   "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-services-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-services-controller",
@@ -70,10 +100,10 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^7.0.0",
-    "@metamask/controller-utils": "^11.1.0",
-    "bignumber.js": "^4.1.0",
-    "contentful": "^10.15.0",
+    "@metamask/base-controller": "^7.0.2",
+    "@metamask/controller-utils": "^11.4.3",
+    "@metamask/utils": "^10.0.0",
+    "bignumber.js": "^9.1.2",
     "firebase": "^10.11.0",
     "loglevel": "^1.8.1",
     "uuid": "^8.3.2"
@@ -81,10 +111,11 @@
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^17.2.0",
-    "@metamask/profile-sync-controller": "^0.2.1",
+    "@metamask/keyring-controller": "^18.0.0",
+    "@metamask/profile-sync-controller": "^1.0.0",
     "@types/jest": "^27.4.1",
     "@types/readable-stream": "^2.3.0",
+    "contentful": "^10.15.0",
     "deepmerge": "^4.2.2",
     "jest": "^27.5.1",
     "jest-environment-jsdom": "^27.5.1",
@@ -95,8 +126,8 @@
     "typescript": "~5.2.2"
   },
   "peerDependencies": {
-    "@metamask/keyring-controller": "^17.0.0",
-    "@metamask/profile-sync-controller": "^0.2.1"
+    "@metamask/keyring-controller": "^18.0.0",
+    "@metamask/profile-sync-controller": "^1.0.0"
   },
   "engines": {
     "node": "^18.18 || >=20"
