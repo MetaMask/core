@@ -1081,22 +1081,6 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    it('does not create internal accounts if user storage contains bogus default accounts with the same account number but a different address.', async () => {
-      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
-      const controller = new UserStorageController({
-        messenger: messengerMocks.messenger,
-        env: {
-          isAccountSyncingEnabled: true,
-        },
-        getMetaMetricsState: () => true,
-      });
-
-      await controller.syncInternalAccountsWithUserStorage();
-
-      expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
-      expect(messengerMocks.mockKeyringAddNewAccount).toHaveBeenCalledTimes(0);
-    });
-
     it('does not save the bogus account to user storage - preventing the infinite account creation bug', async () => {
       const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
       const controller = new UserStorageController({

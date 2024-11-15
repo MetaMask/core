@@ -40,7 +40,6 @@ import type {
 } from '../authentication/AuthenticationController';
 import type { UserStorageAccount } from './accounts/user-storage';
 import {
-  getDefaultNameAccountNumber,
   isNameDefaultAccountName,
   mapInternalAccountToUserStorageAccount,
 } from './accounts/user-storage';
@@ -894,40 +893,17 @@ export default class UserStorageController extends BaseController<
       // We don't want to remove existing accounts for a user
       // so we only add new accounts if the user has more accounts in user storage than internal accounts
       if (hasMoreUserStorageAccountsThanInternalAccounts) {
-        let numberOfAccountsToAdd =
+        const numberOfAccountsToAdd =
           Math.min(
             userStorageAccountsList.length,
             this.#accounts.maxNumberOfAccountsToAdd,
           ) - internalAccountsList.length;
 
-        // Do not add user storage accounts that are already in the internal accounts list
-        // This is done following a bug where user storage would have unrelated accounts saved
-        // This only happened with default accounts, hence the specific logic
-        const userStorageAccountsThatHaveDefaultNames =
-          userStorageAccountsList.filter((account) =>
-            isNameDefaultAccountName(account.n),
-          );
-        for (const account of userStorageAccountsThatHaveDefaultNames) {
-          const accountNumber = getDefaultNameAccountNumber(account.n);
-          if (!accountNumber) {
-            continue;
-          }
-
-          const isAccountAlreadyInInternalAccountsList =
-            internalAccountsList.length >= accountNumber;
-
-          if (isAccountAlreadyInInternalAccountsList) {
-            numberOfAccountsToAdd -= 1;
-          }
-        }
-
         // Create new accounts to match the user storage accounts list
-        if (numberOfAccountsToAdd > 0) {
-          for (let i = 0; i < numberOfAccountsToAdd; i++) {
-            await this.messagingSystem.call('KeyringController:addNewAccount');
+        for (let i = 0; i < numberOfAccountsToAdd; i++) {
+          await this.messagingSystem.call('KeyringController:addNewAccount');
 
-            this.#config?.accountSyncing?.onAccountAdded?.(profileId);
-          }
+          this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
       }
 
