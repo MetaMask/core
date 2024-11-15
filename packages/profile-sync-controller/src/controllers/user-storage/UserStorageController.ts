@@ -280,6 +280,7 @@ export default class UserStorageController extends BaseController<
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
     maxNumberOfAccountsToAdd: 0,
+    hasSyncedAtLeastOnce: false,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
@@ -306,7 +307,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountAdded',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (!this.#accounts.canSync()) {
+          if (
+            !this.#accounts.canSync() ||
+            !this.#accounts.hasSyncedAtLeastOnce
+          ) {
             return;
           }
 
@@ -318,7 +322,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountRenamed',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (!this.#accounts.canSync()) {
+          if (
+            !this.#accounts.canSync() ||
+            !this.#accounts.hasSyncedAtLeastOnce
+          ) {
             return;
           }
           await this.saveInternalAccountToUserStorage(account);
@@ -880,18 +887,19 @@ export default class UserStorageController extends BaseController<
 
       // Compare internal accounts list with user storage accounts list
       // First step: compare lengths
-      let internalAccountsList = await this.#accounts.getInternalAccountsList();
+      const internalAccountsList =
+        await this.#accounts.getInternalAccountsList();
 
       if (!internalAccountsList || !internalAccountsList.length) {
         throw new Error(`Failed to get internal accounts list`);
       }
 
-      const hasMoreInternalAccountsThanUserStorageAccounts =
-        internalAccountsList.length > userStorageAccountsList.length;
+      const hasMoreUserStorageAccountsThanInternalAccounts =
+        userStorageAccountsList.length > internalAccountsList.length;
 
       // We don't want to remove existing accounts for a user
-      // so we only add new accounts if the user has more accounts than the internal accounts list
-      if (!hasMoreInternalAccountsThanUserStorageAccounts) {
+      // so we only add new accounts if the user has more accounts in user storage than internal accounts
+      if (hasMoreUserStorageAccountsThanInternalAccounts) {
         const numberOfAccountsToAdd =
           Math.min(
             userStorageAccountsList.length,
@@ -899,27 +907,40 @@ export default class UserStorageController extends BaseController<
           ) - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
-
         for (let i = 0; i < numberOfAccountsToAdd; i++) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
-
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
       }
 
       // Second step: compare account names
       // Get the internal accounts list again since new accounts might have been added in the previous step
-      internalAccountsList = await this.#accounts.getInternalAccountsList();
+      const refreshedInternalAccountsList =
+        await this.#accounts.getInternalAccountsList();
 
-      for (const internalAccount of internalAccountsList) {
+      const newlyAddedAccounts = refreshedInternalAccountsList.filter(
+        (account) =>
+          !internalAccountsList.find((a) => a.address === account.address),
+      );
+
+      for (const internalAccount of refreshedInternalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
         );
 
+        // If the account is not present in user storage
         if (!userStorageAccount) {
+          // If the account was just added in the previous step, skip saving it, it's likely to be a bogus account
+          if (newlyAddedAccounts.includes(internalAccount)) {
+            continue;
+          }
+          // Otherwise, it means that this internal account was present before the sync, and needs to be saved to the user storage
           internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
+
+        // From this point on, we know that the account is present in
+        // both the internal accounts list and the user storage accounts list
 
         // One or both accounts have default names
         const isInternalAccountNameDefault = isNameDefaultAccountName(
@@ -991,13 +1012,32 @@ export default class UserStorageController extends BaseController<
       }
 
       // Save the internal accounts list to the user storage
-      await this.performBatchSetStorage(
-        USER_STORAGE_FEATURE_NAMES.accounts,
-        internalAccountsToBeSavedToUserStorage.map((account) => [
-          account.address,
-          JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
-        ]),
+      if (internalAccountsToBeSavedToUserStorage.length) {
+        await this.performBatchSetStorage(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          internalAccountsToBeSavedToUserStorage.map((account) => [
+            account.address,
+            JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+          ]),
+        );
+      }
+
+      // In case we have corrupted user storage with accounts that don't exist in the internal accounts list
+      // Delete those accounts from the user storage
+      const userStorageAccountsToBeDeleted = userStorageAccountsList.filter(
+        (account) =>
+          !refreshedInternalAccountsList.find((a) => a.address === account.a),
       );
+
+      if (userStorageAccountsToBeDeleted.length) {
+        await this.performBatchDeleteStorage(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          userStorageAccountsToBeDeleted.map((account) => account.a),
+        );
+      }
+
+      // We add this here and not in the finally statement because we want to make sure that the accounts are saved before we set this flag
+      this.#accounts.hasSyncedAtLeastOnce = true;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(

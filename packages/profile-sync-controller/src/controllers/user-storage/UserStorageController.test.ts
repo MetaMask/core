@@ -979,6 +979,29 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               USER_STORAGE_FEATURE_NAMES.accounts,
               await mockUserStorageAccountsResponse(),
             ),
+          mockEndpointBatchDeleteUserStorage:
+            mockEndpointBatchDeleteUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              undefined,
+              async (_uri, requestBody) => {
+                if (typeof requestBody === 'string') {
+                  return;
+                }
+
+                const expectedBody = createExpectedAccountSyncBatchDeleteBody(
+                  MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
+                    (account) =>
+                      !MOCK_INTERNAL_ACCOUNTS.ONE.find(
+                        (internalAccount) =>
+                          internalAccount.address === account.a,
+                      ),
+                  ).map((account) => account.a),
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+              },
+            ),
         },
       };
     };
@@ -1002,6 +1025,78 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
+
+    expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+  });
+
+  describe('handles corrupted user storage gracefully', () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.TWO_DEFAULT_NAMES_WITH_ONE_BOGUS,
+        ),
+      };
+    };
+
+    const arrangeMocksForBogusAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList:
+              MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              await mockUserStorageAccountsResponse(),
+            ),
+          mockEndpointBatchDeleteUserStorage:
+            mockEndpointBatchDeleteUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              undefined,
+              async (_uri, requestBody) => {
+                if (typeof requestBody === 'string') {
+                  return;
+                }
+
+                const expectedBody = createExpectedAccountSyncBatchDeleteBody(
+                  [
+                    MOCK_USER_STORAGE_ACCOUNTS
+                      .TWO_DEFAULT_NAMES_WITH_ONE_BOGUS[1].a,
+                  ],
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+              },
+            ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+            ),
+        },
+      };
+    };
+
+    it('does not save the bogus account to user storage, and deletes it from user storage', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocksForBogusAccounts();
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      await controller.syncInternalAccountsWithUserStorage();
+
+      expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+      expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
+      expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
+    });
   });
 
   it('fires the onAccountAdded callback when adding an account', async () => {
@@ -1026,6 +1121,29 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
             await mockEndpointGetUserStorageAllFeatureEntries(
               USER_STORAGE_FEATURE_NAMES.accounts,
               await mockUserStorageAccountsResponse(),
+            ),
+          mockEndpointBatchDeleteUserStorage:
+            mockEndpointBatchDeleteUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              undefined,
+              async (_uri, requestBody) => {
+                if (typeof requestBody === 'string') {
+                  return;
+                }
+
+                const expectedBody = createExpectedAccountSyncBatchDeleteBody(
+                  MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
+                    (account) =>
+                      !MOCK_INTERNAL_ACCOUNTS.ONE.find(
+                        (internalAccount) =>
+                          internalAccount.address === account.a,
+                      ),
+                  ).map((account) => account.a),
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+              },
             ),
         },
       };
@@ -1055,6 +1173,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.length -
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
+
+    expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
   });
 
   it('does not create internal accounts if user storage has less accounts', async () => {
@@ -1718,54 +1838,97 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     ).rejects.toThrow(expect.any(Error));
   });
 
-  it('saves an internal account to user storage when the AccountsController:accountRenamed event is fired', async () => {
-    const { baseMessenger, messenger } = mockUserStorageMessenger();
+  describe('it reacts to other controller events', () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
+    };
 
-    const controller = new UserStorageController({
-      messenger,
-      env: {
-        isAccountSyncingEnabled: true,
-      },
-      getMetaMetricsState: () => true,
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList:
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              await mockUserStorageAccountsResponse(),
+            ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+            ),
+        },
+      };
+    };
+
+    it('saves an internal account to user storage when the AccountsController:accountRenamed event is fired', async () => {
+      await arrangeMocksForAccounts();
+
+      const { baseMessenger, messenger } = mockUserStorageMessenger();
+
+      const controller = new UserStorageController({
+        messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      // We need to sync at least once before we listen for other controller events
+      await controller.syncInternalAccountsWithUserStorage();
+
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(controller, 'saveInternalAccountToUserStorage')
+        .mockImplementation();
+
+      baseMessenger.publish(
+        'AccountsController:accountRenamed',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
+        MOCK_INTERNAL_ACCOUNTS.ONE[0],
+      );
     });
 
-    const mockSaveInternalAccountToUserStorage = jest
-      .spyOn(controller, 'saveInternalAccountToUserStorage')
-      .mockImplementation();
+    it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
+      await arrangeMocksForAccounts();
 
-    baseMessenger.publish(
-      'AccountsController:accountRenamed',
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
-    );
+      const { baseMessenger, messenger } = mockUserStorageMessenger();
 
-    expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0],
-    );
-  });
+      const controller = new UserStorageController({
+        messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
 
-  it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
-    const { baseMessenger, messenger } = mockUserStorageMessenger();
+      // We need to sync at least once before we listen for other controller events
+      await controller.syncInternalAccountsWithUserStorage();
 
-    const controller = new UserStorageController({
-      messenger,
-      env: {
-        isAccountSyncingEnabled: true,
-      },
-      getMetaMetricsState: () => true,
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(controller, 'saveInternalAccountToUserStorage')
+        .mockImplementation();
+
+      baseMessenger.publish(
+        'AccountsController:accountAdded',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
+        MOCK_INTERNAL_ACCOUNTS.ONE[0],
+      );
     });
-
-    const mockSaveInternalAccountToUserStorage = jest
-      .spyOn(controller, 'saveInternalAccountToUserStorage')
-      .mockImplementation();
-
-    baseMessenger.publish(
-      'AccountsController:accountAdded',
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
-    );
-
-    expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0],
-    );
   });
 });
 
@@ -2040,4 +2203,19 @@ function createExpectedAccountSyncBatchUpsertBody(
       ),
     ),
   ]);
+}
+
+/**
+ * Test Utility - creates a realistic expected batch delete payload
+ * @param data - data supposed to be deleted
+ * @param storageKey - storage key
+ * @returns expected body
+ */
+function createExpectedAccountSyncBatchDeleteBody(
+  data: string[],
+  storageKey: string,
+) {
+  return data.map((entryKey) =>
+    createSHA256Hash(String(entryKey) + storageKey),
+  );
 }
