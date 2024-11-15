@@ -55,7 +55,7 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { OptimismLayer1GasFeeFlow } from './gas-flows/OptimismLayer1GasFeeFlow';
 import { ScrollLayer1GasFeeFlow } from './gas-flows/ScrollLayer1GasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
-import type { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
+import { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemoteTransactionSource';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
@@ -81,6 +81,7 @@ import type {
   GasPriceValue,
   FeeMarketEIP1559Values,
   SubmitHistoryEntry,
+  RemoteTransactionSource,
 } from './types';
 import {
   TransactionEnvelopeType,
@@ -611,7 +612,9 @@ export class TransactionController extends BaseController<
 
   private readonly layer1GasFeeFlows: Layer1GasFeeFlow[];
 
-  readonly #incomingTransactionOptions: IncomingTransactionOptions;
+  readonly #incomingTransactionOptions: IncomingTransactionOptions & {
+    etherscanApiKeysByChainId?: Record<Hex, string>;
+  };
 
   private readonly securityProviderRequest?: SecurityProviderRequest;
 
@@ -815,7 +818,6 @@ export class TransactionController extends BaseController<
     };
 
     this.#multichainTrackingHelper = new MultichainTrackingHelper({
-      incomingTransactionOptions: incomingTransactions,
       findNetworkClientIdByChainId,
       getNetworkClientById: ((networkClientId: NetworkClientId) => {
         return this.messagingSystem.call(
@@ -833,6 +835,8 @@ export class TransactionController extends BaseController<
         this.#createIncomingTransactionHelper.bind(this),
       createPendingTransactionTracker:
         this.#createPendingTransactionTracker.bind(this),
+      createRemoteTransactionSource:
+        this.#createRemoteTransactionSource.bind(this),
       onNetworkStateChange: (listener) => {
         this.messagingSystem.subscribe(
           'NetworkController:stateChange',
@@ -3261,13 +3265,22 @@ export class TransactionController extends BaseController<
     });
   }
 
+  #createRemoteTransactionSource(): RemoteTransactionSource {
+    return new EtherscanRemoteTransactionSource({
+      apiKeysByChainId:
+        this.#incomingTransactionOptions.etherscanApiKeysByChainId,
+      includeTokenTransfers:
+        this.#incomingTransactionOptions.includeTokenTransfers,
+    });
+  }
+
   #createIncomingTransactionHelper({
     blockTracker,
-    etherscanRemoteTransactionSource,
+    remoteTransactionSource,
     chainId,
   }: {
     blockTracker: BlockTracker;
-    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+    remoteTransactionSource: RemoteTransactionSource;
     chainId: Hex;
   }): IncomingTransactionHelper {
     const incomingTransactionHelper = new IncomingTransactionHelper({
@@ -3278,7 +3291,7 @@ export class TransactionController extends BaseController<
       getChainId: () => chainId,
       isEnabled: this.#incomingTransactionOptions.isEnabled,
       queryEntireHistory: this.#incomingTransactionOptions.queryEntireHistory,
-      remoteTransactionSource: etherscanRemoteTransactionSource,
+      remoteTransactionSource,
       transactionLimit: this.#transactionHistoryLimit,
       updateTransactions: this.#incomingTransactionOptions.updateTransactions,
     });

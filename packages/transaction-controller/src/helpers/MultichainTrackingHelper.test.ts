@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { ChainId, NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { NonceTracker } from '@metamask/nonce-tracker';
@@ -6,7 +5,7 @@ import type { Hex } from '@metamask/utils';
 import { useFakeTimers } from 'sinon';
 
 import { advanceTime } from '../../../../tests/helpers';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
+import type { RemoteTransactionSource } from '../types';
 import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import { MultichainTrackingHelper } from './MultichainTrackingHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
@@ -19,12 +18,22 @@ jest.mock(
     },
 );
 
+/**
+ * Build a mock provider object.
+ * @param networkClientId - The network client ID to use for the mock provider.
+ * @returns The mock provider object.
+ */
 function buildMockProvider(networkClientId: NetworkClientId) {
   return {
     mockProvider: networkClientId,
   };
 }
 
+/**
+ * Build a mock block tracker object.
+ * @param networkClientId - The network client ID to use for the mock block tracker.
+ * @returns The mock block tracker object.
+ */
 function buildMockBlockTracker(networkClientId: NetworkClientId) {
   return {
     mockBlockTracker: networkClientId,
@@ -181,6 +190,8 @@ function newMultichainTrackingHelper(
       mockPendingTransactionTrackers[chainId] = mockPendingTransactionTracker;
       return mockPendingTransactionTracker;
     });
+  const mockCreateRemoteTransactionSource = () =>
+    ({} as RemoteTransactionSource);
 
   const options = {
     isMultichainEnabled: true,
@@ -203,6 +214,7 @@ function newMultichainTrackingHelper(
     createNonceTracker: mockCreateNonceTracker,
     createIncomingTransactionHelper: mockCreateIncomingTransactionHelper,
     createPendingTransactionTracker: mockCreatePendingTransactionTracker,
+    createRemoteTransactionSource: mockCreateRemoteTransactionSource,
     onNetworkStateChange: jest.fn(),
     ...opts,
   };
@@ -324,9 +336,7 @@ describe('MultichainTrackingHelper', () => {
       expect(options.createIncomingTransactionHelper).toHaveBeenCalledTimes(1);
       expect(options.createIncomingTransactionHelper).toHaveBeenCalledWith({
         blockTracker: MOCK_BLOCK_TRACKERS.mainnet,
-        etherscanRemoteTransactionSource: expect.any(
-          EtherscanRemoteTransactionSource,
-        ),
+        remoteTransactionSource: expect.anything(),
         chainId: '0x1',
       });
 

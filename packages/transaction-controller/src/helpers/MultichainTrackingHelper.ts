@@ -11,11 +11,8 @@ import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
 import { createModuleLogger, projectLogger } from '../logger';
-import { EtherscanRemoteTransactionSource } from './EtherscanRemoteTransactionSource';
-import type {
-  IncomingTransactionHelper,
-  IncomingTransactionOptions,
-} from './IncomingTransactionHelper';
+import type { RemoteTransactionSource } from '../types';
+import type { IncomingTransactionHelper } from './IncomingTransactionHelper';
 import type { PendingTransactionTracker } from './PendingTransactionTracker';
 
 /**
@@ -28,12 +25,9 @@ type NetworkClientRegistry = ReturnType<
 const log = createModuleLogger(projectLogger, 'multichain-tracking');
 
 export type MultichainTrackingHelperOptions = {
-  incomingTransactionOptions: IncomingTransactionOptions;
-
   findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
   getNetworkClientById: NetworkController['getNetworkClientById'];
   getNetworkClientRegistry: NetworkController['getNetworkClientRegistry'];
-
   removeIncomingTransactionHelperListeners: (
     IncomingTransactionHelper: IncomingTransactionHelper,
   ) => void;
@@ -47,7 +41,7 @@ export type MultichainTrackingHelperOptions = {
   }) => NonceTracker;
   createIncomingTransactionHelper: (opts: {
     blockTracker: BlockTracker;
-    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+    remoteTransactionSource: RemoteTransactionSource;
     chainId: Hex;
   }) => IncomingTransactionHelper;
   createPendingTransactionTracker: (opts: {
@@ -55,6 +49,7 @@ export type MultichainTrackingHelperOptions = {
     blockTracker: BlockTracker;
     chainId: Hex;
   }) => PendingTransactionTracker;
+  createRemoteTransactionSource: () => RemoteTransactionSource;
   onNetworkStateChange: (
     listener: (
       ...payload: NetworkControllerStateChangeEvent['payload']
@@ -63,8 +58,6 @@ export type MultichainTrackingHelperOptions = {
 };
 
 export class MultichainTrackingHelper {
-  readonly #incomingTransactionOptions: IncomingTransactionOptions;
-
   readonly #findNetworkClientIdByChainId: NetworkController['findNetworkClientIdByChainId'];
 
   readonly #getNetworkClientById: NetworkController['getNetworkClientById'];
@@ -88,7 +81,7 @@ export class MultichainTrackingHelper {
   readonly #createIncomingTransactionHelper: (opts: {
     blockTracker: BlockTracker;
     chainId: Hex;
-    etherscanRemoteTransactionSource: EtherscanRemoteTransactionSource;
+    remoteTransactionSource: RemoteTransactionSource;
   }) => IncomingTransactionHelper;
 
   readonly #createPendingTransactionTracker: (opts: {
@@ -96,6 +89,8 @@ export class MultichainTrackingHelper {
     blockTracker: BlockTracker;
     chainId: Hex;
   }) => PendingTransactionTracker;
+
+  readonly #createRemoteTransactionSource: () => RemoteTransactionSource;
 
   readonly #nonceMutexesByChainId = new Map<Hex, Map<string, Mutex>>();
 
@@ -108,13 +103,10 @@ export class MultichainTrackingHelper {
     }
   > = new Map();
 
-  readonly #etherscanRemoteTransactionSourcesMap: Map<
-    Hex,
-    EtherscanRemoteTransactionSource
-  > = new Map();
+  readonly #remoteTransactionSourcesMap: Map<Hex, RemoteTransactionSource> =
+    new Map();
 
   constructor({
-    incomingTransactionOptions,
     findNetworkClientIdByChainId,
     getNetworkClientById,
     getNetworkClientRegistry,
@@ -123,10 +115,9 @@ export class MultichainTrackingHelper {
     createNonceTracker,
     createIncomingTransactionHelper,
     createPendingTransactionTracker,
+    createRemoteTransactionSource,
     onNetworkStateChange,
   }: MultichainTrackingHelperOptions) {
-    this.#incomingTransactionOptions = incomingTransactionOptions;
-
     this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#getNetworkClientById = getNetworkClientById;
     this.#getNetworkClientRegistry = getNetworkClientRegistry;
@@ -138,6 +129,7 @@ export class MultichainTrackingHelper {
     this.#createNonceTracker = createNonceTracker;
     this.#createIncomingTransactionHelper = createIncomingTransactionHelper;
     this.#createPendingTransactionTracker = createPendingTransactionTracker;
+    this.#createRemoteTransactionSource = createRemoteTransactionSource;
 
     onNetworkStateChange((_, patches) => {
       const networkClients = this.#getNetworkClientRegistry();
@@ -342,7 +334,7 @@ export class MultichainTrackingHelper {
   }
 
   #refreshTrackingMap = (networkClients: NetworkClientRegistry) => {
-    this.#refreshEtherscanRemoteTransactionSources(networkClients);
+    this.#refreshRemoteTransactionSources(networkClients);
 
     const networkClientIds = Object.keys(networkClients);
     const existingNetworkClientIds = Array.from(this.#trackingMap.keys());
@@ -401,21 +393,14 @@ export class MultichainTrackingHelper {
       configuration: { chainId },
     } = this.#getNetworkClientById(networkClientId);
 
-    let etherscanRemoteTransactionSource =
-      this.#etherscanRemoteTransactionSourcesMap.get(chainId);
+    let remoteTransactionSource =
+      this.#remoteTransactionSourcesMap.get(chainId);
 
-    if (!etherscanRemoteTransactionSource) {
-      etherscanRemoteTransactionSource = new EtherscanRemoteTransactionSource({
-        includeTokenTransfers:
-          this.#incomingTransactionOptions.includeTokenTransfers,
-      });
+    if (!remoteTransactionSource) {
+      remoteTransactionSource = this.#createRemoteTransactionSource();
+      this.#remoteTransactionSourcesMap.set(chainId, remoteTransactionSource);
 
-      log('Created Etherscan remote transaction source', chainId);
-
-      this.#etherscanRemoteTransactionSourcesMap.set(
-        chainId,
-        etherscanRemoteTransactionSource,
-      );
+      log('Created remote transaction source', chainId);
     }
 
     const nonceTracker = this.#createNonceTracker({
@@ -426,7 +411,7 @@ export class MultichainTrackingHelper {
 
     const incomingTransactionHelper = this.#createIncomingTransactionHelper({
       blockTracker,
-      etherscanRemoteTransactionSource,
+      remoteTransactionSource,
       chainId,
     });
 
@@ -443,25 +428,25 @@ export class MultichainTrackingHelper {
     });
   }
 
-  #refreshEtherscanRemoteTransactionSources = (
+  #refreshRemoteTransactionSources = (
     networkClients: NetworkClientRegistry,
   ) => {
-    // this will be prettier when we have consolidated network clients with a single chainId:
-    // check if there are still other network clients using the same chainId
-    // if not remove the etherscanRemoteTransaction source from the map
     const chainIdsInRegistry = new Set();
+
     Object.values(networkClients).forEach((networkClient) =>
       chainIdsInRegistry.add(networkClient.configuration.chainId),
     );
+
     const existingChainIds = Array.from(
-      this.#etherscanRemoteTransactionSourcesMap.keys(),
+      this.#remoteTransactionSourcesMap.keys(),
     );
+
     const chainIdsToRemove = existingChainIds.filter(
       (chainId) => !chainIdsInRegistry.has(chainId),
     );
 
     chainIdsToRemove.forEach((chainId) => {
-      this.#etherscanRemoteTransactionSourcesMap.delete(chainId);
+      this.#remoteTransactionSourcesMap.delete(chainId);
     });
   };
 }
