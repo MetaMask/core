@@ -153,6 +153,18 @@ export const MOCK_USER_STORAGE_ACCOUNTS = {
   ONE: mapInternalAccountsListToUserStorageAccountsList(
     MOCK_INTERNAL_ACCOUNTS.ONE as InternalAccount[],
   ),
+  TWO_DEFAULT_NAMES_WITH_ONE_BOGUS:
+    mapInternalAccountsListToUserStorageAccountsList([
+      ...MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME,
+      {
+        ...MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME[0],
+        address: '0x000000',
+        metadata: {
+          name: `${getMockRandomDefaultAccountName()} 1`,
+          nameLastUpdatedAt: 2,
+        },
+      },
+    ] as InternalAccount[]),
   ONE_DEFAULT_NAME: mapInternalAccountsListToUserStorageAccountsList(
     MOCK_INTERNAL_ACCOUNTS.ONE_DEFAULT_NAME as InternalAccount[],
   ),

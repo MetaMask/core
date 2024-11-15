@@ -513,7 +513,7 @@ function getDefaultNetworkConfigurationsByChainId(): Record<
   >((obj, infuraNetworkType) => {
     const chainId = ChainId[infuraNetworkType];
     const rpcEndpointUrl =
-      // False negative - this is a string.
+      // This ESLint rule mistakenly produces an error.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}` as const;
 
@@ -786,7 +786,7 @@ function validateNetworkControllerState(state: NetworkState) {
 
   if (!networkClientIds.includes(state.selectedNetworkClientId)) {
     throw new Error(
-      // False negative - this is a string.
+      // This ESLint rule mistakenly produces an error.
       // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       `NetworkController state is invalid: \`selectedNetworkClientId\` '${state.selectedNetworkClientId}' does not refer to an RPC endpoint within a network configuration`,
     );
@@ -1354,17 +1354,11 @@ export class NetworkController extends BaseController<
   async setProviderType(type: InfuraNetworkType) {
     if ((type as unknown) === NetworkType.rpc) {
       throw new Error(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `NetworkController - cannot call "setProviderType" with type "${NetworkType.rpc}". Use "setActiveNetwork"`,
       );
     }
     if (!isInfuraNetworkType(type)) {
-      throw new Error(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-        `Unknown Infura provider type "${type}".`,
-      );
+      throw new Error(`Unknown Infura provider type "${String(type)}".`);
     }
 
     await this.setActiveNetwork(type);
@@ -1799,7 +1793,7 @@ export class NetworkController extends BaseController<
       })
     ) {
       throw new Error(
-        // False negative - this is a string.
+        // This ESLint rule mistakenly produces an error.
         // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Could not update network: Cannot update RPC endpoints in such a way that the selected network '${this.state.selectedNetworkClientId}' would be removed without a replacement. Choose a different RPC endpoint as the selected network via the \`replacementSelectedRpcEndpointIndex\` option.`,
       );
@@ -2041,13 +2035,13 @@ export class NetworkController extends BaseController<
       if (existingNetworkConfigurationViaChainId !== undefined) {
         if (existingNetworkConfiguration === null) {
           throw new Error(
-            // False negative - these are strings.
+            // This ESLint rule mistakenly produces an error.
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `Could not add network for chain ${args.networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
           );
         } else {
           throw new Error(
-            // False negative - these are strings.
+            // This ESLint rule mistakenly produces an error.
             // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             `Cannot move network from chain ${existingNetworkConfiguration.chainId} to ${networkFields.chainId} as another network for that chain already exists ('${existingNetworkConfigurationViaChainId.name}')`,
           );
@@ -2077,7 +2071,7 @@ export class NetworkController extends BaseController<
     for (const rpcEndpointFields of networkFields.rpcEndpoints) {
       if (!isValidUrl(rpcEndpointFields.url)) {
         throw new Error(
-          // False negative - this is a string.
+          // This ESLint rule mistakenly produces an error.
           // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `${errorMessagePrefix}: An entry in \`rpcEndpoints\` has invalid URL '${rpcEndpointFields.url}'`,
         );
@@ -2140,15 +2134,19 @@ export class NetworkController extends BaseController<
             URI.equal(rpcEndpointFields.url, existingRpcEndpoint.url),
         );
         if (rpcEndpoint) {
-          throw new Error(
-            mode === 'update'
-              ? // False negative - these are strings.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                `Could not update network to point to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`
-              : // False negative - these are strings.
-                // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-                `Could not add network that points to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
-          );
+          if (mode === 'update') {
+            throw new Error(
+              // This ESLint rule mistakenly produces an error.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+              `Could not update network to point to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
+            );
+          } else {
+            throw new Error(
+              // This ESLint rule mistakenly produces an error.
+              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+              `Could not add network that points to same RPC endpoint as existing network for chain ${networkConfiguration.chainId} ('${networkConfiguration.name}')`,
+            );
+          }
         }
       }
     }

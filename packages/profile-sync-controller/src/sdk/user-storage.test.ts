@@ -1,7 +1,7 @@
-import type { UserStoragePathWithKeyOnly } from 'src/shared/storage-schema';
-
 import encryption, { createSHA256Hash } from '../shared/encryption';
 import { Env } from '../shared/env';
+import type { UserStorageFeatureKeys } from '../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 import { arrangeAuthAPIs } from './__fixtures__/mock-auth';
 import {
   MOCK_NOTIFICATIONS_DATA,
@@ -11,6 +11,7 @@ import {
   handleMockUserStorageGetAllFeatureEntries,
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
+  handleMockUserStorageBatchDelete,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -40,13 +41,16 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications.notification_settings', data);
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      data,
+    );
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
     const response = await userStorage.getItem(
-      'notifications.notification_settings',
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
@@ -68,13 +72,16 @@ describe('User Storage', () => {
 
     // Test Set
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
-    await userStorage.setItem('notifications.notification_settings', data);
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      data,
+    );
     expect(mockPut.isDone()).toBe(true);
     expect(mockGet.isDone()).toBe(false);
 
     // Test Get (we expect the mocked encrypted data to be decrypt-able with the given Mock Storage Key)
     const response = await userStorage.getItem(
-      'notifications.notification_settings',
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
     );
     expect(mockGet.isDone()).toBe(true);
     expect(response).toBe(data);
@@ -88,14 +95,17 @@ describe('User Storage', () => {
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     const responseAllFeatureEntries = await userStorage.getAllFeatureItems(
-      'notifications',
+      USER_STORAGE_FEATURE_NAMES.notifications,
     );
     expect(mockGetAll.isDone()).toBe(true);
     expect(responseAllFeatureEntries).toStrictEqual([data]);
   });
 
   it('batch set items', async () => {
-    const dataToStore: [UserStoragePathWithKeyOnly, string][] = [
+    const dataToStore: [
+      UserStorageFeatureKeys<typeof USER_STORAGE_FEATURE_NAMES.accounts>,
+      string,
+    ][] = [
       ['0x123', JSON.stringify(MOCK_NOTIFICATIONS_DATA)],
       ['0x456', JSON.stringify(MOCK_NOTIFICATIONS_DATA)],
     ];
@@ -130,7 +140,10 @@ describe('User Storage', () => {
       },
     );
 
-    await userStorage.batchSetItems('accounts', dataToStore);
+    await userStorage.batchSetItems(
+      USER_STORAGE_FEATURE_NAMES.accounts,
+      dataToStore,
+    );
     expect(mockPut.isDone()).toBe(true);
   });
 
@@ -140,7 +153,9 @@ describe('User Storage', () => {
 
     const mockDelete = await handleMockUserStorageDelete();
 
-    await userStorage.deleteItem('notifications.notification_settings');
+    await userStorage.deleteItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+    );
     expect(mockDelete.isDone()).toBe(true);
   });
 
@@ -157,7 +172,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.deleteItem('notifications.notification_settings'),
+      userStorage.deleteItem(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -167,7 +184,9 @@ describe('User Storage', () => {
 
     const mockDelete = await handleMockUserStorageDeleteAllFeatureEntries();
 
-    await userStorage.deleteAllFeatureItems('notifications');
+    await userStorage.deleteAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
     expect(mockDelete.isDone()).toBe(true);
   });
 
@@ -184,8 +203,36 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.deleteAllFeatureItems('notifications'),
+      userStorage.deleteAllFeatureItems(
+        USER_STORAGE_FEATURE_NAMES.notifications,
+      ),
     ).rejects.toThrow(UserStorageError);
+  });
+
+  it('user storage: batch delete items', async () => {
+    const keysToDelete: UserStorageFeatureKeys<
+      typeof USER_STORAGE_FEATURE_NAMES.accounts
+    >[] = ['0x123', '0x456'];
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockPut = handleMockUserStorageBatchDelete(
+      undefined,
+      async (_, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const expectedBody = keysToDelete.map((entryKey) =>
+          createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+        );
+
+        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+      },
+    );
+
+    await userStorage.batchDeleteItems('accounts_v2', keysToDelete);
+    expect(mockPut.isDone()).toBe(true);
   });
 
   it('user storage: failed to set key', async () => {
@@ -202,7 +249,10 @@ describe('User Storage', () => {
 
     const data = JSON.stringify(MOCK_NOTIFICATIONS_DATA);
     await expect(
-      userStorage.setItem('notifications.notification_settings', data),
+      userStorage.setItem(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+        data,
+      ),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -219,7 +269,29 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.batchSetItems('notifications', [['key', 'value']]),
+      userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.notifications, [
+        ['notification_settings', 'value'],
+      ]),
+    ).rejects.toThrow(UserStorageError);
+  });
+
+  it('user storage: failed to batch delete items', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    handleMockUserStorageBatchDelete({
+      status: 401,
+      body: {
+        message: 'failed to insert storage entries',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.batchDeleteItems(USER_STORAGE_FEATURE_NAMES.accounts, [
+        'key',
+        'key2',
+      ]),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -236,7 +308,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications.notification_settings'),
+      userStorage.getItem(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -253,7 +327,7 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getAllFeatureItems('notifications'),
+      userStorage.getAllFeatureItems(USER_STORAGE_FEATURE_NAMES.notifications),
     ).rejects.toThrow(UserStorageError);
   });
 
@@ -270,7 +344,9 @@ describe('User Storage', () => {
     });
 
     await expect(
-      userStorage.getItem('notifications.notification_settings'),
+      userStorage.getItem(
+        `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      ),
     ).rejects.toThrow(NotFoundError);
   });
 
@@ -285,7 +361,7 @@ describe('User Storage', () => {
     handleMockUserStoragePut();
 
     await userStorage.setItem(
-      'notifications.notification_settings',
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
       'some fake data',
     );
     expect(mockAuthSignMessage).toHaveBeenCalled(); // SignMessage called since generating new key

@@ -5,7 +5,6 @@ import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
@@ -204,7 +203,7 @@ export async function upsertUserStorage(
  * @param opts - storage options
  */
 export async function batchUpsertUserStorage(
-  data: [UserStoragePathWithKeyOnly, string][],
+  data: [string, string][],
   opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
   if (!data.length) {
@@ -266,6 +265,46 @@ export async function deleteUserStorage(
 
   if (!userStorageResponse.ok) {
     throw new Error('user-storage - unable to delete data');
+  }
+}
+
+/**
+ * User Storage Service - Delete multiple storage entries for one specific feature.
+ * You cannot use this method to delete multiple features at once.
+ *
+ * @param data - data to delete, in the form of an array entryKey[]
+ * @param opts - storage options
+ */
+export async function batchDeleteUserStorage(
+  data: string[],
+  opts: UserStorageBatchUpsertOptions,
+): Promise<void> {
+  if (!data.length) {
+    return;
+  }
+
+  const { bearerToken, path, storageKey } = opts;
+
+  const encryptedData: string[] = [];
+
+  for (const d of data) {
+    encryptedData.push(createSHA256Hash(d + storageKey));
+  }
+
+  const url = new URL(`${USER_STORAGE_ENDPOINT}/${path}`);
+
+  const res = await fetch(url.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${bearerToken}`,
+    },
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    body: JSON.stringify({ batch_delete: encryptedData }),
+  });
+
+  if (!res.ok) {
+    throw new Error('user-storage - unable to batch delete data');
   }
 }
 
