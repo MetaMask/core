@@ -1449,7 +1449,7 @@ describe('TransactionController', () => {
     });
 
     it('does not check account address relationship if a transaction with the same from, to, and chainId exists', async () => {
-      const { controller, messenger } = setupController({
+      const { controller } = setupController({
         options: {
           state: {
             transactions: [
@@ -1468,7 +1468,7 @@ describe('TransactionController', () => {
           },
         },
       });
-    
+
       // Add second transaction with the same from, to, and chainId
       await controller.addTransaction({
         from: ACCOUNT_MOCK,
@@ -1476,8 +1476,10 @@ describe('TransactionController', () => {
       });
 
       await flushPromises();
-    
-      expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(false);
+
+      expect(controller.state.transactions[1].isFirstTimeInteraction).toBe(
+        false,
+      );
     });
 
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
