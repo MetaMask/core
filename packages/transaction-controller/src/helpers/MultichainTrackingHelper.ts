@@ -263,9 +263,13 @@ export class MultichainTrackingHelper {
     }
   }
 
-  async updateIncomingTransactions(networkClientIds: NetworkClientId[] = []) {
+  async updateIncomingTransactions(networkClientIds?: NetworkClientId[]) {
+    const finalNetworkClientIds = networkClientIds ?? [
+      ...this.#trackingMap.keys(),
+    ];
+
     const promises = await Promise.allSettled(
-      networkClientIds.map(async (networkClientId) => {
+      finalNetworkClientIds.map(async (networkClientId) => {
         return await this.#trackingMap
           .get(networkClientId)
           ?.incomingTransactionHelper.update();
@@ -276,7 +280,7 @@ export class MultichainTrackingHelper {
       .filter((result) => result.status === 'rejected')
       .forEach((result) => {
         log(
-          'failed to update incoming transactions',
+          'Failed to update incoming transactions',
           (result as PromiseRejectedResult).reason,
         );
       });
