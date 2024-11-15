@@ -3844,6 +3844,32 @@ describe('NetworkController', () => {
           });
         });
       });
+
+      it('adds the network with an existing networkClientId', async () => {
+        // Arrange
+        const customNetworkClientId = 'my-custom-client-config';
+        const networkConfigToAdd = buildCustomNetworkConfiguration({
+          chainId: '0x1337',
+          rpcEndpoints: [
+            buildCustomRpcEndpoint({
+              networkClientId: customNetworkClientId,
+              url: 'https://test.endpoint/1',
+            }),
+          ],
+        });
+
+        // Act
+        const result = await withController(({ controller }) => {
+          const newNetworkConfig = controller.addNetwork(networkConfigToAdd);
+          return newNetworkConfig;
+        });
+
+        // Assert - ensure that we use existing networkClientId & do not call uuidV4()
+        expect(result.rpcEndpoints[0].networkClientId).toBe(
+          customNetworkClientId,
+        );
+        expect(uuidV4Mock).not.toHaveBeenCalled();
+      });
     });
   });
 
