@@ -217,8 +217,11 @@ export type NetworkConfiguration = {
  * Custom RPC endpoints do not need a `networkClientId` property because it is
  * assumed that they have not already been added and therefore network clients
  * do not exist for them yet (and hence IDs need to be generated).
+ *
+ * However Custom RPC endpoints, that are synchronized between devices,
+ * can contain a `networkClientId` set on both devices.
  */
-export type AddNetworkCustomRpcEndpointFields = Omit<
+export type AddNetworkCustomRpcEndpointFields = Partialize<
   CustomRpcEndpoint,
   'networkClientId'
 >;
@@ -1598,7 +1601,8 @@ export class NetworkController extends BaseController<
           defaultOrCustomRpcEndpointFields.type === RpcEndpointType.Custom
             ? {
                 ...defaultOrCustomRpcEndpointFields,
-                networkClientId: uuidV4(),
+                networkClientId:
+                  defaultOrCustomRpcEndpointFields.networkClientId ?? uuidV4(),
               }
             : defaultOrCustomRpcEndpointFields;
         return {
