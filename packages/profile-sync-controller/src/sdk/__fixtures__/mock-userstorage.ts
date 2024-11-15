@@ -77,6 +77,21 @@ export const handleMockUserStoragePut = (
   return mockEndpoint;
 };
 
+export const handleMockUserStorageBatchDelete = (
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+) => {
+  const reply = mockReply ?? { status: 204 };
+  const mockEndpoint = nock(MOCK_STORAGE_URL)
+    .persist()
+    .put(/.*/u)
+    .reply(reply.status, async (uri, requestBody) => {
+      return await callback?.(uri, requestBody);
+    });
+
+  return mockEndpoint;
+};
+
 export const handleMockUserStorageDelete = async (mockReply?: MockReply) => {
   const reply = mockReply ?? { status: 204 };
   const mockEndpoint = nock(MOCK_STORAGE_URL)

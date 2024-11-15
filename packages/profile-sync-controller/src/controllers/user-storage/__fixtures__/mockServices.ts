@@ -9,6 +9,7 @@ import {
   getMockUserStoragePutResponse,
   getMockUserStorageAllFeatureEntriesResponse,
   getMockUserStorageBatchPutResponse,
+  getMockUserStorageBatchDeleteResponse,
   deleteMockUserStorageAllFeatureEntriesResponse,
   deleteMockUserStorageResponse,
 } from './mockResponses';
@@ -105,5 +106,19 @@ export const mockEndpointDeleteUserStorageAllFeatureEntries = (
 
   const mockEndpoint = nock(mockResponse.url).delete('').reply(reply.status);
 
+  return mockEndpoint;
+};
+
+export const mockEndpointBatchDeleteUserStorage = (
+  path: UserStoragePathWithFeatureOnly = 'notifications',
+  mockReply?: Pick<MockReply, 'status'>,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+) => {
+  const mockResponse = getMockUserStorageBatchDeleteResponse(path);
+  const mockEndpoint = nock(mockResponse.url)
+    .put('')
+    .reply(mockReply?.status ?? 204, async (uri, requestBody) => {
+      return await callback?.(uri, requestBody);
+    });
   return mockEndpoint;
 };

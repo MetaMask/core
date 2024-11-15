@@ -44,6 +44,7 @@ import {
 } from './accounts/user-storage';
 import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
+  batchDeleteUserStorage,
   batchUpsertUserStorage,
   deleteUserStorage,
   deleteUserStorageAllFeatureEntries,
@@ -728,6 +729,31 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+    });
+  }
+
+  /**
+   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of entryKey[]
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchDeleteStorage(
+    path: UserStoragePathWithFeatureOnly,
+    values: UserStoragePathWithKeyOnly[],
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await batchDeleteUserStorage(values, {
+      path,
+      bearerToken,
+      storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 

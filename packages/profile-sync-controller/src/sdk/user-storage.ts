@@ -86,6 +86,13 @@ export class UserStorage {
     return this.#deleteUserStorageAllFeatureEntries(path);
   }
 
+  async batchDeleteItems(
+    path: UserStoragePathWithFeatureOnly,
+    values: UserStoragePathWithKeyOnly[],
+  ) {
+    return this.#batchDeleteUserStorage(path, values);
+  }
+
   async getStorageKey(): Promise<string> {
     const storageKey = await this.options.storage?.getStorageKey();
     if (storageKey) {
@@ -381,6 +388,53 @@ export class UserStorage {
 
       throw new UserStorageError(
         `failed to delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchDeleteUserStorage(
+    path: UserStoragePathWithFeatureOnly,
+    data: UserStoragePathWithKeyOnly[],
+  ): Promise<void> {
+    try {
+      if (!data.length) {
+        return;
+      }
+
+      const headers = await this.#getAuthorizationHeader();
+      const storageKey = await this.getStorageKey();
+
+      const encryptedData = await Promise.all(
+        data.map(async (d) => this.#createEntryKey(d, storageKey)),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        body: JSON.stringify({ batch_delete: encryptedData }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch delete user storage for path '${path}'. ${errorMessage}`,
       );
     }
   }

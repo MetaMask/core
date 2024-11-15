@@ -11,6 +11,7 @@ import {
   handleMockUserStorageGetAllFeatureEntries,
   handleMockUserStorageDeleteAllFeatureEntries,
   handleMockUserStorageDelete,
+  handleMockUserStorageBatchDelete,
 } from './__fixtures__/mock-userstorage';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -188,6 +189,30 @@ describe('User Storage', () => {
     ).rejects.toThrow(UserStorageError);
   });
 
+  it('user storage: batch delete items', async () => {
+    const keysToDelete: UserStoragePathWithKeyOnly[] = ['0x123', '0x456'];
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    const mockPut = handleMockUserStorageBatchDelete(
+      undefined,
+      async (_, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const expectedBody = keysToDelete.map((entryKey) =>
+          createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+        );
+
+        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+      },
+    );
+
+    await userStorage.batchDeleteItems('accounts', keysToDelete);
+    expect(mockPut.isDone()).toBe(true);
+  });
+
   it('user storage: failed to set key', async () => {
     const { auth } = arrangeAuth('SRP', MOCK_SRP);
     const { userStorage } = arrangeUserStorage(auth);
@@ -220,6 +245,23 @@ describe('User Storage', () => {
 
     await expect(
       userStorage.batchSetItems('notifications', [['key', 'value']]),
+    ).rejects.toThrow(UserStorageError);
+  });
+
+  it('user storage: failed to batch delete items', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    handleMockUserStorageBatchDelete({
+      status: 401,
+      body: {
+        message: 'failed to insert storage entries',
+        error: 'generic-error',
+      },
+    });
+
+    await expect(
+      userStorage.batchDeleteItems('notifications', ['key', 'key2']),
     ).rejects.toThrow(UserStorageError);
   });
 

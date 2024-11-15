@@ -6,6 +6,7 @@ import {
   mockEndpointUpsertUserStorage,
   mockEndpointGetUserStorageAllFeatureEntries,
   mockEndpointBatchUpsertUserStorage,
+  mockEndpointBatchDeleteUserStorage,
   mockEndpointDeleteUserStorageAllFeatureEntries,
   mockEndpointDeleteUserStorage,
 } from './__fixtures__/mockServices';
@@ -16,6 +17,7 @@ import {
 import type { GetUserStorageResponse } from './services';
 import {
   batchUpsertUserStorage,
+  batchDeleteUserStorage,
   getUserStorage,
   getUserStorageAllFeatureEntries,
   upsertUserStorage,
@@ -350,6 +352,54 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
 
     await expect(actCallDeleteUserStorageAllFeatureEntries()).rejects.toThrow(
       'user-storage - unable to delete data',
+    );
+    mockDeleteUserStorage.done();
+  });
+});
+
+describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
+  const keysToDelete: UserStoragePathWithKeyOnly[] = ['0x123', '0x456'];
+
+  const actCallBatchDeleteUserStorage = async () => {
+    return await batchDeleteUserStorage(keysToDelete, {
+      bearerToken: 'MOCK_BEARER_TOKEN',
+      path: 'accounts',
+      storageKey: MOCK_STORAGE_KEY,
+    });
+  };
+
+  it('invokes upsert endpoint with no errors', async () => {
+    const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
+      'accounts',
+      undefined,
+      async (_uri, requestBody) => {
+        if (typeof requestBody === 'string') {
+          return;
+        }
+
+        const expectedBody = keysToDelete.map((entryKey: string) =>
+          createSHA256Hash(String(entryKey) + MOCK_STORAGE_KEY),
+        );
+
+        expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+      },
+    );
+
+    await actCallBatchDeleteUserStorage();
+
+    expect(mockDeleteUserStorage.isDone()).toBe(true);
+  });
+
+  it('throws error if unable to upsert user storage', async () => {
+    const mockDeleteUserStorage = mockEndpointBatchDeleteUserStorage(
+      'accounts',
+      {
+        status: 500,
+      },
+    );
+
+    await expect(actCallBatchDeleteUserStorage()).rejects.toThrow(
+      expect.any(Error),
     );
     mockDeleteUserStorage.done();
   });
