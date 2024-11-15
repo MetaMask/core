@@ -10,7 +10,6 @@ import {
   ChainId,
   NetworkType,
   toHex,
-  BUILT_IN_NETWORKS,
   ORIGIN_METAMASK,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
@@ -27,7 +26,6 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import {
-  NetworkClientType,
   NetworkStatus,
   getDefaultNetworkControllerState,
 } from '@metamask/network-controller';
@@ -40,7 +38,6 @@ import * as uuidModule from 'uuid';
 import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { flushPromises } from '../../../tests/helpers';
-import { mockNetwork } from '../../../tests/mock-network';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
@@ -51,11 +48,13 @@ import { LineaGasFeeFlow } from './gas-flows/LineaGasFeeFlow';
 import { TestGasFeeFlow } from './gas-flows/TestGasFeeFlow';
 import { GasFeePoller } from './helpers/GasFeePoller';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import type {
   AllowedActions,
   AllowedEvents,
+  MethodData,
   TransactionControllerActions,
   TransactionControllerEvents,
   TransactionControllerOptions,
@@ -108,6 +107,7 @@ jest.mock('./gas-flows/LineaGasFeeFlow');
 jest.mock('./gas-flows/TestGasFeeFlow');
 jest.mock('./helpers/GasFeePoller');
 jest.mock('./helpers/IncomingTransactionHelper');
+jest.mock('./helpers/MethodDataHelper');
 jest.mock('./helpers/MultichainTrackingHelper');
 jest.mock('./helpers/PendingTransactionTracker');
 jest.mock('./utils/gas');
@@ -347,23 +347,6 @@ const MOCK_NETWORK: MockNetwork = {
   subscribe: () => undefined,
 };
 
-const MOCK_MAINNET_NETWORK: MockNetwork = {
-  chainId: ChainId.mainnet,
-  provider: HTTP_PROVIDERS.mainnet,
-  blockTracker: buildMockBlockTracker('0x102833C', HTTP_PROVIDERS.mainnet),
-  state: {
-    selectedNetworkClientId: NetworkType.mainnet,
-    networksMetadata: {
-      [NetworkType.mainnet]: {
-        EIPS: { 1559: false },
-        status: NetworkStatus.Available,
-      },
-    },
-    networkConfigurationsByChainId: {},
-  },
-  subscribe: () => undefined,
-};
-
 const MOCK_LINEA_MAINNET_NETWORK: MockNetwork = {
   chainId: ChainId['linea-mainnet'],
   provider: HTTP_PROVIDERS.linea,
@@ -467,6 +450,14 @@ const GAS_FEE_ESTIMATES_MOCK: GasFeeFlowResponse = {
   },
 };
 
+const METHOD_DATA_MOCK: MethodData = {
+  registryMethod: 'testMethod(uint256,uint256)',
+  parsedRegistryMethod: {
+    name: 'testMethod',
+    args: [{ type: 'uint256' }, { type: 'uint256' }],
+  },
+};
+
 describe('TransactionController', () => {
   const uuidModuleMock = jest.mocked(uuidModule);
   const EthQueryMock = jest.mocked(EthQuery);
@@ -488,6 +479,7 @@ describe('TransactionController', () => {
   );
   const getGasFeeFlowMock = jest.mocked(getGasFeeFlow);
   const shouldResimulateMock = jest.mocked(shouldResimulate);
+  const methodDataHelperClassMock = jest.mocked(MethodDataHelper);
 
   let mockEthQuery: EthQuery;
   let getNonceLockSpy: jest.Mock;
@@ -498,6 +490,7 @@ describe('TransactionController', () => {
   let lineaGasFeeFlowMock: jest.Mocked<LineaGasFeeFlow>;
   let testGasFeeFlowMock: jest.Mocked<TestGasFeeFlow>;
   let gasFeePollerMock: jest.Mocked<GasFeePoller>;
+  let methodDataHelperMock: jest.Mocked<MethodDataHelper>;
   let timeCounter = 0;
 
   const incomingTransactionHelperClassMock =
@@ -874,6 +867,16 @@ describe('TransactionController', () => {
         },
       } as unknown as jest.Mocked<GasFeePoller>;
       return gasFeePollerMock;
+    });
+
+    methodDataHelperClassMock.mockImplementation(() => {
+      methodDataHelperMock = {
+        lookup: jest.fn(),
+        hub: {
+          on: jest.fn(),
+        },
+      } as unknown as jest.Mocked<MethodDataHelper>;
+      return methodDataHelperMock;
     });
 
     updateSwapsTransactionMock.mockImplementation(
@@ -2529,87 +2532,31 @@ describe('TransactionController', () => {
     });
   });
 
-  describe.skip('handleMethodData', () => {
-    it('loads method data from registry', async () => {
-      const { controller } = setupController({ network: MOCK_MAINNET_NETWORK });
-      mockNetwork({
-        networkClientConfiguration: {
-          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
-          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-          type: NetworkClientType.Infura,
-          network: 'mainnet',
-          infuraProjectId: INFURA_PROJECT_ID,
-        },
-        mocks: [
-          {
-            request: {
-              method: 'eth_call',
-              params: [
-                {
-                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
-                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
-                },
-                'latest',
-              ],
-            },
-            response: {
-              result:
-                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-            },
-          },
-        ],
-      });
-      const registry = await controller.handleMethodData('0xf39b5b9b');
+  describe('handleMethodData', () => {
+    it('invokes helper', async () => {
+      const { controller } = setupController();
 
-      expect(registry.parsedRegistryMethod).toStrictEqual({
-        args: [{ type: 'uint256' }, { type: 'uint256' }],
-        name: 'Eth To Token Swap Input',
-      });
-      expect(registry.registryMethod).toBe(
-        'ethToTokenSwapInput(uint256,uint256)',
+      methodDataHelperMock.lookup.mockResolvedValueOnce(METHOD_DATA_MOCK);
+
+      const result = await controller.handleMethodData(
+        'mockMethodData',
+        NETWORK_CLIENT_ID_MOCK,
       );
+
+      expect(result).toStrictEqual(METHOD_DATA_MOCK);
     });
 
-    it('skips reading registry if already cached in state', async () => {
-      const { controller } = setupController({ network: MOCK_MAINNET_NETWORK });
-      mockNetwork({
-        networkClientConfiguration: {
-          ticker: BUILT_IN_NETWORKS.mainnet.ticker,
-          chainId: BUILT_IN_NETWORKS.mainnet.chainId,
-          type: NetworkClientType.Infura,
-          network: 'mainnet',
-          infuraProjectId: INFURA_PROJECT_ID,
-        },
-        mocks: [
-          {
-            request: {
-              method: 'eth_call',
-              params: [
-                {
-                  to: '0x44691B39d1a75dC4E0A0346CBB15E310e6ED1E86',
-                  data: '0xb46bcdaaf39b5b9b00000000000000000000000000000000000000000000000000000000',
-                },
-                'latest',
-              ],
-            },
-            response: {
-              result:
-                '0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000024657468546f546f6b656e53776170496e7075742875696e743235362c75696e743235362900000000000000000000000000000000000000000000000000000000',
-            },
-          },
-        ],
+    it('updates state when helper emits update event', async () => {
+      const { controller } = setupController();
+
+      jest.mocked(methodDataHelperMock.hub.on).mock.calls[0][1]({
+        fourBytePrefix: '0x12345678',
+        methodData: METHOD_DATA_MOCK,
       });
 
-      await controller.handleMethodData('0xf39b5b9b');
-
-      const registryLookup = jest.spyOn<TransactionController, never>(
-        controller,
-        'registryLookup' as never,
-      );
-
-      await controller.handleMethodData('0xf39b5b9b');
-
-      expect(registryLookup).not.toHaveBeenCalled();
+      expect(controller.state.methodData).toStrictEqual({
+        '0x12345678': METHOD_DATA_MOCK,
+      });
     });
   });
 

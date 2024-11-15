@@ -59,6 +59,7 @@ import type { EtherscanRemoteTransactionSource } from './helpers/EtherscanRemote
 import { GasFeePoller } from './helpers/GasFeePoller';
 import type { IncomingTransactionOptions } from './helpers/IncomingTransactionHelper';
 import { IncomingTransactionHelper } from './helpers/IncomingTransactionHelper';
+import { MethodDataHelper } from './helpers/MethodDataHelper';
 import { MultichainTrackingHelper } from './helpers/MultichainTrackingHelper';
 import { PendingTransactionTracker } from './helpers/PendingTransactionTracker';
 import { projectLogger as log } from './logger';
@@ -579,6 +580,8 @@ export class TransactionController extends BaseController<
 
   private readonly approvingTransactionIds: Set<string> = new Set();
 
+  #methodDataHelper: MethodDataHelper;
+
   private readonly mutex = new Mutex();
 
   private readonly gasFeeFlows: GasFeeFlow[];
@@ -696,18 +699,6 @@ export class TransactionController extends BaseController<
       newTransactionMeta,
     );
   }
-
-  // private async registryLookup(fourBytePrefix: string): Promise<MethodData> {
-  //   const registryMethod = await this.registry.lookup(fourBytePrefix);
-  //   if (!registryMethod) {
-  //     return {
-  //       registryMethod: '',
-  //       parsedRegistryMethod: { name: undefined, args: undefined },
-  //     };
-  //   }
-  //   const parsedRegistryMethod = this.registry.parse(registryMethod);
-  //   return { registryMethod, parsedRegistryMethod };
-  // }
 
   #multichainTrackingHelper: MultichainTrackingHelper;
 
@@ -874,6 +865,20 @@ export class TransactionController extends BaseController<
       this.#onGasFeePollerTransactionUpdate.bind(this),
     );
 
+    this.#methodDataHelper = new MethodDataHelper({
+      getProvider: (networkClientId) => this.#getProvider({ networkClientId }),
+      getState: () => this.state.methodData,
+    });
+
+    this.#methodDataHelper.hub.on(
+      'update',
+      ({ fourBytePrefix, methodData }) => {
+        this.update((_state) => {
+          _state.methodData[fourBytePrefix] = methodData;
+        });
+      },
+    );
+
     // when transactionsController state changes
     // check for pending transactions and start polling if there are any
     this.messagingSystem.subscribe(
@@ -895,11 +900,15 @@ export class TransactionController extends BaseController<
   /**
    * Handle new method data request.
    *
-   * @param _fourBytePrefix - The method prefix.
+   * @param fourBytePrefix - The method prefix.
+   * @param networkClientId - The ID of the network client used to fetch the method data.
    * @returns The method data object corresponding to the given signature prefix.
    */
-  async handleMethodData(_fourBytePrefix: string): Promise<MethodData> {
-    throw new Error('Method not implemented.');
+  async handleMethodData(
+    fourBytePrefix: string,
+    networkClientId: NetworkClientId,
+  ): Promise<MethodData> {
+    return this.#methodDataHelper.lookup(fourBytePrefix, networkClientId);
   }
 
   /**
