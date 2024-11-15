@@ -979,14 +979,28 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               USER_STORAGE_FEATURE_NAMES.accounts,
               await mockUserStorageAccountsResponse(),
             ),
-          mockEndpointsDeleteUserStorage:
-            MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
-              (account) =>
-                !MOCK_INTERNAL_ACCOUNTS.ONE.find(
-                  (internalAccount) => internalAccount.address === account.a,
-                ),
-            ).map((account) =>
-              mockEndpointDeleteUserStorage(`accounts.${account.a}`),
+          mockEndpointBatchDeleteUserStorage:
+            mockEndpointBatchDeleteUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              undefined,
+              async (_uri, requestBody) => {
+                if (typeof requestBody === 'string') {
+                  return;
+                }
+
+                const expectedBody = createExpectedAccountSyncBatchDeleteBody(
+                  MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
+                    (account) =>
+                      !MOCK_INTERNAL_ACCOUNTS.ONE.find(
+                        (internalAccount) =>
+                          internalAccount.address === account.a,
+                      ),
+                  ).map((account) => account.a),
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+              },
             ),
         },
       };
@@ -1012,9 +1026,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
 
-    for (const mockEndpoint of mockAPI.mockEndpointsDeleteUserStorage) {
-      expect(mockEndpoint.isDone()).toBe(true);
-    }
+    expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
   });
 
   describe('handles corrupted user storage gracefully', () => {
@@ -1038,14 +1050,33 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         mockAPI: {
           mockEndpointGetUserStorage:
             await mockEndpointGetUserStorageAllFeatureEntries(
-              'accounts',
+              USER_STORAGE_FEATURE_NAMES.accounts,
               await mockUserStorageAccountsResponse(),
             ),
-          mockEndpointDeleteUserStorage: mockEndpointDeleteUserStorage(
-            `accounts.${MOCK_USER_STORAGE_ACCOUNTS.TWO_DEFAULT_NAMES_WITH_ONE_BOGUS[1].a}`,
-          ),
+          mockEndpointBatchDeleteUserStorage:
+            mockEndpointBatchDeleteUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              undefined,
+              async (_uri, requestBody) => {
+                if (typeof requestBody === 'string') {
+                  return;
+                }
+
+                const expectedBody = createExpectedAccountSyncBatchDeleteBody(
+                  [
+                    MOCK_USER_STORAGE_ACCOUNTS
+                      .TWO_DEFAULT_NAMES_WITH_ONE_BOGUS[1].a,
+                  ],
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+              },
+            ),
           mockEndpointBatchUpsertUserStorage:
-            mockEndpointBatchUpsertUserStorage('accounts'),
+            mockEndpointBatchUpsertUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+            ),
         },
       };
     };
@@ -1094,7 +1125,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
-      expect(mockAPI.mockEndpointDeleteUserStorage.isDone()).toBe(true);
+      expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
     });
   });
 
@@ -1121,14 +1152,28 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
               USER_STORAGE_FEATURE_NAMES.accounts,
               await mockUserStorageAccountsResponse(),
             ),
-          mockEndpointsDeleteUserStorage:
-            MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
-              (account) =>
-                !MOCK_INTERNAL_ACCOUNTS.ONE.find(
-                  (internalAccount) => internalAccount.address === account.a,
-                ),
-            ).map((account) =>
-              mockEndpointDeleteUserStorage(`accounts.${account.a}`),
+          mockEndpointBatchDeleteUserStorage:
+            mockEndpointBatchDeleteUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              undefined,
+              async (_uri, requestBody) => {
+                if (typeof requestBody === 'string') {
+                  return;
+                }
+
+                const expectedBody = createExpectedAccountSyncBatchDeleteBody(
+                  MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL.filter(
+                    (account) =>
+                      !MOCK_INTERNAL_ACCOUNTS.ONE.find(
+                        (internalAccount) =>
+                          internalAccount.address === account.a,
+                      ),
+                  ).map((account) => account.a),
+                  MOCK_STORAGE_KEY,
+                );
+
+                expect(requestBody.batch_delete).toStrictEqual(expectedBody);
+              },
             ),
         },
       };
@@ -1159,9 +1204,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
         MOCK_INTERNAL_ACCOUNTS.ONE.length,
     );
 
-    for (const mockEndpoint of mockAPI.mockEndpointsDeleteUserStorage) {
-      expect(mockEndpoint.isDone()).toBe(true);
-    }
+    expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
   });
 
   it('does not create internal accounts if user storage has less accounts', async () => {
@@ -2147,4 +2190,19 @@ function createExpectedAccountSyncBatchUpsertBody(
       ),
     ),
   ]);
+}
+
+/**
+ * Test Utility - creates a realistic expected batch delete payload
+ * @param data - data supposed to be deleted
+ * @param storageKey - storage key
+ * @returns expected body
+ */
+function createExpectedAccountSyncBatchDeleteBody(
+  data: string[],
+  storageKey: string,
+) {
+  return data.map((entryKey) =>
+    createSHA256Hash(String(entryKey) + storageKey),
+  );
 }

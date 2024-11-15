@@ -1045,9 +1045,10 @@ export default class UserStorageController extends BaseController<
           !refreshedInternalAccountsList.find((a) => a.address === account.a),
       );
 
-      for (const account of userStorageAccountsToBeDeleted) {
-        await this.performDeleteStorage(`accounts.${account.a}`);
-      }
+      await this.performBatchDeleteStorage(
+        USER_STORAGE_FEATURE_NAMES.accounts,
+        userStorageAccountsToBeDeleted.map((account) => account.a),
+      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(
