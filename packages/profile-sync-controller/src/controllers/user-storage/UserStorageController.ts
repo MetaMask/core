@@ -23,10 +23,11 @@ import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSHA256Hash } from '../../shared/encryption';
-import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
+import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
+import {
+  USER_STORAGE_FEATURE_NAMES,
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -45,6 +46,7 @@ import {
 } from './accounts/user-storage';
 import { startNetworkSyncing } from './network-syncing/controller-integration';
 import {
+  batchDeleteUserStorage,
   batchUpsertUserStorage,
   deleteUserStorage,
   deleteUserStorageAllFeatureEntries,
@@ -341,7 +343,9 @@ export default class UserStorageController extends BaseController<
       UserStorageAccount[] | null
     > => {
       const rawAccountsListResponse =
-        await this.performGetStorageAllFeatureEntries('accounts');
+        await this.performGetStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+        );
 
       return (
         rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ??
@@ -356,7 +360,7 @@ export default class UserStorageController extends BaseController<
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `accounts.${internalAccount.address}`,
+        `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -372,7 +376,7 @@ export default class UserStorageController extends BaseController<
         internalAccountsList.map(mapInternalAccountToUserStorageAccount);
 
       await this.performBatchSetStorage(
-        'accounts',
+        USER_STORAGE_FEATURE_NAMES.accounts,
         internalAccountsListFormattedForUserStorage.map((account) => [
           account.a,
           JSON.stringify(account),
@@ -672,9 +676,11 @@ export default class UserStorageController extends BaseController<
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  public async performBatchSetStorage(
-    path: UserStoragePathWithFeatureOnly,
-    values: [UserStoragePathWithKeyOnly, string][],
+  public async performBatchSetStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: [UserStorageFeatureKeys<FeatureName>, string][],
   ): Promise<void> {
     this.#assertProfileSyncingEnabled();
 
@@ -729,6 +735,33 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+    });
+  }
+
+  /**
+   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of entryKey[]
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchDeleteStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: UserStorageFeatureKeys<FeatureName>[],
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await batchDeleteUserStorage(values, {
+      path,
+      bearerToken,
+      storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 
@@ -998,7 +1031,7 @@ export default class UserStorageController extends BaseController<
 
       // Save the internal accounts list to the user storage
       await this.performBatchSetStorage(
-        'accounts',
+        USER_STORAGE_FEATURE_NAMES.accounts,
         internalAccountsToBeSavedToUserStorage.map((account) => [
           account.address,
           JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
