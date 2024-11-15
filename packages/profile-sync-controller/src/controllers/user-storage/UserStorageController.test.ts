@@ -1039,7 +1039,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    const arrangeMocksForAccounts = async () => {
+    const arrangeMocksForBogusAccounts = async () => {
       return {
         messengerMocks: mockUserStorageMessenger({
           accounts: {
@@ -1081,23 +1081,8 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       };
     };
 
-    it('does not save the bogus account to user storage - preventing the infinite account creation bug', async () => {
-      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
-      const controller = new UserStorageController({
-        messenger: messengerMocks.messenger,
-        env: {
-          isAccountSyncingEnabled: true,
-        },
-        getMetaMetricsState: () => true,
-      });
-
-      await controller.syncInternalAccountsWithUserStorage();
-
-      expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
-    });
-
-    it('deletes this bogus account from user storage', async () => {
-      const { messengerMocks, mockAPI } = await arrangeMocksForAccounts();
+    it('does not save the bogus account to user storage, and deletes it from user storage', async () => {
+      const { messengerMocks, mockAPI } = await arrangeMocksForBogusAccounts();
       const controller = new UserStorageController({
         messenger: messengerMocks.messenger,
         env: {
@@ -1109,6 +1094,7 @@ describe('user-storage/user-storage-controller - syncInternalAccountsWithUserSto
       await controller.syncInternalAccountsWithUserStorage();
 
       expect(mockAPI.mockEndpointGetUserStorage.isDone()).toBe(true);
+      expect(mockAPI.mockEndpointBatchUpsertUserStorage.isDone()).toBe(false);
       expect(mockAPI.mockEndpointBatchDeleteUserStorage.isDone()).toBe(true);
     });
   });
