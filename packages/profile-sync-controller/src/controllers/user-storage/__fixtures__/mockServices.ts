@@ -1,8 +1,9 @@
 import nock from 'nock';
 
-import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
+import {
+  USER_STORAGE_FEATURE_NAMES,
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
 } from '../../../shared/storage-schema';
 import {
   getMockUserStorageGetResponse,
@@ -20,7 +21,7 @@ type MockReply = {
 };
 
 export const mockEndpointGetUserStorageAllFeatureEntries = async (
-  path: UserStoragePathWithFeatureOnly = 'notifications',
+  path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: MockReply,
 ) => {
   const mockResponse = await getMockUserStorageAllFeatureEntriesResponse(path);
@@ -37,7 +38,7 @@ export const mockEndpointGetUserStorageAllFeatureEntries = async (
 };
 
 export const mockEndpointGetUserStorage = async (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+  path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
   mockReply?: MockReply,
 ) => {
   const mockResponse = await getMockUserStorageGetResponse(path);
@@ -54,7 +55,7 @@ export const mockEndpointGetUserStorage = async (
 };
 
 export const mockEndpointUpsertUserStorage = (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+  path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
   mockReply?: Pick<MockReply, 'status'>,
   expectCallback?: (requestBody: nock.Body) => Promise<void>,
 ) => {
@@ -68,7 +69,7 @@ export const mockEndpointUpsertUserStorage = (
 };
 
 export const mockEndpointBatchUpsertUserStorage = (
-  path: UserStoragePathWithFeatureOnly = 'notifications',
+  path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: Pick<MockReply, 'status'>,
   callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
 ) => {
@@ -82,7 +83,7 @@ export const mockEndpointBatchUpsertUserStorage = (
 };
 
 export const mockEndpointDeleteUserStorage = (
-  path: UserStoragePathWithFeatureAndKey = 'notifications.notification_settings',
+  path: UserStoragePathWithFeatureAndKey = `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
   mockReply?: MockReply,
 ) => {
   const mockResponse = deleteMockUserStorageResponse(path);
@@ -96,7 +97,7 @@ export const mockEndpointDeleteUserStorage = (
 };
 
 export const mockEndpointDeleteUserStorageAllFeatureEntries = (
-  path: UserStoragePathWithFeatureOnly = 'notifications',
+  path: UserStoragePathWithFeatureOnly = USER_STORAGE_FEATURE_NAMES.notifications,
   mockReply?: MockReply,
 ) => {
   const mockResponse = deleteMockUserStorageAllFeatureEntriesResponse(path);

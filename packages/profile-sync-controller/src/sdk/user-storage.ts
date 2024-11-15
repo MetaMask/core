@@ -2,9 +2,10 @@ import encryption, { createSHA256Hash } from '../shared/encryption';
 import type { Env } from '../shared/env';
 import { getEnvUrls } from '../shared/env';
 import type {
+  UserStorageFeatureKeys,
+  UserStorageFeatureNames,
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
 } from '../shared/storage-schema';
 import { createEntryPath } from '../shared/storage-schema';
 import type { IBaseAuth } from './authentication-jwt-bearer/types';
@@ -59,9 +60,9 @@ export class UserStorage {
     await this.#upsertUserStorage(path, value);
   }
 
-  async batchSetItems(
-    path: UserStoragePathWithFeatureOnly,
-    values: [UserStoragePathWithKeyOnly, string][],
+  async batchSetItems<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    values: [UserStorageFeatureKeys<FeatureName>, string][],
   ) {
     await this.#batchUpsertUserStorage(path, values);
   }
@@ -148,9 +149,9 @@ export class UserStorage {
     }
   }
 
-  async #batchUpsertUserStorage(
-    path: UserStoragePathWithFeatureOnly,
-    data: [UserStoragePathWithKeyOnly, string][],
+  async #batchUpsertUserStorage<FeatureName extends UserStorageFeatureNames>(
+    path: FeatureName,
+    data: [UserStorageFeatureKeys<FeatureName>, string][],
   ): Promise<void> {
     try {
       if (!data.length) {

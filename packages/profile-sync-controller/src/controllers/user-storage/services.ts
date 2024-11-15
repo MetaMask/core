@@ -5,7 +5,6 @@ import { Env, getEnvUrls } from '../../shared/env';
 import type {
   UserStoragePathWithFeatureAndKey,
   UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
 } from '../../shared/storage-schema';
 import { createEntryPath } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
@@ -204,7 +203,7 @@ export async function upsertUserStorage(
  * @param opts - storage options
  */
 export async function batchUpsertUserStorage(
-  data: [UserStoragePathWithKeyOnly, string][],
+  data: [string, string][],
   opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
   if (!data.length) {
