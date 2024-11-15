@@ -280,6 +280,7 @@ export default class UserStorageController extends BaseController<
     isAccountSyncingEnabled: false,
     isAccountSyncingInProgress: false,
     maxNumberOfAccountsToAdd: 0,
+    hasSyncedAtLeastOnce: false,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
@@ -306,7 +307,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountAdded',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (!this.#accounts.canSync()) {
+          if (
+            !this.#accounts.canSync() ||
+            !this.#accounts.hasSyncedAtLeastOnce
+          ) {
             return;
           }
 
@@ -318,7 +322,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountRenamed',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (!this.#accounts.canSync()) {
+          if (
+            !this.#accounts.canSync() ||
+            !this.#accounts.hasSyncedAtLeastOnce
+          ) {
             return;
           }
           await this.saveInternalAccountToUserStorage(account);
@@ -902,7 +909,6 @@ export default class UserStorageController extends BaseController<
         // Create new accounts to match the user storage accounts list
         for (let i = 0; i < numberOfAccountsToAdd; i++) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
-
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
       }
@@ -1006,13 +1012,15 @@ export default class UserStorageController extends BaseController<
       }
 
       // Save the internal accounts list to the user storage
-      await this.performBatchSetStorage(
-        USER_STORAGE_FEATURE_NAMES.accounts,
-        internalAccountsToBeSavedToUserStorage.map((account) => [
-          account.address,
-          JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
-        ]),
-      );
+      if (internalAccountsToBeSavedToUserStorage.length) {
+        await this.performBatchSetStorage(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          internalAccountsToBeSavedToUserStorage.map((account) => [
+            account.address,
+            JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+          ]),
+        );
+      }
 
       // In case we have corrupted user storage with accounts that don't exist in the internal accounts list
       // Delete those accounts from the user storage
@@ -1021,10 +1029,15 @@ export default class UserStorageController extends BaseController<
           !refreshedInternalAccountsList.find((a) => a.address === account.a),
       );
 
-      await this.performBatchDeleteStorage(
-        USER_STORAGE_FEATURE_NAMES.accounts,
-        userStorageAccountsToBeDeleted.map((account) => account.a),
-      );
+      if (userStorageAccountsToBeDeleted.length) {
+        await this.performBatchDeleteStorage(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          userStorageAccountsToBeDeleted.map((account) => account.a),
+        );
+      }
+
+      // We add this here and not in the finally statement because we want to make sure that the accounts are saved before we set this flag
+      this.#accounts.hasSyncedAtLeastOnce = true;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(

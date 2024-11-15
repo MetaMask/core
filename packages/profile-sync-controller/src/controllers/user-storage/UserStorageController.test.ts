@@ -1852,54 +1852,97 @@ describe('user-storage/user-storage-controller - saveInternalAccountToUserStorag
     ).rejects.toThrow(expect.any(Error));
   });
 
-  it('saves an internal account to user storage when the AccountsController:accountRenamed event is fired', async () => {
-    const { baseMessenger, messenger } = mockUserStorageMessenger();
+  describe('it reacts to other controller events', () => {
+    const mockUserStorageAccountsResponse = async () => {
+      return {
+        status: 200,
+        body: await createMockUserStorageEntries(
+          MOCK_USER_STORAGE_ACCOUNTS.SAME_AS_INTERNAL_ALL,
+        ),
+      };
+    };
 
-    const controller = new UserStorageController({
-      messenger,
-      env: {
-        isAccountSyncingEnabled: true,
-      },
-      getMetaMetricsState: () => true,
+    const arrangeMocksForAccounts = async () => {
+      return {
+        messengerMocks: mockUserStorageMessenger({
+          accounts: {
+            accountsList:
+              MOCK_INTERNAL_ACCOUNTS.ONE_CUSTOM_NAME_WITH_LAST_UPDATED_MOST_RECENT as InternalAccount[],
+          },
+        }),
+        mockAPI: {
+          mockEndpointGetUserStorage:
+            await mockEndpointGetUserStorageAllFeatureEntries(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+              await mockUserStorageAccountsResponse(),
+            ),
+          mockEndpointBatchUpsertUserStorage:
+            mockEndpointBatchUpsertUserStorage(
+              USER_STORAGE_FEATURE_NAMES.accounts,
+            ),
+        },
+      };
+    };
+
+    it('saves an internal account to user storage when the AccountsController:accountRenamed event is fired', async () => {
+      await arrangeMocksForAccounts();
+
+      const { baseMessenger, messenger } = mockUserStorageMessenger();
+
+      const controller = new UserStorageController({
+        messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
+
+      // We need to sync at least once before we listen for other controller events
+      await controller.syncInternalAccountsWithUserStorage();
+
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(controller, 'saveInternalAccountToUserStorage')
+        .mockImplementation();
+
+      baseMessenger.publish(
+        'AccountsController:accountRenamed',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
+        MOCK_INTERNAL_ACCOUNTS.ONE[0],
+      );
     });
 
-    const mockSaveInternalAccountToUserStorage = jest
-      .spyOn(controller, 'saveInternalAccountToUserStorage')
-      .mockImplementation();
+    it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
+      await arrangeMocksForAccounts();
 
-    baseMessenger.publish(
-      'AccountsController:accountRenamed',
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
-    );
+      const { baseMessenger, messenger } = mockUserStorageMessenger();
 
-    expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0],
-    );
-  });
+      const controller = new UserStorageController({
+        messenger,
+        env: {
+          isAccountSyncingEnabled: true,
+        },
+        getMetaMetricsState: () => true,
+      });
 
-  it('saves an internal account to user storage when the AccountsController:accountAdded event is fired', async () => {
-    const { baseMessenger, messenger } = mockUserStorageMessenger();
+      // We need to sync at least once before we listen for other controller events
+      await controller.syncInternalAccountsWithUserStorage();
 
-    const controller = new UserStorageController({
-      messenger,
-      env: {
-        isAccountSyncingEnabled: true,
-      },
-      getMetaMetricsState: () => true,
+      const mockSaveInternalAccountToUserStorage = jest
+        .spyOn(controller, 'saveInternalAccountToUserStorage')
+        .mockImplementation();
+
+      baseMessenger.publish(
+        'AccountsController:accountAdded',
+        MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
+      );
+
+      expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
+        MOCK_INTERNAL_ACCOUNTS.ONE[0],
+      );
     });
-
-    const mockSaveInternalAccountToUserStorage = jest
-      .spyOn(controller, 'saveInternalAccountToUserStorage')
-      .mockImplementation();
-
-    baseMessenger.publish(
-      'AccountsController:accountAdded',
-      MOCK_INTERNAL_ACCOUNTS.ONE[0] as InternalAccount,
-    );
-
-    expect(mockSaveInternalAccountToUserStorage).toHaveBeenCalledWith(
-      MOCK_INTERNAL_ACCOUNTS.ONE[0],
-    );
   });
 });
 
