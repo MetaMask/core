@@ -439,8 +439,8 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
     });
 
     await controller.performBatchDeleteStorage('notifications', [
-      'notifications.notification_settings',
-      'new data',
+      'notification_settings',
+      'notification_settings',
     ]);
     expect(mockAPI.isDone()).toBe(true);
   });
@@ -458,8 +458,8 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
 
     await expect(
       controller.performBatchDeleteStorage('notifications', [
-        'notifications.notification_settings',
-        'new data',
+        'notification_settings',
+        'notification_settings',
       ]),
     ).rejects.toThrow(expect.any(Error));
   });
@@ -496,8 +496,8 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
 
       await expect(
         controller.performBatchDeleteStorage('notifications', [
-          'notifications.notification_settings',
-          'new data',
+          'notification_settings',
+          'notification_settings',
         ]),
       ).rejects.toThrow(expect.any(Error));
     },
@@ -512,8 +512,8 @@ describe('user-storage/user-storage-controller - performBatchDeleteStorage() tes
 
     await expect(
       controller.performBatchDeleteStorage('notifications', [
-        'notifications.notification_settings',
-        'new data',
+        'notification_settings',
+        'notification_settings',
       ]),
     ).rejects.toThrow(expect.any(Error));
     mockAPI.done();

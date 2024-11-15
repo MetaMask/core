@@ -276,7 +276,7 @@ export async function deleteUserStorage(
  * @param opts - storage options
  */
 export async function batchDeleteUserStorage(
-  data: UserStoragePathWithKeyOnly[],
+  data: string[],
   opts: UserStorageBatchUpsertOptions,
 ): Promise<void> {
   if (!data.length) {

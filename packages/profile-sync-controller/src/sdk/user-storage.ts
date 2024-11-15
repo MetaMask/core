@@ -87,9 +87,9 @@ export class UserStorage {
     return this.#deleteUserStorageAllFeatureEntries(path);
   }
 
-  async batchDeleteItems(
+  async batchDeleteItems<FeatureName extends UserStorageFeatureNames>(
     path: UserStoragePathWithFeatureOnly,
-    values: UserStoragePathWithKeyOnly[],
+    values: UserStorageFeatureKeys<FeatureName>[],
   ) {
     return this.#batchDeleteUserStorage(path, values);
   }

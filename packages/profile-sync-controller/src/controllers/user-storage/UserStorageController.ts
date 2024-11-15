@@ -745,9 +745,11 @@ export default class UserStorageController extends BaseController<
    * @param values - data to store, in the form of an array of entryKey[]
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  public async performBatchDeleteStorage(
-    path: UserStoragePathWithFeatureOnly,
-    values: UserStoragePathWithKeyOnly[],
+  public async performBatchDeleteStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: UserStorageFeatureKeys<FeatureName>[],
   ): Promise<void> {
     this.#assertProfileSyncingEnabled();
 

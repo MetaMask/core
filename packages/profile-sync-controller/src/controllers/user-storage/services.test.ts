@@ -384,7 +384,9 @@ describe('user-storage/services.ts - deleteUserStorageAllFeatureEntries() tests'
 });
 
 describe('user-storage/services.ts - batchDeleteUserStorage() tests', () => {
-  const keysToDelete: UserStoragePathWithKeyOnly[] = ['0x123', '0x456'];
+  const keysToDelete: UserStorageFeatureKeys<
+    typeof USER_STORAGE_FEATURE_NAMES.accounts
+  >[] = ['0x123', '0x456'];
 
   const actCallBatchDeleteUserStorage = async () => {
     return await batchDeleteUserStorage(keysToDelete, {
