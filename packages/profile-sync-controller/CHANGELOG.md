@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1]
+
+### Added
+
+- add batch delete endpoint support for both UserStorageController & SDK ([#4938](https://github.com/MetaMask/core/pull/4938))
+
+### Changed
+
+- use better type system for user storage ([#4907](https://github.com/MetaMask/core/pull/4907))
+
+### Fixed
+
+- account sync infinite account creation bug ([#4933](https://github.com/MetaMask/core/pull/4933))
+
 ## [1.0.0]
 
 ### Changed
@@ -295,7 +309,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.1...HEAD
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@1.0.0...@metamask/profile-sync-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.8...@metamask/profile-sync-controller@1.0.0
 [0.9.8]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.7...@metamask/profile-sync-controller@0.9.8
 [0.9.7]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@0.9.6...@metamask/profile-sync-controller@0.9.7
