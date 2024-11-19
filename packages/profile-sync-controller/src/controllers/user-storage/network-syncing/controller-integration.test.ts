@@ -63,11 +63,7 @@ type ExternalEvents = NotNamespacedBy<
   'UserStorageController',
   AllowedEvents['type']
 >;
-const getEvents = (): ExternalEvents[] => [
-  'NetworkController:networkAdded',
-  'NetworkController:networkUpdated',
-  'NetworkController:networkRemoved',
-];
+const getEvents = (): ExternalEvents[] => ['NetworkController:networkRemoved'];
 
 describe('network-syncing/controller-integration - startNetworkSyncing()', () => {
   it(`should successfully sync when NetworkController:networkRemoved is emitted`, async () => {
@@ -158,6 +154,13 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
 
     expect(getStorageConfig).not.toHaveBeenCalled();
     expect(deleteNetworkMock).not.toHaveBeenCalled();
+
+    // Reset this property
+    Object.defineProperty(
+      ControllerIntegrationModule,
+      'isMainNetworkSyncInProgress',
+      { value: false },
+    );
   });
 
   /**
@@ -294,7 +297,7 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     });
 
     await performMainNetworkSync({ messenger, getStorageConfig });
-    expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalledTimes(1); // this is a batch endpoint
+    expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalledTimes(1);
     expect(mockCalls.mockNetworkControllerAddNetwork).toHaveBeenCalledTimes(2);
     expect(mockCalls.mockNetworkControllerUpdateNetwork).toHaveBeenCalledTimes(
       2,
@@ -354,8 +357,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     const mockNetworkControllerAddNetwork =
       typedMockCallFn<'NetworkController:addNetwork'>();
 
-    const mockNetworkControllerUpdateNetwork =
-      typedMockCallFn<'NetworkController:updateNetwork'>();
+    const mockNetworkControllerDangerouslySetNetworkConfiguration =
+      typedMockCallFn<'NetworkController:dangerouslySetNetworkConfiguration'>();
 
     const mockNetworkControllerRemoveNetwork =
       typedMockCallFn<'NetworkController:removeNetwork'>();
@@ -373,9 +376,13 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
         return mockNetworkControllerAddNetwork(...params);
       }
 
-      if (actionType === 'NetworkController:updateNetwork') {
+      if (
+        actionType === 'NetworkController:dangerouslySetNetworkConfiguration'
+      ) {
         const [, ...params] = typedArgs;
-        return mockNetworkControllerUpdateNetwork(...params);
+        return mockNetworkControllerDangerouslySetNetworkConfiguration(
+          ...params,
+        );
       }
 
       if (actionType === 'NetworkController:removeNetwork') {
@@ -391,7 +398,8 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     return {
       mockNetworkControllerGetState,
       mockNetworkControllerAddNetwork,
-      mockNetworkControllerUpdateNetwork,
+      mockNetworkControllerUpdateNetwork:
+        mockNetworkControllerDangerouslySetNetworkConfiguration,
       mockNetworkControllerRemoveNetwork,
     };
   }
