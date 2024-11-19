@@ -1482,6 +1482,21 @@ describe('TransactionController', () => {
       );
     });
 
+    it('does not update first time interaction properties if disabled', async () => {
+      const { controller } = setupController({
+        options: { isFirstTimeInteractionEnabled: () => false },
+      });
+
+      await controller.addTransaction({
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_MOCK,
+      });
+
+      await flushPromises();
+
+      expect(getAccountAddressRelationshipMock).not.toHaveBeenCalled();
+    });
+
     describe('networkClientId exists in the MultichainTrackingHelper', () => {
       it('adds unapproved transaction to state when using networkClientId', async () => {
         const { controller } = setupController({

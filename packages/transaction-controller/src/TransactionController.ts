@@ -302,6 +302,7 @@ export type TransactionControllerOptions = {
     etherscanApiKeysByChainId?: Record<Hex, string>;
   };
   isMultichainEnabled: boolean;
+  isFirstTimeInteractionEnabled?: () => boolean;
   isSimulationEnabled?: () => boolean;
   messenger: TransactionControllerMessenger;
   onNetworkStateChange: (listener: (state: NetworkState) => void) => void;
@@ -643,6 +644,8 @@ export class TransactionController extends BaseController<
 
   #transactionHistoryLimit: number;
 
+  #isFirstTimeInteractionEnabled: () => boolean;
+
   #isSimulationEnabled: () => boolean;
 
   #testGasFeeFlows: boolean;
@@ -761,6 +764,7 @@ export class TransactionController extends BaseController<
    * @param options.getSavedGasFees - Gets the saved gas fee config.
    * @param options.incomingTransactions - Configuration options for incoming transaction support.
    * @param options.isMultichainEnabled - Enable multichain support.
+   * @param options.isFirstTimeInteractionEnabled - Whether first time interaction checks are enabled.
    * @param options.isSimulationEnabled - Whether new transactions will be automatically simulated.
    * @param options.messenger - The controller messenger.
    * @param options.onNetworkStateChange - Allows subscribing to network controller state changes.
@@ -789,6 +793,7 @@ export class TransactionController extends BaseController<
     getSavedGasFees,
     incomingTransactions = {},
     isMultichainEnabled = false,
+    isFirstTimeInteractionEnabled,
     isSimulationEnabled,
     messenger,
     onNetworkStateChange,
@@ -817,6 +822,8 @@ export class TransactionController extends BaseController<
     this.isSendFlowHistoryDisabled = disableSendFlowHistory ?? false;
     this.isHistoryDisabled = disableHistory ?? false;
     this.isSwapsDisabled = disableSwaps ?? false;
+    this.#isFirstTimeInteractionEnabled =
+      isFirstTimeInteractionEnabled ?? (() => true);
     this.#isSimulationEnabled = isSimulationEnabled ?? (() => true);
     // @ts-expect-error the type in eth-method-registry is inappropriate and should be changed
     this.registry = new MethodRegistry({ provider });
@@ -3637,6 +3644,10 @@ export class TransactionController extends BaseController<
       traceContext?: TraceContext;
     } = {},
   ) {
+    if (!this.#isFirstTimeInteractionEnabled()) {
+      return;
+    }
+
     const {
       chainId,
       id: transactionId,
