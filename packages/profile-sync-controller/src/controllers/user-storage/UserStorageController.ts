@@ -495,6 +495,9 @@ export default class UserStorageController extends BaseController<
     this.#env.isNetworkSyncingEnabled = Boolean(env?.isNetworkSyncingEnabled);
     this.#config = config;
 
+    this.#accounts.maxNumberOfAccountsToAdd =
+      config?.accountSyncing?.maxNumberOfAccountsToAdd ?? 100;
+
     this.getMetaMetricsState = getMetaMetricsState;
     this.#keyringController.setupLockedStateSubscriptions();
     this.#registerMessageHandlers();
