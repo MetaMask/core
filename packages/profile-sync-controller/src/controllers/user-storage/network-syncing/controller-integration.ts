@@ -77,6 +77,7 @@ export async function performMainNetworkSync(
   const { messenger, getStorageConfig } = props;
 
   // Edge-Case, we do not want to re-run the main-sync if it already is in progress
+  /* istanbul ignore if - this is not testable */
   if (isMainNetworkSyncInProgress) {
     return;
   }
@@ -124,10 +125,13 @@ export async function performMainNetworkSync(
           messenger.call('NetworkController:addNetwork', n);
           props.onNetworkAdded?.(n.chainId);
         } catch (e) {
+          /* istanbul ignore next - allocates logs, do not need to test */
           errors.push(e);
           // Silently fail, we can try this again on next main sync
         }
       });
+
+      /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
         console.error(
           'performMainNetworkSync() - NetworkController:addNetwork failures',
@@ -150,10 +154,13 @@ export async function performMainNetworkSync(
           );
           props.onNetworkUpdated?.(n.chainId);
         } catch (e) {
+          /* istanbul ignore next - allocates logs, do not need to test */
           errors.push(e);
           // Silently fail, we can try this again on next main sync
         }
       }
+
+      /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
         console.error(
           'performMainNetworkSync() - NetworkController:dangerouslySetNetworkConfiguration failed',
@@ -173,10 +180,13 @@ export async function performMainNetworkSync(
           messenger.call('NetworkController:removeNetwork', n.chainId);
           props.onNetworkRemoved?.(n.chainId);
         } catch (e) {
+          /* istanbul ignore next - allocates logs, do not need to test */
           errors.push(e);
           // Silently fail, we can try this again on next main sync
         }
       });
+
+      /* istanbul ignore if - only logs errors, not useful to test */
       if (errors.length > 0) {
         console.error(
           'performMainNetworkSync() - NetworkController:removeNetwork failed',
@@ -185,6 +195,7 @@ export async function performMainNetworkSync(
       }
     }
   } catch (e) {
+    /* istanbul ignore next - only logs errors, not useful to test */
     console.error('performMainNetworkSync() failed', e);
     // Silently fail sync
   } finally {
