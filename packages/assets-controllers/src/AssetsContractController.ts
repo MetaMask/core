@@ -1,3 +1,5 @@
+// import { BigNumber } from '@ethersproject/bignumber';
+import { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
 import type {
@@ -19,7 +21,10 @@ import { getKnownPropertyNames, type Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import {
+  SupportedStakedBalanceNetworks,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
 import { ERC20Standard } from './Standards/ERC20Standard';
 import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
@@ -67,6 +72,13 @@ export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
     '0x6aa75276052d96696134252587894ef5ffa520af',
   [SupportedTokenDetectionNetworks.moonriver]:
     '0x6aa75276052d96696134252587894ef5ffa520af',
+} as const satisfies Record<Hex, string>;
+
+export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
+  [SupportedStakedBalanceNetworks.mainnet]:
+    '0x4fef9d741011476750a243ac70b9789a63dd47df',
+  [SupportedStakedBalanceNetworks.holesky]:
+    '0x37bf0883c27365cffcd0c4202918df930989891f',
 } as const satisfies Record<Hex, string>;
 
 export const MISSING_PROVIDER_ERROR =
@@ -196,6 +208,8 @@ export type AssetsContractControllerMessenger = RestrictedControllerMessenger<
   AllowedActions['type'],
   AllowedEvents['type']
 >;
+
+export type StakedBalance = string | undefined;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
@@ -687,6 +701,74 @@ export class AssetsContractController {
       });
     }
     return nonZeroBalances;
+  }
+
+  /**
+   * Get the staked ethereum balance for an address in a single call.
+   *
+   * @param address - The address to check staked ethereum balance for.
+   * @param networkClientId - Network Client ID to fetch the provider with.
+   * @returns The hex staked ethereum balance for address.
+   */
+  async getStakedBalanceForChain(
+    address: string,
+    networkClientId?: NetworkClientId,
+  ): Promise<StakedBalance> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    // balance defaults to zero
+    let balance: BigNumber = BigNumber.from(0);
+
+    // Only fetch staked balance on supported networks
+    if (
+      ![
+        SupportedStakedBalanceNetworks.mainnet,
+        SupportedStakedBalanceNetworks.holesky,
+      ].includes(chainId as SupportedStakedBalanceNetworks)
+    ) {
+      return undefined as StakedBalance;
+    }
+    // Only fetch staked balance if contract address exists
+    if (
+      !((id): id is keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID =>
+        id in STAKING_CONTRACT_ADDRESS_BY_CHAINID)(chainId)
+    ) {
+      return undefined as StakedBalance;
+    }
+
+    const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
+    const abi = [
+      {
+        inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+        name: 'getShares',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+      {
+        inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+        name: 'convertToAssets',
+        outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+    ];
+
+    try {
+      const contract = new Contract(contractAddress, abi, provider);
+      const userShares = await contract.getShares(address);
+
+      // convert shares to assets only if address shares > 0 else return default balance
+      if (!userShares.lte(0)) {
+        balance = await contract.convertToAssets(userShares.toString());
+      }
+    } catch (error) {
+      // if we get an error, log and return the default value
+      console.error(error);
+    }
+
+    return balance.toHexString();
   }
 }
 

@@ -27,10 +27,11 @@ import type {
 import type { HandleSnapRequest } from '@metamask/snaps-controllers';
 
 import { createSHA256Hash } from '../../shared/encryption';
-import type {
-  UserStoragePathWithFeatureAndKey,
-  UserStoragePathWithFeatureOnly,
-  UserStoragePathWithKeyOnly,
+import type { UserStorageFeatureKeys } from '../../shared/storage-schema';
+import {
+  USER_STORAGE_FEATURE_NAMES,
+  type UserStoragePathWithFeatureAndKey,
+  type UserStoragePathWithFeatureOnly,
 } from '../../shared/storage-schema';
 import type { NativeScrypt } from '../../shared/types/encryption';
 import { createSnapSignMessageRequest } from '../authentication/auth-snap-requests';
@@ -51,6 +52,7 @@ import {
   startNetworkSyncing,
 } from './network-syncing/controller-integration';
 import {
+  batchDeleteUserStorage,
   batchUpsertUserStorage,
   deleteUserStorage,
   deleteUserStorageAllFeatureEntries,
@@ -131,6 +133,7 @@ const metadata: StateMetadata<UserStorageControllerState> = {
 
 type ControllerConfig = {
   accountSyncing?: {
+    maxNumberOfAccountsToAdd?: number;
     /**
      * Callback that fires when account sync adds an account.
      * This is used for analytics.
@@ -323,12 +326,25 @@ export default class UserStorageController extends BaseController<
 
   #accounts = {
     isAccountSyncingInProgress: false,
-    addedAccountsCount: 0,
+    maxNumberOfAccountsToAdd: 0,
+    hasSyncedAtLeastOnce: false,
     canSync: () => {
       try {
         this.#assertProfileSyncingEnabled();
 
-        return this.#env.isAccountSyncingEnabled && this.#auth.isAuthEnabled();
+        if (this.#accounts.isAccountSyncingInProgress) {
+          return false;
+        }
+
+        if (!this.#env.isAccountSyncingEnabled) {
+          return false;
+        }
+
+        if (!this.#auth.isAuthEnabled()) {
+          return false;
+        }
+
+        return true;
       } catch {
         return false;
       }
@@ -338,8 +354,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountAdded',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
-            this.#accounts.addedAccountsCount += 1;
+          if (
+            !this.#accounts.canSync() ||
+            !this.#accounts.hasSyncedAtLeastOnce
+          ) {
             return;
           }
 
@@ -351,7 +369,10 @@ export default class UserStorageController extends BaseController<
         'AccountsController:accountRenamed',
         // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (account) => {
-          if (this.#accounts.isAccountSyncingInProgress) {
+          if (
+            !this.#accounts.canSync() ||
+            !this.#accounts.hasSyncedAtLeastOnce
+          ) {
             return;
           }
           await this.saveInternalAccountToUserStorage(account);
@@ -375,7 +396,9 @@ export default class UserStorageController extends BaseController<
       UserStorageAccount[] | null
     > => {
       const rawAccountsListResponse =
-        await this.performGetStorageAllFeatureEntries('accounts');
+        await this.performGetStorageAllFeatureEntries(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+        );
 
       return (
         rawAccountsListResponse?.map((rawAccount) => JSON.parse(rawAccount)) ??
@@ -390,7 +413,7 @@ export default class UserStorageController extends BaseController<
         mapInternalAccountToUserStorageAccount(internalAccount);
 
       await this.performSetStorage(
-        `accounts.${internalAccount.address}`,
+        `${USER_STORAGE_FEATURE_NAMES.accounts}.${internalAccount.address}`,
         JSON.stringify(mappedAccount),
       );
     },
@@ -406,7 +429,7 @@ export default class UserStorageController extends BaseController<
         internalAccountsList.map(mapInternalAccountToUserStorageAccount);
 
       await this.performBatchSetStorage(
-        'accounts',
+        USER_STORAGE_FEATURE_NAMES.accounts,
         internalAccountsListFormattedForUserStorage.map((account) => [
           account.a,
           JSON.stringify(account),
@@ -707,9 +730,11 @@ export default class UserStorageController extends BaseController<
    * @param values - data to store, in the form of an array of `[entryKey, entryValue]` pairs
    * @returns nothing. NOTE that an error is thrown if fails to store data.
    */
-  public async performBatchSetStorage(
-    path: UserStoragePathWithFeatureOnly,
-    values: [UserStoragePathWithKeyOnly, string][],
+  public async performBatchSetStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: [UserStorageFeatureKeys<FeatureName>, string][],
   ): Promise<void> {
     this.#assertProfileSyncingEnabled();
 
@@ -764,6 +789,33 @@ export default class UserStorageController extends BaseController<
       path,
       bearerToken,
       storageKey,
+    });
+  }
+
+  /**
+   * Allows delete of multiple user data entries for one specific feature. Data deleted must be string formatted.
+   * Developers can extend the entry path through the `schema.ts` file.
+   *
+   * @param path - string in the form of `${feature}` that matches schema
+   * @param values - data to store, in the form of an array of entryKey[]
+   * @returns nothing. NOTE that an error is thrown if fails to store data.
+   */
+  public async performBatchDeleteStorage<
+    FeatureName extends UserStoragePathWithFeatureOnly,
+  >(
+    path: FeatureName,
+    values: UserStorageFeatureKeys<FeatureName>[],
+  ): Promise<void> {
+    this.#assertProfileSyncingEnabled();
+
+    const { bearerToken, storageKey } =
+      await this.#getStorageKeyAndBearerToken();
+
+    await batchDeleteUserStorage(values, {
+      path,
+      bearerToken,
+      storageKey,
+      nativeScryptCrypto: this.#nativeScryptCrypto,
     });
   }
 
@@ -867,7 +919,6 @@ export default class UserStorageController extends BaseController<
 
     try {
       this.#accounts.isAccountSyncingInProgress = true;
-      this.#accounts.addedAccountsCount = 0;
 
       const profileId = await this.#auth.getProfileId();
 
@@ -884,43 +935,60 @@ export default class UserStorageController extends BaseController<
 
       // Compare internal accounts list with user storage accounts list
       // First step: compare lengths
-      let internalAccountsList = await this.#accounts.getInternalAccountsList();
+      const internalAccountsList =
+        await this.#accounts.getInternalAccountsList();
 
       if (!internalAccountsList || !internalAccountsList.length) {
         throw new Error(`Failed to get internal accounts list`);
       }
 
-      const hasMoreInternalAccountsThanUserStorageAccounts =
-        internalAccountsList.length > userStorageAccountsList.length;
+      const hasMoreUserStorageAccountsThanInternalAccounts =
+        userStorageAccountsList.length > internalAccountsList.length;
 
       // We don't want to remove existing accounts for a user
-      // so we only add new accounts if the user has more accounts than the internal accounts list
-      if (!hasMoreInternalAccountsThanUserStorageAccounts) {
+      // so we only add new accounts if the user has more accounts in user storage than internal accounts
+      if (hasMoreUserStorageAccountsThanInternalAccounts) {
         const numberOfAccountsToAdd =
-          userStorageAccountsList.length - internalAccountsList.length;
+          Math.min(
+            userStorageAccountsList.length,
+            this.#accounts.maxNumberOfAccountsToAdd,
+          ) - internalAccountsList.length;
 
         // Create new accounts to match the user storage accounts list
-
         for (let i = 0; i < numberOfAccountsToAdd; i++) {
           await this.messagingSystem.call('KeyringController:addNewAccount');
-
           this.#config?.accountSyncing?.onAccountAdded?.(profileId);
         }
       }
 
       // Second step: compare account names
       // Get the internal accounts list again since new accounts might have been added in the previous step
-      internalAccountsList = await this.#accounts.getInternalAccountsList();
+      const refreshedInternalAccountsList =
+        await this.#accounts.getInternalAccountsList();
 
-      for (const internalAccount of internalAccountsList) {
+      const newlyAddedAccounts = refreshedInternalAccountsList.filter(
+        (account) =>
+          !internalAccountsList.find((a) => a.address === account.address),
+      );
+
+      for (const internalAccount of refreshedInternalAccountsList) {
         const userStorageAccount = userStorageAccountsList.find(
           (account) => account.a === internalAccount.address,
         );
 
+        // If the account is not present in user storage
         if (!userStorageAccount) {
+          // If the account was just added in the previous step, skip saving it, it's likely to be a bogus account
+          if (newlyAddedAccounts.includes(internalAccount)) {
+            continue;
+          }
+          // Otherwise, it means that this internal account was present before the sync, and needs to be saved to the user storage
           internalAccountsToBeSavedToUserStorage.push(internalAccount);
           continue;
         }
+
+        // From this point on, we know that the account is present in
+        // both the internal accounts list and the user storage accounts list
 
         // One or both accounts have default names
         const isInternalAccountNameDefault = isNameDefaultAccountName(
@@ -992,13 +1060,32 @@ export default class UserStorageController extends BaseController<
       }
 
       // Save the internal accounts list to the user storage
-      await this.performBatchSetStorage(
-        'accounts',
-        internalAccountsToBeSavedToUserStorage.map((account) => [
-          account.address,
-          JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
-        ]),
+      if (internalAccountsToBeSavedToUserStorage.length) {
+        await this.performBatchSetStorage(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          internalAccountsToBeSavedToUserStorage.map((account) => [
+            account.address,
+            JSON.stringify(mapInternalAccountToUserStorageAccount(account)),
+          ]),
+        );
+      }
+
+      // In case we have corrupted user storage with accounts that don't exist in the internal accounts list
+      // Delete those accounts from the user storage
+      const userStorageAccountsToBeDeleted = userStorageAccountsList.filter(
+        (account) =>
+          !refreshedInternalAccountsList.find((a) => a.address === account.a),
       );
+
+      if (userStorageAccountsToBeDeleted.length) {
+        await this.performBatchDeleteStorage(
+          USER_STORAGE_FEATURE_NAMES.accounts,
+          userStorageAccountsToBeDeleted.map((account) => account.a),
+        );
+      }
+
+      // We add this here and not in the finally statement because we want to make sure that the accounts are saved before we set this flag
+      this.#accounts.hasSyncedAtLeastOnce = true;
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : JSON.stringify(e);
       throw new Error(

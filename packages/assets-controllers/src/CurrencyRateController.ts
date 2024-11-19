@@ -11,7 +11,7 @@ import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/netw
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { Mutex } from 'async-mutex';
 
-import { fetchExchangeRate as defaultFetchExchangeRate } from './crypto-compare-service';
+import { fetchMultiExchangeRate as defaultFetchMultiExchangeRate } from './crypto-compare-service';
 
 /**
  * @type CurrencyRateState
@@ -77,7 +77,7 @@ const defaultState = {
 
 /** The input to start polling for the {@link CurrencyRateController} */
 type CurrencyRatePollingInput = {
-  nativeCurrency: string;
+  nativeCurrencies: string[];
 };
 
 /**
@@ -91,7 +91,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 > {
   private readonly mutex = new Mutex();
 
-  private readonly fetchExchangeRate;
+  private readonly fetchMultiExchangeRate;
 
   private readonly includeUsdRate;
 
@@ -103,20 +103,20 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.fetchExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
+   * @param options.fetchMultiExchangeRate - Fetches the exchange rate from an external API. This option is primarily meant for use in unit tests.
    */
   constructor({
     includeUsdRate = false,
     interval = 180000,
     messenger,
     state,
-    fetchExchangeRate = defaultFetchExchangeRate,
+    fetchMultiExchangeRate = defaultFetchMultiExchangeRate,
   }: {
     includeUsdRate?: boolean;
     interval?: number;
     messenger: CurrencyRateMessenger;
     state?: Partial<CurrencyRateState>;
-    fetchExchangeRate?: typeof defaultFetchExchangeRate;
+    fetchMultiExchangeRate?: typeof defaultFetchMultiExchangeRate;
   }) {
     super({
       name,
@@ -126,7 +126,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     });
     this.includeUsdRate = includeUsdRate;
     this.setIntervalLength(interval);
-    this.fetchExchangeRate = fetchExchangeRate;
+    this.fetchMultiExchangeRate = fetchMultiExchangeRate;
   }
 
   /**
@@ -148,81 +148,63 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
       releaseLock();
     }
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    nativeCurrencies.forEach(this.updateExchangeRate.bind(this));
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    this.updateExchangeRate(nativeCurrencies);
   }
 
   /**
-   * Updates the exchange rate for the current currency and native currency pair.
+   * Updates the exchange rate for the current currency and native currency pairs.
    *
-   * @param nativeCurrency - The ticker symbol for the chain.
+   * @param nativeCurrencies - The native currency symbols to fetch exchange rates for.
    */
-  async updateExchangeRate(nativeCurrency: string): Promise<void> {
+  async updateExchangeRate(nativeCurrencies: string[]): Promise<void> {
     const releaseLock = await this.mutex.acquire();
-    const { currentCurrency, currencyRates } = this.state;
-
-    let conversionDate: number | null = null;
-    let conversionRate: number | null = null;
-    let usdConversionRate: number | null = null;
-
-    // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
-    const nativeCurrencyForExchangeRate = Object.values(
-      TESTNET_TICKER_SYMBOLS,
-    ).includes(nativeCurrency)
-      ? FALL_BACK_VS_CURRENCY // ETH
-      : nativeCurrency;
-
-    let shouldUpdateState = true;
     try {
-      if (
-        currentCurrency &&
-        nativeCurrency &&
-        // if either currency is an empty string we can skip the comparison
-        // because it will result in an error from the api and ultimately
-        // a null conversionRate either way.
-        currentCurrency !== '' &&
-        nativeCurrency !== ''
-      ) {
-        const fetchExchangeRateResponse = await this.fetchExchangeRate(
-          currentCurrency,
-          nativeCurrencyForExchangeRate,
-          this.includeUsdRate,
-        );
-        conversionRate = fetchExchangeRateResponse.conversionRate;
-        usdConversionRate = fetchExchangeRateResponse.usdConversionRate;
-        conversionDate = Date.now() / 1000;
-      }
+      const { currentCurrency } = this.state;
+
+      // For preloaded testnets (Goerli, Sepolia) we want to fetch exchange rate for real ETH.
+      // Map each native currency to the symbol we want to fetch for it.
+      const testnetSymbols = Object.values(TESTNET_TICKER_SYMBOLS);
+      const nativeCurrenciesToFetch = nativeCurrencies.reduce(
+        (acc, nativeCurrency) => {
+          acc[nativeCurrency] = testnetSymbols.includes(nativeCurrency)
+            ? FALL_BACK_VS_CURRENCY
+            : nativeCurrency;
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+
+      const fetchExchangeRateResponse = await this.fetchMultiExchangeRate(
+        currentCurrency,
+        [...new Set(Object.values(nativeCurrenciesToFetch))],
+        this.includeUsdRate,
+      );
+
+      const rates = Object.entries(nativeCurrenciesToFetch).reduce(
+        (acc, [nativeCurrency, fetchedCurrency]) => {
+          const rate = fetchExchangeRateResponse[fetchedCurrency.toLowerCase()];
+          acc[nativeCurrency] = {
+            conversionDate: rate !== undefined ? Date.now() / 1000 : null,
+            conversionRate: rate?.[currentCurrency.toLowerCase()] ?? null,
+            usdConversionRate: rate?.usd ?? null,
+          };
+          return acc;
+        },
+        {} as CurrencyRateState['currencyRates'],
+      );
+
+      this.update((state) => {
+        state.currencyRates = {
+          ...state.currencyRates,
+          ...rates,
+        };
+      });
     } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          error.message.includes('market does not exist for this coin pair')
-        )
-      ) {
-        // Don't update state on transient / unexpected errors
-        shouldUpdateState = false;
-        throw error;
-      }
+      console.error('Failed to fetch exchange rates.', error);
+      throw error;
     } finally {
-      try {
-        if (shouldUpdateState) {
-          this.update(() => {
-            return {
-              currencyRates: {
-                ...currencyRates,
-                [nativeCurrency]: {
-                  conversionDate,
-                  conversionRate,
-                  usdConversionRate,
-                },
-              },
-              currentCurrency,
-            };
-          });
-        }
-      } finally {
-        releaseLock();
-      }
+      releaseLock();
     }
   }
 
@@ -240,12 +222,12 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * Updates exchange rate for the current currency.
    *
    * @param input - The input for the poll.
-   * @param input.nativeCurrency - The native currency symbol to poll prices for.
+   * @param input.nativeCurrencies - The native currency symbols to poll prices for.
    */
   async _executePoll({
-    nativeCurrency,
+    nativeCurrencies,
   }: CurrencyRatePollingInput): Promise<void> {
-    await this.updateExchangeRate(nativeCurrency);
+    await this.updateExchangeRate(nativeCurrencies);
   }
 }
 

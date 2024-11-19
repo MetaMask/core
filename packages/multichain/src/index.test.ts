@@ -1,9 +1,31 @@
-import greeter from '.';
+import * as allExports from '.';
 
-describe('Test', () => {
-  it('greets', () => {
-    const name = 'Huey';
-    const result = greeter(name);
-    expect(result).toBe('Hello, Huey!');
+describe('@metamask/multichain', () => {
+  it('has expected JavaScript exports', () => {
+    expect(Object.keys(allExports)).toMatchInlineSnapshot(`
+      Array [
+        "getEthAccounts",
+        "setEthAccounts",
+        "getPermittedEthChainIds",
+        "addPermittedEthChainId",
+        "setPermittedEthChainIds",
+        "validateAndNormalizeScopes",
+        "KnownWalletRpcMethods",
+        "KnownRpcMethods",
+        "KnownWalletNamespaceRpcMethods",
+        "KnownNotifications",
+        "KnownWalletScopeString",
+        "parseScopeString",
+        "normalizeScope",
+        "mergeScopeObject",
+        "mergeScopes",
+        "normalizeAndMergeScopes",
+        "Caip25CaveatType",
+        "createCaip25Caveat",
+        "Caip25EndowmentPermissionName",
+        "caip25EndowmentBuilder",
+        "Caip25CaveatMutators",
+      ]
+    `);
   });
 });

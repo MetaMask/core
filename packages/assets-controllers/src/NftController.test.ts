@@ -4944,4 +4944,45 @@ describe('NftController', () => {
       });
     });
   });
+
+  describe('resetState', () => {
+    it('resets the state to default state', () => {
+      const initialState: NftControllerState = {
+        allNftContracts: {
+          [OWNER_ACCOUNT.address]: { [ChainId.mainnet]: [] },
+        },
+        allNfts: {
+          [OWNER_ACCOUNT.address]: { [ChainId.mainnet]: [] },
+        },
+        ignoredNfts: [
+          {
+            address: ERC1155_NFT_ADDRESS,
+            name: null,
+            description: null,
+            image: null,
+            tokenId: ERC1155_NFT_ID,
+            standard: ERC1155,
+            favorite: false,
+            isCurrentlyOwned: true,
+            tokenURI: 'ipfs://*',
+          },
+        ],
+      };
+      const { nftController } = setupController({
+        options: {
+          state: initialState,
+        },
+      });
+
+      expect(nftController.state).toStrictEqual(initialState);
+
+      nftController.resetState();
+
+      expect(nftController.state).toStrictEqual({
+        allNftContracts: {},
+        allNfts: {},
+        ignoredNfts: [],
+      });
+    });
+  });
 });

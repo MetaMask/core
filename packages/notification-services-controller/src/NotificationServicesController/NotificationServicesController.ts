@@ -924,11 +924,17 @@ export default class NotificationServicesController extends BaseController<
       const UUIDs = Utils.getAllUUIDs(userStorage);
       await this.#pushNotifications.disablePushNotifications(UUIDs);
 
+      const snapNotifications = this.state.metamaskNotificationsList.filter(
+        (notification) => notification.type === TRIGGER_TYPES.SNAP,
+      );
+
       // Clear Notification States (toggles and list)
       this.update((state) => {
         state.isNotificationServicesEnabled = false;
         state.isFeatureAnnouncementsEnabled = false;
-        state.metamaskNotificationsList = [];
+        // reassigning the notifications list with just snaps
+        // since the disable shouldn't affect snaps notifications
+        state.metamaskNotificationsList = snapNotifications;
       });
     } catch (e) {
       log.error('Unable to disable notifications', e);
