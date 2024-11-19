@@ -15,6 +15,13 @@ import type { Patch } from 'immer';
 
 export const controllerName = 'ComposableController';
 
+// TODO: Replace with type guard once superclass for messageable non-controllers has been defined.
+export const STATELESS_NONCONTROLLER_NAMES = [
+  'AssetsContractController',
+  'NftDetectionController',
+  'TokenDetectionController',
+] as const;
+
 /**
  * A universal supertype for modules with a 'string'-type `name` property.
  * This type is intended to encompass controller and non-controller input that can be passed into the {@link ComposableController} `controllers` constructor option.
@@ -160,24 +167,32 @@ export class ComposableController<
     super({
       name: controllerName,
       metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
-        (metadata, controller) =>
-          Object.assign(
+        (metadata, controller) => {
+          if (
+            !(isBaseController(controller) || isBaseControllerV1(controller)) ||
+            STATELESS_NONCONTROLLER_NAMES.find(
+              (name) => name === controller.name,
+            )
+          ) {
+            return metadata;
+          }
+          return Object.assign(
             metadata,
-            // Overriding for better readability
-            // eslint-disable-next-line no-nested-ternary
             isBaseController(controller)
               ? { [controller.name]: controller.metadata }
-              : isBaseControllerV1(controller)
-              ? { [controller.name]: { persist: true, anonymous: true } }
-              : {},
-          ),
+              : { [controller.name]: { persist: true, anonymous: true } },
+          );
+        },
         {} as never,
       ),
       state: controllers.reduce<ComposableControllerState>(
         (state, controller) =>
           Object.assign(
             state,
-            isBaseController(controller) || isBaseControllerV1(controller)
+            (isBaseController(controller) || isBaseControllerV1(controller)) &&
+              !STATELESS_NONCONTROLLER_NAMES.find(
+                (name) => name === controller.name,
+              )
               ? { [controller.name]: controller.state }
               : {},
           ),

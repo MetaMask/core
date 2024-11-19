@@ -4,4 +4,7 @@ export type {
   ComposableControllerEvents,
   ComposableControllerMessenger,
 } from './ComposableController';
-export { ComposableController } from './ComposableController';
+export {
+  ComposableController,
+  STATELESS_NONCONTROLLER_NAMES,
+} from './ComposableController';
