@@ -5,7 +5,6 @@ import type {
   StateMetadata,
   ControllerStateChangeEvent,
   LegacyControllerStateConstraint,
-  ControllerInstance,
 } from '@metamask/base-controller';
 import {
   BaseController,
