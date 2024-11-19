@@ -188,8 +188,6 @@ export class IncomingTransactionHelper {
     const lastFetchedTimestamps = this.#getLastFetchedBlockNumbers();
     const previousValue = lastFetchedTimestamps[lastFetchedKey];
 
-    console.log('#ATT PREV', previousValue);
-
     if (previousValue >= lastFetchedTimestamp) {
       return;
     }

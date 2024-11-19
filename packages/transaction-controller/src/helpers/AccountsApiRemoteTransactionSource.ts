@@ -77,7 +77,7 @@ export class AccountsApiRemoteTransactionSource
       })
       .map((tx) => this.#normalizeTransaction(address, tx));
 
-    if (limit) {
+    if (limit !== undefined) {
       transactions = transactions.slice(0, limit);
     }
 
