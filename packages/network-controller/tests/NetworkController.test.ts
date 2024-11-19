@@ -3844,6 +3844,54 @@ describe('NetworkController', () => {
           });
         });
       });
+
+      it('is callable from the controller messenger', async () => {
+        uuidV4Mock.mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA');
+
+        await withController(({ messenger }) => {
+          const networkAddedEventListener = jest.fn();
+          messenger.subscribe(
+            'NetworkController:networkAdded',
+            networkAddedEventListener,
+          );
+
+          const newNetworkConfiguration = messenger.call(
+            'NetworkController:addNetwork',
+            {
+              blockExplorerUrls: ['https://block.explorer'],
+              chainId: '0x1337',
+              defaultBlockExplorerUrlIndex: 0,
+              defaultRpcEndpointIndex: 0,
+              name: 'Some Network',
+              nativeCurrency: 'TOKEN',
+              rpcEndpoints: [
+                {
+                  name: 'Test Network',
+                  type: RpcEndpointType.Custom,
+                  url: 'https://test.endpoint',
+                },
+              ],
+            },
+          );
+
+          expect(newNetworkConfiguration).toStrictEqual({
+            blockExplorerUrls: ['https://block.explorer'],
+            chainId: '0x1337',
+            defaultBlockExplorerUrlIndex: 0,
+            defaultRpcEndpointIndex: 0,
+            name: 'Some Network',
+            nativeCurrency: 'TOKEN',
+            rpcEndpoints: [
+              {
+                name: 'Test Network',
+                networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                type: RpcEndpointType.Custom,
+                url: 'https://test.endpoint',
+              },
+            ],
+          });
+        });
+      });
     });
   });
 
@@ -11404,6 +11452,33 @@ describe('NetworkController', () => {
             expect(networkClientRegistry).not.toHaveProperty(
               'BBBB-BBBB-BBBB-BBBB',
             );
+          },
+        );
+      });
+
+      it('is callable from the controller messenger', async () => {
+        await withController(
+          {
+            state: {
+              selectedNetworkClientId: InfuraNetworkType.goerli,
+              networkConfigurationsByChainId: {
+                '0x1337': buildCustomNetworkConfiguration(),
+                [ChainId.goerli]: buildInfuraNetworkConfiguration(
+                  InfuraNetworkType.goerli,
+                ),
+              },
+            },
+          },
+          ({ controller, messenger }) => {
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).toHaveProperty('0x1337');
+
+            messenger.call('NetworkController:removeNetwork', '0x1337');
+
+            expect(
+              controller.state.networkConfigurationsByChainId,
+            ).not.toHaveProperty('0x1337');
           },
         );
       });
