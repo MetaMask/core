@@ -75,6 +75,12 @@ export async function performMainNetworkSync(
   props: PerformMainNetworkSyncProps,
 ) {
   const { messenger, getStorageConfig } = props;
+
+  // Edge-Case, we do not want to re-run the main-sync if it already is in progress
+  if (isMainNetworkSyncInProgress) {
+    return;
+  }
+
   isMainNetworkSyncInProgress = true;
   try {
     const opts = await getStorageConfig();
@@ -82,67 +88,104 @@ export async function performMainNetworkSync(
       return;
     }
 
+    const networkControllerState = messenger.call('NetworkController:getState');
     const localNetworks = Object.values(
-      messenger.call('NetworkController:getState')
-        .networkConfigurationsByChainId ?? {},
+      networkControllerState.networkConfigurationsByChainId ?? {},
     );
 
     const remoteNetworks = await getAllRemoteNetworks(opts);
-
-    const networksToUpdate = findNetworksToUpdate({
+    const networkChanges = findNetworksToUpdate({
       localNetworks,
       remoteNetworks,
     });
 
+    log.debug('performMainNetworkSync() - Network Syncing Started', {
+      localNetworks,
+      remoteNetworks,
+      networkChanges,
+    });
+
     // Update Remote
     if (
-      networksToUpdate?.remoteNetworksToUpdate &&
-      networksToUpdate.remoteNetworksToUpdate.length > 0
+      networkChanges?.remoteNetworksToUpdate &&
+      networkChanges.remoteNetworksToUpdate.length > 0
     ) {
-      await batchUpdateNetworks(networksToUpdate?.remoteNetworksToUpdate, opts);
+      await batchUpdateNetworks(networkChanges?.remoteNetworksToUpdate, opts);
     }
 
     // Add missing local networks
     if (
-      networksToUpdate?.missingLocalNetworks &&
-      networksToUpdate.missingLocalNetworks.length > 0
+      networkChanges?.missingLocalNetworks &&
+      networkChanges.missingLocalNetworks.length > 0
     ) {
-      networksToUpdate.missingLocalNetworks.forEach((n) => {
+      const errors: unknown[] = [];
+      networkChanges.missingLocalNetworks.forEach((n) => {
         try {
           messenger.call('NetworkController:addNetwork', n);
           props.onNetworkAdded?.(n.chainId);
-        } catch {
+        } catch (e) {
+          errors.push(e);
           // Silently fail, we can try this again on next main sync
         }
       });
+      if (errors.length > 0) {
+        console.error(
+          'performMainNetworkSync() - NetworkController:addNetwork failures',
+          errors,
+        );
+      }
     }
 
     // Update local networks
     if (
-      networksToUpdate?.localNetworksToUpdate &&
-      networksToUpdate.localNetworksToUpdate.length > 0
+      networkChanges?.localNetworksToUpdate &&
+      networkChanges.localNetworksToUpdate.length > 0
     ) {
-      for (const n of networksToUpdate.localNetworksToUpdate) {
-        await messenger.call('NetworkController:updateNetwork', n.chainId, n);
-        props.onNetworkUpdated?.(n.chainId);
+      const errors: unknown[] = [];
+      for (const n of networkChanges.localNetworksToUpdate) {
+        try {
+          await messenger.call(
+            'NetworkController:dangerouslySetNetworkConfiguration',
+            n,
+          );
+          props.onNetworkUpdated?.(n.chainId);
+        } catch (e) {
+          errors.push(e);
+          // Silently fail, we can try this again on next main sync
+        }
+      }
+      if (errors.length > 0) {
+        console.error(
+          'performMainNetworkSync() - NetworkController:dangerouslySetNetworkConfiguration failed',
+          errors,
+        );
       }
     }
 
     // Remove local networks
     if (
-      networksToUpdate?.localNetworksToRemove &&
-      networksToUpdate.localNetworksToRemove.length > 0
+      networkChanges?.localNetworksToRemove &&
+      networkChanges.localNetworksToRemove.length > 0
     ) {
-      networksToUpdate.localNetworksToRemove.forEach((n) => {
+      const errors: unknown[] = [];
+      networkChanges.localNetworksToRemove.forEach((n) => {
         try {
           messenger.call('NetworkController:removeNetwork', n.chainId);
           props.onNetworkRemoved?.(n.chainId);
-        } catch {
+        } catch (e) {
+          errors.push(e);
           // Silently fail, we can try this again on next main sync
         }
       });
+      if (errors.length > 0) {
+        console.error(
+          'performMainNetworkSync() - NetworkController:removeNetwork failed',
+          errors,
+        );
+      }
     }
-  } catch {
+  } catch (e) {
+    console.error('performMainNetworkSync() failed', e);
     // Silently fail sync
   } finally {
     isMainNetworkSyncInProgress = false;
