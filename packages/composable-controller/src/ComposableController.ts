@@ -5,6 +5,7 @@ import type {
   StateMetadata,
   ControllerStateChangeEvent,
   LegacyControllerStateConstraint,
+  ControllerInstance,
 } from '@metamask/base-controller';
 import {
   BaseController,
@@ -21,6 +22,20 @@ export const STATELESS_NONCONTROLLER_NAMES = [
   'NftDetectionController',
   'TokenDetectionController',
 ] as const;
+
+/**
+ * A type guard for the {@link ControllerInstance} type that specifically filters out non-controllers that have empty state.
+ * @param controller - The controller instance to check.
+ * @returns A type predicate that evaluates to true if the input is a {@link ControllerInstance} type.
+ */
+export function isController(
+  controller: unknown,
+): controller is ControllerInstance {
+  return (
+    (isBaseController(controller) || isBaseControllerV1(controller)) &&
+    !STATELESS_NONCONTROLLER_NAMES.find((name) => name === controller.name)
+  );
+}
 
 /**
  * A universal supertype for modules with a 'string'-type `name` property.
@@ -168,12 +183,7 @@ export class ComposableController<
       name: controllerName,
       metadata: controllers.reduce<StateMetadata<ComposableControllerState>>(
         (metadata, controller) => {
-          if (
-            !(isBaseController(controller) || isBaseControllerV1(controller)) ||
-            STATELESS_NONCONTROLLER_NAMES.find(
-              (name) => name === controller.name,
-            )
-          ) {
+          if (!isController(controller)) {
             return metadata;
           }
           return Object.assign(
@@ -189,10 +199,7 @@ export class ComposableController<
         (state, controller) =>
           Object.assign(
             state,
-            (isBaseController(controller) || isBaseControllerV1(controller)) &&
-              !STATELESS_NONCONTROLLER_NAMES.find(
-                (name) => name === controller.name,
-              )
+            isController(controller)
               ? { [controller.name]: controller.state }
               : {},
           ),
@@ -212,7 +219,7 @@ export class ComposableController<
    * @param controller - Controller instance to update
    */
   #updateChildController(controller: ChildControllers): void {
-    if (!isBaseController(controller) && !isBaseControllerV1(controller)) {
+    if (!isController(controller)) {
       return;
     }
     const { name } = controller;
