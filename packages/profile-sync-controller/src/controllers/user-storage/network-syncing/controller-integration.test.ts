@@ -1,13 +1,10 @@
-import type { NotNamespacedBy } from '@metamask/base-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
 import log from 'loglevel';
 
-import type {
-  AllowedActions,
-  AllowedEvents,
-  UserStorageControllerMessenger,
-} from '..';
 import { MOCK_STORAGE_KEY } from '../__fixtures__';
+import {
+  createCustomUserStorageMessenger,
+  mockUserStorageMessenger,
+} from '../__fixtures__/mockMessenger';
 import { waitFor } from '../__fixtures__/test-utils';
 import type { UserStorageBaseOptions } from '../services';
 import {
@@ -22,22 +19,6 @@ import * as ControllerIntegrationModule from './controller-integration';
 import * as ServicesModule from './services';
 import * as SyncAllModule from './sync-all';
 import * as SyncMutationsModule from './sync-mutations';
-
-type GetActionHandler<Type extends AllowedActions['type']> = Extract<
-  AllowedActions,
-  { type: Type }
->['handler'];
-
-// Creates the correct typed call params for mocks
-type CallParams = {
-  [K in AllowedActions['type']]: [K, ...Parameters<GetActionHandler<K>>];
-}[AllowedActions['type']];
-
-const typedMockCallFn = <
-  Type extends AllowedActions['type'],
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  Func extends (...args: any[]) => any = GetActionHandler<Type>,
->() => jest.fn<ReturnType<Func>, Parameters<Func>>();
 
 jest.mock('loglevel', () => {
   const actual = jest.requireActual('loglevel');
@@ -58,12 +39,6 @@ const storageOpts: UserStorageBaseOptions = {
   bearerToken: 'MOCK_TOKEN',
   storageKey: MOCK_STORAGE_KEY,
 };
-
-type ExternalEvents = NotNamespacedBy<
-  'UserStorageController',
-  AllowedEvents['type']
->;
-const getEvents = (): ExternalEvents[] => ['NetworkController:networkRemoved'];
 
 describe('network-syncing/controller-integration - startNetworkSyncing()', () => {
   it(`should successfully sync when NetworkController:networkRemoved is emitted`, async () => {
@@ -114,14 +89,10 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
   });
 
   it(`should emit a warning if controller messenger is missing the NetworkController:networkRemoved event`, async () => {
-    const { baseMessenger, getStorageConfig } = arrangeMocks();
-
-    const eventsWithoutNetworkAdded = getEvents().filter(
-      (e) => e !== 'NetworkController:networkRemoved',
-    );
-    const messenger = mockUserStorageMessenger(
-      baseMessenger,
-      eventsWithoutNetworkAdded,
+    // arrange without setting event permissions
+    const getStorageConfig = jest.fn().mockResolvedValue(storageOpts);
+    const { messenger } = mockUserStorageMessenger(
+      createCustomUserStorageMessenger({ overrideEvents: [] }),
     );
 
     await waitFor(() => {
@@ -131,9 +102,8 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
   });
 
   it('should not remove networks if main sync is in progress', async () => {
-    const { baseMessenger, getStorageConfig, deleteNetworkMock } =
+    const { baseMessenger, messenger, getStorageConfig, deleteNetworkMock } =
       arrangeMocks();
-    const messenger = mockUserStorageMessenger(baseMessenger);
 
     // TODO - replace with jest.replaceProperty once we upgrade jest.
     Object.defineProperty(
@@ -168,8 +138,7 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
    * @returns the mocks and parameters used when testing `startNetworkSyncing()`
    */
   function arrangeMocks() {
-    const baseMessenger = mockBaseMessenger();
-    const messenger = mockUserStorageMessenger(baseMessenger);
+    const messengerMocks = mockUserStorageMessenger();
     const getStorageConfigMock = jest.fn().mockResolvedValue(storageOpts);
     const deleteNetworkMock = jest
       .spyOn(SyncMutationsModule, 'deleteNetwork')
@@ -177,9 +146,9 @@ describe('network-syncing/controller-integration - startNetworkSyncing()', () =>
 
     return {
       getStorageConfig: getStorageConfigMock,
-      baseMessenger,
-      messenger,
       deleteNetworkMock,
+      messenger: messengerMocks.messenger,
+      baseMessenger: messengerMocks.baseMessenger,
     };
   }
 });
@@ -202,7 +171,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
+    expect(
+      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+    ).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -219,7 +190,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
+    expect(
+      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+    ).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -236,7 +209,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).toHaveBeenCalled();
-    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
+    expect(
+      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+    ).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -253,7 +228,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(mockCalls.mockNetworkControllerUpdateNetwork).toHaveBeenCalled();
+    expect(
+      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+    ).toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).not.toHaveBeenCalled();
   });
 
@@ -270,7 +247,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerAddNetwork).not.toHaveBeenCalled();
-    expect(mockCalls.mockNetworkControllerUpdateNetwork).not.toHaveBeenCalled();
+    expect(
+      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+    ).not.toHaveBeenCalled();
     expect(mockCalls.mockNetworkControllerRemoveNetwork).toHaveBeenCalled();
   });
 
@@ -299,9 +278,9 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
     await performMainNetworkSync({ messenger, getStorageConfig });
     expect(mockServices.mockBatchUpdateNetworks).toHaveBeenCalledTimes(1);
     expect(mockCalls.mockNetworkControllerAddNetwork).toHaveBeenCalledTimes(2);
-    expect(mockCalls.mockNetworkControllerUpdateNetwork).toHaveBeenCalledTimes(
-      2,
-    );
+    expect(
+      mockCalls.mockNetworkControllerDangerouslySetNetworkConfiguration,
+    ).toHaveBeenCalledTimes(2);
     expect(mockCalls.mockNetworkControllerRemoveNetwork).toHaveBeenCalledTimes(
       2,
     );
@@ -312,19 +291,25 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
    * @returns mocks for tests
    */
   function arrangeMocks() {
-    const baseMessenger = mockBaseMessenger();
-    const messenger = mockUserStorageMessenger(baseMessenger);
+    const messengerMocks = mockUserStorageMessenger();
     const getStorageConfigMock = jest
       .fn<Promise<UserStorageBaseOptions | null>, []>()
       .mockResolvedValue(storageOpts);
 
-    const mockCalls = mockMessengerCalls(messenger);
-
     return {
-      baseMessenger,
-      messenger,
+      baseMessenger: messengerMocks.baseMessenger,
+      messenger: messengerMocks.messenger,
       getStorageConfig: getStorageConfigMock,
-      mockCalls,
+      mockCalls: {
+        mockNetworkControllerGetState:
+          messengerMocks.mockNetworkControllerGetState,
+        mockNetworkControllerAddNetwork:
+          messengerMocks.mockNetworkControllerAddNetwork,
+        mockNetworkControllerRemoveNetwork:
+          messengerMocks.mockNetworkControllerRemoveNetwork,
+        mockNetworkControllerDangerouslySetNetworkConfiguration:
+          messengerMocks.mockNetworkControllerDangerouslySetNetworkConfiguration,
+      },
       mockServices: {
         mockGetAllRemoveNetworks: jest
           .spyOn(ServicesModule, 'getAllRemoteNetworks')
@@ -340,114 +325,4 @@ describe('network-syncing/controller-integration - performMainSync()', () => {
       },
     };
   }
-
-  /**
-   * Jest Mock Utility - create a mock User Storage Messenger
-   * @param messenger - The messenger to mock
-   * @returns messenger call mocks
-   */
-  function mockMessengerCalls(messenger: UserStorageControllerMessenger) {
-    const mockNetworkControllerGetState =
-      typedMockCallFn<'NetworkController:getState'>().mockReturnValue({
-        selectedNetworkClientId: '',
-        networksMetadata: {},
-        networkConfigurationsByChainId: {},
-      });
-
-    const mockNetworkControllerAddNetwork =
-      typedMockCallFn<'NetworkController:addNetwork'>();
-
-    const mockNetworkControllerDangerouslySetNetworkConfiguration =
-      typedMockCallFn<'NetworkController:dangerouslySetNetworkConfiguration'>();
-
-    const mockNetworkControllerRemoveNetwork =
-      typedMockCallFn<'NetworkController:removeNetwork'>();
-
-    jest.spyOn(messenger, 'call').mockImplementation((...args) => {
-      const typedArgs = args as unknown as CallParams;
-      const [actionType] = typedArgs;
-
-      if (actionType === 'NetworkController:getState') {
-        return mockNetworkControllerGetState();
-      }
-
-      if (actionType === 'NetworkController:addNetwork') {
-        const [, ...params] = typedArgs;
-        return mockNetworkControllerAddNetwork(...params);
-      }
-
-      if (
-        actionType === 'NetworkController:dangerouslySetNetworkConfiguration'
-      ) {
-        const [, ...params] = typedArgs;
-        return mockNetworkControllerDangerouslySetNetworkConfiguration(
-          ...params,
-        );
-      }
-
-      if (actionType === 'NetworkController:removeNetwork') {
-        const [, ...params] = typedArgs;
-        return mockNetworkControllerRemoveNetwork(...params);
-      }
-
-      throw new Error(
-        `MOCK_FAIL - unsupported messenger call: ${actionType as string}`,
-      );
-    });
-
-    return {
-      mockNetworkControllerGetState,
-      mockNetworkControllerAddNetwork,
-      mockNetworkControllerUpdateNetwork:
-        mockNetworkControllerDangerouslySetNetworkConfiguration,
-      mockNetworkControllerRemoveNetwork,
-    };
-  }
 });
-
-/**
- * Test Utility - creates a base messenger so we can invoke/publish events
- * @returns Base messenger for publishing events
- */
-function mockBaseMessenger() {
-  const baseMessenger = new ControllerMessenger<
-    AllowedActions,
-    AllowedEvents
-  >();
-
-  return baseMessenger;
-}
-
-/**
- * Test Utility - creates a UserStorageMessenger to simulate the messenger used inside the UserStorageController
- * @param baseMessenger - base messenger to restrict
- * @param eventsOverride - provide optional override events
- * @returns UserStorageMessenger
- */
-function mockUserStorageMessenger(
-  baseMessenger: ReturnType<typeof mockBaseMessenger>,
-  eventsOverride?: ExternalEvents[],
-) {
-  const allowedEvents = eventsOverride ?? getEvents();
-
-  const messenger = baseMessenger.getRestricted({
-    name: 'UserStorageController',
-    allowedActions: [
-      'KeyringController:getState',
-      'SnapController:handleRequest',
-      'AuthenticationController:getBearerToken',
-      'AuthenticationController:getSessionProfile',
-      'AuthenticationController:isSignedIn',
-      'AuthenticationController:performSignIn',
-      'AuthenticationController:performSignOut',
-      'NotificationServicesController:disableNotificationServices',
-      'NotificationServicesController:selectIsNotificationServicesEnabled',
-      'AccountsController:listAccounts',
-      'AccountsController:updateAccountMetadata',
-      'KeyringController:addNewAccount',
-    ],
-    allowedEvents,
-  });
-
-  return messenger;
-}
