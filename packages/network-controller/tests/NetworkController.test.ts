@@ -11550,6 +11550,205 @@ describe('NetworkController', () => {
     });
   });
 
+  describe('dangerouslySetNetworkConfiguration', () => {
+    const TEST_CHAIN_ID = '0x1337';
+    const ORIGINAL_NETWORK_CLIENT_ID = '1111';
+
+    const arrangeTestUtils = (props: { newNetworkClientIds: string[] }) => {
+      mockCreateNetworkClient().mockReturnValue(buildFakeClient());
+
+      const originalNetwork = buildCustomNetworkConfiguration({
+        chainId: TEST_CHAIN_ID,
+        rpcEndpoints: [
+          buildCustomRpcEndpoint({
+            networkClientId: ORIGINAL_NETWORK_CLIENT_ID,
+          }),
+        ],
+      });
+
+      const overrideNetwork = buildCustomNetworkConfiguration({
+        chainId: TEST_CHAIN_ID,
+        rpcEndpoints: props.newNetworkClientIds.map((id) =>
+          buildCustomRpcEndpoint({ networkClientId: id }),
+        ),
+      });
+
+      const controllerState =
+        buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
+          networkConfigurationsByChainId: {
+            [originalNetwork.chainId]: originalNetwork,
+          },
+          networksMetadata: {
+            [ORIGINAL_NETWORK_CLIENT_ID]: {
+              EIPS: {
+                '1559': true,
+              },
+              status: NetworkStatus.Available,
+            },
+          },
+        });
+
+      return { originalNetwork, overrideNetwork, controllerState };
+    };
+
+    const actTest = async (
+      props: Pick<
+        ReturnType<typeof arrangeTestUtils>,
+        'controllerState' | 'overrideNetwork'
+      >,
+    ) => {
+      const result = await withController(
+        { state: props.controllerState },
+        async ({ controller }) => {
+          await controller.dangerouslySetNetworkConfiguration(
+            props.overrideNetwork,
+          );
+          return {
+            state: controller.state,
+            controller,
+          };
+        },
+      );
+
+      return result;
+    };
+
+    const arrangeActTest = async (props: { newNetworkClientIds: string[] }) => {
+      const arrange = arrangeTestUtils(props);
+
+      // Act
+      const result = await actTest({
+        controllerState: arrange.controllerState,
+        overrideNetwork: arrange.overrideNetwork,
+      });
+      return { ...arrange, result };
+    };
+
+    const assertStateHasBeenUpdated = (props: {
+      state: NetworkState;
+      newNetworkConfiguration: NetworkConfiguration;
+      networkClientIdsRemoved: string[];
+    }) => {
+      const { state, newNetworkConfiguration, networkClientIdsRemoved } = props;
+
+      // Assert - new network config has been set
+      expect(state.networkConfigurationsByChainId[TEST_CHAIN_ID]).toStrictEqual(
+        newNetworkConfiguration,
+      );
+
+      // Assert - networks metadata removed some endpoints (from original network)
+      networkClientIdsRemoved.forEach((id) => {
+        expect(state.networksMetadata[id]).toBeUndefined();
+      });
+
+      // Assert - networks metadata has been set
+      newNetworkConfiguration.rpcEndpoints.forEach((r) => {
+        expect(state.networksMetadata[r.networkClientId]).toBeDefined();
+      });
+    };
+
+    const assertNetworkRegistryHasBeenUpdated = (props: {
+      controller: NetworkController;
+      newNetworkConfiguration: NetworkConfiguration;
+      networkClientIdsRemoved: string[];
+    }) => {
+      const { controller, newNetworkConfiguration, networkClientIdsRemoved } =
+        props;
+      const registry = controller.getNetworkClientRegistry();
+
+      // Assert - networks that were removed (from original network that was overwritten)
+      networkClientIdsRemoved.forEach((id) => {
+        expect(registry[id]).toBeUndefined();
+      });
+
+      // Assert - new network config RPCs has been updated in the network registry
+      newNetworkConfiguration.rpcEndpoints.forEach((r) => {
+        expect(registry[r.networkClientId]).toBeDefined();
+      });
+    };
+
+    const assertNetworkConfigurationsByIdCacheHasBeenUpdated = (props: {
+      controller: NetworkController;
+      newNetworkConfiguration: NetworkConfiguration;
+    }) => {
+      const { controller, newNetworkConfiguration } = props;
+      expect(
+        controller.getNetworkConfigurationByChainId(TEST_CHAIN_ID),
+      ).toStrictEqual(newNetworkConfiguration);
+    };
+
+    it('overrides a set network configuration', async () => {
+      const { result, overrideNetwork } = await arrangeActTest({
+        newNetworkClientIds: ['2222', '3333'],
+      });
+
+      assertStateHasBeenUpdated({
+        state: result.state,
+        newNetworkConfiguration: overrideNetwork,
+        networkClientIdsRemoved: [ORIGINAL_NETWORK_CLIENT_ID],
+      });
+      assertNetworkRegistryHasBeenUpdated({
+        controller: result.controller,
+        newNetworkConfiguration: overrideNetwork,
+        networkClientIdsRemoved: [ORIGINAL_NETWORK_CLIENT_ID],
+      });
+      assertNetworkConfigurationsByIdCacheHasBeenUpdated({
+        controller: result.controller,
+        newNetworkConfiguration: overrideNetwork,
+      });
+
+      // Selected network has changed (since original was removed)
+      // We will select next available RPC for the given chain
+      expect(result.state.selectedNetworkClientId).toBe('2222');
+    });
+
+    it('overrides network config, but keeps same selected network', async () => {
+      const { result, overrideNetwork } = await arrangeActTest({
+        newNetworkClientIds: [ORIGINAL_NETWORK_CLIENT_ID, '2222'],
+      });
+
+      assertStateHasBeenUpdated({
+        state: result.state,
+        newNetworkConfiguration: overrideNetwork,
+        // no networks were removed, as the new network config contains the original network client id
+        networkClientIdsRemoved: [],
+      });
+      assertNetworkRegistryHasBeenUpdated({
+        controller: result.controller,
+        newNetworkConfiguration: overrideNetwork,
+        // no networks were removed, as the new network config contains the original network client id
+        networkClientIdsRemoved: [],
+      });
+      assertNetworkConfigurationsByIdCacheHasBeenUpdated({
+        controller: result.controller,
+        newNetworkConfiguration: overrideNetwork,
+      });
+
+      // selected RPC has not changed, as it was not removed
+      expect(result.state.selectedNetworkClientId).toBe(
+        ORIGINAL_NETWORK_CLIENT_ID,
+      );
+    });
+
+    it('does nothing if there is no network to override', async () => {
+      const { controllerState, overrideNetwork } = arrangeTestUtils({
+        newNetworkClientIds: ['2222'],
+      });
+
+      // shim/mock the controller state to not contain a network we are overriding
+      controllerState.networkConfigurationsByChainId['0xDiffChain'] =
+        controllerState.networkConfigurationsByChainId[TEST_CHAIN_ID];
+      delete controllerState.networkConfigurationsByChainId[TEST_CHAIN_ID];
+      controllerState.networkConfigurationsByChainId['0xDiffChain'].chainId =
+        '0xDiffChain';
+
+      const result = await actTest({ controllerState, overrideNetwork });
+
+      // No changes should have occurred
+      expect(result.state).toStrictEqual(controllerState);
+    });
+  });
+
   describe('rollbackToPreviousProvider', () => {
     describe('when called not following any network switches', () => {
       for (const infuraNetworkType of Object.values(InfuraNetworkType)) {
