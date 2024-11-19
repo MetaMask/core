@@ -51,7 +51,6 @@ describe('isBaseControllerV1', () => {
 
   it('should return false if passed a non-controller', () => {
     const notController = new JsonRpcEngine();
-    // @ts-expect-error Intentionally passing invalid input to test runtime behavior
     expect(isBaseControllerV1(notController)).toBe(false);
   });
 });

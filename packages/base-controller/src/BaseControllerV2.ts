@@ -1,4 +1,8 @@
-import type { Json, PublicInterface } from '@metamask/utils';
+import {
+  isNullOrUndefined,
+  type Json,
+  type PublicInterface,
+} from '@metamask/utils';
 import { enablePatches, produceWithPatches, applyPatches, freeze } from 'immer';
 import type { Draft, Patch } from 'immer';
 
@@ -21,9 +25,11 @@ enablePatches();
  * @returns True if the controller is an instance of `BaseController`
  */
 export function isBaseController(
-  controller: ControllerInstance,
+  controller: unknown,
 ): controller is BaseControllerInstance {
   return (
+    typeof controller === 'object' &&
+    !isNullOrUndefined(controller) &&
     'name' in controller &&
     typeof controller.name === 'string' &&
     'state' in controller &&

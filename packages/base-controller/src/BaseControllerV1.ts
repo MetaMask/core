@@ -1,6 +1,4 @@
-import type { PublicInterface } from '@metamask/utils';
-
-import type { ControllerInstance } from './BaseControllerV2';
+import { isNullOrUndefined, type PublicInterface } from '@metamask/utils';
 
 /**
  * Determines if the given controller is an instance of `BaseControllerV1`
@@ -9,9 +7,11 @@ import type { ControllerInstance } from './BaseControllerV2';
  * @returns True if the controller is an instance of `BaseControllerV1`
  */
 export function isBaseControllerV1(
-  controller: ControllerInstance,
+  controller: unknown,
 ): controller is BaseControllerV1Instance {
   return (
+    typeof controller === 'object' &&
+    !isNullOrUndefined(controller) &&
     'name' in controller &&
     typeof controller.name === 'string' &&
     'config' in controller &&
